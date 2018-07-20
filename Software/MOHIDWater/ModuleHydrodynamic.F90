@@ -1422,7 +1422,7 @@ Module ModuleHydrodynamic
                                            !AtmospherePeriod: This period will substitute the SmoothInitial period                                                    
                                            AtmospherePeriod         = null_real, &
                                            TwoWayWaitPeriod         = null_real, &
-                                           TimeDecay                = null_real   
+                                           TimeDecay                = null_real 
                                            !Calibration coefficent of the inverted barometer solution                                      
         real                            :: InvertBaroCoef      
                                            !Reference atmospheric pressure to be used in the inverted barometer solution
@@ -1432,7 +1432,8 @@ Module ModuleHydrodynamic
                                            Evolution                = null_int, & 
                                            VelTangentialBoundary    = null_int, & 
                                            VelNormalBoundary        = null_int, & 
-                                           BaroclinicMethod         = null_int    
+                                           BaroclinicMethod         = null_int, &
+                                           NumIgnOBCells            = null_int
 
         logical                         :: Baroclinic           = .false., & 
                                            BoundaryBaroclinic   = .false., &                                          
@@ -2284,13 +2285,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         if (Me%ComputeOptions%TwoWay) then
             !Gives TwoWay module parametrizations from user Keywords
-            call ConstructTwoWayHydrodynamic(TwoWayID       = Me%InstantID,                          &
-                                             WaitPeriod     = Me%ComputeOptions%TwoWayWaitPeriod,    &
-                                             TimeDecay      = Me%ComputeOptions%TimeDecay,           &
-                                             IntMethod      = Me%ComputeOptions%TwoWayInterpolMethod,&
-                                             VelDT          = Me%Velocity%DT,                        &
-                                             DT             = Me%WaterLevel%DT,                      &
-                                             STAT           = STAT_CALL)
+            call ConstructTwoWayHydrodynamic(TwoWayID         = Me%InstantID,                           &
+                                             WaitPeriod       = Me%ComputeOptions%TwoWayWaitPeriod,    &
+                                             TimeDecay        = Me%ComputeOptions%TwoWayTimeDecay,     &
+                                             IntMethod        = Me%ComputeOptions%TwoWay%IntMethod,     &
+                                             VelDT            = Me%Velocity%DT,                         &
+                                             DT               = Me%WaterLevel%DT,                       &
+                                             IgnoreOBNumCells = Me%ComputeOptions%TwoWayNumIgnOBCells, &
+                                             STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                       &
             stop 'Subroutine Construct_Hydrodynamic - ModuleHydrodynamic. ERR04.'          
         endif
@@ -7785,7 +7787,7 @@ cd21:   if (Baroclinic) then
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1210')
         
         !João Sobrinho
-        call GetData(Me%ComputeOptions%TwoWay,                                         &
+        call GetData(Me%ComputeOptions%TwoWay,                                      &
                     Me%ObjEnterData, iflag,                                            &
                     Keyword    = 'TWO_WAY',                                            &
                 !By default the model is oneway for downscalling
@@ -7811,13 +7813,13 @@ cd21:   if (Baroclinic) then
                             STAT         = STAT_CALL)            
 
                 if (STAT_CALL /= SUCCESS_)                                                      &
-                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1230')
+                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221')
                 
                 if (Me%ComputeOptions%Continuous) then
                     Me%ComputeOptions%TwoWayWaitPeriod = 0.
                 endif
                 
-                call GetData(Me%ComputeOptions%TimeDecay,                                      &
+                call GetData(Me%ComputeOptions%TwoWayTimeDecay,                                      &
                             Me%ObjEnterData, iflag,                                            &
                             Keyword      = 'TWO_WAY_TIME_DECAY',                               &
                             Default      = 86400.,                                             &
@@ -7826,11 +7828,29 @@ cd21:   if (Baroclinic) then
                             STAT         = STAT_CALL)            
 
                 if (STAT_CALL /= SUCCESS_)                                                      &
-                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1240')     
+                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1222')
+                
+                call GetData(Me%ComputeOptions%TwoWayNumIgnOBCells,                                  &
+                            Me%ObjEnterData, iflag,                                            &
+                            Keyword      = 'TWO_WAY_IGNORE_CELLS',                             &
+                            Default      = 10,                                                 &
+                            SearchType   = FromFile,                                           &
+                            ClientModule ='ModuleHydrodynamic',                                &
+                            STAT         = STAT_CALL)            
+
+                if (STAT_CALL /= SUCCESS_)                                                      &
+                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1223')
+                if (Me%ComputeOptions%TwoWayNumIgnOBCells > Me%WorkSize%IUB - Me%WorkSize%ILB + 1) then
+                    stop 'Construct_Numerical_Options - Hydrodynamic - ERR1224'
+                endif            
+
+                if (Me%ComputeOptions%TwoWayNumIgnOBCells > Me%WorkSize%JUB - Me%WorkSize%JLB + 1) then
+                    stop 'Construct_Numerical_Options - Hydrodynamic - ERR1225'
+                endif 
                 
             else
                 write(*,*) 'Keyword TWO_WAY must ONLY be defined in son domains'            
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1250')                
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1226')                
             endif
         
         endif
@@ -15243,7 +15263,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             
             if (.not. associated(Me%Next))then
             
-                    if (Me%ComputeOptions%TwoWay) then
+                    if (Me%ComputeOptions%TwoWay%On) then
                         
                         call ComputeTwoWay(AuxHydrodynamicID, HydrodynamicID)
                 
@@ -15684,7 +15704,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
                 call TestSubModelOptionsConsistence (ObjHydrodynamicFather%ComputeOptions%Continuous)
                 call GetComputeTimeStep             (ObjHydrodynamicFather%ObjTime, DT_Father)
                 
-                if (Me%ComputeOptions%TwoWay)then
+                if (Me%ComputeOptions%TwoWay%On)then
                     call Allocate2WayAuxiliars_Hydrodynamic(HydrodynamicFatherID, HydrodynamicID)
                 endif
                 
@@ -15806,7 +15826,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            TwoWayOn = Me%ComputeOptions%TwoWay
+            TwoWayOn = Me%ComputeOptions%TwoWay%On
 
             STAT_ = SUCCESS_
         else 

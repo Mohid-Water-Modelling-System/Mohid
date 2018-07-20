@@ -17310,7 +17310,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
     
         if (.not. Dcd1>0 .and. Dcd2>0) then
     
-            call SetError(FATAL_, INTERNAL_, 'LocateCell - HorizontalGrid - ERR01')
+            call SetError(FATAL_, INTERNAL_, 'LocateCell_2 - HorizontalGrid - ERR01')
     
            
         endif

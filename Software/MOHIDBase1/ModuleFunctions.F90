@@ -5606,15 +5606,16 @@ d5:     do k = klast + 1,KUB
     !>feeds back info from son to father using an volume weighted average method. routine for water level
     !>@param[in] FatherProperty, SonProperty, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
     !>           SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, DecayTime, DT,  &
-    !>           SonVolInFather, AuxMatrix, FatherCorners, VolumeSon, VolumeFather    
+    !>           SonVolInFather, AuxMatrix, FatherCorners, VolumeSon, VolumeFather, IgnoreOBCells
     subroutine FeedBack_AvrgUVWL(FatherProperty, SonProperty, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink, &
-                                 JLink, DecayTime, DT, SonVolInFather, AuxMatrix, VolumeSon, VolumeFather)
+                                 JLink, DecayTime, DT, SonVolInFather, AuxMatrix, VolumeSon, VolumeFather,         &
+                                 IgnoreOBCells)
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)      :: SizeSon, SizeFather    
         real,    dimension(:,:  ), pointer, intent(IN)      :: SonProperty, VolumeFather, VolumeSon
         integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
         real,    dimension(:,:  ), pointer, intent(INOUT)   :: FatherProperty
-        integer, dimension(:,:  ), pointer, intent(IN)      :: ILink, JLink
+        integer, dimension(:,:  ), pointer, intent(IN)      :: ILink, JLink, IgnoreOBCells
         real,                               intent(IN)      :: DecayTime, DT
         real,    dimension(:,:),   pointer                  :: SonVolInFather, AuxMatrix
         !Local variables --------------------------------------------------------------------------------
@@ -5629,8 +5630,9 @@ d5:     do k = klast + 1,KUB
     
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
-            AuxMatrix(ILink(i, j)+1, JLink(i, j)+1) = (AuxMatrix(ILink(i, j)+1, JLink(i, j)+1) +                     &
-                                                       SonProperty(i, j) * VolumeSon(i, j)) * Open3DSon(i, j, KUBSon)
+            AuxMatrix(ILink(i, j)+1, JLink(i, j)+1) = (AuxMatrix(ILink(i, j)+1, JLink(i, j)+1) + SonProperty(i, j) *  &
+                                                       VolumeSon(i, j)) * Open3DSon(i, j, KUBSon) * IgnoreOBCells(i, j)
+                                                       
         enddo        
         enddo
     
@@ -5650,15 +5652,15 @@ d5:     do k = klast + 1,KUB
     !>feeds back info from son to father using an volume weighted average method. routine for U/V types
     !>@param[in] FatherProperty, SonProperty, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
     !>           SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, DecayTime, DT,  &
-    !>           SonVolInFather, AuxMatrix, FatherCorners, VolumeSon, VolumeFather                                    
+    !>           SonVolInFather, AuxMatrix, FatherCorners, VolumeSon, VolumeFather, IgnoreOBCells                                  
     subroutine FeedBack_AvrgUV(FatherProperty, SonProperty, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
                                SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, DecayTime, DT,                  &
-                               SonVolInFather, AuxMatrix, VolumeSon, VolumeFather) 
+                               SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells) 
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
         real,    dimension(:,:,:), pointer, intent(IN)    :: SonProperty, VolumeSon, VolumeFather
         real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherProperty
-        integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink
+        integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink, IgnoreOBCells
         integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon
         integer, dimension(:,:,:), pointer, intent(IN)    :: FatherComputeFaces3D, SonComputeFaces3D
         real,    intent (IN)                              :: DecayTime, DT
@@ -5681,9 +5683,10 @@ d5:     do k = klast + 1,KUB
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
                 !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-            AuxMatrix(ILink(i, j)+1, JLink(i, j)+1, k) = AuxMatrix(ILink(i, j)+1, JLink(i, j)+1, k) + &
-                                                         SonProperty(i, j, k) * VolumeSon(i, j, k) *  &
-                                                         Open3DSon(i, j, k) * SonComputeFaces3D(i, j, k)
+            AuxMatrix(ILink(i, j)+1, JLink(i, j)+1, k) = AuxMatrix(ILink(i, j)+1, JLink(i, j)+1, k) +      &
+                                                         SonProperty(i, j, k) * VolumeSon(i, j, k) *       &
+                                                         Open3DSon(i, j, k) * SonComputeFaces3D(i, j, k) * &
+                                                         IgnoreOBCells(i, j)
         enddo        
         enddo
         enddo
@@ -5708,14 +5711,14 @@ d5:     do k = klast + 1,KUB
     !>@Brief
     !>feeds back info from son to father using an volume weighted average method. routine for Z types
     !>@param[in] FatherProperty, SonProperty, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink, JLink, DecayTime, &
-    !>           DT, SonVolInFather, AuxMatrix, VolumeSon, VolumeFather           
+    !>           DT, SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells          
     subroutine FeedBack_Avrg(FatherProperty, SonProperty, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink, &
-                             JLink, DecayTime, DT, SonVolInFather, AuxMatrix, VolumeSon, VolumeFather)
+                             JLink, DecayTime, DT, SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells)
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
         real,    dimension(:,:,:), pointer, intent(IN)    :: SonProperty, VolumeSon, VolumeFather
         real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherProperty
-        integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink
+        integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink, IgnoreOBCells
         integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon
         real,    intent (IN)                              :: DecayTime, DT
         real, dimension(:,:,:), pointer                   :: AuxMatrix, SonVolInFather
@@ -5739,7 +5742,7 @@ d5:     do k = klast + 1,KUB
                 !For each Parent cell, add all son cells located inside (sonProp * sonVol)
             AuxMatrix(ILink(i, j)+1, JLink(i, j)+1, k) = AuxMatrix(ILink(i, j)+1, JLink(i, j)+1, k) + &
                                                          SonProperty(i, j, k) * VolumeSon(i, j, k) *  &
-                                                         Open3DSon(i, j, k)
+                                                         Open3DSon(i, j, k) * IgnoreOBCells(i, j)
         enddo        
         enddo
         enddo
