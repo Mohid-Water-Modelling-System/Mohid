@@ -80,6 +80,7 @@ var searchData=
   ['computereservoirvolume',['computereservoirvolume',['../namespacemodulereservoirs.html#a5482b1f1fc7530ca5302b5dc3352566f',1,'modulereservoirs']]],
   ['computeshapecoefficients',['computeshapecoefficients',['../namespacemodulevegetation.html#a977606da8238f3bcf3eeedafa42a6582',1,'modulevegetation']]],
   ['computesoilfieldcapacity',['computesoilfieldcapacity',['../namespacemoduleporousmedia.html#a5bc710495ce11815ae382078999351b3',1,'moduleporousmedia']]],
+  ['computestreetgutterpotentialflow',['computestreetgutterpotentialflow',['../namespacemodulerunoff.html#a275dc22b830688ac27f2e1ab0cec626c',1,'modulerunoff']]],
   ['computetemperaturestress',['computetemperaturestress',['../namespacemodulevegetation.html#a0a72b8d43553476da7abbddd263b7c85',1,'modulevegetation']]],
   ['computethetaatfaces',['computethetaatfaces',['../namespacemoduleporousmediaproperties.html#a534ab2ca9e28f31cfce1876b53c263c8',1,'moduleporousmediaproperties']]],
   ['computethetaatfacesbyavg',['computethetaatfacesbyavg',['../namespacemoduleporousmediaproperties.html#ac3225dfdb6a7475838f45e43263a61a9',1,'moduleporousmediaproperties']]],

@@ -1,0 +1,588 @@
+\hypertarget{namespacemoduleera40format}{}\section{moduleera40format Module Reference}
+\label{namespacemoduleera40format}\index{moduleera40format@{moduleera40format}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmoduleera40format_1_1t__attribute}{t\+\_\+attribute}}
+\item 
+type \mbox{\hyperlink{structmoduleera40format_1_1t__date}{t\+\_\+date}}
+\item 
+type \mbox{\hyperlink{structmoduleera40format_1_1t__dimension}{t\+\_\+dimension}}
+\item 
+type \mbox{\hyperlink{structmoduleera40format_1_1t__era40format}{t\+\_\+era40format}}
+\item 
+type \mbox{\hyperlink{structmoduleera40format_1_1t__field}{t\+\_\+field}}
+\item 
+type \mbox{\hyperlink{structmoduleera40format_1_1t__id}{t\+\_\+id}}
+\item 
+type \mbox{\hyperlink{structmoduleera40format_1_1t__value}{t\+\_\+value}}
+\item 
+type \mbox{\hyperlink{structmoduleera40format_1_1t__variable}{t\+\_\+variable}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleera40format_a0ebf94dc06f2741d57181016580896b9}{convertera40format}} (Enter\+Data\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a26224b66b1a9302c71025953c7303ed6}{readoptions}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleera40format_a4a4d9db2a785bd8a90d6860faf58c6bf}{converttomohidunits2d}} (Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a407d38960a0ddf8b9d1645d26d35d49b}{converttomohidunits3d}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a84aefcd4351fc116d22a21fdfce2ec4f}{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_aa8632d63af3434480b59776e3b58b294}{killera40format}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_ab03a5122cb83fd0b3153870ed6bf1cdc}{openreadandconvertfile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_aeaa93e0eaf981081d8b6a42b94714211}{openasciifile}}
+\item 
+logical function, private \mbox{\hyperlink{namespacemoduleera40format_a5d0edb2c39da4714b1bffb8a6c97b1a2}{isgridvariable}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a462785fbcd7874f4f3ab321366b79ec9}{opennetcdffile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_ad4271c51cd4bfc71c5ed5743a60e7fef}{constructgridandmap}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_adaf25cab272ca9c6e2db6b1f641c0136}{handleattributtes}} (Type\+Of\+Attribute, n\+Attributes, Write\+To\+File)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_accbbdcac1635a00be7ca33013f811a29}{writedatatype}} (Data\+Type)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a2dffd2c3e28995426ed11ff1f4ca7ad9}{handledimensions}} (Variable, Write\+Dims)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a9389939d144e12060ff692086e9af89e}{handlefloats}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a54957082dfc56590cf35c0fb8138161f}{handledoubles}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a90dfe4450bbbd59c764d529d05f92d76}{handleintegers}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a0a0c22e410451c81e0c573ad2174504f}{handleshorts}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a496e3a66acda20102bdeaa457f8faf96}{handlechars}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a4218771d6a94493f1954c06107f7ec1e}{readgridmapoptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a866d19867c0e3bcef28981a8907ea516}{constructtime}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a73e47fa652795fc4885fa7d6a5c34503}{constructbathymetry}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a45bd99707035a442354f99cd2597f1e5}{constructmap}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_aeddab9fd7b3d953ed10b899ae10ef9bb}{writedimensions}} (Index, Variable, Size, Write\+Dims)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_ad847a1e5d762ac9c9f77372614efda16}{constructgrid}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_ad2e0367ac675a7a629eb4baf66bcf7c6}{getvariable}} (Variable, Name)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleera40format_afe5dcd73c50804212a7b39e48bf7d428}{constructinstanttime}} (t, Aux\+Time)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_a8abaf8c6f9802ba0e7e994aa019dbfd9}{dotgrid}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_a81534a4bbb190281637fa42199fb3c9e}{crossgrid}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_a42e5afd967f2051f48175fd48cbcaeab}{cartesian}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_ad0e35072a96590a2ebaa186af57b70e2}{spherical}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_ad3784d422598dc6566016fdb9451fd5d}{curvilinear}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_a0193f3c82de3eb7dc7ce15df95940bb5}{spherical\+\_\+curvilinear}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_a79506ec89444ea59431e76f12f1daf20}{sigma}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_ae4ff4503bcd3d89b98e392ca67b2ef13}{z\+\_\+coord}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_aa7e1f8ccfef24db2e6226011a47b2b88}{generic}} = 3
+\item 
+type(\mbox{\hyperlink{structmoduleera40format_1_1t__era40format}{t\+\_\+era40format}}), pointer \mbox{\hyperlink{namespacemoduleera40format_a991250a617c86efee2eeaeecf12cee05}{me}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemoduleera40format_a73e47fa652795fc4885fa7d6a5c34503}\label{namespacemoduleera40format_a73e47fa652795fc4885fa7d6a5c34503}} 
+\index{moduleera40format@{moduleera40format}!constructbathymetry@{constructbathymetry}}
+\index{constructbathymetry@{constructbathymetry}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{constructbathymetry()}{constructbathymetry()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::constructbathymetry (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_a73e47fa652795fc4885fa7d6a5c34503_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_a73e47fa652795fc4885fa7d6a5c34503_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_ad847a1e5d762ac9c9f77372614efda16}\label{namespacemoduleera40format_ad847a1e5d762ac9c9f77372614efda16}} 
+\index{moduleera40format@{moduleera40format}!constructgrid@{constructgrid}}
+\index{constructgrid@{constructgrid}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{constructgrid()}{constructgrid()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::constructgrid (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_ad847a1e5d762ac9c9f77372614efda16_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_ad847a1e5d762ac9c9f77372614efda16_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_ad4271c51cd4bfc71c5ed5743a60e7fef}\label{namespacemoduleera40format_ad4271c51cd4bfc71c5ed5743a60e7fef}} 
+\index{moduleera40format@{moduleera40format}!constructgridandmap@{constructgridandmap}}
+\index{constructgridandmap@{constructgridandmap}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{constructgridandmap()}{constructgridandmap()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::constructgridandmap (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_ad4271c51cd4bfc71c5ed5743a60e7fef_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_ad4271c51cd4bfc71c5ed5743a60e7fef_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_afe5dcd73c50804212a7b39e48bf7d428}\label{namespacemoduleera40format_afe5dcd73c50804212a7b39e48bf7d428}} 
+\index{moduleera40format@{moduleera40format}!constructinstanttime@{constructinstanttime}}
+\index{constructinstanttime@{constructinstanttime}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{constructinstanttime()}{constructinstanttime()}}
+{\footnotesize\ttfamily subroutine moduleera40format\+::constructinstanttime (\begin{DoxyParamCaption}\item[{integer}]{t,  }\item[{real, dimension(6), target}]{Aux\+Time }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_afe5dcd73c50804212a7b39e48bf7d428_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_a45bd99707035a442354f99cd2597f1e5}\label{namespacemoduleera40format_a45bd99707035a442354f99cd2597f1e5}} 
+\index{moduleera40format@{moduleera40format}!constructmap@{constructmap}}
+\index{constructmap@{constructmap}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{constructmap()}{constructmap()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::constructmap (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_a45bd99707035a442354f99cd2597f1e5_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_a866d19867c0e3bcef28981a8907ea516}\label{namespacemoduleera40format_a866d19867c0e3bcef28981a8907ea516}} 
+\index{moduleera40format@{moduleera40format}!constructtime@{constructtime}}
+\index{constructtime@{constructtime}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{constructtime()}{constructtime()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::constructtime (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_a866d19867c0e3bcef28981a8907ea516_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_a866d19867c0e3bcef28981a8907ea516_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_a0ebf94dc06f2741d57181016580896b9}\label{namespacemoduleera40format_a0ebf94dc06f2741d57181016580896b9}} 
+\index{moduleera40format@{moduleera40format}!convertera40format@{convertera40format}}
+\index{convertera40format@{convertera40format}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{convertera40format()}{convertera40format()}}
+{\footnotesize\ttfamily subroutine, public moduleera40format\+::convertera40format (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Enter\+Data\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemoduleera40format_a0ebf94dc06f2741d57181016580896b9_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemoduleera40format_a0ebf94dc06f2741d57181016580896b9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_a4a4d9db2a785bd8a90d6860faf58c6bf}\label{namespacemoduleera40format_a4a4d9db2a785bd8a90d6860faf58c6bf}} 
+\index{moduleera40format@{moduleera40format}!converttomohidunits2d@{converttomohidunits2d}}
+\index{converttomohidunits2d@{converttomohidunits2d}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{converttomohidunits2d()}{converttomohidunits2d()}}
+{\footnotesize\ttfamily subroutine moduleera40format\+::converttomohidunits2d (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleera40format_1_1t__field}{t\+\_\+field}}), pointer}]{Field }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleera40format_a407d38960a0ddf8b9d1645d26d35d49b}\label{namespacemoduleera40format_a407d38960a0ddf8b9d1645d26d35d49b}} 
+\index{moduleera40format@{moduleera40format}!converttomohidunits3d@{converttomohidunits3d}}
+\index{converttomohidunits3d@{converttomohidunits3d}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{converttomohidunits3d()}{converttomohidunits3d()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::converttomohidunits3d (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleera40format_1_1t__variable}{t\+\_\+variable}}), pointer}]{Variable }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_a407d38960a0ddf8b9d1645d26d35d49b_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_ad2e0367ac675a7a629eb4baf66bcf7c6}\label{namespacemoduleera40format_ad2e0367ac675a7a629eb4baf66bcf7c6}} 
+\index{moduleera40format@{moduleera40format}!getvariable@{getvariable}}
+\index{getvariable@{getvariable}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{getvariable()}{getvariable()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::getvariable (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleera40format_1_1t__variable}{t\+\_\+variable}}), pointer}]{Variable,  }\item[{character(len=$\ast$)}]{Name }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_ad2e0367ac675a7a629eb4baf66bcf7c6_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_ad2e0367ac675a7a629eb4baf66bcf7c6_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_adaf25cab272ca9c6e2db6b1f641c0136}\label{namespacemoduleera40format_adaf25cab272ca9c6e2db6b1f641c0136}} 
+\index{moduleera40format@{moduleera40format}!handleattributtes@{handleattributtes}}
+\index{handleattributtes@{handleattributtes}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{handleattributtes()}{handleattributtes()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::handleattributtes (\begin{DoxyParamCaption}\item[{integer}]{Type\+Of\+Attribute,  }\item[{integer}]{n\+Attributes,  }\item[{logical, optional}]{Write\+To\+File }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=326pt]{namespacemoduleera40format_adaf25cab272ca9c6e2db6b1f641c0136_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_adaf25cab272ca9c6e2db6b1f641c0136_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_a496e3a66acda20102bdeaa457f8faf96}\label{namespacemoduleera40format_a496e3a66acda20102bdeaa457f8faf96}} 
+\index{moduleera40format@{moduleera40format}!handlechars@{handlechars}}
+\index{handlechars@{handlechars}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{handlechars()}{handlechars()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::handlechars (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleera40format_1_1t__variable}{t\+\_\+variable}}), pointer}]{Variable }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_a496e3a66acda20102bdeaa457f8faf96_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_a2dffd2c3e28995426ed11ff1f4ca7ad9}\label{namespacemoduleera40format_a2dffd2c3e28995426ed11ff1f4ca7ad9}} 
+\index{moduleera40format@{moduleera40format}!handledimensions@{handledimensions}}
+\index{handledimensions@{handledimensions}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{handledimensions()}{handledimensions()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::handledimensions (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleera40format_1_1t__variable}{t\+\_\+variable}}), pointer}]{Variable,  }\item[{logical, optional}]{Write\+Dims }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=326pt]{namespacemoduleera40format_a2dffd2c3e28995426ed11ff1f4ca7ad9_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_a2dffd2c3e28995426ed11ff1f4ca7ad9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_a54957082dfc56590cf35c0fb8138161f}\label{namespacemoduleera40format_a54957082dfc56590cf35c0fb8138161f}} 
+\index{moduleera40format@{moduleera40format}!handledoubles@{handledoubles}}
+\index{handledoubles@{handledoubles}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{handledoubles()}{handledoubles()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::handledoubles (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleera40format_1_1t__variable}{t\+\_\+variable}}), pointer}]{Variable }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=334pt]{namespacemoduleera40format_a54957082dfc56590cf35c0fb8138161f_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_a54957082dfc56590cf35c0fb8138161f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_a9389939d144e12060ff692086e9af89e}\label{namespacemoduleera40format_a9389939d144e12060ff692086e9af89e}} 
+\index{moduleera40format@{moduleera40format}!handlefloats@{handlefloats}}
+\index{handlefloats@{handlefloats}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{handlefloats()}{handlefloats()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::handlefloats (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleera40format_1_1t__variable}{t\+\_\+variable}}), pointer}]{Variable }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=334pt]{namespacemoduleera40format_a9389939d144e12060ff692086e9af89e_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_a9389939d144e12060ff692086e9af89e_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_a90dfe4450bbbd59c764d529d05f92d76}\label{namespacemoduleera40format_a90dfe4450bbbd59c764d529d05f92d76}} 
+\index{moduleera40format@{moduleera40format}!handleintegers@{handleintegers}}
+\index{handleintegers@{handleintegers}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{handleintegers()}{handleintegers()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::handleintegers (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleera40format_1_1t__variable}{t\+\_\+variable}}), pointer}]{Variable }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_a90dfe4450bbbd59c764d529d05f92d76_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_a0a0c22e410451c81e0c573ad2174504f}\label{namespacemoduleera40format_a0a0c22e410451c81e0c573ad2174504f}} 
+\index{moduleera40format@{moduleera40format}!handleshorts@{handleshorts}}
+\index{handleshorts@{handleshorts}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{handleshorts()}{handleshorts()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::handleshorts (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleera40format_1_1t__variable}{t\+\_\+variable}}), pointer}]{Variable }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=334pt]{namespacemoduleera40format_a0a0c22e410451c81e0c573ad2174504f_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_a0a0c22e410451c81e0c573ad2174504f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_a5d0edb2c39da4714b1bffb8a6c97b1a2}\label{namespacemoduleera40format_a5d0edb2c39da4714b1bffb8a6c97b1a2}} 
+\index{moduleera40format@{moduleera40format}!isgridvariable@{isgridvariable}}
+\index{isgridvariable@{isgridvariable}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{isgridvariable()}{isgridvariable()}}
+{\footnotesize\ttfamily logical function, private moduleera40format\+::isgridvariable (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleera40format_1_1t__variable}{t\+\_\+variable}}), pointer}]{Variable }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_a5d0edb2c39da4714b1bffb8a6c97b1a2_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_aa8632d63af3434480b59776e3b58b294}\label{namespacemoduleera40format_aa8632d63af3434480b59776e3b58b294}} 
+\index{moduleera40format@{moduleera40format}!killera40format@{killera40format}}
+\index{killera40format@{killera40format}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{killera40format()}{killera40format()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::killera40format (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_aa8632d63af3434480b59776e3b58b294_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_a84aefcd4351fc116d22a21fdfce2ec4f}\label{namespacemoduleera40format_a84aefcd4351fc116d22a21fdfce2ec4f}} 
+\index{moduleera40format@{moduleera40format}!open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\index{open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{open\+\_\+hdf5\+\_\+output\+\_\+file()}{open\_hdf5\_output\_file()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::open\+\_\+hdf5\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_a84aefcd4351fc116d22a21fdfce2ec4f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_aeaa93e0eaf981081d8b6a42b94714211}\label{namespacemoduleera40format_aeaa93e0eaf981081d8b6a42b94714211}} 
+\index{moduleera40format@{moduleera40format}!openasciifile@{openasciifile}}
+\index{openasciifile@{openasciifile}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{openasciifile()}{openasciifile()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::openasciifile (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_aeaa93e0eaf981081d8b6a42b94714211_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_a462785fbcd7874f4f3ab321366b79ec9}\label{namespacemoduleera40format_a462785fbcd7874f4f3ab321366b79ec9}} 
+\index{moduleera40format@{moduleera40format}!opennetcdffile@{opennetcdffile}}
+\index{opennetcdffile@{opennetcdffile}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{opennetcdffile()}{opennetcdffile()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::opennetcdffile (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_a462785fbcd7874f4f3ab321366b79ec9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_ab03a5122cb83fd0b3153870ed6bf1cdc}\label{namespacemoduleera40format_ab03a5122cb83fd0b3153870ed6bf1cdc}} 
+\index{moduleera40format@{moduleera40format}!openreadandconvertfile@{openreadandconvertfile}}
+\index{openreadandconvertfile@{openreadandconvertfile}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{openreadandconvertfile()}{openreadandconvertfile()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::openreadandconvertfile (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_ab03a5122cb83fd0b3153870ed6bf1cdc_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_ab03a5122cb83fd0b3153870ed6bf1cdc_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_a4218771d6a94493f1954c06107f7ec1e}\label{namespacemoduleera40format_a4218771d6a94493f1954c06107f7ec1e}} 
+\index{moduleera40format@{moduleera40format}!readgridmapoptions@{readgridmapoptions}}
+\index{readgridmapoptions@{readgridmapoptions}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{readgridmapoptions()}{readgridmapoptions()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::readgridmapoptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_a4218771d6a94493f1954c06107f7ec1e_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_a26224b66b1a9302c71025953c7303ed6}\label{namespacemoduleera40format_a26224b66b1a9302c71025953c7303ed6}} 
+\index{moduleera40format@{moduleera40format}!readoptions@{readoptions}}
+\index{readoptions@{readoptions}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{readoptions()}{readoptions()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::readoptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleera40format_accbbdcac1635a00be7ca33013f811a29}\label{namespacemoduleera40format_accbbdcac1635a00be7ca33013f811a29}} 
+\index{moduleera40format@{moduleera40format}!writedatatype@{writedatatype}}
+\index{writedatatype@{writedatatype}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{writedatatype()}{writedatatype()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::writedatatype (\begin{DoxyParamCaption}\item[{integer}]{Data\+Type }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_accbbdcac1635a00be7ca33013f811a29_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleera40format_aeddab9fd7b3d953ed10b899ae10ef9bb}\label{namespacemoduleera40format_aeddab9fd7b3d953ed10b899ae10ef9bb}} 
+\index{moduleera40format@{moduleera40format}!writedimensions@{writedimensions}}
+\index{writedimensions@{writedimensions}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{writedimensions()}{writedimensions()}}
+{\footnotesize\ttfamily subroutine, private moduleera40format\+::writedimensions (\begin{DoxyParamCaption}\item[{integer}]{Index,  }\item[{type(\mbox{\hyperlink{structmoduleera40format_1_1t__variable}{t\+\_\+variable}}), pointer}]{Variable,  }\item[{integer}]{Size,  }\item[{logical}]{Write\+Dims }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleera40format_aeddab9fd7b3d953ed10b899ae10ef9bb_icgraph}
+\end{center}
+\end{figure}
+
+
+\subsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemoduleera40format_a42e5afd967f2051f48175fd48cbcaeab}\label{namespacemoduleera40format_a42e5afd967f2051f48175fd48cbcaeab}} 
+\index{moduleera40format@{moduleera40format}!cartesian@{cartesian}}
+\index{cartesian@{cartesian}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{cartesian}{cartesian}}
+{\footnotesize\ttfamily integer, parameter moduleera40format\+::cartesian = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleera40format_a81534a4bbb190281637fa42199fb3c9e}\label{namespacemoduleera40format_a81534a4bbb190281637fa42199fb3c9e}} 
+\index{moduleera40format@{moduleera40format}!crossgrid@{crossgrid}}
+\index{crossgrid@{crossgrid}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{crossgrid}{crossgrid}}
+{\footnotesize\ttfamily integer, parameter moduleera40format\+::crossgrid = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleera40format_ad3784d422598dc6566016fdb9451fd5d}\label{namespacemoduleera40format_ad3784d422598dc6566016fdb9451fd5d}} 
+\index{moduleera40format@{moduleera40format}!curvilinear@{curvilinear}}
+\index{curvilinear@{curvilinear}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{curvilinear}{curvilinear}}
+{\footnotesize\ttfamily integer, parameter moduleera40format\+::curvilinear = 3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleera40format_a8abaf8c6f9802ba0e7e994aa019dbfd9}\label{namespacemoduleera40format_a8abaf8c6f9802ba0e7e994aa019dbfd9}} 
+\index{moduleera40format@{moduleera40format}!dotgrid@{dotgrid}}
+\index{dotgrid@{dotgrid}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{dotgrid}{dotgrid}}
+{\footnotesize\ttfamily integer, parameter moduleera40format\+::dotgrid = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleera40format_aa7e1f8ccfef24db2e6226011a47b2b88}\label{namespacemoduleera40format_aa7e1f8ccfef24db2e6226011a47b2b88}} 
+\index{moduleera40format@{moduleera40format}!generic@{generic}}
+\index{generic@{generic}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{generic}{generic}}
+{\footnotesize\ttfamily integer, parameter moduleera40format\+::generic = 3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleera40format_a991250a617c86efee2eeaeecf12cee05}\label{namespacemoduleera40format_a991250a617c86efee2eeaeecf12cee05}} 
+\index{moduleera40format@{moduleera40format}!me@{me}}
+\index{me@{me}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleera40format_1_1t__era40format}{t\+\_\+era40format}}), pointer moduleera40format\+::me\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleera40format_a79506ec89444ea59431e76f12f1daf20}\label{namespacemoduleera40format_a79506ec89444ea59431e76f12f1daf20}} 
+\index{moduleera40format@{moduleera40format}!sigma@{sigma}}
+\index{sigma@{sigma}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{sigma}{sigma}}
+{\footnotesize\ttfamily integer, parameter moduleera40format\+::sigma = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleera40format_ad0e35072a96590a2ebaa186af57b70e2}\label{namespacemoduleera40format_ad0e35072a96590a2ebaa186af57b70e2}} 
+\index{moduleera40format@{moduleera40format}!spherical@{spherical}}
+\index{spherical@{spherical}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{spherical}{spherical}}
+{\footnotesize\ttfamily integer, parameter moduleera40format\+::spherical = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleera40format_a0193f3c82de3eb7dc7ce15df95940bb5}\label{namespacemoduleera40format_a0193f3c82de3eb7dc7ce15df95940bb5}} 
+\index{moduleera40format@{moduleera40format}!spherical\+\_\+curvilinear@{spherical\+\_\+curvilinear}}
+\index{spherical\+\_\+curvilinear@{spherical\+\_\+curvilinear}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{spherical\+\_\+curvilinear}{spherical\_curvilinear}}
+{\footnotesize\ttfamily integer, parameter moduleera40format\+::spherical\+\_\+curvilinear = 4\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleera40format_ae4ff4503bcd3d89b98e392ca67b2ef13}\label{namespacemoduleera40format_ae4ff4503bcd3d89b98e392ca67b2ef13}} 
+\index{moduleera40format@{moduleera40format}!z\+\_\+coord@{z\+\_\+coord}}
+\index{z\+\_\+coord@{z\+\_\+coord}!moduleera40format@{moduleera40format}}
+\subsubsection{\texorpdfstring{z\+\_\+coord}{z\_coord}}
+{\footnotesize\ttfamily integer, parameter moduleera40format\+::z\+\_\+coord = 2\hspace{0.3cm}{\ttfamily [private]}}
+

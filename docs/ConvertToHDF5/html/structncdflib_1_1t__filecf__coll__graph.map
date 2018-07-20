@@ -1,0 +1,4 @@
+<map id="ncdflib::t_filecf" name="ncdflib::t_filecf">
+<area shape="rect" id="node2" href="$structncdflib_1_1t__projectioncf.html" title="{ncdflib::t_projectioncf\n|&#45; ptype\l&#45; name\l&#45; gmname\l&#45; truelat\l&#45; truelon\l&#45; ctrlat\l&#45; ctrlon\l&#45; sclfactor\l|}" alt="" coords="5,20,149,200"/>
+<area shape="rect" id="node3" href="$structncdflib_1_1t__axiscf.html" title="{ncdflib::t_axiscf\n|&#45; name\l&#45; completename\l&#45; standardname\l&#45; unit\l&#45; maxval\l&#45; minval\l&#45; step\l&#45; atype\l&#45; size\l&#45; value\l|}" alt="" coords="173,5,288,215"/>
+</map>

@@ -1,0 +1,196 @@
+\hypertarget{namespacemodulearpsformat}{}\section{modulearpsformat Module Reference}
+\label{namespacemodulearpsformat}\index{modulearpsformat@{modulearpsformat}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulearpsformat_1_1t__date}{t\+\_\+date}}
+\item 
+type \mbox{\hyperlink{structmodulearpsformat_1_1t__field}{t\+\_\+field}}
+\item 
+type \mbox{\hyperlink{structmodulearpsformat_1_1t__mm5format}{t\+\_\+mm5format}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulearpsformat_a996acecfde01fb49e6408da52cb50d12}{convertarpsformat}} (Enter\+Data\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpsformat_a51cf1784c51ab9940cffc068600d53ac}{readoptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpsformat_a70ee83442772ea85df79da65ec4ea262}{openandreadarpsfile}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulearpsformat_a420eb740016c6ba55f897dbff1ef74e5}{constructgrid}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpsformat_a32649b9f39dfaa2b5396d488243a3905}{addfield}} (First\+Field, Obj\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpsformat_a3e7adeca2b8b386d9c8d59f32a8c189f}{adddate}} (First\+Date, Obj\+Date)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpsformat_a3feae8181a739c2898e331dd969e3c67}{outputfields}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpsformat_a9c9927c6fb171da5b0bfc4cd38595627}{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpsformat_a3fbe9c856c732d4e5f2315c2ae61e3d3}{killarpsformat}}
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulearpsformat_adad659745a61e1b477c5b8218c0a518b}{dotgrid}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulearpsformat_a481f4077f9a97ca259535ae7940a069d}{crossgrid}} = 2
+\item 
+type(\mbox{\hyperlink{structmodulearpsformat_1_1t__mm5format}{t\+\_\+mm5format}}), pointer \mbox{\hyperlink{namespacemodulearpsformat_aa48b8d20bd8a9748703bc70c33e5bce9}{me}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemodulearpsformat_a3e7adeca2b8b386d9c8d59f32a8c189f}\label{namespacemodulearpsformat_a3e7adeca2b8b386d9c8d59f32a8c189f}} 
+\index{modulearpsformat@{modulearpsformat}!adddate@{adddate}}
+\index{adddate@{adddate}!modulearpsformat@{modulearpsformat}}
+\subsubsection{\texorpdfstring{adddate()}{adddate()}}
+{\footnotesize\ttfamily subroutine, private modulearpsformat\+::adddate (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmodulearpsformat_1_1t__date}{t\+\_\+date}}), pointer}]{First\+Date,  }\item[{type (\mbox{\hyperlink{structmodulearpsformat_1_1t__date}{t\+\_\+date}}), pointer}]{Obj\+Date }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpsformat_a3e7adeca2b8b386d9c8d59f32a8c189f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulearpsformat_a32649b9f39dfaa2b5396d488243a3905}\label{namespacemodulearpsformat_a32649b9f39dfaa2b5396d488243a3905}} 
+\index{modulearpsformat@{modulearpsformat}!addfield@{addfield}}
+\index{addfield@{addfield}!modulearpsformat@{modulearpsformat}}
+\subsubsection{\texorpdfstring{addfield()}{addfield()}}
+{\footnotesize\ttfamily subroutine, private modulearpsformat\+::addfield (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmodulearpsformat_1_1t__field}{t\+\_\+field}}), pointer}]{First\+Field,  }\item[{type (\mbox{\hyperlink{structmodulearpsformat_1_1t__field}{t\+\_\+field}}), pointer}]{Obj\+Field }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpsformat_a32649b9f39dfaa2b5396d488243a3905_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulearpsformat_a420eb740016c6ba55f897dbff1ef74e5}\label{namespacemodulearpsformat_a420eb740016c6ba55f897dbff1ef74e5}} 
+\index{modulearpsformat@{modulearpsformat}!constructgrid@{constructgrid}}
+\index{constructgrid@{constructgrid}!modulearpsformat@{modulearpsformat}}
+\subsubsection{\texorpdfstring{constructgrid()}{constructgrid()}}
+{\footnotesize\ttfamily subroutine modulearpsformat\+::constructgrid (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpsformat_a420eb740016c6ba55f897dbff1ef74e5_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulearpsformat_a996acecfde01fb49e6408da52cb50d12}\label{namespacemodulearpsformat_a996acecfde01fb49e6408da52cb50d12}} 
+\index{modulearpsformat@{modulearpsformat}!convertarpsformat@{convertarpsformat}}
+\index{convertarpsformat@{convertarpsformat}!modulearpsformat@{modulearpsformat}}
+\subsubsection{\texorpdfstring{convertarpsformat()}{convertarpsformat()}}
+{\footnotesize\ttfamily subroutine, public modulearpsformat\+::convertarpsformat (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Enter\+Data\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemodulearpsformat_a996acecfde01fb49e6408da52cb50d12_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpsformat_a996acecfde01fb49e6408da52cb50d12_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulearpsformat_a3fbe9c856c732d4e5f2315c2ae61e3d3}\label{namespacemodulearpsformat_a3fbe9c856c732d4e5f2315c2ae61e3d3}} 
+\index{modulearpsformat@{modulearpsformat}!killarpsformat@{killarpsformat}}
+\index{killarpsformat@{killarpsformat}!modulearpsformat@{modulearpsformat}}
+\subsubsection{\texorpdfstring{killarpsformat()}{killarpsformat()}}
+{\footnotesize\ttfamily subroutine, private modulearpsformat\+::killarpsformat (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpsformat_a3fbe9c856c732d4e5f2315c2ae61e3d3_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulearpsformat_a9c9927c6fb171da5b0bfc4cd38595627}\label{namespacemodulearpsformat_a9c9927c6fb171da5b0bfc4cd38595627}} 
+\index{modulearpsformat@{modulearpsformat}!open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\index{open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}!modulearpsformat@{modulearpsformat}}
+\subsubsection{\texorpdfstring{open\+\_\+hdf5\+\_\+output\+\_\+file()}{open\_hdf5\_output\_file()}}
+{\footnotesize\ttfamily subroutine, private modulearpsformat\+::open\+\_\+hdf5\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpsformat_a9c9927c6fb171da5b0bfc4cd38595627_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulearpsformat_a70ee83442772ea85df79da65ec4ea262}\label{namespacemodulearpsformat_a70ee83442772ea85df79da65ec4ea262}} 
+\index{modulearpsformat@{modulearpsformat}!openandreadarpsfile@{openandreadarpsfile}}
+\index{openandreadarpsfile@{openandreadarpsfile}!modulearpsformat@{modulearpsformat}}
+\subsubsection{\texorpdfstring{openandreadarpsfile()}{openandreadarpsfile()}}
+{\footnotesize\ttfamily subroutine, private modulearpsformat\+::openandreadarpsfile (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpsformat_a70ee83442772ea85df79da65ec4ea262_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpsformat_a70ee83442772ea85df79da65ec4ea262_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulearpsformat_a3feae8181a739c2898e331dd969e3c67}\label{namespacemodulearpsformat_a3feae8181a739c2898e331dd969e3c67}} 
+\index{modulearpsformat@{modulearpsformat}!outputfields@{outputfields}}
+\index{outputfields@{outputfields}!modulearpsformat@{modulearpsformat}}
+\subsubsection{\texorpdfstring{outputfields()}{outputfields()}}
+{\footnotesize\ttfamily subroutine, private modulearpsformat\+::outputfields (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpsformat_a3feae8181a739c2898e331dd969e3c67_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpsformat_a3feae8181a739c2898e331dd969e3c67_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulearpsformat_a51cf1784c51ab9940cffc068600d53ac}\label{namespacemodulearpsformat_a51cf1784c51ab9940cffc068600d53ac}} 
+\index{modulearpsformat@{modulearpsformat}!readoptions@{readoptions}}
+\index{readoptions@{readoptions}!modulearpsformat@{modulearpsformat}}
+\subsubsection{\texorpdfstring{readoptions()}{readoptions()}}
+{\footnotesize\ttfamily subroutine, private modulearpsformat\+::readoptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+\subsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemodulearpsformat_a481f4077f9a97ca259535ae7940a069d}\label{namespacemodulearpsformat_a481f4077f9a97ca259535ae7940a069d}} 
+\index{modulearpsformat@{modulearpsformat}!crossgrid@{crossgrid}}
+\index{crossgrid@{crossgrid}!modulearpsformat@{modulearpsformat}}
+\subsubsection{\texorpdfstring{crossgrid}{crossgrid}}
+{\footnotesize\ttfamily integer, parameter modulearpsformat\+::crossgrid = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulearpsformat_adad659745a61e1b477c5b8218c0a518b}\label{namespacemodulearpsformat_adad659745a61e1b477c5b8218c0a518b}} 
+\index{modulearpsformat@{modulearpsformat}!dotgrid@{dotgrid}}
+\index{dotgrid@{dotgrid}!modulearpsformat@{modulearpsformat}}
+\subsubsection{\texorpdfstring{dotgrid}{dotgrid}}
+{\footnotesize\ttfamily integer, parameter modulearpsformat\+::dotgrid = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulearpsformat_aa48b8d20bd8a9748703bc70c33e5bce9}\label{namespacemodulearpsformat_aa48b8d20bd8a9748703bc70c33e5bce9}} 
+\index{modulearpsformat@{modulearpsformat}!me@{me}}
+\index{me@{me}!modulearpsformat@{modulearpsformat}}
+\subsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulearpsformat_1_1t__mm5format}{t\+\_\+mm5format}}), pointer modulearpsformat\+::me\hspace{0.3cm}{\ttfamily [private]}}
+

@@ -60,6 +60,7 @@ var structmodulebasin_1_1t__basin =
     [ "kcthresholds", "structmodulebasin_1_1t__basin.html#a68d1bbe6fce9bfc054ba35df6093eb67", null ],
     [ "mb", "structmodulebasin_1_1t__basin.html#ad8b6f1433a915c0a8fbabea4a53efc1f", null ],
     [ "modelname", "structmodulebasin_1_1t__basin.html#a4c0ca0759d1dfabe6995a6e9dcf9c188", null ],
+    [ "modeltype", "structmodulebasin_1_1t__basin.html#ae37a85c3313ad169952978645bfdf438", null ],
     [ "monthlyflow", "structmodulebasin_1_1t__basin.html#ac62f5e4dc473a5eda84feab9798f0839", null ],
     [ "next", "structmodulebasin_1_1t__basin.html#a7da65ee8d068457f0d11b3b6752370b5", null ],
     [ "nreservoirs", "structmodulebasin_1_1t__basin.html#a7311776e335b5ffb5f8dcc6260ddacc0", null ],

@@ -1,0 +1,346 @@
+\hypertarget{namespacemoduletecnoceanascii}{}\section{moduletecnoceanascii Module Reference}
+\label{namespacemoduletecnoceanascii}\index{moduletecnoceanascii@{moduletecnoceanascii}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmoduletecnoceanascii_1_1t__field}{t\+\_\+field}}
+\item 
+type \mbox{\hyperlink{structmoduletecnoceanascii_1_1t__output}{t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmoduletecnoceanascii_1_1t__tecnoceanascii}{t\+\_\+tecnoceanascii}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduletecnoceanascii_a911ff8ebfeb289d3cf85e2a5a6543289}{converttecnoceanascii}} (Enter\+Data\+ID, Client\+Number, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduletecnoceanascii_a03b597bccde1ea1f6661a59bd7599167}{readglobaloptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduletecnoceanascii_a46dae8318879d56217ce0452e09fa5a5}{readfielddates}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduletecnoceanascii_ac3c04e7c0109f285ad61e9110701e6ce}{constructglobaloutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduletecnoceanascii_af8c388a8fbef00e24b5198034a12ff26}{construct\+\_\+fieldlist}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduletecnoceanascii_a5faf63426f042e591c210443525285aa}{construct\+\_\+field}} (New\+Field, First\+Field)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduletecnoceanascii_a974670f0506425b9522707dfc6ef649c}{construct\+\_\+inputfiles}} (New\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduletecnoceanascii_a3a6fefcdee1dbb139d00be33aaf2e48f}{readnewfield}} (New\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduletecnoceanascii_a9bbaf3300cee7d2c04f566610643dbe8}{constructbathymetry}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduletecnoceanascii_acb08e8b922f987a8851cdd00f46ab1ac}{converttomohidunits}} (New\+Field)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduletecnoceanascii_a3b498ef686c47e5dae7627d7045ed16a}{add\+\_\+field}} (New\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduletecnoceanascii_a361f990e2a215ebad88b6439bbc0ccaf}{addfield}} (First\+Field, Obj\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduletecnoceanascii_a690ef71c676ca809af1adce385db6855}{outputfields}} (Field)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduletecnoceanascii_a305beb20ba1bce59460e369c5385e130}{interpolatefield}} (Field, i)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduletecnoceanascii_a59efcea92a5574ed7914c0950859e175}{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduletecnoceanascii_aa4e611e7a40208b6cd2a72c6a6ee06f7}{writevelocitymodulus}} (VelocityU, VelocityV, Velocity\+Modulus)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduletecnoceanascii_a324e7114be8b0d39a6c4a80c55f2dcc1}{killtecnoceanascii}}
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduletecnoceanascii_a6e203357bcc95a95fdbd379800fe67d3}{field\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$$<$beginfield$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduletecnoceanascii_ae09b9d3c02199141bcdb650b675af2ad}{field\+\_\+block\+\_\+end}} = \textquotesingle{}$<$$<$endfield$>$$>$\textquotesingle{}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduletecnoceanascii_a6fe13b67d048df63df18928a818d2859}{smalldomainenric\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduletecnoceanascii_a4ffd05d8c1e9d8c2e16164dfcb819fa2}{largedomainsonia\+\_\+}} = 2
+\item 
+type(\mbox{\hyperlink{structmoduletecnoceanascii_1_1t__tecnoceanascii}{t\+\_\+tecnoceanascii}}), pointer \mbox{\hyperlink{namespacemoduletecnoceanascii_aee18ab90005a90ec638a6d2f9cb614f6}{me}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_a3b498ef686c47e5dae7627d7045ed16a}\label{namespacemoduletecnoceanascii_a3b498ef686c47e5dae7627d7045ed16a}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!add\+\_\+field@{add\+\_\+field}}
+\index{add\+\_\+field@{add\+\_\+field}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{add\+\_\+field()}{add\_field()}}
+{\footnotesize\ttfamily subroutine moduletecnoceanascii\+::add\+\_\+field (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduletecnoceanascii_1_1t__field}{t\+\_\+field}}), pointer}]{New\+Field }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_a3b498ef686c47e5dae7627d7045ed16a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_a361f990e2a215ebad88b6439bbc0ccaf}\label{namespacemoduletecnoceanascii_a361f990e2a215ebad88b6439bbc0ccaf}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!addfield@{addfield}}
+\index{addfield@{addfield}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{addfield()}{addfield()}}
+{\footnotesize\ttfamily subroutine, private moduletecnoceanascii\+::addfield (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduletecnoceanascii_1_1t__field}{t\+\_\+field}}), pointer}]{First\+Field,  }\item[{type (\mbox{\hyperlink{structmoduletecnoceanascii_1_1t__field}{t\+\_\+field}}), pointer}]{Obj\+Field }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_a5faf63426f042e591c210443525285aa}\label{namespacemoduletecnoceanascii_a5faf63426f042e591c210443525285aa}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!construct\+\_\+field@{construct\+\_\+field}}
+\index{construct\+\_\+field@{construct\+\_\+field}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{construct\+\_\+field()}{construct\_field()}}
+{\footnotesize\ttfamily subroutine moduletecnoceanascii\+::construct\+\_\+field (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduletecnoceanascii_1_1t__field}{t\+\_\+field}}), pointer}]{New\+Field,  }\item[{logical}]{First\+Field }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_a5faf63426f042e591c210443525285aa_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_a5faf63426f042e591c210443525285aa_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_af8c388a8fbef00e24b5198034a12ff26}\label{namespacemoduletecnoceanascii_af8c388a8fbef00e24b5198034a12ff26}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!construct\+\_\+fieldlist@{construct\+\_\+fieldlist}}
+\index{construct\+\_\+fieldlist@{construct\+\_\+fieldlist}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{construct\+\_\+fieldlist()}{construct\_fieldlist()}}
+{\footnotesize\ttfamily subroutine, private moduletecnoceanascii\+::construct\+\_\+fieldlist (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_af8c388a8fbef00e24b5198034a12ff26_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_af8c388a8fbef00e24b5198034a12ff26_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_a974670f0506425b9522707dfc6ef649c}\label{namespacemoduletecnoceanascii_a974670f0506425b9522707dfc6ef649c}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!construct\+\_\+inputfiles@{construct\+\_\+inputfiles}}
+\index{construct\+\_\+inputfiles@{construct\+\_\+inputfiles}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{construct\+\_\+inputfiles()}{construct\_inputfiles()}}
+{\footnotesize\ttfamily subroutine moduletecnoceanascii\+::construct\+\_\+inputfiles (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduletecnoceanascii_1_1t__field}{t\+\_\+field}}), pointer}]{New\+Field }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_a974670f0506425b9522707dfc6ef649c_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_a974670f0506425b9522707dfc6ef649c_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_a9bbaf3300cee7d2c04f566610643dbe8}\label{namespacemoduletecnoceanascii_a9bbaf3300cee7d2c04f566610643dbe8}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!constructbathymetry@{constructbathymetry}}
+\index{constructbathymetry@{constructbathymetry}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{constructbathymetry()}{constructbathymetry()}}
+{\footnotesize\ttfamily subroutine, private moduletecnoceanascii\+::constructbathymetry (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_a9bbaf3300cee7d2c04f566610643dbe8_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_ac3c04e7c0109f285ad61e9110701e6ce}\label{namespacemoduletecnoceanascii_ac3c04e7c0109f285ad61e9110701e6ce}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!constructglobaloutput@{constructglobaloutput}}
+\index{constructglobaloutput@{constructglobaloutput}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{constructglobaloutput()}{constructglobaloutput()}}
+{\footnotesize\ttfamily subroutine, private moduletecnoceanascii\+::constructglobaloutput (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_ac3c04e7c0109f285ad61e9110701e6ce_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_a911ff8ebfeb289d3cf85e2a5a6543289}\label{namespacemoduletecnoceanascii_a911ff8ebfeb289d3cf85e2a5a6543289}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!converttecnoceanascii@{converttecnoceanascii}}
+\index{converttecnoceanascii@{converttecnoceanascii}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{converttecnoceanascii()}{converttecnoceanascii()}}
+{\footnotesize\ttfamily subroutine, public moduletecnoceanascii\+::converttecnoceanascii (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Enter\+Data\+ID,  }\item[{integer, intent(in)}]{Client\+Number,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_a911ff8ebfeb289d3cf85e2a5a6543289_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemoduletecnoceanascii_a911ff8ebfeb289d3cf85e2a5a6543289_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_acb08e8b922f987a8851cdd00f46ab1ac}\label{namespacemoduletecnoceanascii_acb08e8b922f987a8851cdd00f46ab1ac}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!converttomohidunits@{converttomohidunits}}
+\index{converttomohidunits@{converttomohidunits}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{converttomohidunits()}{converttomohidunits()}}
+{\footnotesize\ttfamily subroutine, private moduletecnoceanascii\+::converttomohidunits (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduletecnoceanascii_1_1t__field}{t\+\_\+field}}), pointer}]{New\+Field }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_acb08e8b922f987a8851cdd00f46ab1ac_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_a305beb20ba1bce59460e369c5385e130}\label{namespacemoduletecnoceanascii_a305beb20ba1bce59460e369c5385e130}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!interpolatefield@{interpolatefield}}
+\index{interpolatefield@{interpolatefield}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{interpolatefield()}{interpolatefield()}}
+{\footnotesize\ttfamily subroutine moduletecnoceanascii\+::interpolatefield (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduletecnoceanascii_1_1t__field}{t\+\_\+field}}), pointer}]{Field,  }\item[{integer}]{i }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_a305beb20ba1bce59460e369c5385e130_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_a324e7114be8b0d39a6c4a80c55f2dcc1}\label{namespacemoduletecnoceanascii_a324e7114be8b0d39a6c4a80c55f2dcc1}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!killtecnoceanascii@{killtecnoceanascii}}
+\index{killtecnoceanascii@{killtecnoceanascii}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{killtecnoceanascii()}{killtecnoceanascii()}}
+{\footnotesize\ttfamily subroutine, private moduletecnoceanascii\+::killtecnoceanascii (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_a324e7114be8b0d39a6c4a80c55f2dcc1_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_a59efcea92a5574ed7914c0950859e175}\label{namespacemoduletecnoceanascii_a59efcea92a5574ed7914c0950859e175}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\index{open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{open\+\_\+hdf5\+\_\+output\+\_\+file()}{open\_hdf5\_output\_file()}}
+{\footnotesize\ttfamily subroutine, private moduletecnoceanascii\+::open\+\_\+hdf5\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_a59efcea92a5574ed7914c0950859e175_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_a690ef71c676ca809af1adce385db6855}\label{namespacemoduletecnoceanascii_a690ef71c676ca809af1adce385db6855}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!outputfields@{outputfields}}
+\index{outputfields@{outputfields}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{outputfields()}{outputfields()}}
+{\footnotesize\ttfamily subroutine, private moduletecnoceanascii\+::outputfields (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduletecnoceanascii_1_1t__field}{t\+\_\+field}}), pointer}]{Field }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=342pt]{namespacemoduletecnoceanascii_a690ef71c676ca809af1adce385db6855_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_a690ef71c676ca809af1adce385db6855_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_a46dae8318879d56217ce0452e09fa5a5}\label{namespacemoduletecnoceanascii_a46dae8318879d56217ce0452e09fa5a5}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!readfielddates@{readfielddates}}
+\index{readfielddates@{readfielddates}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{readfielddates()}{readfielddates()}}
+{\footnotesize\ttfamily subroutine, private moduletecnoceanascii\+::readfielddates (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_a46dae8318879d56217ce0452e09fa5a5_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_a03b597bccde1ea1f6661a59bd7599167}\label{namespacemoduletecnoceanascii_a03b597bccde1ea1f6661a59bd7599167}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!readglobaloptions@{readglobaloptions}}
+\index{readglobaloptions@{readglobaloptions}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{readglobaloptions()}{readglobaloptions()}}
+{\footnotesize\ttfamily subroutine, private moduletecnoceanascii\+::readglobaloptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_a03b597bccde1ea1f6661a59bd7599167_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_a3a6fefcdee1dbb139d00be33aaf2e48f}\label{namespacemoduletecnoceanascii_a3a6fefcdee1dbb139d00be33aaf2e48f}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!readnewfield@{readnewfield}}
+\index{readnewfield@{readnewfield}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{readnewfield()}{readnewfield()}}
+{\footnotesize\ttfamily subroutine, private moduletecnoceanascii\+::readnewfield (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduletecnoceanascii_1_1t__field}{t\+\_\+field}}), pointer}]{New\+Field }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_a3a6fefcdee1dbb139d00be33aaf2e48f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_aa4e611e7a40208b6cd2a72c6a6ee06f7}\label{namespacemoduletecnoceanascii_aa4e611e7a40208b6cd2a72c6a6ee06f7}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!writevelocitymodulus@{writevelocitymodulus}}
+\index{writevelocitymodulus@{writevelocitymodulus}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{writevelocitymodulus()}{writevelocitymodulus()}}
+{\footnotesize\ttfamily subroutine moduletecnoceanascii\+::writevelocitymodulus (\begin{DoxyParamCaption}\item[{integer}]{VelocityU,  }\item[{integer}]{VelocityV,  }\item[{integer}]{Velocity\+Modulus }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduletecnoceanascii_aa4e611e7a40208b6cd2a72c6a6ee06f7_icgraph}
+\end{center}
+\end{figure}
+
+
+\subsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_a6e203357bcc95a95fdbd379800fe67d3}\label{namespacemoduletecnoceanascii_a6e203357bcc95a95fdbd379800fe67d3}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!field\+\_\+block\+\_\+begin@{field\+\_\+block\+\_\+begin}}
+\index{field\+\_\+block\+\_\+begin@{field\+\_\+block\+\_\+begin}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{field\+\_\+block\+\_\+begin}{field\_block\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduletecnoceanascii\+::field\+\_\+block\+\_\+begin = \textquotesingle{}$<$$<$beginfield$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_ae09b9d3c02199141bcdb650b675af2ad}\label{namespacemoduletecnoceanascii_ae09b9d3c02199141bcdb650b675af2ad}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!field\+\_\+block\+\_\+end@{field\+\_\+block\+\_\+end}}
+\index{field\+\_\+block\+\_\+end@{field\+\_\+block\+\_\+end}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{field\+\_\+block\+\_\+end}{field\_block\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduletecnoceanascii\+::field\+\_\+block\+\_\+end = \textquotesingle{}$<$$<$endfield$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_a4ffd05d8c1e9d8c2e16164dfcb819fa2}\label{namespacemoduletecnoceanascii_a4ffd05d8c1e9d8c2e16164dfcb819fa2}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!largedomainsonia\+\_\+@{largedomainsonia\+\_\+}}
+\index{largedomainsonia\+\_\+@{largedomainsonia\+\_\+}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{largedomainsonia\+\_\+}{largedomainsonia\_}}
+{\footnotesize\ttfamily integer, parameter moduletecnoceanascii\+::largedomainsonia\+\_\+ = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_aee18ab90005a90ec638a6d2f9cb614f6}\label{namespacemoduletecnoceanascii_aee18ab90005a90ec638a6d2f9cb614f6}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!me@{me}}
+\index{me@{me}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduletecnoceanascii_1_1t__tecnoceanascii}{t\+\_\+tecnoceanascii}}), pointer moduletecnoceanascii\+::me\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduletecnoceanascii_a6fe13b67d048df63df18928a818d2859}\label{namespacemoduletecnoceanascii_a6fe13b67d048df63df18928a818d2859}} 
+\index{moduletecnoceanascii@{moduletecnoceanascii}!smalldomainenric\+\_\+@{smalldomainenric\+\_\+}}
+\index{smalldomainenric\+\_\+@{smalldomainenric\+\_\+}!moduletecnoceanascii@{moduletecnoceanascii}}
+\subsubsection{\texorpdfstring{smalldomainenric\+\_\+}{smalldomainenric\_}}
+{\footnotesize\ttfamily integer, parameter moduletecnoceanascii\+::smalldomainenric\+\_\+ = 1\hspace{0.3cm}{\ttfamily [private]}}
+

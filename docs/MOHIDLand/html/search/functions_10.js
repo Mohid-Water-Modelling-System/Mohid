@@ -33,6 +33,5 @@ var searchData=
   ['soilwatervelocity',['soilwatervelocity',['../namespacemoduleporousmedia.html#a717a5b2d4249d602f98474f7a4c24665',1,'moduleporousmedia']]],
   ['startoutputboxfluxes',['startoutputboxfluxes',['../namespacemoduleporousmedia.html#a964d0ccee02d1c5d84e0ea29ec30b3e7',1,'moduleporousmedia::startoutputboxfluxes()'],['../namespacemoduleporousmediaproperties.html#a0c7ca57252cdb274ae0ce23c3deeba74',1,'moduleporousmediaproperties::startoutputboxfluxes()'],['../namespacemodulerunoff.html#a94b297f6c1f0a65686f92178ebe5d5c2',1,'modulerunoff::startoutputboxfluxes()'],['../namespacemodulerunoffproperties.html#a06106b336b804481c4fd8b518bb683fe',1,'modulerunoffproperties::startoutputboxfluxes()']]],
   ['startwithfieldcapacity',['startwithfieldcapacity',['../namespacemoduleporousmedia.html#af2c381d3df927d5f0eb263a6fe3b13a7',1,'moduleporousmedia']]],
-  ['stormwaterdrainage',['stormwaterdrainage',['../namespacemodulerunoff.html#af4d68602fac4df4d58a06a8d87433a3b',1,'modulerunoff']]],
-  ['streetgutterflow',['streetgutterflow',['../namespacemodulerunoff.html#a5cc041140596592ca2cd2f67dfadd9a7',1,'modulerunoff']]]
+  ['stormwaterdrainage',['stormwaterdrainage',['../namespacemodulerunoff.html#af4d68602fac4df4d58a06a8d87433a3b',1,'modulerunoff']]]
 ];

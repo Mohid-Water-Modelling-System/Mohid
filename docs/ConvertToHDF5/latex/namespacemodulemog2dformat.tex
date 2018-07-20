@@ -1,0 +1,255 @@
+\hypertarget{namespacemodulemog2dformat}{}\section{modulemog2dformat Module Reference}
+\label{namespacemodulemog2dformat}\index{modulemog2dformat@{modulemog2dformat}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulemog2dformat_1_1t__date}{t\+\_\+date}}
+\item 
+type \mbox{\hyperlink{structmodulemog2dformat_1_1t__field}{t\+\_\+field}}
+\item 
+type \mbox{\hyperlink{structmodulemog2dformat_1_1t__mog2dformat}{t\+\_\+mog2dformat}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemog2dformat_a734bfcb7f534ab9c91af8672cea24021}{convertmog2dformat}} (Enter\+Data\+ID, Client\+Number, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemog2dformat_a205a84f8a26a7043d7b186a44a8a530a}{readoptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemog2dformat_a9fd3a03a7c7ed9e05602123a50dc5726}{openandreadmog2dfile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemog2dformat_aae3ca34111cfb5aa29845bcbac420694}{openandreadgridmog2d}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulemog2dformat_aec84c860ca2bbc962dda260595025f58}{constructgrid}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemog2dformat_af04a77a337b8d48c2fd163ae89586914}{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulemog2dformat_a49362eefaf162d386ec42c4957e72b1a}{openandreadmog2dfields}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemog2dformat_a49448dbf7a75da20faf8c9e64364c199}{readmog2dfile}} (Input\+File)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemog2dformat_af9424852561b70ff9a6dd1f247d73c37}{getnamesinhdf}} (M\+O\+G2\+D\+Name, Name\+In\+H\+DF)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulemog2dformat_acbf2158af081eb0e8e9996387d7dfd5f}{writehdf5field}} (Field\+Time, Name\+In\+H\+DF, i\+Out, Aux2D, Aux3D)
+\item 
+character(len=stringlength) function \mbox{\hyperlink{namespacemodulemog2dformat_aa554861ca3342b570e56692003d31785}{units}} (Name\+In\+H\+DF)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemog2dformat_ad23545e02e1d7e1b08d7f23fc6220308}{killmog2dformat}}
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulemog2dformat_a9153156b80854bc74809b654b88cde04}{input\+\_\+files\+\_\+begin}} = \textquotesingle{}$<$$<$begin\+\_\+input\+\_\+files$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulemog2dformat_ad52b244ec5767f8c93a8186934533613}{input\+\_\+files\+\_\+end}} = \textquotesingle{}$<$$<$end\+\_\+input\+\_\+files$>$$>$\textquotesingle{}
+\item 
+type(\mbox{\hyperlink{structmodulemog2dformat_1_1t__mog2dformat}{t\+\_\+mog2dformat}}), pointer \mbox{\hyperlink{namespacemodulemog2dformat_a5a01bc4ba0aea55aa0198799d344547a}{me}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemodulemog2dformat_aec84c860ca2bbc962dda260595025f58}\label{namespacemodulemog2dformat_aec84c860ca2bbc962dda260595025f58}} 
+\index{modulemog2dformat@{modulemog2dformat}!constructgrid@{constructgrid}}
+\index{constructgrid@{constructgrid}!modulemog2dformat@{modulemog2dformat}}
+\subsubsection{\texorpdfstring{constructgrid()}{constructgrid()}}
+{\footnotesize\ttfamily subroutine modulemog2dformat\+::constructgrid (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulemog2dformat_aec84c860ca2bbc962dda260595025f58_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulemog2dformat_a734bfcb7f534ab9c91af8672cea24021}\label{namespacemodulemog2dformat_a734bfcb7f534ab9c91af8672cea24021}} 
+\index{modulemog2dformat@{modulemog2dformat}!convertmog2dformat@{convertmog2dformat}}
+\index{convertmog2dformat@{convertmog2dformat}!modulemog2dformat@{modulemog2dformat}}
+\subsubsection{\texorpdfstring{convertmog2dformat()}{convertmog2dformat()}}
+{\footnotesize\ttfamily subroutine, public modulemog2dformat\+::convertmog2dformat (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Enter\+Data\+ID,  }\item[{integer, intent(in)}]{Client\+Number,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemodulemog2dformat_a734bfcb7f534ab9c91af8672cea24021_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemodulemog2dformat_a734bfcb7f534ab9c91af8672cea24021_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulemog2dformat_af9424852561b70ff9a6dd1f247d73c37}\label{namespacemodulemog2dformat_af9424852561b70ff9a6dd1f247d73c37}} 
+\index{modulemog2dformat@{modulemog2dformat}!getnamesinhdf@{getnamesinhdf}}
+\index{getnamesinhdf@{getnamesinhdf}!modulemog2dformat@{modulemog2dformat}}
+\subsubsection{\texorpdfstring{getnamesinhdf()}{getnamesinhdf()}}
+{\footnotesize\ttfamily subroutine, private modulemog2dformat\+::getnamesinhdf (\begin{DoxyParamCaption}\item[{character(len=$\ast$)}]{M\+O\+G2\+D\+Name,  }\item[{character(len=stringlength)}]{Name\+In\+H\+DF }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulemog2dformat_af9424852561b70ff9a6dd1f247d73c37_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulemog2dformat_ad23545e02e1d7e1b08d7f23fc6220308}\label{namespacemodulemog2dformat_ad23545e02e1d7e1b08d7f23fc6220308}} 
+\index{modulemog2dformat@{modulemog2dformat}!killmog2dformat@{killmog2dformat}}
+\index{killmog2dformat@{killmog2dformat}!modulemog2dformat@{modulemog2dformat}}
+\subsubsection{\texorpdfstring{killmog2dformat()}{killmog2dformat()}}
+{\footnotesize\ttfamily subroutine, private modulemog2dformat\+::killmog2dformat (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulemog2dformat_ad23545e02e1d7e1b08d7f23fc6220308_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulemog2dformat_af04a77a337b8d48c2fd163ae89586914}\label{namespacemodulemog2dformat_af04a77a337b8d48c2fd163ae89586914}} 
+\index{modulemog2dformat@{modulemog2dformat}!open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\index{open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}!modulemog2dformat@{modulemog2dformat}}
+\subsubsection{\texorpdfstring{open\+\_\+hdf5\+\_\+output\+\_\+file()}{open\_hdf5\_output\_file()}}
+{\footnotesize\ttfamily subroutine, private modulemog2dformat\+::open\+\_\+hdf5\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulemog2dformat_af04a77a337b8d48c2fd163ae89586914_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulemog2dformat_aae3ca34111cfb5aa29845bcbac420694}\label{namespacemodulemog2dformat_aae3ca34111cfb5aa29845bcbac420694}} 
+\index{modulemog2dformat@{modulemog2dformat}!openandreadgridmog2d@{openandreadgridmog2d}}
+\index{openandreadgridmog2d@{openandreadgridmog2d}!modulemog2dformat@{modulemog2dformat}}
+\subsubsection{\texorpdfstring{openandreadgridmog2d()}{openandreadgridmog2d()}}
+{\footnotesize\ttfamily subroutine, private modulemog2dformat\+::openandreadgridmog2d (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulemog2dformat_aae3ca34111cfb5aa29845bcbac420694_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulemog2dformat_a49362eefaf162d386ec42c4957e72b1a}\label{namespacemodulemog2dformat_a49362eefaf162d386ec42c4957e72b1a}} 
+\index{modulemog2dformat@{modulemog2dformat}!openandreadmog2dfields@{openandreadmog2dfields}}
+\index{openandreadmog2dfields@{openandreadmog2dfields}!modulemog2dformat@{modulemog2dformat}}
+\subsubsection{\texorpdfstring{openandreadmog2dfields()}{openandreadmog2dfields()}}
+{\footnotesize\ttfamily subroutine modulemog2dformat\+::openandreadmog2dfields (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulemog2dformat_a49362eefaf162d386ec42c4957e72b1a_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulemog2dformat_a49362eefaf162d386ec42c4957e72b1a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulemog2dformat_a9fd3a03a7c7ed9e05602123a50dc5726}\label{namespacemodulemog2dformat_a9fd3a03a7c7ed9e05602123a50dc5726}} 
+\index{modulemog2dformat@{modulemog2dformat}!openandreadmog2dfile@{openandreadmog2dfile}}
+\index{openandreadmog2dfile@{openandreadmog2dfile}!modulemog2dformat@{modulemog2dformat}}
+\subsubsection{\texorpdfstring{openandreadmog2dfile()}{openandreadmog2dfile()}}
+{\footnotesize\ttfamily subroutine, private modulemog2dformat\+::openandreadmog2dfile (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulemog2dformat_a9fd3a03a7c7ed9e05602123a50dc5726_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulemog2dformat_a9fd3a03a7c7ed9e05602123a50dc5726_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulemog2dformat_a49448dbf7a75da20faf8c9e64364c199}\label{namespacemodulemog2dformat_a49448dbf7a75da20faf8c9e64364c199}} 
+\index{modulemog2dformat@{modulemog2dformat}!readmog2dfile@{readmog2dfile}}
+\index{readmog2dfile@{readmog2dfile}!modulemog2dformat@{modulemog2dformat}}
+\subsubsection{\texorpdfstring{readmog2dfile()}{readmog2dfile()}}
+{\footnotesize\ttfamily subroutine, private modulemog2dformat\+::readmog2dfile (\begin{DoxyParamCaption}\item[{character (len=$\ast$)}]{Input\+File }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulemog2dformat_a49448dbf7a75da20faf8c9e64364c199_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulemog2dformat_a49448dbf7a75da20faf8c9e64364c199_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulemog2dformat_a205a84f8a26a7043d7b186a44a8a530a}\label{namespacemodulemog2dformat_a205a84f8a26a7043d7b186a44a8a530a}} 
+\index{modulemog2dformat@{modulemog2dformat}!readoptions@{readoptions}}
+\index{readoptions@{readoptions}!modulemog2dformat@{modulemog2dformat}}
+\subsubsection{\texorpdfstring{readoptions()}{readoptions()}}
+{\footnotesize\ttfamily subroutine, private modulemog2dformat\+::readoptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulemog2dformat_aa554861ca3342b570e56692003d31785}\label{namespacemodulemog2dformat_aa554861ca3342b570e56692003d31785}} 
+\index{modulemog2dformat@{modulemog2dformat}!units@{units}}
+\index{units@{units}!modulemog2dformat@{modulemog2dformat}}
+\subsubsection{\texorpdfstring{units()}{units()}}
+{\footnotesize\ttfamily character(len=stringlength) function modulemog2dformat\+::units (\begin{DoxyParamCaption}\item[{character(len=stringlength)}]{Name\+In\+H\+DF }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulemog2dformat_aa554861ca3342b570e56692003d31785_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulemog2dformat_acbf2158af081eb0e8e9996387d7dfd5f}\label{namespacemodulemog2dformat_acbf2158af081eb0e8e9996387d7dfd5f}} 
+\index{modulemog2dformat@{modulemog2dformat}!writehdf5field@{writehdf5field}}
+\index{writehdf5field@{writehdf5field}!modulemog2dformat@{modulemog2dformat}}
+\subsubsection{\texorpdfstring{writehdf5field()}{writehdf5field()}}
+{\footnotesize\ttfamily subroutine modulemog2dformat\+::writehdf5field (\begin{DoxyParamCaption}\item[{type (t\+\_\+time)}]{Field\+Time,  }\item[{character(len=stringlength)}]{Name\+In\+H\+DF,  }\item[{integer}]{i\+Out,  }\item[{real, dimension(\+:,\+:  ), optional, pointer}]{Aux2D,  }\item[{real, dimension(\+:,\+:,\+:), optional, pointer}]{Aux3D }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=336pt]{namespacemodulemog2dformat_acbf2158af081eb0e8e9996387d7dfd5f_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulemog2dformat_acbf2158af081eb0e8e9996387d7dfd5f_icgraph}
+\end{center}
+\end{figure}
+
+
+\subsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemodulemog2dformat_a9153156b80854bc74809b654b88cde04}\label{namespacemodulemog2dformat_a9153156b80854bc74809b654b88cde04}} 
+\index{modulemog2dformat@{modulemog2dformat}!input\+\_\+files\+\_\+begin@{input\+\_\+files\+\_\+begin}}
+\index{input\+\_\+files\+\_\+begin@{input\+\_\+files\+\_\+begin}!modulemog2dformat@{modulemog2dformat}}
+\subsubsection{\texorpdfstring{input\+\_\+files\+\_\+begin}{input\_files\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulemog2dformat\+::input\+\_\+files\+\_\+begin = \textquotesingle{}$<$$<$begin\+\_\+input\+\_\+files$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulemog2dformat_ad52b244ec5767f8c93a8186934533613}\label{namespacemodulemog2dformat_ad52b244ec5767f8c93a8186934533613}} 
+\index{modulemog2dformat@{modulemog2dformat}!input\+\_\+files\+\_\+end@{input\+\_\+files\+\_\+end}}
+\index{input\+\_\+files\+\_\+end@{input\+\_\+files\+\_\+end}!modulemog2dformat@{modulemog2dformat}}
+\subsubsection{\texorpdfstring{input\+\_\+files\+\_\+end}{input\_files\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulemog2dformat\+::input\+\_\+files\+\_\+end = \textquotesingle{}$<$$<$end\+\_\+input\+\_\+files$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulemog2dformat_a5a01bc4ba0aea55aa0198799d344547a}\label{namespacemodulemog2dformat_a5a01bc4ba0aea55aa0198799d344547a}} 
+\index{modulemog2dformat@{modulemog2dformat}!me@{me}}
+\index{me@{me}!modulemog2dformat@{modulemog2dformat}}
+\subsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulemog2dformat_1_1t__mog2dformat}{t\+\_\+mog2dformat}}), pointer modulemog2dformat\+::me\hspace{0.3cm}{\ttfamily [private]}}
+

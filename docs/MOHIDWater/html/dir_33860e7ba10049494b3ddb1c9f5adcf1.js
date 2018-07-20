@@ -26,7 +26,7 @@ var dir_33860e7ba10049494b3ddb1c9f5adcf1 =
     [ "ModuleSequentialAssimilation.F90", "_module_sequential_assimilation_8_f90.html", "_module_sequential_assimilation_8_f90" ],
     [ "ModuleToga.F90", "_module_toga_8_f90.html", "_module_toga_8_f90" ],
     [ "ModuleTurbGOTM.F90", "_module_turb_g_o_t_m_8_f90.html", "_module_turb_g_o_t_m_8_f90" ],
-    [ "ModuleTurbine.f90", "_module_turbine_8f90.html", "_module_turbine_8f90" ],
+    [ "ModuleTurbine.F90", "_module_turbine_8_f90.html", "_module_turbine_8_f90" ],
     [ "ModuleTurbulence.F90", "_module_turbulence_8_f90.html", "_module_turbulence_8_f90" ],
     [ "ModuleWaterProperties.F90", "_module_water_properties_8_f90.html", "_module_water_properties_8_f90" ],
     [ "ModuleWaves.F90", "_module_waves_8_f90.html", "_module_waves_8_f90" ],

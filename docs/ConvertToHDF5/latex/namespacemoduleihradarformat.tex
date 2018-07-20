@@ -1,0 +1,478 @@
+\hypertarget{namespacemoduleihradarformat}{}\section{moduleihradarformat Module Reference}
+\label{namespacemoduleihradarformat}\index{moduleihradarformat@{moduleihradarformat}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat}{t\+\_\+ihradarformat}}
+\item 
+type \mbox{\hyperlink{structmoduleihradarformat_1_1t__netcdf__global__attributes}{t\+\_\+netcdf\+\_\+global\+\_\+attributes}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleihradarformat_a98ed94c78a186e13367d60ca010104fb}{convertihradarformat}} (Enter\+Data\+ID, Client\+Number, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_aee7099f1405740714bd8905f16b2c9bf}{readoptions}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_a11ef1762e3ede5825ed4cfa4192378d3}{readnetcdfoptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_ada390827dfd90ffece67dfc0ddc1a1af}{creategridihradarfile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_a159e87b28314bc4e1c2d025679d954ff}{writeihradarfile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_a5e6d5ce963365079322d81b8c5030265}{allocatevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_a1116a7a33c3cd3f0002a36a069bd6df9}{clearvariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_a3b96dd949bf780f8b1d2d5d3818dda48}{loadihradargrid}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_a02661cf4395883e003f6785721da99e9}{constructgriddatafile}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_a1ddc10c28e0f93952a3e8c21ab4b9e37}{openandreadihradarfields}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_adb71a6554853412cfc2f930bf2a31f3a}{readihradarfile}} (Input\+File)
+\item 
+integer function \mbox{\hyperlink{namespacemoduleihradarformat_a940aa69f596041c70dab62721c97072f}{locatecellin1daxis}} (axis, pos, I\+LB, I\+UB)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_a1fa82a4000e864d7a0c4a4e1759efac9}{open\+\_\+output\+\_\+file}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_a6051373784b4b3c69f611fa904fbad43}{writeihradar}} (i\+Out)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_a1107822e669c716ce7cbc68b6331ce30}{close\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_a923e50f44a04ab5c716a0a2526b165e1}{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_aded21feba733b9d42beced7d5846c854}{writehdf5griddata}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_ad98c4a786bbe9735cd7eb3b391ad9adb}{write\+\_\+hdf5\+\_\+fields}} (i\+Out)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_a2599e1f0971dcb3531d9ee88d55830d8}{writehdf5openpoints}} (i\+Out)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_a77312b34323d0e8aa7466fdfc0f8a35e}{writehdf5field}} (Mohid\+Name, Field, Prop\+Units, i\+Out)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_abdd46dbddc8ccd64e7600d2abba43395}{writehdf5time}} (i\+Out)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_ab845f946974ab4a693701022e7e4230e}{close\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_a26abbb9b22d84c708e9f26ef8003eff4}{open\+\_\+netcdf\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_af1f8f7e2cf6ebd67fd284bbb39a55018}{killihradarformat}}
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleihradarformat_a872caa24e241015b723a32676f702a85}{input\+\_\+files\+\_\+begin}} = \textquotesingle{}$<$$<$begin\+\_\+input\+\_\+files$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleihradarformat_a725e820b1ca4be9c91c2e636da468f27}{input\+\_\+files\+\_\+end}} = \textquotesingle{}$<$$<$end\+\_\+input\+\_\+files$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleihradarformat_a0280cbcdc12bde5023d64c330dec8291}{data\+\_\+begin}} = \textquotesingle{}\%Table\+Start\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleihradarformat_a6c10206edf04ac8656a295f742f82063}{data\+\_\+end}} = \textquotesingle{}\%Table\+End\textquotesingle{}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleihradarformat_ae0ba5f7cd624c09fd6bc98d96abb6fb6}{no\+\_\+output\+\_\+}} = -\/99
+\item 
+type(\mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat}{t\+\_\+ihradarformat}}), pointer \mbox{\hyperlink{namespacemoduleihradarformat_a14fd264aff99a0e5a137305aada23b50}{me}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemoduleihradarformat_a5e6d5ce963365079322d81b8c5030265}\label{namespacemoduleihradarformat_a5e6d5ce963365079322d81b8c5030265}} 
+\index{moduleihradarformat@{moduleihradarformat}!allocatevariables@{allocatevariables}}
+\index{allocatevariables@{allocatevariables}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{allocatevariables()}{allocatevariables()}}
+{\footnotesize\ttfamily subroutine, private moduleihradarformat\+::allocatevariables (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_a5e6d5ce963365079322d81b8c5030265_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_a1116a7a33c3cd3f0002a36a069bd6df9}\label{namespacemoduleihradarformat_a1116a7a33c3cd3f0002a36a069bd6df9}} 
+\index{moduleihradarformat@{moduleihradarformat}!clearvariables@{clearvariables}}
+\index{clearvariables@{clearvariables}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{clearvariables()}{clearvariables()}}
+{\footnotesize\ttfamily subroutine, private moduleihradarformat\+::clearvariables (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleihradarformat_ab845f946974ab4a693701022e7e4230e}\label{namespacemoduleihradarformat_ab845f946974ab4a693701022e7e4230e}} 
+\index{moduleihradarformat@{moduleihradarformat}!close\+\_\+hdf5\+\_\+output\+\_\+file@{close\+\_\+hdf5\+\_\+output\+\_\+file}}
+\index{close\+\_\+hdf5\+\_\+output\+\_\+file@{close\+\_\+hdf5\+\_\+output\+\_\+file}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{close\+\_\+hdf5\+\_\+output\+\_\+file()}{close\_hdf5\_output\_file()}}
+{\footnotesize\ttfamily subroutine, private moduleihradarformat\+::close\+\_\+hdf5\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_ab845f946974ab4a693701022e7e4230e_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_a1107822e669c716ce7cbc68b6331ce30}\label{namespacemoduleihradarformat_a1107822e669c716ce7cbc68b6331ce30}} 
+\index{moduleihradarformat@{moduleihradarformat}!close\+\_\+output\+\_\+file@{close\+\_\+output\+\_\+file}}
+\index{close\+\_\+output\+\_\+file@{close\+\_\+output\+\_\+file}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{close\+\_\+output\+\_\+file()}{close\_output\_file()}}
+{\footnotesize\ttfamily subroutine moduleihradarformat\+::close\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=339pt]{namespacemoduleihradarformat_a1107822e669c716ce7cbc68b6331ce30_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_a1107822e669c716ce7cbc68b6331ce30_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_a02661cf4395883e003f6785721da99e9}\label{namespacemoduleihradarformat_a02661cf4395883e003f6785721da99e9}} 
+\index{moduleihradarformat@{moduleihradarformat}!constructgriddatafile@{constructgriddatafile}}
+\index{constructgriddatafile@{constructgriddatafile}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{constructgriddatafile()}{constructgriddatafile()}}
+{\footnotesize\ttfamily subroutine, private moduleihradarformat\+::constructgriddatafile (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_a02661cf4395883e003f6785721da99e9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_a98ed94c78a186e13367d60ca010104fb}\label{namespacemoduleihradarformat_a98ed94c78a186e13367d60ca010104fb}} 
+\index{moduleihradarformat@{moduleihradarformat}!convertihradarformat@{convertihradarformat}}
+\index{convertihradarformat@{convertihradarformat}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{convertihradarformat()}{convertihradarformat()}}
+{\footnotesize\ttfamily subroutine, public moduleihradarformat\+::convertihradarformat (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Enter\+Data\+ID,  }\item[{integer, intent(in)}]{Client\+Number,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemoduleihradarformat_a98ed94c78a186e13367d60ca010104fb_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemoduleihradarformat_a98ed94c78a186e13367d60ca010104fb_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_ada390827dfd90ffece67dfc0ddc1a1af}\label{namespacemoduleihradarformat_ada390827dfd90ffece67dfc0ddc1a1af}} 
+\index{moduleihradarformat@{moduleihradarformat}!creategridihradarfile@{creategridihradarfile}}
+\index{creategridihradarfile@{creategridihradarfile}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{creategridihradarfile()}{creategridihradarfile()}}
+{\footnotesize\ttfamily subroutine, private moduleihradarformat\+::creategridihradarfile (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=333pt]{namespacemoduleihradarformat_ada390827dfd90ffece67dfc0ddc1a1af_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_ada390827dfd90ffece67dfc0ddc1a1af_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_af1f8f7e2cf6ebd67fd284bbb39a55018}\label{namespacemoduleihradarformat_af1f8f7e2cf6ebd67fd284bbb39a55018}} 
+\index{moduleihradarformat@{moduleihradarformat}!killihradarformat@{killihradarformat}}
+\index{killihradarformat@{killihradarformat}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{killihradarformat()}{killihradarformat()}}
+{\footnotesize\ttfamily subroutine, private moduleihradarformat\+::killihradarformat (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_af1f8f7e2cf6ebd67fd284bbb39a55018_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_a3b96dd949bf780f8b1d2d5d3818dda48}\label{namespacemoduleihradarformat_a3b96dd949bf780f8b1d2d5d3818dda48}} 
+\index{moduleihradarformat@{moduleihradarformat}!loadihradargrid@{loadihradargrid}}
+\index{loadihradargrid@{loadihradargrid}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{loadihradargrid()}{loadihradargrid()}}
+{\footnotesize\ttfamily subroutine, private moduleihradarformat\+::loadihradargrid (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_a3b96dd949bf780f8b1d2d5d3818dda48_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_a940aa69f596041c70dab62721c97072f}\label{namespacemoduleihradarformat_a940aa69f596041c70dab62721c97072f}} 
+\index{moduleihradarformat@{moduleihradarformat}!locatecellin1daxis@{locatecellin1daxis}}
+\index{locatecellin1daxis@{locatecellin1daxis}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{locatecellin1daxis()}{locatecellin1daxis()}}
+{\footnotesize\ttfamily integer function moduleihradarformat\+::locatecellin1daxis (\begin{DoxyParamCaption}\item[{real, dimension(\+:), pointer}]{axis,  }\item[{real}]{pos,  }\item[{integer}]{I\+LB,  }\item[{integer}]{I\+UB }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_a940aa69f596041c70dab62721c97072f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_a923e50f44a04ab5c716a0a2526b165e1}\label{namespacemoduleihradarformat_a923e50f44a04ab5c716a0a2526b165e1}} 
+\index{moduleihradarformat@{moduleihradarformat}!open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\index{open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{open\+\_\+hdf5\+\_\+output\+\_\+file()}{open\_hdf5\_output\_file()}}
+{\footnotesize\ttfamily subroutine, private moduleihradarformat\+::open\+\_\+hdf5\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=336pt]{namespacemoduleihradarformat_a923e50f44a04ab5c716a0a2526b165e1_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_a923e50f44a04ab5c716a0a2526b165e1_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_a26abbb9b22d84c708e9f26ef8003eff4}\label{namespacemoduleihradarformat_a26abbb9b22d84c708e9f26ef8003eff4}} 
+\index{moduleihradarformat@{moduleihradarformat}!open\+\_\+netcdf\+\_\+output\+\_\+file@{open\+\_\+netcdf\+\_\+output\+\_\+file}}
+\index{open\+\_\+netcdf\+\_\+output\+\_\+file@{open\+\_\+netcdf\+\_\+output\+\_\+file}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{open\+\_\+netcdf\+\_\+output\+\_\+file()}{open\_netcdf\_output\_file()}}
+{\footnotesize\ttfamily subroutine moduleihradarformat\+::open\+\_\+netcdf\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleihradarformat_a1fa82a4000e864d7a0c4a4e1759efac9}\label{namespacemoduleihradarformat_a1fa82a4000e864d7a0c4a4e1759efac9}} 
+\index{moduleihradarformat@{moduleihradarformat}!open\+\_\+output\+\_\+file@{open\+\_\+output\+\_\+file}}
+\index{open\+\_\+output\+\_\+file@{open\+\_\+output\+\_\+file}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{open\+\_\+output\+\_\+file()}{open\_output\_file()}}
+{\footnotesize\ttfamily subroutine moduleihradarformat\+::open\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_a1fa82a4000e864d7a0c4a4e1759efac9_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_a1fa82a4000e864d7a0c4a4e1759efac9_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_a1ddc10c28e0f93952a3e8c21ab4b9e37}\label{namespacemoduleihradarformat_a1ddc10c28e0f93952a3e8c21ab4b9e37}} 
+\index{moduleihradarformat@{moduleihradarformat}!openandreadihradarfields@{openandreadihradarfields}}
+\index{openandreadihradarfields@{openandreadihradarfields}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{openandreadihradarfields()}{openandreadihradarfields()}}
+{\footnotesize\ttfamily subroutine, private moduleihradarformat\+::openandreadihradarfields (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_a1ddc10c28e0f93952a3e8c21ab4b9e37_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_a1ddc10c28e0f93952a3e8c21ab4b9e37_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_adb71a6554853412cfc2f930bf2a31f3a}\label{namespacemoduleihradarformat_adb71a6554853412cfc2f930bf2a31f3a}} 
+\index{moduleihradarformat@{moduleihradarformat}!readihradarfile@{readihradarfile}}
+\index{readihradarfile@{readihradarfile}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{readihradarfile()}{readihradarfile()}}
+{\footnotesize\ttfamily subroutine, private moduleihradarformat\+::readihradarfile (\begin{DoxyParamCaption}\item[{character(len=pathlength)}]{Input\+File }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=324pt]{namespacemoduleihradarformat_adb71a6554853412cfc2f930bf2a31f3a_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_adb71a6554853412cfc2f930bf2a31f3a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_a11ef1762e3ede5825ed4cfa4192378d3}\label{namespacemoduleihradarformat_a11ef1762e3ede5825ed4cfa4192378d3}} 
+\index{moduleihradarformat@{moduleihradarformat}!readnetcdfoptions@{readnetcdfoptions}}
+\index{readnetcdfoptions@{readnetcdfoptions}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{readnetcdfoptions()}{readnetcdfoptions()}}
+{\footnotesize\ttfamily subroutine moduleihradarformat\+::readnetcdfoptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_a11ef1762e3ede5825ed4cfa4192378d3_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_aee7099f1405740714bd8905f16b2c9bf}\label{namespacemoduleihradarformat_aee7099f1405740714bd8905f16b2c9bf}} 
+\index{moduleihradarformat@{moduleihradarformat}!readoptions@{readoptions}}
+\index{readoptions@{readoptions}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{readoptions()}{readoptions()}}
+{\footnotesize\ttfamily subroutine, private moduleihradarformat\+::readoptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleihradarformat_ad98c4a786bbe9735cd7eb3b391ad9adb}\label{namespacemoduleihradarformat_ad98c4a786bbe9735cd7eb3b391ad9adb}} 
+\index{moduleihradarformat@{moduleihradarformat}!write\+\_\+hdf5\+\_\+fields@{write\+\_\+hdf5\+\_\+fields}}
+\index{write\+\_\+hdf5\+\_\+fields@{write\+\_\+hdf5\+\_\+fields}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{write\+\_\+hdf5\+\_\+fields()}{write\_hdf5\_fields()}}
+{\footnotesize\ttfamily subroutine moduleihradarformat\+::write\+\_\+hdf5\+\_\+fields (\begin{DoxyParamCaption}\item[{integer}]{i\+Out }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=328pt]{namespacemoduleihradarformat_ad98c4a786bbe9735cd7eb3b391ad9adb_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_ad98c4a786bbe9735cd7eb3b391ad9adb_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_a77312b34323d0e8aa7466fdfc0f8a35e}\label{namespacemoduleihradarformat_a77312b34323d0e8aa7466fdfc0f8a35e}} 
+\index{moduleihradarformat@{moduleihradarformat}!writehdf5field@{writehdf5field}}
+\index{writehdf5field@{writehdf5field}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{writehdf5field()}{writehdf5field()}}
+{\footnotesize\ttfamily subroutine, private moduleihradarformat\+::writehdf5field (\begin{DoxyParamCaption}\item[{character(len=stringlength)}]{Mohid\+Name,  }\item[{real, dimension(\+:,\+:  ), pointer}]{Field,  }\item[{character(len=stringlength)}]{Prop\+Units,  }\item[{integer}]{i\+Out }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_a77312b34323d0e8aa7466fdfc0f8a35e_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_aded21feba733b9d42beced7d5846c854}\label{namespacemoduleihradarformat_aded21feba733b9d42beced7d5846c854}} 
+\index{moduleihradarformat@{moduleihradarformat}!writehdf5griddata@{writehdf5griddata}}
+\index{writehdf5griddata@{writehdf5griddata}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{writehdf5griddata()}{writehdf5griddata()}}
+{\footnotesize\ttfamily subroutine moduleihradarformat\+::writehdf5griddata (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_aded21feba733b9d42beced7d5846c854_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_a2599e1f0971dcb3531d9ee88d55830d8}\label{namespacemoduleihradarformat_a2599e1f0971dcb3531d9ee88d55830d8}} 
+\index{moduleihradarformat@{moduleihradarformat}!writehdf5openpoints@{writehdf5openpoints}}
+\index{writehdf5openpoints@{writehdf5openpoints}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{writehdf5openpoints()}{writehdf5openpoints()}}
+{\footnotesize\ttfamily subroutine moduleihradarformat\+::writehdf5openpoints (\begin{DoxyParamCaption}\item[{integer}]{i\+Out }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_a2599e1f0971dcb3531d9ee88d55830d8_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_abdd46dbddc8ccd64e7600d2abba43395}\label{namespacemoduleihradarformat_abdd46dbddc8ccd64e7600d2abba43395}} 
+\index{moduleihradarformat@{moduleihradarformat}!writehdf5time@{writehdf5time}}
+\index{writehdf5time@{writehdf5time}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{writehdf5time()}{writehdf5time()}}
+{\footnotesize\ttfamily subroutine moduleihradarformat\+::writehdf5time (\begin{DoxyParamCaption}\item[{integer}]{i\+Out }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_abdd46dbddc8ccd64e7600d2abba43395_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_a6051373784b4b3c69f611fa904fbad43}\label{namespacemoduleihradarformat_a6051373784b4b3c69f611fa904fbad43}} 
+\index{moduleihradarformat@{moduleihradarformat}!writeihradar@{writeihradar}}
+\index{writeihradar@{writeihradar}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{writeihradar()}{writeihradar()}}
+{\footnotesize\ttfamily subroutine moduleihradarformat\+::writeihradar (\begin{DoxyParamCaption}\item[{integer}]{i\+Out }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_a6051373784b4b3c69f611fa904fbad43_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_a6051373784b4b3c69f611fa904fbad43_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemoduleihradarformat_a159e87b28314bc4e1c2d025679d954ff}\label{namespacemoduleihradarformat_a159e87b28314bc4e1c2d025679d954ff}} 
+\index{moduleihradarformat@{moduleihradarformat}!writeihradarfile@{writeihradarfile}}
+\index{writeihradarfile@{writeihradarfile}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{writeihradarfile()}{writeihradarfile()}}
+{\footnotesize\ttfamily subroutine, private moduleihradarformat\+::writeihradarfile (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_a159e87b28314bc4e1c2d025679d954ff_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemoduleihradarformat_a159e87b28314bc4e1c2d025679d954ff_icgraph}
+\end{center}
+\end{figure}
+
+
+\subsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemoduleihradarformat_a0280cbcdc12bde5023d64c330dec8291}\label{namespacemoduleihradarformat_a0280cbcdc12bde5023d64c330dec8291}} 
+\index{moduleihradarformat@{moduleihradarformat}!data\+\_\+begin@{data\+\_\+begin}}
+\index{data\+\_\+begin@{data\+\_\+begin}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{data\+\_\+begin}{data\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleihradarformat\+::data\+\_\+begin = \textquotesingle{}\%Table\+Start\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleihradarformat_a6c10206edf04ac8656a295f742f82063}\label{namespacemoduleihradarformat_a6c10206edf04ac8656a295f742f82063}} 
+\index{moduleihradarformat@{moduleihradarformat}!data\+\_\+end@{data\+\_\+end}}
+\index{data\+\_\+end@{data\+\_\+end}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{data\+\_\+end}{data\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleihradarformat\+::data\+\_\+end = \textquotesingle{}\%Table\+End\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleihradarformat_a872caa24e241015b723a32676f702a85}\label{namespacemoduleihradarformat_a872caa24e241015b723a32676f702a85}} 
+\index{moduleihradarformat@{moduleihradarformat}!input\+\_\+files\+\_\+begin@{input\+\_\+files\+\_\+begin}}
+\index{input\+\_\+files\+\_\+begin@{input\+\_\+files\+\_\+begin}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{input\+\_\+files\+\_\+begin}{input\_files\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleihradarformat\+::input\+\_\+files\+\_\+begin = \textquotesingle{}$<$$<$begin\+\_\+input\+\_\+files$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleihradarformat_a725e820b1ca4be9c91c2e636da468f27}\label{namespacemoduleihradarformat_a725e820b1ca4be9c91c2e636da468f27}} 
+\index{moduleihradarformat@{moduleihradarformat}!input\+\_\+files\+\_\+end@{input\+\_\+files\+\_\+end}}
+\index{input\+\_\+files\+\_\+end@{input\+\_\+files\+\_\+end}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{input\+\_\+files\+\_\+end}{input\_files\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleihradarformat\+::input\+\_\+files\+\_\+end = \textquotesingle{}$<$$<$end\+\_\+input\+\_\+files$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleihradarformat_a14fd264aff99a0e5a137305aada23b50}\label{namespacemoduleihradarformat_a14fd264aff99a0e5a137305aada23b50}} 
+\index{moduleihradarformat@{moduleihradarformat}!me@{me}}
+\index{me@{me}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat}{t\+\_\+ihradarformat}}), pointer moduleihradarformat\+::me\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleihradarformat_ae0ba5f7cd624c09fd6bc98d96abb6fb6}\label{namespacemoduleihradarformat_ae0ba5f7cd624c09fd6bc98d96abb6fb6}} 
+\index{moduleihradarformat@{moduleihradarformat}!no\+\_\+output\+\_\+@{no\+\_\+output\+\_\+}}
+\index{no\+\_\+output\+\_\+@{no\+\_\+output\+\_\+}!moduleihradarformat@{moduleihradarformat}}
+\subsubsection{\texorpdfstring{no\+\_\+output\+\_\+}{no\_output\_}}
+{\footnotesize\ttfamily integer, parameter moduleihradarformat\+::no\+\_\+output\+\_\+ = -\/99\hspace{0.3cm}{\ttfamily [private]}}
+

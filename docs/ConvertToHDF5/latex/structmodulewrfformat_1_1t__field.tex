@@ -1,0 +1,134 @@
+\hypertarget{structmodulewrfformat_1_1t__field}{}\section{modulewrfformat\+:\+:t\+\_\+field Type Reference}
+\label{structmodulewrfformat_1_1t__field}\index{modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}}
+
+
+Collaboration diagram for modulewrfformat\+:\+:t\+\_\+field\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=219pt]{structmodulewrfformat_1_1t__field__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+character(len=stringlength) \mbox{\hyperlink{structmodulewrfformat_1_1t__field_a547571309afe696f2c47a83042426ba1}{name}}
+\item 
+character(len=stringlength) \mbox{\hyperlink{structmodulewrfformat_1_1t__field_a1a7d40c906de6c5abcaa0a14f9269db0}{units}}
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__field_af8fb6bf0a3f67612405b725f3f346056}{convert}} = .false.
+\item 
+integer \mbox{\hyperlink{structmodulewrfformat_1_1t__field_a12fcef7ab3819bc351ad2c8adc53f34d}{ndimensions}}
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__field_a42ba68e4c4aa7c076e3462229ec46cfd}{staggeredx}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__field_a4c6d148dd8876f5738670f933006e90b}{staggeredy}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__field_a2a05c7114bd51dcd018ac109a76c1dd7}{staggeredz}} = .false.
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmodulewrfformat_1_1t__field_a737fbe00a38a7ecd1725786ddfb07bcb}{date}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulewrfformat_1_1t__field_ab03a26865884d4a01a14f7b7bd46d26a}{values2d}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulewrfformat_1_1t__field_a9a933760c2baa9ec1801c1f78ddb33e1}{values3d}}
+\item 
+integer \mbox{\hyperlink{structmodulewrfformat_1_1t__field_a19ae18db533efda190b2089aff9fe594}{outputnumber}} = 1
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmodulewrfformat_1_1t__field_a0f43b164c775f4336e21770edebdc77c}{size}}
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmodulewrfformat_1_1t__field_ac62fde7e2a6fe22fc472e9d521e59b67}{worksize}}
+\item 
+type(\mbox{\hyperlink{structmodulewrfformat_1_1t__field}{t\+\_\+field}}), pointer \mbox{\hyperlink{structmodulewrfformat_1_1t__field_ac17b6ed61e2fac653544ed2014844849}{next}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Member Data Documentation}
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__field_af8fb6bf0a3f67612405b725f3f346056}\label{structmodulewrfformat_1_1t__field_af8fb6bf0a3f67612405b725f3f346056}} 
+\index{modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}!convert@{convert}}
+\index{convert@{convert}!modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}}
+\subsubsection{\texorpdfstring{convert}{convert}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+field\+::convert = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__field_a737fbe00a38a7ecd1725786ddfb07bcb}\label{structmodulewrfformat_1_1t__field_a737fbe00a38a7ecd1725786ddfb07bcb}} 
+\index{modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}!date@{date}}
+\index{date@{date}!modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}}
+\subsubsection{\texorpdfstring{date}{date}}
+{\footnotesize\ttfamily type(t\+\_\+time) modulewrfformat\+::t\+\_\+field\+::date\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__field_a547571309afe696f2c47a83042426ba1}\label{structmodulewrfformat_1_1t__field_a547571309afe696f2c47a83042426ba1}} 
+\index{modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}!name@{name}}
+\index{name@{name}!modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}}
+\subsubsection{\texorpdfstring{name}{name}}
+{\footnotesize\ttfamily character(len=stringlength) modulewrfformat\+::t\+\_\+field\+::name\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__field_a12fcef7ab3819bc351ad2c8adc53f34d}\label{structmodulewrfformat_1_1t__field_a12fcef7ab3819bc351ad2c8adc53f34d}} 
+\index{modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}!ndimensions@{ndimensions}}
+\index{ndimensions@{ndimensions}!modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}}
+\subsubsection{\texorpdfstring{ndimensions}{ndimensions}}
+{\footnotesize\ttfamily integer modulewrfformat\+::t\+\_\+field\+::ndimensions\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__field_ac17b6ed61e2fac653544ed2014844849}\label{structmodulewrfformat_1_1t__field_ac17b6ed61e2fac653544ed2014844849}} 
+\index{modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}!next@{next}}
+\index{next@{next}!modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}}
+\subsubsection{\texorpdfstring{next}{next}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewrfformat_1_1t__field}{t\+\_\+field}}), pointer modulewrfformat\+::t\+\_\+field\+::next\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__field_a19ae18db533efda190b2089aff9fe594}\label{structmodulewrfformat_1_1t__field_a19ae18db533efda190b2089aff9fe594}} 
+\index{modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}!outputnumber@{outputnumber}}
+\index{outputnumber@{outputnumber}!modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}}
+\subsubsection{\texorpdfstring{outputnumber}{outputnumber}}
+{\footnotesize\ttfamily integer modulewrfformat\+::t\+\_\+field\+::outputnumber = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__field_a0f43b164c775f4336e21770edebdc77c}\label{structmodulewrfformat_1_1t__field_a0f43b164c775f4336e21770edebdc77c}} 
+\index{modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}!size@{size}}
+\index{size@{size}!modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}}
+\subsubsection{\texorpdfstring{size}{size}}
+{\footnotesize\ttfamily type(t\+\_\+size3d) modulewrfformat\+::t\+\_\+field\+::size\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__field_a42ba68e4c4aa7c076e3462229ec46cfd}\label{structmodulewrfformat_1_1t__field_a42ba68e4c4aa7c076e3462229ec46cfd}} 
+\index{modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}!staggeredx@{staggeredx}}
+\index{staggeredx@{staggeredx}!modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}}
+\subsubsection{\texorpdfstring{staggeredx}{staggeredx}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+field\+::staggeredx = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__field_a4c6d148dd8876f5738670f933006e90b}\label{structmodulewrfformat_1_1t__field_a4c6d148dd8876f5738670f933006e90b}} 
+\index{modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}!staggeredy@{staggeredy}}
+\index{staggeredy@{staggeredy}!modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}}
+\subsubsection{\texorpdfstring{staggeredy}{staggeredy}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+field\+::staggeredy = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__field_a2a05c7114bd51dcd018ac109a76c1dd7}\label{structmodulewrfformat_1_1t__field_a2a05c7114bd51dcd018ac109a76c1dd7}} 
+\index{modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}!staggeredz@{staggeredz}}
+\index{staggeredz@{staggeredz}!modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}}
+\subsubsection{\texorpdfstring{staggeredz}{staggeredz}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+field\+::staggeredz = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__field_a1a7d40c906de6c5abcaa0a14f9269db0}\label{structmodulewrfformat_1_1t__field_a1a7d40c906de6c5abcaa0a14f9269db0}} 
+\index{modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}!units@{units}}
+\index{units@{units}!modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}}
+\subsubsection{\texorpdfstring{units}{units}}
+{\footnotesize\ttfamily character(len=stringlength) modulewrfformat\+::t\+\_\+field\+::units\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__field_ab03a26865884d4a01a14f7b7bd46d26a}\label{structmodulewrfformat_1_1t__field_ab03a26865884d4a01a14f7b7bd46d26a}} 
+\index{modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}!values2d@{values2d}}
+\index{values2d@{values2d}!modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}}
+\subsubsection{\texorpdfstring{values2d}{values2d}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulewrfformat\+::t\+\_\+field\+::values2d\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__field_a9a933760c2baa9ec1801c1f78ddb33e1}\label{structmodulewrfformat_1_1t__field_a9a933760c2baa9ec1801c1f78ddb33e1}} 
+\index{modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}!values3d@{values3d}}
+\index{values3d@{values3d}!modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}}
+\subsubsection{\texorpdfstring{values3d}{values3d}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulewrfformat\+::t\+\_\+field\+::values3d\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__field_ac62fde7e2a6fe22fc472e9d521e59b67}\label{structmodulewrfformat_1_1t__field_ac62fde7e2a6fe22fc472e9d521e59b67}} 
+\index{modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}!worksize@{worksize}}
+\index{worksize@{worksize}!modulewrfformat\+::t\+\_\+field@{modulewrfformat\+::t\+\_\+field}}
+\subsubsection{\texorpdfstring{worksize}{worksize}}
+{\footnotesize\ttfamily type(t\+\_\+size3d) modulewrfformat\+::t\+\_\+field\+::worksize\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\mbox{\hyperlink{_module_w_r_f_format_8_f90}{Module\+W\+R\+F\+Format.\+F90}}\end{DoxyCompactItemize}

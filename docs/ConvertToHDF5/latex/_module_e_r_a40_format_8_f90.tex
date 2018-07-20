@@ -1,0 +1,106 @@
+\hypertarget{_module_e_r_a40_format_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+E\+R\+A40\+Format.F90 File Reference}
+\label{_module_e_r_a40_format_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+E\+R\+A40\+Format.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+E\+R\+A40\+Format.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmoduleera40format_1_1t__date}{moduleera40format\+::t\+\_\+date}}
+\item 
+type \mbox{\hyperlink{structmoduleera40format_1_1t__field}{moduleera40format\+::t\+\_\+field}}
+\item 
+type \mbox{\hyperlink{structmoduleera40format_1_1t__value}{moduleera40format\+::t\+\_\+value}}
+\item 
+type \mbox{\hyperlink{structmoduleera40format_1_1t__id}{moduleera40format\+::t\+\_\+id}}
+\item 
+type \mbox{\hyperlink{structmoduleera40format_1_1t__dimension}{moduleera40format\+::t\+\_\+dimension}}
+\item 
+type \mbox{\hyperlink{structmoduleera40format_1_1t__attribute}{moduleera40format\+::t\+\_\+attribute}}
+\item 
+type \mbox{\hyperlink{structmoduleera40format_1_1t__variable}{moduleera40format\+::t\+\_\+variable}}
+\item 
+type \mbox{\hyperlink{structmoduleera40format_1_1t__era40format}{moduleera40format\+::t\+\_\+era40format}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemoduleera40format}{moduleera40format}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleera40format_a0ebf94dc06f2741d57181016580896b9}{moduleera40format\+::convertera40format}} (Enter\+Data\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a26224b66b1a9302c71025953c7303ed6}{moduleera40format\+::readoptions}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleera40format_a4a4d9db2a785bd8a90d6860faf58c6bf}{moduleera40format\+::converttomohidunits2d}} (Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a407d38960a0ddf8b9d1645d26d35d49b}{moduleera40format\+::converttomohidunits3d}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a84aefcd4351fc116d22a21fdfce2ec4f}{moduleera40format\+::open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_aa8632d63af3434480b59776e3b58b294}{moduleera40format\+::killera40format}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_ab03a5122cb83fd0b3153870ed6bf1cdc}{moduleera40format\+::openreadandconvertfile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_aeaa93e0eaf981081d8b6a42b94714211}{moduleera40format\+::openasciifile}}
+\item 
+logical function, private \mbox{\hyperlink{namespacemoduleera40format_a5d0edb2c39da4714b1bffb8a6c97b1a2}{moduleera40format\+::isgridvariable}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a462785fbcd7874f4f3ab321366b79ec9}{moduleera40format\+::opennetcdffile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_ad4271c51cd4bfc71c5ed5743a60e7fef}{moduleera40format\+::constructgridandmap}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_adaf25cab272ca9c6e2db6b1f641c0136}{moduleera40format\+::handleattributtes}} (Type\+Of\+Attribute, n\+Attributes, Write\+To\+File)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_accbbdcac1635a00be7ca33013f811a29}{moduleera40format\+::writedatatype}} (Data\+Type)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a2dffd2c3e28995426ed11ff1f4ca7ad9}{moduleera40format\+::handledimensions}} (Variable, Write\+Dims)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a9389939d144e12060ff692086e9af89e}{moduleera40format\+::handlefloats}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a54957082dfc56590cf35c0fb8138161f}{moduleera40format\+::handledoubles}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a90dfe4450bbbd59c764d529d05f92d76}{moduleera40format\+::handleintegers}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a0a0c22e410451c81e0c573ad2174504f}{moduleera40format\+::handleshorts}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a496e3a66acda20102bdeaa457f8faf96}{moduleera40format\+::handlechars}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a4218771d6a94493f1954c06107f7ec1e}{moduleera40format\+::readgridmapoptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a866d19867c0e3bcef28981a8907ea516}{moduleera40format\+::constructtime}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a73e47fa652795fc4885fa7d6a5c34503}{moduleera40format\+::constructbathymetry}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_a45bd99707035a442354f99cd2597f1e5}{moduleera40format\+::constructmap}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_aeddab9fd7b3d953ed10b899ae10ef9bb}{moduleera40format\+::writedimensions}} (Index, Variable, Size, Write\+Dims)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_ad847a1e5d762ac9c9f77372614efda16}{moduleera40format\+::constructgrid}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleera40format_ad2e0367ac675a7a629eb4baf66bcf7c6}{moduleera40format\+::getvariable}} (Variable, Name)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleera40format_afe5dcd73c50804212a7b39e48bf7d428}{moduleera40format\+::constructinstanttime}} (t, Aux\+Time)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_a8abaf8c6f9802ba0e7e994aa019dbfd9}{moduleera40format\+::dotgrid}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_a81534a4bbb190281637fa42199fb3c9e}{moduleera40format\+::crossgrid}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_a42e5afd967f2051f48175fd48cbcaeab}{moduleera40format\+::cartesian}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_ad0e35072a96590a2ebaa186af57b70e2}{moduleera40format\+::spherical}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_ad3784d422598dc6566016fdb9451fd5d}{moduleera40format\+::curvilinear}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_a0193f3c82de3eb7dc7ce15df95940bb5}{moduleera40format\+::spherical\+\_\+curvilinear}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_a79506ec89444ea59431e76f12f1daf20}{moduleera40format\+::sigma}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_ae4ff4503bcd3d89b98e392ca67b2ef13}{moduleera40format\+::z\+\_\+coord}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleera40format_aa7e1f8ccfef24db2e6226011a47b2b88}{moduleera40format\+::generic}} = 3
+\item 
+type(t\+\_\+era40format), pointer \mbox{\hyperlink{namespacemoduleera40format_a991250a617c86efee2eeaeecf12cee05}{moduleera40format\+::me}}
+\end{DoxyCompactItemize}

@@ -1,0 +1,52 @@
+\hypertarget{_module_convert_modis_l3_mapped_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+Convert\+Modis\+L3\+Mapped.F90 File Reference}
+\label{_module_convert_modis_l3_mapped_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+Convert\+Modis\+L3\+Mapped.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+Convert\+Modis\+L3\+Mapped.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmoduleconvertmodisl3mapped_1_1t__attribute}{moduleconvertmodisl3mapped\+::t\+\_\+attribute}}
+\item 
+type \mbox{\hyperlink{structmoduleconvertmodisl3mapped_1_1t__modisl3mapped}{moduleconvertmodisl3mapped\+::t\+\_\+modisl3mapped}}
+\item 
+type \mbox{\hyperlink{structmoduleconvertmodisl3mapped_1_1t__modisl3mappedformat}{moduleconvertmodisl3mapped\+::t\+\_\+modisl3mappedformat}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemoduleconvertmodisl3mapped}{moduleconvertmodisl3mapped}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconvertmodisl3mapped_a18d5802527fa5553ab45a5c110557d2b}{moduleconvertmodisl3mapped\+::startconvertmodisl3mapped}} (Enter\+Data\+ID, Client\+Number, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleconvertmodisl3mapped_a0f034c5b727c268c416d8c9dfec265e3}{moduleconvertmodisl3mapped\+::readoptions}} (Client\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconvertmodisl3mapped_ac229afc3a01cac186e0abd3c19093d2a}{moduleconvertmodisl3mapped\+::allocatevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconvertmodisl3mapped_a9ccec60dccec78cdbd1bb6e2b82e4c6b}{moduleconvertmodisl3mapped\+::construct\+\_\+fieldslist}} (Client\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconvertmodisl3mapped_a74d74f88259002bec089959db1c1370b}{moduleconvertmodisl3mapped\+::construct\+\_\+field}} (New\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconvertmodisl3mapped_a3fa5a2918388eb33951d0fcae3d4bbb6}{moduleconvertmodisl3mapped\+::add\+\_\+field}} (New\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconvertmodisl3mapped_a848303d0a614c18b94629b24f417fee7}{moduleconvertmodisl3mapped\+::readhdf4}} (New\+Field)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleconvertmodisl3mapped_a82cd68f8503b3a5bf96e529ac4715405}{moduleconvertmodisl3mapped\+::definegrid}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleconvertmodisl3mapped_aa45a197b9dfbeea974438b114ede6c92}{moduleconvertmodisl3mapped\+::definearea}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconvertmodisl3mapped_ae7ff1f4d8258c08682ea6db04a074c74}{moduleconvertmodisl3mapped\+::open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconvertmodisl3mapped_ac1aafb9181d66e361d34ec58c03d59bb}{moduleconvertmodisl3mapped\+::outputfields}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconvertmodisl3mapped_a92c7eb5c01d20a3540cef8d0d437bb08}{moduleconvertmodisl3mapped\+::killmodisl3mappedformat}}
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+type(t\+\_\+modisl3mappedformat), pointer \mbox{\hyperlink{namespacemoduleconvertmodisl3mapped_a1a142d4981ab45ab3eace9a2dd1fe02b}{moduleconvertmodisl3mapped\+::me}}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleconvertmodisl3mapped_a790db33a2adf6b082ff7a6e70161046a}{moduleconvertmodisl3mapped\+::grid\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleconvertmodisl3mapped_a5c80d28c4928b02232f725e7ad1b4c94}{moduleconvertmodisl3mapped\+::area\+\_\+}} = 2
+\end{DoxyCompactItemize}

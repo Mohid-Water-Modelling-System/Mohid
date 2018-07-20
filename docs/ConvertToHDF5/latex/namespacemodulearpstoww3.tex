@@ -1,0 +1,180 @@
+\hypertarget{namespacemodulearpstoww3}{}\section{modulearpstoww3 Module Reference}
+\label{namespacemodulearpstoww3}\index{modulearpstoww3@{modulearpstoww3}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulearpstoww3_1_1t__date}{t\+\_\+date}}
+\item 
+type \mbox{\hyperlink{structmodulearpstoww3_1_1t__field}{t\+\_\+field}}
+\item 
+type \mbox{\hyperlink{structmodulearpstoww3_1_1t__mm5format}{t\+\_\+mm5format}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulearpstoww3_a42304b111881f48406d8d939918e21ef}{convertarpsww3format}} (Enter\+Data\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpstoww3_a7642538ceff4533a4ad2aeba84fb2d32}{readoptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpstoww3_aa5a12099f3353b33d3b40f8f3f4384f0}{openandreadarpsfile}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulearpstoww3_a509b1aea6540dc5784cfe7424f0e6414}{constructgrid}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpstoww3_a0277d24244051759af2fcc3106ef5a08}{addfield}} (First\+Field, Obj\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpstoww3_a81436aea40d31bddb32f553e227a991d}{adddate}} (First\+Date, Obj\+Date)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpstoww3_a7c18511d187912f655458191bcf1c7af}{outputfields}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpstoww3_a7a7eb9b823582e046e2127ea46d3f300}{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpstoww3_a2b22a4f72b20cf6f219d61b511afcad1}{killarpsformat}}
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+type(\mbox{\hyperlink{structmodulearpstoww3_1_1t__mm5format}{t\+\_\+mm5format}}), pointer \mbox{\hyperlink{namespacemodulearpstoww3_ae048aea87bb0343812cdb60ee1a1f6b8}{me}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemodulearpstoww3_a81436aea40d31bddb32f553e227a991d}\label{namespacemodulearpstoww3_a81436aea40d31bddb32f553e227a991d}} 
+\index{modulearpstoww3@{modulearpstoww3}!adddate@{adddate}}
+\index{adddate@{adddate}!modulearpstoww3@{modulearpstoww3}}
+\subsubsection{\texorpdfstring{adddate()}{adddate()}}
+{\footnotesize\ttfamily subroutine, private modulearpstoww3\+::adddate (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmodulearpstoww3_1_1t__date}{t\+\_\+date}}), pointer}]{First\+Date,  }\item[{type (\mbox{\hyperlink{structmodulearpstoww3_1_1t__date}{t\+\_\+date}}), pointer}]{Obj\+Date }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpstoww3_a81436aea40d31bddb32f553e227a991d_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulearpstoww3_a0277d24244051759af2fcc3106ef5a08}\label{namespacemodulearpstoww3_a0277d24244051759af2fcc3106ef5a08}} 
+\index{modulearpstoww3@{modulearpstoww3}!addfield@{addfield}}
+\index{addfield@{addfield}!modulearpstoww3@{modulearpstoww3}}
+\subsubsection{\texorpdfstring{addfield()}{addfield()}}
+{\footnotesize\ttfamily subroutine, private modulearpstoww3\+::addfield (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmodulearpstoww3_1_1t__field}{t\+\_\+field}}), pointer}]{First\+Field,  }\item[{type (\mbox{\hyperlink{structmodulearpstoww3_1_1t__field}{t\+\_\+field}}), pointer}]{Obj\+Field }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpstoww3_a0277d24244051759af2fcc3106ef5a08_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulearpstoww3_a509b1aea6540dc5784cfe7424f0e6414}\label{namespacemodulearpstoww3_a509b1aea6540dc5784cfe7424f0e6414}} 
+\index{modulearpstoww3@{modulearpstoww3}!constructgrid@{constructgrid}}
+\index{constructgrid@{constructgrid}!modulearpstoww3@{modulearpstoww3}}
+\subsubsection{\texorpdfstring{constructgrid()}{constructgrid()}}
+{\footnotesize\ttfamily subroutine modulearpstoww3\+::constructgrid (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpstoww3_a509b1aea6540dc5784cfe7424f0e6414_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulearpstoww3_a42304b111881f48406d8d939918e21ef}\label{namespacemodulearpstoww3_a42304b111881f48406d8d939918e21ef}} 
+\index{modulearpstoww3@{modulearpstoww3}!convertarpsww3format@{convertarpsww3format}}
+\index{convertarpsww3format@{convertarpsww3format}!modulearpstoww3@{modulearpstoww3}}
+\subsubsection{\texorpdfstring{convertarpsww3format()}{convertarpsww3format()}}
+{\footnotesize\ttfamily subroutine, public modulearpstoww3\+::convertarpsww3format (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Enter\+Data\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemodulearpstoww3_a42304b111881f48406d8d939918e21ef_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpstoww3_a42304b111881f48406d8d939918e21ef_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulearpstoww3_a2b22a4f72b20cf6f219d61b511afcad1}\label{namespacemodulearpstoww3_a2b22a4f72b20cf6f219d61b511afcad1}} 
+\index{modulearpstoww3@{modulearpstoww3}!killarpsformat@{killarpsformat}}
+\index{killarpsformat@{killarpsformat}!modulearpstoww3@{modulearpstoww3}}
+\subsubsection{\texorpdfstring{killarpsformat()}{killarpsformat()}}
+{\footnotesize\ttfamily subroutine, private modulearpstoww3\+::killarpsformat (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpstoww3_a2b22a4f72b20cf6f219d61b511afcad1_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulearpstoww3_a7a7eb9b823582e046e2127ea46d3f300}\label{namespacemodulearpstoww3_a7a7eb9b823582e046e2127ea46d3f300}} 
+\index{modulearpstoww3@{modulearpstoww3}!open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\index{open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}!modulearpstoww3@{modulearpstoww3}}
+\subsubsection{\texorpdfstring{open\+\_\+hdf5\+\_\+output\+\_\+file()}{open\_hdf5\_output\_file()}}
+{\footnotesize\ttfamily subroutine, private modulearpstoww3\+::open\+\_\+hdf5\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpstoww3_a7a7eb9b823582e046e2127ea46d3f300_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulearpstoww3_aa5a12099f3353b33d3b40f8f3f4384f0}\label{namespacemodulearpstoww3_aa5a12099f3353b33d3b40f8f3f4384f0}} 
+\index{modulearpstoww3@{modulearpstoww3}!openandreadarpsfile@{openandreadarpsfile}}
+\index{openandreadarpsfile@{openandreadarpsfile}!modulearpstoww3@{modulearpstoww3}}
+\subsubsection{\texorpdfstring{openandreadarpsfile()}{openandreadarpsfile()}}
+{\footnotesize\ttfamily subroutine, private modulearpstoww3\+::openandreadarpsfile (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpstoww3_aa5a12099f3353b33d3b40f8f3f4384f0_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpstoww3_aa5a12099f3353b33d3b40f8f3f4384f0_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulearpstoww3_a7c18511d187912f655458191bcf1c7af}\label{namespacemodulearpstoww3_a7c18511d187912f655458191bcf1c7af}} 
+\index{modulearpstoww3@{modulearpstoww3}!outputfields@{outputfields}}
+\index{outputfields@{outputfields}!modulearpstoww3@{modulearpstoww3}}
+\subsubsection{\texorpdfstring{outputfields()}{outputfields()}}
+{\footnotesize\ttfamily subroutine, private modulearpstoww3\+::outputfields (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpstoww3_a7c18511d187912f655458191bcf1c7af_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulearpstoww3_a7c18511d187912f655458191bcf1c7af_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulearpstoww3_a7642538ceff4533a4ad2aeba84fb2d32}\label{namespacemodulearpstoww3_a7642538ceff4533a4ad2aeba84fb2d32}} 
+\index{modulearpstoww3@{modulearpstoww3}!readoptions@{readoptions}}
+\index{readoptions@{readoptions}!modulearpstoww3@{modulearpstoww3}}
+\subsubsection{\texorpdfstring{readoptions()}{readoptions()}}
+{\footnotesize\ttfamily subroutine, private modulearpstoww3\+::readoptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+\subsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemodulearpstoww3_ae048aea87bb0343812cdb60ee1a1f6b8}\label{namespacemodulearpstoww3_ae048aea87bb0343812cdb60ee1a1f6b8}} 
+\index{modulearpstoww3@{modulearpstoww3}!me@{me}}
+\index{me@{me}!modulearpstoww3@{modulearpstoww3}}
+\subsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulearpstoww3_1_1t__mm5format}{t\+\_\+mm5format}}), pointer modulearpstoww3\+::me\hspace{0.3cm}{\ttfamily [private]}}
+

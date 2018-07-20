@@ -1,0 +1,12 @@
+<map id="modulewoaformat::constructgridandmap" name="modulewoaformat::constructgridandmap">
+<area shape="rect" id="node2" href="$namespacemodulewoaformat.html#aa0e457259f521e3a55f034b74dd55c94" title="modulewoaformat::readgridmapoptions" alt="" coords="305,5,549,32"/>
+<area shape="rect" id="node3" href="$namespacemodulewoaformat.html#a2b1ae956746e53538872b16c62bcf308" title="modulewoaformat::constructgrid" alt="" coords="324,56,531,83"/>
+<area shape="rect" id="node9" href="$namespacemodulewoaformat.html#add300745a920cfd269052d32ca0ccfc7" title="modulewoaformat::constructbathymetry" alt="" coords="597,107,848,133"/>
+<area shape="rect" id="node10" href="$namespacemodulewoaformat.html#a99ab25469c7485e8abd999389b55602e" title="modulewoaformat::constructtime" alt="" coords="617,157,828,184"/>
+<area shape="rect" id="node11" href="$namespacemodulewoaformat.html#a5db9ab670b36026be5980f95935f64f6" title="modulewoaformat::constructmap" alt="" coords="322,208,533,235"/>
+<area shape="rect" id="node4" href="$namespacemodulewoaformat.html#a0dce7fe9b034991dc5845a3e8ecc8cba" title="modulewoaformat::getvariable" alt="" coords="627,56,819,83"/>
+<area shape="rect" id="node5" href="$namespacemodulewoaformat.html#a1755d2188a0690fff10f808cf9ecec9a" title="modulewoaformat::handledimensions" alt="" coords="896,81,1131,108"/>
+<area shape="rect" id="node7" href="$namespacemodulewoaformat.html#a54028cfada0d5c06f32d22ec3050fc95" title="modulewoaformat::handleattributtes" alt="" coords="900,132,1127,159"/>
+<area shape="rect" id="node6" href="$namespacemodulewoaformat.html#a2416c77f949cd03e164c70c78493ad37" title="modulewoaformat::writedimensions" alt="" coords="1179,81,1403,108"/>
+<area shape="rect" id="node8" href="$namespacemodulewoaformat.html#a87baefa0ce052791b45523ab1bd52868" title="modulewoaformat::writedatatype" alt="" coords="1187,132,1395,159"/>
+</map>

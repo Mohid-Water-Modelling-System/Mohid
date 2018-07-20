@@ -1,0 +1,430 @@
+\hypertarget{structmodulewrfformat_1_1t__wrfformat}{}\section{modulewrfformat\+:\+:t\+\_\+wrfformat Type Reference}
+\label{structmodulewrfformat_1_1t__wrfformat}\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+
+
+Collaboration diagram for modulewrfformat\+:\+:t\+\_\+wrfformat\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structmodulewrfformat_1_1t__wrfformat__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+integer \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_aa5783c31917a90cfdf41313e989750f9}{objenterdata}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_ae897c6015694a79197617d452bda1e60}{objhdf5}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a6d656e0d6119b2fefc33423325ea67f6}{objhorizontalgrid}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a88efc4e08c1b125841a10bd23f792a2c}{unit}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_aaf8c3b3fb54d4ca90f3cee859b235e29}{filename}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_af2c4a19ff9bdb0cf7b05918dd002619b}{terrainfilename}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a57b8b3914fad1cbbd98873f0527b2d2b}{gridfilename}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a288bf183c22d32956b9c6e8be7745769}{outputfilename}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_ad9e539808c4addaaa994bf4ea95ce393}{bathymetry}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_aed1a1b70da29bc4e9375cd0689ec5fc5}{centerx}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a3673dc6b28753c66dd22db793bf24ef5}{centery}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_abacc626e96eb594466e587f236cc89a2}{connectionx}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a470aa238915fad5a4126599a2b1f72d4}{connectiony}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_ae1481977befc2f3cc8ee21e3dab1b77b}{landuse}}
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a7c63bcf8783fd1b1f5f6d781b02cf931}{sigma}}
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a49c42dbf67ef7ef2ea562dd4fbb4957b}{writexyz}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a00d67fe5e936983c8d27be46c0949343}{computewindstress}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a471c454f5aed3bc61178c113e1e4c012}{computewindmodulus}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a09c8a11c226d564586515038af70ced3}{computerelativehumidity}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a5aec6a96378b105b1004c1ebd622ba0d}{computerelativehumidity3d}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_af57e5c2e10d266138065c78f6191e9d8}{computeprecipitation}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_ae065cf89ba35aa083cd71a67493f33f3}{computemeansealevelpressuremm5}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a38812591c77672c326740b4d60f4fcb2}{computemeansealevelpressurewrf}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a22c3a1c26071c00f9f9727e5ddbc6aa2}{computepressure3d}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_ae56b4a207699dc6fbbdbc78177e7fc00}{computetemperature3d}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_ab92cfbd8fdbcb74f20ef61c4c0003c62}{computeverticalz}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a614ea3a8053f3cffa6f141f17a6368aa}{writeterrain}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a484e6ca0712e991a1d75786d4c0f39f4}{writelanduse}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a8a606fb942ea7b85541eadf24fb9f1a3}{terrainfilenotspecified}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a4fdcdd7203d29acf125566671ce0e696}{outputgridnotspecified}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_adf8e97b14565acfe24a927afc0ada7b7}{tomohid}} = .false.
+\item 
+real \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a87bf1e317ea2b292dc17d8f02b7d1f03}{ptop}} = null\+\_\+real
+\item 
+integer \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_ab8af7f8e21919e433f2d0f9b044b7c21}{ifsnow}} = null\+\_\+int
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_adb66189a22884c234112ab45d32cdb22}{size}}
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a2e83c39278f7c0d552ca3e6e98acc0da}{worksize}}
+\item 
+type(\mbox{\hyperlink{structmodulewrfformat_1_1t__field}{t\+\_\+field}}), pointer \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a44a4c6e82fcf5e55ec49fd8bce010e82}{firstfield}}
+\item 
+type(\mbox{\hyperlink{structmodulewrfformat_1_1t__date}{t\+\_\+date}}), pointer \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a596fc4859716a79edec1400eaded95fe}{firstdate}}
+\item 
+character(len=stringlength), dimension(\+:), pointer \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_af6cb888ab552d4d61e86336365b43091}{fieldstoconvert}}
+\item 
+character(len=stringlength), dimension(\+:), pointer \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a1aac6a3b871c4fd2b4e0687eba05d5b8}{fieldstoread}}
+\item 
+logical \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a720d5cd03eac4e26f3504a41b5beafdd}{timewindow}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a48b389846d2a3993023869554611b383}{starttime}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_ada77443b0f37a9523d119712d815e95d}{endtime}}
+\item 
+real \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_ac4c434c2503c3d63d0355b6408b770a3}{outputdtinterval}} = null\+\_\+real
+\item 
+integer \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a40d2c53112db22984707282cae281f96}{projtype}} = null\+\_\+int
+\item 
+real \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a07eb63d608b624c30d0685fdc42aa99c}{coarsedomaincenterlat}} = null\+\_\+real
+\item 
+real \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_aba77bd86108a805f3f482d501700ca66}{coarsedomaincenterlon}} = null\+\_\+real
+\item 
+real \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_aa5b496e68d4b45d3e3cdab160df32265}{truelatupper}} = null\+\_\+real
+\item 
+real \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a0f9351963f5e4186caae505970e3bd7c}{truelatlower}} = null\+\_\+real
+\item 
+real \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a78bfcd12790aeef7be5ecb511ab6d199}{dy}} = null\+\_\+real
+\item 
+type(prj90\+\_\+projection) \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a30057f9e74c4bfec09f9eb83fa455704}{proj}}
+\item 
+character(len=20), dimension(8) \mbox{\hyperlink{structmodulewrfformat_1_1t__wrfformat_a748b402078bd09ea5c36f6e7d28d3ca4}{params}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Member Data Documentation}
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_ad9e539808c4addaaa994bf4ea95ce393}\label{structmodulewrfformat_1_1t__wrfformat_ad9e539808c4addaaa994bf4ea95ce393}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!bathymetry@{bathymetry}}
+\index{bathymetry@{bathymetry}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{bathymetry}{bathymetry}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulewrfformat\+::t\+\_\+wrfformat\+::bathymetry\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_aed1a1b70da29bc4e9375cd0689ec5fc5}\label{structmodulewrfformat_1_1t__wrfformat_aed1a1b70da29bc4e9375cd0689ec5fc5}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!centerx@{centerx}}
+\index{centerx@{centerx}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{centerx}{centerx}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulewrfformat\+::t\+\_\+wrfformat\+::centerx\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a3673dc6b28753c66dd22db793bf24ef5}\label{structmodulewrfformat_1_1t__wrfformat_a3673dc6b28753c66dd22db793bf24ef5}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!centery@{centery}}
+\index{centery@{centery}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{centery}{centery}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulewrfformat\+::t\+\_\+wrfformat\+::centery\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a07eb63d608b624c30d0685fdc42aa99c}\label{structmodulewrfformat_1_1t__wrfformat_a07eb63d608b624c30d0685fdc42aa99c}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!coarsedomaincenterlat@{coarsedomaincenterlat}}
+\index{coarsedomaincenterlat@{coarsedomaincenterlat}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{coarsedomaincenterlat}{coarsedomaincenterlat}}
+{\footnotesize\ttfamily real modulewrfformat\+::t\+\_\+wrfformat\+::coarsedomaincenterlat = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_aba77bd86108a805f3f482d501700ca66}\label{structmodulewrfformat_1_1t__wrfformat_aba77bd86108a805f3f482d501700ca66}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!coarsedomaincenterlon@{coarsedomaincenterlon}}
+\index{coarsedomaincenterlon@{coarsedomaincenterlon}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{coarsedomaincenterlon}{coarsedomaincenterlon}}
+{\footnotesize\ttfamily real modulewrfformat\+::t\+\_\+wrfformat\+::coarsedomaincenterlon = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_ae065cf89ba35aa083cd71a67493f33f3}\label{structmodulewrfformat_1_1t__wrfformat_ae065cf89ba35aa083cd71a67493f33f3}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!computemeansealevelpressuremm5@{computemeansealevelpressuremm5}}
+\index{computemeansealevelpressuremm5@{computemeansealevelpressuremm5}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{computemeansealevelpressuremm5}{computemeansealevelpressuremm5}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+wrfformat\+::computemeansealevelpressuremm5 = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a38812591c77672c326740b4d60f4fcb2}\label{structmodulewrfformat_1_1t__wrfformat_a38812591c77672c326740b4d60f4fcb2}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!computemeansealevelpressurewrf@{computemeansealevelpressurewrf}}
+\index{computemeansealevelpressurewrf@{computemeansealevelpressurewrf}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{computemeansealevelpressurewrf}{computemeansealevelpressurewrf}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+wrfformat\+::computemeansealevelpressurewrf = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_af57e5c2e10d266138065c78f6191e9d8}\label{structmodulewrfformat_1_1t__wrfformat_af57e5c2e10d266138065c78f6191e9d8}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!computeprecipitation@{computeprecipitation}}
+\index{computeprecipitation@{computeprecipitation}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{computeprecipitation}{computeprecipitation}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+wrfformat\+::computeprecipitation = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a22c3a1c26071c00f9f9727e5ddbc6aa2}\label{structmodulewrfformat_1_1t__wrfformat_a22c3a1c26071c00f9f9727e5ddbc6aa2}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!computepressure3d@{computepressure3d}}
+\index{computepressure3d@{computepressure3d}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{computepressure3d}{computepressure3d}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+wrfformat\+::computepressure3d = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a09c8a11c226d564586515038af70ced3}\label{structmodulewrfformat_1_1t__wrfformat_a09c8a11c226d564586515038af70ced3}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!computerelativehumidity@{computerelativehumidity}}
+\index{computerelativehumidity@{computerelativehumidity}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{computerelativehumidity}{computerelativehumidity}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+wrfformat\+::computerelativehumidity = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a5aec6a96378b105b1004c1ebd622ba0d}\label{structmodulewrfformat_1_1t__wrfformat_a5aec6a96378b105b1004c1ebd622ba0d}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!computerelativehumidity3d@{computerelativehumidity3d}}
+\index{computerelativehumidity3d@{computerelativehumidity3d}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{computerelativehumidity3d}{computerelativehumidity3d}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+wrfformat\+::computerelativehumidity3d = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_ae56b4a207699dc6fbbdbc78177e7fc00}\label{structmodulewrfformat_1_1t__wrfformat_ae56b4a207699dc6fbbdbc78177e7fc00}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!computetemperature3d@{computetemperature3d}}
+\index{computetemperature3d@{computetemperature3d}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{computetemperature3d}{computetemperature3d}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+wrfformat\+::computetemperature3d = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_ab92cfbd8fdbcb74f20ef61c4c0003c62}\label{structmodulewrfformat_1_1t__wrfformat_ab92cfbd8fdbcb74f20ef61c4c0003c62}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!computeverticalz@{computeverticalz}}
+\index{computeverticalz@{computeverticalz}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{computeverticalz}{computeverticalz}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+wrfformat\+::computeverticalz = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a471c454f5aed3bc61178c113e1e4c012}\label{structmodulewrfformat_1_1t__wrfformat_a471c454f5aed3bc61178c113e1e4c012}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!computewindmodulus@{computewindmodulus}}
+\index{computewindmodulus@{computewindmodulus}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{computewindmodulus}{computewindmodulus}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+wrfformat\+::computewindmodulus = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a00d67fe5e936983c8d27be46c0949343}\label{structmodulewrfformat_1_1t__wrfformat_a00d67fe5e936983c8d27be46c0949343}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!computewindstress@{computewindstress}}
+\index{computewindstress@{computewindstress}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{computewindstress}{computewindstress}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+wrfformat\+::computewindstress = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_abacc626e96eb594466e587f236cc89a2}\label{structmodulewrfformat_1_1t__wrfformat_abacc626e96eb594466e587f236cc89a2}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!connectionx@{connectionx}}
+\index{connectionx@{connectionx}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{connectionx}{connectionx}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulewrfformat\+::t\+\_\+wrfformat\+::connectionx\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a470aa238915fad5a4126599a2b1f72d4}\label{structmodulewrfformat_1_1t__wrfformat_a470aa238915fad5a4126599a2b1f72d4}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!connectiony@{connectiony}}
+\index{connectiony@{connectiony}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{connectiony}{connectiony}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulewrfformat\+::t\+\_\+wrfformat\+::connectiony\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a78bfcd12790aeef7be5ecb511ab6d199}\label{structmodulewrfformat_1_1t__wrfformat_a78bfcd12790aeef7be5ecb511ab6d199}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!dy@{dy}}
+\index{dy@{dy}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{dy}{dy}}
+{\footnotesize\ttfamily real modulewrfformat\+::t\+\_\+wrfformat\+::dy = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_ada77443b0f37a9523d119712d815e95d}\label{structmodulewrfformat_1_1t__wrfformat_ada77443b0f37a9523d119712d815e95d}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!endtime@{endtime}}
+\index{endtime@{endtime}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{endtime}{endtime}}
+{\footnotesize\ttfamily type(t\+\_\+time) modulewrfformat\+::t\+\_\+wrfformat\+::endtime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_af6cb888ab552d4d61e86336365b43091}\label{structmodulewrfformat_1_1t__wrfformat_af6cb888ab552d4d61e86336365b43091}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!fieldstoconvert@{fieldstoconvert}}
+\index{fieldstoconvert@{fieldstoconvert}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{fieldstoconvert}{fieldstoconvert}}
+{\footnotesize\ttfamily character(len=stringlength), dimension(\+:), pointer modulewrfformat\+::t\+\_\+wrfformat\+::fieldstoconvert\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a1aac6a3b871c4fd2b4e0687eba05d5b8}\label{structmodulewrfformat_1_1t__wrfformat_a1aac6a3b871c4fd2b4e0687eba05d5b8}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!fieldstoread@{fieldstoread}}
+\index{fieldstoread@{fieldstoread}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{fieldstoread}{fieldstoread}}
+{\footnotesize\ttfamily character(len=stringlength), dimension(\+:), pointer modulewrfformat\+::t\+\_\+wrfformat\+::fieldstoread\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_aaf8c3b3fb54d4ca90f3cee859b235e29}\label{structmodulewrfformat_1_1t__wrfformat_aaf8c3b3fb54d4ca90f3cee859b235e29}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!filename@{filename}}
+\index{filename@{filename}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{filename}{filename}}
+{\footnotesize\ttfamily character(len=pathlength) modulewrfformat\+::t\+\_\+wrfformat\+::filename\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a596fc4859716a79edec1400eaded95fe}\label{structmodulewrfformat_1_1t__wrfformat_a596fc4859716a79edec1400eaded95fe}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!firstdate@{firstdate}}
+\index{firstdate@{firstdate}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{firstdate}{firstdate}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewrfformat_1_1t__date}{t\+\_\+date}}), pointer modulewrfformat\+::t\+\_\+wrfformat\+::firstdate\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a44a4c6e82fcf5e55ec49fd8bce010e82}\label{structmodulewrfformat_1_1t__wrfformat_a44a4c6e82fcf5e55ec49fd8bce010e82}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!firstfield@{firstfield}}
+\index{firstfield@{firstfield}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{firstfield}{firstfield}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulewrfformat_1_1t__field}{t\+\_\+field}}), pointer modulewrfformat\+::t\+\_\+wrfformat\+::firstfield\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a57b8b3914fad1cbbd98873f0527b2d2b}\label{structmodulewrfformat_1_1t__wrfformat_a57b8b3914fad1cbbd98873f0527b2d2b}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!gridfilename@{gridfilename}}
+\index{gridfilename@{gridfilename}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{gridfilename}{gridfilename}}
+{\footnotesize\ttfamily character(len=pathlength) modulewrfformat\+::t\+\_\+wrfformat\+::gridfilename\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_ab8af7f8e21919e433f2d0f9b044b7c21}\label{structmodulewrfformat_1_1t__wrfformat_ab8af7f8e21919e433f2d0f9b044b7c21}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!ifsnow@{ifsnow}}
+\index{ifsnow@{ifsnow}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{ifsnow}{ifsnow}}
+{\footnotesize\ttfamily integer modulewrfformat\+::t\+\_\+wrfformat\+::ifsnow = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_ae1481977befc2f3cc8ee21e3dab1b77b}\label{structmodulewrfformat_1_1t__wrfformat_ae1481977befc2f3cc8ee21e3dab1b77b}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!landuse@{landuse}}
+\index{landuse@{landuse}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{landuse}{landuse}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulewrfformat\+::t\+\_\+wrfformat\+::landuse\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_aa5783c31917a90cfdf41313e989750f9}\label{structmodulewrfformat_1_1t__wrfformat_aa5783c31917a90cfdf41313e989750f9}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!objenterdata@{objenterdata}}
+\index{objenterdata@{objenterdata}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{objenterdata}{objenterdata}}
+{\footnotesize\ttfamily integer modulewrfformat\+::t\+\_\+wrfformat\+::objenterdata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_ae897c6015694a79197617d452bda1e60}\label{structmodulewrfformat_1_1t__wrfformat_ae897c6015694a79197617d452bda1e60}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!objhdf5@{objhdf5}}
+\index{objhdf5@{objhdf5}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{objhdf5}{objhdf5}}
+{\footnotesize\ttfamily integer modulewrfformat\+::t\+\_\+wrfformat\+::objhdf5 = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a6d656e0d6119b2fefc33423325ea67f6}\label{structmodulewrfformat_1_1t__wrfformat_a6d656e0d6119b2fefc33423325ea67f6}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!objhorizontalgrid@{objhorizontalgrid}}
+\index{objhorizontalgrid@{objhorizontalgrid}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{objhorizontalgrid}{objhorizontalgrid}}
+{\footnotesize\ttfamily integer modulewrfformat\+::t\+\_\+wrfformat\+::objhorizontalgrid = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_ac4c434c2503c3d63d0355b6408b770a3}\label{structmodulewrfformat_1_1t__wrfformat_ac4c434c2503c3d63d0355b6408b770a3}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!outputdtinterval@{outputdtinterval}}
+\index{outputdtinterval@{outputdtinterval}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{outputdtinterval}{outputdtinterval}}
+{\footnotesize\ttfamily real modulewrfformat\+::t\+\_\+wrfformat\+::outputdtinterval = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a288bf183c22d32956b9c6e8be7745769}\label{structmodulewrfformat_1_1t__wrfformat_a288bf183c22d32956b9c6e8be7745769}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!outputfilename@{outputfilename}}
+\index{outputfilename@{outputfilename}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{outputfilename}{outputfilename}}
+{\footnotesize\ttfamily character(len=pathlength) modulewrfformat\+::t\+\_\+wrfformat\+::outputfilename\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a4fdcdd7203d29acf125566671ce0e696}\label{structmodulewrfformat_1_1t__wrfformat_a4fdcdd7203d29acf125566671ce0e696}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!outputgridnotspecified@{outputgridnotspecified}}
+\index{outputgridnotspecified@{outputgridnotspecified}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{outputgridnotspecified}{outputgridnotspecified}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+wrfformat\+::outputgridnotspecified = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a748b402078bd09ea5c36f6e7d28d3ca4}\label{structmodulewrfformat_1_1t__wrfformat_a748b402078bd09ea5c36f6e7d28d3ca4}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!params@{params}}
+\index{params@{params}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{params}{params}}
+{\footnotesize\ttfamily character(len=20), dimension(8) modulewrfformat\+::t\+\_\+wrfformat\+::params\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a30057f9e74c4bfec09f9eb83fa455704}\label{structmodulewrfformat_1_1t__wrfformat_a30057f9e74c4bfec09f9eb83fa455704}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!proj@{proj}}
+\index{proj@{proj}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{proj}{proj}}
+{\footnotesize\ttfamily type(prj90\+\_\+projection) modulewrfformat\+::t\+\_\+wrfformat\+::proj\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a40d2c53112db22984707282cae281f96}\label{structmodulewrfformat_1_1t__wrfformat_a40d2c53112db22984707282cae281f96}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!projtype@{projtype}}
+\index{projtype@{projtype}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{projtype}{projtype}}
+{\footnotesize\ttfamily integer modulewrfformat\+::t\+\_\+wrfformat\+::projtype = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a87bf1e317ea2b292dc17d8f02b7d1f03}\label{structmodulewrfformat_1_1t__wrfformat_a87bf1e317ea2b292dc17d8f02b7d1f03}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!ptop@{ptop}}
+\index{ptop@{ptop}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{ptop}{ptop}}
+{\footnotesize\ttfamily real modulewrfformat\+::t\+\_\+wrfformat\+::ptop = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a7c63bcf8783fd1b1f5f6d781b02cf931}\label{structmodulewrfformat_1_1t__wrfformat_a7c63bcf8783fd1b1f5f6d781b02cf931}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!sigma@{sigma}}
+\index{sigma@{sigma}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{sigma}{sigma}}
+{\footnotesize\ttfamily real, dimension(\+:    ), pointer modulewrfformat\+::t\+\_\+wrfformat\+::sigma\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_adb66189a22884c234112ab45d32cdb22}\label{structmodulewrfformat_1_1t__wrfformat_adb66189a22884c234112ab45d32cdb22}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!size@{size}}
+\index{size@{size}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{size}{size}}
+{\footnotesize\ttfamily type(t\+\_\+size3d) modulewrfformat\+::t\+\_\+wrfformat\+::size\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a48b389846d2a3993023869554611b383}\label{structmodulewrfformat_1_1t__wrfformat_a48b389846d2a3993023869554611b383}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!starttime@{starttime}}
+\index{starttime@{starttime}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{starttime}{starttime}}
+{\footnotesize\ttfamily type(t\+\_\+time) modulewrfformat\+::t\+\_\+wrfformat\+::starttime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_af2c4a19ff9bdb0cf7b05918dd002619b}\label{structmodulewrfformat_1_1t__wrfformat_af2c4a19ff9bdb0cf7b05918dd002619b}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!terrainfilename@{terrainfilename}}
+\index{terrainfilename@{terrainfilename}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{terrainfilename}{terrainfilename}}
+{\footnotesize\ttfamily character(len=pathlength) modulewrfformat\+::t\+\_\+wrfformat\+::terrainfilename\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a8a606fb942ea7b85541eadf24fb9f1a3}\label{structmodulewrfformat_1_1t__wrfformat_a8a606fb942ea7b85541eadf24fb9f1a3}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!terrainfilenotspecified@{terrainfilenotspecified}}
+\index{terrainfilenotspecified@{terrainfilenotspecified}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{terrainfilenotspecified}{terrainfilenotspecified}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+wrfformat\+::terrainfilenotspecified = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a720d5cd03eac4e26f3504a41b5beafdd}\label{structmodulewrfformat_1_1t__wrfformat_a720d5cd03eac4e26f3504a41b5beafdd}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!timewindow@{timewindow}}
+\index{timewindow@{timewindow}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{timewindow}{timewindow}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+wrfformat\+::timewindow\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_adf8e97b14565acfe24a927afc0ada7b7}\label{structmodulewrfformat_1_1t__wrfformat_adf8e97b14565acfe24a927afc0ada7b7}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!tomohid@{tomohid}}
+\index{tomohid@{tomohid}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{tomohid}{tomohid}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+wrfformat\+::tomohid = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a0f9351963f5e4186caae505970e3bd7c}\label{structmodulewrfformat_1_1t__wrfformat_a0f9351963f5e4186caae505970e3bd7c}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!truelatlower@{truelatlower}}
+\index{truelatlower@{truelatlower}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{truelatlower}{truelatlower}}
+{\footnotesize\ttfamily real modulewrfformat\+::t\+\_\+wrfformat\+::truelatlower = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_aa5b496e68d4b45d3e3cdab160df32265}\label{structmodulewrfformat_1_1t__wrfformat_aa5b496e68d4b45d3e3cdab160df32265}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!truelatupper@{truelatupper}}
+\index{truelatupper@{truelatupper}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{truelatupper}{truelatupper}}
+{\footnotesize\ttfamily real modulewrfformat\+::t\+\_\+wrfformat\+::truelatupper = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a88efc4e08c1b125841a10bd23f792a2c}\label{structmodulewrfformat_1_1t__wrfformat_a88efc4e08c1b125841a10bd23f792a2c}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!unit@{unit}}
+\index{unit@{unit}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{unit}{unit}}
+{\footnotesize\ttfamily integer modulewrfformat\+::t\+\_\+wrfformat\+::unit\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a2e83c39278f7c0d552ca3e6e98acc0da}\label{structmodulewrfformat_1_1t__wrfformat_a2e83c39278f7c0d552ca3e6e98acc0da}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!worksize@{worksize}}
+\index{worksize@{worksize}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{worksize}{worksize}}
+{\footnotesize\ttfamily type(t\+\_\+size3d) modulewrfformat\+::t\+\_\+wrfformat\+::worksize\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a484e6ca0712e991a1d75786d4c0f39f4}\label{structmodulewrfformat_1_1t__wrfformat_a484e6ca0712e991a1d75786d4c0f39f4}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!writelanduse@{writelanduse}}
+\index{writelanduse@{writelanduse}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{writelanduse}{writelanduse}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+wrfformat\+::writelanduse = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a614ea3a8053f3cffa6f141f17a6368aa}\label{structmodulewrfformat_1_1t__wrfformat_a614ea3a8053f3cffa6f141f17a6368aa}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!writeterrain@{writeterrain}}
+\index{writeterrain@{writeterrain}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{writeterrain}{writeterrain}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+wrfformat\+::writeterrain = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulewrfformat_1_1t__wrfformat_a49c42dbf67ef7ef2ea562dd4fbb4957b}\label{structmodulewrfformat_1_1t__wrfformat_a49c42dbf67ef7ef2ea562dd4fbb4957b}} 
+\index{modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}!writexyz@{writexyz}}
+\index{writexyz@{writexyz}!modulewrfformat\+::t\+\_\+wrfformat@{modulewrfformat\+::t\+\_\+wrfformat}}
+\subsubsection{\texorpdfstring{writexyz}{writexyz}}
+{\footnotesize\ttfamily logical modulewrfformat\+::t\+\_\+wrfformat\+::writexyz = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\mbox{\hyperlink{_module_w_r_f_format_8_f90}{Module\+W\+R\+F\+Format.\+F90}}\end{DoxyCompactItemize}

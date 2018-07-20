@@ -24,7 +24,7 @@ var searchData=
   ['modulesequentialassimilation_2ef90',['ModuleSequentialAssimilation.F90',['../_module_sequential_assimilation_8_f90.html',1,'']]],
   ['moduletoga_2ef90',['ModuleToga.F90',['../_module_toga_8_f90.html',1,'']]],
   ['moduleturbgotm_2ef90',['ModuleTurbGOTM.F90',['../_module_turb_g_o_t_m_8_f90.html',1,'']]],
-  ['moduleturbine_2ef90',['ModuleTurbine.f90',['../_module_turbine_8f90.html',1,'']]],
+  ['moduleturbine_2ef90',['ModuleTurbine.F90',['../_module_turbine_8_f90.html',1,'']]],
   ['moduleturbulence_2ef90',['ModuleTurbulence.F90',['../_module_turbulence_8_f90.html',1,'']]],
   ['modulewaterproperties_2ef90',['ModuleWaterProperties.F90',['../_module_water_properties_8_f90.html',1,'']]],
   ['modulewaves_2ef90',['ModuleWaves.F90',['../_module_waves_8_f90.html',1,'']]],

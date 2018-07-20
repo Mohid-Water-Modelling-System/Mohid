@@ -1,0 +1,106 @@
+\hypertarget{_module_w_o_a_format_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+W\+O\+A\+Format.F90 File Reference}
+\label{_module_w_o_a_format_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+W\+O\+A\+Format.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+W\+O\+A\+Format.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulewoaformat_1_1t__date}{modulewoaformat\+::t\+\_\+date}}
+\item 
+type \mbox{\hyperlink{structmodulewoaformat_1_1t__field}{modulewoaformat\+::t\+\_\+field}}
+\item 
+type \mbox{\hyperlink{structmodulewoaformat_1_1t__value}{modulewoaformat\+::t\+\_\+value}}
+\item 
+type \mbox{\hyperlink{structmodulewoaformat_1_1t__id}{modulewoaformat\+::t\+\_\+id}}
+\item 
+type \mbox{\hyperlink{structmodulewoaformat_1_1t__dimension}{modulewoaformat\+::t\+\_\+dimension}}
+\item 
+type \mbox{\hyperlink{structmodulewoaformat_1_1t__attribute}{modulewoaformat\+::t\+\_\+attribute}}
+\item 
+type \mbox{\hyperlink{structmodulewoaformat_1_1t__variable}{modulewoaformat\+::t\+\_\+variable}}
+\item 
+type \mbox{\hyperlink{structmodulewoaformat_1_1t__woaformat}{modulewoaformat\+::t\+\_\+woaformat}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulewoaformat}{modulewoaformat}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewoaformat_a78a5f7c9fae1c493a47fc480b6f3dd86}{modulewoaformat\+::convertwoaformat}} (Enter\+Data\+ID, Client\+Number, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a6d0d1a11ce029e5c725fd2564de93691}{modulewoaformat\+::readoptions}} (Client\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_aefda2556422f044d5397391c5c5acb66}{modulewoaformat\+::converttomohidunits3d}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a3e2b959a1593bc7b6e5a52af13544bd1}{modulewoaformat\+::open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a99457d9a1095fca3854b2b8c53566889}{modulewoaformat\+::killwoaformat}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a35891daf8ac8bd662f8f59f673e72cfe}{modulewoaformat\+::openreadandconvertfile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a0619fabdf9d39428f66319ee125ed3ce}{modulewoaformat\+::openasciifile}}
+\item 
+logical function, private \mbox{\hyperlink{namespacemodulewoaformat_abb1720ff0eef8f5649a76ab7702d73f7}{modulewoaformat\+::isgridvariable}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a77c643507a170a9ebd07fd0cbb9616f8}{modulewoaformat\+::opennetcdffile}} (Input\+File)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a8428b35a710ef648826b1b6b2273d34f}{modulewoaformat\+::constructgridandmap}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewoaformat_a67b34e0648f36008251527dc7f49084b}{modulewoaformat\+::constructverticalcoordinate}} (Variable, t)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a54028cfada0d5c06f32d22ec3050fc95}{modulewoaformat\+::handleattributtes}} (Type\+Of\+Attribute, n\+Attributes, Write\+To\+File)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a87baefa0ce052791b45523ab1bd52868}{modulewoaformat\+::writedatatype}} (Data\+Type)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a1755d2188a0690fff10f808cf9ecec9a}{modulewoaformat\+::handledimensions}} (Variable, Write\+Dims)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a6f71dbf9ea3807fb2646798269449c84}{modulewoaformat\+::handlefloats}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_ad8813b60f60898f593061c4a41c50e3f}{modulewoaformat\+::handledoubles}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a4e5df04e6cd82c093f6173f3e08019aa}{modulewoaformat\+::handleintegers}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a42841ad86b89b6a226e5430c17a32293}{modulewoaformat\+::handleshorts}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a30b457447914696134f34e0ad5f8a6e0}{modulewoaformat\+::handlechars}} (Variable)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_aa0e457259f521e3a55f034b74dd55c94}{modulewoaformat\+::readgridmapoptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a99ab25469c7485e8abd999389b55602e}{modulewoaformat\+::constructtime}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_add300745a920cfd269052d32ca0ccfc7}{modulewoaformat\+::constructbathymetry}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a5db9ab670b36026be5980f95935f64f6}{modulewoaformat\+::constructmap}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a2416c77f949cd03e164c70c78493ad37}{modulewoaformat\+::writedimensions}} (Index, Variable, Size, Write\+Dims)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a2b1ae956746e53538872b16c62bcf308}{modulewoaformat\+::constructgrid}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewoaformat_a0dce7fe9b034991dc5845a3e8ecc8cba}{modulewoaformat\+::getvariable}} (Variable, Name)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewoaformat_abe5b46fe3452046bddc33fbef20098f7}{modulewoaformat\+::constructinstanttime}} (t, Aux\+Time)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewoaformat_a70ceb806b6dbf5c8906fd09acbae0cba}{modulewoaformat\+::dotgrid}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewoaformat_a52d7e1d75349b1ff55f1e87ceeb9448d}{modulewoaformat\+::crossgrid}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewoaformat_af19bc667cadaffe97caf9561001439d5}{modulewoaformat\+::cartesian}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewoaformat_a019b0d25c27d95c27163eeccbe2f7faf}{modulewoaformat\+::spherical}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewoaformat_aa3bf5d769ef79cef59697177bcba35c4}{modulewoaformat\+::curvilinear}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewoaformat_aafcf1dec3bf62c485292e8e3bc9e76de}{modulewoaformat\+::spherical\+\_\+curvilinear}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewoaformat_ac9b1824fbce52f7e6f2d51388f7863f1}{modulewoaformat\+::sigma}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewoaformat_aecd16c0890bb293e0341eddde87f5025}{modulewoaformat\+::z\+\_\+coord}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewoaformat_a01662486998b5c372888306235b00073}{modulewoaformat\+::generic}} = 3
+\item 
+type(t\+\_\+woaformat), pointer \mbox{\hyperlink{namespacemodulewoaformat_aa749739ae74edf849539a045da8223e0}{modulewoaformat\+::me}}
+\end{DoxyCompactItemize}

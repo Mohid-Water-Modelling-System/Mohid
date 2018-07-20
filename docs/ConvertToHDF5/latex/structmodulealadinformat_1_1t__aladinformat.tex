@@ -1,0 +1,286 @@
+\hypertarget{structmodulealadinformat_1_1t__aladinformat}{}\section{modulealadinformat\+:\+:t\+\_\+aladinformat Type Reference}
+\label{structmodulealadinformat_1_1t__aladinformat}\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+
+
+Collaboration diagram for modulealadinformat\+:\+:t\+\_\+aladinformat\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structmodulealadinformat_1_1t__aladinformat__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+integer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_ae32c12741b45d138275239cc114d61b5}{objenterdata}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_ab58e6bf4c360806e8c58d07f81cbf10b}{objhdf5}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a3fffc51a09ca4e251cf121dda4b4fba5}{objhorizontalgrid}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_afa39e0ec262bf845270e9b700f7a8679}{objhorizontalmap}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a93aa7f02dfd40bfea133188e5f32823c}{objtime}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a265db4dfa47bcf9176340f9a536164a5}{unit}}
+\item 
+integer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_ad708bb5dcdf6e5ca5357001efd0acb25}{clientnumber}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a40c70a6021e70e957e4fac6ff66cc454}{gridfilename}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_ab7d5394fb45fa85ef9c47a71f027222e}{inputgridfile}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_ad4a798c7cf379a22ae72d55ef2ccc8e2}{outputfilename}}
+\item 
+integer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a47f431433d44a727de396140d5c49fdb}{readoptiontype}}
+\item 
+integer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a4b62c2b10beca3f38d5034bcde64a3fd}{imax}}
+\item 
+integer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a460a46d1680d3021bf978d70c82c64c7}{jmax}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a823a69d9a60f96c009f75c96bb447eb2}{bathymetry}}
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_ab6097b2544221cfb688427105e54c6c5}{xx}}
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_ab7c1d357645b390ec812866d643c4f73}{yy}}
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_aba03adf712726c4f2dc7c9f490ca801d}{waterpoints}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a7a024800f0d4ead784aa7a556549ddb4}{temperature}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a7e53127ab1db306b2bffa973ea9c3e32}{pressure}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_ac3dbfdb5ead05e2fdada490559f6461c}{specifichumidity}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a55a85224889bd331b56da3f63649c83b}{relativehumidity}}
+\item 
+type(t\+\_\+size2d) \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_ae7db2ac964494750e5b0c55e5f2c7b04}{size}}
+\item 
+type(t\+\_\+size2d) \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a516ad65435bbea9ecf789c9f7aa1664f}{worksize}}
+\item 
+type(\mbox{\hyperlink{structmodulealadinformat_1_1t__field}{t\+\_\+field}}), pointer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a3a4433b7f7b4faf41d5ae182cd1ecdbb}{firstfield}}
+\item 
+type(\mbox{\hyperlink{structmodulealadinformat_1_1t__date}{t\+\_\+date}}), pointer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a78a188608603c40ed76396b91f28cf3e}{firstdate}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_acdeb858e4f0d2b29fcfe795b23eaac61}{refdatetime}}
+\item 
+type(t\+\_\+time), dimension(\+:), pointer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a8382797f9e9718ab7e84b17009794565}{times}}
+\item 
+integer \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a14e1968453cfd5fd56eda51dd5258148}{ninstants}}
+\item 
+integer, dimension(1\+:13) \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a2b86ddec5abfee6f70cadef52abea6ca}{instants}} = 0
+\item 
+logical \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a93d434916fa0afc1831921e809650aeb}{kelvintocelsius}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_abc65d9292cf9e168780e0419c2e89f5b}{percentagetodecimal}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_ab94c866476876e3145fdfdcd019f1e7b}{computerelativehumidity}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat_a56c16e38d1fe8d55dc4694eec256ac96}{convert}} = .false.
+\end{DoxyCompactItemize}
+
+
+\subsection{Member Data Documentation}
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a823a69d9a60f96c009f75c96bb447eb2}\label{structmodulealadinformat_1_1t__aladinformat_a823a69d9a60f96c009f75c96bb447eb2}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!bathymetry@{bathymetry}}
+\index{bathymetry@{bathymetry}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{bathymetry}{bathymetry}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulealadinformat\+::t\+\_\+aladinformat\+::bathymetry\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_ad708bb5dcdf6e5ca5357001efd0acb25}\label{structmodulealadinformat_1_1t__aladinformat_ad708bb5dcdf6e5ca5357001efd0acb25}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!clientnumber@{clientnumber}}
+\index{clientnumber@{clientnumber}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{clientnumber}{clientnumber}}
+{\footnotesize\ttfamily integer modulealadinformat\+::t\+\_\+aladinformat\+::clientnumber\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_ab94c866476876e3145fdfdcd019f1e7b}\label{structmodulealadinformat_1_1t__aladinformat_ab94c866476876e3145fdfdcd019f1e7b}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!computerelativehumidity@{computerelativehumidity}}
+\index{computerelativehumidity@{computerelativehumidity}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{computerelativehumidity}{computerelativehumidity}}
+{\footnotesize\ttfamily logical modulealadinformat\+::t\+\_\+aladinformat\+::computerelativehumidity = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a56c16e38d1fe8d55dc4694eec256ac96}\label{structmodulealadinformat_1_1t__aladinformat_a56c16e38d1fe8d55dc4694eec256ac96}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!convert@{convert}}
+\index{convert@{convert}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{convert}{convert}}
+{\footnotesize\ttfamily logical modulealadinformat\+::t\+\_\+aladinformat\+::convert = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a78a188608603c40ed76396b91f28cf3e}\label{structmodulealadinformat_1_1t__aladinformat_a78a188608603c40ed76396b91f28cf3e}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!firstdate@{firstdate}}
+\index{firstdate@{firstdate}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{firstdate}{firstdate}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulealadinformat_1_1t__date}{t\+\_\+date}}), pointer modulealadinformat\+::t\+\_\+aladinformat\+::firstdate\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a3a4433b7f7b4faf41d5ae182cd1ecdbb}\label{structmodulealadinformat_1_1t__aladinformat_a3a4433b7f7b4faf41d5ae182cd1ecdbb}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!firstfield@{firstfield}}
+\index{firstfield@{firstfield}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{firstfield}{firstfield}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulealadinformat_1_1t__field}{t\+\_\+field}}), pointer modulealadinformat\+::t\+\_\+aladinformat\+::firstfield\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a40c70a6021e70e957e4fac6ff66cc454}\label{structmodulealadinformat_1_1t__aladinformat_a40c70a6021e70e957e4fac6ff66cc454}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!gridfilename@{gridfilename}}
+\index{gridfilename@{gridfilename}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{gridfilename}{gridfilename}}
+{\footnotesize\ttfamily character(len=pathlength) modulealadinformat\+::t\+\_\+aladinformat\+::gridfilename\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a4b62c2b10beca3f38d5034bcde64a3fd}\label{structmodulealadinformat_1_1t__aladinformat_a4b62c2b10beca3f38d5034bcde64a3fd}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!imax@{imax}}
+\index{imax@{imax}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{imax}{imax}}
+{\footnotesize\ttfamily integer modulealadinformat\+::t\+\_\+aladinformat\+::imax\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_ab7d5394fb45fa85ef9c47a71f027222e}\label{structmodulealadinformat_1_1t__aladinformat_ab7d5394fb45fa85ef9c47a71f027222e}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!inputgridfile@{inputgridfile}}
+\index{inputgridfile@{inputgridfile}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{inputgridfile}{inputgridfile}}
+{\footnotesize\ttfamily character(len=pathlength) modulealadinformat\+::t\+\_\+aladinformat\+::inputgridfile\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a2b86ddec5abfee6f70cadef52abea6ca}\label{structmodulealadinformat_1_1t__aladinformat_a2b86ddec5abfee6f70cadef52abea6ca}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!instants@{instants}}
+\index{instants@{instants}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{instants}{instants}}
+{\footnotesize\ttfamily integer, dimension(1\+:13) modulealadinformat\+::t\+\_\+aladinformat\+::instants = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a460a46d1680d3021bf978d70c82c64c7}\label{structmodulealadinformat_1_1t__aladinformat_a460a46d1680d3021bf978d70c82c64c7}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!jmax@{jmax}}
+\index{jmax@{jmax}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{jmax}{jmax}}
+{\footnotesize\ttfamily integer modulealadinformat\+::t\+\_\+aladinformat\+::jmax\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a93d434916fa0afc1831921e809650aeb}\label{structmodulealadinformat_1_1t__aladinformat_a93d434916fa0afc1831921e809650aeb}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!kelvintocelsius@{kelvintocelsius}}
+\index{kelvintocelsius@{kelvintocelsius}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{kelvintocelsius}{kelvintocelsius}}
+{\footnotesize\ttfamily logical modulealadinformat\+::t\+\_\+aladinformat\+::kelvintocelsius = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a14e1968453cfd5fd56eda51dd5258148}\label{structmodulealadinformat_1_1t__aladinformat_a14e1968453cfd5fd56eda51dd5258148}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!ninstants@{ninstants}}
+\index{ninstants@{ninstants}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{ninstants}{ninstants}}
+{\footnotesize\ttfamily integer modulealadinformat\+::t\+\_\+aladinformat\+::ninstants\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_ae32c12741b45d138275239cc114d61b5}\label{structmodulealadinformat_1_1t__aladinformat_ae32c12741b45d138275239cc114d61b5}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!objenterdata@{objenterdata}}
+\index{objenterdata@{objenterdata}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{objenterdata}{objenterdata}}
+{\footnotesize\ttfamily integer modulealadinformat\+::t\+\_\+aladinformat\+::objenterdata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_ab58e6bf4c360806e8c58d07f81cbf10b}\label{structmodulealadinformat_1_1t__aladinformat_ab58e6bf4c360806e8c58d07f81cbf10b}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!objhdf5@{objhdf5}}
+\index{objhdf5@{objhdf5}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{objhdf5}{objhdf5}}
+{\footnotesize\ttfamily integer modulealadinformat\+::t\+\_\+aladinformat\+::objhdf5 = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a3fffc51a09ca4e251cf121dda4b4fba5}\label{structmodulealadinformat_1_1t__aladinformat_a3fffc51a09ca4e251cf121dda4b4fba5}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!objhorizontalgrid@{objhorizontalgrid}}
+\index{objhorizontalgrid@{objhorizontalgrid}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{objhorizontalgrid}{objhorizontalgrid}}
+{\footnotesize\ttfamily integer modulealadinformat\+::t\+\_\+aladinformat\+::objhorizontalgrid = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_afa39e0ec262bf845270e9b700f7a8679}\label{structmodulealadinformat_1_1t__aladinformat_afa39e0ec262bf845270e9b700f7a8679}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!objhorizontalmap@{objhorizontalmap}}
+\index{objhorizontalmap@{objhorizontalmap}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{objhorizontalmap}{objhorizontalmap}}
+{\footnotesize\ttfamily integer modulealadinformat\+::t\+\_\+aladinformat\+::objhorizontalmap = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a93aa7f02dfd40bfea133188e5f32823c}\label{structmodulealadinformat_1_1t__aladinformat_a93aa7f02dfd40bfea133188e5f32823c}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!objtime@{objtime}}
+\index{objtime@{objtime}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{objtime}{objtime}}
+{\footnotesize\ttfamily integer modulealadinformat\+::t\+\_\+aladinformat\+::objtime = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_ad4a798c7cf379a22ae72d55ef2ccc8e2}\label{structmodulealadinformat_1_1t__aladinformat_ad4a798c7cf379a22ae72d55ef2ccc8e2}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!outputfilename@{outputfilename}}
+\index{outputfilename@{outputfilename}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{outputfilename}{outputfilename}}
+{\footnotesize\ttfamily character(len=pathlength) modulealadinformat\+::t\+\_\+aladinformat\+::outputfilename\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_abc65d9292cf9e168780e0419c2e89f5b}\label{structmodulealadinformat_1_1t__aladinformat_abc65d9292cf9e168780e0419c2e89f5b}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!percentagetodecimal@{percentagetodecimal}}
+\index{percentagetodecimal@{percentagetodecimal}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{percentagetodecimal}{percentagetodecimal}}
+{\footnotesize\ttfamily logical modulealadinformat\+::t\+\_\+aladinformat\+::percentagetodecimal = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a7e53127ab1db306b2bffa973ea9c3e32}\label{structmodulealadinformat_1_1t__aladinformat_a7e53127ab1db306b2bffa973ea9c3e32}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!pressure@{pressure}}
+\index{pressure@{pressure}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{pressure}{pressure}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulealadinformat\+::t\+\_\+aladinformat\+::pressure\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a47f431433d44a727de396140d5c49fdb}\label{structmodulealadinformat_1_1t__aladinformat_a47f431433d44a727de396140d5c49fdb}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!readoptiontype@{readoptiontype}}
+\index{readoptiontype@{readoptiontype}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{readoptiontype}{readoptiontype}}
+{\footnotesize\ttfamily integer modulealadinformat\+::t\+\_\+aladinformat\+::readoptiontype\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_acdeb858e4f0d2b29fcfe795b23eaac61}\label{structmodulealadinformat_1_1t__aladinformat_acdeb858e4f0d2b29fcfe795b23eaac61}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!refdatetime@{refdatetime}}
+\index{refdatetime@{refdatetime}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{refdatetime}{refdatetime}}
+{\footnotesize\ttfamily type(t\+\_\+time) modulealadinformat\+::t\+\_\+aladinformat\+::refdatetime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a55a85224889bd331b56da3f63649c83b}\label{structmodulealadinformat_1_1t__aladinformat_a55a85224889bd331b56da3f63649c83b}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!relativehumidity@{relativehumidity}}
+\index{relativehumidity@{relativehumidity}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{relativehumidity}{relativehumidity}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulealadinformat\+::t\+\_\+aladinformat\+::relativehumidity\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_ae7db2ac964494750e5b0c55e5f2c7b04}\label{structmodulealadinformat_1_1t__aladinformat_ae7db2ac964494750e5b0c55e5f2c7b04}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!size@{size}}
+\index{size@{size}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{size}{size}}
+{\footnotesize\ttfamily type(t\+\_\+size2d) modulealadinformat\+::t\+\_\+aladinformat\+::size\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_ac3dbfdb5ead05e2fdada490559f6461c}\label{structmodulealadinformat_1_1t__aladinformat_ac3dbfdb5ead05e2fdada490559f6461c}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!specifichumidity@{specifichumidity}}
+\index{specifichumidity@{specifichumidity}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{specifichumidity}{specifichumidity}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulealadinformat\+::t\+\_\+aladinformat\+::specifichumidity\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a7a024800f0d4ead784aa7a556549ddb4}\label{structmodulealadinformat_1_1t__aladinformat_a7a024800f0d4ead784aa7a556549ddb4}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!temperature@{temperature}}
+\index{temperature@{temperature}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{temperature}{temperature}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulealadinformat\+::t\+\_\+aladinformat\+::temperature\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a8382797f9e9718ab7e84b17009794565}\label{structmodulealadinformat_1_1t__aladinformat_a8382797f9e9718ab7e84b17009794565}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!times@{times}}
+\index{times@{times}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{times}{times}}
+{\footnotesize\ttfamily type(t\+\_\+time), dimension(\+:), pointer modulealadinformat\+::t\+\_\+aladinformat\+::times\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a265db4dfa47bcf9176340f9a536164a5}\label{structmodulealadinformat_1_1t__aladinformat_a265db4dfa47bcf9176340f9a536164a5}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!unit@{unit}}
+\index{unit@{unit}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{unit}{unit}}
+{\footnotesize\ttfamily integer modulealadinformat\+::t\+\_\+aladinformat\+::unit\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_aba03adf712726c4f2dc7c9f490ca801d}\label{structmodulealadinformat_1_1t__aladinformat_aba03adf712726c4f2dc7c9f490ca801d}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!waterpoints@{waterpoints}}
+\index{waterpoints@{waterpoints}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{waterpoints}{waterpoints}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer modulealadinformat\+::t\+\_\+aladinformat\+::waterpoints\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_a516ad65435bbea9ecf789c9f7aa1664f}\label{structmodulealadinformat_1_1t__aladinformat_a516ad65435bbea9ecf789c9f7aa1664f}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!worksize@{worksize}}
+\index{worksize@{worksize}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{worksize}{worksize}}
+{\footnotesize\ttfamily type(t\+\_\+size2d) modulealadinformat\+::t\+\_\+aladinformat\+::worksize\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_ab6097b2544221cfb688427105e54c6c5}\label{structmodulealadinformat_1_1t__aladinformat_ab6097b2544221cfb688427105e54c6c5}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!xx@{xx}}
+\index{xx@{xx}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{xx}{xx}}
+{\footnotesize\ttfamily real, dimension(\+:  ), pointer modulealadinformat\+::t\+\_\+aladinformat\+::xx\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulealadinformat_1_1t__aladinformat_ab7c1d357645b390ec812866d643c4f73}\label{structmodulealadinformat_1_1t__aladinformat_ab7c1d357645b390ec812866d643c4f73}} 
+\index{modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}!yy@{yy}}
+\index{yy@{yy}!modulealadinformat\+::t\+\_\+aladinformat@{modulealadinformat\+::t\+\_\+aladinformat}}
+\subsubsection{\texorpdfstring{yy}{yy}}
+{\footnotesize\ttfamily real, dimension(\+:  ), pointer modulealadinformat\+::t\+\_\+aladinformat\+::yy\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\mbox{\hyperlink{_module_aladin_format_8_f90}{Module\+Aladin\+Format.\+F90}}\end{DoxyCompactItemize}

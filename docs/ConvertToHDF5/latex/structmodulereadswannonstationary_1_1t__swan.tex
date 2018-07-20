@@ -1,0 +1,430 @@
+\hypertarget{structmodulereadswannonstationary_1_1t__swan}{}\section{modulereadswannonstationary\+:\+:t\+\_\+swan Type Reference}
+\label{structmodulereadswannonstationary_1_1t__swan}\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+
+
+Collaboration diagram for modulereadswannonstationary\+:\+:t\+\_\+swan\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{structmodulereadswannonstationary_1_1t__swan__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_ad2dbadc5ab3cf4fee024197c36c9bd7a}{objenterdata}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_ad18d613004824fd9e8e61fb25eaba7cb}{clientnumber}}
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a367b06c6c33321c027cfa976ad724775}{objhdf5}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_ab6519eace13034f06f1686ea47efbd99}{objhorizontalgrid}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a767ba1dbbfd79e9c92552e8146efd239}{objbathymetry}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_ad6a4cba8e19947228651dc85946c9893}{objhorizontalmap}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_acd98ec3e4105f39c01065adc22017e1e}{objtime}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_af9a36dc035f5d7a28083424fdbe63d4c}{unit}}
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_acf56f69875defe0de10817f18c86f561}{nautical}}
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a5618ce023811dcc2cc7c2a93c1836a91}{wavepower}}
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a2ad27bf22d9d4d4209376a94b50a2e27}{scaletohs}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a06e34579adad9283cb345ca4d9f9eab0}{filename}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a2400643407d7b97f7a2e1f80bc380884}{gridfilename}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_ae0f2f50b3b6799bc6aad25fa97e64737}{swanfilename}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a1fa9a8c9c48380839314e5e4dc5705a4}{outputfilename}}
+\item 
+character(len=stringlength) \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a4e9260c8b4defd2db378d4c9a5763238}{generic4dproperty}}
+\item 
+character(len=stringlength) \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_af4045afaf35a49e30f9b3718878a1f3e}{generic4dunits}}
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a62049c9cf9b6dd46e3d59905b1fd81ed}{numberdates}} = Fill\+Value\+Int
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a2b55b2761fd9dbfbfcb9f3d0b2caace2}{numberfields}} = Fill\+Value\+Int
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a56ada64abca75768d7a40cfd89090501}{numberprops}} = Fill\+Value\+Int
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a96880eace678742c5bff0a27774dec42}{numberunits}} = Fill\+Value\+Int
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a8d4bb5fd6cf343058659b3985c1d04d7}{numbercovertions}} = Fill\+Value\+Int
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a423a265c88b51b32f5287d3d16990d5e}{directionreferential}} = Fill\+Value\+Int
+\item 
+character(len=stringlength), dimension(\+:), pointer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_ae60e13b2097f9500354ba061c0ebce45}{propsname}}
+\item 
+character(len=stringlength), dimension(\+:), pointer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a1d4033a6cb5653e96a7698daf9b70baf}{propsunits}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_ab446d8e5935a991eaedb98b43cf1a62d}{begintime}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a28eede6be3de23c4a08d1466edfc92de}{endtime}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a5bd12fde4394daa7ca0a4c2dac3b4115}{fields}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a7e4a3fc9198d2369e787345a5c01582c}{hs}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_addd342f6b578c0a05b638b2469a98548}{wd}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_ab137aee59a25110de6a302eecaaf17c0}{tex}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a252243686fd31b37de5182a535ebb865}{tey}}
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_af3103ab38a55c4d6917c3db93e22bb86}{propvector}}
+\item 
+logical, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a55742ed879f7465496112f8587b54742}{noncomputedpoint}}
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a7a4c4de9e9b22a59af5fe07b105281ed}{clientumber}}
+\item 
+logical \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_af3bbf64ec84e801fac073c72e09cbba9}{writevelmodulus}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_ac20c2b451cc19be4738876448cf1137a}{writewindmodulus}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_aedb090e2d98d7a0c22d658d86f280220}{replacenoncomputedvalues}}
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a17ed67f84105ae4399a072601e0848fc}{replacementmethod}}
+\item 
+real \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a0444df9446fc24c0b6ff1e9fef35bdeb}{fillvalue}}
+\item 
+real \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_ac4fbbb5d7b4330651c4daeed96398515}{generic4dvalue}}
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_ac8f97a504718e2bf902b94ed59ae4cad}{generic4dpropertyindex}}
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a2993ddceac0e3f0a1929cfb76cc4a083}{generic4d}}
+\item 
+integer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a86fdc4766a0065e2d5f50ebb425481c2}{readtype}}
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a69b9512c5928ff9b1f855040ac5ffecc}{waterpoints2d}}
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a7531fa4607bdfb3ca1a614ae42e434de}{boundaryfacesu}}
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a0d8ea0f63ebc46a99463fe14def4a152}{boundaryfacesv}}
+\item 
+type(\mbox{\hyperlink{structmodulereadswannonstationary_1_1t__output}{t\+\_\+output}}) \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_affff3cad10a69dba90a1b6b53ae77909}{output}}
+\item 
+type(\mbox{\hyperlink{structmodulereadswannonstationary_1_1t__outw}{t\+\_\+outw}}) \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a10f7f4806d236fe8ab664c71f0c33c96}{outw}}
+\item 
+type(t\+\_\+size2d) \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a0a04540594fa11ccd7c6daf7247fc060}{worksize}}
+\item 
+type(t\+\_\+size2d) \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan_a0bbf968b8c1afead2c6a5dbbefb1c86f}{size}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Member Data Documentation}
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_ab446d8e5935a991eaedb98b43cf1a62d}\label{structmodulereadswannonstationary_1_1t__swan_ab446d8e5935a991eaedb98b43cf1a62d}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!begintime@{begintime}}
+\index{begintime@{begintime}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{begintime}{begintime}}
+{\footnotesize\ttfamily type(t\+\_\+time) modulereadswannonstationary\+::t\+\_\+swan\+::begintime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a7531fa4607bdfb3ca1a614ae42e434de}\label{structmodulereadswannonstationary_1_1t__swan_a7531fa4607bdfb3ca1a614ae42e434de}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!boundaryfacesu@{boundaryfacesu}}
+\index{boundaryfacesu@{boundaryfacesu}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{boundaryfacesu}{boundaryfacesu}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:  ), pointer modulereadswannonstationary\+::t\+\_\+swan\+::boundaryfacesu\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a0d8ea0f63ebc46a99463fe14def4a152}\label{structmodulereadswannonstationary_1_1t__swan_a0d8ea0f63ebc46a99463fe14def4a152}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!boundaryfacesv@{boundaryfacesv}}
+\index{boundaryfacesv@{boundaryfacesv}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{boundaryfacesv}{boundaryfacesv}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:  ), pointer modulereadswannonstationary\+::t\+\_\+swan\+::boundaryfacesv\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_ad18d613004824fd9e8e61fb25eaba7cb}\label{structmodulereadswannonstationary_1_1t__swan_ad18d613004824fd9e8e61fb25eaba7cb}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!clientnumber@{clientnumber}}
+\index{clientnumber@{clientnumber}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{clientnumber}{clientnumber}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::clientnumber\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a7a4c4de9e9b22a59af5fe07b105281ed}\label{structmodulereadswannonstationary_1_1t__swan_a7a4c4de9e9b22a59af5fe07b105281ed}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!clientumber@{clientumber}}
+\index{clientumber@{clientumber}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{clientumber}{clientumber}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::clientumber\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a423a265c88b51b32f5287d3d16990d5e}\label{structmodulereadswannonstationary_1_1t__swan_a423a265c88b51b32f5287d3d16990d5e}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!directionreferential@{directionreferential}}
+\index{directionreferential@{directionreferential}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{directionreferential}{directionreferential}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::directionreferential = Fill\+Value\+Int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a28eede6be3de23c4a08d1466edfc92de}\label{structmodulereadswannonstationary_1_1t__swan_a28eede6be3de23c4a08d1466edfc92de}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!endtime@{endtime}}
+\index{endtime@{endtime}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{endtime}{endtime}}
+{\footnotesize\ttfamily type(t\+\_\+time) modulereadswannonstationary\+::t\+\_\+swan\+::endtime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a5bd12fde4394daa7ca0a4c2dac3b4115}\label{structmodulereadswannonstationary_1_1t__swan_a5bd12fde4394daa7ca0a4c2dac3b4115}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!fields@{fields}}
+\index{fields@{fields}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{fields}{fields}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulereadswannonstationary\+::t\+\_\+swan\+::fields\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a06e34579adad9283cb345ca4d9f9eab0}\label{structmodulereadswannonstationary_1_1t__swan_a06e34579adad9283cb345ca4d9f9eab0}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!filename@{filename}}
+\index{filename@{filename}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{filename}{filename}}
+{\footnotesize\ttfamily character(len=pathlength) modulereadswannonstationary\+::t\+\_\+swan\+::filename\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a0444df9446fc24c0b6ff1e9fef35bdeb}\label{structmodulereadswannonstationary_1_1t__swan_a0444df9446fc24c0b6ff1e9fef35bdeb}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!fillvalue@{fillvalue}}
+\index{fillvalue@{fillvalue}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{fillvalue}{fillvalue}}
+{\footnotesize\ttfamily real modulereadswannonstationary\+::t\+\_\+swan\+::fillvalue\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a2993ddceac0e3f0a1929cfb76cc4a083}\label{structmodulereadswannonstationary_1_1t__swan_a2993ddceac0e3f0a1929cfb76cc4a083}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!generic4d@{generic4d}}
+\index{generic4d@{generic4d}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{generic4d}{generic4d}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::generic4d\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a4e9260c8b4defd2db378d4c9a5763238}\label{structmodulereadswannonstationary_1_1t__swan_a4e9260c8b4defd2db378d4c9a5763238}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!generic4dproperty@{generic4dproperty}}
+\index{generic4dproperty@{generic4dproperty}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{generic4dproperty}{generic4dproperty}}
+{\footnotesize\ttfamily character(len=stringlength) modulereadswannonstationary\+::t\+\_\+swan\+::generic4dproperty\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_ac8f97a504718e2bf902b94ed59ae4cad}\label{structmodulereadswannonstationary_1_1t__swan_ac8f97a504718e2bf902b94ed59ae4cad}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!generic4dpropertyindex@{generic4dpropertyindex}}
+\index{generic4dpropertyindex@{generic4dpropertyindex}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{generic4dpropertyindex}{generic4dpropertyindex}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::generic4dpropertyindex\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_af4045afaf35a49e30f9b3718878a1f3e}\label{structmodulereadswannonstationary_1_1t__swan_af4045afaf35a49e30f9b3718878a1f3e}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!generic4dunits@{generic4dunits}}
+\index{generic4dunits@{generic4dunits}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{generic4dunits}{generic4dunits}}
+{\footnotesize\ttfamily character(len=stringlength) modulereadswannonstationary\+::t\+\_\+swan\+::generic4dunits\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_ac4fbbb5d7b4330651c4daeed96398515}\label{structmodulereadswannonstationary_1_1t__swan_ac4fbbb5d7b4330651c4daeed96398515}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!generic4dvalue@{generic4dvalue}}
+\index{generic4dvalue@{generic4dvalue}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{generic4dvalue}{generic4dvalue}}
+{\footnotesize\ttfamily real modulereadswannonstationary\+::t\+\_\+swan\+::generic4dvalue\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a2400643407d7b97f7a2e1f80bc380884}\label{structmodulereadswannonstationary_1_1t__swan_a2400643407d7b97f7a2e1f80bc380884}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!gridfilename@{gridfilename}}
+\index{gridfilename@{gridfilename}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{gridfilename}{gridfilename}}
+{\footnotesize\ttfamily character(len=pathlength) modulereadswannonstationary\+::t\+\_\+swan\+::gridfilename\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a7e4a3fc9198d2369e787345a5c01582c}\label{structmodulereadswannonstationary_1_1t__swan_a7e4a3fc9198d2369e787345a5c01582c}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!hs@{hs}}
+\index{hs@{hs}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{hs}{hs}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulereadswannonstationary\+::t\+\_\+swan\+::hs\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_acf56f69875defe0de10817f18c86f561}\label{structmodulereadswannonstationary_1_1t__swan_acf56f69875defe0de10817f18c86f561}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!nautical@{nautical}}
+\index{nautical@{nautical}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{nautical}{nautical}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::nautical\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a55742ed879f7465496112f8587b54742}\label{structmodulereadswannonstationary_1_1t__swan_a55742ed879f7465496112f8587b54742}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!noncomputedpoint@{noncomputedpoint}}
+\index{noncomputedpoint@{noncomputedpoint}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{noncomputedpoint}{noncomputedpoint}}
+{\footnotesize\ttfamily logical, dimension(\+:,\+:,\+:), pointer modulereadswannonstationary\+::t\+\_\+swan\+::noncomputedpoint\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a8d4bb5fd6cf343058659b3985c1d04d7}\label{structmodulereadswannonstationary_1_1t__swan_a8d4bb5fd6cf343058659b3985c1d04d7}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!numbercovertions@{numbercovertions}}
+\index{numbercovertions@{numbercovertions}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{numbercovertions}{numbercovertions}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::numbercovertions = Fill\+Value\+Int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a62049c9cf9b6dd46e3d59905b1fd81ed}\label{structmodulereadswannonstationary_1_1t__swan_a62049c9cf9b6dd46e3d59905b1fd81ed}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!numberdates@{numberdates}}
+\index{numberdates@{numberdates}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{numberdates}{numberdates}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::numberdates = Fill\+Value\+Int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a2b55b2761fd9dbfbfcb9f3d0b2caace2}\label{structmodulereadswannonstationary_1_1t__swan_a2b55b2761fd9dbfbfcb9f3d0b2caace2}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!numberfields@{numberfields}}
+\index{numberfields@{numberfields}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{numberfields}{numberfields}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::numberfields = Fill\+Value\+Int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a56ada64abca75768d7a40cfd89090501}\label{structmodulereadswannonstationary_1_1t__swan_a56ada64abca75768d7a40cfd89090501}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!numberprops@{numberprops}}
+\index{numberprops@{numberprops}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{numberprops}{numberprops}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::numberprops = Fill\+Value\+Int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a96880eace678742c5bff0a27774dec42}\label{structmodulereadswannonstationary_1_1t__swan_a96880eace678742c5bff0a27774dec42}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!numberunits@{numberunits}}
+\index{numberunits@{numberunits}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{numberunits}{numberunits}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::numberunits = Fill\+Value\+Int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a767ba1dbbfd79e9c92552e8146efd239}\label{structmodulereadswannonstationary_1_1t__swan_a767ba1dbbfd79e9c92552e8146efd239}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!objbathymetry@{objbathymetry}}
+\index{objbathymetry@{objbathymetry}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{objbathymetry}{objbathymetry}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::objbathymetry = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_ad2dbadc5ab3cf4fee024197c36c9bd7a}\label{structmodulereadswannonstationary_1_1t__swan_ad2dbadc5ab3cf4fee024197c36c9bd7a}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!objenterdata@{objenterdata}}
+\index{objenterdata@{objenterdata}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{objenterdata}{objenterdata}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::objenterdata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a367b06c6c33321c027cfa976ad724775}\label{structmodulereadswannonstationary_1_1t__swan_a367b06c6c33321c027cfa976ad724775}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!objhdf5@{objhdf5}}
+\index{objhdf5@{objhdf5}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{objhdf5}{objhdf5}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::objhdf5 = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_ab6519eace13034f06f1686ea47efbd99}\label{structmodulereadswannonstationary_1_1t__swan_ab6519eace13034f06f1686ea47efbd99}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!objhorizontalgrid@{objhorizontalgrid}}
+\index{objhorizontalgrid@{objhorizontalgrid}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{objhorizontalgrid}{objhorizontalgrid}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::objhorizontalgrid = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_ad6a4cba8e19947228651dc85946c9893}\label{structmodulereadswannonstationary_1_1t__swan_ad6a4cba8e19947228651dc85946c9893}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!objhorizontalmap@{objhorizontalmap}}
+\index{objhorizontalmap@{objhorizontalmap}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{objhorizontalmap}{objhorizontalmap}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::objhorizontalmap = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_acd98ec3e4105f39c01065adc22017e1e}\label{structmodulereadswannonstationary_1_1t__swan_acd98ec3e4105f39c01065adc22017e1e}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!objtime@{objtime}}
+\index{objtime@{objtime}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{objtime}{objtime}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::objtime = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_affff3cad10a69dba90a1b6b53ae77909}\label{structmodulereadswannonstationary_1_1t__swan_affff3cad10a69dba90a1b6b53ae77909}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!output@{output}}
+\index{output@{output}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{output}{output}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulereadswannonstationary_1_1t__output}{t\+\_\+output}}) modulereadswannonstationary\+::t\+\_\+swan\+::output\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a1fa9a8c9c48380839314e5e4dc5705a4}\label{structmodulereadswannonstationary_1_1t__swan_a1fa9a8c9c48380839314e5e4dc5705a4}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!outputfilename@{outputfilename}}
+\index{outputfilename@{outputfilename}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{outputfilename}{outputfilename}}
+{\footnotesize\ttfamily character(len=pathlength) modulereadswannonstationary\+::t\+\_\+swan\+::outputfilename\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a10f7f4806d236fe8ab664c71f0c33c96}\label{structmodulereadswannonstationary_1_1t__swan_a10f7f4806d236fe8ab664c71f0c33c96}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!outw@{outw}}
+\index{outw@{outw}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{outw}{outw}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulereadswannonstationary_1_1t__outw}{t\+\_\+outw}}) modulereadswannonstationary\+::t\+\_\+swan\+::outw\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_ae60e13b2097f9500354ba061c0ebce45}\label{structmodulereadswannonstationary_1_1t__swan_ae60e13b2097f9500354ba061c0ebce45}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!propsname@{propsname}}
+\index{propsname@{propsname}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{propsname}{propsname}}
+{\footnotesize\ttfamily character(len=stringlength), dimension(\+:), pointer modulereadswannonstationary\+::t\+\_\+swan\+::propsname\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a1d4033a6cb5653e96a7698daf9b70baf}\label{structmodulereadswannonstationary_1_1t__swan_a1d4033a6cb5653e96a7698daf9b70baf}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!propsunits@{propsunits}}
+\index{propsunits@{propsunits}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{propsunits}{propsunits}}
+{\footnotesize\ttfamily character(len=stringlength), dimension(\+:), pointer modulereadswannonstationary\+::t\+\_\+swan\+::propsunits\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_af3103ab38a55c4d6917c3db93e22bb86}\label{structmodulereadswannonstationary_1_1t__swan_af3103ab38a55c4d6917c3db93e22bb86}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!propvector@{propvector}}
+\index{propvector@{propvector}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{propvector}{propvector}}
+{\footnotesize\ttfamily real, dimension(\+:    ), pointer modulereadswannonstationary\+::t\+\_\+swan\+::propvector\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a86fdc4766a0065e2d5f50ebb425481c2}\label{structmodulereadswannonstationary_1_1t__swan_a86fdc4766a0065e2d5f50ebb425481c2}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!readtype@{readtype}}
+\index{readtype@{readtype}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{readtype}{readtype}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::readtype\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a17ed67f84105ae4399a072601e0848fc}\label{structmodulereadswannonstationary_1_1t__swan_a17ed67f84105ae4399a072601e0848fc}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!replacementmethod@{replacementmethod}}
+\index{replacementmethod@{replacementmethod}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{replacementmethod}{replacementmethod}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::replacementmethod\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_aedb090e2d98d7a0c22d658d86f280220}\label{structmodulereadswannonstationary_1_1t__swan_aedb090e2d98d7a0c22d658d86f280220}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!replacenoncomputedvalues@{replacenoncomputedvalues}}
+\index{replacenoncomputedvalues@{replacenoncomputedvalues}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{replacenoncomputedvalues}{replacenoncomputedvalues}}
+{\footnotesize\ttfamily logical modulereadswannonstationary\+::t\+\_\+swan\+::replacenoncomputedvalues\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a2ad27bf22d9d4d4209376a94b50a2e27}\label{structmodulereadswannonstationary_1_1t__swan_a2ad27bf22d9d4d4209376a94b50a2e27}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!scaletohs@{scaletohs}}
+\index{scaletohs@{scaletohs}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{scaletohs}{scaletohs}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::scaletohs\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a0bbf968b8c1afead2c6a5dbbefb1c86f}\label{structmodulereadswannonstationary_1_1t__swan_a0bbf968b8c1afead2c6a5dbbefb1c86f}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!size@{size}}
+\index{size@{size}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{size}{size}}
+{\footnotesize\ttfamily type(t\+\_\+size2d) modulereadswannonstationary\+::t\+\_\+swan\+::size\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_ae0f2f50b3b6799bc6aad25fa97e64737}\label{structmodulereadswannonstationary_1_1t__swan_ae0f2f50b3b6799bc6aad25fa97e64737}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!swanfilename@{swanfilename}}
+\index{swanfilename@{swanfilename}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{swanfilename}{swanfilename}}
+{\footnotesize\ttfamily character(len=pathlength) modulereadswannonstationary\+::t\+\_\+swan\+::swanfilename\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_ab137aee59a25110de6a302eecaaf17c0}\label{structmodulereadswannonstationary_1_1t__swan_ab137aee59a25110de6a302eecaaf17c0}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!tex@{tex}}
+\index{tex@{tex}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{tex}{tex}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulereadswannonstationary\+::t\+\_\+swan\+::tex\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a252243686fd31b37de5182a535ebb865}\label{structmodulereadswannonstationary_1_1t__swan_a252243686fd31b37de5182a535ebb865}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!tey@{tey}}
+\index{tey@{tey}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{tey}{tey}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulereadswannonstationary\+::t\+\_\+swan\+::tey\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_af9a36dc035f5d7a28083424fdbe63d4c}\label{structmodulereadswannonstationary_1_1t__swan_af9a36dc035f5d7a28083424fdbe63d4c}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!unit@{unit}}
+\index{unit@{unit}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{unit}{unit}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::unit\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a69b9512c5928ff9b1f855040ac5ffecc}\label{structmodulereadswannonstationary_1_1t__swan_a69b9512c5928ff9b1f855040ac5ffecc}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!waterpoints2d@{waterpoints2d}}
+\index{waterpoints2d@{waterpoints2d}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{waterpoints2d}{waterpoints2d}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:  ), pointer modulereadswannonstationary\+::t\+\_\+swan\+::waterpoints2d\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a5618ce023811dcc2cc7c2a93c1836a91}\label{structmodulereadswannonstationary_1_1t__swan_a5618ce023811dcc2cc7c2a93c1836a91}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!wavepower@{wavepower}}
+\index{wavepower@{wavepower}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{wavepower}{wavepower}}
+{\footnotesize\ttfamily integer modulereadswannonstationary\+::t\+\_\+swan\+::wavepower\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_addd342f6b578c0a05b638b2469a98548}\label{structmodulereadswannonstationary_1_1t__swan_addd342f6b578c0a05b638b2469a98548}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!wd@{wd}}
+\index{wd@{wd}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{wd}{wd}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulereadswannonstationary\+::t\+\_\+swan\+::wd\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_a0a04540594fa11ccd7c6daf7247fc060}\label{structmodulereadswannonstationary_1_1t__swan_a0a04540594fa11ccd7c6daf7247fc060}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!worksize@{worksize}}
+\index{worksize@{worksize}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{worksize}{worksize}}
+{\footnotesize\ttfamily type(t\+\_\+size2d) modulereadswannonstationary\+::t\+\_\+swan\+::worksize\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_af3bbf64ec84e801fac073c72e09cbba9}\label{structmodulereadswannonstationary_1_1t__swan_af3bbf64ec84e801fac073c72e09cbba9}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!writevelmodulus@{writevelmodulus}}
+\index{writevelmodulus@{writevelmodulus}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{writevelmodulus}{writevelmodulus}}
+{\footnotesize\ttfamily logical modulereadswannonstationary\+::t\+\_\+swan\+::writevelmodulus = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulereadswannonstationary_1_1t__swan_ac20c2b451cc19be4738876448cf1137a}\label{structmodulereadswannonstationary_1_1t__swan_ac20c2b451cc19be4738876448cf1137a}} 
+\index{modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}!writewindmodulus@{writewindmodulus}}
+\index{writewindmodulus@{writewindmodulus}!modulereadswannonstationary\+::t\+\_\+swan@{modulereadswannonstationary\+::t\+\_\+swan}}
+\subsubsection{\texorpdfstring{writewindmodulus}{writewindmodulus}}
+{\footnotesize\ttfamily logical modulereadswannonstationary\+::t\+\_\+swan\+::writewindmodulus = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\mbox{\hyperlink{_module_read_s_w_a_n_non_stationary_8_f90}{Module\+Read\+S\+W\+A\+N\+Non\+Stationary.\+F90}}\end{DoxyCompactItemize}

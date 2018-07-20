@@ -1,5 +1,6 @@
 var NAVTREEINDEX34 =
 {
+"structmodulewaves_1_1t__waves.html#a6b221714f91fe7c61b552b9528fe7cd5":[2,0,26,5,2],
 "structmodulewaves_1_1t__waves.html#a6b2aef91b6ffb973e7e1e1c416be6c55":[2,0,26,5,68],
 "structmodulewaves_1_1t__waves.html#a726a7155325136c59797a3ae393fc862":[2,0,26,5,12],
 "structmodulewaves_1_1t__waves.html#a731a0fb6bbd6a571d5e7e7a06031e568":[2,0,26,5,1],

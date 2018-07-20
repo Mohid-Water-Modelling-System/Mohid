@@ -1,0 +1,46 @@
+\hypertarget{_module_a_r_p_s_format_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+A\+R\+P\+S\+Format.F90 File Reference}
+\label{_module_a_r_p_s_format_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+A\+R\+P\+S\+Format.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+A\+R\+P\+S\+Format.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulearpsformat_1_1t__date}{modulearpsformat\+::t\+\_\+date}}
+\item 
+type \mbox{\hyperlink{structmodulearpsformat_1_1t__field}{modulearpsformat\+::t\+\_\+field}}
+\item 
+type \mbox{\hyperlink{structmodulearpsformat_1_1t__mm5format}{modulearpsformat\+::t\+\_\+mm5format}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulearpsformat}{modulearpsformat}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulearpsformat_a996acecfde01fb49e6408da52cb50d12}{modulearpsformat\+::convertarpsformat}} (Enter\+Data\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpsformat_a51cf1784c51ab9940cffc068600d53ac}{modulearpsformat\+::readoptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpsformat_a70ee83442772ea85df79da65ec4ea262}{modulearpsformat\+::openandreadarpsfile}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulearpsformat_a420eb740016c6ba55f897dbff1ef74e5}{modulearpsformat\+::constructgrid}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpsformat_a32649b9f39dfaa2b5396d488243a3905}{modulearpsformat\+::addfield}} (First\+Field, Obj\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpsformat_a3e7adeca2b8b386d9c8d59f32a8c189f}{modulearpsformat\+::adddate}} (First\+Date, Obj\+Date)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpsformat_a3feae8181a739c2898e331dd969e3c67}{modulearpsformat\+::outputfields}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpsformat_a9c9927c6fb171da5b0bfc4cd38595627}{modulearpsformat\+::open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulearpsformat_a3fbe9c856c732d4e5f2315c2ae61e3d3}{modulearpsformat\+::killarpsformat}}
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulearpsformat_adad659745a61e1b477c5b8218c0a518b}{modulearpsformat\+::dotgrid}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulearpsformat_a481f4077f9a97ca259535ae7940a069d}{modulearpsformat\+::crossgrid}} = 2
+\item 
+type(t\+\_\+mm5format), pointer \mbox{\hyperlink{namespacemodulearpsformat_aa48b8d20bd8a9748703bc70c33e5bce9}{modulearpsformat\+::me}}
+\end{DoxyCompactItemize}

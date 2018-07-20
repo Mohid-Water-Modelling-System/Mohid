@@ -1,0 +1,456 @@
+\hypertarget{namespacemodulealadinformat}{}\section{modulealadinformat Module Reference}
+\label{namespacemodulealadinformat}\index{modulealadinformat@{modulealadinformat}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat}{t\+\_\+aladinformat}}
+\item 
+type \mbox{\hyperlink{structmodulealadinformat_1_1t__date}{t\+\_\+date}}
+\item 
+type \mbox{\hyperlink{structmodulealadinformat_1_1t__field}{t\+\_\+field}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulealadinformat_a77f6d15bb472ac521ff23ef7a54a48e7}{convertaladinformat}} (Enter\+Data\+ID, Client\+Number, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_aae35e2c47a633497f92dcf61c358e656}{readoptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_a0340c1a27e19b5142e4089d2951da7cb}{openandreadaladinfile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_ad234b4831ac8d0d1f8ad444d37000469}{writehdfaladinfile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_ae9288daa19c82d5cb2b9c128f3b55cbc}{computerelativehumidity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_a5af9fedde7e74dd064c4bda092bbc671}{allocatevariables}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulealadinformat_a75d489bd9df9a1d8553c1154e13368f1}{readtime}}
+\item 
+type(t\+\_\+time) function \mbox{\hyperlink{namespacemodulealadinformat_a5841418d49ae6a17486590f8f686e489}{hdf5timeinstant}} (Instant)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_ac871ced2e3713912a0c9a9563bbab1cb}{getvariables}} (i\+Out)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_a1c17164c3687aa7b8257c842cf0ad32a}{calculaterelativehumidity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_a2c5da57a26426886fbd2f4fbe4ce299c}{writerelativehumidity}} (i\+Out)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_abe2227188275639d4c746fc709d090e2}{clearvariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_a4259301b2389ab6c64a24416eb73c157}{openandreadgridaladin}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_ab29f0499d468883233584caea8913297}{constructgrid}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_a554b3cf12b5ecedce22b2e607f931c70}{open\+\_\+hdf5\+\_\+output\+\_\+file}} (H\+D\+F5\+\_\+\+I\+O\+\_\+\+C\+O\+DE)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_aae0b88b8feec26aab01ab56220392544}{write\+\_\+hdf5\+\_\+grid\+\_\+data}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_af21c9df5cd692b1f56a959cc52cba7d8}{close\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_a2b65697a3c42c8dc546ebf63e260e98f}{openandreadaladinfields}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_a01a53a6349fe1f7a1e5973e60abcf19d}{readaladinfile}} (Input\+File)
+\item 
+logical function, private \mbox{\hyperlink{namespacemodulealadinformat_ad07bce7e401d49446a1fcfabb4bb4fa8}{checkname}} (Aladin\+Name, Mohid\+Name)
+\item 
+integer function \mbox{\hyperlink{namespacemodulealadinformat_aa8356f98f813a0fe5edb9089053dc372}{outputinstants}} (Mohid\+Name)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_a9b5030d175b249bcc7e4f88c7e8bffec}{writehdf5field}} (Field\+Time, Mohid\+Name, i\+Out, Aux2D, Aux3D)
+\item 
+character(len=stringlength) function \mbox{\hyperlink{namespacemodulealadinformat_a0e28e132a765a53e91eb16cf638b0b32}{mohidunits}} (Mohid\+Name)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulealadinformat_a5391156d679edf14a9f2631410182102}{killaladinformat}}
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulealadinformat_a4e98c66850b0ed94ddb033e7aa090e44}{input\+\_\+files\+\_\+begin}} = \textquotesingle{}$<$$<$begin\+\_\+input\+\_\+files$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulealadinformat_a1b5e192f0393399d4e3f5ee7791fef49}{input\+\_\+files\+\_\+end}} = \textquotesingle{}$<$$<$end\+\_\+input\+\_\+files$>$$>$\textquotesingle{}
+\item 
+type(\mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat}{t\+\_\+aladinformat}}), pointer \mbox{\hyperlink{namespacemodulealadinformat_a3680b6b225bce535beb96cad9fff81cb}{me}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemodulealadinformat_a5af9fedde7e74dd064c4bda092bbc671}\label{namespacemodulealadinformat_a5af9fedde7e74dd064c4bda092bbc671}} 
+\index{modulealadinformat@{modulealadinformat}!allocatevariables@{allocatevariables}}
+\index{allocatevariables@{allocatevariables}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{allocatevariables()}{allocatevariables()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::allocatevariables (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_a5af9fedde7e74dd064c4bda092bbc671_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_a1c17164c3687aa7b8257c842cf0ad32a}\label{namespacemodulealadinformat_a1c17164c3687aa7b8257c842cf0ad32a}} 
+\index{modulealadinformat@{modulealadinformat}!calculaterelativehumidity@{calculaterelativehumidity}}
+\index{calculaterelativehumidity@{calculaterelativehumidity}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{calculaterelativehumidity()}{calculaterelativehumidity()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::calculaterelativehumidity (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_a1c17164c3687aa7b8257c842cf0ad32a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_ad07bce7e401d49446a1fcfabb4bb4fa8}\label{namespacemodulealadinformat_ad07bce7e401d49446a1fcfabb4bb4fa8}} 
+\index{modulealadinformat@{modulealadinformat}!checkname@{checkname}}
+\index{checkname@{checkname}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{checkname()}{checkname()}}
+{\footnotesize\ttfamily logical function, private modulealadinformat\+::checkname (\begin{DoxyParamCaption}\item[{character(len=$\ast$)}]{Aladin\+Name,  }\item[{character(len=stringlength)}]{Mohid\+Name }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_ad07bce7e401d49446a1fcfabb4bb4fa8_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_abe2227188275639d4c746fc709d090e2}\label{namespacemodulealadinformat_abe2227188275639d4c746fc709d090e2}} 
+\index{modulealadinformat@{modulealadinformat}!clearvariables@{clearvariables}}
+\index{clearvariables@{clearvariables}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{clearvariables()}{clearvariables()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::clearvariables (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_abe2227188275639d4c746fc709d090e2_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_af21c9df5cd692b1f56a959cc52cba7d8}\label{namespacemodulealadinformat_af21c9df5cd692b1f56a959cc52cba7d8}} 
+\index{modulealadinformat@{modulealadinformat}!close\+\_\+hdf5\+\_\+output\+\_\+file@{close\+\_\+hdf5\+\_\+output\+\_\+file}}
+\index{close\+\_\+hdf5\+\_\+output\+\_\+file@{close\+\_\+hdf5\+\_\+output\+\_\+file}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{close\+\_\+hdf5\+\_\+output\+\_\+file()}{close\_hdf5\_output\_file()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::close\+\_\+hdf5\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_af21c9df5cd692b1f56a959cc52cba7d8_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_ae9288daa19c82d5cb2b9c128f3b55cbc}\label{namespacemodulealadinformat_ae9288daa19c82d5cb2b9c128f3b55cbc}} 
+\index{modulealadinformat@{modulealadinformat}!computerelativehumidity@{computerelativehumidity}}
+\index{computerelativehumidity@{computerelativehumidity}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{computerelativehumidity()}{computerelativehumidity()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::computerelativehumidity (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_ae9288daa19c82d5cb2b9c128f3b55cbc_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_ae9288daa19c82d5cb2b9c128f3b55cbc_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_ab29f0499d468883233584caea8913297}\label{namespacemodulealadinformat_ab29f0499d468883233584caea8913297}} 
+\index{modulealadinformat@{modulealadinformat}!constructgrid@{constructgrid}}
+\index{constructgrid@{constructgrid}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{constructgrid()}{constructgrid()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::constructgrid (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_ab29f0499d468883233584caea8913297_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_a77f6d15bb472ac521ff23ef7a54a48e7}\label{namespacemodulealadinformat_a77f6d15bb472ac521ff23ef7a54a48e7}} 
+\index{modulealadinformat@{modulealadinformat}!convertaladinformat@{convertaladinformat}}
+\index{convertaladinformat@{convertaladinformat}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{convertaladinformat()}{convertaladinformat()}}
+{\footnotesize\ttfamily subroutine, public modulealadinformat\+::convertaladinformat (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Enter\+Data\+ID,  }\item[{integer, intent(in)}]{Client\+Number,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemodulealadinformat_a77f6d15bb472ac521ff23ef7a54a48e7_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemodulealadinformat_a77f6d15bb472ac521ff23ef7a54a48e7_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_ac871ced2e3713912a0c9a9563bbab1cb}\label{namespacemodulealadinformat_ac871ced2e3713912a0c9a9563bbab1cb}} 
+\index{modulealadinformat@{modulealadinformat}!getvariables@{getvariables}}
+\index{getvariables@{getvariables}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{getvariables()}{getvariables()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::getvariables (\begin{DoxyParamCaption}\item[{integer}]{i\+Out }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_ac871ced2e3713912a0c9a9563bbab1cb_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_a5841418d49ae6a17486590f8f686e489}\label{namespacemodulealadinformat_a5841418d49ae6a17486590f8f686e489}} 
+\index{modulealadinformat@{modulealadinformat}!hdf5timeinstant@{hdf5timeinstant}}
+\index{hdf5timeinstant@{hdf5timeinstant}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{hdf5timeinstant()}{hdf5timeinstant()}}
+{\footnotesize\ttfamily type(t\+\_\+time) function modulealadinformat\+::hdf5timeinstant (\begin{DoxyParamCaption}\item[{integer}]{Instant }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=318pt]{namespacemodulealadinformat_a5841418d49ae6a17486590f8f686e489_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_a5391156d679edf14a9f2631410182102}\label{namespacemodulealadinformat_a5391156d679edf14a9f2631410182102}} 
+\index{modulealadinformat@{modulealadinformat}!killaladinformat@{killaladinformat}}
+\index{killaladinformat@{killaladinformat}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{killaladinformat()}{killaladinformat()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::killaladinformat (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_a5391156d679edf14a9f2631410182102_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_a0e28e132a765a53e91eb16cf638b0b32}\label{namespacemodulealadinformat_a0e28e132a765a53e91eb16cf638b0b32}} 
+\index{modulealadinformat@{modulealadinformat}!mohidunits@{mohidunits}}
+\index{mohidunits@{mohidunits}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{mohidunits()}{mohidunits()}}
+{\footnotesize\ttfamily character(len=stringlength) function modulealadinformat\+::mohidunits (\begin{DoxyParamCaption}\item[{character(len=stringlength)}]{Mohid\+Name }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_a0e28e132a765a53e91eb16cf638b0b32_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_a554b3cf12b5ecedce22b2e607f931c70}\label{namespacemodulealadinformat_a554b3cf12b5ecedce22b2e607f931c70}} 
+\index{modulealadinformat@{modulealadinformat}!open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\index{open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{open\+\_\+hdf5\+\_\+output\+\_\+file()}{open\_hdf5\_output\_file()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::open\+\_\+hdf5\+\_\+output\+\_\+file (\begin{DoxyParamCaption}\item[{integer}]{H\+D\+F5\+\_\+\+I\+O\+\_\+\+C\+O\+DE }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_a554b3cf12b5ecedce22b2e607f931c70_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_a2b65697a3c42c8dc546ebf63e260e98f}\label{namespacemodulealadinformat_a2b65697a3c42c8dc546ebf63e260e98f}} 
+\index{modulealadinformat@{modulealadinformat}!openandreadaladinfields@{openandreadaladinfields}}
+\index{openandreadaladinfields@{openandreadaladinfields}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{openandreadaladinfields()}{openandreadaladinfields()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::openandreadaladinfields (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_a2b65697a3c42c8dc546ebf63e260e98f_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_a2b65697a3c42c8dc546ebf63e260e98f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_a0340c1a27e19b5142e4089d2951da7cb}\label{namespacemodulealadinformat_a0340c1a27e19b5142e4089d2951da7cb}} 
+\index{modulealadinformat@{modulealadinformat}!openandreadaladinfile@{openandreadaladinfile}}
+\index{openandreadaladinfile@{openandreadaladinfile}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{openandreadaladinfile()}{openandreadaladinfile()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::openandreadaladinfile (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_a0340c1a27e19b5142e4089d2951da7cb_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_a0340c1a27e19b5142e4089d2951da7cb_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_a4259301b2389ab6c64a24416eb73c157}\label{namespacemodulealadinformat_a4259301b2389ab6c64a24416eb73c157}} 
+\index{modulealadinformat@{modulealadinformat}!openandreadgridaladin@{openandreadgridaladin}}
+\index{openandreadgridaladin@{openandreadgridaladin}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{openandreadgridaladin()}{openandreadgridaladin()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::openandreadgridaladin (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_a4259301b2389ab6c64a24416eb73c157_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_aa8356f98f813a0fe5edb9089053dc372}\label{namespacemodulealadinformat_aa8356f98f813a0fe5edb9089053dc372}} 
+\index{modulealadinformat@{modulealadinformat}!outputinstants@{outputinstants}}
+\index{outputinstants@{outputinstants}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{outputinstants()}{outputinstants()}}
+{\footnotesize\ttfamily integer function modulealadinformat\+::outputinstants (\begin{DoxyParamCaption}\item[{character(len=stringlength)}]{Mohid\+Name }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_aa8356f98f813a0fe5edb9089053dc372_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_a01a53a6349fe1f7a1e5973e60abcf19d}\label{namespacemodulealadinformat_a01a53a6349fe1f7a1e5973e60abcf19d}} 
+\index{modulealadinformat@{modulealadinformat}!readaladinfile@{readaladinfile}}
+\index{readaladinfile@{readaladinfile}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{readaladinfile()}{readaladinfile()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::readaladinfile (\begin{DoxyParamCaption}\item[{character (len=$\ast$)}]{Input\+File }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_a01a53a6349fe1f7a1e5973e60abcf19d_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_a01a53a6349fe1f7a1e5973e60abcf19d_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_aae35e2c47a633497f92dcf61c358e656}\label{namespacemodulealadinformat_aae35e2c47a633497f92dcf61c358e656}} 
+\index{modulealadinformat@{modulealadinformat}!readoptions@{readoptions}}
+\index{readoptions@{readoptions}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{readoptions()}{readoptions()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::readoptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulealadinformat_a75d489bd9df9a1d8553c1154e13368f1}\label{namespacemodulealadinformat_a75d489bd9df9a1d8553c1154e13368f1}} 
+\index{modulealadinformat@{modulealadinformat}!readtime@{readtime}}
+\index{readtime@{readtime}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{readtime()}{readtime()}}
+{\footnotesize\ttfamily subroutine modulealadinformat\+::readtime (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=318pt]{namespacemodulealadinformat_a75d489bd9df9a1d8553c1154e13368f1_cgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_aae0b88b8feec26aab01ab56220392544}\label{namespacemodulealadinformat_aae0b88b8feec26aab01ab56220392544}} 
+\index{modulealadinformat@{modulealadinformat}!write\+\_\+hdf5\+\_\+grid\+\_\+data@{write\+\_\+hdf5\+\_\+grid\+\_\+data}}
+\index{write\+\_\+hdf5\+\_\+grid\+\_\+data@{write\+\_\+hdf5\+\_\+grid\+\_\+data}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{write\+\_\+hdf5\+\_\+grid\+\_\+data()}{write\_hdf5\_grid\_data()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::write\+\_\+hdf5\+\_\+grid\+\_\+data (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_aae0b88b8feec26aab01ab56220392544_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_a9b5030d175b249bcc7e4f88c7e8bffec}\label{namespacemodulealadinformat_a9b5030d175b249bcc7e4f88c7e8bffec}} 
+\index{modulealadinformat@{modulealadinformat}!writehdf5field@{writehdf5field}}
+\index{writehdf5field@{writehdf5field}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{writehdf5field()}{writehdf5field()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::writehdf5field (\begin{DoxyParamCaption}\item[{type (t\+\_\+time)}]{Field\+Time,  }\item[{character(len=stringlength)}]{Mohid\+Name,  }\item[{integer}]{i\+Out,  }\item[{real, dimension(\+:,\+:  ), optional, pointer}]{Aux2D,  }\item[{real, dimension(\+:,\+:,\+:), optional, pointer}]{Aux3D }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=318pt]{namespacemodulealadinformat_a9b5030d175b249bcc7e4f88c7e8bffec_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_a9b5030d175b249bcc7e4f88c7e8bffec_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_ad234b4831ac8d0d1f8ad444d37000469}\label{namespacemodulealadinformat_ad234b4831ac8d0d1f8ad444d37000469}} 
+\index{modulealadinformat@{modulealadinformat}!writehdfaladinfile@{writehdfaladinfile}}
+\index{writehdfaladinfile@{writehdfaladinfile}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{writehdfaladinfile()}{writehdfaladinfile()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::writehdfaladinfile (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_ad234b4831ac8d0d1f8ad444d37000469_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_ad234b4831ac8d0d1f8ad444d37000469_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulealadinformat_a2c5da57a26426886fbd2f4fbe4ce299c}\label{namespacemodulealadinformat_a2c5da57a26426886fbd2f4fbe4ce299c}} 
+\index{modulealadinformat@{modulealadinformat}!writerelativehumidity@{writerelativehumidity}}
+\index{writerelativehumidity@{writerelativehumidity}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{writerelativehumidity()}{writerelativehumidity()}}
+{\footnotesize\ttfamily subroutine, private modulealadinformat\+::writerelativehumidity (\begin{DoxyParamCaption}\item[{integer}]{i\+Out }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=327pt]{namespacemodulealadinformat_a2c5da57a26426886fbd2f4fbe4ce299c_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulealadinformat_a2c5da57a26426886fbd2f4fbe4ce299c_icgraph}
+\end{center}
+\end{figure}
+
+
+\subsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemodulealadinformat_a4e98c66850b0ed94ddb033e7aa090e44}\label{namespacemodulealadinformat_a4e98c66850b0ed94ddb033e7aa090e44}} 
+\index{modulealadinformat@{modulealadinformat}!input\+\_\+files\+\_\+begin@{input\+\_\+files\+\_\+begin}}
+\index{input\+\_\+files\+\_\+begin@{input\+\_\+files\+\_\+begin}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{input\+\_\+files\+\_\+begin}{input\_files\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulealadinformat\+::input\+\_\+files\+\_\+begin = \textquotesingle{}$<$$<$begin\+\_\+input\+\_\+files$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulealadinformat_a1b5e192f0393399d4e3f5ee7791fef49}\label{namespacemodulealadinformat_a1b5e192f0393399d4e3f5ee7791fef49}} 
+\index{modulealadinformat@{modulealadinformat}!input\+\_\+files\+\_\+end@{input\+\_\+files\+\_\+end}}
+\index{input\+\_\+files\+\_\+end@{input\+\_\+files\+\_\+end}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{input\+\_\+files\+\_\+end}{input\_files\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulealadinformat\+::input\+\_\+files\+\_\+end = \textquotesingle{}$<$$<$end\+\_\+input\+\_\+files$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulealadinformat_a3680b6b225bce535beb96cad9fff81cb}\label{namespacemodulealadinformat_a3680b6b225bce535beb96cad9fff81cb}} 
+\index{modulealadinformat@{modulealadinformat}!me@{me}}
+\index{me@{me}!modulealadinformat@{modulealadinformat}}
+\subsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulealadinformat_1_1t__aladinformat}{t\+\_\+aladinformat}}), pointer modulealadinformat\+::me\hspace{0.3cm}{\ttfamily [private]}}
+

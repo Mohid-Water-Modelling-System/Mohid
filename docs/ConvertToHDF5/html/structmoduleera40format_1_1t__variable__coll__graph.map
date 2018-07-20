@@ -1,0 +1,6 @@
+<map id="moduleera40format::t_variable" name="moduleera40format::t_variable">
+<area shape="rect" id="node2" href="$structmoduleera40format_1_1t__dimension.html" title="{moduleera40format::\lt_dimension\n|&#45; name\l&#45; size\l|}" alt="" coords="5,307,145,413"/>
+<area shape="rect" id="node3" href="$structmoduleera40format_1_1t__attribute.html" title="{moduleera40format::\lt_attribute\n||}" alt="" coords="256,314,396,406"/>
+<area shape="rect" id="node4" href="$structmoduleera40format_1_1t__value.html" title="{moduleera40format::\lt_value\n|&#45; units\l&#45; byte_\l&#45; char\l&#45; char_1d\l&#45; short\l&#45; short_1d\l&#45; short_2d\l&#45; short_3d\l&#45; int\l&#45; int_1d\land 13 more...\l|}" alt="" coords="161,5,301,244"/>
+<area shape="rect" id="node5" href="$structmoduleera40format_1_1t__id.html" title="{moduleera40format::t_id\n|&#45; name\l&#45; number\l&#45; length\l&#45; type_\l|}" alt="" coords="344,64,505,185"/>
+</map>

@@ -1,0 +1,114 @@
+\hypertarget{_module_m_m5_format_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+M\+M5\+Format.F90 File Reference}
+\label{_module_m_m5_format_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+M\+M5\+Format.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+M\+M5\+Format.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulemm5format_1_1t__date}{modulemm5format\+::t\+\_\+date}}
+\item 
+type \mbox{\hyperlink{structmodulemm5format_1_1t__field}{modulemm5format\+::t\+\_\+field}}
+\item 
+type \mbox{\hyperlink{structmodulemm5format_1_1t__mm5format}{modulemm5format\+::t\+\_\+mm5format}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulemm5format}{modulemm5format}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemm5format_a1a626b0d9d1e86eb446e37da6e498536}{modulemm5format\+::convertmm5format}} (Enter\+Data\+ID, Client\+Number, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a97e9dde30f26c338513668851aff53f5}{modulemm5format\+::readoptions}} (Client\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_aab58f65fed0eaf2db8d40727bfaaf7ab}{modulemm5format\+::readfieldstoconvert}} (Client\+Number)
+\item 
+logical function, private \mbox{\hyperlink{namespacemodulemm5format_a06df0a4d83e5c07c6427f1e426280250}{modulemm5format\+::fieldistoconvert}} (Field\+Name)
+\item 
+logical function \mbox{\hyperlink{namespacemodulemm5format_a34e4f7cd15886ee4867c43357fc8f717}{modulemm5format\+::atleastone3dfieldistoconvert}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a1f3cc8db72c3a71a34ba6b95a7658651}{modulemm5format\+::openandreadmm5terrainfile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a2871229a63fac4ca43cec154d7ed93d4}{modulemm5format\+::fillgridinformation}} (Name, Data\+Aux, end\+\_\+index)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulemm5format_a5e2ead0b671ea8295a54332e57b9f3c0}{modulemm5format\+::writeterrainfield}} (M\+M5\+Name, Data\+Aux, units, start\+\_\+index, end\+\_\+index)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a4a978d934b39be4e1dd62a5701e05c93}{modulemm5format\+::openandreadmm5file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a87a63ca9f90961d4aa43cc6653ea5083}{modulemm5format\+::setnewdate}} (current\+\_\+date, New\+Date)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a0c8ad12e555e63fe83da5b09ae5e7126}{modulemm5format\+::beginendtime}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulemm5format_aecf73e96a833b95d469c3682bf5df737}{modulemm5format\+::correctinitialcondition}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a0c0413b1da7f8da860aef9b811b0c725}{modulemm5format\+::attributedimensions}} (Field, n\+Dimensions, start\+\_\+index, end\+\_\+index, staggering, ordering)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a0042a10dda1e04b0a6aeb4d67aec1d11}{modulemm5format\+::writecentergridxyz}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_aaf7b2df73bb7e6d30db2af2b3493559a}{modulemm5format\+::constructgrid}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a971d0306a569327363e6c98d9e1dd0c7}{modulemm5format\+::converttomohidunits2d}} (Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a0afd52db4648ea76112e242c40b31323}{modulemm5format\+::converttomohidunits3d}} (Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a904f7716ce2118cfd1236ab57b46a0f3}{modulemm5format\+::computeverticalcoordinate}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a2b31840d538f04c681c86a26a2feb21f}{modulemm5format\+::computemeansealevelpressure}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a3dffbb656aa84f1197105f493790f428}{modulemm5format\+::computerelativehumidity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a6beb646cd455e39599d5f9f360390986}{modulemm5format\+::computerelativehumidity3d}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_af9b804a0c8c480ae7a682237c8d37831}{modulemm5format\+::computecloudcover}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a86c95504025ac2f03c9c7aa475a35cc4}{modulemm5format\+::computeprecipitation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_af869ebd4b03375bc5013329b9bce52d7}{modulemm5format\+::computewindshearstress}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulemm5format_a9b2d602cf6fbd9095b5738722bd3a13c}{modulemm5format\+::computewindmodulus}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_afeeb0d8621c7c92d9be8dd4db8e1bf3d}{modulemm5format\+::setnewfieldattributes}} (Field, Name, Units, Date, Work\+Size, n\+Dimensions, Convert)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a136725afeaeb24f9488c92944b7b982a}{modulemm5format\+::addfield}} (First\+Field, Obj\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a6db74d155aaf7a1fd0ac77423986f988}{modulemm5format\+::adddate}} (First\+Date, Obj\+Date)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulemm5format_ab8eb4353dbcd1d51f336675a6f66b0e6}{modulemm5format\+::writemapping}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a3cfd45468121f8166d1e004ee05a5b0b}{modulemm5format\+::outputfields}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_aeb412a3427b8b95fd51d277cd343e346}{modulemm5format\+::open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a752f2b2f864f9d5601283baf96f7397f}{modulemm5format\+::writegridtohdf5file}}
+\item 
+logical function \mbox{\hyperlink{namespacemodulemm5format_ae5ec2f854445619a5a7132875dc4d803}{modulemm5format\+::isterrainfield}} (Field\+Name)
+\item 
+logical function, private \mbox{\hyperlink{namespacemodulemm5format_af3c3e0015f7df36b0498d741f6d745c3}{modulemm5format\+::checkgridinformation}} (M\+M5\+Name, Grid\+Information\+Name)
+\item 
+logical function, private \mbox{\hyperlink{namespacemodulemm5format_a0fb6edd1ddbebdd980a7396df7323e1a}{modulemm5format\+::fieldistoread}} (M\+M5\+Name, Mohid\+Name)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a2c04440614e11a95fbe1732cd8110590}{modulemm5format\+::killmm5format}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemm5format_a406c18c9d5a54d074a43f1f1252ebdde}{modulemm5format\+::printout\+\_\+big\+\_\+header}} (bhi, bhr, bhic, bhrc)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulemm5format_a56429c53d699bf7bc1af81bd292f7d95}{modulemm5format\+::writeglobalheaders}} (bhi, bhr, bhic, bhrc)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulemm5format_a871b844ed6929a6562485e2a29d28989}{modulemm5format\+::dotgrid}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulemm5format_a8eb6f7aafd2e1d54d8df38612f563472}{modulemm5format\+::crossgrid}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulemm5format_a86c89b8f5d82abe380899e8a735d9a04}{modulemm5format\+::fulllevels}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulemm5format_acc9d4a4df78416271fbe07dc0b298995}{modulemm5format\+::halflevels}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulemm5format_af8de31546878abb803b899a68d6b863c}{modulemm5format\+::perfect\+\_\+gas\+\_\+r}} = 287.\+04
+\item 
+character(stringlength), parameter \mbox{\hyperlink{namespacemodulemm5format_a101bf0aa4a9ab5456ed7d19dc05bd796}{modulemm5format\+::accconvprecipitation}} = \char`\"{}accumulated convective precipitation\char`\"{}
+\item 
+character(stringlength), parameter \mbox{\hyperlink{namespacemodulemm5format_ad160a358d9d8a90c1e91557493fd9482}{modulemm5format\+::accnonconvprecipitation}} = \char`\"{}accumulated non-\/convective precipitation\char`\"{}
+\item 
+type(t\+\_\+mm5format), pointer \mbox{\hyperlink{namespacemodulemm5format_ae4f84fc3add37ecb0c20b09a854afc4f}{modulemm5format\+::me}}
+\end{DoxyCompactItemize}

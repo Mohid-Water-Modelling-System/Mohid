@@ -1,0 +1,318 @@
+\hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii}{}\section{modulehellermanrosensteinascii\+:\+:t\+\_\+hellermanrosensteinascii Type Reference}
+\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii}\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+
+
+Collaboration diagram for modulehellermanrosensteinascii\+:\+:t\+\_\+hellermanrosensteinascii\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=277pt]{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+integer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a64b8b751355ee6f053e1f700c283528b}{objenterdata}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a32efbc0c86f229b6dd0c1b4d6b031681}{objhdf5}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a3fa26f6efb207d8a5304368c0816887c}{objhorizontalgrid}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a270f465d876d5a4d524964ba1bdf1b56}{objtime}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_acf23e574d477b4255d3d54aaf531730b}{unit}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aebd2ebb9698064373fdc4b0da0ba34c7}{filename}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_af10df97d7a69f51d73de48c7a831b9aa}{gridfilename}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aeef40000a2fc8a41ffcd751487f4dba9}{outputfilename}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a67755850964bbd9338b3b3c4fac7c850}{basebulletin}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_ae12b05ed9c7053068221ee31e9aa797f}{datesfile}}
+\item 
+integer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a42b880e6e53d733316deb3325ad1eec4}{numdates}} = Fill\+Value\+Int
+\item 
+type(t\+\_\+time), dimension(\+:), pointer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aa20fcdad9cdcf64727c15bb5ac6c6856}{outputdates}}
+\item 
+integer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a363f7ec788abf2238cd408a2c61e79f8}{fieldsnumber}}
+\item 
+integer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a09b05a39cef13bd6c706bc30072227b4}{clientnumber}}
+\item 
+logical \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a7ad6371adf2d4818b6ea20a848bddbe2}{firstinputfiles}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_af49971809efef65d2fb9699b54f0d7dc}{firstmapping}} = .true.
+\item 
+real \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_ac85254a03b699ac68a6bd00b8cb321af}{spatialresolution}}
+\item 
+real \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a2eb77691529d41b45ed84ff03a936295}{fillvalue}}
+\item 
+real, dimension(2) \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a67a3caca90d7e8150fdcbe0307411630}{upperrightcornerxy}}
+\item 
+real, dimension(2) \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a3f6fed7cd663526bcd05ebac22a975ba}{lowerleftcornerxy}}
+\item 
+integer, dimension(2) \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a64796a823b3659664726dfc9b697a682}{upperrightcornerji}}
+\item 
+integer, dimension(2) \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aa4c54da74421beae3293ceb54aab2451}{lowerleftcornerji}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a0082d50924ab6f8563fe67c36433dab6}{bathymetry}}
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_ab1bc5914fa0642530bc5e95356dc9200}{xx}}
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_ac436772438640fe03991dc814a3c3046}{centerx}}
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a04151d3accb1ea2f0ae06c060eed57ad}{yy}}
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a4f58e8217b957a3ef6d9515fce8d3949}{centery}}
+\item 
+real, dimension(\mbox{\hyperlink{namespacemodulehellermanrosensteinascii_a7c99a3c54379548ef0084208ccd395ed}{nhellermanrosensteinannual}}) \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a1e3ea9bef2b1a1dd3e254e5c1f2743ba}{hellermanrosensteinlevels}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_ad57e8f315c169f1160c71cda7db6aa6a}{aux2d}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a98e5a8e4ff03f533258a0d4a7aa6a290}{aux2dhellermanrosenstein}}
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a9adb293b0999a792b285853e97e14637}{waterpoints2d}}
+\item 
+type(t\+\_\+size2d) \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aa235044541d3d65c3b61f54550e03d5a}{hellermanrosensteinsize}}
+\item 
+type(t\+\_\+size2d) \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a6bce624b42c7f9b29a9c0dcfab0c2470}{hellermanrosensteinwsize}}
+\item 
+type(t\+\_\+size2d) \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aa6ceb583daa933b000dcddd77690c32f}{worksize}}
+\item 
+type(t\+\_\+size2d) \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a15fb3ea0550cfb25414593d16512d9df}{size}}
+\item 
+type(\mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__field}{t\+\_\+field}}), pointer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a7ee11cbdc0d2528bb2bce368f825eae7}{firstfield}}
+\item 
+type(\mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__field}{t\+\_\+field}}), pointer \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a801a9ad8c6cb97e6a1d26120cf4c4ae8}{lastfield}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Member Data Documentation}
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_ad57e8f315c169f1160c71cda7db6aa6a}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_ad57e8f315c169f1160c71cda7db6aa6a}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!aux2d@{aux2d}}
+\index{aux2d@{aux2d}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{aux2d}{aux2d}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::aux2d\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a98e5a8e4ff03f533258a0d4a7aa6a290}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a98e5a8e4ff03f533258a0d4a7aa6a290}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!aux2dhellermanrosenstein@{aux2dhellermanrosenstein}}
+\index{aux2dhellermanrosenstein@{aux2dhellermanrosenstein}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{aux2dhellermanrosenstein}{aux2dhellermanrosenstein}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::aux2dhellermanrosenstein\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a67755850964bbd9338b3b3c4fac7c850}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a67755850964bbd9338b3b3c4fac7c850}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!basebulletin@{basebulletin}}
+\index{basebulletin@{basebulletin}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{basebulletin}{basebulletin}}
+{\footnotesize\ttfamily character(len=pathlength) modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::basebulletin\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a0082d50924ab6f8563fe67c36433dab6}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a0082d50924ab6f8563fe67c36433dab6}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!bathymetry@{bathymetry}}
+\index{bathymetry@{bathymetry}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{bathymetry}{bathymetry}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::bathymetry\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_ac436772438640fe03991dc814a3c3046}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_ac436772438640fe03991dc814a3c3046}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!centerx@{centerx}}
+\index{centerx@{centerx}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{centerx}{centerx}}
+{\footnotesize\ttfamily real, dimension(\+:  ), pointer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::centerx\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a4f58e8217b957a3ef6d9515fce8d3949}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a4f58e8217b957a3ef6d9515fce8d3949}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!centery@{centery}}
+\index{centery@{centery}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{centery}{centery}}
+{\footnotesize\ttfamily real, dimension(\+:  ), pointer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::centery\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a09b05a39cef13bd6c706bc30072227b4}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a09b05a39cef13bd6c706bc30072227b4}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!clientnumber@{clientnumber}}
+\index{clientnumber@{clientnumber}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{clientnumber}{clientnumber}}
+{\footnotesize\ttfamily integer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::clientnumber\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_ae12b05ed9c7053068221ee31e9aa797f}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_ae12b05ed9c7053068221ee31e9aa797f}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!datesfile@{datesfile}}
+\index{datesfile@{datesfile}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{datesfile}{datesfile}}
+{\footnotesize\ttfamily character(len=pathlength) modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::datesfile\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a363f7ec788abf2238cd408a2c61e79f8}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a363f7ec788abf2238cd408a2c61e79f8}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!fieldsnumber@{fieldsnumber}}
+\index{fieldsnumber@{fieldsnumber}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{fieldsnumber}{fieldsnumber}}
+{\footnotesize\ttfamily integer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::fieldsnumber\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aebd2ebb9698064373fdc4b0da0ba34c7}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aebd2ebb9698064373fdc4b0da0ba34c7}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!filename@{filename}}
+\index{filename@{filename}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{filename}{filename}}
+{\footnotesize\ttfamily character(len=pathlength) modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::filename\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a2eb77691529d41b45ed84ff03a936295}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a2eb77691529d41b45ed84ff03a936295}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!fillvalue@{fillvalue}}
+\index{fillvalue@{fillvalue}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{fillvalue}{fillvalue}}
+{\footnotesize\ttfamily real modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::fillvalue\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a7ee11cbdc0d2528bb2bce368f825eae7}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a7ee11cbdc0d2528bb2bce368f825eae7}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!firstfield@{firstfield}}
+\index{firstfield@{firstfield}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{firstfield}{firstfield}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__field}{t\+\_\+field}}), pointer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::firstfield\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a7ad6371adf2d4818b6ea20a848bddbe2}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a7ad6371adf2d4818b6ea20a848bddbe2}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!firstinputfiles@{firstinputfiles}}
+\index{firstinputfiles@{firstinputfiles}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{firstinputfiles}{firstinputfiles}}
+{\footnotesize\ttfamily logical modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::firstinputfiles = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_af49971809efef65d2fb9699b54f0d7dc}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_af49971809efef65d2fb9699b54f0d7dc}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!firstmapping@{firstmapping}}
+\index{firstmapping@{firstmapping}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{firstmapping}{firstmapping}}
+{\footnotesize\ttfamily logical modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::firstmapping = .true.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_af10df97d7a69f51d73de48c7a831b9aa}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_af10df97d7a69f51d73de48c7a831b9aa}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!gridfilename@{gridfilename}}
+\index{gridfilename@{gridfilename}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{gridfilename}{gridfilename}}
+{\footnotesize\ttfamily character(len=pathlength) modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::gridfilename\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a1e3ea9bef2b1a1dd3e254e5c1f2743ba}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a1e3ea9bef2b1a1dd3e254e5c1f2743ba}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!hellermanrosensteinlevels@{hellermanrosensteinlevels}}
+\index{hellermanrosensteinlevels@{hellermanrosensteinlevels}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{hellermanrosensteinlevels}{hellermanrosensteinlevels}}
+{\footnotesize\ttfamily real, dimension(\mbox{\hyperlink{namespacemodulehellermanrosensteinascii_a7c99a3c54379548ef0084208ccd395ed}{nhellermanrosensteinannual}}) modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::hellermanrosensteinlevels\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aa235044541d3d65c3b61f54550e03d5a}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aa235044541d3d65c3b61f54550e03d5a}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!hellermanrosensteinsize@{hellermanrosensteinsize}}
+\index{hellermanrosensteinsize@{hellermanrosensteinsize}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{hellermanrosensteinsize}{hellermanrosensteinsize}}
+{\footnotesize\ttfamily type(t\+\_\+size2d) modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::hellermanrosensteinsize\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a6bce624b42c7f9b29a9c0dcfab0c2470}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a6bce624b42c7f9b29a9c0dcfab0c2470}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!hellermanrosensteinwsize@{hellermanrosensteinwsize}}
+\index{hellermanrosensteinwsize@{hellermanrosensteinwsize}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{hellermanrosensteinwsize}{hellermanrosensteinwsize}}
+{\footnotesize\ttfamily type(t\+\_\+size2d) modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::hellermanrosensteinwsize\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a801a9ad8c6cb97e6a1d26120cf4c4ae8}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a801a9ad8c6cb97e6a1d26120cf4c4ae8}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!lastfield@{lastfield}}
+\index{lastfield@{lastfield}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{lastfield}{lastfield}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__field}{t\+\_\+field}}), pointer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::lastfield\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aa4c54da74421beae3293ceb54aab2451}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aa4c54da74421beae3293ceb54aab2451}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!lowerleftcornerji@{lowerleftcornerji}}
+\index{lowerleftcornerji@{lowerleftcornerji}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{lowerleftcornerji}{lowerleftcornerji}}
+{\footnotesize\ttfamily integer, dimension(2) modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::lowerleftcornerji\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a3f6fed7cd663526bcd05ebac22a975ba}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a3f6fed7cd663526bcd05ebac22a975ba}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!lowerleftcornerxy@{lowerleftcornerxy}}
+\index{lowerleftcornerxy@{lowerleftcornerxy}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{lowerleftcornerxy}{lowerleftcornerxy}}
+{\footnotesize\ttfamily real, dimension(2) modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::lowerleftcornerxy\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a42b880e6e53d733316deb3325ad1eec4}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a42b880e6e53d733316deb3325ad1eec4}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!numdates@{numdates}}
+\index{numdates@{numdates}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{numdates}{numdates}}
+{\footnotesize\ttfamily integer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::numdates = Fill\+Value\+Int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a64b8b751355ee6f053e1f700c283528b}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a64b8b751355ee6f053e1f700c283528b}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!objenterdata@{objenterdata}}
+\index{objenterdata@{objenterdata}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{objenterdata}{objenterdata}}
+{\footnotesize\ttfamily integer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::objenterdata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a32efbc0c86f229b6dd0c1b4d6b031681}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a32efbc0c86f229b6dd0c1b4d6b031681}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!objhdf5@{objhdf5}}
+\index{objhdf5@{objhdf5}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{objhdf5}{objhdf5}}
+{\footnotesize\ttfamily integer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::objhdf5 = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a3fa26f6efb207d8a5304368c0816887c}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a3fa26f6efb207d8a5304368c0816887c}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!objhorizontalgrid@{objhorizontalgrid}}
+\index{objhorizontalgrid@{objhorizontalgrid}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{objhorizontalgrid}{objhorizontalgrid}}
+{\footnotesize\ttfamily integer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::objhorizontalgrid = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a270f465d876d5a4d524964ba1bdf1b56}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a270f465d876d5a4d524964ba1bdf1b56}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!objtime@{objtime}}
+\index{objtime@{objtime}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{objtime}{objtime}}
+{\footnotesize\ttfamily integer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::objtime = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aa20fcdad9cdcf64727c15bb5ac6c6856}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aa20fcdad9cdcf64727c15bb5ac6c6856}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!outputdates@{outputdates}}
+\index{outputdates@{outputdates}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{outputdates}{outputdates}}
+{\footnotesize\ttfamily type(t\+\_\+time), dimension(\+:), pointer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::outputdates\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aeef40000a2fc8a41ffcd751487f4dba9}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aeef40000a2fc8a41ffcd751487f4dba9}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!outputfilename@{outputfilename}}
+\index{outputfilename@{outputfilename}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{outputfilename}{outputfilename}}
+{\footnotesize\ttfamily character(len=pathlength) modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::outputfilename\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a15fb3ea0550cfb25414593d16512d9df}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a15fb3ea0550cfb25414593d16512d9df}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!size@{size}}
+\index{size@{size}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{size}{size}}
+{\footnotesize\ttfamily type(t\+\_\+size2d) modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::size\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_ac85254a03b699ac68a6bd00b8cb321af}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_ac85254a03b699ac68a6bd00b8cb321af}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!spatialresolution@{spatialresolution}}
+\index{spatialresolution@{spatialresolution}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{spatialresolution}{spatialresolution}}
+{\footnotesize\ttfamily real modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::spatialresolution\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_acf23e574d477b4255d3d54aaf531730b}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_acf23e574d477b4255d3d54aaf531730b}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!unit@{unit}}
+\index{unit@{unit}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{unit}{unit}}
+{\footnotesize\ttfamily integer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::unit\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a64796a823b3659664726dfc9b697a682}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a64796a823b3659664726dfc9b697a682}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!upperrightcornerji@{upperrightcornerji}}
+\index{upperrightcornerji@{upperrightcornerji}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{upperrightcornerji}{upperrightcornerji}}
+{\footnotesize\ttfamily integer, dimension(2) modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::upperrightcornerji\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a67a3caca90d7e8150fdcbe0307411630}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a67a3caca90d7e8150fdcbe0307411630}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!upperrightcornerxy@{upperrightcornerxy}}
+\index{upperrightcornerxy@{upperrightcornerxy}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{upperrightcornerxy}{upperrightcornerxy}}
+{\footnotesize\ttfamily real, dimension(2) modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::upperrightcornerxy\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a9adb293b0999a792b285853e97e14637}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a9adb293b0999a792b285853e97e14637}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!waterpoints2d@{waterpoints2d}}
+\index{waterpoints2d@{waterpoints2d}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{waterpoints2d}{waterpoints2d}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:  ), pointer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::waterpoints2d\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aa6ceb583daa933b000dcddd77690c32f}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_aa6ceb583daa933b000dcddd77690c32f}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!worksize@{worksize}}
+\index{worksize@{worksize}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{worksize}{worksize}}
+{\footnotesize\ttfamily type(t\+\_\+size2d) modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::worksize\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_ab1bc5914fa0642530bc5e95356dc9200}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_ab1bc5914fa0642530bc5e95356dc9200}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!xx@{xx}}
+\index{xx@{xx}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{xx}{xx}}
+{\footnotesize\ttfamily real, dimension(\+:  ), pointer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::xx\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a04151d3accb1ea2f0ae06c060eed57ad}\label{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii_a04151d3accb1ea2f0ae06c060eed57ad}} 
+\index{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}!yy@{yy}}
+\index{yy@{yy}!modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii@{modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{yy}{yy}}
+{\footnotesize\ttfamily real, dimension(\+:  ), pointer modulehellermanrosensteinascii\+::t\+\_\+hellermanrosensteinascii\+::yy\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\mbox{\hyperlink{_module_hellerman_rosenstein_ascii_8_f90}{Module\+Hellerman\+Rosenstein\+Ascii.\+F90}}\end{DoxyCompactItemize}

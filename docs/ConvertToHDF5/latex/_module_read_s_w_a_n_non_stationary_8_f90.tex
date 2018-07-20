@@ -1,0 +1,58 @@
+\hypertarget{_module_read_s_w_a_n_non_stationary_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+Read\+S\+W\+A\+N\+Non\+Stationary.F90 File Reference}
+\label{_module_read_s_w_a_n_non_stationary_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+Read\+S\+W\+A\+N\+Non\+Stationary.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+Read\+S\+W\+A\+N\+Non\+Stationary.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__output}{modulereadswannonstationary\+::t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__outw}{modulereadswannonstationary\+::t\+\_\+outw}}
+\item 
+type \mbox{\hyperlink{structmodulereadswannonstationary_1_1t__swan}{modulereadswannonstationary\+::t\+\_\+swan}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulereadswannonstationary}{modulereadswannonstationary}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulereadswannonstationary_adb8e6556bbf5f51e70fbc7c10af87a70}{modulereadswannonstationary\+::convertswannonstationary}} (Enter\+Data\+ID, Client\+Number, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulereadswannonstationary_a3ca3fa603083a13bf688eeba197ef307}{modulereadswannonstationary\+::readglobaloptions}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereadswannonstationary_a7fdb18d8cbff6e60af51a911dbea6813}{modulereadswannonstationary\+::getoutputwindow}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulereadswannonstationary_a2326a23b25b70dbf6d20a3f4395d864e}{modulereadswannonstationary\+::readproperties}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereadswannonstationary_ab9855fa733bd4b591442908062b5e2cd}{modulereadswannonstationary\+::readfieldfromfile}} (p)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulereadswannonstationary_a75a35cae0f8c8f39af652fdec1a65e65}{modulereadswannonstationary\+::constructbathymetry}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulereadswannonstationary_a0dbbbf2bfd33dfe83b35c14911f575dc}{modulereadswannonstationary\+::outputfields}} (p)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereadswannonstationary_a9381741247025c8f7b4fd4b06c7b9815}{modulereadswannonstationary\+::outputwavevector}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereadswannonstationary_a8c548e44bcbe106ea2fb8ef9f9aae7a1}{modulereadswannonstationary\+::calculatewavepower}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulereadswannonstationary_a209b3d9c5ca27190c2be35a7d9bb9bce}{modulereadswannonstationary\+::replacenoncomputedvalues}} (p)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulereadswannonstationary_adfb4e0c4deb8bcba31fe72f185128ace}{modulereadswannonstationary\+::open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulereadswannonstationary_a568ac2906250752e8eb67fb713cc4212}{modulereadswannonstationary\+::killswan}}
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulereadswannonstationary_a49b70911a8192a84cf1ee4184e95069e}{modulereadswannonstationary\+::prop\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$$<$beginproperty$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulereadswannonstationary_ae64bbd606aac4edda645ed73e9fd7342}{modulereadswannonstationary\+::prop\+\_\+block\+\_\+end}} = \textquotesingle{}$<$$<$endproperty$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulereadswannonstationary_a3bfcd82f3cfda93a9ca86cdb6a3bd39c}{modulereadswannonstationary\+::units\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$$<$beginunits$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulereadswannonstationary_a2523cfc89ab979041c4b91a534e60cf0}{modulereadswannonstationary\+::units\+\_\+block\+\_\+end}} = \textquotesingle{}$<$$<$endunits$>$$>$\textquotesingle{}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulereadswannonstationary_aa944582a0a1b3c5a5141261697feb2ad}{modulereadswannonstationary\+::noconversion\+\_\+}} = 0
+\item 
+type(t\+\_\+swan), pointer \mbox{\hyperlink{namespacemodulereadswannonstationary_a540bd39474b6ce05d78950b2abf1c1af}{modulereadswannonstationary\+::me}}
+\end{DoxyCompactItemize}

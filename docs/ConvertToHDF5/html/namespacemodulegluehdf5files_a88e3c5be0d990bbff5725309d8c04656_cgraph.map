@@ -1,0 +1,13 @@
+<map id="modulegluehdf5files::besttimeserieglue" name="modulegluehdf5files::besttimeserieglue">
+<area shape="rect" id="node2" href="$namespacemodulegluehdf5files.html#a94366c8fe9f21f17f5e9be7a2738a5c1" title="modulegluehdf5files\l::inquirefile" alt="" coords="201,5,335,47"/>
+<area shape="rect" id="node3" href="$namespacemodulegluehdf5files.html#aeacbdb79a83691a90c236da51ac23775" title="modulegluehdf5files\l::comparesubgroups" alt="" coords="198,71,338,112"/>
+<area shape="rect" id="node4" href="$namespacemodulegluehdf5files.html#adf08cc960a9d299d5f221e46c1ec20bd" title="modulegluehdf5files\l::addnewgroupstooutput" alt="" coords="188,136,348,177"/>
+<area shape="rect" id="node5" href="$namespacemodulegluehdf5files.html#a30ae163f5236c7c84af5e6fd552d3da1" title="modulegluehdf5files\l::constructtimemap" alt="" coords="201,201,335,243"/>
+<area shape="rect" id="node7" href="$namespacemodulegluehdf5files.html#a102906b766caaf9abc74b0c0de97ab0c" title="modulegluehdf5files\l::gluefilein" alt="" coords="201,299,335,340"/>
+<area shape="rect" id="node6" href="$namespacemodulegluehdf5files.html#a9a6c2b8f1c89f66fc3308854f2ab8e57" title="modulegluehdf5files\l::hdf5timeinstant" alt="" coords="396,184,531,225"/>
+<area shape="rect" id="node8" href="$namespacemodulegluehdf5files.html#a58aecafa3c64f2f6546b818404f30b15" title="modulegluehdf5files\l::glueintimebest" alt="" coords="396,249,531,291"/>
+<area shape="rect" id="node11" href="$namespacemodulegluehdf5files.html#af9077091d4ab6580969f5d961ccc9b22" title="modulegluehdf5files\l::glueintime" alt="" coords="396,315,531,356"/>
+<area shape="rect" id="node12" href="$namespacemodulegluehdf5files.html#a3433c6674efedbc9d8386001b56ecbfd" title="modulegluehdf5files\l::glueinresults" alt="" coords="396,380,531,421"/>
+<area shape="rect" id="node9" href="$namespacemodulegluehdf5files.html#a50f42179c2c16aa6c290cd9672da239b" title="modulegluehdf5files\l::constructdsname" alt="" coords="579,249,713,291"/>
+<area shape="rect" id="node10" href="$namespacemodulegluehdf5files.html#a2b70cc6d35be5763a50ac4153fb03cc5" title="modulegluehdf5files\l::preparewrite" alt="" coords="579,315,713,356"/>
+</map>

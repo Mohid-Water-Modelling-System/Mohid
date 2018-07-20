@@ -1,0 +1,312 @@
+\hypertarget{namespacemodulegfsasciiwind}{}\section{modulegfsasciiwind Module Reference}
+\label{namespacemodulegfsasciiwind}\index{modulegfsasciiwind@{modulegfsasciiwind}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulegfsasciiwind_1_1t__gfsasciiwind}{t\+\_\+gfsasciiwind}}
+\item 
+type \mbox{\hyperlink{structmodulegfsasciiwind_1_1t__output}{t\+\_\+output}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegfsasciiwind_a4a4a0dde4375b81a03f64232de2622c5}{convertgfsasciiwind}} (Enter\+Data\+ID, Client\+Number, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegfsasciiwind_a8c3d7b7c4a1b9cba9c41386d4584b037}{readglobaloptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegfsasciiwind_ab9051f99673c32b2f6b1020ab37aa9c1}{readdates}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegfsasciiwind_a59e80d4f0ead06a644744e644d4504a0}{readproperties}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegfsasciiwind_a2ae7830d5f79fbdaea50e4f86eef0d4b}{readconversion}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegfsasciiwind_ac5d334e8c6ff65db3f44823f9a106515}{readfields}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegfsasciiwind_a138e1d55d83fe4bc5ba1901ae3adcbb7}{constructglobaloutput}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegfsasciiwind_a69fe620e0a4b751e1ee827c3e8f01e6c}{readfieldfromfile}} (l)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegfsasciiwind_a794951032db573702ba8cfba3fe3f55b}{constructgrid}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegfsasciiwind_ab51247b85cb09b0446fe50076953724a}{outputfields}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegfsasciiwind_ac0e8ece9bfc11aa5ca290d333ad96a29}{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegfsasciiwind_af8a728ba2b355e73d4c07f7d2a55c500}{killgfsasciiwind}}
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegfsasciiwind_a2c0745dc6b808be5890234478059c603}{field\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$$<$beginfield$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegfsasciiwind_ae8d1dc361028c3693336bb732fc2a502}{field\+\_\+block\+\_\+end}} = \textquotesingle{}$<$$<$endfield$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegfsasciiwind_a036d03f90ca62e80e383e0817e415089}{prop\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$$<$beginproperty$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegfsasciiwind_a239295586e75d8d91ccab74434e29581}{prop\+\_\+block\+\_\+end}} = \textquotesingle{}$<$$<$endproperty$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegfsasciiwind_af4903f24bfb8c26bad841c76f24ffc97}{units\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$$<$beginunits$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegfsasciiwind_ab88fa85792b55aff45b9916708cf12ae}{units\+\_\+block\+\_\+end}} = \textquotesingle{}$<$$<$endunits$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegfsasciiwind_a0f313fac62779d173ef39b9aeaf5ee0d}{date\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$$<$begindate$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegfsasciiwind_a7d76704d4672bd7af3a050e4dae08735}{date\+\_\+block\+\_\+end}} = \textquotesingle{}$<$$<$enddate$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegfsasciiwind_a2fdc105a5e66cf54be832babc014ca26}{convert\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$$<$beginconvert$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulegfsasciiwind_aaa6e5d0628451ecaf95e028d77e17e74}{convert\+\_\+block\+\_\+end}} = \textquotesingle{}$<$$<$endconvert$>$$>$\textquotesingle{}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegfsasciiwind_af0862756eafdf97c8c8176091c7b87e8}{noconversion\+\_\+}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegfsasciiwind_a0a6e81b60bce37217f1aa7c7cb238e61}{carttonauticaldegrees\+\_\+}} = 1
+\item 
+type(\mbox{\hyperlink{structmodulegfsasciiwind_1_1t__gfsasciiwind}{t\+\_\+gfsasciiwind}}), pointer \mbox{\hyperlink{namespacemodulegfsasciiwind_ae4f2c81a144ab1609763f342a186c40d}{me}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_a138e1d55d83fe4bc5ba1901ae3adcbb7}\label{namespacemodulegfsasciiwind_a138e1d55d83fe4bc5ba1901ae3adcbb7}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!constructglobaloutput@{constructglobaloutput}}
+\index{constructglobaloutput@{constructglobaloutput}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{constructglobaloutput()}{constructglobaloutput()}}
+{\footnotesize\ttfamily subroutine, private modulegfsasciiwind\+::constructglobaloutput (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegfsasciiwind_a138e1d55d83fe4bc5ba1901ae3adcbb7_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_a794951032db573702ba8cfba3fe3f55b}\label{namespacemodulegfsasciiwind_a794951032db573702ba8cfba3fe3f55b}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!constructgrid@{constructgrid}}
+\index{constructgrid@{constructgrid}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{constructgrid()}{constructgrid()}}
+{\footnotesize\ttfamily subroutine, private modulegfsasciiwind\+::constructgrid (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegfsasciiwind_a794951032db573702ba8cfba3fe3f55b_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_a4a4a0dde4375b81a03f64232de2622c5}\label{namespacemodulegfsasciiwind_a4a4a0dde4375b81a03f64232de2622c5}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!convertgfsasciiwind@{convertgfsasciiwind}}
+\index{convertgfsasciiwind@{convertgfsasciiwind}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{convertgfsasciiwind()}{convertgfsasciiwind()}}
+{\footnotesize\ttfamily subroutine, public modulegfsasciiwind\+::convertgfsasciiwind (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Enter\+Data\+ID,  }\item[{integer, intent(in)}]{Client\+Number,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemodulegfsasciiwind_a4a4a0dde4375b81a03f64232de2622c5_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemodulegfsasciiwind_a4a4a0dde4375b81a03f64232de2622c5_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_af8a728ba2b355e73d4c07f7d2a55c500}\label{namespacemodulegfsasciiwind_af8a728ba2b355e73d4c07f7d2a55c500}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!killgfsasciiwind@{killgfsasciiwind}}
+\index{killgfsasciiwind@{killgfsasciiwind}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{killgfsasciiwind()}{killgfsasciiwind()}}
+{\footnotesize\ttfamily subroutine, private modulegfsasciiwind\+::killgfsasciiwind (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegfsasciiwind_af8a728ba2b355e73d4c07f7d2a55c500_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_ac0e8ece9bfc11aa5ca290d333ad96a29}\label{namespacemodulegfsasciiwind_ac0e8ece9bfc11aa5ca290d333ad96a29}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\index{open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{open\+\_\+hdf5\+\_\+output\+\_\+file()}{open\_hdf5\_output\_file()}}
+{\footnotesize\ttfamily subroutine, private modulegfsasciiwind\+::open\+\_\+hdf5\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegfsasciiwind_ac0e8ece9bfc11aa5ca290d333ad96a29_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_ab51247b85cb09b0446fe50076953724a}\label{namespacemodulegfsasciiwind_ab51247b85cb09b0446fe50076953724a}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!outputfields@{outputfields}}
+\index{outputfields@{outputfields}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{outputfields()}{outputfields()}}
+{\footnotesize\ttfamily subroutine, private modulegfsasciiwind\+::outputfields (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegfsasciiwind_ab51247b85cb09b0446fe50076953724a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_a2ae7830d5f79fbdaea50e4f86eef0d4b}\label{namespacemodulegfsasciiwind_a2ae7830d5f79fbdaea50e4f86eef0d4b}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!readconversion@{readconversion}}
+\index{readconversion@{readconversion}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{readconversion()}{readconversion()}}
+{\footnotesize\ttfamily subroutine modulegfsasciiwind\+::readconversion (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegfsasciiwind_a2ae7830d5f79fbdaea50e4f86eef0d4b_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_ab9051f99673c32b2f6b1020ab37aa9c1}\label{namespacemodulegfsasciiwind_ab9051f99673c32b2f6b1020ab37aa9c1}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!readdates@{readdates}}
+\index{readdates@{readdates}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{readdates()}{readdates()}}
+{\footnotesize\ttfamily subroutine, private modulegfsasciiwind\+::readdates (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegfsasciiwind_ab9051f99673c32b2f6b1020ab37aa9c1_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_a69fe620e0a4b751e1ee827c3e8f01e6c}\label{namespacemodulegfsasciiwind_a69fe620e0a4b751e1ee827c3e8f01e6c}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!readfieldfromfile@{readfieldfromfile}}
+\index{readfieldfromfile@{readfieldfromfile}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{readfieldfromfile()}{readfieldfromfile()}}
+{\footnotesize\ttfamily subroutine modulegfsasciiwind\+::readfieldfromfile (\begin{DoxyParamCaption}\item[{integer}]{l }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegfsasciiwind_a69fe620e0a4b751e1ee827c3e8f01e6c_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_ac5d334e8c6ff65db3f44823f9a106515}\label{namespacemodulegfsasciiwind_ac5d334e8c6ff65db3f44823f9a106515}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!readfields@{readfields}}
+\index{readfields@{readfields}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{readfields()}{readfields()}}
+{\footnotesize\ttfamily subroutine, private modulegfsasciiwind\+::readfields (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegfsasciiwind_ac5d334e8c6ff65db3f44823f9a106515_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_a8c3d7b7c4a1b9cba9c41386d4584b037}\label{namespacemodulegfsasciiwind_a8c3d7b7c4a1b9cba9c41386d4584b037}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!readglobaloptions@{readglobaloptions}}
+\index{readglobaloptions@{readglobaloptions}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{readglobaloptions()}{readglobaloptions()}}
+{\footnotesize\ttfamily subroutine, private modulegfsasciiwind\+::readglobaloptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegfsasciiwind_a8c3d7b7c4a1b9cba9c41386d4584b037_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_a59e80d4f0ead06a644744e644d4504a0}\label{namespacemodulegfsasciiwind_a59e80d4f0ead06a644744e644d4504a0}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!readproperties@{readproperties}}
+\index{readproperties@{readproperties}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{readproperties()}{readproperties()}}
+{\footnotesize\ttfamily subroutine, private modulegfsasciiwind\+::readproperties (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulegfsasciiwind_a59e80d4f0ead06a644744e644d4504a0_icgraph}
+\end{center}
+\end{figure}
+
+
+\subsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_a0a6e81b60bce37217f1aa7c7cb238e61}\label{namespacemodulegfsasciiwind_a0a6e81b60bce37217f1aa7c7cb238e61}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!carttonauticaldegrees\+\_\+@{carttonauticaldegrees\+\_\+}}
+\index{carttonauticaldegrees\+\_\+@{carttonauticaldegrees\+\_\+}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{carttonauticaldegrees\+\_\+}{carttonauticaldegrees\_}}
+{\footnotesize\ttfamily integer, parameter modulegfsasciiwind\+::carttonauticaldegrees\+\_\+ = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_a2fdc105a5e66cf54be832babc014ca26}\label{namespacemodulegfsasciiwind_a2fdc105a5e66cf54be832babc014ca26}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!convert\+\_\+block\+\_\+begin@{convert\+\_\+block\+\_\+begin}}
+\index{convert\+\_\+block\+\_\+begin@{convert\+\_\+block\+\_\+begin}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{convert\+\_\+block\+\_\+begin}{convert\_block\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulegfsasciiwind\+::convert\+\_\+block\+\_\+begin = \textquotesingle{}$<$$<$beginconvert$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_aaa6e5d0628451ecaf95e028d77e17e74}\label{namespacemodulegfsasciiwind_aaa6e5d0628451ecaf95e028d77e17e74}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!convert\+\_\+block\+\_\+end@{convert\+\_\+block\+\_\+end}}
+\index{convert\+\_\+block\+\_\+end@{convert\+\_\+block\+\_\+end}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{convert\+\_\+block\+\_\+end}{convert\_block\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulegfsasciiwind\+::convert\+\_\+block\+\_\+end = \textquotesingle{}$<$$<$endconvert$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_a0f313fac62779d173ef39b9aeaf5ee0d}\label{namespacemodulegfsasciiwind_a0f313fac62779d173ef39b9aeaf5ee0d}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!date\+\_\+block\+\_\+begin@{date\+\_\+block\+\_\+begin}}
+\index{date\+\_\+block\+\_\+begin@{date\+\_\+block\+\_\+begin}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{date\+\_\+block\+\_\+begin}{date\_block\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulegfsasciiwind\+::date\+\_\+block\+\_\+begin = \textquotesingle{}$<$$<$begindate$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_a7d76704d4672bd7af3a050e4dae08735}\label{namespacemodulegfsasciiwind_a7d76704d4672bd7af3a050e4dae08735}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!date\+\_\+block\+\_\+end@{date\+\_\+block\+\_\+end}}
+\index{date\+\_\+block\+\_\+end@{date\+\_\+block\+\_\+end}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{date\+\_\+block\+\_\+end}{date\_block\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulegfsasciiwind\+::date\+\_\+block\+\_\+end = \textquotesingle{}$<$$<$enddate$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_a2c0745dc6b808be5890234478059c603}\label{namespacemodulegfsasciiwind_a2c0745dc6b808be5890234478059c603}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!field\+\_\+block\+\_\+begin@{field\+\_\+block\+\_\+begin}}
+\index{field\+\_\+block\+\_\+begin@{field\+\_\+block\+\_\+begin}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{field\+\_\+block\+\_\+begin}{field\_block\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulegfsasciiwind\+::field\+\_\+block\+\_\+begin = \textquotesingle{}$<$$<$beginfield$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_ae8d1dc361028c3693336bb732fc2a502}\label{namespacemodulegfsasciiwind_ae8d1dc361028c3693336bb732fc2a502}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!field\+\_\+block\+\_\+end@{field\+\_\+block\+\_\+end}}
+\index{field\+\_\+block\+\_\+end@{field\+\_\+block\+\_\+end}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{field\+\_\+block\+\_\+end}{field\_block\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulegfsasciiwind\+::field\+\_\+block\+\_\+end = \textquotesingle{}$<$$<$endfield$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_ae4f2c81a144ab1609763f342a186c40d}\label{namespacemodulegfsasciiwind_ae4f2c81a144ab1609763f342a186c40d}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!me@{me}}
+\index{me@{me}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulegfsasciiwind_1_1t__gfsasciiwind}{t\+\_\+gfsasciiwind}}), pointer modulegfsasciiwind\+::me\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_af0862756eafdf97c8c8176091c7b87e8}\label{namespacemodulegfsasciiwind_af0862756eafdf97c8c8176091c7b87e8}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!noconversion\+\_\+@{noconversion\+\_\+}}
+\index{noconversion\+\_\+@{noconversion\+\_\+}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{noconversion\+\_\+}{noconversion\_}}
+{\footnotesize\ttfamily integer, parameter modulegfsasciiwind\+::noconversion\+\_\+ = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_a036d03f90ca62e80e383e0817e415089}\label{namespacemodulegfsasciiwind_a036d03f90ca62e80e383e0817e415089}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!prop\+\_\+block\+\_\+begin@{prop\+\_\+block\+\_\+begin}}
+\index{prop\+\_\+block\+\_\+begin@{prop\+\_\+block\+\_\+begin}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{prop\+\_\+block\+\_\+begin}{prop\_block\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulegfsasciiwind\+::prop\+\_\+block\+\_\+begin = \textquotesingle{}$<$$<$beginproperty$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_a239295586e75d8d91ccab74434e29581}\label{namespacemodulegfsasciiwind_a239295586e75d8d91ccab74434e29581}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!prop\+\_\+block\+\_\+end@{prop\+\_\+block\+\_\+end}}
+\index{prop\+\_\+block\+\_\+end@{prop\+\_\+block\+\_\+end}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{prop\+\_\+block\+\_\+end}{prop\_block\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulegfsasciiwind\+::prop\+\_\+block\+\_\+end = \textquotesingle{}$<$$<$endproperty$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_af4903f24bfb8c26bad841c76f24ffc97}\label{namespacemodulegfsasciiwind_af4903f24bfb8c26bad841c76f24ffc97}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!units\+\_\+block\+\_\+begin@{units\+\_\+block\+\_\+begin}}
+\index{units\+\_\+block\+\_\+begin@{units\+\_\+block\+\_\+begin}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{units\+\_\+block\+\_\+begin}{units\_block\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulegfsasciiwind\+::units\+\_\+block\+\_\+begin = \textquotesingle{}$<$$<$beginunits$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegfsasciiwind_ab88fa85792b55aff45b9916708cf12ae}\label{namespacemodulegfsasciiwind_ab88fa85792b55aff45b9916708cf12ae}} 
+\index{modulegfsasciiwind@{modulegfsasciiwind}!units\+\_\+block\+\_\+end@{units\+\_\+block\+\_\+end}}
+\index{units\+\_\+block\+\_\+end@{units\+\_\+block\+\_\+end}!modulegfsasciiwind@{modulegfsasciiwind}}
+\subsubsection{\texorpdfstring{units\+\_\+block\+\_\+end}{units\_block\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulegfsasciiwind\+::units\+\_\+block\+\_\+end = \textquotesingle{}$<$$<$endunits$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+

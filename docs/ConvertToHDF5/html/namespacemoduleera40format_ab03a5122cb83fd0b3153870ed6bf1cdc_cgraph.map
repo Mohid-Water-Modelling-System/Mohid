@@ -1,0 +1,24 @@
+<map id="moduleera40format::openreadandconvertfile" name="moduleera40format::openreadandconvertfile">
+<area shape="rect" id="node2" href="$namespacemoduleera40format.html#aeaa93e0eaf981081d8b6a42b94714211" title="moduleera40format::\lopenasciifile" alt="" coords="210,5,350,47"/>
+<area shape="rect" id="node3" href="$namespacemoduleera40format.html#a462785fbcd7874f4f3ab321366b79ec9" title="moduleera40format::\lopennetcdffile" alt="" coords="210,71,350,112"/>
+<area shape="rect" id="node4" href="$namespacemoduleera40format.html#ad4271c51cd4bfc71c5ed5743a60e7fef" title="moduleera40format::\lconstructgridandmap" alt="" coords="209,348,351,389"/>
+<area shape="rect" id="node8" href="$namespacemoduleera40format.html#a2dffd2c3e28995426ed11ff1f4ca7ad9" title="moduleera40format::\lhandledimensions" alt="" coords="789,369,929,411"/>
+<area shape="rect" id="node10" href="$namespacemoduleera40format.html#adaf25cab272ca9c6e2db6b1f641c0136" title="moduleera40format::\lhandleattributtes" alt="" coords="789,249,929,291"/>
+<area shape="rect" id="node11" href="$namespacemoduleera40format.html#accbbdcac1635a00be7ca33013f811a29" title="moduleera40format::\lwritedatatype" alt="" coords="977,189,1117,231"/>
+<area shape="rect" id="node15" href="$namespacemoduleera40format.html#a5d0edb2c39da4714b1bffb8a6c97b1a2" title="moduleera40format::\lisgridvariable" alt="" coords="210,465,350,507"/>
+<area shape="rect" id="node16" href="$namespacemoduleera40format.html#a84aefcd4351fc116d22a21fdfce2ec4f" title="moduleera40format::\lopen_hdf5_output_file" alt="" coords="207,531,353,572"/>
+<area shape="rect" id="node17" href="$namespacemoduleera40format.html#a496e3a66acda20102bdeaa457f8faf96" title="moduleera40format::\lhandlechars" alt="" coords="210,596,350,637"/>
+<area shape="rect" id="node18" href="$namespacemoduleera40format.html#a0a0c22e410451c81e0c573ad2174504f" title="moduleera40format::\lhandleshorts" alt="" coords="210,661,350,703"/>
+<area shape="rect" id="node21" href="$namespacemoduleera40format.html#a90dfe4450bbbd59c764d529d05f92d76" title="moduleera40format::\lhandleintegers" alt="" coords="210,857,350,899"/>
+<area shape="rect" id="node22" href="$namespacemoduleera40format.html#a9389939d144e12060ff692086e9af89e" title="moduleera40format::\lhandlefloats" alt="" coords="210,792,350,833"/>
+<area shape="rect" id="node23" href="$namespacemoduleera40format.html#a54957082dfc56590cf35c0fb8138161f" title="moduleera40format::\lhandledoubles" alt="" coords="210,727,350,768"/>
+<area shape="rect" id="node5" href="$namespacemoduleera40format.html#a4218771d6a94493f1954c06107f7ec1e" title="moduleera40format::\lreadgridmapoptions" alt="" coords="407,289,547,331"/>
+<area shape="rect" id="node6" href="$namespacemoduleera40format.html#ad847a1e5d762ac9c9f77372614efda16" title="moduleera40format::\lconstructgrid" alt="" coords="407,472,547,513"/>
+<area shape="rect" id="node12" href="$namespacemoduleera40format.html#a73e47fa652795fc4885fa7d6a5c34503" title="moduleera40format::\lconstructbathymetry" alt="" coords="600,249,741,291"/>
+<area shape="rect" id="node13" href="$namespacemoduleera40format.html#a866d19867c0e3bcef28981a8907ea516" title="moduleera40format::\lconstructtime" alt="" coords="601,336,741,377"/>
+<area shape="rect" id="node14" href="$namespacemoduleera40format.html#a45bd99707035a442354f99cd2597f1e5" title="moduleera40format::\lconstructmap" alt="" coords="407,407,547,448"/>
+<area shape="rect" id="node7" href="$namespacemoduleera40format.html#ad2e0367ac675a7a629eb4baf66bcf7c6" title="moduleera40format::\lgetvariable" alt="" coords="601,401,741,443"/>
+<area shape="rect" id="node9" href="$namespacemoduleera40format.html#aeddab9fd7b3d953ed10b899ae10ef9bb" title="moduleera40format::\lwritedimensions" alt="" coords="977,369,1117,411"/>
+<area shape="rect" id="node19" href="$namespacemoduleera40format.html#afe5dcd73c50804212a7b39e48bf7d428" title="moduleera40format::\lconstructinstanttime" alt="" coords="407,661,547,703"/>
+<area shape="rect" id="node20" href="$namespacemoduleera40format.html#a407d38960a0ddf8b9d1645d26d35d49b" title="moduleera40format::\lconverttomohidunits3d" alt="" coords="401,727,552,768"/>
+</map>

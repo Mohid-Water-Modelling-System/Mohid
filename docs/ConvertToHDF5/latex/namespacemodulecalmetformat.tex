@@ -1,0 +1,432 @@
+\hypertarget{namespacemodulecalmetformat}{}\section{modulecalmetformat Module Reference}
+\label{namespacemodulecalmetformat}\index{modulecalmetformat@{modulecalmetformat}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulecalmetformat_1_1t__calmetformat}{t\+\_\+calmetformat}}
+\item 
+type \mbox{\hyperlink{structmodulecalmetformat_1_1t__date}{t\+\_\+date}}
+\item 
+type \mbox{\hyperlink{structmodulecalmetformat_1_1t__field}{t\+\_\+field}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulecalmetformat_a46e7b8dbd76c834dd87aa502fa427ecf}{convertcalmetformat}} (Enter\+Data\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulecalmetformat_a93959f38b7542f55aa7f2b9557c7ee20}{readoptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulecalmetformat_a1c6e763c6740cd630346ca11aab5aa78}{openandreadterrainfile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulecalmetformat_aed24d711f305ad0c21d58e0ff79c9c02}{writegridinformation}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulecalmetformat_a4d48e68e591262be2fdee84257034418}{convertlatlonchartoreal}} (Aux\+String, Aux\+Real)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulecalmetformat_a14590292a4c7892fcd59f55007069444}{setnewfieldattributes}} (Field, Name, Units, Date, Work\+Size, n\+Dimensions, Convert)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulecalmetformat_ad719aec457312263662ee69e4ff227fb}{addfield}} (First\+Field, Obj\+Field)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulecalmetformat_ac2b80a87e09960dca9aab0ddc8af00b5}{adddate}} (First\+Date, Obj\+Date)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulecalmetformat_a08504fdf416abe46eab39f11e6104b74}{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulecalmetformat_a5ff4d55d88eac5ea8ceee14dbc6c26af}{openandreadcalmetfile}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulecalmetformat_a620b75749d8d431ee5f1c9152211ebb0}{addfieldxy}} (C\+A\+L\+M\+E\+T\+Name, Mohid\+Name, Units, New\+Field, Current\+Time)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulecalmetformat_a26c3210caedd039907d56c2a6b8d30c4}{addintegerfieldxy}} (C\+A\+L\+M\+E\+T\+Name, Mohid\+Name, Units, New\+Field, Current\+Time, Convert\+To\+Real)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulecalmetformat_a3defaeb10661bad427bb6a70e331c077}{setnewdate}} (New\+Date, ndathr, isec, Year, Month, Day, Hour, Minute, Second)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulecalmetformat_a62bd4a5f15fb34c0505c736e02ac62ca}{beginendtime}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulecalmetformat_abd990931d70766e3d45c4c5e94a1924f}{computeverticalcoordinate}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulecalmetformat_aebd4c52189e33c42d4eddb372d91a66d}{correctverticalcoordinate}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulecalmetformat_ac65fd3f15792bec4c3a1f8809e7d201a}{computewindsurface}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulecalmetformat_a49e8d2600dc3c064290f04ab142db105}{writegridtohdf5file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulecalmetformat_ab777b0fc84a3a4b2505fadc6db40580f}{writemapping}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulecalmetformat_a77546a7a587e6ab71724b1a5ebb7e709}{outputfields}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulecalmetformat_a7703da81b5a94320621a668c0326f881}{killcalmetformat}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulecalmetformat_a2e6285b2b96d5b3545d7755b77b65502}{handle\+\_\+proj\+\_\+error}} (status)
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulecalmetformat_a21173190f31cd07dd3e9d96b03a51822}{perfect\+\_\+gas\+\_\+r}} = 287.\+04
+\item 
+type(\mbox{\hyperlink{structmodulecalmetformat_1_1t__calmetformat}{t\+\_\+calmetformat}}), pointer \mbox{\hyperlink{namespacemodulecalmetformat_a30d8b055512bccb5b1dd9cd00e4c790b}{me}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemodulecalmetformat_ac2b80a87e09960dca9aab0ddc8af00b5}\label{namespacemodulecalmetformat_ac2b80a87e09960dca9aab0ddc8af00b5}} 
+\index{modulecalmetformat@{modulecalmetformat}!adddate@{adddate}}
+\index{adddate@{adddate}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{adddate()}{adddate()}}
+{\footnotesize\ttfamily subroutine modulecalmetformat\+::adddate (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmodulecalmetformat_1_1t__date}{t\+\_\+date}}), pointer}]{First\+Date,  }\item[{type (\mbox{\hyperlink{structmodulecalmetformat_1_1t__date}{t\+\_\+date}}), pointer}]{Obj\+Date }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_ac2b80a87e09960dca9aab0ddc8af00b5_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_ad719aec457312263662ee69e4ff227fb}\label{namespacemodulecalmetformat_ad719aec457312263662ee69e4ff227fb}} 
+\index{modulecalmetformat@{modulecalmetformat}!addfield@{addfield}}
+\index{addfield@{addfield}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{addfield()}{addfield()}}
+{\footnotesize\ttfamily subroutine modulecalmetformat\+::addfield (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmodulecalmetformat_1_1t__field}{t\+\_\+field}}), pointer}]{First\+Field,  }\item[{type (\mbox{\hyperlink{structmodulecalmetformat_1_1t__field}{t\+\_\+field}}), pointer}]{Obj\+Field }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_ad719aec457312263662ee69e4ff227fb_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_a620b75749d8d431ee5f1c9152211ebb0}\label{namespacemodulecalmetformat_a620b75749d8d431ee5f1c9152211ebb0}} 
+\index{modulecalmetformat@{modulecalmetformat}!addfieldxy@{addfieldxy}}
+\index{addfieldxy@{addfieldxy}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{addfieldxy()}{addfieldxy()}}
+{\footnotesize\ttfamily subroutine modulecalmetformat\+::addfieldxy (\begin{DoxyParamCaption}\item[{character(8), intent(in)}]{C\+A\+L\+M\+E\+T\+Name,  }\item[{character(stringlength), intent(in)}]{Mohid\+Name,  }\item[{character(stringlength), intent(in)}]{Units,  }\item[{type(\mbox{\hyperlink{structmodulecalmetformat_1_1t__field}{t\+\_\+field}}), pointer}]{New\+Field,  }\item[{type(t\+\_\+time), optional}]{Current\+Time }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=331pt]{namespacemodulecalmetformat_a620b75749d8d431ee5f1c9152211ebb0_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_a620b75749d8d431ee5f1c9152211ebb0_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_a26c3210caedd039907d56c2a6b8d30c4}\label{namespacemodulecalmetformat_a26c3210caedd039907d56c2a6b8d30c4}} 
+\index{modulecalmetformat@{modulecalmetformat}!addintegerfieldxy@{addintegerfieldxy}}
+\index{addintegerfieldxy@{addintegerfieldxy}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{addintegerfieldxy()}{addintegerfieldxy()}}
+{\footnotesize\ttfamily subroutine modulecalmetformat\+::addintegerfieldxy (\begin{DoxyParamCaption}\item[{character(8), intent(in)}]{C\+A\+L\+M\+E\+T\+Name,  }\item[{character(stringlength), intent(in)}]{Mohid\+Name,  }\item[{character(stringlength), intent(in)}]{Units,  }\item[{type(\mbox{\hyperlink{structmodulecalmetformat_1_1t__field}{t\+\_\+field}}), pointer}]{New\+Field,  }\item[{type(t\+\_\+time), optional}]{Current\+Time,  }\item[{logical, optional}]{Convert\+To\+Real }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=331pt]{namespacemodulecalmetformat_a26c3210caedd039907d56c2a6b8d30c4_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_a26c3210caedd039907d56c2a6b8d30c4_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_a62bd4a5f15fb34c0505c736e02ac62ca}\label{namespacemodulecalmetformat_a62bd4a5f15fb34c0505c736e02ac62ca}} 
+\index{modulecalmetformat@{modulecalmetformat}!beginendtime@{beginendtime}}
+\index{beginendtime@{beginendtime}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{beginendtime()}{beginendtime()}}
+{\footnotesize\ttfamily subroutine, private modulecalmetformat\+::beginendtime (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_a62bd4a5f15fb34c0505c736e02ac62ca_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_abd990931d70766e3d45c4c5e94a1924f}\label{namespacemodulecalmetformat_abd990931d70766e3d45c4c5e94a1924f}} 
+\index{modulecalmetformat@{modulecalmetformat}!computeverticalcoordinate@{computeverticalcoordinate}}
+\index{computeverticalcoordinate@{computeverticalcoordinate}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{computeverticalcoordinate()}{computeverticalcoordinate()}}
+{\footnotesize\ttfamily subroutine, private modulecalmetformat\+::computeverticalcoordinate (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_abd990931d70766e3d45c4c5e94a1924f_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_abd990931d70766e3d45c4c5e94a1924f_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_ac65fd3f15792bec4c3a1f8809e7d201a}\label{namespacemodulecalmetformat_ac65fd3f15792bec4c3a1f8809e7d201a}} 
+\index{modulecalmetformat@{modulecalmetformat}!computewindsurface@{computewindsurface}}
+\index{computewindsurface@{computewindsurface}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{computewindsurface()}{computewindsurface()}}
+{\footnotesize\ttfamily subroutine, private modulecalmetformat\+::computewindsurface (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=338pt]{namespacemodulecalmetformat_ac65fd3f15792bec4c3a1f8809e7d201a_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_ac65fd3f15792bec4c3a1f8809e7d201a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_a46e7b8dbd76c834dd87aa502fa427ecf}\label{namespacemodulecalmetformat_a46e7b8dbd76c834dd87aa502fa427ecf}} 
+\index{modulecalmetformat@{modulecalmetformat}!convertcalmetformat@{convertcalmetformat}}
+\index{convertcalmetformat@{convertcalmetformat}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{convertcalmetformat()}{convertcalmetformat()}}
+{\footnotesize\ttfamily subroutine, public modulecalmetformat\+::convertcalmetformat (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Enter\+Data\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemodulecalmetformat_a46e7b8dbd76c834dd87aa502fa427ecf_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[height=550pt]{namespacemodulecalmetformat_a46e7b8dbd76c834dd87aa502fa427ecf_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_a4d48e68e591262be2fdee84257034418}\label{namespacemodulecalmetformat_a4d48e68e591262be2fdee84257034418}} 
+\index{modulecalmetformat@{modulecalmetformat}!convertlatlonchartoreal@{convertlatlonchartoreal}}
+\index{convertlatlonchartoreal@{convertlatlonchartoreal}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{convertlatlonchartoreal()}{convertlatlonchartoreal()}}
+{\footnotesize\ttfamily subroutine modulecalmetformat\+::convertlatlonchartoreal (\begin{DoxyParamCaption}\item[{character(len=stringlength), intent(in)}]{Aux\+String,  }\item[{real, intent(out)}]{Aux\+Real }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_a4d48e68e591262be2fdee84257034418_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_aebd4c52189e33c42d4eddb372d91a66d}\label{namespacemodulecalmetformat_aebd4c52189e33c42d4eddb372d91a66d}} 
+\index{modulecalmetformat@{modulecalmetformat}!correctverticalcoordinate@{correctverticalcoordinate}}
+\index{correctverticalcoordinate@{correctverticalcoordinate}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{correctverticalcoordinate()}{correctverticalcoordinate()}}
+{\footnotesize\ttfamily subroutine, private modulecalmetformat\+::correctverticalcoordinate (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_aebd4c52189e33c42d4eddb372d91a66d_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_a2e6285b2b96d5b3545d7755b77b65502}\label{namespacemodulecalmetformat_a2e6285b2b96d5b3545d7755b77b65502}} 
+\index{modulecalmetformat@{modulecalmetformat}!handle\+\_\+proj\+\_\+error@{handle\+\_\+proj\+\_\+error}}
+\index{handle\+\_\+proj\+\_\+error@{handle\+\_\+proj\+\_\+error}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{handle\+\_\+proj\+\_\+error()}{handle\_proj\_error()}}
+{\footnotesize\ttfamily subroutine modulecalmetformat\+::handle\+\_\+proj\+\_\+error (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{status }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_a2e6285b2b96d5b3545d7755b77b65502_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_a7703da81b5a94320621a668c0326f881}\label{namespacemodulecalmetformat_a7703da81b5a94320621a668c0326f881}} 
+\index{modulecalmetformat@{modulecalmetformat}!killcalmetformat@{killcalmetformat}}
+\index{killcalmetformat@{killcalmetformat}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{killcalmetformat()}{killcalmetformat()}}
+{\footnotesize\ttfamily subroutine, private modulecalmetformat\+::killcalmetformat (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_a7703da81b5a94320621a668c0326f881_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_a08504fdf416abe46eab39f11e6104b74}\label{namespacemodulecalmetformat_a08504fdf416abe46eab39f11e6104b74}} 
+\index{modulecalmetformat@{modulecalmetformat}!open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\index{open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{open\+\_\+hdf5\+\_\+output\+\_\+file()}{open\_hdf5\_output\_file()}}
+{\footnotesize\ttfamily subroutine, private modulecalmetformat\+::open\+\_\+hdf5\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_a08504fdf416abe46eab39f11e6104b74_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_a5ff4d55d88eac5ea8ceee14dbc6c26af}\label{namespacemodulecalmetformat_a5ff4d55d88eac5ea8ceee14dbc6c26af}} 
+\index{modulecalmetformat@{modulecalmetformat}!openandreadcalmetfile@{openandreadcalmetfile}}
+\index{openandreadcalmetfile@{openandreadcalmetfile}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{openandreadcalmetfile()}{openandreadcalmetfile()}}
+{\footnotesize\ttfamily subroutine, private modulecalmetformat\+::openandreadcalmetfile (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_a5ff4d55d88eac5ea8ceee14dbc6c26af_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_a5ff4d55d88eac5ea8ceee14dbc6c26af_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_a1c6e763c6740cd630346ca11aab5aa78}\label{namespacemodulecalmetformat_a1c6e763c6740cd630346ca11aab5aa78}} 
+\index{modulecalmetformat@{modulecalmetformat}!openandreadterrainfile@{openandreadterrainfile}}
+\index{openandreadterrainfile@{openandreadterrainfile}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{openandreadterrainfile()}{openandreadterrainfile()}}
+{\footnotesize\ttfamily subroutine, private modulecalmetformat\+::openandreadterrainfile (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_a1c6e763c6740cd630346ca11aab5aa78_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_a1c6e763c6740cd630346ca11aab5aa78_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_a77546a7a587e6ab71724b1a5ebb7e709}\label{namespacemodulecalmetformat_a77546a7a587e6ab71724b1a5ebb7e709}} 
+\index{modulecalmetformat@{modulecalmetformat}!outputfields@{outputfields}}
+\index{outputfields@{outputfields}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{outputfields()}{outputfields()}}
+{\footnotesize\ttfamily subroutine, private modulecalmetformat\+::outputfields (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=324pt]{namespacemodulecalmetformat_a77546a7a587e6ab71724b1a5ebb7e709_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_a77546a7a587e6ab71724b1a5ebb7e709_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_a93959f38b7542f55aa7f2b9557c7ee20}\label{namespacemodulecalmetformat_a93959f38b7542f55aa7f2b9557c7ee20}} 
+\index{modulecalmetformat@{modulecalmetformat}!readoptions@{readoptions}}
+\index{readoptions@{readoptions}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{readoptions()}{readoptions()}}
+{\footnotesize\ttfamily subroutine, private modulecalmetformat\+::readoptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulecalmetformat_a3defaeb10661bad427bb6a70e331c077}\label{namespacemodulecalmetformat_a3defaeb10661bad427bb6a70e331c077}} 
+\index{modulecalmetformat@{modulecalmetformat}!setnewdate@{setnewdate}}
+\index{setnewdate@{setnewdate}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{setnewdate()}{setnewdate()}}
+{\footnotesize\ttfamily subroutine modulecalmetformat\+::setnewdate (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulecalmetformat_1_1t__date}{t\+\_\+date}}), intent(out), pointer}]{New\+Date,  }\item[{integer, intent(in), optional}]{ndathr,  }\item[{integer, intent(in), optional}]{isec,  }\item[{integer, intent(in), optional}]{Year,  }\item[{integer, intent(in), optional}]{Month,  }\item[{integer, intent(in), optional}]{Day,  }\item[{integer, intent(in), optional}]{Hour,  }\item[{integer, intent(in), optional}]{Minute,  }\item[{integer, intent(in), optional}]{Second }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=324pt]{namespacemodulecalmetformat_a3defaeb10661bad427bb6a70e331c077_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_a3defaeb10661bad427bb6a70e331c077_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_a14590292a4c7892fcd59f55007069444}\label{namespacemodulecalmetformat_a14590292a4c7892fcd59f55007069444}} 
+\index{modulecalmetformat@{modulecalmetformat}!setnewfieldattributes@{setnewfieldattributes}}
+\index{setnewfieldattributes@{setnewfieldattributes}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{setnewfieldattributes()}{setnewfieldattributes()}}
+{\footnotesize\ttfamily subroutine modulecalmetformat\+::setnewfieldattributes (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulecalmetformat_1_1t__field}{t\+\_\+field}}), pointer}]{Field,  }\item[{character(len=$\ast$), intent(in)}]{Name,  }\item[{character(len=$\ast$), intent(in)}]{Units,  }\item[{type(t\+\_\+time), intent(in), optional}]{Date,  }\item[{type(t\+\_\+size3d), intent(in), optional}]{Work\+Size,  }\item[{integer, intent(in), optional}]{n\+Dimensions,  }\item[{logical, intent(in)}]{Convert }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_a14590292a4c7892fcd59f55007069444_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_aed24d711f305ad0c21d58e0ff79c9c02}\label{namespacemodulecalmetformat_aed24d711f305ad0c21d58e0ff79c9c02}} 
+\index{modulecalmetformat@{modulecalmetformat}!writegridinformation@{writegridinformation}}
+\index{writegridinformation@{writegridinformation}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{writegridinformation()}{writegridinformation()}}
+{\footnotesize\ttfamily subroutine, private modulecalmetformat\+::writegridinformation (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=326pt]{namespacemodulecalmetformat_aed24d711f305ad0c21d58e0ff79c9c02_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_aed24d711f305ad0c21d58e0ff79c9c02_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_a49e8d2600dc3c064290f04ab142db105}\label{namespacemodulecalmetformat_a49e8d2600dc3c064290f04ab142db105}} 
+\index{modulecalmetformat@{modulecalmetformat}!writegridtohdf5file@{writegridtohdf5file}}
+\index{writegridtohdf5file@{writegridtohdf5file}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{writegridtohdf5file()}{writegridtohdf5file()}}
+{\footnotesize\ttfamily subroutine, private modulecalmetformat\+::writegridtohdf5file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_a49e8d2600dc3c064290f04ab142db105_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulecalmetformat_ab777b0fc84a3a4b2505fadc6db40580f}\label{namespacemodulecalmetformat_ab777b0fc84a3a4b2505fadc6db40580f}} 
+\index{modulecalmetformat@{modulecalmetformat}!writemapping@{writemapping}}
+\index{writemapping@{writemapping}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{writemapping()}{writemapping()}}
+{\footnotesize\ttfamily subroutine, private modulecalmetformat\+::writemapping (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulecalmetformat_ab777b0fc84a3a4b2505fadc6db40580f_icgraph}
+\end{center}
+\end{figure}
+
+
+\subsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemodulecalmetformat_a30d8b055512bccb5b1dd9cd00e4c790b}\label{namespacemodulecalmetformat_a30d8b055512bccb5b1dd9cd00e4c790b}} 
+\index{modulecalmetformat@{modulecalmetformat}!me@{me}}
+\index{me@{me}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulecalmetformat_1_1t__calmetformat}{t\+\_\+calmetformat}}), pointer modulecalmetformat\+::me\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulecalmetformat_a21173190f31cd07dd3e9d96b03a51822}\label{namespacemodulecalmetformat_a21173190f31cd07dd3e9d96b03a51822}} 
+\index{modulecalmetformat@{modulecalmetformat}!perfect\+\_\+gas\+\_\+r@{perfect\+\_\+gas\+\_\+r}}
+\index{perfect\+\_\+gas\+\_\+r@{perfect\+\_\+gas\+\_\+r}!modulecalmetformat@{modulecalmetformat}}
+\subsubsection{\texorpdfstring{perfect\+\_\+gas\+\_\+r}{perfect\_gas\_r}}
+{\footnotesize\ttfamily integer, parameter modulecalmetformat\+::perfect\+\_\+gas\+\_\+r = 287.\+04\hspace{0.3cm}{\ttfamily [private]}}
+

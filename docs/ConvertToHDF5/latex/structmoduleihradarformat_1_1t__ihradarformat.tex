@@ -1,0 +1,318 @@
+\hypertarget{structmoduleihradarformat_1_1t__ihradarformat}{}\section{moduleihradarformat\+:\+:t\+\_\+ihradarformat Type Reference}
+\label{structmoduleihradarformat_1_1t__ihradarformat}\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+
+
+Collaboration diagram for moduleihradarformat\+:\+:t\+\_\+ihradarformat\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=221pt]{structmoduleihradarformat_1_1t__ihradarformat__coll__graph}
+\end{center}
+\end{figure}
+\subsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+integer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a16e7ab342bcf4eb5357a5bde69a2cea1}{objenterdata}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a06cf45d65b48f694f3cbc6b8c3248e39}{objhdf5}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a74513c0af1cad075eb2a6b2be32aeb28}{objnetcdf}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_adbb1750c04f1311b3c16a1d37ed9fd81}{objhorizontalgrid}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_ae3f3a9764dd45fc3a5e05b13c4af9d9e}{objhorizontalmap}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a7d3b6979d087cea8d6ededfb1d1efff2}{objtime}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_ad0c1d71a7c575b239b96e6b770583f67}{unit}}
+\item 
+integer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a4a28c48e2351e66fe3c771bab1871a70}{clientnumber}}
+\item 
+logical \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_af5657ddbb8515496ccb9be374b7e83f3}{outputhdf5}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a4c16513d31f002ad01f7c6347ebffbf6}{outputhdf5filename}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_ad1ce9fd7b8e12db59662b94e26d4d1ca}{gridfilename}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a868731a96af5d3f713838b69766fc964}{inputgridfile}}
+\item 
+integer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a241610a4fab29bcff862f29bb5000f9c}{gridversion}}
+\item 
+integer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a9cab0b841bc37c8ebdccda84563752f0}{readoptiontype}}
+\item 
+integer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a06594f7a7c96f73f081ec9b88f07fef3}{imax}}
+\item 
+integer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_ad9daf49f8ec408a17542805104e9559c}{jmax}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a5f5419a5121e82f2a0780d8b31067387}{bathymetry}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a80e5e826a0aa6b8d2c705f102aa48fd2}{xx\+\_\+ie}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_aba0d599820ce9086070fe76c90d704a2}{yy\+\_\+ie}}
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a5284872ed4ed702c946f46f8a279a5bb}{openpoints}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a114b7f3570e651aa27f85c2c13fc3feb}{velu}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a666684cdb18b97430bfa87e723d828c4}{velv}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_addbeded7b07e04adce5597072b583028}{velu\+\_\+stdv}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_aff6187f5da48f367eb73e03d0466a411}{velv\+\_\+stdv}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a0e1d7c543ff6a4a5eeb07ad123de93e8}{covariance}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a451c8f05c7a12722e3e546f6a1d22c76}{xdistance}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a490a00b526f0c0227c566fad71ae0ef3}{ydistance}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_ae99380a15b0c3045dc9a386940a32bf5}{range}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a2ea3a9b6ae68500dedefb11744fe810f}{bearing}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_adca6cc08820eea67f9c76d8352f120be}{velocity}}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a4730b1e2fc20df6df644471e3a666659}{direction}}
+\item 
+logical \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a3f9ac80eb03d963155ebe63fb3bf3f18}{outputnetcdf}}
+\item 
+character(len=pathlength) \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_af19cc4a9c729ad8f82c2dca40366e91b}{outputnetcdffilename}}
+\item 
+type(\mbox{\hyperlink{structmoduleihradarformat_1_1t__netcdf__global__attributes}{t\+\_\+netcdf\+\_\+global\+\_\+attributes}}) \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_ae927f8c4721214aa435c5a84a5ffcf2e}{outputnetcdfattr}}
+\item 
+type(t\+\_\+size2d) \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_ac50b2383a6979fc42c223c1f6f23709a}{size}}
+\item 
+type(t\+\_\+size2d) \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_a43f3e736a9a764c853be3b7395968657}{worksize}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat_ac7aff5bc02bc7efd2acc384d0217de51}{time}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Member Data Documentation}
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a5f5419a5121e82f2a0780d8b31067387}\label{structmoduleihradarformat_1_1t__ihradarformat_a5f5419a5121e82f2a0780d8b31067387}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!bathymetry@{bathymetry}}
+\index{bathymetry@{bathymetry}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{bathymetry}{bathymetry}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleihradarformat\+::t\+\_\+ihradarformat\+::bathymetry\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a2ea3a9b6ae68500dedefb11744fe810f}\label{structmoduleihradarformat_1_1t__ihradarformat_a2ea3a9b6ae68500dedefb11744fe810f}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!bearing@{bearing}}
+\index{bearing@{bearing}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{bearing}{bearing}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleihradarformat\+::t\+\_\+ihradarformat\+::bearing\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a4a28c48e2351e66fe3c771bab1871a70}\label{structmoduleihradarformat_1_1t__ihradarformat_a4a28c48e2351e66fe3c771bab1871a70}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!clientnumber@{clientnumber}}
+\index{clientnumber@{clientnumber}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{clientnumber}{clientnumber}}
+{\footnotesize\ttfamily integer moduleihradarformat\+::t\+\_\+ihradarformat\+::clientnumber\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a0e1d7c543ff6a4a5eeb07ad123de93e8}\label{structmoduleihradarformat_1_1t__ihradarformat_a0e1d7c543ff6a4a5eeb07ad123de93e8}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!covariance@{covariance}}
+\index{covariance@{covariance}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{covariance}{covariance}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleihradarformat\+::t\+\_\+ihradarformat\+::covariance\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a4730b1e2fc20df6df644471e3a666659}\label{structmoduleihradarformat_1_1t__ihradarformat_a4730b1e2fc20df6df644471e3a666659}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!direction@{direction}}
+\index{direction@{direction}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{direction}{direction}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleihradarformat\+::t\+\_\+ihradarformat\+::direction\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_ad1ce9fd7b8e12db59662b94e26d4d1ca}\label{structmoduleihradarformat_1_1t__ihradarformat_ad1ce9fd7b8e12db59662b94e26d4d1ca}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!gridfilename@{gridfilename}}
+\index{gridfilename@{gridfilename}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{gridfilename}{gridfilename}}
+{\footnotesize\ttfamily character(len=pathlength) moduleihradarformat\+::t\+\_\+ihradarformat\+::gridfilename\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a241610a4fab29bcff862f29bb5000f9c}\label{structmoduleihradarformat_1_1t__ihradarformat_a241610a4fab29bcff862f29bb5000f9c}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!gridversion@{gridversion}}
+\index{gridversion@{gridversion}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{gridversion}{gridversion}}
+{\footnotesize\ttfamily integer moduleihradarformat\+::t\+\_\+ihradarformat\+::gridversion\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a06594f7a7c96f73f081ec9b88f07fef3}\label{structmoduleihradarformat_1_1t__ihradarformat_a06594f7a7c96f73f081ec9b88f07fef3}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!imax@{imax}}
+\index{imax@{imax}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{imax}{imax}}
+{\footnotesize\ttfamily integer moduleihradarformat\+::t\+\_\+ihradarformat\+::imax\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a868731a96af5d3f713838b69766fc964}\label{structmoduleihradarformat_1_1t__ihradarformat_a868731a96af5d3f713838b69766fc964}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!inputgridfile@{inputgridfile}}
+\index{inputgridfile@{inputgridfile}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{inputgridfile}{inputgridfile}}
+{\footnotesize\ttfamily character(len=pathlength) moduleihradarformat\+::t\+\_\+ihradarformat\+::inputgridfile\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_ad9daf49f8ec408a17542805104e9559c}\label{structmoduleihradarformat_1_1t__ihradarformat_ad9daf49f8ec408a17542805104e9559c}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!jmax@{jmax}}
+\index{jmax@{jmax}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{jmax}{jmax}}
+{\footnotesize\ttfamily integer moduleihradarformat\+::t\+\_\+ihradarformat\+::jmax\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a16e7ab342bcf4eb5357a5bde69a2cea1}\label{structmoduleihradarformat_1_1t__ihradarformat_a16e7ab342bcf4eb5357a5bde69a2cea1}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!objenterdata@{objenterdata}}
+\index{objenterdata@{objenterdata}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{objenterdata}{objenterdata}}
+{\footnotesize\ttfamily integer moduleihradarformat\+::t\+\_\+ihradarformat\+::objenterdata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a06cf45d65b48f694f3cbc6b8c3248e39}\label{structmoduleihradarformat_1_1t__ihradarformat_a06cf45d65b48f694f3cbc6b8c3248e39}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!objhdf5@{objhdf5}}
+\index{objhdf5@{objhdf5}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{objhdf5}{objhdf5}}
+{\footnotesize\ttfamily integer moduleihradarformat\+::t\+\_\+ihradarformat\+::objhdf5 = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_adbb1750c04f1311b3c16a1d37ed9fd81}\label{structmoduleihradarformat_1_1t__ihradarformat_adbb1750c04f1311b3c16a1d37ed9fd81}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!objhorizontalgrid@{objhorizontalgrid}}
+\index{objhorizontalgrid@{objhorizontalgrid}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{objhorizontalgrid}{objhorizontalgrid}}
+{\footnotesize\ttfamily integer moduleihradarformat\+::t\+\_\+ihradarformat\+::objhorizontalgrid = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_ae3f3a9764dd45fc3a5e05b13c4af9d9e}\label{structmoduleihradarformat_1_1t__ihradarformat_ae3f3a9764dd45fc3a5e05b13c4af9d9e}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!objhorizontalmap@{objhorizontalmap}}
+\index{objhorizontalmap@{objhorizontalmap}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{objhorizontalmap}{objhorizontalmap}}
+{\footnotesize\ttfamily integer moduleihradarformat\+::t\+\_\+ihradarformat\+::objhorizontalmap = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a74513c0af1cad075eb2a6b2be32aeb28}\label{structmoduleihradarformat_1_1t__ihradarformat_a74513c0af1cad075eb2a6b2be32aeb28}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!objnetcdf@{objnetcdf}}
+\index{objnetcdf@{objnetcdf}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{objnetcdf}{objnetcdf}}
+{\footnotesize\ttfamily integer moduleihradarformat\+::t\+\_\+ihradarformat\+::objnetcdf = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a7d3b6979d087cea8d6ededfb1d1efff2}\label{structmoduleihradarformat_1_1t__ihradarformat_a7d3b6979d087cea8d6ededfb1d1efff2}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!objtime@{objtime}}
+\index{objtime@{objtime}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{objtime}{objtime}}
+{\footnotesize\ttfamily integer moduleihradarformat\+::t\+\_\+ihradarformat\+::objtime = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a5284872ed4ed702c946f46f8a279a5bb}\label{structmoduleihradarformat_1_1t__ihradarformat_a5284872ed4ed702c946f46f8a279a5bb}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!openpoints@{openpoints}}
+\index{openpoints@{openpoints}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{openpoints}{openpoints}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer moduleihradarformat\+::t\+\_\+ihradarformat\+::openpoints\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_af5657ddbb8515496ccb9be374b7e83f3}\label{structmoduleihradarformat_1_1t__ihradarformat_af5657ddbb8515496ccb9be374b7e83f3}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!outputhdf5@{outputhdf5}}
+\index{outputhdf5@{outputhdf5}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{outputhdf5}{outputhdf5}}
+{\footnotesize\ttfamily logical moduleihradarformat\+::t\+\_\+ihradarformat\+::outputhdf5\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a4c16513d31f002ad01f7c6347ebffbf6}\label{structmoduleihradarformat_1_1t__ihradarformat_a4c16513d31f002ad01f7c6347ebffbf6}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!outputhdf5filename@{outputhdf5filename}}
+\index{outputhdf5filename@{outputhdf5filename}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{outputhdf5filename}{outputhdf5filename}}
+{\footnotesize\ttfamily character(len=pathlength) moduleihradarformat\+::t\+\_\+ihradarformat\+::outputhdf5filename\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a3f9ac80eb03d963155ebe63fb3bf3f18}\label{structmoduleihradarformat_1_1t__ihradarformat_a3f9ac80eb03d963155ebe63fb3bf3f18}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!outputnetcdf@{outputnetcdf}}
+\index{outputnetcdf@{outputnetcdf}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{outputnetcdf}{outputnetcdf}}
+{\footnotesize\ttfamily logical moduleihradarformat\+::t\+\_\+ihradarformat\+::outputnetcdf\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_ae927f8c4721214aa435c5a84a5ffcf2e}\label{structmoduleihradarformat_1_1t__ihradarformat_ae927f8c4721214aa435c5a84a5ffcf2e}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!outputnetcdfattr@{outputnetcdfattr}}
+\index{outputnetcdfattr@{outputnetcdfattr}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{outputnetcdfattr}{outputnetcdfattr}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleihradarformat_1_1t__netcdf__global__attributes}{t\+\_\+netcdf\+\_\+global\+\_\+attributes}}) moduleihradarformat\+::t\+\_\+ihradarformat\+::outputnetcdfattr\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_af19cc4a9c729ad8f82c2dca40366e91b}\label{structmoduleihradarformat_1_1t__ihradarformat_af19cc4a9c729ad8f82c2dca40366e91b}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!outputnetcdffilename@{outputnetcdffilename}}
+\index{outputnetcdffilename@{outputnetcdffilename}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{outputnetcdffilename}{outputnetcdffilename}}
+{\footnotesize\ttfamily character(len=pathlength) moduleihradarformat\+::t\+\_\+ihradarformat\+::outputnetcdffilename\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_ae99380a15b0c3045dc9a386940a32bf5}\label{structmoduleihradarformat_1_1t__ihradarformat_ae99380a15b0c3045dc9a386940a32bf5}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!range@{range}}
+\index{range@{range}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{range}{range}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleihradarformat\+::t\+\_\+ihradarformat\+::range\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a9cab0b841bc37c8ebdccda84563752f0}\label{structmoduleihradarformat_1_1t__ihradarformat_a9cab0b841bc37c8ebdccda84563752f0}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!readoptiontype@{readoptiontype}}
+\index{readoptiontype@{readoptiontype}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{readoptiontype}{readoptiontype}}
+{\footnotesize\ttfamily integer moduleihradarformat\+::t\+\_\+ihradarformat\+::readoptiontype\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_ac50b2383a6979fc42c223c1f6f23709a}\label{structmoduleihradarformat_1_1t__ihradarformat_ac50b2383a6979fc42c223c1f6f23709a}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!size@{size}}
+\index{size@{size}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{size}{size}}
+{\footnotesize\ttfamily type(t\+\_\+size2d) moduleihradarformat\+::t\+\_\+ihradarformat\+::size\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_ac7aff5bc02bc7efd2acc384d0217de51}\label{structmoduleihradarformat_1_1t__ihradarformat_ac7aff5bc02bc7efd2acc384d0217de51}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!time@{time}}
+\index{time@{time}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{time}{time}}
+{\footnotesize\ttfamily type(t\+\_\+time) moduleihradarformat\+::t\+\_\+ihradarformat\+::time\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_ad0c1d71a7c575b239b96e6b770583f67}\label{structmoduleihradarformat_1_1t__ihradarformat_ad0c1d71a7c575b239b96e6b770583f67}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!unit@{unit}}
+\index{unit@{unit}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{unit}{unit}}
+{\footnotesize\ttfamily integer moduleihradarformat\+::t\+\_\+ihradarformat\+::unit\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_adca6cc08820eea67f9c76d8352f120be}\label{structmoduleihradarformat_1_1t__ihradarformat_adca6cc08820eea67f9c76d8352f120be}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!velocity@{velocity}}
+\index{velocity@{velocity}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{velocity}{velocity}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleihradarformat\+::t\+\_\+ihradarformat\+::velocity\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a114b7f3570e651aa27f85c2c13fc3feb}\label{structmoduleihradarformat_1_1t__ihradarformat_a114b7f3570e651aa27f85c2c13fc3feb}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!velu@{velu}}
+\index{velu@{velu}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{velu}{velu}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleihradarformat\+::t\+\_\+ihradarformat\+::velu\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_addbeded7b07e04adce5597072b583028}\label{structmoduleihradarformat_1_1t__ihradarformat_addbeded7b07e04adce5597072b583028}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!velu\+\_\+stdv@{velu\+\_\+stdv}}
+\index{velu\+\_\+stdv@{velu\+\_\+stdv}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{velu\+\_\+stdv}{velu\_stdv}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleihradarformat\+::t\+\_\+ihradarformat\+::velu\+\_\+stdv\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a666684cdb18b97430bfa87e723d828c4}\label{structmoduleihradarformat_1_1t__ihradarformat_a666684cdb18b97430bfa87e723d828c4}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!velv@{velv}}
+\index{velv@{velv}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{velv}{velv}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleihradarformat\+::t\+\_\+ihradarformat\+::velv\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_aff6187f5da48f367eb73e03d0466a411}\label{structmoduleihradarformat_1_1t__ihradarformat_aff6187f5da48f367eb73e03d0466a411}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!velv\+\_\+stdv@{velv\+\_\+stdv}}
+\index{velv\+\_\+stdv@{velv\+\_\+stdv}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{velv\+\_\+stdv}{velv\_stdv}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleihradarformat\+::t\+\_\+ihradarformat\+::velv\+\_\+stdv\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a43f3e736a9a764c853be3b7395968657}\label{structmoduleihradarformat_1_1t__ihradarformat_a43f3e736a9a764c853be3b7395968657}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!worksize@{worksize}}
+\index{worksize@{worksize}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{worksize}{worksize}}
+{\footnotesize\ttfamily type(t\+\_\+size2d) moduleihradarformat\+::t\+\_\+ihradarformat\+::worksize\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a451c8f05c7a12722e3e546f6a1d22c76}\label{structmoduleihradarformat_1_1t__ihradarformat_a451c8f05c7a12722e3e546f6a1d22c76}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!xdistance@{xdistance}}
+\index{xdistance@{xdistance}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{xdistance}{xdistance}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleihradarformat\+::t\+\_\+ihradarformat\+::xdistance\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a80e5e826a0aa6b8d2c705f102aa48fd2}\label{structmoduleihradarformat_1_1t__ihradarformat_a80e5e826a0aa6b8d2c705f102aa48fd2}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!xx\+\_\+ie@{xx\+\_\+ie}}
+\index{xx\+\_\+ie@{xx\+\_\+ie}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{xx\+\_\+ie}{xx\_ie}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleihradarformat\+::t\+\_\+ihradarformat\+::xx\+\_\+ie\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_a490a00b526f0c0227c566fad71ae0ef3}\label{structmoduleihradarformat_1_1t__ihradarformat_a490a00b526f0c0227c566fad71ae0ef3}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!ydistance@{ydistance}}
+\index{ydistance@{ydistance}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{ydistance}{ydistance}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleihradarformat\+::t\+\_\+ihradarformat\+::ydistance\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleihradarformat_1_1t__ihradarformat_aba0d599820ce9086070fe76c90d704a2}\label{structmoduleihradarformat_1_1t__ihradarformat_aba0d599820ce9086070fe76c90d704a2}} 
+\index{moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}!yy\+\_\+ie@{yy\+\_\+ie}}
+\index{yy\+\_\+ie@{yy\+\_\+ie}!moduleihradarformat\+::t\+\_\+ihradarformat@{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\subsubsection{\texorpdfstring{yy\+\_\+ie}{yy\_ie}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleihradarformat\+::t\+\_\+ihradarformat\+::yy\+\_\+ie\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\mbox{\hyperlink{_module_i_h_radar_format_8_f90}{Module\+I\+H\+Radar\+Format.\+F90}}\end{DoxyCompactItemize}

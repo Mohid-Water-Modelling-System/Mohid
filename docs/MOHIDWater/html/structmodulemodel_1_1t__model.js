@@ -18,6 +18,7 @@ var structmodulemodel_1_1t__model =
     [ "maxdt", "structmodulemodel_1_1t__model.html#a94584a739b465a36530b413d47310174", null ],
     [ "modelname", "structmodulemodel_1_1t__model.html#a104eca470fd8a81f5006e385e2b99f87", null ],
     [ "modelpath", "structmodulemodel_1_1t__model.html#a28eccfff4ce13195e73d642fbdbc6f9d", null ],
+    [ "modeltype", "structmodulemodel_1_1t__model.html#aad38662895de503682769b2bd867bd9c", null ],
     [ "mpi_id", "structmodulemodel_1_1t__model.html#ab68297186bd9e3c23e102f6d4286c552", null ],
     [ "next", "structmodulemodel_1_1t__model.html#ac035a58c624504d347162b9d27e5237f", null ],
     [ "noisolatedcells", "structmodulemodel_1_1t__model.html#a7f1ad14f9e74371398cd033eea1e24df", null ],

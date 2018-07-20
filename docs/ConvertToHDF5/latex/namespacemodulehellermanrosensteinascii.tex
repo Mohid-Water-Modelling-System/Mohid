@@ -1,0 +1,316 @@
+\hypertarget{namespacemodulehellermanrosensteinascii}{}\section{modulehellermanrosensteinascii Module Reference}
+\label{namespacemodulehellermanrosensteinascii}\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__field}{t\+\_\+field}}
+\item 
+type \mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii}{t\+\_\+hellermanrosensteinascii}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_ae9a4ebb5ba70b59aa745588ca89b7a95}{converthellermanrosensteinascii}} (Enter\+Data\+ID, Client\+Number, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_af439206d121534b62861ec79a514b301}{readglobaloptions}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_ada851e8286a0ae4a7c890a405aefca9e}{allocatevariables}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_aabd09e7a0437013b82c90ca944358684}{construct\+\_\+fieldlist}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_af3153ec18443db4efe86a28f2c87ad90}{construct\+\_\+field}} (New\+Field, First\+Field)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_a6ad7240d2c79e9b8cf9e5e96021b2650}{construct\+\_\+inputfiles}} (New\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_a8a33a7b75c9d86b3447e0ab4f459e1c9}{readhrmonthlyfile}} (New\+Field)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_aa865ee380c14fc3435be60b54b2d2513}{constructgrid}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_a8d26b87c5c59b45954adf68b0ada3545}{converttomohidunits}} (New\+Field)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_a39c581f7647526ad3d09ea87b66e024a}{add\+\_\+field}} (New\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_a0456421b402f98f76f0ff495f712916f}{addfield}} (First\+Field, Obj\+Field)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_ab76e43d5b0134daf9106f606a088cbea}{outputfields}} (Field, i)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_a7fa8f1b341c583ddb13cecd1d05b9e77}{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_a2350c23791f119cd18bfa9a4e532508c}{killhellermanrosensteinascii}}
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_a7c99a3c54379548ef0084208ccd395ed}{nhellermanrosensteinannual}} = 33
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_adc90d7846e6bfeced43dc1391d5e90aa}{nhellermanrosensteinmonthly}} = 10
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_a7ea7fe95271e22acb6cd18f683d4534d}{maxdepth}} = 0.
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_a9d8b6c5990fab9e4ad7cbaf10b3f7c09}{field\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$$<$beginfield$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_ae2ddb5d68a2e480ae833622c57c64662}{field\+\_\+block\+\_\+end}} = \textquotesingle{}$<$$<$endfield$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_a84784306a25f21f72365989672906eb5}{input\+\_\+files\+\_\+begin}} = \textquotesingle{}$<$$<$$<$begin\+\_\+input\+\_\+files$>$$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_a604227d6abb2c39231e3fb75fd63921f}{input\+\_\+files\+\_\+end}} = \textquotesingle{}$<$$<$$<$end\+\_\+input\+\_\+files$>$$>$$>$\textquotesingle{}
+\item 
+type(\mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii}{t\+\_\+hellermanrosensteinascii}}), pointer \mbox{\hyperlink{namespacemodulehellermanrosensteinascii_af64aed3a69e42f0736c203774d0783c9}{me}}
+\end{DoxyCompactItemize}
+
+
+\subsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_a39c581f7647526ad3d09ea87b66e024a}\label{namespacemodulehellermanrosensteinascii_a39c581f7647526ad3d09ea87b66e024a}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!add\+\_\+field@{add\+\_\+field}}
+\index{add\+\_\+field@{add\+\_\+field}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{add\+\_\+field()}{add\_field()}}
+{\footnotesize\ttfamily subroutine modulehellermanrosensteinascii\+::add\+\_\+field (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__field}{t\+\_\+field}}), pointer}]{New\+Field }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulehellermanrosensteinascii_a39c581f7647526ad3d09ea87b66e024a_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_a0456421b402f98f76f0ff495f712916f}\label{namespacemodulehellermanrosensteinascii_a0456421b402f98f76f0ff495f712916f}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!addfield@{addfield}}
+\index{addfield@{addfield}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{addfield()}{addfield()}}
+{\footnotesize\ttfamily subroutine, private modulehellermanrosensteinascii\+::addfield (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__field}{t\+\_\+field}}), pointer}]{First\+Field,  }\item[{type (\mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__field}{t\+\_\+field}}), pointer}]{Obj\+Field }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_ada851e8286a0ae4a7c890a405aefca9e}\label{namespacemodulehellermanrosensteinascii_ada851e8286a0ae4a7c890a405aefca9e}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!allocatevariables@{allocatevariables}}
+\index{allocatevariables@{allocatevariables}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{allocatevariables()}{allocatevariables()}}
+{\footnotesize\ttfamily subroutine modulehellermanrosensteinascii\+::allocatevariables (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulehellermanrosensteinascii_ada851e8286a0ae4a7c890a405aefca9e_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_af3153ec18443db4efe86a28f2c87ad90}\label{namespacemodulehellermanrosensteinascii_af3153ec18443db4efe86a28f2c87ad90}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!construct\+\_\+field@{construct\+\_\+field}}
+\index{construct\+\_\+field@{construct\+\_\+field}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{construct\+\_\+field()}{construct\_field()}}
+{\footnotesize\ttfamily subroutine modulehellermanrosensteinascii\+::construct\+\_\+field (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__field}{t\+\_\+field}}), pointer}]{New\+Field,  }\item[{logical}]{First\+Field }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulehellermanrosensteinascii_af3153ec18443db4efe86a28f2c87ad90_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulehellermanrosensteinascii_af3153ec18443db4efe86a28f2c87ad90_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_aabd09e7a0437013b82c90ca944358684}\label{namespacemodulehellermanrosensteinascii_aabd09e7a0437013b82c90ca944358684}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!construct\+\_\+fieldlist@{construct\+\_\+fieldlist}}
+\index{construct\+\_\+fieldlist@{construct\+\_\+fieldlist}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{construct\+\_\+fieldlist()}{construct\_fieldlist()}}
+{\footnotesize\ttfamily subroutine modulehellermanrosensteinascii\+::construct\+\_\+fieldlist (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulehellermanrosensteinascii_aabd09e7a0437013b82c90ca944358684_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulehellermanrosensteinascii_aabd09e7a0437013b82c90ca944358684_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_a6ad7240d2c79e9b8cf9e5e96021b2650}\label{namespacemodulehellermanrosensteinascii_a6ad7240d2c79e9b8cf9e5e96021b2650}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!construct\+\_\+inputfiles@{construct\+\_\+inputfiles}}
+\index{construct\+\_\+inputfiles@{construct\+\_\+inputfiles}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{construct\+\_\+inputfiles()}{construct\_inputfiles()}}
+{\footnotesize\ttfamily subroutine modulehellermanrosensteinascii\+::construct\+\_\+inputfiles (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__field}{t\+\_\+field}}), pointer}]{New\+Field }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulehellermanrosensteinascii_a6ad7240d2c79e9b8cf9e5e96021b2650_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulehellermanrosensteinascii_a6ad7240d2c79e9b8cf9e5e96021b2650_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_aa865ee380c14fc3435be60b54b2d2513}\label{namespacemodulehellermanrosensteinascii_aa865ee380c14fc3435be60b54b2d2513}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!constructgrid@{constructgrid}}
+\index{constructgrid@{constructgrid}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{constructgrid()}{constructgrid()}}
+{\footnotesize\ttfamily subroutine modulehellermanrosensteinascii\+::constructgrid (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulehellermanrosensteinascii_aa865ee380c14fc3435be60b54b2d2513_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_ae9a4ebb5ba70b59aa745588ca89b7a95}\label{namespacemodulehellermanrosensteinascii_ae9a4ebb5ba70b59aa745588ca89b7a95}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!converthellermanrosensteinascii@{converthellermanrosensteinascii}}
+\index{converthellermanrosensteinascii@{converthellermanrosensteinascii}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{converthellermanrosensteinascii()}{converthellermanrosensteinascii()}}
+{\footnotesize\ttfamily subroutine, public modulehellermanrosensteinascii\+::converthellermanrosensteinascii (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Enter\+Data\+ID,  }\item[{integer, intent(in)}]{Client\+Number,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulehellermanrosensteinascii_ae9a4ebb5ba70b59aa745588ca89b7a95_cgraph}
+\end{center}
+\end{figure}
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulehellermanrosensteinascii_ae9a4ebb5ba70b59aa745588ca89b7a95_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_a8d26b87c5c59b45954adf68b0ada3545}\label{namespacemodulehellermanrosensteinascii_a8d26b87c5c59b45954adf68b0ada3545}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!converttomohidunits@{converttomohidunits}}
+\index{converttomohidunits@{converttomohidunits}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{converttomohidunits()}{converttomohidunits()}}
+{\footnotesize\ttfamily subroutine modulehellermanrosensteinascii\+::converttomohidunits (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__field}{t\+\_\+field}}), pointer}]{New\+Field }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulehellermanrosensteinascii_a8d26b87c5c59b45954adf68b0ada3545_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_a2350c23791f119cd18bfa9a4e532508c}\label{namespacemodulehellermanrosensteinascii_a2350c23791f119cd18bfa9a4e532508c}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!killhellermanrosensteinascii@{killhellermanrosensteinascii}}
+\index{killhellermanrosensteinascii@{killhellermanrosensteinascii}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{killhellermanrosensteinascii()}{killhellermanrosensteinascii()}}
+{\footnotesize\ttfamily subroutine, private modulehellermanrosensteinascii\+::killhellermanrosensteinascii (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulehellermanrosensteinascii_a2350c23791f119cd18bfa9a4e532508c_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_a7fa8f1b341c583ddb13cecd1d05b9e77}\label{namespacemodulehellermanrosensteinascii_a7fa8f1b341c583ddb13cecd1d05b9e77}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\index{open\+\_\+hdf5\+\_\+output\+\_\+file@{open\+\_\+hdf5\+\_\+output\+\_\+file}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{open\+\_\+hdf5\+\_\+output\+\_\+file()}{open\_hdf5\_output\_file()}}
+{\footnotesize\ttfamily subroutine, private modulehellermanrosensteinascii\+::open\+\_\+hdf5\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulehellermanrosensteinascii_a7fa8f1b341c583ddb13cecd1d05b9e77_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_ab76e43d5b0134daf9106f606a088cbea}\label{namespacemodulehellermanrosensteinascii_ab76e43d5b0134daf9106f606a088cbea}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!outputfields@{outputfields}}
+\index{outputfields@{outputfields}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{outputfields()}{outputfields()}}
+{\footnotesize\ttfamily subroutine, private modulehellermanrosensteinascii\+::outputfields (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__field}{t\+\_\+field}}), pointer}]{Field,  }\item[{integer}]{i }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulehellermanrosensteinascii_ab76e43d5b0134daf9106f606a088cbea_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_af439206d121534b62861ec79a514b301}\label{namespacemodulehellermanrosensteinascii_af439206d121534b62861ec79a514b301}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!readglobaloptions@{readglobaloptions}}
+\index{readglobaloptions@{readglobaloptions}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{readglobaloptions()}{readglobaloptions()}}
+{\footnotesize\ttfamily subroutine, private modulehellermanrosensteinascii\+::readglobaloptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulehellermanrosensteinascii_af439206d121534b62861ec79a514b301_icgraph}
+\end{center}
+\end{figure}
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_a8a33a7b75c9d86b3447e0ab4f459e1c9}\label{namespacemodulehellermanrosensteinascii_a8a33a7b75c9d86b3447e0ab4f459e1c9}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!readhrmonthlyfile@{readhrmonthlyfile}}
+\index{readhrmonthlyfile@{readhrmonthlyfile}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{readhrmonthlyfile()}{readhrmonthlyfile()}}
+{\footnotesize\ttfamily subroutine, private modulehellermanrosensteinascii\+::readhrmonthlyfile (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__field}{t\+\_\+field}}), pointer}]{New\+Field }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{namespacemodulehellermanrosensteinascii_a8a33a7b75c9d86b3447e0ab4f459e1c9_icgraph}
+\end{center}
+\end{figure}
+
+
+\subsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_a9d8b6c5990fab9e4ad7cbaf10b3f7c09}\label{namespacemodulehellermanrosensteinascii_a9d8b6c5990fab9e4ad7cbaf10b3f7c09}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!field\+\_\+block\+\_\+begin@{field\+\_\+block\+\_\+begin}}
+\index{field\+\_\+block\+\_\+begin@{field\+\_\+block\+\_\+begin}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{field\+\_\+block\+\_\+begin}{field\_block\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulehellermanrosensteinascii\+::field\+\_\+block\+\_\+begin = \textquotesingle{}$<$$<$beginfield$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_ae2ddb5d68a2e480ae833622c57c64662}\label{namespacemodulehellermanrosensteinascii_ae2ddb5d68a2e480ae833622c57c64662}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!field\+\_\+block\+\_\+end@{field\+\_\+block\+\_\+end}}
+\index{field\+\_\+block\+\_\+end@{field\+\_\+block\+\_\+end}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{field\+\_\+block\+\_\+end}{field\_block\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulehellermanrosensteinascii\+::field\+\_\+block\+\_\+end = \textquotesingle{}$<$$<$endfield$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_a84784306a25f21f72365989672906eb5}\label{namespacemodulehellermanrosensteinascii_a84784306a25f21f72365989672906eb5}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!input\+\_\+files\+\_\+begin@{input\+\_\+files\+\_\+begin}}
+\index{input\+\_\+files\+\_\+begin@{input\+\_\+files\+\_\+begin}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{input\+\_\+files\+\_\+begin}{input\_files\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulehellermanrosensteinascii\+::input\+\_\+files\+\_\+begin = \textquotesingle{}$<$$<$$<$begin\+\_\+input\+\_\+files$>$$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_a604227d6abb2c39231e3fb75fd63921f}\label{namespacemodulehellermanrosensteinascii_a604227d6abb2c39231e3fb75fd63921f}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!input\+\_\+files\+\_\+end@{input\+\_\+files\+\_\+end}}
+\index{input\+\_\+files\+\_\+end@{input\+\_\+files\+\_\+end}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{input\+\_\+files\+\_\+end}{input\_files\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulehellermanrosensteinascii\+::input\+\_\+files\+\_\+end = \textquotesingle{}$<$$<$$<$end\+\_\+input\+\_\+files$>$$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_a7ea7fe95271e22acb6cd18f683d4534d}\label{namespacemodulehellermanrosensteinascii_a7ea7fe95271e22acb6cd18f683d4534d}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!maxdepth@{maxdepth}}
+\index{maxdepth@{maxdepth}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{maxdepth}{maxdepth}}
+{\footnotesize\ttfamily real, parameter modulehellermanrosensteinascii\+::maxdepth = 0.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_af64aed3a69e42f0736c203774d0783c9}\label{namespacemodulehellermanrosensteinascii_af64aed3a69e42f0736c203774d0783c9}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!me@{me}}
+\index{me@{me}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulehellermanrosensteinascii_1_1t__hellermanrosensteinascii}{t\+\_\+hellermanrosensteinascii}}), pointer modulehellermanrosensteinascii\+::me\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_a7c99a3c54379548ef0084208ccd395ed}\label{namespacemodulehellermanrosensteinascii_a7c99a3c54379548ef0084208ccd395ed}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!nhellermanrosensteinannual@{nhellermanrosensteinannual}}
+\index{nhellermanrosensteinannual@{nhellermanrosensteinannual}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{nhellermanrosensteinannual}{nhellermanrosensteinannual}}
+{\footnotesize\ttfamily integer, parameter modulehellermanrosensteinascii\+::nhellermanrosensteinannual = 33\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehellermanrosensteinascii_adc90d7846e6bfeced43dc1391d5e90aa}\label{namespacemodulehellermanrosensteinascii_adc90d7846e6bfeced43dc1391d5e90aa}} 
+\index{modulehellermanrosensteinascii@{modulehellermanrosensteinascii}!nhellermanrosensteinmonthly@{nhellermanrosensteinmonthly}}
+\index{nhellermanrosensteinmonthly@{nhellermanrosensteinmonthly}!modulehellermanrosensteinascii@{modulehellermanrosensteinascii}}
+\subsubsection{\texorpdfstring{nhellermanrosensteinmonthly}{nhellermanrosensteinmonthly}}
+{\footnotesize\ttfamily integer, parameter modulehellermanrosensteinascii\+::nhellermanrosensteinmonthly = 10\hspace{0.3cm}{\ttfamily [private]}}
+

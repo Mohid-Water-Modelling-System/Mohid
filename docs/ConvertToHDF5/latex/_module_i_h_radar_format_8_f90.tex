@@ -1,0 +1,80 @@
+\hypertarget{_module_i_h_radar_format_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+I\+H\+Radar\+Format.F90 File Reference}
+\label{_module_i_h_radar_format_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+I\+H\+Radar\+Format.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+I\+H\+Radar\+Format.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmoduleihradarformat_1_1t__netcdf__global__attributes}{moduleihradarformat\+::t\+\_\+netcdf\+\_\+global\+\_\+attributes}}
+\item 
+type \mbox{\hyperlink{structmoduleihradarformat_1_1t__ihradarformat}{moduleihradarformat\+::t\+\_\+ihradarformat}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemoduleihradarformat}{moduleihradarformat}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleihradarformat_a98ed94c78a186e13367d60ca010104fb}{moduleihradarformat\+::convertihradarformat}} (Enter\+Data\+ID, Client\+Number, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_aee7099f1405740714bd8905f16b2c9bf}{moduleihradarformat\+::readoptions}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_a11ef1762e3ede5825ed4cfa4192378d3}{moduleihradarformat\+::readnetcdfoptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_ada390827dfd90ffece67dfc0ddc1a1af}{moduleihradarformat\+::creategridihradarfile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_a159e87b28314bc4e1c2d025679d954ff}{moduleihradarformat\+::writeihradarfile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_a5e6d5ce963365079322d81b8c5030265}{moduleihradarformat\+::allocatevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_a1116a7a33c3cd3f0002a36a069bd6df9}{moduleihradarformat\+::clearvariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_a3b96dd949bf780f8b1d2d5d3818dda48}{moduleihradarformat\+::loadihradargrid}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_a02661cf4395883e003f6785721da99e9}{moduleihradarformat\+::constructgriddatafile}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_a1ddc10c28e0f93952a3e8c21ab4b9e37}{moduleihradarformat\+::openandreadihradarfields}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_adb71a6554853412cfc2f930bf2a31f3a}{moduleihradarformat\+::readihradarfile}} (Input\+File)
+\item 
+integer function \mbox{\hyperlink{namespacemoduleihradarformat_a940aa69f596041c70dab62721c97072f}{moduleihradarformat\+::locatecellin1daxis}} (axis, pos, I\+LB, I\+UB)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_a1fa82a4000e864d7a0c4a4e1759efac9}{moduleihradarformat\+::open\+\_\+output\+\_\+file}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_a6051373784b4b3c69f611fa904fbad43}{moduleihradarformat\+::writeihradar}} (i\+Out)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_a1107822e669c716ce7cbc68b6331ce30}{moduleihradarformat\+::close\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_a923e50f44a04ab5c716a0a2526b165e1}{moduleihradarformat\+::open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_aded21feba733b9d42beced7d5846c854}{moduleihradarformat\+::writehdf5griddata}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_ad98c4a786bbe9735cd7eb3b391ad9adb}{moduleihradarformat\+::write\+\_\+hdf5\+\_\+fields}} (i\+Out)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_a2599e1f0971dcb3531d9ee88d55830d8}{moduleihradarformat\+::writehdf5openpoints}} (i\+Out)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_a77312b34323d0e8aa7466fdfc0f8a35e}{moduleihradarformat\+::writehdf5field}} (Mohid\+Name, Field, Prop\+Units, i\+Out)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_abdd46dbddc8ccd64e7600d2abba43395}{moduleihradarformat\+::writehdf5time}} (i\+Out)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_ab845f946974ab4a693701022e7e4230e}{moduleihradarformat\+::close\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleihradarformat_a26abbb9b22d84c708e9f26ef8003eff4}{moduleihradarformat\+::open\+\_\+netcdf\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleihradarformat_af1f8f7e2cf6ebd67fd284bbb39a55018}{moduleihradarformat\+::killihradarformat}}
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleihradarformat_a872caa24e241015b723a32676f702a85}{moduleihradarformat\+::input\+\_\+files\+\_\+begin}} = \textquotesingle{}$<$$<$begin\+\_\+input\+\_\+files$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleihradarformat_a725e820b1ca4be9c91c2e636da468f27}{moduleihradarformat\+::input\+\_\+files\+\_\+end}} = \textquotesingle{}$<$$<$end\+\_\+input\+\_\+files$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleihradarformat_a0280cbcdc12bde5023d64c330dec8291}{moduleihradarformat\+::data\+\_\+begin}} = \textquotesingle{}\%Table\+Start\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleihradarformat_a6c10206edf04ac8656a295f742f82063}{moduleihradarformat\+::data\+\_\+end}} = \textquotesingle{}\%Table\+End\textquotesingle{}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleihradarformat_ae0ba5f7cd624c09fd6bc98d96abb6fb6}{moduleihradarformat\+::no\+\_\+output\+\_\+}} = -\/99
+\item 
+type(t\+\_\+ihradarformat), pointer \mbox{\hyperlink{namespacemoduleihradarformat_a14fd264aff99a0e5a137305aada23b50}{moduleihradarformat\+::me}}
+\end{DoxyCompactItemize}

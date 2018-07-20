@@ -157,6 +157,7 @@ var searchData=
   ['computesoilfield',['computesoilfield',['../structmoduleporousmedia_1_1t__soiloptions.html#ac13e34d272292b471e1415409523fc28',1,'moduleporousmedia::t_soiloptions::computesoilfield()'],['../structmodulevegetation_1_1t__external.html#a994ac1f7a96cdf43dc236f2b440b2291',1,'modulevegetation::t_external::computesoilfield()']]],
   ['computesoilfieldcapacity',['computesoilfieldcapacity',['../namespacemoduleporousmedia.html#a5bc710495ce11815ae382078999351b3',1,'moduleporousmedia']]],
   ['computestem',['computestem',['../structmodulevegetation_1_1t__vegetationtype.html#a97f9df8cbcd78865a8c89a063a499ab8',1,'modulevegetation::t_vegetationtype']]],
+  ['computestreetgutterpotentialflow',['computestreetgutterpotentialflow',['../namespacemodulerunoff.html#a275dc22b830688ac27f2e1ab0cec626c',1,'modulerunoff']]],
   ['computetemperaturestress',['computetemperaturestress',['../namespacemodulevegetation.html#a0a72b8d43553476da7abbddd263b7c85',1,'modulevegetation']]],
   ['computethetaatfaces',['computethetaatfaces',['../namespacemoduleporousmediaproperties.html#a534ab2ca9e28f31cfce1876b53c263c8',1,'moduleporousmediaproperties']]],
   ['computethetaatfacesbyavg',['computethetaatfacesbyavg',['../namespacemoduleporousmediaproperties.html#ac3225dfdb6a7475838f45e43263a61a9',1,'moduleporousmediaproperties']]],

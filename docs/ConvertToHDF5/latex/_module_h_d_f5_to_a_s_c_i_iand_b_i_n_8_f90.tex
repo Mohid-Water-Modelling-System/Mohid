@@ -1,0 +1,86 @@
+\hypertarget{_module_h_d_f5_to_a_s_c_i_iand_b_i_n_8_f90}{}\section{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+H\+D\+F5\+To\+A\+S\+C\+I\+Iand\+B\+IN.F90 File Reference}
+\label{_module_h_d_f5_to_a_s_c_i_iand_b_i_n_8_f90}\index{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+H\+D\+F5\+To\+A\+S\+C\+I\+Iand\+B\+I\+N.\+F90@{C\+:/\+Users/administrator/\+Documents/\+Git\+Hub/\+Mohid/\+Software/\+Convert\+To\+H\+D\+F5/\+Module\+H\+D\+F5\+To\+A\+S\+C\+I\+Iand\+B\+I\+N.\+F90}}
+\subsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulehdf5toasciiandbin_1_1t__output}{modulehdf5toasciiandbin\+::t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmodulehdf5toasciiandbin_1_1t__hdf5toasciiandbin}{modulehdf5toasciiandbin\+::t\+\_\+hdf5toasciiandbin}}
+\end{DoxyCompactItemize}
+\subsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulehdf5toasciiandbin}{modulehdf5toasciiandbin}}
+\end{DoxyCompactItemize}
+\subsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_a043d466c48df398adb80b3cb771a0b47}{modulehdf5toasciiandbin\+::converthdf5toasciiandbin}} (Enter\+Data\+ID, Client\+Number, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_ae2d0b8b9ab26e879bc85d79fd4815b5d}{modulehdf5toasciiandbin\+::constructglobaloutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_acdf03424042f9020f63ddb9bd5d39fce}{modulehdf5toasciiandbin\+::readglobaloptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_afad7dca87cff93eae4b5e8a18fdbbec3}{modulehdf5toasciiandbin\+::readproperties}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_aac7befc5bf0dee74c56166ddb4432fca}{modulehdf5toasciiandbin\+::readconversion}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_aff18abddac541bb4eb02be3abb3aa389}{modulehdf5toasciiandbin\+::outputmohidbin}} (Prop\+Name, Time\+Name, Aux2D, p)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_ad9bbff03f3e4066dec1d8a161e2d0be4}{modulehdf5toasciiandbin\+::outputswanascii}} (Prop\+Name, Time\+Name, Aux2D, l, p)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_a1065af2accb4bf167b115af350e3c406}{modulehdf5toasciiandbin\+::outputswanasciivectorial}} (Prop\+Name, Next\+Time, l, p)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_a360088fc269895ed548f164fb5b46a13}{modulehdf5toasciiandbin\+::outputww3ascii}} (Aux\+Time, Aux2D, First\+Prop)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_aa5588d4c881fba9ebc04c57393f30c76}{modulehdf5toasciiandbin\+::constructgrid}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_a086893f6436263f0d9e808b779d5441d}{modulehdf5toasciiandbin\+::outputfields}} (Aux2D, Aux2\+D\+Next, Aux2\+D\+Prev, Next\+Time, Prev\+Time, l, p)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_ac11d594ac1ad5acf256f4066315f5028}{modulehdf5toasciiandbin\+::open\+\_\+hdf5\+\_\+input\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_ae236e6042f891aa8f0a07236763a82d6}{modulehdf5toasciiandbin\+::killhdf5toasciiandbin}}
+\end{DoxyCompactItemize}
+\subsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_a4a45dd20b3087c4f7591c88fc4463ab7}{modulehdf5toasciiandbin\+::prop\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$$<$beginproperty$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_ad076cbdf7d5abeebbf0c5eb66400d89d}{modulehdf5toasciiandbin\+::prop\+\_\+block\+\_\+end}} = \textquotesingle{}$<$$<$endproperty$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_a6b2e6aa427edbd015ad91b9036b78520}{modulehdf5toasciiandbin\+::date\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$$<$begindate$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_ae29bb64f764920d560527391a2d97a1f}{modulehdf5toasciiandbin\+::date\+\_\+block\+\_\+end}} = \textquotesingle{}$<$$<$enddate$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_a6740560c9f2f911f85b3ec6172db1644}{modulehdf5toasciiandbin\+::convert\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$$<$beginconvert$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_a7016ca478716e59fb0f7cdb3048a2378}{modulehdf5toasciiandbin\+::convert\+\_\+block\+\_\+end}} = \textquotesingle{}$<$$<$endconvert$>$$>$\textquotesingle{}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_af23b86d1609b710e8df5f28714b04bbf}{modulehdf5toasciiandbin\+::swan1\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_a16b22f5b41bd511f717c0a4f238a254a}{modulehdf5toasciiandbin\+::swan2\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_a5b91bc93f3d72b0cb8be873dcca9bd34}{modulehdf5toasciiandbin\+::swan3\+\_\+}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_a20d22b21a0e4df1d9460e82a3de204d9}{modulehdf5toasciiandbin\+::swan4\+\_\+}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_a5a4a1a187cb7f1814d812807439ec637}{modulehdf5toasciiandbin\+::swan5\+\_\+}} = 5
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_a88daecd90699c02c2b159f06c3e1e735}{modulehdf5toasciiandbin\+::swan6\+\_\+}} = 6
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_a33258a20c893caf25d6afb6e4ad9f1ae}{modulehdf5toasciiandbin\+::swantable\+\_\+}} = 7
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_aca2c15fb6f00e7f949460c0795375d92}{modulehdf5toasciiandbin\+::mohid\+\_\+}} = 8
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_a5e88f7de32dfd93917658a3d32c5f688}{modulehdf5toasciiandbin\+::ww3\+\_\+}} = 9
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_a0a361be298a23d0cc502f93ca054fb97}{modulehdf5toasciiandbin\+::geoxy\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_af67d5747ca401341575f80bd92bffd79}{modulehdf5toasciiandbin\+::cartesianxy\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_af945d9f20a4ecb4c71cc4cfcfd8af32a}{modulehdf5toasciiandbin\+::noconversion\+\_\+}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_a5aef654a4ed563f0888f41590ac85282}{modulehdf5toasciiandbin\+::nauticaltocartdegrees\+\_\+}} = 1
+\item 
+type(t\+\_\+hdf5toasciiandbin), pointer \mbox{\hyperlink{namespacemodulehdf5toasciiandbin_abb9464da6cd9a0a147fcb62f615a6bdd}{modulehdf5toasciiandbin\+::me}}
+\end{DoxyCompactItemize}

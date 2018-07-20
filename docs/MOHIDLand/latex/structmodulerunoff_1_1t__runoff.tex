@@ -132,9 +132,9 @@ real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulerunoff_1_1t__runo
 \item 
 real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulerunoff_1_1t__runoff_acb3924a9190464f6141207806c426370}{buildingsheight}} =$>$ null()
 \item 
-real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulerunoff_1_1t__runoff_ad5cc8c8793dc874683c28e5732caf3b0}{stormwaterinteraction}} =$>$ null()
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulerunoff_1_1t__runoff_ab9db55c9f940d0ae59c24fb86fce77b7}{numberofsewerstormwaternodes}} =$>$ null()
 \item 
-real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulerunoff_1_1t__runoff_a326966f98136185ef92402e0b589e362}{stormwatergutterinteraction}} =$>$ null()
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulerunoff_1_1t__runoff_a9905e6e7044e2f10489d9ae703fe9d4e}{numberofstormwaternodes}} =$>$ null()
 \item 
 real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulerunoff_1_1t__runoff_afbd43e7be904c3606fbb828bbeca91de}{streetgutterlength}} =$>$ null()
 \item 
@@ -164,13 +164,13 @@ type(t\+\_\+propertyid) \mbox{\hyperlink{structmodulerunoff_1_1t__runoff_a824787
 \item 
 logical \mbox{\hyperlink{structmodulerunoff_1_1t__runoff_a59e031c1571339f6e29026644c41f3fa}{stormwatermodel}} = .false.
 \item 
-real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulerunoff_1_1t__runoff_a7677329d48ff38541302369aa3d03e41}{stormwatermodelflow}} =$>$ null()
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulerunoff_1_1t__runoff_a03e6b6d0ba4e0703df24dfff9ea56cd5}{stormwatereffectiveflow}} =$>$ null()
 \item 
-real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulerunoff_1_1t__runoff_a9b1fb77f23d1725e0b87a60cb0cb8d17}{streetgutterflow}} =$>$ null()
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulerunoff_1_1t__runoff_abbc9d0338245bca27796a9c0a8bb6e4f}{streetgutterpotentialflow}} =$>$ null()
 \item 
-real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulerunoff_1_1t__runoff_ae4358af27ddba5bf616856ce227e8eaa}{sewerinflow}} =$>$ null()
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulerunoff_1_1t__runoff_a7ea909a3b781ac6d26193fbdaac4859c}{stormwaterpotentialflow}} =$>$ null()
 \item 
-real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulerunoff_1_1t__runoff_aba5edcda294a5b8fb64d55890b7aba47}{storminteractionflow}} =$>$ null()
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulerunoff_1_1t__runoff_ae34d9b85d401dbd2d2e0029f7dbc1715}{streetguttereffectiveflow}} =$>$ null()
 \item 
 integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulerunoff_1_1t__runoff_adb873b70afa3605bd1af16a60f29c994}{streetguttertargeti}} =$>$ null()
 \item 
@@ -683,6 +683,18 @@ type(\mbox{\hyperlink{structmodulerunoff_1_1t__runoff}{t\+\_\+runoff}}), pointer
 \subsubsection{\texorpdfstring{next}{next}}
 {\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulerunoff_1_1t__runoff}{t\+\_\+runoff}}), pointer modulerunoff\+::t\+\_\+runoff\+::next =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
 
+\mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_ab9db55c9f940d0ae59c24fb86fce77b7}\label{structmodulerunoff_1_1t__runoff_ab9db55c9f940d0ae59c24fb86fce77b7}} 
+\index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!numberofsewerstormwaternodes@{numberofsewerstormwaternodes}}
+\index{numberofsewerstormwaternodes@{numberofsewerstormwaternodes}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
+\subsubsection{\texorpdfstring{numberofsewerstormwaternodes}{numberofsewerstormwaternodes}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulerunoff\+::t\+\_\+runoff\+::numberofsewerstormwaternodes =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_a9905e6e7044e2f10489d9ae703fe9d4e}\label{structmodulerunoff_1_1t__runoff_a9905e6e7044e2f10489d9ae703fe9d4e}} 
+\index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!numberofstormwaternodes@{numberofstormwaternodes}}
+\index{numberofstormwaternodes@{numberofstormwaternodes}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
+\subsubsection{\texorpdfstring{numberofstormwaternodes}{numberofstormwaternodes}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulerunoff\+::t\+\_\+runoff\+::numberofstormwaternodes =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
 \mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_ac4cc65ca3e2c8aaef833ef1b26ea68d1}\label{structmodulerunoff_1_1t__runoff_ac4cc65ca3e2c8aaef833ef1b26ea68d1}} 
 \index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!objbasingeometry@{objbasingeometry}}
 \index{objbasingeometry@{objbasingeometry}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
@@ -821,12 +833,6 @@ type(\mbox{\hyperlink{structmodulerunoff_1_1t__runoff}{t\+\_\+runoff}}), pointer
 \subsubsection{\texorpdfstring{routedfourpointsondn}{routedfourpointsondn}}
 {\footnotesize\ttfamily logical modulerunoff\+::t\+\_\+runoff\+::routedfourpointsondn = .false.\hspace{0.3cm}{\ttfamily [private]}}
 
-\mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_ae4358af27ddba5bf616856ce227e8eaa}\label{structmodulerunoff_1_1t__runoff_ae4358af27ddba5bf616856ce227e8eaa}} 
-\index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!sewerinflow@{sewerinflow}}
-\index{sewerinflow@{sewerinflow}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
-\subsubsection{\texorpdfstring{sewerinflow}{sewerinflow}}
-{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulerunoff\+::t\+\_\+runoff\+::sewerinflow =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
-
 \mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_a344dd4ea50d7246da2c464f6ed6758a3}\label{structmodulerunoff_1_1t__runoff_a344dd4ea50d7246da2c464f6ed6758a3}} 
 \index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!simplechannelinteraction@{simplechannelinteraction}}
 \index{simplechannelinteraction@{simplechannelinteraction}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
@@ -856,12 +862,6 @@ type(\mbox{\hyperlink{structmodulerunoff_1_1t__runoff}{t\+\_\+runoff}}), pointer
 \index{stoponwrongdate@{stoponwrongdate}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
 \subsubsection{\texorpdfstring{stoponwrongdate}{stoponwrongdate}}
 {\footnotesize\ttfamily logical modulerunoff\+::t\+\_\+runoff\+::stoponwrongdate = .true.\hspace{0.3cm}{\ttfamily [private]}}
-
-\mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_aba5edcda294a5b8fb64d55890b7aba47}\label{structmodulerunoff_1_1t__runoff_aba5edcda294a5b8fb64d55890b7aba47}} 
-\index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!storminteractionflow@{storminteractionflow}}
-\index{storminteractionflow@{storminteractionflow}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
-\subsubsection{\texorpdfstring{storminteractionflow}{storminteractionflow}}
-{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulerunoff\+::t\+\_\+runoff\+::storminteractionflow =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
 
 \mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_ad2ea436413d2ecce4bb5bf550c2781e8}\label{structmodulerunoff_1_1t__runoff_ad2ea436413d2ecce4bb5bf550c2781e8}} 
 \index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!stormwatercenterflowx@{stormwatercenterflowx}}
@@ -893,6 +893,12 @@ type(\mbox{\hyperlink{structmodulerunoff_1_1t__runoff}{t\+\_\+runoff}}), pointer
 \subsubsection{\texorpdfstring{stormwaterdrainagecoef}{stormwaterdrainagecoef}}
 {\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulerunoff\+::t\+\_\+runoff\+::stormwaterdrainagecoef =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
 
+\mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_a03e6b6d0ba4e0703df24dfff9ea56cd5}\label{structmodulerunoff_1_1t__runoff_a03e6b6d0ba4e0703df24dfff9ea56cd5}} 
+\index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!stormwatereffectiveflow@{stormwatereffectiveflow}}
+\index{stormwatereffectiveflow@{stormwatereffectiveflow}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
+\subsubsection{\texorpdfstring{stormwatereffectiveflow}{stormwatereffectiveflow}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulerunoff\+::t\+\_\+runoff\+::stormwatereffectiveflow =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
 \mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_a4d8f8d7126c3fce6a7a4efbd3c0c6028}\label{structmodulerunoff_1_1t__runoff_a4d8f8d7126c3fce6a7a4efbd3c0c6028}} 
 \index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!stormwaterflowvelocity@{stormwaterflowvelocity}}
 \index{stormwaterflowvelocity@{stormwaterflowvelocity}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
@@ -911,23 +917,11 @@ type(\mbox{\hyperlink{structmodulerunoff_1_1t__runoff}{t\+\_\+runoff}}), pointer
 \subsubsection{\texorpdfstring{stormwaterflowy}{stormwaterflowy}}
 {\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulerunoff\+::t\+\_\+runoff\+::stormwaterflowy =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
 
-\mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_a326966f98136185ef92402e0b589e362}\label{structmodulerunoff_1_1t__runoff_a326966f98136185ef92402e0b589e362}} 
-\index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!stormwatergutterinteraction@{stormwatergutterinteraction}}
-\index{stormwatergutterinteraction@{stormwatergutterinteraction}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
-\subsubsection{\texorpdfstring{stormwatergutterinteraction}{stormwatergutterinteraction}}
-{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulerunoff\+::t\+\_\+runoff\+::stormwatergutterinteraction =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
-
 \mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_a4c53a2af35011f65b32a4af0ef7d7e67}\label{structmodulerunoff_1_1t__runoff_a4c53a2af35011f65b32a4af0ef7d7e67}} 
 \index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!stormwaterinfiltrationvelocity@{stormwaterinfiltrationvelocity}}
 \index{stormwaterinfiltrationvelocity@{stormwaterinfiltrationvelocity}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
 \subsubsection{\texorpdfstring{stormwaterinfiltrationvelocity}{stormwaterinfiltrationvelocity}}
 {\footnotesize\ttfamily real modulerunoff\+::t\+\_\+runoff\+::stormwaterinfiltrationvelocity = 1.\+4e-\/5\hspace{0.3cm}{\ttfamily [private]}}
-
-\mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_ad5cc8c8793dc874683c28e5732caf3b0}\label{structmodulerunoff_1_1t__runoff_ad5cc8c8793dc874683c28e5732caf3b0}} 
-\index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!stormwaterinteraction@{stormwaterinteraction}}
-\index{stormwaterinteraction@{stormwaterinteraction}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
-\subsubsection{\texorpdfstring{stormwaterinteraction}{stormwaterinteraction}}
-{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulerunoff\+::t\+\_\+runoff\+::stormwaterinteraction =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
 
 \mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_a59e031c1571339f6e29026644c41f3fa}\label{structmodulerunoff_1_1t__runoff_a59e031c1571339f6e29026644c41f3fa}} 
 \index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!stormwatermodel@{stormwatermodel}}
@@ -935,11 +929,11 @@ type(\mbox{\hyperlink{structmodulerunoff_1_1t__runoff}{t\+\_\+runoff}}), pointer
 \subsubsection{\texorpdfstring{stormwatermodel}{stormwatermodel}}
 {\footnotesize\ttfamily logical modulerunoff\+::t\+\_\+runoff\+::stormwatermodel = .false.\hspace{0.3cm}{\ttfamily [private]}}
 
-\mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_a7677329d48ff38541302369aa3d03e41}\label{structmodulerunoff_1_1t__runoff_a7677329d48ff38541302369aa3d03e41}} 
-\index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!stormwatermodelflow@{stormwatermodelflow}}
-\index{stormwatermodelflow@{stormwatermodelflow}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
-\subsubsection{\texorpdfstring{stormwatermodelflow}{stormwatermodelflow}}
-{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulerunoff\+::t\+\_\+runoff\+::stormwatermodelflow =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+\mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_a7ea909a3b781ac6d26193fbdaac4859c}\label{structmodulerunoff_1_1t__runoff_a7ea909a3b781ac6d26193fbdaac4859c}} 
+\index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!stormwaterpotentialflow@{stormwaterpotentialflow}}
+\index{stormwaterpotentialflow@{stormwaterpotentialflow}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
+\subsubsection{\texorpdfstring{stormwaterpotentialflow}{stormwaterpotentialflow}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulerunoff\+::t\+\_\+runoff\+::stormwaterpotentialflow =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
 
 \mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_a28c8d7f1bd22c260dc20f0ceef917565}\label{structmodulerunoff_1_1t__runoff_a28c8d7f1bd22c260dc20f0ceef917565}} 
 \index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!stormwatervolume@{stormwatervolume}}
@@ -947,17 +941,23 @@ type(\mbox{\hyperlink{structmodulerunoff_1_1t__runoff}{t\+\_\+runoff}}), pointer
 \subsubsection{\texorpdfstring{stormwatervolume}{stormwatervolume}}
 {\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulerunoff\+::t\+\_\+runoff\+::stormwatervolume =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
 
-\mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_a9b1fb77f23d1725e0b87a60cb0cb8d17}\label{structmodulerunoff_1_1t__runoff_a9b1fb77f23d1725e0b87a60cb0cb8d17}} 
-\index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!streetgutterflow@{streetgutterflow}}
-\index{streetgutterflow@{streetgutterflow}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
-\subsubsection{\texorpdfstring{streetgutterflow}{streetgutterflow}}
-{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulerunoff\+::t\+\_\+runoff\+::streetgutterflow =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+\mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_ae34d9b85d401dbd2d2e0029f7dbc1715}\label{structmodulerunoff_1_1t__runoff_ae34d9b85d401dbd2d2e0029f7dbc1715}} 
+\index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!streetguttereffectiveflow@{streetguttereffectiveflow}}
+\index{streetguttereffectiveflow@{streetguttereffectiveflow}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
+\subsubsection{\texorpdfstring{streetguttereffectiveflow}{streetguttereffectiveflow}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulerunoff\+::t\+\_\+runoff\+::streetguttereffectiveflow =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
 
 \mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_afbd43e7be904c3606fbb828bbeca91de}\label{structmodulerunoff_1_1t__runoff_afbd43e7be904c3606fbb828bbeca91de}} 
 \index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!streetgutterlength@{streetgutterlength}}
 \index{streetgutterlength@{streetgutterlength}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
 \subsubsection{\texorpdfstring{streetgutterlength}{streetgutterlength}}
 {\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulerunoff\+::t\+\_\+runoff\+::streetgutterlength =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_abbc9d0338245bca27796a9c0a8bb6e4f}\label{structmodulerunoff_1_1t__runoff_abbc9d0338245bca27796a9c0a8bb6e4f}} 
+\index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!streetgutterpotentialflow@{streetgutterpotentialflow}}
+\index{streetgutterpotentialflow@{streetgutterpotentialflow}!modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}}
+\subsubsection{\texorpdfstring{streetgutterpotentialflow}{streetgutterpotentialflow}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer modulerunoff\+::t\+\_\+runoff\+::streetgutterpotentialflow =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
 
 \mbox{\Hypertarget{structmodulerunoff_1_1t__runoff_adb873b70afa3605bd1af16a60f29c994}\label{structmodulerunoff_1_1t__runoff_adb873b70afa3605bd1af16a60f29c994}} 
 \index{modulerunoff\+::t\+\_\+runoff@{modulerunoff\+::t\+\_\+runoff}!streetguttertargeti@{streetguttertargeti}}
