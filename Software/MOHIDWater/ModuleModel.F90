@@ -213,6 +213,7 @@ Module ModuleModel
         !character(StringLength), dimension(:), pointer :: ModelNames
 
         character(StringLength)                 :: ModelName    = null_str 
+        integer                                 :: ModelType    = MOHIDWATER_
 
         integer                                 :: NumberOfModels       = 0 
         integer                                 :: MPI_ID               = null_int
@@ -390,6 +391,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Stores name
             Me%ModelName        = trim(ModelNames(Me%InstanceID))
+            Me%ModelType        = MOHIDWATER_
 
 #ifndef _OUTPUT_OFF_
             write(*, *)"-------------------------- MODEL -------------------------"
@@ -987,6 +989,7 @@ il:         if (Me%RunLagrangian) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR440'
 
             call StartAtmosphere(ModelName          = trim(Me%ModelName),&
+                                 ModelType          = Me%ModelType,                     &
                                  AtmosphereID       = Me%ObjAtmosphere,                 &
                                  TimeID             = Me%ObjTime,                       &
                                  GridDataID         = Me%Water%ObjBathymetry,           &

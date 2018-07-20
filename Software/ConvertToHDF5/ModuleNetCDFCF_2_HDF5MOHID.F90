@@ -383,7 +383,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                 if (.not. Found) stop 'WriteComputeIntensity - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
 
 
-                do i=1, Me%Date%TotalInst
+                do i=1, Me%Date%TotalInstOut
                     !Read component X
 
                     if      (Me%Field(iPx)%Dim==2) then
@@ -492,7 +492,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                 if (.not. Found) stop 'WriteComputeDirection - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
 
 
-                do i=1, Me%Date%TotalInst
+                do i=1, Me%Date%TotalInstOut
                     !Read component X
 
                     if      (Me%Field(iPx)%Dim==2) then
@@ -590,7 +590,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                 enddo
                 if (.not. Found) stop 'WriteBeaufort - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
 
-                do i=1, Me%Date%TotalInst
+                do i=1, Me%Date%TotalInstOut
                     !Read component X
                     if      (Me%Field(iPx)%Dim==2) then
                         allocate(Me%Field(iPx)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
@@ -688,7 +688,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                 enddo
                 if (.not. Found) stop 'WriteComputeIntensity - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
 
-                do i=1, Me%Date%TotalInst
+                do i=1, Me%Date%TotalInstOut
                     !Read temperature
 
                     if      (Me%Field(iPt)%Dim/=2) then
@@ -794,7 +794,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                 if (.not. Found) stop 'WriteAverageInDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
 
 
-                do i=1, Me%Date%TotalInst
+                do i=1, Me%Date%TotalInstOut
                     !Read 3D property
 
                     if      (Me%Field(iPt)%Dim/=3) then
@@ -873,7 +873,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                 if (.not. Found) stop 'WriteReflectivity2Precipitation - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
 
 
-                do i=1, Me%Date%TotalInst
+                do i=1, Me%Date%TotalInstOut
                     !Read 2D property
 
                     if      (Me%Field(iPt)%Dim/=2) then
@@ -1015,7 +1015,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                 if (.not. Found) stop 'WriteRotation - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
 
 
-                do i=1, Me%Date%TotalInst
+                do i=1, Me%Date%TotalInstOut
                     !Read component X
 
                     if      (Me%Field(iPx)%Dim==2) then

@@ -1852,7 +1852,7 @@ if6 :           if (STAT_CALL .NE. SUCCESS_) then
         j = 1
         
         do i=n,1,-1
-            if (FileNamePlusPath(i:i)=='/' .or. FileNamePlusPath(i:i)=='\') then
+            if (FileNamePlusPath(i:i)=='/' .or. FileNamePlusPath(i:i)=="\") then
                 j = i+1
                 exit
             endif

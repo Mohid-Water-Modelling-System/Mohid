@@ -69,6 +69,9 @@ Module ModuleDelft3D_2_Mohid
         logical                                             :: Ocean_IN
         logical                                             :: Ocean_IN_Ini        
         logical                                             :: Ocean_IN_Bound        
+        !testing
+        logical                                             :: Ocean_Read_Hydro
+        
                        
         integer                                             :: AtmNumber
         character(len=PathLength  ), dimension(:), pointer  :: AtmPropFile
@@ -267,6 +270,10 @@ Module ModuleDelft3D_2_Mohid
         if (Me%Atm_ON  ) call WriteAtmInOut
 
         if (Me%Ocean_IN) call WriteModInOut
+        
+        if (Me%Ocean_Read_Hydro) then
+            call ReadHydro           
+        endif               
         
         nUsers = DeassociateInstance(mENTERDATA_, ObjEnterData)
         if (nUsers == 0) stop 'ConvertDelft3D_2_Mohid - ModuleDelft3D_2_Mohid - ERR10'        
@@ -490,6 +497,19 @@ Module ModuleDelft3D_2_Mohid
             endif                 
         
         endif
+
+        call GetData(Me%Ocean_Read_Hydro,                                               &
+                        Me%ObjEnterData, iflag,                                         &
+                        SearchType   = FromBlock,                                       &
+                        keyword      = 'OCEAN_READ_HYDRO',                              &
+                        default      = .false.,                                         &
+                        ClientModule = 'ModuleDelft3D_2_Mohid',                         &
+                        STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ReadGlobalOptions - ModuleDelft3D_2_Mohid - ERR50'
+        endif            
+        
+        
         
     end subroutine ReadGlobalOptions
 
@@ -821,6 +841,8 @@ cd2 :           if (BlockInBlockFound) then
         real                                        :: LatReference, LonReference, ValueIni_
         logical                                     :: BlockInBlockFound
         character(len=PathLength)                   :: FilenameIn
+        real, dimension(1:2,1:2)                    :: WindowLimitsXY        
+        real                                        :: West, East, South, North         
 
         !Begin-----------------------------------------------------------------
 
@@ -830,6 +852,16 @@ cd2 :           if (BlockInBlockFound) then
         if (STAT_CALL /= SUCCESS_) then
             stop 'ConstructModProp - ModuleDelft3D_2_Mohid - ERR10'
         endif         
+        
+        call GetGridBorderLimits(Me%ObjMod_Grid_Out, West, East, South, North, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ConstructModProp - ModuleDelft3D_2_Mohid - ERR20'
+        endif            
+        
+        WindowLimitsXY(2,1) = South
+        WindowLimitsXY(2,2) = North
+        WindowLimitsXY(1,1) = West
+        WindowLimitsXY(1,2) = East        
 
         call ExtractBlockFromBlock (Me%ObjEnterData,                                    &
                                     ClientNumber        = Me%ClientNumber,              &
@@ -864,7 +896,8 @@ cd2 :       if (BlockInBlockFound) then
                                       TimeID        = Me%ObjTime,                       &   
                                       FileName      = FilenameIn,                       &
                                       LatReference  = LatReference,                     &
-                                      LonReference  = LonReference,                     & 
+                                      LonReference  = LonReference,                     &
+                                      WindowLimitsXY= WindowLimitsXY,                   &                                      
                                       Extrapolate   = .true.,                           &        
                                       PropertyID    = PropID,                           &
                                       ClientID      = Me%ClientNumber,                  &
@@ -1533,6 +1566,7 @@ cd2 :       if (BlockInBlockFound) then
         !Local-----------------------------------------------------------------
         character(len=StringLength)                 :: CharRead
         integer                                     :: STAT_CALL, nlines, i
+        logical                                     :: StopRun
         
         !----------------------------------------------------------------------
 
@@ -1573,11 +1607,28 @@ cd2 :       if (BlockInBlockFound) then
             Me%BoundSectionsName(i) =   CharRead(1:15)          
         enddo
         
+        StopRun = .false. 
+        
+        do i=1, Me%BoundCellsNumber
+            if (Me%BoundCellsJ(i) > Me%ModWorkSize3D%JUB .or. Me%BoundCellsJ(i) < Me%ModWorkSize3D%JLB) then
+                write(*,*) 'Bound cell number =', i, 'is not define correctly. Not valid column =',Me%BoundCellsJ(i)
+                StopRun = .true.
+            endif
+            if (Me%BoundCellsI(i) > Me%ModWorkSize3D%IUB .or. Me%BoundCellsI(i) < Me%ModWorkSize3D%ILB) then
+                write(*,*) 'Bound cell number =', i, 'is not define correctly. Not valid line =',Me%BoundCellsI(i)
+                StopRun = .true.
+            endif            
+        enddo
+        
+        if (StopRun) then
+            stop 'ReadBoundCells - ModuleDelft3D_2_Mohid - ERR30'
+        endif            
+        
 
         call UnitsManager(Me%BoundCellsUnit, CLOSE_FILE, STAT = STAT_CALL) 
                                    
         if (STAT_CALL /= SUCCESS_) then
-            stop 'ReadBoundCells - ModuleDelft3D_2_Mohid - ERR30'
+            stop 'ReadBoundCells - ModuleDelft3D_2_Mohid - ERR40'
         endif          
     
     end subroutine ReadBoundCells    
@@ -1981,6 +2032,8 @@ cd2 :       if (BlockInBlockFound) then
         
         do ip= 1, Me%BoundCellsNumber
             if (Me%BoundNoDataXY2D(ip)) then
+                write(*,*) "Boundary cell =", ip
+                write(*,*) "Instant       =", Instant              
                 stop 'ReadBound2D - ModuleDelft3D_2_Mohid - ERR20'
             else
                 OutProp2D(ip, Instant) = Me%BoundPropXY2D(iP)
@@ -2026,6 +2079,9 @@ cd2 :       if (BlockInBlockFound) then
             do k=1, Me%ModNlayers
                 icount = icount + 1
                 if (Me%BoundNoDataXYZ3D(icount)) then
+                    write(*,*) "Boundary cell =", ip
+                    write(*,*) "Layer         =", k
+                    write(*,*) "Instant       =", Instant                    
                     stop 'ReadBound3D - ModuleDelft3D_2_Mohid - ERR20'
                 else
                     OutProp3D(ip, k, Instant) = Me%BoundPropXYZ3D(icount)
@@ -2068,48 +2124,54 @@ cd2 :       if (BlockInBlockFound) then
             do k=1, Me%ModNlayers
                 !Initialization
                 Riemann = 0.
-                !m/s                                   s-1 * m 
-                Riemann = CH * (Me%BoundSSH_XYT2D(ip, Instant))
-                
+
+                Riemann = Riemann + Me%BoundVely3D_XYZT3D(ip,k,instant)
+                    
                 if (Me%BoundAstro) then
-                    Riemann = Riemann + CH * (Me%BoundSSH_ASTRO_XYT2D(ip, Instant))
-                endif                                        
+                    Riemann = Riemann + Me%BoundVely3D_Astro_XYZT3D(ip,k,instant)                    
+                endif                        
+                
                 !south boundary
                 if      (i == Me%ModWorkSize3d%ILB) then
-                    Riemann = Riemann + Me%BoundVely3D_XYZT3D(ip,k,instant)
-                    
+
+                    !m/s                                   s-1 * m 
+                    Riemann = Riemann + CH * (Me%BoundSSH_XYT2D(ip, Instant))
+                
                     if (Me%BoundAstro) then
-                        Riemann = Riemann + Me%BoundVely3D_Astro_XYZT3D(ip,k,instant)                    
-                    endif                        
-                                                          
+                        Riemann = Riemann + CH * (Me%BoundSSH_ASTRO_XYT2D(ip, Instant))
+                    endif                                        
+                
+                
                 !north boundary
                 elseif  (i == Me%ModWorkSize3d%IUB) then
 
-                    Riemann = Riemann - Me%BoundVely3D_XYZT3D(ip,k,instant)
-                    
+                    !m/s                                   s-1 * m 
+                    Riemann = Riemann - CH * (Me%BoundSSH_XYT2D(ip, Instant))
+                
                     if (Me%BoundAstro) then
-                        Riemann = Riemann - Me%BoundVely3D_Astro_XYZT3D(ip,k,instant)                    
-                    endif
-
+                        Riemann = Riemann - CH * (Me%BoundSSH_ASTRO_XYT2D(ip, Instant))
+                    endif                                        
+                
                 !west boundary
                 elseif  (j == Me%ModWorkSize3d%JLB) then
+
+                    !m/s                                   s-1 * m 
+                    Riemann = Riemann + CH * (Me%BoundSSH_XYT2D(ip, Instant))
                 
-                    Riemann = Riemann + Me%BoundVelx3D_XYZT3D(ip,k,instant)
-                    
                     if (Me%BoundAstro) then
-                        Riemann = Riemann + Me%BoundVelx3D_Astro_XYZT3D(ip,k,instant)                    
-                    endif                
+                        Riemann = Riemann + CH * (Me%BoundSSH_ASTRO_XYT2D(ip, Instant))
+                    endif                                        
+                
 
                 !east boundary
                 elseif  (j == Me%ModWorkSize3d%JUB) then
-
-                    Riemann = Riemann - Me%BoundVelx3D_XYZT3D(ip,k,instant)
-                    
-                    if (Me%BoundAstro) then
-                        Riemann = Riemann - Me%BoundVelx3D_Astro_XYZT3D(ip,k,instant)                    
-                    endif                
-
+                    !m/s                                   s-1 * m 
+                    Riemann = Riemann - CH * (Me%BoundSSH_XYT2D(ip, Instant))
                 
+                    if (Me%BoundAstro) then
+                        Riemann = Riemann - CH * (Me%BoundSSH_ASTRO_XYT2D(ip, Instant))
+                    endif                  
+
                 endif
                 
                 Me%BoundRiemannXYZT3(ip, k, Instant) = Riemann
@@ -2221,7 +2283,8 @@ cd2 :       if (BlockInBlockFound) then
             call ModBound           
         endif            
         
-
+     
+        
         call KillField4D(Field4DID = Me%ObjField4D_SSH,                                 &
                          STAT      = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) then
@@ -2342,7 +2405,7 @@ cd2 :       if (BlockInBlockFound) then
                                     Instant         = it,                               &
                                     ObjField4D      = Me%ObjField4D_VelY_Astro,         &     
                                     PropIDNumber    = Me%VelYProp%IDNumber,             &
-                                    OutProp3D       = Me%BoundVely3D_Astro_XYZT3D)                                                                        
+                                    OutProp3D       = Me%BoundVely3D_Astro_XYZT3D)
             endif
 
                                 
@@ -2382,6 +2445,130 @@ cd2 :       if (BlockInBlockFound) then
 
 
     end subroutine ModBound
+    
+    !---------------------------------------------------------------------------
+
+  !---------------------------------------------------------------------------  
+
+    subroutine ReadHydro    
+
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: it
+        type (T_Time)                               :: CurrentTime
+        real, dimension(:,:),  pointer              :: CoordX, CoordY 
+        integer                                     :: STAT_CALL
+        
+        !----------------------------------------------------------------------
+        
+        if (Me%ObjMod_Grid_Out == 0) call ConstructModGrid       
+        
+        call ConstructModProp( block_begin  = '<<begin_ssh>>',                          &
+                               block_end    = '<<end_ssh>>',                            &
+                               ObjField4D   = Me%ObjField4D_Ssh,                        & 
+                               PropID       = Me%SSHProp,                               &
+                               ValueIni     = Me%SSHValueIni)
+
+        call ConstructModProp( block_begin  = '<<begin_velx>>',                         &
+                               block_end    = '<<end_velx>>',                           &
+                               ObjField4D   = Me%ObjField4D_VelX,                       & 
+                               PropID       = Me%VelXProp,                              &
+                               ValueIni     = Me%VelxValueIni)
+                              
+        call ConstructModProp( block_begin  = '<<begin_vely>>',                         &
+                               block_end    = '<<end_vely>>',                           &
+                               ObjField4D   = Me%ObjField4D_VelY,                       & 
+                               PropID       = Me%VelYProp,                              &
+                               ValueIni     = Me%VelyValueIni)            
+        
+        CurrentTime = Me%BeginTime       
+        
+        call GetZCoordinates(Me%ObjMod_Grid_Out, CoordX, CoordY, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_) then
+            stop 'ReadHydro - ModuleDelft3D_2_Mohid - ERR10' 
+        endif
+        
+  
+        
+        allocate(Me%BoundX2D            (1))
+        allocate(Me%BoundY2D            (1))       
+        allocate(Me%BoundPropXY2D       (1)) 
+        allocate(Me%BoundNoDataXY2D     (1))        
+         
+        allocate(Me%BoundX3D            (1))
+        allocate(Me%BoundY3D            (1))
+        allocate(Me%BoundZ3D            (1))
+        allocate(Me%BoundPropXYZ3D      (1))
+        allocate(Me%BoundNoDataXYZ3D    (1))    
+
+        Me%BoundX2D         (1) = CoordX(1, 1)
+        Me%BoundY2D         (1) = CoordY(1, 1)
+         
+        Me%BoundX3D         (1) = CoordX(1, 1)       
+        Me%BoundY3D         (1) = CoordY(1, 1)       
+        Me%BoundZ3D         (1) = 0.
+        
+        it = 0
+        
+        do while (CurrentTime<=Me%EndTime)
+        
+             it = it + 1
+        
+            !SSH        
+            call ReadBound2D(   CurrentTime     = CurrentTime,                          &
+                                Instant         = it,                                   &
+                                ObjField4D      = Me%ObjField4D_SSH,                    &     
+                                PropIDNumber    = Me%SSHProp%IDNumber,                  &    
+                                OutProp2D       = Me%BoundSSH_XYT2D)    
+                                
+            !velocity X
+            call ReadBound3D(   CurrentTime     = CurrentTime,                          &
+                                Instant         = it,                                   &
+                                ObjField4D      = Me%ObjField4D_VelX,                   &     
+                                PropIDNumber    = Me%VelXProp%IDNumber,                 &
+                                OutProp3D       = Me%BoundVelx3D_XYZT3D)               
+
+                            
+            !velocity Y
+            call ReadBound3D(   CurrentTime     = CurrentTime,                          &
+                                Instant         = it,                                   &
+                                ObjField4D      = Me%ObjField4D_VelY,                   &     
+                                PropIDNumber    = Me%VelYProp%IDNumber,                 &
+                                OutProp3D       = Me%BoundVely3D_XYZT3D)                           
+
+
+            CurrentTime = CurrentTime + Me%DT
+            
+            
+        
+        enddo
+        
+        deallocate(Me%BoundX2D        )
+        deallocate(Me%BoundY2D        )       
+        deallocate(Me%BoundPropXY2D   ) 
+        deallocate(Me%BoundNoDataXY2D )        
+         
+        deallocate(Me%BoundX3D        )
+        deallocate(Me%BoundY3D        )
+        deallocate(Me%BoundZ3D        )
+        deallocate(Me%BoundPropXYZ3D  )
+        deallocate(Me%BoundNoDataXYZ3D) 
+
+        call UnGetHorizontalGrid(Me%ObjMod_Grid_Out, CoordX, STAT = STAT_CALL)
+
+        if (STAT_CALL/=SUCCESS_) then
+            stop 'ReadHydro - ModuleDelft3D_2_Mohid - ERR20' 
+        endif        
+
+        call UnGetHorizontalGrid(Me%ObjMod_Grid_Out, CoordY, STAT = STAT_CALL)
+
+        if (STAT_CALL/=SUCCESS_) then
+            stop 'ReadHydro - ModuleDelft3D_2_Mohid - ERR30' 
+        endif     
+        
+    end subroutine ReadHydro
     
     !---------------------------------------------------------------------------
     

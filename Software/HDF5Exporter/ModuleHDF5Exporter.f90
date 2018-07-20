@@ -980,11 +980,22 @@ Module ModuleExportHDF5ToTimeSerie
         call GetData(Me%ExportType, Me%ObjEnterData, iflag, &
                      keyword      = 'EXPORT_TYPE',          &
                      SearchType   = FromFile,               &
-                     Default      = 1,                      &
+                     !1
+                     Default      = ExportCellToTimeseries, &
                      ClientModule = 'ExportToTimeSerie',    &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR010'
+            
+            
+        if (Me%ExportType /= ExportCellToTimeseries .and.                               &
+            Me%ExportType /= ExportAreaToTimeseries) then
+            write (*,*) " wrong option EXPORT_TYPE =", Me%ExportType
+            write (*,*) " valid options are:"
+            write (*,*) "   1 - extract a time series from a point in a cell"
+            write (*,*) "   2 - extract a time series from a polygon intersecting a set of cells"
+            stop 'ReadGlobalData - ModuleExportHDF5ToTimeSerie - ERR015'
+        endif            
 
 
         ! Obtain the start and end times for the Time Serie
