@@ -149,7 +149,7 @@ Module ModuleHydrodynamic
                                        GetCellRotation, GetGridCellArea
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
                                        Allocate2WayAuxiliars_Hydrodynamic, PrepTwoWay,   &
-                                       UngetTwoWayExternalVars
+                                       UngetTwoWayExternal_Vars
 #ifdef _USE_MPI                                                  
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
@@ -1433,7 +1433,8 @@ Module ModuleHydrodynamic
                                            VelTangentialBoundary    = null_int, & 
                                            VelNormalBoundary        = null_int, & 
                                            BaroclinicMethod         = null_int, &
-                                           NumIgnOBCells            = null_int
+                                           TwoWayNumIgnOBCells      = null_int, &
+                                           TwoWayIntMethod          = null_int
 
         logical                         :: Baroclinic           = .false., & 
                                            BoundaryBaroclinic   = .false., &                                          
@@ -1974,6 +1975,9 @@ Module ModuleHydrodynamic
         !Instance of Waves      
         integer :: ObjWaves                 = 0
         
+        !Instance of TwoWay
+        integer  :: ObjTwoWay               = 0
+        
 #ifdef _ENABLE_CUDA
         !Instance of CUDA
         integer :: ObjCuda                  = 0
@@ -2037,6 +2041,7 @@ Module ModuleHydrodynamic
                                   TurbulenceID,                                         &
                                   DischargesID,                                         &
                                   WavesID,                                              &
+                                  TwoWayID,                                             &
 #ifdef _ENABLE_CUDA
                                   CudaID,                                               &
 #endif _ENABLE_CUDA
@@ -2058,6 +2063,7 @@ Module ModuleHydrodynamic
         integer, intent (IN)          :: TurbulenceID
         integer, intent (IN)          :: WavesID
         integer                       :: DischargesID
+        integer, intent (IN)          :: TwoWayID
 #ifdef _ENABLE_CUDA
         integer                       :: CudaID
 #endif _ENABLE_CUDA
@@ -2099,6 +2105,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
             Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
             Me%ObjTurbulence     = AssociateInstance (mTURBULENCE_,     TurbulenceID    )
+            Me%ObjTwoWay         = AssociateInstance (mTwoWay_,         TwoWayID        )
 
             if(WavesID /= 0)then
                 Me%ObjWaves      = AssociateInstance (mWAVES_,          WavesID)
@@ -2288,7 +2295,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructTwoWayHydrodynamic(TwoWayID         = Me%InstantID,                           &
                                              WaitPeriod       = Me%ComputeOptions%TwoWayWaitPeriod,    &
                                              TimeDecay        = Me%ComputeOptions%TwoWayTimeDecay,     &
-                                             IntMethod        = Me%ComputeOptions%TwoWay%IntMethod,     &
+                                             IntMethod        = Me%ComputeOptions%TwoWayIntMethod,     &
                                              VelDT            = Me%Velocity%DT,                         &
                                              DT               = Me%WaterLevel%DT,                       &
                                              IgnoreOBNumCells = Me%ComputeOptions%TwoWayNumIgnOBCells, &
@@ -7822,6 +7829,17 @@ cd21:   if (Baroclinic) then
                 call GetData(Me%ComputeOptions%TwoWayTimeDecay,                                      &
                             Me%ObjEnterData, iflag,                                            &
                             Keyword      = 'TWO_WAY_TIME_DECAY',                               &
+                            Default      = 86400.,                                             &
+                            SearchType   = FromFile,                                           &
+                            ClientModule ='ModuleHydrodynamic',                                &
+                            STAT         = STAT_CALL)            
+
+                if (STAT_CALL /= SUCCESS_)                                                      &
+                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1222')
+
+                call GetData(Me%ComputeOptions%TwoWayIntMethod,                                      &
+                            Me%ObjEnterData, iflag,                                            &
+                            Keyword      = 'TWO_WAY_INT_METHOD',                               &
                             Default      = 86400.,                                             &
                             SearchType   = FromFile,                                           &
                             ClientModule ='ModuleHydrodynamic',                                &
@@ -15263,7 +15281,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             
             if (.not. associated(Me%Next))then
             
-                    if (Me%ComputeOptions%TwoWay%On) then
+                    if (Me%ComputeOptions%TwoWay) then
                         
                         call ComputeTwoWay(AuxHydrodynamicID, HydrodynamicID)
                 
@@ -15704,7 +15722,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
                 call TestSubModelOptionsConsistence (ObjHydrodynamicFather%ComputeOptions%Continuous)
                 call GetComputeTimeStep             (ObjHydrodynamicFather%ObjTime, DT_Father)
                 
-                if (Me%ComputeOptions%TwoWay%On)then
+                if (Me%ComputeOptions%TwoWay)then
                     call Allocate2WayAuxiliars_Hydrodynamic(HydrodynamicFatherID, HydrodynamicID)
                 endif
                 
@@ -15826,7 +15844,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            TwoWayOn = Me%ComputeOptions%TwoWay%On
+            TwoWayOn = Me%ComputeOptions%TwoWay
 
             STAT_ = SUCCESS_
         else 
@@ -48938,10 +48956,10 @@ do5:            do i = ILB, IUB
                                        STAT             = STAT_CALL)
                     if (STAT_CALL /= SUCCESS) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR05.'
                     
-                    call UngetTwoWayExternalVars(SonID             = AuxHydrodynamicID,   &
-                                                 FatherID          = Me%FatherInstanceID, &
-                                                 CallerID          = mHydrodynamic_,      &
-                                                 STAT              = STAT_CALL)
+                    call UngetTwoWayExternal_Vars(SonID             = AuxHydrodynamicID,   &
+                                                  FatherID          = Me%FatherInstanceID, &
+                                                  CallerID          = mHydrodynamic_,      &
+                                                  STAT              = STAT_CALL)
                     if (STAT_CALL /= SUCCESS) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR06.'
                     
                 endif

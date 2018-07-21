@@ -812,9 +812,13 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR240'
             
-			call ConstructTwoWay	    (ModelName	  = trim(Me%ModelName), &
-									     TwoWayID     = Me%ObjTwoWay,       &
-									     STAT		  = STAT_CALL)
+			call ConstructTwoWay	    (ModelName	      = trim(Me%ModelName),         &
+									     TwoWayID         = Me%ObjTwoWay,               &
+                                         HorizontalGridID = Me%ObjHorizontalGrid,       &
+                                         GeometryID       = Me%Water%ObjGeometry,       &
+                                         HorizontalMapID  = Me%Water%ObjHorizontalMap,  &
+                                         MapID            = Me%Water%ObjMap,            &
+									     STAT		      = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - 250'	            
 
             !Constructs hydrodynamic
@@ -830,6 +834,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          TurbulenceID     = Me%ObjTurbulence,           &
                                          DischargesID     = Me%ObjDischarges,           &
                                          WavesID          = Me%ObjWaves,                &
+                                         TwoWayID         = Me%ObjTwoWay,               &
 #ifdef _ENABLE_CUDA
                                          CudaID           = Me%ObjCuda,                 &
 #endif
@@ -864,6 +869,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                            DischargesID     = Me%ObjDischarges,         &
                                            FreeVerticalMovementID = Me%ObjFreeVerticalMovement, &
                                            TurbGOTMID       = Me%ObjTurbGOTM,           &
+                                           TwoWayID         = Me%ObjTwoWay,             &
 #ifdef _ENABLE_CUDA
                                            CudaID           = Me%ObjCuda,                 &
 #endif _ENABLE_CUDA

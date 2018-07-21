@@ -262,8 +262,7 @@ Module ModuleWaterProperties
                                           SpecificHeatUNESCO, ComputeT90_Chapra,                &
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
-                                          ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
-                                          TwoWayAssimilation3D, TwoWayAssimilation2D!João Sobrinho
+                                          ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad
     use mpi
 #else _USE_MPI
     use ModuleFunctions,            only: SigmaLeendertse, SigmaUNESCO, SigmaWang,              &
@@ -275,8 +274,7 @@ Module ModuleWaterProperties
                                           SpecificHeatUNESCO, ComputeT90_Chapra,                &
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
-                                          ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
-                                          TwoWayAssimilation3D, TwoWayAssimilation2D!João Sobrinho
+                                          ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad
 #endif _USE_MPI
                                           
     use ModuleTurbulence,           only: GetHorizontalViscosity, GetVerticalDiffusivity,       &
@@ -285,11 +283,12 @@ Module ModuleWaterProperties
                                           UngetHydrodynamic, GetHydroAltimAssim, GetVertical1D, &
                                           GetXZFlow, GetHydrodynamicAirOptions,                 &
                                           GetVelocityModulus, GetPointDischargesState,          &
-                                          Get2WayAuxVariables    ! João Sobrinho
                                           
     use ModuleBivalve,              only: GetBivalveListDeadIDS, GetBivalveNewBornParameters,   &
                                           GetBivalveNewborns, GetBivalveOtherParameters,        &
                                           UpdateBivalvePropertyList, UnGetBivalve
+    
+    use ModuleTwoWay                only: PrepTwoWay, UngetTwoWayExternal_Vars, ModifyTwoWay
     
 #ifdef _ENABLE_CUDA
     use ModuleCuda
@@ -505,10 +504,8 @@ Module ModuleWaterProperties
     private ::      Filtration_Processes
     private ::      Reinitialize_Solution
     private ::      ModifySpecificHeat
-    private ::      ModifyTwoWay
+    private ::      ComputeTwoWay
     private ::          UpdateFatherModelWP
-    private ::          Get2wayData
-    private ::          UnGet2wayData
     private ::      OutPut_Results_HDF
     private ::      OutPut_SurfaceResults_HDF 
     private ::      OutPut_TimeSeries
@@ -894,14 +891,14 @@ Module ModuleWaterProperties
 
     type       T_SubModel
         logical                                 :: ON
-        logical                                 :: TwoWay !João Sobrinho
+        logical                                 :: TwoWay
         logical                                 :: Set
         logical                                 :: InterPolTime = .false.
         logical                                 :: Initial
         logical                                 :: Extrapolate
         integer                                 :: VertComunic
         real,    dimension(:,:,:), pointer      :: NextField, PreviousField
-        real                                    :: TwoWayWaitPeriod, TwoWayAssimCoef
+        real                                    :: TwoWayWaitPeriod, TwoWayTimeDecay
         type(T_Time)                            :: NextTime, PreviousTime
 
         ! Ang: new implementation father-son 3D
@@ -1134,11 +1131,7 @@ Module ModuleWaterProperties
         real,    pointer, dimension(:,:  )      :: SPMDepositionFlux
         logical                                 :: Vertical1D           = .false.
         logical                                 :: XZFlow               = .false.
-        logical                                 :: Backtracking         = .false.        
-        real,    pointer, dimension(:,:,:)      :: TotSonVolInFather    ! João Sobrinho
-        real,    pointer, dimension(:,:)        :: TotSonVolInFather2D  ! João Sobrinho
-        real,    pointer, dimension(:,:)        :: Corners              ! João Sobrinho
-        real,    pointer, dimension(:,:,:)      :: Aux2Way              ! João Sobrinho
+        logical                                 :: Backtracking         = .false.
     end type T_External
 
     type       T_ExtSurface
@@ -1337,6 +1330,9 @@ Module ModuleWaterProperties
         
         !Instance of ModuleSeagrassWaterInteraction 
         integer                                 :: ObjSeagrassWaterInteraction  = 0
+        
+        !Instance of TwoWay
+        integer                                 :: ObjTwoWay                = 0
 
 #ifdef _ENABLE_CUDA
         integer                                 :: ObjCuda                  = 0
@@ -1380,6 +1376,7 @@ Module ModuleWaterProperties
                                          DischargesID,                       &
                                          FreeVerticalMovementID,             &
                                          TurbGOTMID,                         &
+                                         TwoWayID,                           &
 #ifdef _ENABLE_CUDA
                                          CudaID,                             &
 #endif
@@ -1400,6 +1397,7 @@ Module ModuleWaterProperties
         integer                                     :: DischargesID
         integer                                     :: FreeVerticalMovementID
         integer                                     :: TurbGOTMID
+        integer                                     :: TwoWayID
 #ifdef _ENABLE_CUDA
         integer                                     :: CudaID
 #endif
@@ -1446,7 +1444,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
             Me%ObjHydrodynamic   = AssociateInstance (mHYDRODYNAMIC_,   HydrodynamicID  )
             Me%ObjTurbulence     = AssociateInstance (mTURBULENCE_,     TurbulenceID    )
-            
+            Me%ObjTwoWay         = AssociateInstance (mTwoWay_,         TwoWayID        )
             ! guillaume nogueira
 !            Me%ObjAssimilation   = AssociateInstance (mASSIMILATION_,     AssimilationID  )
 #ifdef _ENABLE_CUDA
@@ -9453,10 +9451,14 @@ cd1:    if (BoundaryCondition == Orlanski) then
 
             if (STAT_CALL /= SUCCESS_)                                                        &
                 call CloseAllAndStop ('ReadSubModelOptions - ModuleWaterProperties - ERR60')
+            
+            if (NewProperty%Old)then
+                NewProperty%Submodel%TwoWayWaitPeriod = 0.
+            endif
 
-            call GetData(NewProperty%Submodel%TwoWayAssimCoef,                                &
+            call GetData(NewProperty%Submodel%TwoWayTimeDecay,                                &
                         Me%ObjEnterData, iflag,                                               &
-                        Keyword      = 'TWO_WAY_COEF',                                        &
+                        Keyword      = 'TWO_WAY_TIME_DECAY',                                  &
                         Default      = 86400.,                                                &
                         SearchType   = FromBlock,                                             &
                         ClientModule ='ModuleWaterProperties',                                &
@@ -12084,7 +12086,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             !João Sobrinho
             if (.not. associated (Me%Next))then
-                Call ModifyTwoWay (WaterPropertiesID, Me%ExternalVar%Now)
+                Call ComputeTwoWay (WaterPropertiesID, Me%ExternalVar%Now)
             endif
 
             if(Me%OutPut%Yes)                                 &
@@ -12784,7 +12786,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if(InitialField)then
 
                 Me%WPFatherInstanceID = ObjWaterPropertiesFather%InstanceID   !João Sobrinho
-!                call Construct_2Way                                           ! João Sobrinho - allocates aux variables
                 
                 if(PropertyFather%Evolution%Variable .and. .not. PropertySon%Evolution%Variable) then
                     write(*,*)'Property father is variable and property son is not.'
@@ -18907,10 +18908,12 @@ do1 :   do while (associated(PropertyX))
     end subroutine ModifyImposeDryCells
 
     !--------------------------------------------------------------------------
-    !--------------------------------------------------------------------------
    
-    !João Sobrinho
-    subroutine ModifyTwoWay (WaterPropertiesID, CurrentTime)
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>For each domain checks and starts twoway procedure
+    !>@param[in] WaterPropertiesID, CurrentTime 
+    subroutine ComputeTwoWay (WaterPropertiesID, CurrentTime)
     
     !External ----------------------------------------------------------------------------
     type (T_Property), pointer                  :: PropertyX
@@ -18920,7 +18923,7 @@ do1 :   do while (associated(PropertyX))
     !Locals-------------------------------------------------------------------------------
     integer                                     :: ID, ready_
     !Begin------------------------------------------------------------------------------
-    if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "ModifyTwoWay")
+    if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "ComputeTwoWay")
     
 
     if(.not. Me%Start2way)then
@@ -18964,7 +18967,7 @@ do1 :   do while (associated(PropertyX))
             
                     call Ready (FatherWaterpropertiesID, ready_) ! switches Me% from Son to Father
          
-                    ! ID = sonID ,  AuxWaterpropertiesID = FatherID                 
+                    ! ID = sonID ,  FatherWaterpropertiesID = FatherID                 
                     call UpdateFatherModelWP(ID, FatherWaterpropertiesID)
                                 
             enddo
@@ -18973,14 +18976,16 @@ do1 :   do while (associated(PropertyX))
                         
     endif
     
-    if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "ModifyTwoWay")
+    if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "ComputeTwoWay")
     
-    end subroutine ModifyTwoWay
+    end subroutine ComputeTwoWay
    
     !--------------------------------------------------------------------------
 
-    !-------------------------------------------------------------------------- 
-       
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Prepares TwoWay external variables, then for each property calls modify twoway
+    !>@param[in] SonWaterPropertiesID, FatherWaterPropertiesID        
     subroutine UpdateFatherModelWP(SonWaterPropertiesID, FatherWaterPropertiesID) 
         !Arguments--------------------------------------------------------------------------------------------
         integer                                 :: SonWaterPropertiesID, FatherWaterPropertiesID
@@ -18993,15 +18998,19 @@ do1 :   do while (associated(PropertyX))
         integer                                 :: STAT_CALL
         
         !Begin------------------------------------------------------------------------------       
-        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "UpdateFatherModelWP") 
+        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "UpdateFatherModelWP")
+        
         !Me% is pointing to Father domain!
         
         PropertyX => Me%FirstProperty  
 
         call LocateObjSon(SonWaterPropertiesID, ObjWaterPropertiesSon) !Gets son solution             
-            
-        call Get2wayData(SonWaterPropertiesID, FatherWaterPropertiesID, IZ, JZ, Open3DFather, Open3DSon, &
-                         VolumeZSon, VolumeZFather)            
+        !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
+        call PrepTwoWay (SonID             = SonWaterPropertiesID,    &
+                         FatherID          = FatherWaterPropertiesID, &
+                         CallerID          = mWATERPROPERTIES_,       &
+                         STAT              = STAT_CALL)
+        if (STAT_CALL /= SUCCESS) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR01.'         
      
         !Assimilates all the properties with twoway option ON
         do while (associated(PropertyX))
@@ -19010,29 +19019,24 @@ do1 :   do while (associated(PropertyX))
                                         PropertyX%ID%IDNumber, STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_)then
                 
-                if (PropertySon%Submodel%TwoWay)then     
+                if (PropertySon%Submodel%TwoWay)then 
+                    
                     if(PropertySon%Evolution%NextCompute == PropertyX%Evolution%LastCompute)then
-                        if ((Me%WorkSize%KUB == 1) .or. (ObjWaterPropertiesSon%WorkSize%KUB == 1))then
-                            !Assimilation of son domain into father domain
-                            call TwoWayAssimilation2D(PropertyX%Concentration,PropertySon%Concentration, Open3DFather,&
-                                                Open3DSon, Me%WorkSize, ObjWaterPropertiesSon%WorkSize, IZ, JZ,       &
-                                                PropertySon%Submodel%TwoWayAssimCoef, PropertyX%Evolution%DtInterval, &
-                                                Me%ExternalVar%TotSonVolInFather, Me%ExternalVar%Aux2Way,             &
-                                                Me%ExternalVar%Corners, VolumeZSon, VolumeZFather)
-                        else
-                            call TwoWayAssimilation3D(PropertyX%Concentration,PropertySon%Concentration, Open3DFather,&
-                                                Open3DSon, Me%WorkSize, ObjWaterPropertiesSon%WorkSize, IZ, JZ,       &
-                                                PropertySon%Submodel%TwoWayAssimCoef, PropertyX%Evolution%DtInterval, &
-                                                Me%ExternalVar%TotSonVolInFather, Me%ExternalVar%Aux2Way,             &
-                                                Me%ExternalVar%Corners, VolumeZSon, VolumeZFather)
-                        
-                        endif
+                    !Assimilation of son domain into father domain
+                        call ModifyTwoWay (SonID            = SonWaterPropertiesID,                 &
+                                           FatherMatrix     = PropertyX%Concentration,              &
+                                           SonMatrix        = PropertySon%Concentration,            &
+                                           CallerID         = mWATERPROPERTIES_,                    &
+                                           TD               = PropertySon%Submodel%TwoWayTimeDecay, &
+                                           STAT             = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR02.'
+
                     endif
                 endif   
             else   
                 write(*,*)'Cant find property in submodel for the 2way algorithm'
                 write(*,*)'Property missing = ', trim(PropertySon%ID%Name)
-                call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR05')
+                call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR03')
             endif
                 
             nullify (PropertySon) 
@@ -19042,100 +19046,17 @@ do1 :   do while (associated(PropertyX))
         
         nullify (PropertyX)
                    
-        call UnGet2wayData(SonWaterPropertiesID, FatherWaterPropertiesID, IZ, JZ, Open3DFather, Open3DSon, &
-                           VolumeZSon, VolumeZFather)
+        call UngetTwoWayExternal_Vars(SonID             = SonWaterPropertiesID,    &
+                                      FatherID          = FatherWaterPropertiesID, &
+                                      CallerID          = mWATERPROPERTIES_,       &
+                                      STAT              = STAT_CALL)
+        if (STAT_CALL /= SUCCESS) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR04.'
                    
     if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "UpdateFatherModelWP")
     
     end subroutine UpdateFatherModelWP
     
     !------------------------------------------------------------------------------------
-    subroutine Get2wayData(SonWaterPropertiesID, FatherWaterPropertiesID, IZ, JZ, Open3DFather, Open3DSon, &
-                                 VolumeZSon, VolumeZFather)
-    
-    !Arguments--------------------------------------------------------------------
-    integer, intent(IN)                                  :: SonWaterPropertiesID, FatherWaterPropertiesID
-    integer, dimension(:,:), pointer, intent(OUT)        :: IZ, JZ
-    integer, dimension(:,:,:), pointer, intent(OUT)      :: Open3DFather, Open3DSon
-    real,    dimension(:,:,:), pointer, intent(OUT)      :: VolumeZSon, VolumeZFather
-    !Local ------------------------------------------------------------------------
-    integer                                              :: status
-    
-    !Begin----------------------------------------------------------------------------------
-    
-    !Get the father cell associated with each son cell
-    call GetHorizontalGrid(SonWaterPropertiesID, IZ = IZ, STAT = status)
-    if (status /= SUCCESS_)     stop "Get2wayData - WaterProperties - ERR01"
-        
-    call GetHorizontalGrid(SonWaterPropertiesID, JZ = JZ, STAT = status)
-    if (status /= SUCCESS_)     stop "Get2wayData - WaterProperties - ERR02"
-            
-    call GetOpenPoints3D(SonWaterPropertiesID, Open3DSon, STAT = status)
-    if (status /= SUCCESS_)     stop "Get2wayData - WaterProperties - ERR03"
-            
-    call GetOpenPoints3D(FatherWaterPropertiesID, Open3DFather, STAT = status)
-    if (status /= SUCCESS_)     stop "Get2wayData - WaterProperties - ERR04"
-    
-    call GetGeometryVolumes(SonWaterPropertiesID, VolumeZ = VolumeZSon, STAT = status)
-    if (status /= SUCCESS_)     stop "Get2wayData - WaterProperties - ERR05"
-
-    call GetGeometryVolumes(FatherWaterPropertiesID, VolumeZ = VolumeZFather, STAT = status)
-    if (status /= SUCCESS_)     stop "Get2wayData - WaterProperties - ERR06"
-    
-    call Get2WayAuxVariables(FatherWaterPropertiesID,                                       & 
-                             SonVolumeInFatherCell   = Me%ExternalVar%TotSonVolInFather,    &
-                             AuxMatrix               = Me%ExternalVar%Aux2Way,              &
-                             Corners                 = Me%ExternalVar%Corners,              &
-                             STAT                    = status)
-    if (status .NE. SUCCESS_)then
-        write(*,*) 'Error getting auxiliar Matrixes from hydrodynamic to waterproperties 3D, for 2way'
-        call CloseAllAndStop ('Get2wayData - WaterProperties - ERR07')
-    endif
-    
-    end subroutine Get2wayData
-    !------------------------------------------------------------------------------------
-    
-    subroutine UnGet2wayData(SonWaterPropertiesID, FatherWaterPropertiesID, IZ, JZ, Open3DFather, Open3DSon, &
-                             VolumeZSon, VolumeZFather)
-    
-    !Arguments --------------------------------------------------------------------
-    integer                                 :: SonWaterPropertiesID, FatherWaterPropertiesID
-    integer, dimension(:,:),   pointer      :: IZ, JZ
-    integer, dimension(:,:,:), pointer      :: Open3DFather, Open3DSon
-    real   , dimension(:,:,:), pointer      :: VolumeZSon, VolumeZFather
-    !Local -----------------------------------------------------------------------
-    integer                                 :: status
-    
-    !Begin -----------------------------------------------------------------------
-    
-    call UngetHorizontalGrid(SonWaterPropertiesID, IZ, STAT = status)
-    if (status /= SUCCESS_) stop "UnGet2wayData - WaterProperties - ERR01" 
-            
-    call UngetHorizontalGrid(SonWaterPropertiesID, JZ, STAT = status)
-    if (status /= SUCCESS_) stop "UnGet2wayData - WaterProperties - ERR02" 
-     
-    call UnGetMap(SonWaterPropertiesID, Open3DSon, STAT = status)
-    if (status /= SUCCESS_) stop "UnGet2wayData - WaterProperties - ERR03"             
-            
-    call UnGetMap(FatherWaterPropertiesID, Open3DFather, STAT = status)
-    if (status /= SUCCESS_) stop "UnGet2wayData - WaterProperties - ERR04"     
-
-    call UngetHydrodynamic(FatherWaterPropertiesID, Me%ExternalVar%TotSonVolInFather, STAT = status)
-    if (status /= SUCCESS_) stop "UnGet2wayData - WaterProperties - ERR05"             
-
-    call UngetHydrodynamic(FatherWaterPropertiesID, Me%ExternalVar%Aux2Way, STAT = status)
-    if (status /= SUCCESS_) stop "UnGet2wayData - WaterProperties - ERR06" 
-        
-    call UngetHydrodynamic(FatherWaterPropertiesID, Me%ExternalVar%Corners, STAT = status)
-    if (status /= SUCCESS_) stop "UnGet2wayData - WaterProperties - ERR07" 
-    
-    call UnGetGeometry(SonWaterPropertiesID, VolumeZSon, STAT = status)
-    if (status /= SUCCESS_) stop "UnGet2wayData - WaterProperties - ERR08" 
-        
-    call UnGetGeometry(FatherWaterPropertiesID, VolumeZFather, STAT = status)
-    if (status /= SUCCESS_) stop "UnGet2wayData - WaterProperties - ERR09" 
-    
-    end subroutine UnGet2wayData
     
     !------------------------------------------------------------------------------------
     subroutine ModifyDecayRate

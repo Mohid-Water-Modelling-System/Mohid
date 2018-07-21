@@ -35,32 +35,25 @@ Module ModuleTwoWay
     !Constructor
     public  :: ConstructTwoWay
     private ::  AllocateInstance
-    private ::  Add_Property
     
     
     public  :: ConstructTwoWayHydrodynamic
     private ::  Compute_MatrixFilterOB
-    public  :: Allocate2WayAuxiliars_Hydrodynamic    
-    public  :: ConstructTwoWayWP
-
-    
+    public  :: Allocate2WayAuxiliars_Hydrodynamic
 
     !Selector
     public  :: GetTwoWayPointer
     public  :: GetTwoWayInteger
-    public  :: UnGetTwoWay
-                     
+    public  :: UnGetTwoWay                  
     
     !Modifier
     public  :: ModifyTwoWay
     private ::  ComputeAuxMatrixes
     private ::    ComputeSonVolInFather
-    private ::    ComputeAuxMatrixes_RWAvg
     private ::  Nudging_average
-    private ::  Nudging_IWD
+    !private ::  Nudging_IWD
     public  :: PrepTwoWay
     public  :: UngetTwoWayExternal_Vars
- 
 
     !Destructor
     public  :: KillTwoWay                                                     
@@ -88,24 +81,6 @@ Module ModuleTwoWay
         real                                        :: VelDT               = null_real
         real                                        :: DT                  = null_real
     end type T_Hydro
-    
-    private :: T_WP
-    type       T_WP
-        
-        type(T_Property)                            :: Property
-        integer                                     :: NumberOfProperties
-        
-    end type T_WP
-    
-    private :: T_Property
-    type       T_Property
-        integer                                     :: ID                  = null_int
-        character(len=PathLength)                   :: Name                = null_str
-        logical                                     :: TwoWay              = .false.
-        integer                                     :: InterpolationMethod = 1
-        real                                        :: TimeDecay           = 3600.
-        type (T_Property), pointer                  :: Next                => null()
-    end type T_Property
     
     private :: T_FatherDomain
     type       T_FatherDomain
@@ -187,7 +162,13 @@ Module ModuleTwoWay
     !>@Brief
     !> Contructs TwoWay global pointer structure.
     !>@param[in] ModelName, ObjTwoWayID
-    subroutine ConstructTwoWay(ModelName, ObjTwoWayID, STAT)
+    subroutine ConstructTwoWay(ModelName,               &
+                               TwoWayID,                &
+                               HorizontalGridID,        & 
+                               GeometryID,              &
+                               HorizontalMapID,         &
+                               MapID,                   &
+                               STAT)
 
         !Arguments---------------------------------------------------------------
         character(Len=*)                                :: ModelName
@@ -217,6 +198,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
             Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
+            Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
             !Returns ID
             ObjTwoWayID          = Me%InstanceID
             
@@ -410,7 +392,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 allocate(Me%Father%TotSonVolIn2D(ILB:IUB, JLB:JUB))
                 Me%Father%TotSonVolIn2D(:,:) = 0.0
             else
-                call ConstructIWDTwoWay (FatherID, TwoWayID)         
+                !call ConstructIWDTwoWay (FatherID, TwoWayID)         
             endif
 
         else
@@ -418,84 +400,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         endif
 
     end subroutine Allocate2WayAuxiliars_Hydrodynamic
-    
-    !-------------------------------------------------------------------------
-    !>@author Joao Sobrinho Maretec
-    !>@Brief
-    !> Contructs WaterProperties variables of MOHIDWater with TwoWay nesting  
-    !>@param[in] TwoWayID, WaitPeriod, TimeDecay, Method, Continuous, FatherSize3D
-                                            
-    subroutine ConstructTwoWayWP
-    
-        !Arguments------------------------------------------------------------
-        
-        !Locals---------------------------------------------------------------
-        type (T_Property), pointer                      :: NewProperty
-        
-        !------------------------------------------------------------------------
-        
-        !Will only get the necessary information : ID, Name, TwoWay, WaitPeriod
-        call GetNumberOfProperties    (WaterPropertiesID      = ObjTwoWayID,               &
-                                       PropertiesNumber       = Me%WP%NumberOfProperties,  &
-                                       STAT                   = STAT_CALL)
-        if (STAT_CALL /= SUCCESS) then
-            write(*,*) 'Could not get number of properties in WaterProperties module:'
-            stop 'ModuleTwoWay - ConstructMohidWaterVariables - ERR02'
-        endif
-        
-        !Colects properties information relevant for TwoWay and saves it in this module
-        nullify (Me%FirstProperty)
-        nullify (Me%LastProperty)
-        do i = 1,  Me%WP%NumberOfProperties
-            
-            allocate (NewProperty)
-            nullify  (NewProperty%PropertyID,   &
-                      NewProperty%PropertyName, &
-                      NewProperty%TwoWay,       &
-                      NewProperty%WaitPeriod,   &
-                      NewProperty%TimeDecay)
-            
-            call GetWaterPropertiesOptions(WaterPropertiesID  = ObjTwoWayID,                &
-                                           PropertyID         = NewProperty%PropertyID,     &
-                                           PropertyName       = NewProperty%PropertyName,   &
-                                           TwoWay             = NewProperty%TwoWay,         &
-                                           WaitPeriod         = NewProperty%WaitPeriod,     &
-                                           TimeDecay          = NewProperty%TimeDecay,      &
-                                           STAT               = STAT_CALL)
-            if (STAT_CALL /= SUCCESS) then
-                write(*,*) 'Could not get information from one property in WaterProperties module:'
-                write(*,*) 'ID, Name, TwoWay, WaitPeriod, TimeDecay, TwoWay_Method, continuous'
-                stop 'ModuleTwoWay - ConstructMohidWaterVariables - ERR03'
-            endif
-            
-            call Add_Property(NewProperty)
-
-        enddo
-         
-        
-    end subroutine ConstructTwoWayWP
-    
-    !-------------------------------------------------------------------------
-    !>@author Joao Sobrinho Maretec
-    !>@Brief
-    !>Adds a new property into the properties list
-    !>@param[in] NewProperty
-    subroutine Add_Property(NewProperty)
-    
-        !Arguments-------------------------------------------------------------
-        type(T_Property),           pointer     :: NewProperty
-        !----------------------------------------------------------------------
-
-        if (.not.associated(Me%FirstProperty)) then
-            Me%FirstProperty    => NewProperty
-            Me%LastProperty     => NewProperty
-        else
-            NewProperty%Prev     => Me%LastProperty
-            Me%LastProperty%Next => NewProperty
-            Me%LastProperty      => NewProperty
-        end if     
-    
-    end subroutine Add_Property
     
     !-------------------------------------------------------------------------
 
@@ -651,12 +555,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Updates father grid domain with son's results
-    !>@param[in] SonID, FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, CallerID, STAT
-    subroutine ModifyTwoWay(SonID, FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, CallerID, VelocityID, STAT)
+    !>@param[in] SonID, FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, CallerID, TD, STAT
+    subroutine ModifyTwoWay(SonID, FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, CallerID, VelocityID, TD, &
+                            STAT)
 
         !Arguments-------------------------------------------------------------
         integer, intent(IN)                         :: SonID, CallerID
         integer, optional                           :: VelocityID
+        real,    optional                           :: TD
         integer, intent(OUT)                        :: STAT
         real, dimension(:, :, :), pointer, optional :: FatherMatrix, SonMatrix
         real, dimension(:, :),    pointer, optional :: FatherMatrix2D, SonMatrix2D
@@ -676,6 +582,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             if (CallerID == mHydrodynamic_) then
                 LocalTimeDecay = Me%Hydro%TimeDecay
+                InterpolMethod = Me%Hydro%InterpolationMethod
+            elseif (CallerID == mWATERPROPERTIES_) then
+                ! for now interpolation method is set by the hydrodynamic module. The if is here for when
+                ! each property can set its own interpolation method
                 InterpolMethod = Me%Hydro%InterpolationMethod
             endif
             
@@ -722,7 +632,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (InterpolMethod == 1) then
                 call Nudging_average (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, LocalTimeDecay)
             elseif (InterpolMethod == 2) then
-                call Nudging_IWD (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, LocalTimeDecay)
+                !call Nudging_IWD (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, LocalTimeDecay)
             endif
 
            
@@ -925,11 +835,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine ComputeSonVolInFather
     
     !---------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Callss Feedback routines present in mondule functions, based on the type of input matrixes
+    !>@param[in] FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, LocalTimeDecay
     subroutine Nudging_average (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, LocalTimeDecay)
         !Arguments-------------------------------------------------------------
         integer, intent(IN)                         :: SonID, CallerID
         integer, optional                           :: VelocityID
-        integer, intent(OUT)                        :: STAT
         real, dimension(:, :, :), pointer, optional :: FatherMatrix, SonMatrix
         real, dimension(:, :),    pointer, optional :: FatherMatrix2D, SonMatrix2D
         real                                        :: LocalTimeDecay
@@ -1088,7 +1001,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         if (present(STAT)) STAT = STAT_
         
-    end subroutine UnGetExternal2WayAuxVariables    
+    end subroutine UngetTwoWayExternal_Vars    
     !---------------------------------------------------------------------------
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -1157,6 +1070,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         if (allocated(Me%Father%TotSonVolIn2D)) then
             deallocate(Me%Father%TotSonVolIn2D)
         endif
+        if (allocated(Me%IgnoreOBCells)) then
+            deallocate(Me%IgnoreOBCells)
+        endif        
 
         
     
