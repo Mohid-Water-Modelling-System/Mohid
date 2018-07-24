@@ -19,10 +19,10 @@
 Module ModuleTwoWay
 
     use ModuleGlobalData
-    use ModuleGeometry,         only : GetGeometryVolumes, UnGetGeometry
-    use ModuleHorizontalGrid,   only : GetHorizontalGrid, UngetHorizontalGrid
+    use ModuleGeometry,         only : GetGeometryVolumes, UnGetGeometry, GetGeometrySize
+    use ModuleHorizontalGrid,   only : GetHorizontalGrid, UngetHorizontalGrid, GetHorizontalGridSize
     use ModuleHorizontalMap,    only : GetBoundaries, UnGetHorizontalMap
-    use ModuleFuntions
+    use ModuleFunctions
     use ModuleMap,              only : GetComputeFaces3D, GetOpenPoints3D, UnGetMap
     use ModuleStopWatch,        only : StartWatch, StopWatch
     
@@ -82,17 +82,6 @@ Module ModuleTwoWay
         real                                        :: DT                  = null_real
     end type T_Hydro
     
-    private :: T_FatherDomain
-    type       T_FatherDomain
-        type (T_Size3D)                             :: Size, WorkSize
-        type (T_External)                           :: External_Var
-        integer                                     :: InstanceID
-        real, dimension (:, :, :), pointer          :: TotSonVolIn          => null()
-        real, dimension (:, :   ), pointer          :: TotSonVolIn2D        => null()
-        real, dimension (:, :, :), pointer          :: AuxMatrix            => null()
-        real, dimension (:, :   ), pointer          :: AuxMatrix2D          => null()
-    end type T_FatherDomain
-    
     private :: T_External
     type       T_External
         integer, dimension(:, :   ), pointer        :: IV               => null()
@@ -104,27 +93,35 @@ Module ModuleTwoWay
         real,    dimension(:, :, :), pointer        :: VolumeU          => null()
         real,    dimension(:, :, :), pointer        :: VolumeV          => null()
         real,    dimension(:, :, :), pointer        :: VolumeZ          => null()
-        real,    dimension(:, :, :), pointer        :: VolumeZ_2D       => null()
+        real,    dimension(:, :   ), pointer        :: VolumeZ_2D       => null()
         integer, dimension(:, :, :), pointer        :: Open3D           => null()
         integer, dimension(:, :, :), pointer        :: ComputeFaces3D_U => null()
         integer, dimension(:, :, :), pointer        :: ComputeFaces3D_V => null()
         integer, dimension(:, :   ), pointer        :: BoundaryPoints2D => null()
-    end type T_External
+    end type T_External    
     
-    
+    private :: T_FatherDomain
+    type       T_FatherDomain
+        type (T_Size3D)                             :: Size, WorkSize
+        type (T_External)                           :: External_Var
+        integer                                     :: InstanceID
+        real, dimension (:, :, :), allocatable      :: TotSonVolIn
+        real, dimension (:, :   ), allocatable      :: TotSonVolIn_2D
+        real, dimension (:, :, :), allocatable      :: AuxMatrix
+        real, dimension (:, :   ), allocatable      :: AuxMatrix2D
+    end type T_FatherDomain
+
     private :: T_TwoWay
     type       T_TwoWay
         integer                                     :: InstanceID
         character(PathLength)                       :: ModelName
         real(8), dimension(:, :, :),  pointer       :: Matrix
-        integer, dimension(:, :   ),  pointer       :: IgnoreOBCells
+        integer, dimension(:, :   ),  allocatable   :: IgnoreOBCells
 
-        type(T_External_Var)                         :: External_Var
-        type(T_Property), pointer                   :: FirstProperty
-        type(T_Property), pointer                   :: LastProperty
+        type(T_External)                            :: External_Var
         type (T_Hydro)                              :: Hydro
-        type (T_WP)                                 :: WP
         type (T_Size3D)                             :: Size, WorkSize
+        type (T_Size2D)                             :: Size2D, WorkSize2D
         type (T_FatherDomain)                       :: Father
         type(T_TwoWay), pointer                     :: Next
         
@@ -134,17 +131,14 @@ Module ModuleTwoWay
         integer                                     :: ObjGeometry       = 0
         !Instance of ModuleMap
         integer                                     :: ObjMap            = 0
+        !Instance of HorizontalMap
+        integer                                     :: ObjHorizontalMap  = 0
         
     end type  T_TwoWay
-    
-
 
     !Global Module Variables
     type (T_TwoWay), pointer                         :: FirstObjTwoWay
-    type (T_TwoWay), pointer                         :: Me
-
-    integer                                         :: mTwoWay_ = 0 !just to compile
-    
+    type (T_TwoWay), pointer                         :: Me 
 
 
     !--------------------------------------------------------------------------
@@ -173,7 +167,9 @@ Module ModuleTwoWay
         !Arguments---------------------------------------------------------------
         character(Len=*)                                :: ModelName
         integer                                         :: ObjTwoWayID 
-        integer                                         :: STAT     
+        integer                                         :: TwoWayID, HorizontalGridID
+        integer                                         :: GeometryID, HorizontalMapID, MapID
+        integer, optional                               :: STAT
         !External----------------------------------------------------------------
         integer                                         :: ready_         
         !Local-------------------------------------------------------------------
@@ -187,7 +183,7 @@ Module ModuleTwoWay
             call RegisterModule (mTwoWay_) 
         endif
 
-        call Ready(ObjTwoWayID, ready_)    
+        call Ready(TwoWayID, ready_)    
 
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
@@ -202,12 +198,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Returns ID
             ObjTwoWayID          = Me%InstanceID
             
-            call GetGeometrySize(Me%ObjGeometry,         &
-                                 Size     = Me%Size,     &
-                                 WorkSize = Me%WorkSize, &
-                                 STAT     = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                  &
-                stop 'ModuleTwoWay - ConstructTwoWay - ERR01'
+            call GetGeometrySize (GeometryID = Me%ObjGeometry, &
+                                  Size       = Me%Size,        &
+                                  WorkSize   = Me%WorkSize,    &
+                                  STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ConstructTwoWay - ERR01'
+            
+           call GetHorizontalGridSize (HorizontalGridID = Me%ObjHorizontalGrid, &
+                                       Size             = Me%Size2D,            &
+                                       WorkSize         = Me%WorkSize2D,        &
+                                       STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ConstructTwoWay - ERR02'
             
             allocate (Me%IgnoreOBCells(Me%WorkSize%ILB:Me%WorkSize%IUB, Me%WorkSize%JLB:Me%WorkSize%IUB))
 
@@ -271,9 +272,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                                       ! counting from an open boundary
         real                                        :: TimeDecay ! Decay factor in seconds, in the nudging equation
         real                                        :: VelDT, DT
-        
+        integer, optional, intent(OUT)              :: STAT 
         !Local----------------------------------------------------------------
-        integer                                         :: STAT_CALL, TwoWayID, ready_, STAT_
+        integer                                     :: STAT_CALL, ready_, STAT_
         !---------------------------------------------------------------------
 
         call Ready(TwoWayID, ready_)    
@@ -288,7 +289,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetBoundaries(HorizontalMapID     = TwoWayID,                              &
                                BoundaryPoints2D    = Me%External_Var%BoundaryPoints2D,      &
                                STAT                = STAT_CALL)
-            if (status /= SUCCESS_) stop "ModuleTwoWay - ConstructTwoWayHydrodynamic - ERR01"
+            if (STAT_CALL /= SUCCESS_) stop "ModuleTwoWay - ConstructTwoWayHydrodynamic - ERR01"
             
             call Compute_MatrixFilterOB (IgnoreOBNumCells)
             
@@ -311,6 +312,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     subroutine Compute_MatrixFilterOB (IgnoreOBNumCells)
         !Arguments-------------------------------------------------------------
         integer                                     :: IgnoreOBNumCells
+        !Locals ---------------------------------------------------------------
+        integer                                     :: ILB, IUB, JLB, JUB, i, j
         !Begin ----------------------------------------------------------------
         ILB = Me%WorkSize%ILB 
         IUB = Me%WorkSize%IUB 
@@ -320,28 +323,27 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !compute south border
         do j = JLB, JUB
         do i = ILB, IgnoreOBNumCells
-            Me%IgnoreOBCells(i, j) = IgnoreOBCells(i, j) * Me%External_Var%BoundaryPoints2D(i, j)
+            Me%IgnoreOBCells(i, j) = Me%IgnoreOBCells(i, j) * Me%External_Var%BoundaryPoints2D(i, j)
         enddo
         enddo
         !compute North border
         do j = JLB, JUB
         do i = IUB - IgnoreOBNumCells, IUB
-            Me%IgnoreOBCells(i, j) = IgnoreOBCells(i, j) * Me%External_Var%BoundaryPoints2D(i, j)
+            Me%IgnoreOBCells(i, j) = Me%IgnoreOBCells(i, j) * Me%External_Var%BoundaryPoints2D(i, j)
         enddo
         enddo
         !compute west border
         do j = JLB, IgnoreOBNumCells
         do i = ILB, IUB
-            Me%IgnoreOBCells(i, j) = IgnoreOBCells(i, j) * Me%External_Var%BoundaryPoints2D(i, j)
+            Me%IgnoreOBCells(i, j) = Me%IgnoreOBCells(i, j) * Me%External_Var%BoundaryPoints2D(i, j)
         enddo
         enddo
         !compute south border
         do j = JUB - IgnoreOBNumCells, JUB
         do i = ILB, IUB
-            Me%IgnoreOBCells(i, j) = IgnoreOBCells(i, j) * Me%External_Var%BoundaryPoints2D(i, j)
+            Me%IgnoreOBCells(i, j) = Me%IgnoreOBCells(i, j) * Me%External_Var%BoundaryPoints2D(i, j)
         enddo
         enddo
-        
     
     end subroutine Compute_MatrixFilterOB
     !-------------------------------------------------------------------------
@@ -349,25 +351,23 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !> Allocates auxiliar matrixes  
     !>@param[in] FatherTwoWayID, TwoWayID   
-    subroutine Allocate2WayAuxiliars_Hydrodynamic(FatherTwoWayID, TwoWayID, IntMethod)
+    subroutine Allocate2WayAuxiliars_Hydrodynamic(FatherTwoWayID, TwoWayID)
     
         !Arguments-------------------------------------------------------------
-        integer                            :: FatherTwoWayID, TwoWayID, IntMethod
+        integer                            :: FatherTwoWayID, TwoWayID
         !Local-----------------------------------------------------------------
-
-        integer                            :: ready_
-
+        integer                            :: ready_, ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL
         !----------------------------------------------------------------------
             
         call Ready (TwoWayID, ready_)
         
         if (ready_ .EQ. OFF_ERR_)then
-            Me%Father%InstanceID = FatherID
+            Me%Father%InstanceID = FatherTwoWayID
             
-            call GetGeometrySize(FatherTwoWayID,                   &
-                                    Size     = Me%Father%Size,     &
-                                    WorkSize = Me%Father%WorkSize, &
-                                    STAT     = STAT_CALL)
+            call GetGeometrySize (FatherTwoWayID,                &
+                                  Size     = Me%Father%Size,     &
+                                  WorkSize = Me%Father%WorkSize, &
+                                  STAT     = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                  &
                 stop 'ModuleTwoWay - Allocate2WayAuxiliars_Hydrodynamic - ERR01'  
             
@@ -389,8 +389,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 allocate(Me%Father%TotSonVolIn(ILB:IUB, JLB:JUB, KLB:KUB))
                 Me%Father%TotSonVolIn(:,:,:) = 0.0
             
-                allocate(Me%Father%TotSonVolIn2D(ILB:IUB, JLB:JUB))
-                Me%Father%TotSonVolIn2D(:,:) = 0.0
+                allocate(Me%Father%TotSonVolIn_2D(ILB:IUB, JLB:JUB))
+                Me%Father%TotSonVolIn_2D(:,:) = 0.0
             else
                 !call ConstructIWDTwoWay (FatherID, TwoWayID)         
             endif
@@ -563,7 +563,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, intent(IN)                         :: SonID, CallerID
         integer, optional                           :: VelocityID
         real,    optional                           :: TD
-        integer, intent(OUT)                        :: STAT
+        integer, optional, intent(OUT)              :: STAT
         real, dimension(:, :, :), pointer, optional :: FatherMatrix, SonMatrix
         real, dimension(:, :),    pointer, optional :: FatherMatrix2D, SonMatrix2D
         !Local-----------------------------------------------------------------
@@ -587,6 +587,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 ! for now interpolation method is set by the hydrodynamic module. The if is here for when
                 ! each property can set its own interpolation method
                 InterpolMethod = Me%Hydro%InterpolationMethod
+                LocalTimeDecay = TD
             endif
             
             !if it is a 3D matrix
@@ -594,26 +595,20 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (present(VelocityID))then
                     if (VelocityID == VelocityU_) then
                         !if 3D matrixes were sent. Even2D domains allocate a 3D matrix (only one vertical layer)
-                        call ComputeAuxMatrixes (SonID            = SonID,             &
-                                                 FatherMatrix     = FatherMatrix,      &
-                                                 SonMatrix        = SonMatrix,         &
+                        call ComputeAuxMatrixes (SonMatrix        = SonMatrix,         &
                                                  InterpolMethod   = InterpolMethod,    &
                                                  Ilink            = Me%External_Var%IU, &
                                                  Jlink            = Me%External_Var%JU)
                     else
                         
-                        call ComputeAuxMatrixes (SonID            = SonID,             &
-                                                 FatherMatrix     = FatherMatrix,      &
-                                                 SonMatrix        = SonMatrix,         &
+                        call ComputeAuxMatrixes (SonMatrix        = SonMatrix,         &
                                                  InterpolMethod   = InterpolMethod,    &
                                                  Ilink            = Me%External_Var%IV, &
                                                  Jlink            = Me%External_Var%JV)
                     endif
                 else
                     
-                    call ComputeAuxMatrixes (SonID            = SonID,             &
-                                             FatherMatrix     = FatherMatrix,      &
-                                             SonMatrix        = SonMatrix,         &
+                    call ComputeAuxMatrixes (SonMatrix        = SonMatrix,         &
                                              InterpolMethod   = InterpolMethod,    &
                                              Ilink            = Me%External_Var%IZ, &
                                              Jlink            = Me%External_Var%JZ)
@@ -621,9 +616,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
             else
                 !if a 2D matrix was sent (specific for waterLevel - at least for MohidWater).
-                call ComputeAuxMatrixes (SonID            = SonID,             &
-                                         FatherMatrix2D   = FatherMatrix2D,    &
-                                         SonMatrix2D      = SonMatrix2D,       &
+                call ComputeAuxMatrixes (SonMatrix2D      = SonMatrix2D,       &
                                          InterpolMethod   = InterpolMethod,    &
                                          Ilink            = Me%External_Var%IZ, &
                                          Jlink            = Me%External_Var%JZ)   
@@ -656,9 +649,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
         !Arguments--------------------------------------------------------------
         integer, intent(IN)                         :: SonID, FatherID, CallerID
-        integer                                     :: STAT, STAT_
+        integer                                     :: STAT_
+        integer, optional                           :: STAT
         !Locals-----------------------------------------------------------------
-        integer                                     :: STAT_CALL
+        integer                                     :: STAT_CALL, ready_
         !Begin------------------------------------------------------------------
         
         call Ready(SonID, ready_)
@@ -675,20 +669,20 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                     JLinkU            = Me%External_Var%JU,                &
                                     ILinkZ            = Me%External_Var%IZ,                &
                                     JLinkZ            = Me%External_Var%JZ,                &
-                                    STAT          = STAT_CALL)
+                                    STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR01'
             
-            call GetGeometryVolumes(GeometryID    = SonID,                            &
-                                    VolumeU       = Me%External_Var%VolumeU,           &
-                                    VolumeV       = Me%External_Var%VolumeV,           &
-                                    VolumeZ       = Me%External_Var%VolumeZ,           &
-                                    VolumeZ_2D    = Me%External_Var%VolumeZ_2D,        &
-                                    STAT          = STAT_CALL)
+            call GetGeometryVolumes(GeometryID     = SonID,                            &
+                                    VolumeU        = Me%External_Var%VolumeU,           &
+                                    VolumeV        = Me%External_Var%VolumeV,           &
+                                    VolumeZ        = Me%External_Var%VolumeZ,           &
+                                    VolumeZ_2D     = Me%External_Var%VolumeZ_2D,        &
+                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR02'
             
-            call GetOpenPoints3D   (Map_ID        = SonID,                            &
-                                    OpenPoint3D   = Me%External_Var%Open3D,            &
-                                    STAT          = STAT_CALL)
+            call GetOpenPoints3D   (Map_ID         = SonID,                            &
+                                    OpenPoints3D   = Me%External_Var%Open3D,            &
+                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR03'
             
             call GetComputeFaces3D(Map_ID          = SonID,                           &
@@ -699,17 +693,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                            
 
             
-            call GetOpenPoints3D   (Map_ID        = FatherID,                         &
-                                    OpenPoint3D   = Me%Father%External_Var%Open3D,     &
-                                    STAT          = STAT_CALL)
+            call GetOpenPoints3D   (Map_ID         = FatherID,                         &
+                                    OpenPoints3D   = Me%Father%External_Var%Open3D,     &
+                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR05'
         
-            call GetGeometryVolumes(GeometryID    = FatherID,                         &
-                                    VolumeU       = Me%Father%External_Var%VolumeU,    &
-                                    VolumeV       = Me%Father%External_Var%VolumeV,    &
-                                    VolumeZ       = Me%Father%External_Var%VolumeZ,    &
-                                    VolumeZ_2D    = Me%Father%External_Var%VolumeZ_2D, &
-                                    STAT          = STAT_CALL)
+            call GetGeometryVolumes(GeometryID     = FatherID,                         &
+                                    VolumeU        = Me%Father%External_Var%VolumeU,    &
+                                    VolumeV        = Me%Father%External_Var%VolumeV,    &
+                                    VolumeZ        = Me%Father%External_Var%VolumeZ,    &
+                                    VolumeZ_2D     = Me%Father%External_Var%VolumeZ_2D, &
+                                    STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR06'
             
             call GetComputeFaces3D(Map_ID          = FatherID,                               &
@@ -722,7 +716,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             STAT_ = ready_
         endif
         
-        if present(STAT) STAT = STAT_
+        if (present(STAT)) STAT = STAT_
         
     end subroutine PrepTwoWay
     
@@ -730,63 +724,57 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Computes auxiliar matrixes for the feedback
-    !>@param[in] SonID, FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, InterpolMethod    
-    subroutine ComputeAuxMatrixes(SonID, FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, InterpolMethod, &
-                                  Ilink, Jlink)
+    !>@param[in] SonMatrix, SonMatrix2D, InterpolMethod    
+    subroutine ComputeAuxMatrixes(SonMatrix, SonMatrix2D, InterpolMethod, Ilink, Jlink)
         !Arguments-------------------------------------------------------------
-        integer, intent(IN)                         :: SonID, interpolMethod
-        integer, intent(OUT)                        :: STAT
-        real, dimension(:, :, :), pointer, optional :: FatherMatrix, SonMatrix
-        real, dimension(:, :),    pointer, optional :: FatherMatrix2D, SonMatrix2D
+        integer, intent(IN)                         :: interpolMethod
+        real, dimension(:, :, :), pointer, optional :: SonMatrix
+        real, dimension(:, :),    pointer, optional :: SonMatrix2D
         integer, dimension(:, :), pointer           :: Ilink, Jlink
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_, ready_
-        real                                        :: LocalTimeDecay
 
         !---------------------------------------------------------------------- 
         
-        if (present(FatherMatrix)) then
-            call SetMatrixValue (Me%Father%AuxMatrix, Me%WorkSize, 0.0)           
+        if (present(SonMatrix)) then
+            call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%WorkSize, 0.0)           
             
             !Goes for 3D
             if     (interpolMethod == 1)then
                 ! set the matrix to 0.001 so it can be divided without giving an error
-                call SetMatrixValue (Me%Father%TotSonVolIn, Me%WorkSize, 0.001)
+                call SetMatrixValue (GetPointer(Me%Father%TotSonVolIn), Me%WorkSize, 0.001)
                 
                 ! Volume Weighted average
-                call ComputeSonVolInFather   (FatherMatrix   = FatherMatrix,   &
-                                              SonMatrix      = SonMatrix,      &
+                call ComputeSonVolInFather   (SonMatrix      = SonMatrix,      &
                                               Ilink          = Ilink,          &
                                               Jlink          = Jlink) 
                 
             elseif (interpolMethod == 2) then
                 
                 ! Inverse weighted distance method (includes a search radiuous)
-                call GetAuxMatrixes_IWD  (    SonID          = SonID,           &
-                                              FatherMatrix   = FatherMatrix,    &
-                                              SonMatrix      = SonMatrix) 
+                !call GetAuxMatrixes_IWD  (    SonID          = SonID,           &
+                !                              FatherMatrix   = FatherMatrix,    &
+                !                              SonMatrix      = SonMatrix) 
                 
             endif      
         !Goes for 2D 
         else
-            call SetMatrixValue (Me%Father%AuxMatrix2D, Me%WorkSize, 0.0)
+            call SetMatrixValue (GetPointer(Me%Father%AuxMatrix2D), Me%WorkSize2D, 0.0)
             
             if     (interpolMethod == 1)then
                 ! set the matrix to 0.001 so it can be divided without giving an error
-                call SetMatrixValue (Me%Father%TotSonVolIn2D, Me%WorkSize, 0.001)
+                call SetMatrixValue (GetPointer(Me%Father%TotSonVolIn_2D), Me%WorkSize2D, 0.001)
                 
                 ! Volume Weighted average
-                call ComputeSonVolInFather   (FatherMatrix2D = FatherMatrix2D,  &
-                                              SonMatrix2D    = SonMatrix2D,     &
+                call ComputeSonVolInFather   (SonMatrix2D    = SonMatrix2D,     &
                                               Ilink          = Ilink,           &
                                               Jlink          = Jlink)
 
             elseif (interpolMethod == 2) then
                 
                 ! Inverse weighted distance method (includes a search radiuous)
-                call GetAuxMatrixes_IWD      (SonID          = SonID,            &
-                                              FatherMatrix2D = FatherMatrix2D,   &
-                                              SonMatrix2D    = SonMatrix2D) 
+                !call GetAuxMatrixes_IWD      (SonID          = SonID,            &
+                !                              FatherMatrix2D = FatherMatrix2D,   &
+                !                              SonMatrix2D    = SonMatrix2D) 
                 
             endif                
         endif
@@ -798,17 +786,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Computes Son cells volume inside each father cell
-    !>@param[in] FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, Ilink, Jlink
-    subroutine ComputeSonVolInFather (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, Ilink, Jlink)
+    !>@param[in] SonMatrix, SonMatrix2D, Ilink, Jlink
+    subroutine ComputeSonVolInFather (SonMatrix, SonMatrix2D, Ilink, Jlink)
     
         !Arguments--------------------------------------------------------------------------------
-        real, dimension(:, :, :), pointer, optional :: FatherMatrix, SonMatrix
-        real, dimension(:, :),    pointer, optional :: FatherMatrix2D, SonMatrix2D
+        real, dimension(:, :, :), pointer, optional :: SonMatrix
+        real, dimension(:, :),    pointer, optional :: SonMatrix2D
         integer, dimension(:, :), pointer           :: Ilink, Jlink
         !Local variables--------------------------------------------------------------------------
         integer                                 :: i, j, k
         !Begin------------------------------------------------------------------------------------
-        if (present(FatherMatrix)) then
+        if (present(SonMatrix)) then
             
             do k = Me%WorkSize%KLB, Me%WorkSize%KUB
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -824,9 +812,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                Me%Father%TotSonVolIn2D(ILink(i, j)+1, JLink(i, j)+1) = &
-                Me%Father%TotSonVolIn2D(ILink(i, j)+1, JLink(i, j)+1) + SonMatrix(i, j) * &
-                Me%External_Var%Open3D(i, j, WorkSize%KUB) * Me%IgnoreOBCells(i, j)
+                Me%Father%TotSonVolIn_2D(ILink(i, j)+1, JLink(i, j)+1) = &
+                Me%Father%TotSonVolIn_2D(ILink(i, j)+1, JLink(i, j)+1) + SonMatrix2D(i, j) * &
+                Me%External_Var%Open3D(i, j, Me%WorkSize%KUB) * Me%IgnoreOBCells(i, j)
             enddo        
             enddo            
             
@@ -841,7 +829,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@param[in] FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, LocalTimeDecay
     subroutine Nudging_average (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, LocalTimeDecay)
         !Arguments-------------------------------------------------------------
-        integer, intent(IN)                         :: SonID, CallerID
         integer, optional                           :: VelocityID
         real, dimension(:, :, :), pointer, optional :: FatherMatrix, SonMatrix
         real, dimension(:, :),    pointer, optional :: FatherMatrix2D, SonMatrix2D
@@ -851,7 +838,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
             if (present(VelocityID))then
                 !If velocity U
-                if (VelocityID == VelocityU_)then
+                if (VelocityID == VelocityU_) then
                     call FeedBack_Avrg_UV (FatherMatrix         = FatherMatrix,                           &
                                            SonMatrix            = SonMatrix,                              &
                                            Open3DFather         = Me%Father%External_Var%Open3D,           &
@@ -859,16 +846,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                            FatherComputeFaces3D = Me%Father%External_Var%ComputeFaces3D_U, &
                                            SonComputeFaces3D    = Me%External_Var%ComputeFaces3D_U,        &
                                            SizeFather           = Me%Father%WorkSize,                     &
-                                           SonWorkSize          = Me%WorkSize,                            &
+                                           SizeSon              = Me%WorkSize,                            &
                                            Ilink                = Me%External_Var%IU,                      &
                                            Jlink                = Me%External_Var%JU,                      &
                                            DecayTime            = LocalTimeDecay,                         &
                                            DT                   = Me%Hydro%VelDT,                         &
-                                           SonVolInFather       = Me%Father%TotSonVolIn,                  &
-                                           AuxMatrix            = Me%Father%AuxMatrix,                    &
+                                           SonVolInFather       = GetPointer(Me%Father%TotSonVolIn),                  &
+                                           AuxMatrix            = GetPointer(Me%Father%AuxMatrix),                    &
                                            VolumeSon            = Me%External_Var%VolumeU,                 &
                                            VolumeFather         = Me%Father%External_Var%VolumeU,         &
-                                           IgnoreOBCells        = Me%IgnoreOBCells)
+                                           IgnoreOBCells        = GetPointer(Me%IgnoreOBCells))
                 !If velocity V    
                 else
                     call FeedBack_Avrg_UV (FatherMatrix         = FatherMatrix,                           &
@@ -878,16 +865,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                            FatherComputeFaces3D = Me%Father%External_Var%ComputeFaces3D_V, &
                                            SonComputeFaces3D    = Me%External_Var%ComputeFaces3D_V,        &
                                            SizeFather           = Me%Father%WorkSize,                     &
-                                           SonWorkSize          = Me%WorkSize,                            &
+                                           SizeSon              = Me%WorkSize,                            &
                                            Ilink                = Me%External_Var%IV,                      &
                                            Jlink                = Me%External_Var%JV,                      &
                                            DecayTime            = LocalTimeDecay,                         &
                                            DT                   = Me%Hydro%VelDT,                         &
-                                           SonVolInFather       = Me%Father%TotSonVolIn,                  &
-                                           AuxMatrix            = Me%Father%AuxMatrix,                    &
+                                           SonVolInFather       = GetPointer(Me%Father%TotSonVolIn),                  &
+                                           AuxMatrix            = GetPointer(Me%Father%AuxMatrix),                    &
                                            VolumeSon            = Me%External_Var%VolumeV,                 &
-                                           VolumeFather         = Me%Father%External_Var%VolumeV),          &
-                                           IgnoreOBCells        = Me%IgnoreOBCells)
+                                           VolumeFather         = Me%Father%External_Var%VolumeV,          &
+                                           IgnoreOBCells        = GetPointer(Me%IgnoreOBCells))
                 endif
             endif
             !compute nudging Z type cell
@@ -896,34 +883,34 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                   Open3DFather     = Me%Father%External_Var%Open3D,    &
                                   Open3DSon        = Me%External_Var%Open3D,           &
                                   SizeFather       = Me%Father%WorkSize,              &
-                                  SonWorkSize      = Me%WorkSize,                     &
+                                  SizeSon          = Me%WorkSize,                     &
                                   Ilink            = Me%External_Var%IZ,               &
                                   Jlink            = Me%External_Var%JZ,               &
                                   DecayTime        = LocalTimeDecay,                  &
                                   DT               = Me%Hydro%DT,                     &
-                                  SonVolInFather   = Me%Father%TotSonVolIn,           &
-                                  AuxMatrix        = Me%Father%AuxMatrix,             &
+                                  SonVolInFather   = GetPointer(Me%Father%TotSonVolIn),           &
+                                  AuxMatrix        = GetPointer(Me%Father%AuxMatrix),             &
                                   VolumeSon        = Me%External_Var%VolumeZ,          &
                                   VolumeFather     = Me%Father%External_Var%VolumeZ, &
-                                  IgnoreOBCells    = Me%IgnoreOBCells)
+                                  IgnoreOBCells    = GetPointer(Me%IgnoreOBCells))
                 
         else
                 
-            call FeedBack_AvrgWL (FatherMatrix2D   = FatherMatrix2D,                  &
+            call FeedBack_Avrg_WL (FatherMatrix2D   = FatherMatrix2D,                  &
                                   SonMatrix2D      = SonMatrix2D,                     &
                                   Open3DFather     = Me%Father%External_Var%Open3D,    &
                                   Open3DSon        = Me%External_Var%Open3D,           &
                                   SizeFather       = Me%Father%WorkSize,              &
-                                  SonWorkSize      = Me%WorkSize,                     &
+                                  SizeSon          = Me%WorkSize,                     &
                                   Ilink            = Me%External_Var%IZ,               &
                                   Jlink            = Me%External_Var%JZ,               &
                                   DecayTime        = LocalTimeDecay,                  &
                                   DT               = Me%Hydro%DT,                     &
-                                  SonVolInFather   = Me%Father%TotSonVolIn_2D,        &
-                                  AuxMatrix2D      = Me%Father%AuxMatrix2D,           &
+                                  SonVolInFather2D = GetPointer(Me%Father%TotSonVolIn_2D),        &
+                                  AuxMatrix2D      = GetPointer(Me%Father%AuxMatrix2D),           &
                                   VolumeSon2D      = Me%External_Var%VolumeZ_2D,       &
                                   VolumeFather2D   = Me%Father%External_Var%VolumeZ_2D, &
-                                  IgnoreOBCells    = Me%IgnoreOBCells)               
+                                  IgnoreOBCells    = GetPointer(Me%IgnoreOBCells))               
                 
         endif
 
@@ -939,7 +926,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
         !Arguments--------------------------------------------------------------
         integer, intent(IN)                         :: SonID, FatherID, CallerID
-        integer, intent(OUT)                        :: STAT
+        integer, optional, intent(OUT)              :: STAT
         !Locals-----------------------------------------------------------------
         integer                                     :: ready_, status, STAT_
         !Begin------------------------------------------------------------------
@@ -977,24 +964,24 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR12'
             call UnGetMap(SonID, Me%External_Var%ComputeFaces3D_V, STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR13'
-            call UnGetHorizontalMap(SonID, Me%External_Var%Boundary2D, STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR13'                                                      &
+            call UnGetHorizontalMap(SonID, Me%External_Var%BoundaryPoints2D, STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR14'
             
             !Unget father
             call UnGetMap(FatherID, Me%Father%External_Var%Open3D,           STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR14'
-            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ,     STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR15'
-            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeU,     STAT = status)
+            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ,     STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR16'
-            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeV,     STAT = status)
+            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeU,     STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR17'
-            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ_2D,  STAT = status)
+            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeV,     STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR18'
-            call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_U, STAT = status)
+            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ_2D,  STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR19'
-            call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_V, STAT = status)
+            call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_U, STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR20'
+            call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_V, STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR21'
         else
             STAT_ = ready_
         endif
@@ -1067,8 +1054,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         if (allocated(Me%Father%TotSonVolIn)) then
             deallocate(Me%Father%TotSonVolIn)
         endif
-        if (allocated(Me%Father%TotSonVolIn2D)) then
-            deallocate(Me%Father%TotSonVolIn2D)
+        if (allocated(Me%Father%TotSonVolIn_2D)) then
+            deallocate(Me%Father%TotSonVolIn_2D)
         endif
         if (allocated(Me%IgnoreOBCells)) then
             deallocate(Me%IgnoreOBCells)

@@ -348,7 +348,7 @@ Module ModuleGeometry
        
         character(len=Pathlength)               :: InputFile                = null_str !initialization: Jauch
         
-        real, dimension(:,:,:), pointer         :: NearbyAvgVel_Z           => null() ! Joao Sobrinho
+        real, dimension(:,:,:), allocatable     :: NearbyAvgVel_Z ! Joao Sobrinho
 
 #ifdef _USE_SEQASSIMILATION
         !This variable is used to retain location of original memory space for variables
@@ -906,7 +906,7 @@ Module ModuleGeometry
         
         allocate (Me%NearbyAvgVel_Z(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS) !Joao Sobrinho
         if (STATUS /= SUCCESS_) stop "AllocateVariables - Geometry - ERR255"
-        call SetMatrixValue(Me%NearbyAvgVel_Z, Me%Size, FillValueReal)
+        Me%NearbyAvgVel_Z(:, :, :) = FillValueInt
 
     end subroutine AllocateVariables
 
@@ -3829,7 +3829,6 @@ cd1:    if (FacesOption == MinTickness) then
         real, dimension(:, :, :), optional, pointer    :: VerticalVelocity
         real, intent(in), optional                     :: DT_Waterlevel
         integer, dimension(:, :, :), optional, pointer :: WaterPoints3D, OpenPoints3D
-        real, dimension(:, :, :),              pointer :: ZonalVerticalVelocity
 
         !Esternal--------------------------------------------------------------
 
@@ -3921,10 +3920,11 @@ cd1:    if (FacesOption == MinTickness) then
                     
                     else if (CurrentDomain%IsLagrangian) then
                              
-                        call ComputeAvgVerticalVelocity(VerticalVelocity, Me%NearbyAvgVel_Z, Me%WorkSize, OpenPoints3D)
+                        call ComputeAvgVerticalVelocity(VerticalVelocity, GetPointer(Me%NearbyAvgVel_Z), Me%WorkSize, &
+                                                        OpenPoints3D)
                         
                         call ComputeLagrangianNew(SurfaceElevation, VerticalVelocity,           &
-                                                  Me%NearbyAvgVel_Z, DT_Waterlevel, CurrentDomain)
+                                                  GetPointer(Me%NearbyAvgVel_Z), DT_Waterlevel, CurrentDomain)
                     endif
                     
                 case (Isopycnic)
@@ -3964,11 +3964,11 @@ cd1:    if (FacesOption == MinTickness) then
                             endif
                             
                         else
-                            call ComputeAvgVerticalVelocity(VerticalVelocity, Me%NearbyAvgVel_Z, Me%WorkSize, &
-                                                            OpenPoints3D)
+                            call ComputeAvgVerticalVelocity(VerticalVelocity, GetPointer(Me%NearbyAvgVel_Z), &
+                                                            Me%WorkSize, OpenPoints3D)
                             
                             call ComputeLagrangianNew(SurfaceElevation, VerticalVelocity,            &
-                                                      Me%NearbyAvgVel_Z, DT_Waterlevel, CurrentDomain)
+                                                      GetPointer(Me%NearbyAvgVel_Z), DT_Waterlevel, CurrentDomain)
                         endif
                     endif
                     

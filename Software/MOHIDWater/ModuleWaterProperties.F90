@@ -282,13 +282,13 @@ Module ModuleWaterProperties
     use ModuleHydrodynamic,         only: GetWaterFluxes, GetWaterLevel, GetDischargesFluxes,   &
                                           UngetHydrodynamic, GetHydroAltimAssim, GetVertical1D, &
                                           GetXZFlow, GetHydrodynamicAirOptions,                 &
-                                          GetVelocityModulus, GetPointDischargesState,          &
+                                          GetVelocityModulus, GetPointDischargesState
                                           
     use ModuleBivalve,              only: GetBivalveListDeadIDS, GetBivalveNewBornParameters,   &
                                           GetBivalveNewborns, GetBivalveOtherParameters,        &
                                           UpdateBivalvePropertyList, UnGetBivalve
     
-    use ModuleTwoWay                only: PrepTwoWay, UngetTwoWayExternal_Vars, ModifyTwoWay
+    use ModuleTwoWay,               only: PrepTwoWay, UngetTwoWayExternal_Vars, ModifyTwoWay
     
 #ifdef _ENABLE_CUDA
     use ModuleCuda
@@ -18990,9 +18990,6 @@ do1 :   do while (associated(PropertyX))
         !Arguments--------------------------------------------------------------------------------------------
         integer                                 :: SonWaterPropertiesID, FatherWaterPropertiesID
         !Local variables--------------------------------------------------------------------------------------
-        integer, dimension(:,:), pointer        :: IZ, JZ
-        integer, dimension(:,:,:), pointer      :: Open3DFather, Open3DSon
-        real,    dimension(:,:,:), pointer      :: VolumeZSon, VolumeZFather
         type (T_WaterProperties), pointer       :: ObjWaterPropertiesSon
         type (T_Property), pointer              :: PropertyX, PropertySon
         integer                                 :: STAT_CALL
@@ -19010,7 +19007,7 @@ do1 :   do while (associated(PropertyX))
                          FatherID          = FatherWaterPropertiesID, &
                          CallerID          = mWATERPROPERTIES_,       &
                          STAT              = STAT_CALL)
-        if (STAT_CALL /= SUCCESS) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR01.'         
+        if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR01.'         
      
         !Assimilates all the properties with twoway option ON
         do while (associated(PropertyX))
@@ -19029,7 +19026,7 @@ do1 :   do while (associated(PropertyX))
                                            CallerID         = mWATERPROPERTIES_,                    &
                                            TD               = PropertySon%Submodel%TwoWayTimeDecay, &
                                            STAT             = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR02.'
+                        if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR02.'
 
                     endif
                 endif   
@@ -19050,7 +19047,7 @@ do1 :   do while (associated(PropertyX))
                                       FatherID          = FatherWaterPropertiesID, &
                                       CallerID          = mWATERPROPERTIES_,       &
                                       STAT              = STAT_CALL)
-        if (STAT_CALL /= SUCCESS) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR04.'
+        if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR04.'
                    
     if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "UpdateFatherModelWP")
     
@@ -22130,7 +22127,8 @@ AO:     if (Actual >= SurfaceOutTime) then
                         TimePtr => AuxTime
 
                         call HDF5SetLimits  (Me%ObjSurfaceHDF5, 1, 6, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR10')
+                        if (STAT_CALL /= SUCCESS_)  &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR10')
 
                         call HDF5WriteData  (Me%ObjSurfaceHDF5,                         &
                                             "/Time",                                    &
@@ -22138,12 +22136,14 @@ AO:     if (Actual >= SurfaceOutTime) then
                                              Array1D      = TimePtr,                    &
                                              OutputNumber = SurfaceOutPutNumber,        &
                                              STAT         = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR20')
+                        if (STAT_CALL /= SUCCESS_)  &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR20')
                                         
                        !Writes VerticalZ
                         call HDF5SetLimits  (Me%ObjSurfaceHDF5, WorkILB, WorkIUB,       &
                                              WorkJLB, WorkJUB, WorkKUB-1, WorkKUB, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR30')
+                        if (STAT_CALL /= SUCCESS_)  &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR30')
 
                         call HDF5WriteData  (Me%ObjSurfaceHDF5,                         &
                                              "/Grid/VerticalZ",                         &
@@ -22151,12 +22151,14 @@ AO:     if (Actual >= SurfaceOutTime) then
                                              Array3D        = Me%ExternalVar%SZZ,       &
                                              OutputNumber   = SurfaceOutPutNumber,      &
                                              STAT           = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR35')
+                        if (STAT_CALL /= SUCCESS_)  &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR35')
 
                         !Writes OpenPoints
                         call HDF5SetLimits  (Me%ObjSurfaceHDF5, WorkILB, WorkIUB,       &
                                              WorkJLB, WorkJUB, WorkKUB, WorkKUB, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR40')
+                        if (STAT_CALL /= SUCCESS_)  &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR40')
 
 
                         call HDF5WriteData  (Me%ObjSurfaceHDF5,                         &
@@ -22165,7 +22167,8 @@ AO:     if (Actual >= SurfaceOutTime) then
                                              Array3D      = Me%ExternalVar%OpenPoints3D,&
                                              OutputNumber = SurfaceOutPutNumber,        &
                                              STAT         = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR50')
+                        if (STAT_CALL /= SUCCESS_)  &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR50')
 
                         FirstTimeSurface = .false.
                 
@@ -22173,7 +22176,8 @@ AO:     if (Actual >= SurfaceOutTime) then
 
                     call HDF5SetLimits  (Me%ObjSurfaceHDF5, WorkILB, WorkIUB,           &
                                          WorkJLB, WorkJUB, WorkKUB, WorkKUB, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR60')
+                    if (STAT_CALL /= SUCCESS_)  &
+                        call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR60')
 ! João Sobrinho                    
                    if (Me%WriteHDFReal4)then
                         call SetMatrixValue(Me%Output%Aux3Dreal4, Me%Size, PropertyX%Concentration)
@@ -22184,7 +22188,8 @@ AO:     if (Actual >= SurfaceOutTime) then
                                             Array3D      = Me%Output%Aux3Dreal4,            &
                                             OutputNumber = SurfaceOutPutNumber,             &
                                             STAT         = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR70')
+                        if (STAT_CALL /= SUCCESS_)  &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR70')
                     
                    else
                     call HDF5WriteData  (Me%ObjSurfaceHDF5,                             &
@@ -22193,7 +22198,8 @@ AO:     if (Actual >= SurfaceOutTime) then
                                         Array3D      = PropertyX%Concentration,         &
                                         OutputNumber = SurfaceOutPutNumber,             &
                                         STAT         = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR80')                       
+                        if (STAT_CALL /= SUCCESS_)  &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR80')
                    endif
 
 

@@ -1941,7 +1941,7 @@ Module ModuleGlobalData
     integer, parameter ::  mIrrigation_             = 94
     integer, parameter ::  mTURBINE_                = 95
     integer, parameter ::  mLitter_                 = 96
-	integer, parameter ::  mTwoWay_                 = 97
+    integer, parameter ::  mTwoWay_                 = 97
     
     !Domain decomposition
     integer, parameter :: WestSouth        = 1

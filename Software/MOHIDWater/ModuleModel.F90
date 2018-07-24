@@ -120,7 +120,7 @@ Module ModuleModel
     use ModuleCuda
 #endif
 
-	use ModuleTwoWay,                   only : ConstructTwoWay
+    use ModuleTwoWay,                   only : ConstructTwoWay, KillTwoWay
     !$ use omp_lib
 
 
@@ -288,7 +288,7 @@ Module ModuleModel
         integer                                 :: ObjSedimentProperties        = 0
         integer                                 :: ObjConsolidation             = 0
         integer                                 :: ObjFreeVerticalMovement      = 0
-		integer                                 :: ObjTwoWay                    = 0
+        integer                                 :: ObjTwoWay                    = 0
        
 #ifdef _USE_SEQASSIMILATION
         integer                                 :: ObjSeqAssimilation           = 0
@@ -812,7 +812,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR240'
             
-			call ConstructTwoWay	    (ModelName	      = trim(Me%ModelName),         &
+            call ConstructTwoWay        (ModelName	      = trim(Me%ModelName),         &
 									     TwoWayID         = Me%ObjTwoWay,               &
                                          HorizontalGridID = Me%ObjHorizontalGrid,       &
                                          GeometryID       = Me%Water%ObjGeometry,       &

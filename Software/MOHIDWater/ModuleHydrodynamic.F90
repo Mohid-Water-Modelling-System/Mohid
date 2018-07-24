@@ -1422,7 +1422,7 @@ Module ModuleHydrodynamic
                                            !AtmospherePeriod: This period will substitute the SmoothInitial period                                                    
                                            AtmospherePeriod         = null_real, &
                                            TwoWayWaitPeriod         = null_real, &
-                                           TimeDecay                = null_real 
+                                           TwoWayTimeDecay          = null_real 
                                            !Calibration coefficent of the inverted barometer solution                                      
         real                            :: InvertBaroCoef      
                                            !Reference atmospheric pressure to be used in the inverted barometer solution
@@ -1459,7 +1459,7 @@ Module ModuleHydrodynamic
                                            InvertBaromSomeBound = .false., &
                                            NullWaterLevelGradI  = .false., &                                           
                                            NullWaterLevelGradJ  = .false., &
-                                           TwoWay               = .false., &  ! João Sobrinho
+                                           TwoWay               = .false. ! João Sobrinho
         real, pointer, dimension(:,:)   :: InvertBarometerCells => null()
                                                       
         integer                         :: Wind                 = null_int  
@@ -2292,12 +2292,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         if (Me%ComputeOptions%TwoWay) then
             !Gives TwoWay module parametrizations from user Keywords
-            call ConstructTwoWayHydrodynamic(TwoWayID         = Me%InstantID,                           &
-                                             WaitPeriod       = Me%ComputeOptions%TwoWayWaitPeriod,    &
+            call ConstructTwoWayHydrodynamic(TwoWayID         = Me%InstanceID,                          &
                                              TimeDecay        = Me%ComputeOptions%TwoWayTimeDecay,     &
                                              IntMethod        = Me%ComputeOptions%TwoWayIntMethod,     &
-                                             VelDT            = Me%Velocity%DT,                         &
-                                             DT               = Me%WaterLevel%DT,                       &
+                                             VelDT            = Me%Velocity%DT,                        &
+                                             DT               = Me%WaterLevel%DT,                      &
                                              IgnoreOBNumCells = Me%ComputeOptions%TwoWayNumIgnOBCells, &
                                              STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                       &
@@ -7829,7 +7828,7 @@ cd21:   if (Baroclinic) then
                 call GetData(Me%ComputeOptions%TwoWayTimeDecay,                                      &
                             Me%ObjEnterData, iflag,                                            &
                             Keyword      = 'TWO_WAY_TIME_DECAY',                               &
-                            Default      = 86400.,                                             &
+                            Default      = 3600.,                                              &
                             SearchType   = FromFile,                                           &
                             ClientModule ='ModuleHydrodynamic',                                &
                             STAT         = STAT_CALL)            
@@ -7840,14 +7839,14 @@ cd21:   if (Baroclinic) then
                 call GetData(Me%ComputeOptions%TwoWayIntMethod,                                      &
                             Me%ObjEnterData, iflag,                                            &
                             Keyword      = 'TWO_WAY_INT_METHOD',                               &
-                            Default      = 86400.,                                             &
+                            Default      = 1,                                                  &
                             SearchType   = FromFile,                                           &
                             ClientModule ='ModuleHydrodynamic',                                &
                             STAT         = STAT_CALL)            
 
                 if (STAT_CALL /= SUCCESS_)                                                      &
                     call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1222')
-                
+                ! number of son cells to be ignored
                 call GetData(Me%ComputeOptions%TwoWayNumIgnOBCells,                                  &
                             Me%ObjEnterData, iflag,                                            &
                             Keyword      = 'TWO_WAY_IGNORE_CELLS',                             &
@@ -15202,16 +15201,14 @@ cd1 :   if (ready_ == IDLE_ERR_)then
 
         !External--------------------------------------------------------------
 
-        integer :: ready_, readyFather_
-        type (T_Hydrodynamic), pointer              :: ObjHydrodynamicFather
+        integer :: ready_
         !Local-----------------------------------------------------------------
 
-        integer :: STAT_, STAT_CALL, AuxHydrodynamicID            !Auxiliar local variable  João Sobrinho
+        integer :: STAT_, STAT_CALL
         logical :: VariableDT
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
-        AuxHydrodynamicID = 0!João Sobrinho  
 
         call Ready(HydrodynamicID, ready_)
 
@@ -15283,7 +15280,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             
                     if (Me%ComputeOptions%TwoWay) then
                         
-                        call ComputeTwoWay(AuxHydrodynamicID, HydrodynamicID)
+                        call ComputeTwoWay(HydrodynamicID)
                 
                     endif
                 
@@ -15832,7 +15829,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
     
         !Arguments-------------------------------------------------------------
         logical, intent(OUT)                        :: TwoWayOn
-        integer                                     :: HydrodynamicID, STAT
+        integer                                     :: HydrodynamicID 
+        integer, optional                           :: STAT
         !Local-----------------------------------------------------------------
         integer                                     :: ready_, STAT_
 
@@ -21237,22 +21235,22 @@ cd12:   if (Me%SubModel%InterPolTime .and. InitialField) then
     integer                         :: i, j, STAT_CALL
     
         call GetWaterPoints2D(Me%ObjHorizontalMap, &
-					          Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+                              Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-	        stop 'AddSubmodelWaterLevel - ModuleHydrodynamic - ERR01'
+        stop 'AddSubmodelWaterLevel - ModuleHydrodynamic - ERR01'
         
         !Paralelizar! João Sobrinho
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                    (Me%Submodel%Z_Next(i, j) = Me%Submodel%Z_Next(i, j) + Me%Submodel%WaterLevelIncrease) * &
+                    Me%Submodel%Z_Next(i, j) = Me%Submodel%Z_Next(i, j) + Me%Submodel%WaterLevelIncrease * &
                     (Me%External_Var%WaterPoints2D(i, j))
         enddo
         enddo
 
         call UnGetHorizontalMap(Me%ObjHorizontalMap, &
-					          Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+                                Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
-	        stop 'AddSubmodelWaterLevel - ModuleHydrodynamic - ERR02'
+            stop 'AddSubmodelWaterLevel - ModuleHydrodynamic - ERR02'
 
     end subroutine AddSubmodelWaterLevel
     
@@ -48894,7 +48892,8 @@ do5:            do i = ILB, IUB
     !Externals------------------------------------------------------------------------------
         type (T_Hydrodynamic), pointer                    :: ObjHydrodynamicFather
     !Locals---------------------------------------------------------------------------------
-        integer                                           :: ready_, readyFather_, STAT_CALL, i, CallerID      
+        integer                                           :: ready_, readyFather_, STAT_CALL, i
+        integer                                           :: AuxHydrodynamicID
     !Begin------------------------------------------------------------------------------
         
         if (Me%CurrentTime - Me%BeginTime > Me%ComputeOptions%TwoWayWaitPeriod)then
@@ -48923,7 +48922,7 @@ do5:            do i = ILB, IUB
                                      FatherID          = Me%FatherInstanceID, &
                                      CallerID          = mHydrodynamic_,      &
                                      STAT              = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR01.'
+                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR01.'
                     
                     !Updates father matrixes with son information. For now, hard coded.
                     call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
@@ -48932,7 +48931,7 @@ do5:            do i = ILB, IUB
                                        CallerID         = mHydrodynamic_,                                    &
                                        VelocityID       = VelocityU_,                                        &
                                        STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR02.'
+                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR02.'
                     
                     call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
                                        FatherMatrix     = ObjHydrodynamicFather%Velocity%Horizontal%V%New,   &
@@ -48940,27 +48939,27 @@ do5:            do i = ILB, IUB
                                        CallerID         = mHydrodynamic_,                                    &
                                        VelocityID       = VelocityV_,                                        &
                                        STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR03.'
+                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR03.'
                     
                     call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
                                        FatherMatrix     = ObjHydrodynamicFather%Velocity%Vertical%Cartesian, &
                                        SonMatrix        = Me%Velocity%Vertical%Cartesian,                    &
                                        CallerID         = mHydrodynamic_,                                    &
                                        STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR04.'
+                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR04.'
                     
-                    call ModifyTwoWay2D(SonID           = AuxHydrodynamicID,                                 &
+                    call ModifyTwoWay (SonID           = AuxHydrodynamicID,                                 &
                                        FatherMatrix2D   = ObjHydrodynamicFather%WaterLevel%New,              &
                                        SonMatrix2D      = Me%WaterLevel%New,                                 &
                                        CallerID         = mHydrodynamic_,                                    &
                                        STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR05.'
+                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR05.'
                     
                     call UngetTwoWayExternal_Vars(SonID             = AuxHydrodynamicID,   &
                                                   FatherID          = Me%FatherInstanceID, &
                                                   CallerID          = mHydrodynamic_,      &
                                                   STAT              = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR06.'
+                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR06.'
                     
                 endif
           
