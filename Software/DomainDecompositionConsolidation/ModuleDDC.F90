@@ -307,8 +307,7 @@ if3 :           if (iMPI > 0) then
 
     !--------------------------------------------------------------------------
 
-!<@cond scan
-    character(len=PathLength) pure function ModelPath(AuxString, Level)
+    character(len=PathLength) pure function ModelPath (AuxString, Level)
     
         !Arguments-------------------------------------------------------------
         character(len=*), intent(in)                                :: AuxString
@@ -319,21 +318,20 @@ if3 :           if (iMPI > 0) then
     
         !------------------------------------------------------------------------
 
-        !position  = scan(AuxString, "/", back = .true.)
+        position  = scan(AuxString, "/", back = .true.)
         if (position == 0) then            
-            !position = scan(AuxString, "\", back = .true.)
+            position = scan(AuxString, backslash, back = .true.)
         endif
         if (position == 0) then
             ModelPath = "../res"
         else
             ModelPath  = AuxString(Level+1:position)//"res"
-        endif
-       
+        endif       
         !------------------------------------------------------------------------
     
     end function ModelPath
-!<@endcond
 
+	
     !--------------------------------------------------------------------------
 
     function AllocateDirectoryList(ModelPath)
