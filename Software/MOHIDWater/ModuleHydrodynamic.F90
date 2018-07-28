@@ -1459,7 +1459,8 @@ Module ModuleHydrodynamic
                                            InvertBaromSomeBound = .false., &
                                            NullWaterLevelGradI  = .false., &                                           
                                            NullWaterLevelGradJ  = .false., &
-                                           TwoWay               = .false. ! João Sobrinho
+                                           TwoWay               = .false., & ! João Sobrinho
+                                           TwoWayWaterLevel     = .false.
         real, pointer, dimension(:,:)   :: InvertBarometerCells => null()
                                                       
         integer                         :: Wind                 = null_int  
@@ -7863,11 +7864,22 @@ cd21:   if (Baroclinic) then
 
                 if (Me%ComputeOptions%TwoWayNumIgnOBCells > Me%WorkSize%JUB - Me%WorkSize%JLB + 1) then
                     stop 'Construct_Numerical_Options - Hydrodynamic - ERR1225'
-                endif 
+                endif
+                
+                call GetData(Me%ComputeOptions%TwoWayWaterLevel,                                  &
+                             Me%ObjEnterData, iflag,                                            &        
+                             Keyword      = 'TWO_WAY_WATERLEVEL',                             &
+                             Default      = .false.,                                                 &
+                             SearchType   = FromFile,                                           &
+                             ClientModule ='ModuleHydrodynamic',                                &
+                             STAT         = STAT_CALL)            
+
+                if (STAT_CALL /= SUCCESS_)                                                      &
+                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1226')
                 
             else
                 write(*,*) 'Keyword TWO_WAY must ONLY be defined in son domains'            
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1226')                
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1227')                
             endif
         
         endif
@@ -48948,12 +48960,16 @@ do5:            do i = ILB, IUB
                                        STAT             = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR04.'
                     
-                    call ModifyTwoWay (SonID           = AuxHydrodynamicID,                                 &
-                                       FatherMatrix2D   = ObjHydrodynamicFather%WaterLevel%New,              &
-                                       SonMatrix2D      = Me%WaterLevel%New,                                 &
-                                       CallerID         = mHydrodynamic_,                                    &
-                                       STAT             = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR05.'
+                    if (Me%ComputeOptions%TwoWayWaterLevel) then
+                        
+                        call ModifyTwoWay (SonID           = AuxHydrodynamicID,                                 &
+                                           FatherMatrix2D   = ObjHydrodynamicFather%WaterLevel%New,              &
+                                           SonMatrix2D      = Me%WaterLevel%New,                                 &
+                                           CallerID         = mHydrodynamic_,                                    &
+                                           STAT             = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR05.' 
+                    
+                    endif
                     
                     call UngetTwoWayExternal_Vars(SonID             = AuxHydrodynamicID,   &
                                                   FatherID          = Me%FatherInstanceID, &
@@ -54018,7 +54034,9 @@ cd4:    if (.not. BaroclinicRadia                                == NoRadiation_
             if (nUsers == 0) stop 'KillHydrodynamic - ModuleHydrodynamic - ERR08'
         end if
 #endif
-
+        nUsers = DeassociateInstance (mTwoWay_,     Me%ObjTwoWay)
+        if (nUsers == 0) stop 'KillHydrodynamic - ModuleHydrodynamic - ERR08'
+      
 !        nUsers = DeassociateInstance (mBOTTOM_,         Me%ObjBottom)
 !        if (nUsers == 0) stop 'KillHydrodynamic - ModuleHydrodynamic - ERR08'
         

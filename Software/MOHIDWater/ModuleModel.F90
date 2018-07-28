@@ -812,14 +812,14 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR240'
             
-            call ConstructTwoWay        (ModelName	      = trim(Me%ModelName),         &
-									     TwoWayID         = Me%ObjTwoWay,               &
+            call ConstructTwoWay        (ModelName        = trim(Me%ModelName),         &
+                                         TwoWayID         = Me%ObjTwoWay,               &
                                          HorizontalGridID = Me%ObjHorizontalGrid,       &
                                          GeometryID       = Me%Water%ObjGeometry,       &
                                          HorizontalMapID  = Me%Water%ObjHorizontalMap,  &
                                          MapID            = Me%Water%ObjMap,            &
-									     STAT		      = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - 250'	            
+                                         STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - 250'             
 
             !Constructs hydrodynamic
             call StartHydrodynamic      (ModelName        = trim(Me%ModelName),         &  
@@ -1082,8 +1082,8 @@ il:         if (Me%RunLagrangian) then
                                             Me%SeqAssimilationTime, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR530'
             endif
-#endif _USE_SEQASSIMILATION		
-			
+#endif _USE_SEQASSIMILATION  
+   
             !nullify(Me%ModelNames )
             !nullify(Me%LagInstance)
             
@@ -1695,8 +1695,8 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             call SetInitialModelTime (Me%ObjTime, InitialModelTime, STAT_)            
             call CPU_TIME(Me%LastCPUTime)
-		endif
-		
+        endif
+  
         
 #ifdef _USE_SEQASSIMILATION
            if (Me%RunSeqAssimilation) then
@@ -2221,10 +2221,10 @@ if7 :               if     (DT_error > 0) then
                 call KillHydrodynamic(Me%ObjHydrodynamic,           STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR110'
                  
-				!Kills TwoWay
-				call KillTwoWay     (Me%ObjTwoWay,          STAT = STAT_CALL)
+                !Kills TwoWay
+                call KillTwoWay     (Me%ObjTwoWay,          STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR111'
-				
+    
                 !Kill Turbulence
                 call KillTurbulence     (Me%ObjTurbulence,          STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR120'

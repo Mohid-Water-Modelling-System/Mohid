@@ -137,8 +137,8 @@ Module ModuleTwoWay
     end type  T_TwoWay
 
     !Global Module Variables
-    type (T_TwoWay), pointer                         :: FirstObjTwoWay
-    type (T_TwoWay), pointer                         :: Me 
+    type (T_TwoWay), pointer                         :: FirstObjTwoWay  => null()
+    type (T_TwoWay), pointer                         :: Me              => null()
 
 
     !--------------------------------------------------------------------------
@@ -166,7 +166,6 @@ Module ModuleTwoWay
 
         !Arguments---------------------------------------------------------------
         character(Len=*)                                :: ModelName
-        integer                                         :: ObjTwoWayID 
         integer                                         :: TwoWayID, HorizontalGridID
         integer                                         :: GeometryID, HorizontalMapID, MapID
         integer, optional                               :: STAT
@@ -196,7 +195,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
             Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
             !Returns ID
-            ObjTwoWayID          = Me%InstanceID
+            TwoWayID          = Me%InstanceID
             
             call GetGeometrySize (GeometryID = Me%ObjGeometry, &
                                   Size       = Me%Size,        &
@@ -211,6 +210,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ConstructTwoWay - ERR02'
             
             allocate (Me%IgnoreOBCells(Me%WorkSize%ILB:Me%WorkSize%IUB, Me%WorkSize%JLB:Me%WorkSize%IUB))
+            call SetMatrixValue (GetPointer(Me%IgnoreOBCells), Me%WorkSize2D, 1)
 
             STAT_ = SUCCESS_
 
@@ -261,7 +261,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Contructs hydrodynamic variables of MOHIDWater with TwoWay nesting  
-    !>@param[in] TwoWayID, TimeDecay, IntMethod, VelDT, DT, NCellsIgnoreOB
+    !>@param[in] TwoWayID, TimeDecay, IntMethod, VelDT, DT, IgnoreOBNumCells
     subroutine ConstructTwoWayHydrodynamic (TwoWayID, TimeDecay, IntMethod, VelDT, DT, IgnoreOBNumCells, STAT)
     
         !Arguments------------------------------------------------------------
@@ -279,7 +279,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call Ready(TwoWayID, ready_)    
 
-        if (ready_ .EQ. OFF_ERR_) then
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            !call Read_Lock(mTwoWay_, Me%InstanceID)
             
             Me%Hydro%InterpolationMethod = IntMethod
             Me%Hydro%TimeDecay           = TimeDecay
@@ -292,6 +295,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop "ModuleTwoWay - ConstructTwoWayHydrodynamic - ERR01"
             
             call Compute_MatrixFilterOB (IgnoreOBNumCells)
+            
+            call UnGetHorizontalMap(TwoWayID, Me%External_Var%BoundaryPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ConstructTwoWayHydrodynamic - ERR02'            
+            
             
             STAT_ = SUCCESS_
 
@@ -323,25 +330,25 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !compute south border
         do j = JLB, JUB
         do i = ILB, IgnoreOBNumCells
-            Me%IgnoreOBCells(i, j) = Me%IgnoreOBCells(i, j) * Me%External_Var%BoundaryPoints2D(i, j)
+            Me%IgnoreOBCells(i, j) = Me%IgnoreOBCells(i, j) * (1 - Me%External_Var%BoundaryPoints2D(i, j))
         enddo
         enddo
         !compute North border
         do j = JLB, JUB
         do i = IUB - IgnoreOBNumCells, IUB
-            Me%IgnoreOBCells(i, j) = Me%IgnoreOBCells(i, j) * Me%External_Var%BoundaryPoints2D(i, j)
+            Me%IgnoreOBCells(i, j) = Me%IgnoreOBCells(i, j) * (1 - Me%External_Var%BoundaryPoints2D(i, j))
         enddo
         enddo
         !compute west border
         do j = JLB, IgnoreOBNumCells
         do i = ILB, IUB
-            Me%IgnoreOBCells(i, j) = Me%IgnoreOBCells(i, j) * Me%External_Var%BoundaryPoints2D(i, j)
+            Me%IgnoreOBCells(i, j) = Me%IgnoreOBCells(i, j) * (1 - Me%External_Var%BoundaryPoints2D(i, j))
         enddo
         enddo
         !compute south border
         do j = JUB - IgnoreOBNumCells, JUB
         do i = ILB, IUB
-            Me%IgnoreOBCells(i, j) = Me%IgnoreOBCells(i, j) * Me%External_Var%BoundaryPoints2D(i, j)
+            Me%IgnoreOBCells(i, j) = Me%IgnoreOBCells(i, j) * (1 - Me%External_Var%BoundaryPoints2D(i, j))
         enddo
         enddo
     
@@ -361,7 +368,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
         call Ready (TwoWayID, ready_)
         
-        if (ready_ .EQ. OFF_ERR_)then
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            !call Read_Lock(mTwoWay_, Me%InstanceID)
+            
             Me%Father%InstanceID = FatherTwoWayID
             
             call GetGeometrySize (FatherTwoWayID,                &
@@ -396,7 +407,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
 
         else
-            stop 'ModuleTwoWay - Allocate2WayAuxiliars_Hydrodynamic - ERR01'               
+            stop 'ModuleTwoWay - Allocate2WayAuxiliars_Hydrodynamic - ERR02'               
         endif
 
     end subroutine Allocate2WayAuxiliars_Hydrodynamic
@@ -576,7 +587,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         call Ready(SonID, ready_)
 
-        if (ready_ .EQ. IDLE_ERR_) then
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            !call Read_Lock(mTwoWay_, Me%InstanceID)
 
             if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_Hydrodynamic")
             
@@ -595,20 +609,20 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (present(VelocityID))then
                     if (VelocityID == VelocityU_) then
                         !if 3D matrixes were sent. Even2D domains allocate a 3D matrix (only one vertical layer)
-                        call ComputeAuxMatrixes (SonMatrix        = SonMatrix,         &
+                        call ComputeAuxMatrixes (Volume_3D        = Me%External_Var%VolumeU,         &
                                                  InterpolMethod   = InterpolMethod,    &
                                                  Ilink            = Me%External_Var%IU, &
                                                  Jlink            = Me%External_Var%JU)
                     else
                         
-                        call ComputeAuxMatrixes (SonMatrix        = SonMatrix,         &
+                        call ComputeAuxMatrixes (Volume_3D        = Me%External_Var%VolumeV,         &
                                                  InterpolMethod   = InterpolMethod,    &
                                                  Ilink            = Me%External_Var%IV, &
                                                  Jlink            = Me%External_Var%JV)
                     endif
                 else
                     
-                    call ComputeAuxMatrixes (SonMatrix        = SonMatrix,         &
+                    call ComputeAuxMatrixes (Volume_3D        = Me%External_Var%VolumeZ,         &
                                              InterpolMethod   = InterpolMethod,    &
                                              Ilink            = Me%External_Var%IZ, &
                                              Jlink            = Me%External_Var%JZ)
@@ -616,7 +630,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
             else
                 !if a 2D matrix was sent (specific for waterLevel - at least for MohidWater).
-                call ComputeAuxMatrixes (SonMatrix2D      = SonMatrix2D,       &
+                call ComputeAuxMatrixes (Volume_2D      = Me%External_Var%VolumeZ_2D,       &
                                          InterpolMethod   = InterpolMethod,    &
                                          Ilink            = Me%External_Var%IZ, &
                                          Jlink            = Me%External_Var%JZ)   
@@ -654,10 +668,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Locals-----------------------------------------------------------------
         integer                                     :: STAT_CALL, ready_
         !Begin------------------------------------------------------------------
+        STAT_ = UNKNOWN_      
         
         call Ready(SonID, ready_)
         
-        if (ready_ .EQ. IDLE_ERR_) then
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            !call Read_Lock(mTwoWay_, Me%InstanceID)
+            
             if (callerID == 1) then
                 !For future developments (when other modules call for twoway)
             endif
@@ -712,6 +731,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                    STAT            = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR07'
             
+            STAT_ = SUCCESS_
         else
             STAT_ = ready_
         endif
@@ -725,17 +745,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !>Computes auxiliar matrixes for the feedback
     !>@param[in] SonMatrix, SonMatrix2D, InterpolMethod    
-    subroutine ComputeAuxMatrixes(SonMatrix, SonMatrix2D, InterpolMethod, Ilink, Jlink)
+    subroutine ComputeAuxMatrixes(Volume_3D, Volume_2D, InterpolMethod, Ilink, Jlink)
         !Arguments-------------------------------------------------------------
         integer, intent(IN)                         :: interpolMethod
-        real, dimension(:, :, :), pointer, optional :: SonMatrix
-        real, dimension(:, :),    pointer, optional :: SonMatrix2D
+        real, dimension(:, :, :), pointer, optional :: Volume_3D
+        real, dimension(:, :),    pointer, optional :: Volume_2D
         integer, dimension(:, :), pointer           :: Ilink, Jlink
         !Local-----------------------------------------------------------------
 
         !---------------------------------------------------------------------- 
         
-        if (present(SonMatrix)) then
+        if (present(Volume_3D)) then
             call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%WorkSize, 0.0)           
             
             !Goes for 3D
@@ -744,7 +764,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call SetMatrixValue (GetPointer(Me%Father%TotSonVolIn), Me%WorkSize, 0.001)
                 
                 ! Volume Weighted average
-                call ComputeSonVolInFather   (SonMatrix      = SonMatrix,      &
+                call ComputeSonVolInFather   (Volume_3D      = Volume_3D,      &
                                               Ilink          = Ilink,          &
                                               Jlink          = Jlink) 
                 
@@ -765,7 +785,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call SetMatrixValue (GetPointer(Me%Father%TotSonVolIn_2D), Me%WorkSize2D, 0.001)
                 
                 ! Volume Weighted average
-                call ComputeSonVolInFather   (SonMatrix2D    = SonMatrix2D,     &
+                call ComputeSonVolInFather   (Volume_2D    = Volume_2D,     &
                                               Ilink          = Ilink,           &
                                               Jlink          = Jlink)
 
@@ -787,22 +807,22 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !>Computes Son cells volume inside each father cell
     !>@param[in] SonMatrix, SonMatrix2D, Ilink, Jlink
-    subroutine ComputeSonVolInFather (SonMatrix, SonMatrix2D, Ilink, Jlink)
+    subroutine ComputeSonVolInFather (Volume_3D, Volume_2D, Ilink, Jlink)
     
         !Arguments--------------------------------------------------------------------------------
-        real, dimension(:, :, :), pointer, optional :: SonMatrix
-        real, dimension(:, :),    pointer, optional :: SonMatrix2D
+        real, dimension(:, :, :), pointer, optional :: Volume_3D
+        real, dimension(:, :),    pointer, optional :: Volume_2D
         integer, dimension(:, :), pointer           :: Ilink, Jlink
         !Local variables--------------------------------------------------------------------------
         integer                                 :: i, j, k
         !Begin------------------------------------------------------------------------------------
-        if (present(SonMatrix)) then
+        if (present(Volume_3D)) then
             
             do k = Me%WorkSize%KLB, Me%WorkSize%KUB
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                    Me%Father%TotSonVolIn(ILink(i, j)+1, JLink(i, j)+1, k) =                      &
-                    Me%Father%TotSonVolIn(ILink(i, j)+1, JLink(i, j)+1, k) + SonMatrix(i, j, k) * &
+                    Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) =                      &
+                    Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) * &
                     Me%External_Var%Open3D(i, j, k) * Me%IgnoreOBCells(i, j)
             enddo        
             enddo
@@ -812,8 +832,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                Me%Father%TotSonVolIn_2D(ILink(i, j)+1, JLink(i, j)+1) = &
-                Me%Father%TotSonVolIn_2D(ILink(i, j)+1, JLink(i, j)+1) + SonMatrix2D(i, j) * &
+                Me%Father%TotSonVolIn_2D(ILink(i, j), JLink(i, j)) = &
+                Me%Father%TotSonVolIn_2D(ILink(i, j), JLink(i, j)) + Volume_2D(i, j) * &
                 Me%External_Var%Open3D(i, j, Me%WorkSize%KUB) * Me%IgnoreOBCells(i, j)
             enddo        
             enddo            
@@ -876,23 +896,24 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                            VolumeFather         = Me%Father%External_Var%VolumeV,          &
                                            IgnoreOBCells        = GetPointer(Me%IgnoreOBCells))
                 endif
+            else
+                !compute nudging Z type cell
+                call FeedBack_Avrg   (FatherMatrix     = FatherMatrix,                    &
+                                      SonMatrix        = SonMatrix,                       &
+                                      Open3DFather     = Me%Father%External_Var%Open3D,    &
+                                      Open3DSon        = Me%External_Var%Open3D,           &
+                                      SizeFather       = Me%Father%WorkSize,              &
+                                      SizeSon          = Me%WorkSize,                     &
+                                      Ilink            = Me%External_Var%IZ,               &
+                                      Jlink            = Me%External_Var%JZ,               &
+                                      DecayTime        = LocalTimeDecay,                  &
+                                      DT               = Me%Hydro%DT,                     &
+                                      SonVolInFather   = GetPointer(Me%Father%TotSonVolIn),           &
+                                      AuxMatrix        = GetPointer(Me%Father%AuxMatrix),             &
+                                      VolumeSon        = Me%External_Var%VolumeZ,          &
+                                      VolumeFather     = Me%Father%External_Var%VolumeZ, &
+                                      IgnoreOBCells    = GetPointer(Me%IgnoreOBCells))
             endif
-            !compute nudging Z type cell
-            call FeedBack_Avrg   (FatherMatrix     = FatherMatrix,                    &
-                                  SonMatrix        = SonMatrix,                       &
-                                  Open3DFather     = Me%Father%External_Var%Open3D,    &
-                                  Open3DSon        = Me%External_Var%Open3D,           &
-                                  SizeFather       = Me%Father%WorkSize,              &
-                                  SizeSon          = Me%WorkSize,                     &
-                                  Ilink            = Me%External_Var%IZ,               &
-                                  Jlink            = Me%External_Var%JZ,               &
-                                  DecayTime        = LocalTimeDecay,                  &
-                                  DT               = Me%Hydro%DT,                     &
-                                  SonVolInFather   = GetPointer(Me%Father%TotSonVolIn),           &
-                                  AuxMatrix        = GetPointer(Me%Father%AuxMatrix),             &
-                                  VolumeSon        = Me%External_Var%VolumeZ,          &
-                                  VolumeFather     = Me%Father%External_Var%VolumeZ, &
-                                  IgnoreOBCells    = GetPointer(Me%IgnoreOBCells))
                 
         else
                 
@@ -931,12 +952,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                     :: ready_, status, STAT_
         !Begin------------------------------------------------------------------
         
-        if (callerID == 1) then
-            !For future developments (when other modules call for twoway)
-        endif
-        call Ready(SonID, ready_)
-        if (ready_ .EQ. IDLE_ERR_) then 
+        STAT_ = UNKNOWN_      
+        
+        call Ready(SonID, ready_)        
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
             
+            !call Read_Lock(mTwoWay_, Me%InstanceID) 
+            
+            if (callerID == 1) then
+                !For future developments (when other modules call for twoway)
+            endif            
             !Unget son
             call UngetHorizontalGrid(SonID, Me%External_Var%IV,    STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR01'
@@ -964,24 +991,24 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR12'
             call UnGetMap(SonID, Me%External_Var%ComputeFaces3D_V, STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR13'
-            call UnGetHorizontalMap(SonID, Me%External_Var%BoundaryPoints2D, STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR14'
             
             !Unget father
             call UnGetMap(FatherID, Me%Father%External_Var%Open3D,           STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR15'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR14'
             call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ,     STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR16'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR15'
             call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeU,     STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR17'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR16'
             call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeV,     STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR18'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR17'
             call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ_2D,  STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR19'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR18'
             call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_U, STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR20'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR19'
             call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_V, STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR21'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR20'
+            
+            STAT_ = SUCCESS_
         else
             STAT_ = ready_
         endif
@@ -1022,6 +1049,18 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 
                 call DeallocateVariables
                 
+                nUsers = DeassociateInstance (mHORIZONTALGRID_,     Me%ObjHorizontalGrid)
+                if (nUsers == 0) stop 'KillTwoWay - ModuleTwoWay - ERR01'
+                
+                nUsers = DeassociateInstance (mGEOMETRY_,           Me%ObjGeometry)
+                if (nUsers == 0) stop 'KillTwoWay - ModuleTwoWay - ERR02'
+                
+                nUsers = DeassociateInstance (mMAP_,                Me%ObjMap)
+                if (nUsers == 0) stop 'KillTwoWay - ModuleTwoWay - ERR03'
+
+                nUsers = DeassociateInstance (mHORIZONTALMAP_,      Me%ObjHorizontalMap)
+                if (nUsers == 0) stop 'KillTwoWay - ModuleTwoWay - ERR04'
+                               
                 !Deallocates Instance
                 call DeallocateInstance ()
 

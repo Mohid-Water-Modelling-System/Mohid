@@ -25486,6 +25486,11 @@ cd1:    if (ready_ .NE. OFF_ERR_) then
                     nUsers = DeassociateInstance(mTURBGOTM_,        Me%ObjTurbGOTM)
                     if (nUsers == 0) call CloseAllAndStop ('KillWaterProperties - ModuleWaterProperties - ERR100')
                 endif
+                
+                if(Me%ObjTwoWay /= 0)then
+                    nUsers = DeassociateInstance(mTwoWay_,        Me%ObjTwoWay)
+                    if (nUsers == 0) call CloseAllAndStop ('KillWaterProperties - ModuleWaterProperties - ERR101')
+                endif
 
                 if(Me%Coupled%HydroIntegration%Yes)then
                     call KillHydroIntegration(Me%ObjHydroIntegration, STAT = STAT_CALL) 

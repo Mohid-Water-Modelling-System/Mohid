@@ -5630,14 +5630,14 @@ d5:     do k = klast + 1,KUB
     
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
-            AuxMatrix2D(ILink(i, j)+1, JLink(i, j)+1) = (AuxMatrix2D(ILink(i, j)+1, JLink(i, j)+1) + SonMatrix2D(i, j) *  &
-                                                         VolumeSon2D(i, j)) * Open3DSon(i, j, KUBSon) * IgnoreOBCells(i, j)
+            AuxMatrix2D(ILink(i, j), JLink(i, j)) = (AuxMatrix2D(ILink(i, j)+1, JLink(i, j)+1) + SonMatrix2D(i, j) *  &
+                                                     VolumeSon2D(i, j)) * Open3DSon(i, j, KUBSon) * IgnoreOBCells(i, j)
                                                        
         enddo        
         enddo
     
-        do j = JLink(1, 1)+3, JLink(IUBSon, JUBSon)-1 ! sponge cell
-        do i = ILink(1, 1)+3, ILink(IUBSon, JUBSon)-1  
+        do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+        do i = ILink(1, 1), ILink(IUBSon, JUBSon)  
             FatherMatrix2D(i, j) = FatherMatrix2D(i, j) + (AuxMatrix2D(i, j) / SonVolInFather2D(i, j) -   &
                                    FatherMatrix2D(i, j)) * (DT / DecayTime) * (SonVolInFather2D(i, j) / &
                                    VolumeFather2D(i, j)) * Open3DFather(i, j, KUBFather)
@@ -5683,22 +5683,22 @@ d5:     do k = klast + 1,KUB
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
                 !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-            AuxMatrix(ILink(i, j)+1, JLink(i, j)+1, k) = AuxMatrix(ILink(i, j)+1, JLink(i, j)+1, k) +      &
-                                                         SonMatrix(i, j, k) * VolumeSon(i, j, k) *       &
-                                                         Open3DSon(i, j, k) * SonComputeFaces3D(i, j, k) * &
-                                                         IgnoreOBCells(i, j)
+            AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +          &
+                                                     SonMatrix(i, j, k) * VolumeSon(i, j, k) *         &
+                                                     Open3DSon(i, j, k) * SonComputeFaces3D(i, j, k) * &
+                                                     IgnoreOBCells(i, j)
         enddo        
         enddo
         enddo
         
         !Paralelizar! João Sobrinho
         do k = KLBFather, KUBFather
-        do j = JLink(1, 1)+3, JLink(IUBSon, JUBSon)-1
-        do i = ILink(1, 1)+3, ILink(IUBSon, JUBSon)-1
+        do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+        do i = ILink(1, 1), ILink(IUBSon, JUBSon)
 
             FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
-                                      FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
-                                      VolumeFather(i, j, k)) * Open3DFather(i, j, k) * FatherComputeFaces3D(i, j, k)
+                                    FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
+                                    VolumeFather(i, j, k)) * Open3DFather(i, j, k) * FatherComputeFaces3D(i, j, k)
                 
         enddo
         enddo
@@ -5740,21 +5740,21 @@ d5:     do k = klast + 1,KUB
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
                 !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-            AuxMatrix(ILink(i, j)+1, JLink(i, j)+1, k) = AuxMatrix(ILink(i, j)+1, JLink(i, j)+1, k) + &
-                                                         SonMatrix(i, j, k) * VolumeSon(i, j, k) *  &
-                                                         Open3DSon(i, j, k) * IgnoreOBCells(i, j)
+            AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +   &
+                                                     SonMatrix(i, j, k) * VolumeSon(i, j, k) *  &
+                                                     Open3DSon(i, j, k) * IgnoreOBCells(i, j)
         enddo        
         enddo
         enddo
         
         !Paralelizar! João Sobrinho
         do k = KLBFather, KUBFather
-        do j = JLink(1, 1)+3, JLink(IUBSon, JUBSon)-1
-        do i = ILink(1, 1)+3, ILink(IUBSon, JUBSon)-1
+        do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+        do i = ILink(1, 1), ILink(IUBSon, JUBSon)
 
             FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
-                                      FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
-                                      VolumeFather(i, j, k)) * Open3DFather(i, j, k)
+                                    FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
+                                    VolumeFather(i, j, k)) * Open3DFather(i, j, k)
                 
         enddo
         enddo
