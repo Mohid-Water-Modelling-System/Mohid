@@ -5640,7 +5640,7 @@ d5:     do k = klast + 1,KUB
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)  
             FatherMatrix2D(i, j) = FatherMatrix2D(i, j) + (AuxMatrix2D(i, j) / SonVolInFather2D(i, j) -   &
                                    FatherMatrix2D(i, j)) * (DT / DecayTime) * (SonVolInFather2D(i, j) / &
-                                   VolumeFather2D(i, j)) * Open3DFather(i, j, KUBFather)
+                                   (VolumeFather2D(i, j)+0.001)) * Open3DFather(i, j, KUBFather)
         enddo
         enddo
     
@@ -5698,7 +5698,8 @@ d5:     do k = klast + 1,KUB
 
             FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
                                     FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
-                                    VolumeFather(i, j, k)) * Open3DFather(i, j, k) * FatherComputeFaces3D(i, j, k)
+                                    (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k) *                 &
+                                     FatherComputeFaces3D(i, j, k)
                 
         enddo
         enddo
@@ -5754,7 +5755,7 @@ d5:     do k = klast + 1,KUB
 
             FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
                                     FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
-                                    VolumeFather(i, j, k)) * Open3DFather(i, j, k)
+                                    (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k)
                 
         enddo
         enddo
