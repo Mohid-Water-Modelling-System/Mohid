@@ -20,7 +20,8 @@ Module ModuleTwoWay
 
     use ModuleGlobalData
     use ModuleGeometry,         only : GetGeometryVolumes, UnGetGeometry, GetGeometrySize
-    use ModuleHorizontalGrid,   only : GetHorizontalGrid, UngetHorizontalGrid, GetHorizontalGridSize
+    use ModuleHorizontalGrid,   only : GetHorizontalGrid, UngetHorizontalGrid, GetHorizontalGridSize, GetTwoWayAux, &
+                                       UnGetTwoWayAux, ConstructIWDTwoWay
     use ModuleHorizontalMap,    only : GetBoundaries, UnGetHorizontalMap
     use ModuleFunctions
     use ModuleMap,              only : GetComputeFaces3D, GetOpenPoints3D, UnGetMap
@@ -76,8 +77,9 @@ Module ModuleTwoWay
     
     private :: T_Hydro
     type       T_Hydro
-        real                                        :: TimeDecay           = 3600.
-        integer                                     :: InterpolationMethod = 1
+        real                                        :: TimeDecay           = null_real
+        integer                                     :: IWDn                = null_int
+        integer                                     :: InterpolationMethod = null_int
         real                                        :: VelDT               = null_real
         real                                        :: DT                  = null_real
     end type T_Hydro
@@ -98,6 +100,14 @@ Module ModuleTwoWay
         integer, dimension(:, :, :), pointer        :: ComputeFaces3D_U => null()
         integer, dimension(:, :, :), pointer        :: ComputeFaces3D_V => null()
         integer, dimension(:, :   ), pointer        :: BoundaryPoints2D => null()
+        integer, dimension(:, :   ), pointer        :: IWD_Connections_U => null()
+        integer, dimension(:, :   ), pointer        :: IWD_Connections_V => null()
+        integer, dimension(:, :   ), pointer        :: IWD_Connections_Z => null()
+        real, dimension(:      ), pointer           :: IWD_Distances_U   => null()
+        real, dimension(:      ), pointer           :: IWD_Distances_V   => null()
+        real, dimension(:      ), pointer           :: IWD_Distances_Z   => null()
+        integer                                     :: IWD_NumberOfNodes = null_int
+        integer                                     :: IWD_NodesPerCell  = null_int
     end type T_External    
     
     private :: T_FatherDomain
@@ -262,7 +272,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !> Contructs hydrodynamic variables of MOHIDWater with TwoWay nesting  
     !>@param[in] TwoWayID, TimeDecay, IntMethod, VelDT, DT, IgnoreOBNumCells
-    subroutine ConstructTwoWayHydrodynamic (TwoWayID, TimeDecay, IntMethod, VelDT, DT, IgnoreOBNumCells, STAT)
+    subroutine ConstructTwoWayHydrodynamic (TwoWayID, TimeDecay, IntMethod, VelDT, DT, IgnoreOBNumCells, IWDn, STAT)
     
         !Arguments------------------------------------------------------------
         integer                                     :: TwoWayID, & ! ID
@@ -273,6 +283,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         real                                        :: TimeDecay ! Decay factor in seconds, in the nudging equation
         real                                        :: VelDT, DT
         integer, optional, intent(OUT)              :: STAT 
+        integer, optional                           :: IWDn
         !Local----------------------------------------------------------------
         integer                                     :: STAT_CALL, ready_, STAT_
         !---------------------------------------------------------------------
@@ -282,12 +293,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            !call Read_Lock(mTwoWay_, Me%InstanceID)
-            
             Me%Hydro%InterpolationMethod = IntMethod
             Me%Hydro%TimeDecay           = TimeDecay
             Me%Hydro%VelDT               = VelDT
             Me%Hydro%DT                  = DT
+            
+            if (IntMethod == 2)then
+                Me%Hydro%IWDn            = IWDn
+            endif
             
             call GetBoundaries(HorizontalMapID     = TwoWayID,                              &
                                BoundaryPoints2D    = Me%External_Var%BoundaryPoints2D,      &
@@ -298,7 +311,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             call UnGetHorizontalMap(TwoWayID, Me%External_Var%BoundaryPoints2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ConstructTwoWayHydrodynamic - ERR02'            
-            
             
             STAT_ = SUCCESS_
 
@@ -314,7 +326,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !-------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !> Crreates matrix that filters cells close to the openboundary 
+    !> Creates matrix that filters cells close to the openboundary 
     !>@param[in] IgnoreOBNumCells       
     subroutine Compute_MatrixFilterOB (IgnoreOBNumCells)
         !Arguments-------------------------------------------------------------
@@ -403,7 +415,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 allocate(Me%Father%TotSonVolIn_2D(ILB:IUB, JLB:JUB))
                 Me%Father%TotSonVolIn_2D(:,:) = 0.0
             else
-                !call ConstructIWDTwoWay (FatherID, TwoWayID)         
+                call ConstructIWDTwoWay(FatherTwoWayID, TwoWayID)    
             endif
 
         else
@@ -608,20 +620,22 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(FatherMatrix)) then
                 if (present(VelocityID))then
                     if (VelocityID == VelocityU_) then
-                        !if 3D matrixes were sent. Even2D domains allocate a 3D matrix (only one vertical layer)
+                        !if 3D matrixes were sent. Even 2D domains allocate a 3D matrix (only one vertical layer)
+                        !Type_U
                         call ComputeAuxMatrixes (Volume_3D        = Me%External_Var%VolumeU,         &
                                                  InterpolMethod   = InterpolMethod,    &
                                                  Ilink            = Me%External_Var%IU, &
                                                  Jlink            = Me%External_Var%JU)
-                    else
                         
+                    else
+                        !Type_V
                         call ComputeAuxMatrixes (Volume_3D        = Me%External_Var%VolumeV,         &
                                                  InterpolMethod   = InterpolMethod,    &
                                                  Ilink            = Me%External_Var%IV, &
                                                  Jlink            = Me%External_Var%JV)
                     endif
                 else
-                    
+                    !Type Z
                     call ComputeAuxMatrixes (Volume_3D        = Me%External_Var%VolumeZ,         &
                                              InterpolMethod   = InterpolMethod,    &
                                              Ilink            = Me%External_Var%IZ, &
@@ -633,15 +647,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call ComputeAuxMatrixes (Volume_2D      = Me%External_Var%VolumeZ_2D,       &
                                          InterpolMethod   = InterpolMethod,    &
                                          Ilink            = Me%External_Var%IZ, &
-                                         Jlink            = Me%External_Var%JZ)   
+                                         Jlink            = Me%External_Var%JZ)
             endif
-            !Mandar esta parte para outra routina
+
             if (InterpolMethod == 1) then
                 call Nudging_average (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, LocalTimeDecay)
             elseif (InterpolMethod == 2) then
-                !call Nudging_IWD (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, LocalTimeDecay)
+                call Nudging_IWD (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, LocalTimeDecay)
             endif
-
            
             if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_Hydrodynamic")  
 
@@ -675,8 +688,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            !call Read_Lock(mTwoWay_, Me%InstanceID)
-            
             if (callerID == 1) then
                 !For future developments (when other modules call for twoway)
             endif
@@ -709,13 +720,28 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                    ComputeFacesV3D = Me%External_Var%ComputeFaces3D_V, &
                                    STAT            = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR04'
-                           
+            
+            if (Me%Hydro%InterpolationMethod == 2) then
+                
+                call GetTwoWayAux (HorizontalGridID       = SonID,   &
+                                   IWD_Connections_U      = Me%External_Var%IWD_Connections_U, &
+                                   IWD_Distances_U        = Me%External_Var%IWD_Distances_U,   &
+                                   IWD_Connections_V      = Me%External_Var%IWD_Connections_V, &
+                                   IWD_Distances_V        = Me%External_Var%IWD_Distances_V,   &
+                                   IWD_Connections_Z      = Me%External_Var%IWD_Connections_Z, &
+                                   IWD_Distances_Z        = Me%External_Var%IWD_Distances_Z,   &
+                                   IWD_Nodes              = Me%External_Var%IWD_NumberOfNodes, &
+                                   IWD_NodesPerCell       = Me%External_Var%IWD_NodesPerCell,  &
+                                   STAT                   = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR05'
+
+            endif                           
 
             
             call GetOpenPoints3D   (Map_ID         = FatherID,                         &
                                     OpenPoints3D   = Me%Father%External_Var%Open3D,     &
                                     STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR06'
         
             call GetGeometryVolumes(GeometryID     = FatherID,                         &
                                     VolumeU        = Me%Father%External_Var%VolumeU,    &
@@ -723,13 +749,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                     VolumeZ        = Me%Father%External_Var%VolumeZ,    &
                                     VolumeZ_2D     = Me%Father%External_Var%VolumeZ_2D, &
                                     STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR07'
             
             call GetComputeFaces3D(Map_ID          = FatherID,                               &
                                    ComputeFacesU3D = Me%Father%External_Var%ComputeFaces3D_U, &
                                    ComputeFacesV3D = Me%Father%External_Var%ComputeFaces3D_V, &
                                    STAT            = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR07'
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR08'
             
             STAT_ = SUCCESS_
         else
@@ -767,14 +793,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call ComputeSonVolInFather   (Volume_3D      = Volume_3D,      &
                                               Ilink          = Ilink,          &
                                               Jlink          = Jlink) 
-                
-            elseif (interpolMethod == 2) then
-                
-                ! Inverse weighted distance method (includes a search radiuous)
-                !call GetAuxMatrixes_IWD  (    SonID          = SonID,           &
-                !                              FatherMatrix   = FatherMatrix,    &
-                !                              SonMatrix      = SonMatrix) 
-                
             endif      
         !Goes for 2D 
         else
@@ -788,18 +806,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call ComputeSonVolInFather   (Volume_2D    = Volume_2D,     &
                                               Ilink          = Ilink,           &
                                               Jlink          = Jlink)
-
-            elseif (interpolMethod == 2) then
-                
-                ! Inverse weighted distance method (includes a search radiuous)
-                !call GetAuxMatrixes_IWD      (SonID          = SonID,            &
-                !                              FatherMatrix2D = FatherMatrix2D,   &
-                !                              SonMatrix2D    = SonMatrix2D) 
-                
             endif                
         endif
-        
-        
+          
     end subroutine ComputeAuxMatrixes
     
     !---------------------------------------------------------------------------
@@ -845,7 +854,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !---------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !>Callss Feedback routines present in mondule functions, based on the type of input matrixes
+    !>Calls Feedback routines present in mondule functions, based on the type of input matrixes
     !>@param[in] FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, LocalTimeDecay
     subroutine Nudging_average (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, LocalTimeDecay)
         !Arguments-------------------------------------------------------------
@@ -934,9 +943,108 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                   IgnoreOBCells    = GetPointer(Me%IgnoreOBCells))               
                 
         endif
+  
+    end subroutine Nudging_average
+    
+    !------------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Calls Feedback routines present in mondule functions, based on the type of input matrixes - IWD Method
+    !>@param[in] FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, LocalTimeDecay
+    subroutine Nudging_IWD (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, LocalTimeDecay)
+        !Arguments-------------------------------------------------------------
+        integer, optional                           :: VelocityID
+        real, dimension(:, :, :), pointer, optional :: FatherMatrix, SonMatrix
+        real, dimension(:, :),    pointer, optional :: FatherMatrix2D, SonMatrix2D
+        real                                        :: LocalTimeDecay
+        !Local-----------------------------------------------------------------
+        if (present(FatherMatrix)) then
+                
+            if (present(VelocityID))then
+                !If velocity U
+                if (VelocityID == VelocityU_) then
+                    call FeedBack_IWD_UV (FatherMatrix         = FatherMatrix,                           &
+                                           SonMatrix            = SonMatrix,                              &
+                                           Open3DFather         = Me%Father%External_Var%Open3D,           &
+                                           Open3DSon            = Me%External_Var%Open3D,                  &
+                                           FatherComputeFaces3D = Me%Father%External_Var%ComputeFaces3D_U, &
+                                           SonComputeFaces3D    = Me%External_Var%ComputeFaces3D_U,        &
+                                           SizeSon              = Me%WorkSize,                            &
+                                           Ilink                = Me%External_Var%IU,                      &
+                                           Jlink                = Me%External_Var%JU,                      &
+                                           Connections          = Me%External_Var%IWD_Connections_U,         &
+                                           Dist                 = Me%External_Var%IWD_Distances_U,          &
+                                           DecayTime            = LocalTimeDecay,                         &
+                                           DT                   = Me%Hydro%VelDT,                         &
+                                           AuxMatrix            = GetPointer(Me%Father%AuxMatrix),         &
+                                           IgnoreOBCells        = GetPointer(Me%IgnoreOBCells),           &
+                                           Nodes                = Me%External_Var%IWD_NumberOfNodes,      &
+                                           IWDn                 = Me%Hydro%IWDn,                          &
+                                           NodesPerCell         = Me%External_Var%IWD_NodesPerCell)
+                !If velocity V    
+                else
+                    call FeedBack_IWD_UV (FatherMatrix         = FatherMatrix,                           &
+                                           SonMatrix            = SonMatrix,                              &
+                                           Open3DFather         = Me%Father%External_Var%Open3D,           &
+                                           Open3DSon            = Me%External_Var%Open3D,                  &
+                                           FatherComputeFaces3D = Me%Father%External_Var%ComputeFaces3D_V, &
+                                           SonComputeFaces3D    = Me%External_Var%ComputeFaces3D_V,        &
+                                           SizeSon              = Me%WorkSize,                            &
+                                           Ilink                = Me%External_Var%IV,                      &
+                                           Jlink                = Me%External_Var%JV,                      &
+                                           Connections          = Me%External_Var%IWD_Connections_U,         &
+                                           Dist             = Me%External_Var%IWD_Distances_U,          &
+                                           DecayTime            = LocalTimeDecay,                         &
+                                           DT                   = Me%Hydro%VelDT,                         &
+                                           AuxMatrix            = GetPointer(Me%Father%AuxMatrix),         &
+                                           IgnoreOBCells        = GetPointer(Me%IgnoreOBCells),           &
+                                           Nodes                = Me%External_Var%IWD_NumberOfNodes,      &
+                                           IWDn                 = Me%Hydro%IWDn,                          &
+                                           NodesPerCell         = Me%External_Var%IWD_NodesPerCell)
+                endif
+            else
+                !compute nudging Z type cell
+                call FeedBack_IWD   (FatherMatrix     = FatherMatrix,                    &
+                                      SonMatrix        = SonMatrix,                       &
+                                      Open3DFather     = Me%Father%External_Var%Open3D,    &
+                                      Open3DSon        = Me%External_Var%Open3D,           &
+                                      SizeSon          = Me%WorkSize,                     &
+                                      Ilink            = Me%External_Var%IZ,               &
+                                      Jlink            = Me%External_Var%JZ,               &
+                                      Connections      = Me%External_Var%IWD_Connections_Z,         &
+                                      Dist             = Me%External_Var%IWD_Distances_Z,          &
+                                      DecayTime        = LocalTimeDecay,                  &
+                                      DT               = Me%Hydro%DT,                     &
+                                      AuxMatrix        = GetPointer(Me%Father%AuxMatrix),             &
+                                      IgnoreOBCells    = GetPointer(Me%IgnoreOBCells),           &
+                                      Nodes            = Me%External_Var%IWD_NumberOfNodes,      &
+                                      IWDn             = Me%Hydro%IWDn,                          &
+                                      NodesPerCell     = Me%External_Var%IWD_NodesPerCell)
+            endif
+                
+        else
+                
+            call FeedBack_IWD_WL (FatherMatrix2D   = FatherMatrix2D,                  &
+                                  SonMatrix2D      = SonMatrix2D,                     &
+                                  Open3DFather     = Me%Father%External_Var%Open3D,    &
+                                  Open3DSon        = Me%External_Var%Open3D,           &
+                                  SizeSon          = Me%WorkSize,                     &
+                                  Ilink            = Me%External_Var%IZ,               &
+                                  Jlink            = Me%External_Var%JZ,               &
+                                  Connections      = Me%External_Var%IWD_Connections_Z,         &
+                                  Dist             = Me%External_Var%IWD_Distances_Z,          &
+                                  DecayTime        = LocalTimeDecay,                  &
+                                  DT               = Me%Hydro%DT,                     &
+                                  AuxMatrix2D      = GetPointer(Me%Father%AuxMatrix2D),           &
+                                  IgnoreOBCells    = GetPointer(Me%IgnoreOBCells),           &
+                                  Nodes            = Me%External_Var%IWD_NumberOfNodes,      &
+                                  IWDn             = Me%Hydro%IWDn,                          &
+                                  NodesPerCell     = Me%External_Var%IWD_NodesPerCell)               
+                
+        endif
 
         !----------------------------------------------------------------------    
-    end subroutine Nudging_average
+    end subroutine Nudging_IWD
     
     !---------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
@@ -992,21 +1100,35 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call UnGetMap(SonID, Me%External_Var%ComputeFaces3D_V, STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR13'
             
+            if (Me%Hydro%InterpolationMethod == 2) then
+                
+                call UnGetTwoWayAux (HorizontalGridID = SonID,   &
+                                     IWD_Connections_U = Me%External_Var%IWD_Connections_U, &
+                                     IWD_Distances_U   = Me%External_Var%IWD_Distances_U,   &
+                                     IWD_Connections_V = Me%External_Var%IWD_Connections_V, &
+                                     IWD_Distances_V   = Me%External_Var%IWD_Distances_V,   &
+                                     IWD_Connections_Z = Me%External_Var%IWD_Connections_Z, &
+                                     IWD_Distances_Z   = Me%External_Var%IWD_Distances_Z,   &
+                                     STAT              = status)
+                if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR014'
+
+            endif             
+            
             !Unget father
             call UnGetMap(FatherID, Me%Father%External_Var%Open3D,           STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR14'
-            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ,     STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR15'
-            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeU,     STAT = status)
+            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ,     STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR16'
-            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeV,     STAT = status)
+            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeU,     STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR17'
-            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ_2D,  STAT = status)
+            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeV,     STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR18'
-            call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_U, STAT = status)
+            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ_2D,  STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR19'
-            call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_V, STAT = status)
+            call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_U, STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR20'
+            call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_V, STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR21'
             
             STAT_ = SUCCESS_
         else

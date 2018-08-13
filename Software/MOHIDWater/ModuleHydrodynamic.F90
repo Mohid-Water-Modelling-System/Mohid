@@ -1434,7 +1434,8 @@ Module ModuleHydrodynamic
                                            VelNormalBoundary        = null_int, & 
                                            BaroclinicMethod         = null_int, &
                                            TwoWayNumIgnOBCells      = null_int, &
-                                           TwoWayIntMethod          = null_int
+                                           TwoWayIntMethod          = null_int, &
+                                           TwoWayIWDn               = null_int
 
         logical                         :: Baroclinic           = .false., & 
                                            BoundaryBaroclinic   = .false., &                                          
@@ -2292,18 +2293,33 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call ReadLock_External_Modules
         
         if (Me%ComputeOptions%TwoWay) then
-            !Gives TwoWay module parametrizations from user Keywords
-            call ConstructTwoWayHydrodynamic(TwoWayID         = Me%InstanceID,                          &
-                                             TimeDecay        = Me%ComputeOptions%TwoWayTimeDecay,     &
-                                             IntMethod        = Me%ComputeOptions%TwoWayIntMethod,     &
-                                             VelDT            = Me%Velocity%DT,                        &
-                                             DT               = Me%WaterLevel%DT,                      &
-                                             IgnoreOBNumCells = Me%ComputeOptions%TwoWayNumIgnOBCells, &
-                                             STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine Construct_Hydrodynamic - ModuleHydrodynamic. ERR04.'          
+            if ( Me%ComputeOptions%TwoWayIntMethod == 1) then
+                
+                !Gives TwoWay module parametrizations from user Keywords
+                call ConstructTwoWayHydrodynamic(TwoWayID         = Me%InstanceID,                         &
+                                                 TimeDecay        = Me%ComputeOptions%TwoWayTimeDecay,     &
+                                                 IntMethod        = Me%ComputeOptions%TwoWayIntMethod,     &
+                                                 VelDT            = Me%Velocity%DT,                        &
+                                                 DT               = Me%WaterLevel%DT,                      &
+                                                 IgnoreOBNumCells = Me%ComputeOptions%TwoWayNumIgnOBCells, &
+                                                 STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                       &
+                stop 'Subroutine Construct_Hydrodynamic - ModuleHydrodynamic. ERR04.'
+            else
+                !Gives TwoWay module parametrizations from user Keywords
+                call ConstructTwoWayHydrodynamic(TwoWayID         = Me%InstanceID,                         &
+                                                 TimeDecay        = Me%ComputeOptions%TwoWayTimeDecay,     &
+                                                 IntMethod        = Me%ComputeOptions%TwoWayIntMethod,     &
+                                                 IWDn             = Me%ComputeOptions%TwoWayIWDn,          &
+                                                 VelDT            = Me%Velocity%DT,                        &
+                                                 DT               = Me%WaterLevel%DT,                      &
+                                                 IgnoreOBNumCells = Me%ComputeOptions%TwoWayNumIgnOBCells, &
+                                                 STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                                       &
+                stop 'Subroutine Construct_Hydrodynamic - ModuleHydrodynamic. ERR05.'
+            endif
+            
         endif
-        
 
         !Call this subroutine to actualize the variabel DUZ_VY 
         !Only this way the subroutine ModifyChezyVelUV nows the 
@@ -7846,7 +7862,23 @@ cd21:   if (Baroclinic) then
                             STAT         = STAT_CALL)            
 
                 if (STAT_CALL /= SUCCESS_)                                                      &
-                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1222')
+                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1223')
+               
+                if (Me%ComputeOptions%TwoWayIntMethod == 2) then
+                    
+                    call GetData(Me%ComputeOptions%TwoWayIWDn,                                      &
+                                Me%ObjEnterData, iflag,                                            &
+                                Keyword      = 'TWO_WAY_IWD_POWER',                               &
+                                Default      = 2,                                                  &
+                                SearchType   = FromFile,                                           &
+                                ClientModule ='ModuleHydrodynamic',                                &
+                                STAT         = STAT_CALL)            
+
+                    if (STAT_CALL /= SUCCESS_)                                                      &
+                        call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1224')
+                
+                endif
+                
                 ! number of son cells to be ignored
                 call GetData(Me%ComputeOptions%TwoWayNumIgnOBCells,                                  &
                             Me%ObjEnterData, iflag,                                            &
@@ -7857,13 +7889,13 @@ cd21:   if (Baroclinic) then
                             STAT         = STAT_CALL)            
 
                 if (STAT_CALL /= SUCCESS_)                                                      &
-                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1223')
+                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1225')
                 if (Me%ComputeOptions%TwoWayNumIgnOBCells > Me%WorkSize%IUB - Me%WorkSize%ILB + 1) then
-                    stop 'Construct_Numerical_Options - Hydrodynamic - ERR1224'
+                    stop 'Construct_Numerical_Options - Hydrodynamic - ERR1226'
                 endif            
 
                 if (Me%ComputeOptions%TwoWayNumIgnOBCells > Me%WorkSize%JUB - Me%WorkSize%JLB + 1) then
-                    stop 'Construct_Numerical_Options - Hydrodynamic - ERR1225'
+                    stop 'Construct_Numerical_Options - Hydrodynamic - ERR1227'
                 endif
                 
                 call GetData(Me%ComputeOptions%TwoWayWaterLevel,                                  &
@@ -7875,11 +7907,11 @@ cd21:   if (Baroclinic) then
                              STAT         = STAT_CALL)            
 
                 if (STAT_CALL /= SUCCESS_)                                                      &
-                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1226')
+                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1228')
                 
             else
                 write(*,*) 'Keyword TWO_WAY must ONLY be defined in son domains'            
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1227')                
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1229')                
             endif
         
         endif

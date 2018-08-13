@@ -73,14 +73,14 @@ Module ModuleHorizontalGrid
     public  :: ConstructFatherGridLocation
     private ::      ConstructNewFatherGrid1D
     private ::      ConstructNewFatherGrid2D
-    !private ::      ConstructIWDVel
-    !private ::      DetermineMaxRatio
+    private ::      ConstructIWDVel
+    private ::      DetermineMaxRatio
     private ::      Add_FatherGrid
     private :: CheckGridBorder
     private :: DefineBorderPolygons
     private ::      DefinesBorderPoly
     
-    !public  :: ConstructIWDTwoWay
+    public  :: ConstructIWDTwoWay
 
     !Modifier
     public  :: WriteHorizontalGrid
@@ -145,6 +145,10 @@ Module ModuleHorizontalGrid
     public  :: GetDDecompON
     
     public  :: GetSonWindow
+    
+    public  :: GetTwoWayAux
+    public  :: UnGetTwoWayAux
+    
 
     public  :: UnGetHorizontalGrid
     
@@ -525,9 +529,15 @@ Module ModuleHorizontalGrid
         integer                                 :: ZoneLat    = null_int
         integer, dimension(2)                   :: Grid_Zone
         
-        integer, pointer, dimension(:, :)       :: IWD_connections => null()
-        real, pointer, dimension(:)             :: IWD_Distances   => null()      
-        logical                                 :: UsedIWD_2Way = .false. 
+        integer, pointer, dimension(:, :)       :: IWD_connections_U => null()
+        integer, pointer, dimension(:, :)       :: IWD_connections_V => null()
+        integer, pointer, dimension(:, :)       :: IWD_connections_Z => null()
+        real, pointer, dimension(:)             :: IWD_Distances_U   => null()
+        real, pointer, dimension(:)             :: IWD_Distances_V   => null() 
+        real, pointer, dimension(:)             :: IWD_Distances_Z   => null() 
+        logical                                 :: UsedIWD_2Way      = .false.
+        integer                                 :: IWD_Nodes         = null_int
+        integer                                 :: IWD_NodesPerCell  = null_int
 
         type(T_Compute)                         :: Compute
 
@@ -1871,6 +1881,96 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     end subroutine GetSonWindow
   
     !--------------------------------------------------------------------------
+    subroutine GetTwoWayAux (HorizontalGridID, IWD_Connections_U, IWD_Connections_V, IWD_Connections_Z, &
+                             IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z, IWD_Nodes, IWD_NodesPerCell, STAT)
+        !Arguments-------------------------------------------------------------
+        integer                                   :: HorizontalGridID, IWD_Nodes, IWD_NodesPerCell
+        integer, optional,        intent (OUT)    :: STAT    
+        integer,  dimension(:,:), pointer         :: IWD_Connections_U, IWD_Connections_V, IWD_Connections_Z
+        real,     dimension(:  ), pointer         :: IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z      
+        !Local-----------------------------------------------------------------
+        integer                                   :: STAT_, ready_
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            IWD_Connections_U => Me%IWD_Connections_U
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+
+            IWD_Connections_V => Me%IWD_Connections_V
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            
+            IWD_Connections_Z => Me%IWD_Connections_Z
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            
+            IWD_Distances_U => Me%IWD_Distances_U
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            
+            IWD_Distances_V => Me%IWD_Distances_V
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            
+            IWD_Distances_Z => Me%IWD_Distances_Z
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            
+            IWD_Nodes        = Me%IWD_Nodes
+            IWD_NodesPerCell = Me%IWD_NodesPerCell
+            
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if            
+            
+        if (present(STAT)) &
+            STAT = STAT_            
+                
+                             end subroutine GetTwoWayAux
+    !--------------------------------------------------------------------------
+    subroutine UnGetTwoWayAux(HorizontalGridID, IWD_Connections_U, IWD_Connections_V, IWD_Connections_Z, &
+                             IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z, STAT)
+        !Arguments-------------------------------------------------------------
+        integer                                   :: HorizontalGridID
+        integer, optional,        intent (OUT)    :: STAT    
+        integer,  dimension(:,:), pointer         :: IWD_Connections_U, IWD_Connections_V, IWD_Connections_Z
+        real,     dimension(:  ), pointer         :: IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z      
+        !Local-----------------------------------------------------------------
+        integer                                   :: STAT_, ready_
+        !----------------------------------------------------------------------
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            nullify(IWD_Connections_U)
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR01")
+            nullify(IWD_Connections_V)
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR02")
+            nullify(IWD_Connections_Z)
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR03")
+            nullify(IWD_Distances_U)
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR04")
+            nullify(IWD_Distances_V)
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR05")
+            nullify(IWD_Distances_Z)
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR06")
+            
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if           
+            
+        if (present(STAT)) &
+            STAT = STAT_   
+    
+    end subroutine UnGetTwoWayAux
+    
+    !--------------------------------------------------------------------------
 
     subroutine ConstructNewFatherGrid1D(ObjHorizontalGridFather, NewFatherGrid, GridID,    &
                                       OkZ, OkU, OkV, OkCross, CheckRotation)
@@ -2567,206 +2667,192 @@ do8:       do i = ILBwork, IUBwork
         NewFatherGrid%MPI_Window%IUB = NewFatherGrid%MPI_Window%IUB + 1
         NewFatherGrid%MPI_Window%JUB = NewFatherGrid%MPI_Window%JUB + 1
         
-    end subroutine ConstructNewFatherGrid2D
+                                      end subroutine ConstructNewFatherGrid2D
                                 
     !-------------------------------------------------------------------------------------
     
-    !---------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Builds connection matrix between son and father grid on a IWD interpolation 
-    !>@param[in] FatherID, SonID, VarType   
-    !subroutine ConstructIWDTwoWay(FatherID, SonID, VarType)
-    !
-    !    !Arguments--------------------------------------------------------------
-    !    type (T_HorizontalGrid), pointer    :: ObjHorizontalFather
-    !    type (T_FatherGrid), pointer        :: NewFatherGrid
-    !    integer                             :: FatherID, SonID
-    !    !Local------------------------------------------------------------------
-    !    real                                :: FatherCenterX, FatherCenterY, DistanceToFather, SonCenterX, SonCenterY
-    !    real                                :: SearchRadious, MaxRatio
-    !    integer                             :: index, Nbr_Connections, minJ, minI, maxJ, maxI
-    !    integer                             :: i, j, i2, j2, ready_
-    !    integer                             :: VarType ! 1 = U Grid; 2 = V Grid; 3 = Z grid
-    !    integer, dimension (:, :), pointer  :: FatherLink
-    !    !-------------------------------------------------------------------------
-    !    index = 1
-    !    call Ready (SonID, ready_)
-    !    
-    !    call LocateObjFather        (ObjHorizontalFather, FatherID)
-    !    
-    !    call DetermineMaxRatio(ObjHorizontalFather, MaxRatio)
-    !    
-    !    FatherLink      => Me%LastFatherGrid%JZ
-    !       
-    !    minJ = min(FatherLink(1,1), FatherLink(1, Me%Size%JUB - 1), &
-    !               FatherLink(Me%Size%IUB - 1, 1), FatherLink(Me%Size%IUB - 1, Me%Size%JUB - 1)) 
-    !    minI = min(FatherLink(1,1), FatherLink(1, Me%Size%JUB - 1), &
-    !               FatherLink(Me%Size%IUB - 1, 1), FatherLink(Me%Size%IUB - 1, Me%Size%JUB - 1))
-    !    maxJ = max(FatherLink(1,1), FatherLink(1, Me%Size%JUB - 1), &
-    !               FatherLink(Me%Size%IUB - 1, 1), FatherLink(Me%Size%IUB - 1, Me%Size%JUB - 1))
-    !    maxI = max(FatherLink(1,1), FatherLink(1, Me%Size%JUB - 1), &
-    !               FatherLink(Me%Size%IUB - 1, 1), FatherLink(Me%Size%IUB - 1, Me%Size%JUB - 1))
-    !    
-    !    nullify (FatherLink)
-    !    !Uses the maxRatio to avoid allocating too few indexes. 2nd term is to account for search radious
-    !    Nbr_Connections = (maxJ - minJ) * (maxI - minI) * (MaxRatio + 4 * (sqrt(MaxRatio)) + 4)
-    !    
-    !    if (VarType == 1) then
-    !        !Only vectorials
-    !        allocate (Me%IWD_connections_U(Nbr_Connections, 4))
-    !        allocate (Me%IWD_Distances_U  (Nbr_Connections))
-    !        Me%IWD_connections_U(:, :) = FillValueInt
-    !        Me%IWD_Distances_U(:)      = FillValueReal
-    !        allocate (Me%IWD_connections_V (Nbr_Connections, 4))
-    !        allocate (Me%IWD_Distances_V   (Nbr_Connections))
-    !        Me%IWD_connections_V(:, :) = FillValueInt
-    !        Me%IWD_Distances_V(:)      = FillValueReal
-    !    else
-    !        !Vectorials and scalars
-    !        allocate (Me%IWD_connections_Z (Nbr_Connections, 4))
-    !        allocate (Me%IWD_Distances_Z   (Nbr_Connections))
-    !        Me%IWD_connections_Z(:, :) = FillValueInt
-    !        Me%IWD_Distances_Z(:)      = FillValueReal
-    !        allocate (Me%IWD_connections_U(Nbr_Connections, 4))
-    !        allocate (Me%IWD_Distances_U  (Nbr_Connections))
-    !        Me%IWD_connections_U(:, :) = FillValueInt
-    !        Me%IWD_Distances_U(:)      = FillValueReal
-    !        allocate (Me%IWD_connections_V (Nbr_Connections, 4))
-    !        allocate (Me%IWD_Distances_V   (Nbr_Connections))
-    !        Me%IWD_connections_V(:, :) = FillValueInt
-    !        Me%IWD_Distances_V(:)      = FillValueReal   
-    !    endif
-    !    
-    !    call  ConstructIWDVel(ObjHorizontalFather, minI, minJ, maxI, maxJ, MaxRatio)        
-    !
-    !    if     (VarType == 2) then
-    !        !i and j   -> father cell
-    !        !i2 and j2 -> son cell            
-    !        do j = minJ, maxJ
-    !        do i = minI, maxI
-    !            
-    !            !Find Father's cell center coordinates 
-    !            FatherCenterX = (( ObjHorizontalFather%XX_IE(i, j  ) +  ObjHorizontalFather%XX_IE(i+1, j  ))/2. + &
-    !                             ( ObjHorizontalFather%XX_IE(i, j+1) +  ObjHorizontalFather%XX_IE(i+1, j+1))/2.)/2.
-    !            FatherCenterY = (( ObjHorizontalFather%YY_IE(i, j  ) +  ObjHorizontalFather%YY_IE(i+1, j  ))/2. + &
-    !                             ( ObjHorizontalFather%YY_IE(i, j+1) +  ObjHorizontalFather%YY_IE(i+1, j+1))/2.)/2.
-    !        
-    !            SearchRadious = (1.001+(1/(Sqrt(MaxRatio)))) * Sqrt((FatherCenterX - ObjHorizontalFather%XX(j))**2 + &
-    !                                                                (FatherCenterY - ObjHorizontalFather%YY(j))**2)
-    !            ! Find and build matrix of correspondent son cells
-    !            do j2 = 1, Me%Size%JUB - 1
-    !            do i2 = 1, Me%Size%IUB - 1
-    !                SonCenterX = (( Me%XX_IE(i, j  ) +  Me%XX_IE(i+1, j  ))/2. + &
-    !                              ( Me%XX_IE(i, j+1) +  Me%XX_IE(i+1, j+1))/2.)/2.
-    !                SonCenterY = (( Me%YY_IE(i, j  ) +  Me%YY_IE(i+1, j  ))/2. + &
-    !                              ( Me%YY_IE(i, j+1) +  Me%YY_IE(i+1, j+1))/2.)/2.
-    !                
-    !                DistanceToFather = Sqrt((SonCenterX - FatherCenterX)**2.0 + &
-    !                                        (SonCenterY - FatherCenterY)**2.0)
-    !                if (DistanceToFather <= SearchRadious) then
-    !                    Me%IWD_connections_Z(index, 1) = i
-    !                    Me%IWD_connections_Z(index, 2) = j
-    !                    Me%IWD_connections_Z(index, 3) = i2
-    !                    Me%IWD_connections_Z(index, 4) = j2
-    !                    
-    !                    Me%IWD_Distances_Z(index)      = DistanceToFather
-    !                    
-    !                    index = index + 1
-    !                endif
-    !            enddo
-    !            enddo
-    !        
-    !        enddo
-    !        enddo
-    !    endif
-    !
-    !end subroutine ConstructIWDTwoWay
+    !>@param[in] FatherID, SonID   
+    subroutine ConstructIWDTwoWay(FatherID, SonID)
+    
+        !Arguments--------------------------------------------------------------
+        type (T_HorizontalGrid), pointer    :: ObjHorizontalFather
+        integer                             :: FatherID, SonID
+        !Local------------------------------------------------------------------
+        real                                :: FatherCenterX, FatherCenterY, DistanceToFather, SonCenterX, SonCenterY
+        real                                :: SearchRadious, MaxRatio
+        integer                             :: index, Nbr_Connections, minJ, minI, maxJ, maxI
+        integer                             :: i, j, i2, j2, ready_
+        integer, dimension (:, :), pointer  :: FatherLinkI, FatherLinkJ
+        !-------------------------------------------------------------------------
+        index = 1
+        call Ready (SonID, ready_)
+        
+        call LocateObjFather        (ObjHorizontalFather, FatherID)
+        
+        call DetermineMaxRatio(ObjHorizontalFather, MaxRatio)
+        
+        FatherLinkI      => Me%LastFatherGrid%IZ        
+        FatherLinkJ      => Me%LastFatherGrid%JZ
+    
+        minJ = min(FatherLinkJ(1,1), FatherLinkJ(1, Me%Size%JUB - 1), &
+                   FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1)) 
+        minI = min(FatherLinkI(1,1), FatherLinkI(1, Me%Size%JUB - 1), &
+                   FatherLinkI(Me%Size%IUB - 1, 1), FatherLinkI(Me%Size%IUB - 1, Me%Size%JUB - 1))
+        maxJ = max(FatherLinkJ(1,1), FatherLinkJ(1, Me%Size%JUB - 1), &
+                   FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1))
+        maxI = max(FatherLinkI(1,1), FatherLinkI(1, Me%Size%JUB - 1), &
+                   FatherLinkI(Me%Size%IUB - 1, 1), FatherLinkI(Me%Size%IUB - 1, Me%Size%JUB - 1))
+        
+        nullify (FatherLinkI)
+        nullify (FatherLinkJ)
+        !Uses the maxRatio to avoid allocating too few indexes. 2nd term is to account for search radious
+        Nbr_Connections = (maxJ - minJ) * (maxI - minI) * (MaxRatio + 4 * (int(sqrt(MaxRatio))) + 4)
+        Me%IWD_NodesPerCell = MaxRatio + 4 * (int(sqrt(MaxRatio))) + 4
+        !Vectorials and scalars
+        allocate (Me%IWD_connections_Z (Nbr_Connections, 4))
+        allocate (Me%IWD_Distances_Z   (Nbr_Connections))
+        Me%IWD_connections_Z(:, :) = FillValueInt
+        Me%IWD_Distances_Z(:)      = FillValueReal
+        allocate (Me%IWD_connections_U(Nbr_Connections, 4))
+        allocate (Me%IWD_Distances_U  (Nbr_Connections))
+        Me%IWD_connections_U(:, :) = FillValueInt
+        Me%IWD_Distances_U(:)      = FillValueReal
+        allocate (Me%IWD_connections_V (Nbr_Connections, 4))
+        allocate (Me%IWD_Distances_V   (Nbr_Connections))
+        Me%IWD_connections_V(:, :) = FillValueInt
+        Me%IWD_Distances_V(:)      = FillValueReal
+        
+        call  ConstructIWDVel(ObjHorizontalFather, minI, minJ, maxI, maxJ, MaxRatio)        
+    
+            !i and j   -> father cell
+            !i2 and j2 -> son cell            
+            do j = minJ, maxJ
+            do i = minI, maxI
+                
+                !Find Father's cell center coordinates 
+                FatherCenterX = (( ObjHorizontalFather%XX_IE(i, j  ) +  ObjHorizontalFather%XX_IE(i+1, j  ))/2. + &
+                                 ( ObjHorizontalFather%XX_IE(i, j+1) +  ObjHorizontalFather%XX_IE(i+1, j+1))/2.)/2.
+                FatherCenterY = (( ObjHorizontalFather%YY_IE(i, j  ) +  ObjHorizontalFather%YY_IE(i+1, j  ))/2. + &
+                                 ( ObjHorizontalFather%YY_IE(i, j+1) +  ObjHorizontalFather%YY_IE(i+1, j+1))/2.)/2.
+            
+                SearchRadious = (1.01+(1/(Sqrt(MaxRatio)))) * Sqrt((FatherCenterX - ObjHorizontalFather%XX(j))**2 + &
+                                                                    (FatherCenterY - ObjHorizontalFather%YY(i))**2)
+                 !Find and build matrix of correspondent son cells
+                do j2 = 1, Me%Size%JUB - 1
+                do i2 = 1, Me%Size%IUB - 1
+                    SonCenterX = (( Me%XX_IE(i2, j2  ) +  Me%XX_IE(i2+1, j2  ))/2. + &
+                                  ( Me%XX_IE(i2, j2+1) +  Me%XX_IE(i2+1, j2+1))/2.)/2.
+                    SonCenterY = (( Me%YY_IE(i2, j2  ) +  Me%YY_IE(i2+1, j2  ))/2. + &
+                                  ( Me%YY_IE(i2, j2+1) +  Me%YY_IE(i2+1, j2+1))/2.)/2.
+                    
+                    DistanceToFather = Sqrt((SonCenterX - FatherCenterX)**2.0 + &
+                                            (SonCenterY - FatherCenterY)**2.0)
+                    if (DistanceToFather <= SearchRadious) then
+                        Me%IWD_connections_Z(index, 1) = i
+                        Me%IWD_connections_Z(index, 2) = j
+                        Me%IWD_connections_Z(index, 3) = i2
+                        Me%IWD_connections_Z(index, 4) = j2
+                        
+                        Me%IWD_Distances_Z(index)      = DistanceToFather
+                        
+                        index = index + 1
+                    endif
+                enddo
+                enddo
+            
+            enddo
+            enddo
+           Me%IWD_Nodes = index
+        
+    end subroutine ConstructIWDTwoWay
     
     !---------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Builds connection matrix for velocities cells between son and father grid on a IWD interpolation 
     !>@param[in] ObjHorizontalFather, IWD_Distances, IWD_connections, minI, minJ, maxI, maxJ, MaxRatio    
-    !subroutine ConstructIWDVel(ObjHorizontalFather, minI, minJ, maxI, maxJ, MaxRatio)
-    !    !Arguments--------------------------------------------------------------
-    !    type (T_HorizontalGrid), pointer    :: ObjHorizontalFather
-    !    integer                             :: minJ, minI, maxJ, maxI
-    !    real                                :: MaxRatio
-    !    !Local------------------------------------------------------------------
-    !    real                                :: FatherCenterX_U, FatherCenterX_V, FatherCenterY_U, FatherCenterY_V, &
-    !                                           FatherCenterX_Z, FatherCenterY_Z, SonCenterX_U, SonCenterX_V,       &
-    !                                           SonCenterY_U, SonCenterY_V, DistanceToFather_U, DistanceToFather_V, &
-    !                                           SearchRadious_U, SearchRadious_V
-    !    integer                             :: index_U, index_V, i, j, i2, j2
-    !    !-------------------------------------------------------------------------
-    !    index_U = 1
-    !    index_V = 1
-    !    do j = minJ - 1, maxJ + 1
-    !    do i = minI - 1, maxI + 1
-    !            
-    !        !Find Father cell center for U cell and V cell  
-    !        
-    !        FatherCenterX_U = (ObjHorizontalFather%XX_IE(i, j  ))/2. +  (ObjHorizontalFather%XX_IE(i+1, j  ))/2.
-    !        FatherCenterY_U = (ObjHorizontalFather%YY_IE(i, j  ))/2. +  (ObjHorizontalFather%YY_IE(i+1, j  ))/2.
-    !        
-    !        FatherCenterX_V = (ObjHorizontalFather%XX_IE(i, j  ))/2. +  (ObjHorizontalFather%XX_IE(i  , j+1))/2.
-    !        FatherCenterY_V = (ObjHorizontalFather%YY_IE(i, j  ))/2. +  (ObjHorizontalFather%YY_IE(i  , j+1))/2.
-    !        
-    !        FatherCenterX_Z = (( ObjHorizontalFather%XX_IE(i, j  ) +  ObjHorizontalFather%XX_IE(i+1, j  ))/2. + &
-    !                           ( ObjHorizontalFather%XX_IE(i, j+1) +  ObjHorizontalFather%XX_IE(i+1, j+1))/2.)/2.
-    !        FatherCenterY_Z = (( ObjHorizontalFather%YY_IE(i, j  ) +  ObjHorizontalFather%YY_IE(i+1, j  ))/2. + &
-    !                           ( ObjHorizontalFather%YY_IE(i, j+1) +  ObjHorizontalFather%YY_IE(i+1, j+1))/2.)/2.            
-    !        
-    !        SearchRadious_U = (1.01+(1/(Sqrt(MaxRatio)))) * &
-    !                          Sqrt((FatherCenterX_U - FatherCenterX_Z)**2 + &
-    !                               (FatherCenterY_U - ObjHorizontalFather%YY_IE(i, j))**2)
-    !        SearchRadious_V = (1.01+(1/(Sqrt(MaxRatio)))) * &
-    !                          Sqrt((FatherCenterX_V - ObjHorizontalFather%XX_IE(i, j))**2 + &
-    !                               (FatherCenterY_V - FatherCenterY_Z)**2)            
-    !        
-    !        ! Find and build matrix of correspondent son cells
-    !        do j2 = 1, Me%Size%JUB - 1
-    !        do i2 = 1, Me%Size%IUB - 1
-    !            SonCenterX_U = (Me%XX_IE(i, j  ))/2. +  (Me%XX_IE(i+1, j  ))/2.
-    !            SonCenterY_U = (Me%YY_IE(i, j  ))/2. +  (Me%YY_IE(i+1, j  ))/2.
-    !            
-    !            SonCenterX_V = (Me%XX_IE(i, j  ))/2. +  (Me%XX_IE(i  , j+1))/2.
-    !            SonCenterY_V = (Me%YY_IE(i, j  ))/2. +  (Me%YY_IE(i  , j+1))/2.
-    !                
-    !            DistanceToFather_U = Sqrt((SonCenterX_U - FatherCenterX_U)**2.0 + &
-    !                                      (SonCenterY_U - FatherCenterY_U)**2.0)
-    !            DistanceToFather_V = Sqrt((SonCenterX_V - FatherCenterX_V)**2.0 + &
-    !                                      (SonCenterY_V - FatherCenterY_V)**2.0)
-    !            
-    !            if (DistanceToFather_U <= SearchRadious_U) then
-    !                Me%IWD_connections_U(index_U, 1) = i
-    !                Me%IWD_connections_U(index_U, 2) = j
-    !                Me%IWD_connections_U(index_U, 3) = i2
-    !                Me%IWD_connections_U(index_U, 4) = j2
-    !                    
-    !                Me%IWD_Distances_U(index_U)      = DistanceToFather_U
-    !                    
-    !                index_U = index_U + 1
-    !            endif
-    !            
-    !            if (DistanceToFather_V <= SearchRadious_V) then
-    !                Me%IWD_connections_V(index_V, 1) = i
-    !                Me%IWD_connections_V(index_V, 2) = j
-    !                Me%IWD_connections_V(index_V, 3) = i2
-    !                Me%IWD_connections_V(index_V, 4) = j2
-    !                    
-    !                Me%IWD_Distances_V(index_V)      = DistanceToFather_V
-    !                    
-    !                index_V = index_V + 1
-    !            endif
-    !        enddo
-    !        enddo
-    !        
-    !    enddo
-    !    enddo         
-    !    
-    !end subroutine ConstructIWDVel
+    subroutine ConstructIWDVel(ObjHorizontalFather, minI, minJ, maxI, maxJ, MaxRatio)
+        !Arguments--------------------------------------------------------------
+        type (T_HorizontalGrid), pointer    :: ObjHorizontalFather
+        integer                             :: minJ, minI, maxJ, maxI
+        real                                :: MaxRatio
+        !Local------------------------------------------------------------------
+        real                                :: FatherCenterX_U, FatherCenterX_V, FatherCenterY_U, FatherCenterY_V, &
+                                               FatherCenterX_Z, FatherCenterY_Z, SonCenterX_U, SonCenterX_V,       &
+                                               SonCenterY_U, SonCenterY_V, DistanceToFather_U, DistanceToFather_V, &
+                                               SearchRadious_U, SearchRadious_V
+        integer                             :: index_U, index_V, i, j, i2, j2
+        !-------------------------------------------------------------------------
+        index_U = 1
+        index_V = 1
+        do j = minJ - 1, maxJ + 1
+        do i = minI - 1, maxI + 1
+                
+            !Find Father cell center for U cell and V cell  
+            
+            FatherCenterX_U = (ObjHorizontalFather%XX_IE(i, j  ))/2. +  (ObjHorizontalFather%XX_IE(i+1, j  ))/2.
+            FatherCenterY_U = (ObjHorizontalFather%YY_IE(i, j  ))/2. +  (ObjHorizontalFather%YY_IE(i+1, j  ))/2.
+            
+            FatherCenterX_V = (ObjHorizontalFather%XX_IE(i, j  ))/2. +  (ObjHorizontalFather%XX_IE(i  , j+1))/2.
+            FatherCenterY_V = (ObjHorizontalFather%YY_IE(i, j  ))/2. +  (ObjHorizontalFather%YY_IE(i  , j+1))/2.
+            
+            FatherCenterX_Z = (( ObjHorizontalFather%XX_IE(i, j  ) +  ObjHorizontalFather%XX_IE(i+1, j  ))/2. + &
+                               ( ObjHorizontalFather%XX_IE(i, j+1) +  ObjHorizontalFather%XX_IE(i+1, j+1))/2.)/2.
+            FatherCenterY_Z = (( ObjHorizontalFather%YY_IE(i, j  ) +  ObjHorizontalFather%YY_IE(i+1, j  ))/2. + &
+                               ( ObjHorizontalFather%YY_IE(i, j+1) +  ObjHorizontalFather%YY_IE(i+1, j+1))/2.)/2.            
+            
+            SearchRadious_U = (1.01+(1/(Sqrt(MaxRatio)))) * &
+                              Sqrt((FatherCenterX_U - FatherCenterX_Z)**2 + &
+                                   (FatherCenterY_U - ObjHorizontalFather%YY_IE(i, j))**2)
+            SearchRadious_V = (1.01+(1/(Sqrt(MaxRatio)))) * &
+                              Sqrt((FatherCenterX_V - ObjHorizontalFather%XX_IE(i, j))**2 + &
+                                   (FatherCenterY_V - FatherCenterY_Z)**2)            
+            
+            ! Find and build matrix of correspondent son cells
+            do j2 = 1, Me%Size%JUB - 1
+            do i2 = 1, Me%Size%IUB - 1
+                SonCenterX_U = (Me%XX_IE(i2, j2  ))/2. +  (Me%XX_IE(i2+1, j2  ))/2.
+                SonCenterY_U = (Me%YY_IE(i2, j2  ))/2. +  (Me%YY_IE(i2+1, j2  ))/2.
+                
+                SonCenterX_V = (Me%XX_IE(i2, j2  ))/2. +  (Me%XX_IE(i2  , j2+1))/2.
+                SonCenterY_V = (Me%YY_IE(i2, j2  ))/2. +  (Me%YY_IE(i2  , j2+1))/2.
+                    
+                DistanceToFather_U = Sqrt((SonCenterX_U - FatherCenterX_U)**2.0 + &
+                                          (SonCenterY_U - FatherCenterY_U)**2.0)
+                DistanceToFather_V = Sqrt((SonCenterX_V - FatherCenterX_V)**2.0 + &
+                                          (SonCenterY_V - FatherCenterY_V)**2.0)
+                
+                if (DistanceToFather_U <= SearchRadious_U) then
+                    Me%IWD_connections_U(index_U, 1) = i
+                    Me%IWD_connections_U(index_U, 2) = j
+                    Me%IWD_connections_U(index_U, 3) = i2
+                    Me%IWD_connections_U(index_U, 4) = j2
+                        
+                    Me%IWD_Distances_U(index_U)      = DistanceToFather_U
+                        
+                    index_U = index_U + 1
+                endif
+                
+                if (DistanceToFather_V <= SearchRadious_V) then
+                    Me%IWD_connections_V(index_V, 1) = i
+                    Me%IWD_connections_V(index_V, 2) = j
+                    Me%IWD_connections_V(index_V, 3) = i2
+                    Me%IWD_connections_V(index_V, 4) = j2
+                        
+                    Me%IWD_Distances_V(index_V)      = DistanceToFather_V
+                        
+                    index_V = index_V + 1
+                endif
+            enddo
+            enddo
+            
+        enddo
+        enddo         
+        
+    end subroutine ConstructIWDVel
     
     !---------------------------------------------------------------------------
     
@@ -2774,27 +2860,29 @@ do8:       do i = ILBwork, IUBwork
     !>@Brief
     !>Computes Maximum grid ratio between father and son domains 
     !>@param[in] ObjHorizontalGridFather, Ratio 
-    !subroutine DetermineMaxRatio(ObjHorizontalGridFather, MaxRatio)
-    !    !Argumments---------------------------------------------------------------------
-    !    type (T_HorizontalGrid), pointer    :: ObjHorizontalGridFather
-    !    real, intent(OUT)                   :: MaxRatio
-    !    !local--------------------------------------------------------------------------
-    !    real                                :: aux, i, j
-    !    
-    !    !-------------------------------------------------------------------------------
-    !    MaxRatio = 1.0
-    !    aux      = 1.0
-    !    
-    !    do j = 1, Me%Size%JUB - 1
-    !    do i = 1, Me%Size%IUB - 1
-    !        aux = ObjHorizontalGridFather%GridCellArea(Me%IZ(i, j), Me%JZ(i, j)) / Me%GridCellArea(i, j)
-    !        if (aux > MaxRatio) then
-    !            MaxRatio = aux               
-    !        endif
-    !    enddo
-    !    enddo
-    !
-    !end subroutine DetermineMaxRatio
+    subroutine DetermineMaxRatio(ObjHorizontalGridFather, MaxRatio)
+        !Argumments---------------------------------------------------------------------
+        type (T_HorizontalGrid), pointer    :: ObjHorizontalGridFather
+        real, intent(OUT)                   :: MaxRatio
+        !local--------------------------------------------------------------------------
+        integer                             ::  i, j
+        real                                :: aux
+        
+        !-------------------------------------------------------------------------------
+        MaxRatio = 1.0
+        aux      = 1.0
+        
+        do j = 1, Me%Size%JUB - 1
+        do i = 1, Me%Size%IUB - 1
+            aux = ObjHorizontalGridFather%GridCellArea(Me%LastFatherGrid%IZ(i, j), Me%LastFatherGrid%JZ(i, j)) / &
+                  Me%GridCellArea(i, j)
+            if (aux > MaxRatio) then
+                MaxRatio = aux               
+            endif
+        enddo
+        enddo
+    
+    end subroutine DetermineMaxRatio
     !--------------------------------------------------------------------------
     ! This subroutine adds a new grid to the father grid List  
 
@@ -2806,7 +2894,7 @@ do8:       do i = ILBwork, IUBwork
         !----------------------------------------------------------------------
 
         ! Add to the WaterFatherGrid List a new father grid
-        if (.not.associated(Me%FirstFatherGrid)) then
+        if (.not. associated(Me%FirstFatherGrid)) then
 
             Me%FirstFatherGrid    => NewFatherGrid
             Me%LastFatherGrid     => NewFatherGrid
@@ -8593,7 +8681,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
         
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
