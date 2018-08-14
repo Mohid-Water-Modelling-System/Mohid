@@ -1,5 +1,0 @@
-<map id="modulehydrodynamic::waterlevel_bottomfriction" name="modulehydrodynamic::waterlevel_bottomfriction">
-<area shape="rect" id="node2" href="$namespacemodulehydrodynamic.html#a59e16bb385ccdef967139d17eb850973" title="modulehydrodynamic\l::face_velocity_modulus" alt="" coords="224,5,384,47"/>
-<area shape="rect" id="node3" href="$namespacemodulehydrodynamic.html#aeaeab24d9e7539d66950b61105ead64f" title="modulehydrodynamic\l::face_interpolation" alt="" coords="432,35,577,76"/>
-<area shape="rect" id="node4" href="$namespacemodulehydrodynamic.html#a51f796ba1d401f24370c5f9dd5ec71ae" title="modulehydrodynamic\l::cycliccoef2d" alt="" coords="231,123,377,164"/>
-</map>

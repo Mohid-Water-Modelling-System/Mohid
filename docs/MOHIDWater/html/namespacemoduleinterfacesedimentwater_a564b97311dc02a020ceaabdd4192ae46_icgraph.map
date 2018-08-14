@@ -1,8 +1,0 @@
-<map id="moduleinterfacesedimentwater::erosionflux" name="moduleinterfacesedimentwater::erosionflux">
-<area shape="rect" id="node2" href="$namespacemoduleinterfacesedimentwater.html#a26bb67acd49cf811c778aa020cef0f2a" title="moduleinterfacesedimentwater\l::modifyerosionfluxes" alt="" coords="261,5,458,47"/>
-<area shape="rect" id="node5" href="$namespacemoduleinterfacesedimentwater.html#a15dcf3dbb1639d562e8cfd2115b95c41" title="moduleinterfacesedimentwater\l::modifyconsolidatederosionfluxes" alt="" coords="251,136,468,177"/>
-<area shape="rect" id="node7" href="$namespacemoduleinterfacesedimentwater.html#a3ed9cede4da99e95712c02f4a8a6408a" title="moduleinterfacesedimentwater\l::modifynoncohesiveerosionfluxes" alt="" coords="252,71,467,112"/>
-<area shape="rect" id="node3" href="$namespacemoduleinterfacesedimentwater.html#a052aa500f3fe487c32cb93f8c5a8ea60" title="moduleinterfacesedimentwater\l::modifywatercolumnfluxes" alt="" coords="516,71,713,112"/>
-<area shape="rect" id="node4" href="$namespacemoduleinterfacesedimentwater.html#ac36014e82a94f1ba694775e21f24b005" title="moduleinterfacesedimentwater\l::modifyinterfacesedimentwater" alt="" coords="761,104,963,145"/>
-<area shape="rect" id="node6" href="$namespacemoduleinterfacesedimentwater.html#a3c912328a57c38e146a0449318c3ace0" title="moduleinterfacesedimentwater\l::modifysedimentwaterfluxes" alt="" coords="516,136,713,177"/>
-</map>

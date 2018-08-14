@@ -1,6 +1,0 @@
-<map id="modulemercatorformat::readmercatorfilev3" name="modulemercatorformat::readmercatorfilev3">
-<area shape="rect" id="node2" href="$namespacemodulemercatorformat.html#aa50cf57bf22a01dde1d85b4dd1d6baa0" title="modulemercatorformat\l::checknamev3" alt="" coords="204,5,355,47"/>
-<area shape="rect" id="node3" href="$namespacemodulemercatorformat.html#ab6a85f957c668b2ecb52cea10902d0e7" title="modulemercatorformat\l::outputinstants" alt="" coords="204,71,355,112"/>
-<area shape="rect" id="node4" href="$namespacemodulemercatorformat.html#a0b4f8793ec9ff2e27a2372febde0eac4" title="modulemercatorformat\l::writehdf5field" alt="" coords="204,136,355,177"/>
-<area shape="rect" id="node5" href="$namespacemodulemercatorformat.html#afcc318c8448502d22aecff9e1bf75f91" title="modulemercatorformat\l::mohidunits" alt="" coords="403,136,553,177"/>
-</map>

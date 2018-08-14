@@ -1,5 +1,0 @@
-<map id="modulereservoirs::getimposedlevel" name="modulereservoirs::getimposedlevel">
-<area shape="rect" id="node2" href="$namespacemodulereservoirs.html#a22d1b1d83488cecbdcf52565d3aa4e99" title="modulereservoirs::getimposedreservoirlevel" alt="" coords="272,5,539,32"/>
-<area shape="rect" id="node3" href="$namespacemodulereservoirs.html#afabb38607932bfaede946ccbce22734d" title="modulereservoirs::getreservoirvolume" alt="" coords="587,5,820,32"/>
-<area shape="rect" id="node4" href="$namespacemodulereservoirs.html#a5482b1f1fc7530ca5302b5dc3352566f" title="modulereservoirs::computereservoirvolume" alt="" coords="868,5,1133,32"/>
-</map>

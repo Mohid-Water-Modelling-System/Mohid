@@ -1,8 +1,0 @@
-<map id="modulesediment::constructcriticalshearstress" name="modulesediment::constructcriticalshearstress">
-<area shape="rect" id="node2" href="$namespacemodulesediment.html#aa3fda34444f716aac00714d297af27d3" title="modulesediment::new\l_geometry" alt="" coords="405,23,553,65"/>
-<area shape="rect" id="node5" href="$namespacemodulesediment.html#a3b7a3bb199cbac91d1df5c84bbd12194" title="modulesediment::computeopensediment" alt="" coords="351,89,607,116"/>
-<area shape="rect" id="node6" href="$namespacemodulesediment.html#a04e890023555f00803b6373c6f8934cc" title="modulesediment::computecriticalshearstress" alt="" coords="339,140,620,167"/>
-<area shape="rect" id="node3" href="$namespacemodulesediment.html#a8c3164236748ba94c8bef14c5dd430b9" title="modulesediment::readunlockexternalvar" alt="" coords="674,5,925,32"/>
-<area shape="rect" id="node4" href="$namespacemodulesediment.html#a94b876e44c6f435015c969c6a2f32978" title="modulesediment::readlockexternalvar" alt="" coords="681,56,917,83"/>
-<area shape="rect" id="node7" href="$namespacemodulesediment.html#a03f094fcbc01dd75c60a5a69ce5dde19" title="modulesediment::computehidingexposure" alt="" coords="668,140,931,167"/>
-</map>

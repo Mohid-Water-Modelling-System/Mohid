@@ -1,8 +1,0 @@
-<map id="modulesand::boundarycondition1d" name="modulesand::boundarycondition1d">
-<area shape="rect" id="node2" href="$namespacemodulesand.html#a88ad4d02a6e8f1f1c1585f441fd8a910" title="modulesand::computealongshoreflow1d" alt="" coords="308,5,557,32"/>
-<area shape="rect" id="node5" href="$namespacemodulesand.html#a608f78fe34da2344f75a4b2f32487eae" title="modulesand::computealongshoredz1d" alt="" coords="312,56,553,83"/>
-<area shape="rect" id="node6" href="$namespacemodulesand.html#abe98db28fdf5e787bd658f6e3b181923" title="modulesand::computeprofilecrossshoremovement" alt="" coords="279,107,586,133"/>
-<area shape="rect" id="node7" href="$namespacemodulesand.html#a5316ef806da7d9e5bca8d121c7f5fa28" title="modulesand::computeprofilecrossshoremovementdz" alt="" coords="272,157,593,184"/>
-<area shape="rect" id="node3" href="$namespacemodulesand.html#ac778a6b170dc738d265d1108248728f3" title="modulesand::computehybridmorphevolution" alt="" coords="641,56,912,83"/>
-<area shape="rect" id="node4" href="$namespacemodulesand.html#a72127773a460332746476a09b3380e49" title="modulesand::modifysand" alt="" coords="960,56,1127,83"/>
-</map>

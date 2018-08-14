@@ -1,5 +1,0 @@
-<map id="modulereservoirs::computereservoiroutflows" name="modulereservoirs::computereservoiroutflows">
-<area shape="rect" id="node2" href="$namespacemodulereservoirs.html#ac1692cb00cb68968ee7099ff5bf14ed0" title="modulereservoirs::getoutflowfromoperation" alt="" coords="325,5,588,32"/>
-<area shape="rect" id="node4" href="$namespacemodulereservoirs.html#afd25bc9bcd078252383e6f67ef148826" title="modulereservoirs::computeweirflow" alt="" coords="345,56,568,83"/>
-<area shape="rect" id="node3" href="$namespacemodulereservoirs.html#a473bf29bfb29eda6a398dead645aec5a" title="modulereservoirs::computereservoirlevel" alt="" coords="636,5,887,32"/>
-</map>

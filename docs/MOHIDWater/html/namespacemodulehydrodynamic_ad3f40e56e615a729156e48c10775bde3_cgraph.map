@@ -1,9 +1,0 @@
-<map id="modulehydrodynamic::velocity_openboundary" name="modulehydrodynamic::velocity_openboundary">
-<area shape="rect" id="node2" href="$namespacemodulehydrodynamic.html#a5548f1e73131ae2e60c1386848706e83" title="modulehydrodynamic\l::compute_baroclinichorvelocity" alt="" coords="215,5,417,47"/>
-<area shape="rect" id="node4" href="$namespacemodulehydrodynamic.html#aca265830a6a43d55606480ef5abdb2af" title="modulehydrodynamic\l::velsubmodelnormalob" alt="" coords="239,71,393,112"/>
-<area shape="rect" id="node5" href="$namespacemodulehydrodynamic.html#ac476fd6c2f59116c8cbcbed954fdbc5f" title="modulehydrodynamic\l::velsubmodeltangentialob" alt="" coords="231,136,401,177"/>
-<area shape="rect" id="node6" href="$namespacemodulehydrodynamic.html#af23df453cb52dbe604e896aba3b572aa" title="modulehydrodynamic\l::velnormalopenboundary" alt="" coords="233,201,399,243"/>
-<area shape="rect" id="node7" href="$namespacemodulehydrodynamic.html#a0be051dfb2855eb7014145fceaa64075" title="modulehydrodynamic\l::veltangentialopenboundary" alt="" coords="225,267,407,308"/>
-<area shape="rect" id="node8" href="$namespacemodulehydrodynamic.html#ab4a3acec600d04e2afbf5acc7f68b642" title="modulehydrodynamic\l::masknonusedfaces" alt="" coords="243,332,389,373"/>
-<area shape="rect" id="node3" href="$namespacemodulehydrodynamic.html#a1e87e450d8be8b7bee682d2ef22558f8" title="modulehydrodynamic\l::boundaryinstantlist" alt="" coords="465,5,611,47"/>
-</map>

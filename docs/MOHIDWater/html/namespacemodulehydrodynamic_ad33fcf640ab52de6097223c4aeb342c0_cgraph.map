@@ -1,6 +1,0 @@
-<map id="modulehydrodynamic::kill_sub_modules" name="modulehydrodynamic::kill_sub_modules">
-<area shape="rect" id="node2" href="$namespacemodulehydrodynamic.html#a85ec37a513035b769326676058893ac1" title="modulehydrodynamic\l::killenergy" alt="" coords="199,5,344,47"/>
-<area shape="rect" id="node4" href="$namespacemodulehydrodynamic.html#ab35b45e7f241087188692a17e57b81fe" title="modulehydrodynamic\l::killtidepotential" alt="" coords="199,71,344,112"/>
-<area shape="rect" id="node5" href="$namespacemodulehydrodynamic.html#a9b2046e58cfbfc36752c1c596ac76085" title="modulehydrodynamic\l::killsubmodel" alt="" coords="199,136,344,177"/>
-<area shape="rect" id="node3" href="$namespacemodulehydrodynamic.html#a99c46c970a39feb3ece42b919ed01d08" title="modulehydrodynamic\l::writeenergydatafile" alt="" coords="392,5,537,47"/>
-</map>

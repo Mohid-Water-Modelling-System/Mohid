@@ -1,5 +1,0 @@
-<map id="modulereservoirs::t_reservoir" name="modulereservoirs::t_reservoir">
-<area shape="rect" id="node2" href="$structmodulereservoirs_1_1t__timeserieimposed.html" title="{modulereservoirs::t\l_timeserieimposed\n|&#45; id\l&#45; filename\l&#45; column\l|}" alt="" coords="5,71,136,193"/>
-<area shape="rect" id="node3" href="$structmodulereservoirs_1_1t__flowover.html" title="{modulereservoirs::t\l_flowover\n|&#45; weirlength\l&#45; dischargecoeficient\l&#45; crestlevel\l|}" alt="" coords="160,71,301,193"/>
-<area shape="rect" id="node4" href="$structmodulereservoirs_1_1t__management.html" title="{modulereservoirs::t\l_management\n|&#45; on\l&#45; hasdischarge\l&#45; imposedoutflow\l&#45; imposedlevel\l&#45; imposedoperation\l&#45; operationtype\l&#45; operationcurve\l&#45; operationcurvepoints\l&#45; minoutflow\l&#45; maxoutflow\l&#45; accvolumecurve\l&#45; accvolumecurvepoints\l|}" alt="" coords="326,5,482,259"/>
-</map>

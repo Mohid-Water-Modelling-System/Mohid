@@ -1,6 +1,0 @@
-<map id="moduleinterpolategrids::t_interpolategrids" name="moduleinterpolategrids::t_interpolategrids">
-<area shape="rect" id="node2" href="$structmoduleinterpolategrids_1_1t__stationarymap.html" title="{moduleinterpolategrids\l::t_stationarymap\n|&#45; on\l|}" alt="" coords="5,365,157,457"/>
-<area shape="rect" id="node3" href="$structmoduleinterpolategrids_1_1t__fillingcells.html" title="{moduleinterpolategrids\l::t_fillingcells\n|&#45; mapping\l&#45; xin\l&#45; yin\l&#45; zin\l&#45; xout\l&#45; yout\l&#45; zout\l&#45; nfather\l&#45; nson\l&#45; mapn\l|}" alt="" coords="5,5,157,229"/>
-<area shape="rect" id="node4" href="$structmoduleinterpolategrids_1_1t__interpolwindow.html" title="{moduleinterpolategrids\l::t_interpolwindow\n|&#45; xmin\l&#45; ymin\l&#45; xmax\l&#45; ymax\l|}" alt="" coords="181,343,333,479"/>
-<area shape="rect" id="node5" href="$structmoduleinterpolategrids_1_1t__grid.html" title="{moduleinterpolategrids\l::t_grid\n|&#45; objhorizontalgrid\l&#45; objhdf5\l&#45; objhorizontalmap\l&#45; objbathymetry\l&#45; objgeometry\l&#45; objmap\l&#45; unit\l&#45; filename\l&#45; gridfilename\l&#45; geometryfilename\land 12 more...\l|}" alt="" coords="357,292,509,531"/>
-</map>
