@@ -2262,7 +2262,7 @@ do1:     do
             Number = '    '
             write(Number, fmt='(i4)')Counter
             open(UNIT   = Me%Files%AsciiUnit,                                      &
-!                 FILE   = '..\res\iter.soi_'//trim(adjustl(Number))//'.log', &
+!                 FILE   = '..'//backslash//'res'//backslash//'iter.soi_'//trim(adjustl(Number))//'.log', &
                  FILE   = Me%Files%ASCFile, &
                  STATUS = "REPLACE",                                      &
                  IOSTAT = STAT_CALL)

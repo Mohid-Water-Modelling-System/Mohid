@@ -4778,15 +4778,15 @@ Inp:    if (Me%CornersXYInput) then
 
     !***********************************************************************
     !                                                                      *
-    !  Esta subroutina calcula 2 vectores e um escalar para a conversão    *
-    !  de coordenadas geodésicas em UTM:                                   *
+    !  Esta subroutina calcula 2 vectores e um escalar para a conversÃ£o    *
+    !  de coordenadas geodÃ©sicas em UTM:                                   *
     !                                                                      *
     !        comprimento do fuso:                    DLZONE(I)             *
-    !        nº do fuso:                             IZONE1(J)             *
-    !        nº do fuso de origem:                   IZONE_ORIG            *
+    !        nÂº do fuso:                             IZONE1(J)             *
+    !        nÂº do fuso de origem:                   IZONE_ORIG            *
     !                                                                      *
-    !  O meridiano de Greenwich está no fuso 31. Considera-se como origem  *
-    !  o ínicio do 1º fuso da malha. Cada fuso tem 6 graus e há 60 fusos.  *
+    !  O meridiano de Greenwich estÃ¡ no fuso 31. Considera-se como origem  *
+    !  o Ã­nicio do 1Âº fuso da malha. Cada fuso tem 6 graus e hÃ¡ 60 fusos.  *
     !                                                                      *
     !                                                                      *
     !    AIRES: 30/6/1977                                                  *
@@ -8127,7 +8127,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                         iFN = len_trim(Filename)
                         ipath = 0
                         do i = iFN, 1, -1
-                            if (Filename(i:i) == '/' .or. Filename(i:i) == "\") then
+                            if (Filename(i:i) == '/' .or. Filename(i:i) == backslash) then
                                 ipath = i
                                 exit
                             endif
@@ -8315,7 +8315,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real, dimension(:   ), pointer, optional    :: XX_Z, YY_Z, XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross
         real, dimension(:, :), pointer, optional    :: DXX, DYY, DZX, DZY
         real, dimension(:, :), pointer, optional    :: DUX, DUY, DVX, DVY
-        integer, dimension(:, :), pointer, optional :: IV, JV     !João Sobrinho
+        integer, dimension(:, :), pointer, optional :: IV, JV     !JoÃ£o Sobrinho
         real, dimension(:   ), pointer, optional    :: XX, YY
         integer, optional,  intent(OUT)             :: STAT    
 
@@ -12742,13 +12742,13 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR04'
 
-                call HDF5WriteData   (ObjHDF5, "/Grid/Longitude", "Longitude", "º",     &
+                call HDF5WriteData   (ObjHDF5, "/Grid/Longitude", "Longitude", "Âº",     &
                                       Array2D = Me%LongitudeConn,                       &
                                       OutputNumber = OutputNumber,                      &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR05'
 
-                call HDF5WriteData   (ObjHDF5, "/Grid/Latitude", "Latitude", "º",       &
+                call HDF5WriteData   (ObjHDF5, "/Grid/Latitude", "Latitude", "Âº",       &
                                       Array2D = Me%LatitudeConn,                        &
                                       OutputNumber = OutputNumber,                      &
                                       STAT = STAT_CALL)
@@ -12777,12 +12777,12 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR04'
 
-                call HDF5WriteData   (ObjHDF5, "/Grid", "Longitude", "º",               &
+                call HDF5WriteData   (ObjHDF5, "/Grid", "Longitude", "Âº",               &
                                       Array2D = Me%LongitudeConn,                       &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR05'
 
-                call HDF5WriteData   (ObjHDF5, "/Grid", "Latitude", "º",                &
+                call HDF5WriteData   (ObjHDF5, "/Grid", "Latitude", "Âº",                &
                                       Array2D = Me%LatitudeConn,                        &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR06'
@@ -12916,7 +12916,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                         
                         if (STAT_CALL /= SUCCESS_) then
                             !linux path
-                            AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//"\"//trim(adjustl(Me%DDecomp%FilesListName))
+                            AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//backslash//trim(adjustl(Me%DDecomp%FilesListName))
                             
                             open(file   = AuxFile,                                      &
                                  unit   = Me%DDecomp%FilesListID,                       &
@@ -12938,7 +12938,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                         iFile = 1
                         ilen  = len_trim(FileName)
                         do i = ilen,1,-1
-                            if (FileName(i:i) == '/' .or. FileName(i:i) == "\") then
+                            if (FileName(i:i) == '/' .or. FileName(i:i) == backslash) then
                                 iFile = i+1 
                                 exit
                             endif                                
@@ -13034,7 +13034,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             Aux2D(WorkIUB+2        , WorkJLB:WorkJUB+1) = Me%LongitudeConn(WorkIUB+1        , WorkJLB:WorkJUB+1)
             Aux2D(WorkILB:WorkIUB+2,         WorkJUB+2) = Aux2D           (WorkILB:WorkIUB+2,         WorkJUB+1)
 
-            call HDF5WriteData   (ObjHDF5, "/Grid", "Longitude", "º",               &
+            call HDF5WriteData   (ObjHDF5, "/Grid", "Longitude", "Âº",               &
                                   Array2D = Aux2D,                                  &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR40'
@@ -13043,7 +13043,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             Aux2D(WorkIUB+2        , WorkJLB:WorkJUB+1) = Me%LatitudeConn(WorkIUB+1        , WorkJLB:WorkJUB+1)
             Aux2D(WorkILB:WorkIUB+2,         WorkJUB+2) = Aux2D          (WorkILB:WorkIUB+2,         WorkJUB+1)
 
-            call HDF5WriteData   (ObjHDF5, "/Grid", "Latitude", "º",                &
+            call HDF5WriteData   (ObjHDF5, "/Grid", "Latitude", "Âº",                &
                                   Array2D = Aux2D,                                  &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR50'
@@ -13140,7 +13140,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                     
                     if (STAT_CALL /= SUCCESS_) then
                         !linux path
-                        AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//"\"//trim(adjustl(Me%DDecomp%FilesListName))
+                        AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//backslash//trim(adjustl(Me%DDecomp%FilesListName))
                         
                         open(file   = AuxFile,                                      &
                              unit   = Me%DDecomp%FilesListID,           &
@@ -13162,7 +13162,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                     iFile = 1
                     ilen  = len_trim(FileName)
                     do i = ilen,1,-1
-                        if (FileName(i:i) == '/' .or. FileName(i:i) == "\") then
+                        if (FileName(i:i) == '/' .or. FileName(i:i) == backslash) then
                             iFile = i+1 
                             exit
                         endif                                
@@ -17565,7 +17565,7 @@ end module ModuleHorizontalGrid
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior TÃ©cnico, Technical University of Lisbon. 
 !----------------------------------------------------------------------------------------------------------
 
 
