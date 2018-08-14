@@ -1,8 +1,0 @@
-<map id="moduleinterfacewaterair::psiu" name="moduleinterfacewaterair::psiu">
-<area shape="rect" id="node2" href="$namespacemoduleinterfacewaterair.html#ae6acdb7a76bd3e0edd25e31a74d3ab48" title="moduleinterfacewaterair\l::firstguess" alt="" coords="212,5,371,47"/>
-<area shape="rect" id="node7" href="$namespacemoduleinterfacewaterair.html#adca22635eac17186131c131155bfb929" title="moduleinterfacewaterair\l::bulkloop" alt="" coords="212,71,371,112"/>
-<area shape="rect" id="node3" href="$namespacemoduleinterfacewaterair.html#a542e31b196bb8758541444a1a4f7bd77" title="moduleinterfacewaterair\l::computecoaresurfacefluxes" alt="" coords="419,39,607,80"/>
-<area shape="rect" id="node4" href="$namespacemoduleinterfacewaterair.html#a1210cfaa400404020add49f99363970b" title="moduleinterfacewaterair\l::computecoareheatbudget" alt="" coords="655,39,831,80"/>
-<area shape="rect" id="node5" href="$namespacemoduleinterfacewaterair.html#a91edae849454c0ec7ebcefd91556486e" title="moduleinterfacewaterair\l::modifywaterairfluxes" alt="" coords="879,39,1037,80"/>
-<area shape="rect" id="node6" href="$namespacemoduleinterfacewaterair.html#ad372fa1a038ce383360d4422cc25923d" title="moduleinterfacewaterair\l::modifyinterfacewaterair" alt="" coords="1085,39,1248,80"/>
-</map>

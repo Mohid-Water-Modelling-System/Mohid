@@ -1,7 +1,0 @@
-<map id="moduleporousmediaproperties::construct_sedimentratelist" name="moduleporousmediaproperties::construct_sedimentratelist">
-<area shape="rect" id="node2" href="$namespacemoduleporousmediaproperties.html#abfc3b112a762e28d4f711dfe4a5d7d3d" title="moduleporousmediaproperties\l::construct_sedimentrate" alt="" coords="248,37,443,79"/>
-<area shape="rect" id="node6" href="$namespacemoduleporousmediaproperties.html#a4a94ca075eedbc0f235c5c681470aee8" title="moduleporousmediaproperties\l::add_sedimentrate" alt="" coords="248,103,443,144"/>
-<area shape="rect" id="node3" href="$namespacemoduleporousmediaproperties.html#a4bcf212cc66413ac54a86d6f71dab6d6" title="moduleporousmediaproperties\l::construct_sedimentrateid" alt="" coords="495,5,689,47"/>
-<area shape="rect" id="node5" href="$namespacemoduleporousmediaproperties.html#a38a540abbf59777875ca535ba0683c59" title="moduleporousmediaproperties\l::construct_sedimentratevalues" alt="" coords="491,71,693,112"/>
-<area shape="rect" id="node4" href="$namespacemoduleporousmediaproperties.html#af477cac3aa38958d32a9af0ae317241f" title="moduleporousmediaproperties\l::search_property" alt="" coords="741,5,936,47"/>
-</map>

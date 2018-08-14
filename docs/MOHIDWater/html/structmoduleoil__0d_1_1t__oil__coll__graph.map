@@ -1,7 +1,0 @@
-<map id="moduleoil_0d::t_oil" name="moduleoil_0d::t_oil">
-<area shape="rect" id="node2" href="$structmoduleoil__0d_1_1t__state.html" title="{moduleoil_0d::t_state\n|&#45; timeserie\l&#45; firststepip\l&#45; firststepap\l|}" alt="" coords="5,86,152,193"/>
-<area shape="rect" id="node3" href="$structmoduleoil__0d_1_1t__external.html" title="{moduleoil_0d::t_external\n|&#45; now\l&#45; begintime\l&#45; endtime\l&#45; backtracking\l&#45; area\l&#45; wind\l&#45; atmosphericpressure\l&#45; watertemperature\l&#45; waterdensity\l&#45; spm\l&#45; waveheight\l&#45; waveperiod\l&#45; voloilbeached\l&#45; volumebeached\l|}" alt="" coords="176,5,339,273"/>
-<area shape="rect" id="node4" href="$structmoduleoil__0d_1_1t__var.html" title="{moduleoil_0d::t_var\n|&#45; oiltype\l&#45; pourpoint\l&#45; dtoilinternalprocesses\l&#45; massoil\l&#45; massini\l&#45; volume\l&#45; volumeoil\l&#45; volinic\l&#45; slickthickness\l&#45; oilthickness\land 109 more...\l|}" alt="" coords="363,27,519,251"/>
-<area shape="rect" id="node5" href="$structmoduleoil__0d_1_1t__files.html" title="{moduleoil_0d::t_files\n|&#45; constructdata\l|}" alt="" coords="543,101,683,178"/>
-<area shape="rect" id="node6" href="$structmoduleoil__0d_1_1t__timeserie.html" title="{moduleoil_0d::t_timeserie\n|&#45; timeseriefile\l&#45; propertylist\l&#45; dataline\l|}" alt="" coords="708,86,879,193"/>
-</map>

@@ -1,8 +1,0 @@
-<map id="modulegotm::tridiagonal" name="modulegotm::tridiagonal">
-<area shape="rect" id="node2" href="$namespacemodulegotm.html#ac05dd8d50f9ddc2c286122142f8a400e" title="modulegotm::dissipationeq" alt="" coords="215,5,393,32"/>
-<area shape="rect" id="node5" href="$namespacemodulegotm.html#a82edc4e2eec49fb4f24fc31918908aef" title="modulegotm::lengthscaleeq" alt="" coords="213,56,395,83"/>
-<area shape="rect" id="node6" href="$namespacemodulegotm.html#aa2677c2275ef6e84a615765d4db0772c" title="modulegotm::tkeeq" alt="" coords="237,107,371,133"/>
-<area shape="rect" id="node3" href="$namespacemodulegotm.html#a2d9e32d408a390b64575234c5dd95f62" title="modulegotm::lengthscale" alt="" coords="443,56,609,83"/>
-<area shape="rect" id="node4" href="$namespacemodulegotm.html#a4ca35153e188114f4f02fe276d302d14" title="modulegotm::do_turbulence" alt="" coords="657,81,840,108"/>
-<area shape="rect" id="node7" href="$namespacemodulegotm.html#ae39109acd910c29deba62e83a6edce50" title="modulegotm::do_tke" alt="" coords="456,107,596,133"/>
-</map>

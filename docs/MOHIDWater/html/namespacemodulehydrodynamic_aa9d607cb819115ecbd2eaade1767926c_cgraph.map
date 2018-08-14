@@ -1,5 +1,0 @@
-<map id="modulehydrodynamic::compute_stokesdriftvelocity" name="modulehydrodynamic::compute_stokesdriftvelocity">
-<area shape="rect" id="node2" href="$namespacemodulehydrodynamic.html#aeaeab24d9e7539d66950b61105ead64f" title="modulehydrodynamic\l::face_interpolation" alt="" coords="275,5,420,47"/>
-<area shape="rect" id="node3" href="$namespacemodulehydrodynamic.html#a4ecf50b9477e7ba12adebe7aef0435c9" title="modulehydrodynamic\l::nullgradientnormalstokesvel" alt="" coords="253,71,442,112"/>
-<area shape="rect" id="node4" href="$namespacemodulehydrodynamic.html#a0b72f75ffb8470f241904b141a68198e" title="modulehydrodynamic\l::nullgradienttangentialstokesvel" alt="" coords="244,136,451,177"/>
-</map>

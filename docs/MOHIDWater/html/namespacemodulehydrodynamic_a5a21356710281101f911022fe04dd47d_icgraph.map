@@ -1,6 +1,0 @@
-<map id="modulehydrodynamic::nonhydrodischarges" name="modulehydrodynamic::nonhydrodischarges">
-<area shape="rect" id="node2" href="$namespacemodulehydrodynamic.html#abc8e7cbc6bd77b58f41b41db117c979b" title="modulehydrodynamic\l::nonhydrostaticcorrection" alt="" coords="200,5,372,47"/>
-<area shape="rect" id="node3" href="$namespacemodulehydrodynamic.html#aa05a995dd1f1f6550d1ecdfb0a0bab47" title="modulehydrodynamic\l::momentummassconservation" alt="" coords="420,5,619,47"/>
-<area shape="rect" id="node4" href="$namespacemodulehydrodynamic.html#a054b8ffaff698f4cc430c2f7f0bc0da9" title="modulehydrodynamic\l::one_iteration" alt="" coords="667,5,812,47"/>
-<area shape="rect" id="node5" href="$namespacemodulehydrodynamic.html#a54656696e009a87a266514744beb5baa" title="modulehydrodynamic\l::modify_hydrodynamic" alt="" coords="860,5,1016,47"/>
-</map>

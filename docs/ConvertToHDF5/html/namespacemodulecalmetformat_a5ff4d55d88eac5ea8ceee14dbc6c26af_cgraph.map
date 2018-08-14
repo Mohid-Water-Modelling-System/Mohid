@@ -1,9 +1,0 @@
-<map id="modulecalmetformat::openandreadcalmetfile" name="modulecalmetformat::openandreadcalmetfile">
-<area shape="rect" id="node2" href="$namespacemodulecalmetformat.html#a2e6285b2b96d5b3545d7755b77b65502" title="modulecalmetformat\l::handle_proj_error" alt="" coords="212,5,351,47"/>
-<area shape="rect" id="node3" href="$namespacemodulecalmetformat.html#a620b75749d8d431ee5f1c9152211ebb0" title="modulecalmetformat\l::addfieldxy" alt="" coords="212,123,351,164"/>
-<area shape="rect" id="node4" href="$namespacemodulecalmetformat.html#ad719aec457312263662ee69e4ff227fb" title="modulecalmetformat\l::addfield" alt="" coords="403,123,542,164"/>
-<area shape="rect" id="node5" href="$namespacemodulecalmetformat.html#a14590292a4c7892fcd59f55007069444" title="modulecalmetformat\l::setnewfieldattributes" alt="" coords="399,188,547,229"/>
-<area shape="rect" id="node6" href="$namespacemodulecalmetformat.html#a26c3210caedd039907d56c2a6b8d30c4" title="modulecalmetformat\l::addintegerfieldxy" alt="" coords="212,188,351,229"/>
-<area shape="rect" id="node7" href="$namespacemodulecalmetformat.html#a3defaeb10661bad427bb6a70e331c077" title="modulecalmetformat\l::setnewdate" alt="" coords="212,305,351,347"/>
-<area shape="rect" id="node8" href="$namespacemodulecalmetformat.html#ac2b80a87e09960dca9aab0ddc8af00b5" title="modulecalmetformat\l::adddate" alt="" coords="403,305,542,347"/>
-</map>

@@ -1,4 +1,0 @@
-<map id="modulecalmetformat::t_calmetformat" name="modulecalmetformat::t_calmetformat">
-<area shape="rect" id="node2" href="$structmodulecalmetformat_1_1t__field.html" title="{modulecalmetformat\l::t_field\n|&#45; name\l&#45; units\l&#45; convert\l&#45; ndimensions\l&#45; staggeredx\l&#45; staggeredy\l&#45; staggeredz\l&#45; date\l&#45; values2d\l&#45; values3d\l&#45; ivalues2d\l&#45; isinteger\l&#45; outputnumber\l&#45; size\l&#45; worksize\l|}" alt="" coords="5,5,144,303"/>
-<area shape="rect" id="node3" href="$structmodulecalmetformat_1_1t__date.html" title="{modulecalmetformat\l::t_date\n|&#45; date\l|}" alt="" coords="225,108,364,200"/>
-</map>

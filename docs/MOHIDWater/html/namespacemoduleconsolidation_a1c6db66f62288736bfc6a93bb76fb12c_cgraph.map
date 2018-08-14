@@ -1,6 +1,0 @@
-<map id="moduleconsolidation::construct_outputs" name="moduleconsolidation::construct_outputs">
-<area shape="rect" id="node2" href="$namespacemoduleconsolidation.html#a29241b472f688e15c435e72ca5da5273" title="moduleconsolidation\l::construct_output_options" alt="" coords="195,5,371,47"/>
-<area shape="rect" id="node3" href="$namespacemoduleconsolidation.html#a7138aa2bb0b64953d0ca37c18692d505" title="moduleconsolidation\l::construct_time_serie" alt="" coords="207,71,358,112"/>
-<area shape="rect" id="node4" href="$namespacemoduleconsolidation.html#a37594ccd5d2f08cccc42657f65ec2387" title="moduleconsolidation\l::construct_box_time_serie" alt="" coords="193,136,372,177"/>
-<area shape="rect" id="node5" href="$namespacemoduleconsolidation.html#a815002368bde1f9440c793d1c3f03f37" title="moduleconsolidation\l::open_hdf_output_file" alt="" coords="209,201,357,243"/>
-</map>

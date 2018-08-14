@@ -1,9 +1,0 @@
-<map id="moduleirrigation::adddailyscheduletolist" name="moduleirrigation::adddailyscheduletolist">
-<area shape="rect" id="node2" href="$namespacemoduleirrigation.html#af6e24627c25064683d994b7a6fc66c6d" title="moduleirrigation::constructdailyschedules" alt="" coords="303,5,564,32"/>
-<area shape="rect" id="node6" href="$namespacemoduleirrigation.html#a056efe3e9f80f4703447f224848ebd47" title="moduleirrigation::setupdailyschedule" alt="" coords="317,56,549,83"/>
-<area shape="rect" id="node3" href="$namespacemoduleirrigation.html#a46de92ffaac8fbd782bdcdf682a48601" title="moduleirrigation::constructschedule" alt="" coords="632,5,859,32"/>
-<area shape="rect" id="node4" href="$namespacemoduleirrigation.html#a6339c6a7568266fb2911688be44e1957" title="moduleirrigation::constructschedules" alt="" coords="927,5,1161,32"/>
-<area shape="rect" id="node5" href="$namespacemoduleirrigation.html#a1533651367025ce2df52f548e83ecf32" title="moduleirrigation::constructirrigation" alt="" coords="1209,5,1433,32"/>
-<area shape="rect" id="node7" href="$namespacemoduleirrigation.html#ad1bea8412119ae05c2eb3e177bcaed44" title="moduleirrigation::computeirrigationbysteps" alt="" coords="612,56,879,83"/>
-<area shape="rect" id="node8" href="$namespacemoduleirrigation.html#a1b4b8c33ee265298e1bf3cb4d19f6762" title="moduleirrigation::modifyirrigation" alt="" coords="940,56,1148,83"/>
-</map>

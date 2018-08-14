@@ -1,7 +1,0 @@
-<map id="modulegauge::getwave" name="modulegauge::getwave">
-<area shape="rect" id="node2" href="$namespacemodulegauge.html#a595eb00804040bb46c4684d46b5ed2eb" title="modulegauge::newcomponentsbyadmittance" alt="" coords="207,46,485,73"/>
-<area shape="rect" id="node3" href="$namespacemodulegauge.html#a7de5a32e5ee02eaed3c8a598bbb65cb9" title="modulegauge::harmonicswaterlevel" alt="" coords="533,46,756,73"/>
-<area shape="rect" id="node4" href="$namespacemodulegauge.html#a40e51c18500557c90968e17a5ec8a550" title="modulegauge::gaugelevel" alt="" coords="804,46,971,73"/>
-<area shape="rect" id="node5" href="$namespacemoduleopenboundary.html#ab4eb76c328f66777a2d624134933208e" title="moduleopenboundary\l::modify_openboundary" alt="" coords="1019,5,1175,47"/>
-<area shape="rect" id="node6" href="$namespacemoduleopenboundary.html#aff2a2f4ab16c35a036f9e00575fed103" title="moduleopenboundary\l::modify_alldomain" alt="" coords="1024,71,1169,112"/>
-</map>

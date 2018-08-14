@@ -1,4 +1,0 @@
-<map id="moduleporousmedia::t_integrationoutput" name="moduleporousmedia::t_integrationoutput">
-<area shape="rect" id="node2" href="$structmoduleporousmedia_1_1t__integrationinfo.html" title="{moduleporousmedia::\lt_integrationinfo\n|&#45; yes\l&#45; bylayer\l&#45; byhorizon\l&#45; old2d\l&#45; field2d\l&#45; old3d\l&#45; field3d\l&#45; horizonscount\l|}" alt="" coords="7,248,153,443"/>
-<area shape="rect" id="node3" href="$structmoduleporousmedia_1_1t__integrationbyhorizon.html" title="{moduleporousmedia::\lt_integrationbyhorizon\n|&#45; name\l&#45; startlayer\l&#45; endlayer\l&#45; old2d\l&#45; field2d\l&#45; old3d\l&#45; field3d\l|}" alt="" coords="5,5,155,185"/>
-</map>

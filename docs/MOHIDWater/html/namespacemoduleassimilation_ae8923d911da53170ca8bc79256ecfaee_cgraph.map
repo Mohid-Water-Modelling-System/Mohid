@@ -1,9 +1,0 @@
-<map id="moduleassimilation::getassimilationaltimetry" name="moduleassimilation::getassimilationaltimetry">
-<area shape="rect" id="node2" href="$namespacemoduleassimilation.html#a7c7eb17646a26837c5dfb9acc963b010" title="moduleassimilation\l::ready" alt="" coords="229,5,363,47"/>
-<area shape="rect" id="node4" href="$namespacemoduleassimilation.html#af392c1f06d8b730776cfb5680aaf95cb" title="moduleassimilation\l::altimetricassimilation" alt="" coords="220,71,372,112"/>
-<area shape="rect" id="node3" href="$namespacemoduleassimilation.html#acb3e0bb143f8372bac2b99052ba4943d" title="moduleassimilation\l::locateobjassimilation" alt="" coords="420,5,571,47"/>
-<area shape="rect" id="node5" href="$namespacemoduleassimilation.html#adb4698b9b7aa680222581e31452094dc" title="moduleassimilation\l::loweringlifting" alt="" coords="429,71,562,112"/>
-<area shape="rect" id="node6" href="$namespacemoduleassimilation.html#a689487c17f9fdb64311b351530c9244a" title="moduleassimilation\l::changetemperaturesalinity" alt="" coords="619,71,801,112"/>
-<area shape="rect" id="node7" href="$namespacemoduleassimilation.html#a4473000cecbde1abb63d63fc9a6f5858" title="moduleassimilation\l::spline_alt" alt="" coords="849,37,983,79"/>
-<area shape="rect" id="node8" href="$namespacemoduleassimilation.html#a5db3c59220db22267e7e1e7eca84a356" title="moduleassimilation\l::splint" alt="" coords="849,103,983,144"/>
-</map>

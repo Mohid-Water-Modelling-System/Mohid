@@ -1,8 +1,0 @@
-<map id="modulemodel::killmodel" name="modulemodel::killmodel">
-<area shape="rect" id="node2" href="$_main_8_f90.html#a22cacab418d9e36dcaa8c3aef44b4185" title="mohidwater" alt="" coords="231,5,319,32"/>
-<area shape="rect" id="node3" href="$_main_8_f90.html#a5128f2face71ee4677d8367d5cb5b14b" title="killmohidwater" alt="" coords="223,56,327,83"/>
-<area shape="rect" id="node7" href="$_main_8_f90.html#afa8be84014e1a3928a646b3e9fc25c72" title="killmohidwatermpi" alt="" coords="212,107,337,133"/>
-<area shape="rect" id="node4" href="$_main_8_f90.html#a4c5ecbd810307fa557d4b4e6719c7fd1" title="updatesubmodelvalues" alt="" coords="385,56,539,83"/>
-<area shape="rect" id="node5" href="$_main_8_f90.html#a5a877f32d8c35a58c7bd824a65b07dba" title="doonetimestep" alt="" coords="587,56,693,83"/>
-<area shape="rect" id="node6" href="$_main_8_f90.html#a98b6185e00bdaa093569c6645482e68b" title="modifymohidwater" alt="" coords="741,81,868,108"/>
-</map>

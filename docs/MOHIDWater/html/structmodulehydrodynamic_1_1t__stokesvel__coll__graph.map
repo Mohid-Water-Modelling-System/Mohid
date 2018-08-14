@@ -1,5 +1,0 @@
-<map id="modulehydrodynamic::t_stokesvel" name="modulehydrodynamic::t_stokesvel">
-<area shape="rect" id="node2" href="$structmodulehydrodynamic_1_1t__vertical.html" title="{modulehydrodynamic\l::t_vertical\n|&#45; cartesian\l&#45; cartesianold\l&#45; across\l|}" alt="" coords="5,263,151,384"/>
-<area shape="rect" id="node3" href="$structmodulehydrodynamic_1_1t__horizontal.html" title="{modulehydrodynamic\l::t_horizontal\n||}" alt="" coords="175,277,320,369"/>
-<area shape="rect" id="node4" href="$structmodulehydrodynamic_1_1t__vel__uv.html" title="{modulehydrodynamic\l::t_vel_uv\n|&#45; id\l&#45; new\l&#45; old\l&#45; default\l&#45; intypezuv\l|}" alt="" coords="175,5,320,156"/>
-</map>

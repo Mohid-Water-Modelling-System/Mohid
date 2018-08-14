@@ -1,5 +1,0 @@
-<map id="modulepatchhdf5files::t_patchhdf5files" name="modulepatchhdf5files::t_patchhdf5files">
-<area shape="rect" id="node2" href="$structmodulepatchhdf5files_1_1t__father.html" title="{modulepatchhdf5files\l::t_father\n|&#45; nodex\l&#45; nodey\l&#45; nodez\l&#45; numberofnodes\l&#45; objtriangulation\l|}" alt="" coords="52,307,195,457"/>
-<area shape="rect" id="node3" href="$structmodulepatchhdf5files_1_1t__field.html" title="{modulepatchhdf5files\l::t_field\n|&#45; name\l&#45; units\l&#45; idnumber\l&#45; date\l&#45; values2d\l&#45; values3d\l|}" alt="" coords="5,42,148,207"/>
-<area shape="rect" id="node4" href="$structmodulepatchhdf5files_1_1t__grid.html" title="{modulepatchhdf5files\l::t_grid\n|&#45; objhorizontalgrid\l&#45; objhdf5\l&#45; objhorizontalmap\l&#45; objbathymetry\l&#45; filename\l&#45; gridfilename\l&#45; instantsarray\l&#45; numberofinstants\l&#45; numberofproperties\l&#45; size2d\land 7 more...\l|}" alt="" coords="229,5,372,244"/>
-</map>

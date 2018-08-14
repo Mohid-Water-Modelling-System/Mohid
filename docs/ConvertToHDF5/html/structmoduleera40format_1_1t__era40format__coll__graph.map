@@ -1,9 +1,0 @@
-<map id="moduleera40format::t_era40format" name="moduleera40format::t_era40format">
-<area shape="rect" id="node2" href="$structmoduleera40format_1_1t__field.html" title="{moduleera40format::\lt_field\n|&#45; name\l&#45; units\l&#45; convert\l&#45; ndimensions\l&#45; gridlocation\l&#45; date\l&#45; values2d\l&#45; values3d\l&#45; outputnumber\l&#45; size\l&#45; worksize\l|}" alt="" coords="5,476,145,715"/>
-<area shape="rect" id="node3" href="$structmoduleera40format_1_1t__variable.html" title="{moduleera40format::\lt_variable\n|&#45; ndimensions\l&#45; nattributes\l&#45; dimensionsid\l|}" alt="" coords="227,535,367,656"/>
-<area shape="rect" id="node4" href="$structmoduleera40format_1_1t__dimension.html" title="{moduleera40format::\lt_dimension\n|&#45; name\l&#45; size\l|}" alt="" coords="64,307,204,413"/>
-<area shape="rect" id="node5" href="$structmoduleera40format_1_1t__attribute.html" title="{moduleera40format::\lt_attribute\n||}" alt="" coords="315,314,455,406"/>
-<area shape="rect" id="node6" href="$structmoduleera40format_1_1t__value.html" title="{moduleera40format::\lt_value\n|&#45; units\l&#45; byte_\l&#45; char\l&#45; char_1d\l&#45; short\l&#45; short_1d\l&#45; short_2d\l&#45; short_3d\l&#45; int\l&#45; int_1d\land 13 more...\l|}" alt="" coords="220,5,360,244"/>
-<area shape="rect" id="node7" href="$structmoduleera40format_1_1t__id.html" title="{moduleera40format::t_id\n|&#45; name\l&#45; number\l&#45; length\l&#45; type_\l|}" alt="" coords="403,64,564,185"/>
-<area shape="rect" id="node8" href="$structmoduleera40format_1_1t__date.html" title="{moduleera40format::\lt_date\n|&#45; date\l|}" alt="" coords="391,549,531,641"/>
-</map>

@@ -1,8 +1,0 @@
-<map id="moduleconsolidation::construct_globalvariables" name="moduleconsolidation::construct_globalvariables">
-<area shape="rect" id="node2" href="$namespacemoduleconsolidation.html#a5157e525fb069b7984e826def43a4dfc" title="moduleconsolidation\l::readlockexternalmodules" alt="" coords="235,5,409,47"/>
-<area shape="rect" id="node3" href="$namespacemoduleconsolidation.html#a8bde788846d06954ea13eb84223da96a" title="moduleconsolidation\l::allocatevariables" alt="" coords="252,71,392,112"/>
-<area shape="rect" id="node4" href="$namespacemoduleconsolidation.html#a4699e64424e9e130e7f46758181721ec" title="moduleconsolidation\l::construct_parameters" alt="" coords="244,136,400,177"/>
-<area shape="rect" id="node7" href="$namespacemoduleconsolidation.html#a146c8502b0f191abd1664acdcd22a4c4" title="moduleconsolidation\l::readunlockexternalmodules" alt="" coords="228,201,416,243"/>
-<area shape="rect" id="node5" href="$namespacemoduleconsolidation.html#ad228e075c84afa273170a1c50c1a9f41" title="moduleconsolidation\l::read_old_parameters" alt="" coords="464,104,615,145"/>
-<area shape="rect" id="node6" href="$namespacemoduleconsolidation.html#af867c8406bedea1eef3287708029fa21" title="moduleconsolidation\l::constructscalar3d" alt="" coords="469,169,609,211"/>
-</map>

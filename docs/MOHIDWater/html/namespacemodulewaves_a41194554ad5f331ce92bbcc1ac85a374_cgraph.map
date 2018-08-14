@@ -1,9 +1,0 @@
-<map id="modulewaves::constructwaveparameters" name="modulewaves::constructwaveparameters">
-<area shape="rect" id="node2" href="$namespacemodulewaves.html#a5465d7c0bebb4ccf791eba8d2dfb8a8d" title="modulewaves::readwaveparameters" alt="" coords="319,5,544,32"/>
-<area shape="rect" id="node3" href="$namespacemodulewaves.html#a8f1215445f8fd38dbf41e7339b28cf9f" title="modulewaves::readstokesdriftspectrum" alt="" coords="308,56,555,83"/>
-<area shape="rect" id="node4" href="$namespacemodulewaves.html#a3aa2de7449377be15fcc0bbb463170ed" title="modulewaves::computeabw" alt="" coords="341,107,521,133"/>
-<area shape="rect" id="node5" href="$namespacemodulewaves.html#a069825270a300a70ba32518f571bcb90" title="modulewaves::constructglobaloutput" alt="" coords="316,157,547,184"/>
-<area shape="rect" id="node6" href="$namespacemodulewaves.html#a86eae20876164ce3f5e09fbb27e80f64" title="modulewaves::construct\l_time_serie" alt="" coords="351,209,512,250"/>
-<area shape="rect" id="node7" href="$_main_8_f90.html#af0ae0b978e6573bc461573aa66062e83" title="modelname" alt="" coords="603,216,692,243"/>
-<area shape="rect" id="node8" href="$_main_8_f90.html#ada5b220b45dcba73a75264dcde43e3bd" title="modelpath" alt="" coords="740,216,823,243"/>
-</map>

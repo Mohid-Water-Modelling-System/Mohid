@@ -1,6 +1,0 @@
-<map id="modulevegetation::harvestkillfluxes" name="modulevegetation::harvestkillfluxes">
-<area shape="rect" id="node2" href="$namespacemodulevegetation.html#a5b6084c4fb89b8ce3f29e23d6b623bef" title="modulevegetation::harvestkilloperation" alt="" coords="291,5,531,32"/>
-<area shape="rect" id="node3" href="$namespacemodulevegetation.html#a8f770924e5053c42aa7f57b5a6f5be05" title="modulevegetation::updateplantgrowingstage" alt="" coords="275,56,548,83"/>
-<area shape="rect" id="node4" href="$namespacemodulevegetation.html#a3dc6ee6dd39f0f9ae9bbbe6356b45efc" title="modulevegetation::harvestoperation" alt="" coords="299,107,523,133"/>
-<area shape="rect" id="node5" href="$namespacemodulevegetation.html#a48e334671d44b0f7bf51ba2801d47db0" title="modulevegetation::killoperation" alt="" coords="312,157,511,184"/>
-</map>

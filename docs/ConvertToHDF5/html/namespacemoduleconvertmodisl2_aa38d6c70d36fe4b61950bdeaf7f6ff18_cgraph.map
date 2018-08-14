@@ -1,9 +1,0 @@
-<map id="moduleconvertmodisl2::startconvertmodisl2" name="moduleconvertmodisl2::startconvertmodisl2">
-<area shape="rect" id="node2" href="$namespacemoduleconvertmodisl2.html#ab79be5b024d52c708202d2716a6467e7" title="moduleconvertmodisl2\l::construct_fieldslist" alt="" coords="204,68,355,109"/>
-<area shape="rect" id="node8" href="$namespacemoduleconvertmodisl2.html#ac166b6c8f2cb482fc76e22739ee0a87d" title="moduleconvertmodisl2\l::killmodisl2" alt="" coords="204,133,355,175"/>
-<area shape="rect" id="node3" href="$namespacemoduleconvertmodisl2.html#a8eaadcf3a3d4a83e399eabd3c0502909" title="moduleconvertmodisl2\l::construct_field" alt="" coords="403,35,553,76"/>
-<area shape="rect" id="node7" href="$namespacemoduleconvertmodisl2.html#a133fa594d1513ec9b6ed011f318d87e8" title="moduleconvertmodisl2\l::add_field" alt="" coords="403,100,553,141"/>
-<area shape="rect" id="node4" href="$namespacemoduleconvertmodisl2.html#a816da8e71fe8787069f3e7359fc8445f" title="moduleconvertmodisl2\l::readhdf4" alt="" coords="601,35,752,76"/>
-<area shape="rect" id="node5" href="$namespacemoduleconvertmodisl2.html#a0d7d930d189037284103c8340c2d3cf6" title="moduleconvertmodisl2\l::readdate" alt="" coords="800,5,951,47"/>
-<area shape="rect" id="node6" href="$namespacemoduleconvertmodisl2.html#a95ba390f4da93899410109801bcd5011" title="moduleconvertmodisl2\l::lookforfile" alt="" coords="999,35,1149,76"/>
-</map>

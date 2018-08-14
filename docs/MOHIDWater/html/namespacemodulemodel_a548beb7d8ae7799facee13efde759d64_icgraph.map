@@ -1,7 +1,0 @@
-<map id="modulemodel::getmodeltimestep" name="modulemodel::getmodeltimestep">
-<area shape="rect" id="node2" href="$_main_8_f90.html#a22cacab418d9e36dcaa8c3aef44b4185" title="mohidwater" alt="" coords="299,5,387,32"/>
-<area shape="rect" id="node3" href="$_main_8_f90.html#a5a877f32d8c35a58c7bd824a65b07dba" title="doonetimestep" alt="" coords="469,56,576,83"/>
-<area shape="rect" id="node6" href="$_main_8_f90.html#a21af06ec88c487727156f8a6158380c6" title="searchminmaxtimestep" alt="" coords="264,107,421,133"/>
-<area shape="rect" id="node4" href="$_main_8_f90.html#a98b6185e00bdaa093569c6645482e68b" title="modifymohidwater" alt="" coords="624,107,751,133"/>
-<area shape="rect" id="node5" href="$_main_8_f90.html#a4c5ecbd810307fa557d4b4e6719c7fd1" title="updatesubmodelvalues" alt="" coords="799,76,952,103"/>
-</map>

@@ -1,5 +1,0 @@
-<map id="moduleirrigation::t_irrischedule" name="moduleirrigation::t_irrischedule">
-<area shape="rect" id="node2" href="$structmoduleirrigation_1_1t__accoutput.html" title="{moduleirrigation::t\l_accoutput\n|&#45; yes\l&#45; nextoutputtime\l&#45; outputinterval\l&#45; value\l|}" alt="" coords="5,57,131,193"/>
-<area shape="rect" id="node3" href="$structmoduleirrigation_1_1t__irriproperty.html" title="{moduleirrigation::t\l_irriproperty\n|&#45; id\l&#45; defaultvalue\l&#45; field\l&#45; field3d\l&#45; logicalfield\l&#45; logicalfield3d\l&#45; islogical\l&#45; old\l&#45; outputtohdf\l&#45; outputtotimeseries\l&#45; savetofinalfile\l|}" alt="" coords="155,5,293,244"/>
-<area shape="rect" id="node4" href="$structmoduleirrigation_1_1t__dailyschedule.html" title="{moduleirrigation::t\l_dailyschedule\n|&#45; startinstant\l&#45; endinstant\l&#45; startday\l&#45; endday\l&#45; sstartinstant\l&#45; sendinstant\l&#45; irrigation\l&#45; totalirrigation\l|}" alt="" coords="373,27,499,222"/>
-</map>

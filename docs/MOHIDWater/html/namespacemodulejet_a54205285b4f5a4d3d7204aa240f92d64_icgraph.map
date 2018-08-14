@@ -1,7 +1,0 @@
-<map id="modulejet::gaussianevolution" name="modulejet::gaussianevolution">
-<area shape="rect" id="node2" href="$namespacemodulejet.html#a61dad6f878bf6cce690b9523901012ac" title="modulejet::cloudoutput" alt="" coords="241,5,395,32"/>
-<area shape="rect" id="node3" href="$namespacemodulejet.html#a7518a8afbcafcfeedfc10f5a3a205b33" title="modulejet::timecontrol" alt="" coords="443,5,593,32"/>
-<area shape="rect" id="node4" href="$namespacemodulejet.html#aa7fe235d6b33c696f614897ed43a1e19" title="modulejet::computeonetimestep" alt="" coords="641,5,848,32"/>
-<area shape="rect" id="node5" href="$namespacemodulejet.html#aa0e9555f7e9aa809220382ec3e33e9a5" title="modulejet::computestationaryplume" alt="" coords="896,5,1124,32"/>
-<area shape="rect" id="node6" href="$namespacemodulejet.html#aabae5c457f7fe1dd3d3f540d56e94877" title="modulejet::modifyjet" alt="" coords="1172,5,1311,32"/>
-</map>

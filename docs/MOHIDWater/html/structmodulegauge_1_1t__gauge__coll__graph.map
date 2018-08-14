@@ -1,5 +1,0 @@
-<map id="modulegauge::t_gauge" name="modulegauge::t_gauge">
-<area shape="rect" id="node2" href="$structmodulegauge_1_1t__tidegauge.html" title="{modulegauge::t_tidegauge\n|&#45; name\l&#45; longitude\l&#45; latitude\l&#45; decimallatitude\l&#45; decimallongitude\l&#45; metric_x\l&#45; metric_y\l&#45; definedmetric\l&#45; grid_i\l&#45; grid_j\land 17 more...\l|}" alt="" coords="197,204,371,428"/>
-<area shape="rect" id="node3" href="$structmodulegauge_1_1t__tidalwave.html" title="{modulegauge::t_tidalwave\n|&#45; name\l&#45; amplitude\l&#45; phase\l|}" alt="" coords="5,13,176,119"/>
-<area shape="rect" id="node4" href="$structmodulegauge_1_1t__tidalvelocity.html" title="{modulegauge::t_tidalvelocity\n|&#45; name\l&#45; amplitude\l&#45; phase\l&#45; nwaves\l|}" alt="" coords="257,5,442,127"/>
-</map>
