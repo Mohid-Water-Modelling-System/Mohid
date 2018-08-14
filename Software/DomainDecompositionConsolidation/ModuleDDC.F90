@@ -308,18 +308,17 @@ if3 :           if (iMPI > 0) then
     !--------------------------------------------------------------------------
 
     character(len=PathLength) pure function ModelPath (AuxString, Level)
-
+    
         !Arguments-------------------------------------------------------------
         character(len=*), intent(in)                                :: AuxString
         integer,          intent(in)                                :: Level
-
+    
         !Local-----------------------------------------------------------------
         integer                                                     :: position
-
+    
         !------------------------------------------------------------------------
 
         position  = scan(AuxString, "/", back = .true.)
-
         if (position == 0) then            
             position = scan(AuxString, backslash, back = .true.)
         endif
@@ -327,11 +326,11 @@ if3 :           if (iMPI > 0) then
             ModelPath = "../res"
         else
             ModelPath  = AuxString(Level+1:position)//"res"
-        endif
-        
+        endif       
         !------------------------------------------------------------------------
-
+    
     end function ModelPath
+
 	
     !--------------------------------------------------------------------------
 

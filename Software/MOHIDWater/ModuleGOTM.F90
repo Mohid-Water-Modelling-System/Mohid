@@ -71,7 +71,6 @@
 !  Original author(s): GOTM code
 !
 !  $Log$
-!\
 ! !BUGS
 !
 !EOP
