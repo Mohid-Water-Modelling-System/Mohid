@@ -3533,7 +3533,7 @@ do1:     do
             Number = '    '
             write(Number, fmt='(i4)')Counter
             open(UNIT   = Me%Files%AsciiUnit,                                      &
-                 FILE   = '..'//backslash//'res'//backslash//'RP_ADCoefs_'//trim(adjustl(Number))//'.log', &
+                 FILE   = '..\res\RP_ADCoefs_'//trim(adjustl(Number))//'.log', &
                  STATUS = "REPLACE",                                      &
                  IOSTAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_) then
@@ -4487,7 +4487,7 @@ cd0:    if (Exist) then
                 if (STAT_ /= SUCCESS_) stop 'SetBasinConcRP - ModuleRunoffProperties - ERR020'
                     
             else
-                write(*,*) 'Looking for Runoff Property in Runoff Property ?', GetPropertyName(PropertyXIDNumber)
+                write(*,*) 'Looking for Runoff Property in Runoff Property ???', GetPropertyName(PropertyXIDNumber)
                 write(*,*) 'but not found. Link between WQ in modules can not be done.'
                 stop 'SetBasinConcRP - ModuleDrainageNetwork - ERR010'
             end if
@@ -7535,7 +7535,7 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !                    !!BOUNDARY FLUXES IN RUNOFF (NOT YET DONE)
 !                    
 !                    !!FLUXES IN X AND Y DIRECTION                        
-!                    if (Me%ComputeOptions%AdvDiff_SpatialMethod==AdvDif_CentralDif_) then ! diferenï¿½as centrais
+!                    if (Me%ComputeOptions%AdvDiff_SpatialMethod==AdvDif_CentralDif_) then ! diferenças centrais
 !
 !                        
 !                        AdvTermA_U        = (aux * FluxU(i,j  ) / 2.) 
@@ -10228,4 +10228,4 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 end module ModuleRunoffProperties
 
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2006. MARETEC, Instituto Superior Tï¿½cnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2006. MARETEC, Instituto Superior Técnico, Technical University of Lisbon. 
