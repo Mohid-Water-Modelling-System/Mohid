@@ -5771,23 +5771,23 @@ d5:     do k = klast + 1,KUB
     !>@Brief
     !>feeds back info from son to father using the inverse weigthed distance method. routine for Z types
     !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeSon, Connections, &
-    !>                         Distances, DecayTime, DT, AuxMatrix, IgnoreOBCells, Nodes                             
+    !>                         Distances, DecayTime, DT, IgnoreOBCells, Nodes                             
     subroutine FeedBack_IWD (FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeSon, ILink, JLink, Connections, &
-                             Dist, DecayTime, DT, AuxMatrix, IgnoreOBCells, Nodes, IWDn, NodesPerCell)
+                             Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom)
     
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon
-        real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix, AuxMatrix
+        real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
         real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
+        real,    dimension(:,:,:), pointer                :: Nom, Denom
         integer, dimension(:,:  ), pointer, intent(IN)    :: Connections, IgnoreOBCells, ILink, JLink
         integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon
         real,    intent (IN)                              :: DecayTime, DT
         real, dimension(:), pointer                       :: Dist
-        integer                                           :: Nodes, IWDn, NodesPerCell
+        integer                                           :: Nodes, IWDn
         !Local variables -----------------------------------------------------------------------------
         integer                                           :: i, j, k, KLBSon, KUBSon, ILBSon, IUBSon, JLBSon, JUBSon, &
-                                                             counter, index, iSon, jSon, iFather, jFather
-        real                                              :: Nom, Denom
+                                                             index, iSon, jSon, iFather, jFather
         !Begin----------------------------------------------------------------------------------------
         
         !As the son domain can have less layers than the father domain, it is necessary to use the son size to avoid
@@ -5796,44 +5796,35 @@ d5:     do k = klast + 1,KUB
         IUBSon = SizeSon%IUB
         JLBSon = SizeSon%JLB
         JUBSon = SizeSon%JUB
-        KLBSon    = SizeSon%KLB
-        KUBSon    = SizeSon%KUB
-        Nom   = 0.0
-        Denom = 0.0
-        counter = 0
-        
+        KLBSon = SizeSon%KLB
+        KUBSon = SizeSon%KUB
+
         do k = KLBSon, KUBSon
-        do index = 1, Nodes ! ir buscar isto ao horizontal grid
-
-            counter = counter + 1
-            if ( Dist(index) >= 0) then
-                iSon        = Connections (index, 1)
-                JSon        = Connections (index, 2)
-                iFather     = Connections (index, 3)
-                jFather     = Connections (index, 4)
-                
-                Nom   = Nom   + SonMatrix(iSon, jSon, k) / (Dist(index) ** IWDn) * IgnoreOBCells(iSon, jSon) * &
-                                            Open3DSon(iSon, jSon, k)
-                Denom = Denom + (1.0 / (Dist(index) ** IWDn)) * IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k)
-                
-                if (counter == NodesPerCell) then
-                    AuxMatrix(iFather, jFather, k) =  Nom / Denom
-                    counter     = 0
-                    Nom   = 0.0
-                    Denom = 0.0                
-                endif                
-            endif
-
+        do index = 1, Nodes
+            
+            iFather  = Connections (index, 1)
+            jFather  = Connections (index, 2)
+            iSon     = Connections (index, 3)
+            jSon     = Connections (index, 4)
+            
+            Nom(iFather, jFather, k)  = Nom(iFather, jFather, k) + SonMatrix(iSon, jSon, k) / (Dist(index) ** IWDn) * &
+                                                                   IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k)
+            
+            Denom(iFather, jFather, k) = Denom(iFather, jFather, k) + (1.e-5 / (Dist(index) ** IWDn)) * &
+                                                                   IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k)
+              
         enddo
         enddo
         
         do k = KLBSon, KUBSon
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-
-            FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) - FatherMatrix(i, j, k)) * &
-                                    (DT / DecayTime) * Open3DFather(i, j, k)
-                
+            !1e-5 reffers to the reference distance used in the IWD method (horizontalGrid).
+            if (Denom (i, j, k) > 0) then
+                FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                           + &
+                                        (Nom(i, j, k) * 1.e-5 / Denom(i, j, k) - FatherMatrix(i, j, k)) * &
+                                        (DT / DecayTime) * Open3DFather(i, j, k)                
+            endif 
         enddo
         enddo
         enddo        
@@ -5845,24 +5836,24 @@ d5:     do k = klast + 1,KUB
     !>@Brief
     !>feeds back info from son to father using the inverse weigthed distance method. routine for Z types
     !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeSon, Connections, &
-    !>                         Distances, DecayTime, DT, AuxMatrix, IgnoreOBCells, Nodes, IWDn                             
+    !>                         Distances, DecayTime, DT, IgnoreOBCells, Nodes, IWDn                             
     subroutine FeedBack_IWD_UV (FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D, &
                                 SonComputeFaces3D, SizeSon, ILink, JLink, Connections, Dist, DecayTime, DT, &
-                                AuxMatrix, IgnoreOBCells, Nodes, IWDn, NodesPerCell)
+                                IgnoreOBCells, Nodes, IWDn, Nom, Denom)
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon
-        real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix, AuxMatrix
+        real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
         real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
+        real,    dimension(:,:,:), pointer                :: Nom, Denom
         integer, dimension(:,:  ), pointer, intent(IN)    :: Connections, IgnoreOBCells, ILink, JLink
         integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon, FatherComputeFaces3D, &
                                                              SonComputeFaces3D
         real,    intent (IN)                              :: DecayTime, DT
         real, dimension(:), pointer                       :: Dist
-        integer                                           :: Nodes, IWDn, NodesPerCell
+        integer                                           :: Nodes, IWDn
         !Local variables -----------------------------------------------------------------------------
-        integer                                           :: i, j, k, KLBSon, KUBSon, index, counter, ILBSon, &
+        integer                                           :: i, j, k, KLBSon, KUBSon, index, ILBSon, &
                                                              IUBSon, JLBSon, JUBSon, iSon, jSon, iFather, jFather
-        real                                              :: Nom, Denom
         !Begin----------------------------------------------------------------------------------------
         
         !As the son domain can have less layers than the father domain, it is necessary to use the son size to avoid
@@ -5871,48 +5862,42 @@ d5:     do k = klast + 1,KUB
         IUBSon = SizeSon%IUB
         JLBSon = SizeSon%JLB
         JUBSon = SizeSon%JUB
-        KLBSon    = SizeSon%KLB
-        KUBSon    = SizeSon%KUB
-        Nom   = 0.0
-        Denom = 0.0
-        counter = 0
-        
+        KLBSon = SizeSon%KLB
+        KUBSon = SizeSon%KUB
+
         do k = KLBSon, KUBSon
-        do index = 1, Nodes ! ir buscar isto ao horizontal grid
-
-            counter = counter + 1
-            if ( Dist(index) >= 0) then
-                iSon        = Connections (index, 1)
-                JSon        = Connections (index, 2)
-                iFather     = Connections (index, 3)
-                jFather     = Connections (index, 4)
-                
-                Nom   = Nom   + (SonMatrix(iSon, jSon, k) / (Dist(index) ** IWDn)) * IgnoreOBCells(iSon, jSon) * &
-                                 Open3DSon(iSon, jSon, k) * SonComputeFaces3D(iSon, jSon, k)
-                Denom = Denom + (1.0 / (Dist(index) ** IWDn)) * IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k) * &
-                                SonComputeFaces3D(iSon, jSon, k)
-                
-                if (counter == NodesPerCell) then
-                    AuxMatrix(iFather, jFather, k) =  Nom / Denom
-                    counter     = 0
-                    Nom   = 0.0
-                    Denom = 0.0                
-                endif                
-            endif
-
+        do index = 1, Nodes
+            
+            iFather  = Connections (index, 1)
+            jFather  = Connections (index, 2)
+            iSon     = Connections (index, 3)
+            jSon     = Connections (index, 4)
+            
+            Nom(iFather, jFather, k) = Nom(iFather, jFather, k) +                             &
+                                       SonMatrix(iSon, jSon, k) / (Dist(index) ** IWDn) *     &
+                                       IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k) * &
+                                       SonComputeFaces3D(iSon, jSon, k)
+                                                      
+            Denom(iFather, jFather, k) = Denom(iFather, jFather, k) +                           &
+                                         (1.e-5 / (Dist(index) ** IWDn)) *                      &
+                                         IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k) * &
+                                         SonComputeFaces3D(iSon, jSon, k)
+              
         enddo
         enddo
         
         do k = KLBSon, KUBSon
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-
-            FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) - FatherMatrix(i, j, k)) * &
-                                    (DT / DecayTime) * Open3DFather(i, j, k) * FatherComputeFaces3D(i, j, k)
-                
+            !1e-5 reffers to the reference distance used in the IWD method (horizontalGrid).
+            if (Denom (i, j, k) > 0) then
+                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) +                                                &
+                                        (Nom(i, j, k) * 1.e-5 / Denom(i, j, k) - FatherMatrix(i, j, k)) *      &
+                                        (DT / DecayTime) * Open3DFather(i, j, k) * FatherComputeFaces3D(i, j, k)           
+            endif 
         enddo
         enddo
-        enddo        
+        enddo  
         
                                 end subroutine FeedBack_IWD_UV
     !-------------------------------------------------------------------------------------------
@@ -5920,66 +5905,51 @@ d5:     do k = klast + 1,KUB
     !>@Brief
     !>feeds back info from son to father using the inverse weigthed distance method. routine for Z types
     !>@param[in] FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeSon, Connections, &
-    !>                         Distances, DecayTime, DT, AuxMatrix, IgnoreOBCells, Nodes                             
+    !>                         Distances, DecayTime, DT, IgnoreOBCells, Nodes                             
     subroutine FeedBack_IWD_WL (FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeSon, ILink, JLink, &
-                                Connections, Dist, DecayTime, DT, AuxMatrix2D, IgnoreOBCells, Nodes, IWDn, &
-                                NodesPerCell)
+                                Connections, Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom)
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon
         real,    dimension(:,:  ), pointer, intent(IN)    :: SonMatrix2D
         real,    dimension(:,:  ), pointer, intent(INOUT) :: FatherMatrix2D
         integer, dimension(:,:  ), pointer, intent(IN)    :: Connections, IgnoreOBCells, ILink, JLink
         integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon
+        real,    dimension(:,:,:), pointer                :: Nom, Denom
         real,    intent (IN)                              :: DecayTime, DT
         real, dimension(:), pointer                       :: Dist
-        integer                                           :: Nodes, IWDn, NodesPerCell
-        real,    dimension(:,:  ), pointer                :: AuxMatrix2D        
+        integer                                           :: Nodes, IWDn      
         !Local variables -----------------------------------------------------------------------------
-        integer                                           :: i, j, index, counter, ILBSon, IUBSon, JLBSon, &
+        integer                                           :: i, j, index, ILBSon, IUBSon, JLBSon, &
                                                              JUBSon, iSon, jSon, iFather, jFather
-        real                                              :: Nom, Denom
         !Begin----------------------------------------------------------------------------------------
         
-        !As the son domain can have less layers than the father domain, it is necessary to use the son size to avoid
-        ! accessing unallocated memory adresses.
         ILBSon = SizeSon%ILB
         IUBSon = SizeSon%IUB
         JLBSon = SizeSon%JLB
         JUBSon = SizeSon%JUB
-
-        Nom   = 0.0
-        Denom = 0.0
-        counter = 0
         
         do index = 1, Nodes ! ir buscar isto ao horizontal grid
-
-            counter = counter + 1
-            if ( Dist(index) >= 0) then
-                iSon        = Connections (index, 1)
-                JSon        = Connections (index, 2)
-                iFather     = Connections (index, 3)
-                jFather     = Connections (index, 4)
+            
+            iFather  = Connections (index, 1)
+            jFather  = Connections (index, 2)
+            iSon     = Connections (index, 3)
+            jSon     = Connections (index, 4)
                 
-                Nom   = Nom   + (SonMatrix2D(iSon, jSon) / (Dist(index) ** IWDn)) * IgnoreOBCells(iSon, jSon) * &
-                                 Open3DSon(iSon, jSon, 1)
-                Denom = Denom + (1.0 / (Dist(index) ** IWDn)) * IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, 1)
-                
-                if (counter == NodesPerCell) then
-                    AuxMatrix2D(iFather, jFather) =  Nom / Denom
-                    counter = 0
-                    Nom     = 0.0
-                    Denom   = 0.0                
-                endif                
-            endif
+            Nom(iFather, jFather, 1) = Nom(iFather, jFather, 1) + SonMatrix2D(iSon, jSon) / (Dist(index) ** IWDn) * &
+                                                                  IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, 1)
+            
+            Denom(iFather, jFather, 1) = Denom(iFather, jFather, 1) + 1.e-5 / (Dist(index) ** IWDn) * &
+                                                                  IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, 1)             
 
         enddo
         
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-
-            FatherMatrix2D(i, j) = FatherMatrix2D(i, j) + (AuxMatrix2D(i, j) - FatherMatrix2D(i, j)) * &
-                                   (DT / DecayTime) * Open3DFather(i, j, 1)
-                
+            if (Denom (i, j, 1) > 0) then        
+                FatherMatrix2D(i, j) = FatherMatrix2D(i, j)                                           + &
+                                       (Nom(i, j, 1) * 1.e-5 / Denom(i, j, 1) - FatherMatrix2D(i, j)) * &
+                                       (DT / DecayTime) * Open3DFather(i, j, 1)
+            endif    
         enddo
         enddo
         

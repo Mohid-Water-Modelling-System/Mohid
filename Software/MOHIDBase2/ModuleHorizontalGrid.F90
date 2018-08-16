@@ -536,8 +536,9 @@ Module ModuleHorizontalGrid
         real, pointer, dimension(:)             :: IWD_Distances_V   => null() 
         real, pointer, dimension(:)             :: IWD_Distances_Z   => null() 
         logical                                 :: UsedIWD_2Way      = .false.
-        integer                                 :: IWD_Nodes         = null_int
-        integer                                 :: IWD_NodesPerCell  = null_int
+        integer                                 :: IWD_Nodes_Z       = null_int
+        integer                                 :: IWD_Nodes_U       = null_int
+        integer                                 :: IWD_Nodes_V       = null_int
 
         type(T_Compute)                         :: Compute
 
@@ -1882,9 +1883,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
   
     !--------------------------------------------------------------------------
     subroutine GetTwoWayAux (HorizontalGridID, IWD_Connections_U, IWD_Connections_V, IWD_Connections_Z, &
-                             IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z, IWD_Nodes, IWD_NodesPerCell, STAT)
+                             IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z, IWD_Nodes_Z, IWD_Nodes_U, &
+                             IWD_Nodes_V, STAT)
         !Arguments-------------------------------------------------------------
-        integer                                   :: HorizontalGridID, IWD_Nodes, IWD_NodesPerCell
+        integer                                   :: HorizontalGridID, IWD_Nodes_Z, IWD_Nodes_U, IWD_Nodes_V
         integer, optional,        intent (OUT)    :: STAT    
         integer,  dimension(:,:), pointer         :: IWD_Connections_U, IWD_Connections_V, IWD_Connections_Z
         real,     dimension(:  ), pointer         :: IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z      
@@ -1917,8 +1919,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             IWD_Distances_Z => Me%IWD_Distances_Z
             call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
             
-            IWD_Nodes        = Me%IWD_Nodes
-            IWD_NodesPerCell = Me%IWD_NodesPerCell
+            IWD_Nodes_U      = Me%IWD_Nodes_U
+            IWD_Nodes_V      = Me%IWD_Nodes_V
+            IWD_Nodes_Z      = Me%IWD_Nodes_Z
             
             STAT_ = SUCCESS_
         else
@@ -2694,8 +2697,8 @@ do8:       do i = ILBwork, IUBwork
         
         call DetermineMaxRatio(ObjHorizontalFather, MaxRatio)
         
-        FatherLinkI      => Me%LastFatherGrid%IZ        
-        FatherLinkJ      => Me%LastFatherGrid%JZ
+        FatherLinkI      => Me%LastFatherGrid%ILinkZ        
+        FatherLinkJ      => Me%LastFatherGrid%JLinkZ
     
         minJ = min(FatherLinkJ(1,1), FatherLinkJ(1, Me%Size%JUB - 1), &
                    FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1)) 
@@ -2709,8 +2712,8 @@ do8:       do i = ILBwork, IUBwork
         nullify (FatherLinkI)
         nullify (FatherLinkJ)
         !Uses the maxRatio to avoid allocating too few indexes. 2nd term is to account for search radious
-        Nbr_Connections = (maxJ - minJ) * (maxI - minI) * (MaxRatio + 4 * (int(sqrt(MaxRatio))) + 4)
-        Me%IWD_NodesPerCell = MaxRatio + 4 * (int(sqrt(MaxRatio))) + 4
+        Nbr_Connections   = (maxJ - minJ + 2) * (maxI - minI + 2) * (MaxRatio + 4 * (int(sqrt(MaxRatio))) + 4)
+        
         !Vectorials and scalars
         allocate (Me%IWD_connections_Z (Nbr_Connections, 4))
         allocate (Me%IWD_Distances_Z   (Nbr_Connections))
@@ -2756,8 +2759,12 @@ do8:       do i = ILBwork, IUBwork
                         Me%IWD_connections_Z(index, 3) = i2
                         Me%IWD_connections_Z(index, 4) = j2
                         
-                        Me%IWD_Distances_Z(index)      = DistanceToFather
-                        
+                        if (DistanceToFather == 0)then
+                            Me%IWD_Distances_Z(index) = 1.e-5
+                        else
+                            Me%IWD_Distances_Z(index) = DistanceToFather                            
+                        endif
+
                         index = index + 1
                     endif
                 enddo
@@ -2765,7 +2772,7 @@ do8:       do i = ILBwork, IUBwork
             
             enddo
             enddo
-           Me%IWD_Nodes = index
+           Me%IWD_Nodes_Z = index - 1
         
     end subroutine ConstructIWDTwoWay
     
@@ -2788,8 +2795,8 @@ do8:       do i = ILBwork, IUBwork
         !-------------------------------------------------------------------------
         index_U = 1
         index_V = 1
-        do j = minJ - 1, maxJ + 1
-        do i = minI - 1, maxI + 1
+        do j = minJ, maxJ
+        do i = minI, maxI
                 
             !Find Father cell center for U cell and V cell  
             
@@ -2831,7 +2838,12 @@ do8:       do i = ILBwork, IUBwork
                     Me%IWD_connections_U(index_U, 3) = i2
                     Me%IWD_connections_U(index_U, 4) = j2
                         
-                    Me%IWD_Distances_U(index_U)      = DistanceToFather_U
+                    if (DistanceToFather_U == 0)then
+                        !The 0.001 is the reference distance. The if also avoids /0 in module functions
+                        Me%IWD_Distances_U(index_U) = 1.e-5
+                    else
+                        Me%IWD_Distances_U(index_U) = DistanceToFather_U                            
+                    endif
                         
                     index_U = index_U + 1
                 endif
@@ -2842,7 +2854,12 @@ do8:       do i = ILBwork, IUBwork
                     Me%IWD_connections_V(index_V, 3) = i2
                     Me%IWD_connections_V(index_V, 4) = j2
                         
-                    Me%IWD_Distances_V(index_V)      = DistanceToFather_V
+                    if (DistanceToFather_V == 0)then
+                        !The 0.001 is the reference distance. The if also avoids /0 in module functions
+                        Me%IWD_Distances_V(index_V) = 1.e-5
+                    else
+                        Me%IWD_Distances_V(index_V) = DistanceToFather_V                            
+                    endif
                         
                     index_V = index_V + 1
                 endif
@@ -2851,7 +2868,8 @@ do8:       do i = ILBwork, IUBwork
             
         enddo
         enddo         
-        
+        Me%IWD_Nodes_U = index_U - 1
+        Me%IWD_Nodes_V = index_V - 1
     end subroutine ConstructIWDVel
     
     !---------------------------------------------------------------------------

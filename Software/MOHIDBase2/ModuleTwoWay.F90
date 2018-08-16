@@ -52,7 +52,7 @@ Module ModuleTwoWay
     private ::  ComputeAuxMatrixes
     private ::    ComputeSonVolInFather
     private ::  Nudging_average
-    !private ::  Nudging_IWD
+    private ::  Nudging_IWD
     public  :: PrepTwoWay
     public  :: UngetTwoWayExternal_Vars
 
@@ -106,19 +106,23 @@ Module ModuleTwoWay
         real, dimension(:      ), pointer           :: IWD_Distances_U   => null()
         real, dimension(:      ), pointer           :: IWD_Distances_V   => null()
         real, dimension(:      ), pointer           :: IWD_Distances_Z   => null()
-        integer                                     :: IWD_NumberOfNodes = null_int
-        integer                                     :: IWD_NodesPerCell  = null_int
+        integer                                     :: IWD_Nodes_Z       = null_int
+        integer                                     :: IWD_Nodes_U       = null_int
+        integer                                     :: IWD_Nodes_V       = null_int
     end type T_External    
     
     private :: T_FatherDomain
     type       T_FatherDomain
         type (T_Size3D)                             :: Size, WorkSize
+        type (T_Size2D)                             :: Size2D, WorkSize2D
         type (T_External)                           :: External_Var
         integer                                     :: InstanceID
         real, dimension (:, :, :), allocatable      :: TotSonVolIn
         real, dimension (:, :   ), allocatable      :: TotSonVolIn_2D
         real, dimension (:, :, :), allocatable      :: AuxMatrix
         real, dimension (:, :   ), allocatable      :: AuxMatrix2D
+        real, dimension (:, :, :), allocatable      :: IWDNom
+        real, dimension (:, :, :), allocatable      :: IWDDenom
     end type T_FatherDomain
 
     private :: T_TwoWay
@@ -392,20 +396,20 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                   WorkSize = Me%Father%WorkSize, &
                                   STAT     = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                  &
-                stop 'ModuleTwoWay - Allocate2WayAuxiliars_Hydrodynamic - ERR01'  
+                stop 'ModuleTwoWay - Allocate2WayAuxiliars_Hydrodynamic - ERR01'
             
-            ILB = Me%WorkSize%ILB 
-            IUB = Me%WorkSize%IUB 
-            JLB = Me%WorkSize%JLB 
-            JUB = Me%WorkSize%JUB 
-            KLB = Me%WorkSize%KLB 
-            KUB = Me%WorkSize%KUB            
+           call GetHorizontalGridSize (HorizontalGridID = FatherTwoWayID, &
+                                       Size             = Me%Father%Size2D,            &
+                                       WorkSize         = Me%Father%WorkSize2D,        &
+                                       STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - Allocate2WayAuxiliars_Hydrodynamic - ERR02'            
             
-            allocate(Me%Father%AuxMatrix(ILB:IUB, JLB:JUB, KLB:KUB))
-            Me%Father%AuxMatrix(:,:,:) = 0.0
-                
-            allocate(Me%Father%AuxMatrix2D(ILB:IUB, JLB:JUB))
-            Me%Father%AuxMatrix2D(:,:) = 0.0                
+            ILB = Me%Father%WorkSize%ILB 
+            IUB = Me%Father%WorkSize%IUB 
+            JLB = Me%Father%WorkSize%JLB 
+            JUB = Me%Father%WorkSize%JUB 
+            KLB = Me%Father%WorkSize%KLB 
+            KUB = Me%Father%WorkSize%KUB          
             
             if (Me%Hydro%InterpolationMethod == 1)then
             
@@ -414,12 +418,23 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
                 allocate(Me%Father%TotSonVolIn_2D(ILB:IUB, JLB:JUB))
                 Me%Father%TotSonVolIn_2D(:,:) = 0.0
+                
+                allocate(Me%Father%AuxMatrix(ILB:IUB, JLB:JUB, KLB:KUB))
+                Me%Father%AuxMatrix(:,:,:) = 0.0
+                
+                allocate(Me%Father%AuxMatrix2D(ILB:IUB, JLB:JUB))
+                Me%Father%AuxMatrix2D(:,:) = 0.0
             else
-                call ConstructIWDTwoWay(FatherTwoWayID, TwoWayID)    
+                call ConstructIWDTwoWay(FatherTwoWayID, TwoWayID)
+                
+                allocate(Me%Father%IWDNom(ILB:IUB, JLB:JUB, KLB:KUB))
+                Me%Father%IWDNom(:,:,:) = 0.0
+                allocate(Me%Father%IWDDenom(ILB:IUB, JLB:JUB, KLB:KUB))
+                Me%Father%IWDDenom(:,:,:) = 0.0
             endif
 
         else
-            stop 'ModuleTwoWay - Allocate2WayAuxiliars_Hydrodynamic - ERR02'               
+            stop 'ModuleTwoWay - Allocate2WayAuxiliars_Hydrodynamic - ERR03'               
         endif
 
     end subroutine Allocate2WayAuxiliars_Hydrodynamic
@@ -730,8 +745,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                    IWD_Distances_V        = Me%External_Var%IWD_Distances_V,   &
                                    IWD_Connections_Z      = Me%External_Var%IWD_Connections_Z, &
                                    IWD_Distances_Z        = Me%External_Var%IWD_Distances_Z,   &
-                                   IWD_Nodes              = Me%External_Var%IWD_NumberOfNodes, &
-                                   IWD_NodesPerCell       = Me%External_Var%IWD_NodesPerCell,  &
+                                   IWD_Nodes_Z            = Me%External_Var%IWD_Nodes_Z,       &
+                                   IWD_Nodes_U            = Me%External_Var%IWD_Nodes_U,       &
+                                   IWD_Nodes_V            = Me%External_Var%IWD_Nodes_V,       &
                                    STAT                   = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR05'
 
@@ -779,33 +795,35 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, dimension(:, :), pointer           :: Ilink, Jlink
         !Local-----------------------------------------------------------------
 
-        !---------------------------------------------------------------------- 
-        
+        !----------------------------------------------------------------------    
         if (present(Volume_3D)) then
-            call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%WorkSize, 0.0)           
-            
             !Goes for 3D
             if     (interpolMethod == 1)then
                 ! set the matrix to 0.001 so it can be divided without giving an error
-                call SetMatrixValue (GetPointer(Me%Father%TotSonVolIn), Me%WorkSize, 0.001)
-                
+                call SetMatrixValue (GetPointer(Me%Father%TotSonVolIn), Me%Father%WorkSize, 0.001)
+                call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%Father%WorkSize, 0.0)                  
                 ! Volume Weighted average
                 call ComputeSonVolInFather   (Volume_3D      = Volume_3D,      &
                                               Ilink          = Ilink,          &
-                                              Jlink          = Jlink) 
-            endif      
-        !Goes for 2D 
+                                              Jlink          = Jlink)
+            else
+                call SetMatrixValue (GetPointer(Me%Father%IWDNom), Me%Father%WorkSize, 0.0)
+                call SetMatrixValue (GetPointer(Me%Father%IWDDenom), Me%Father%WorkSize, 0.0)
+            endif
         else
-            call SetMatrixValue (GetPointer(Me%Father%AuxMatrix2D), Me%WorkSize2D, 0.0)
-            
+        !Goes for 2D             
             if     (interpolMethod == 1)then
+                call SetMatrixValue (GetPointer(Me%Father%AuxMatrix2D), Me%Father%WorkSize2D, 0.0)
                 ! set the matrix to 0.001 so it can be divided without giving an error
-                call SetMatrixValue (GetPointer(Me%Father%TotSonVolIn_2D), Me%WorkSize2D, 0.001)
+                call SetMatrixValue (GetPointer(Me%Father%TotSonVolIn_2D), Me%Father%WorkSize2D, 0.001)
                 
                 ! Volume Weighted average
                 call ComputeSonVolInFather   (Volume_2D    = Volume_2D,     &
                                               Ilink          = Ilink,           &
                                               Jlink          = Jlink)
+            else
+                call SetMatrixValue (GetPointer(Me%Father%IWDNom), Me%Father%WorkSize, 0.0)
+                call SetMatrixValue (GetPointer(Me%Father%IWDDenom), Me%Father%WorkSize, 0.0)
             endif                
         endif
           
@@ -958,6 +976,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         real, dimension(:, :),    pointer, optional :: FatherMatrix2D, SonMatrix2D
         real                                        :: LocalTimeDecay
         !Local-----------------------------------------------------------------
+        
         if (present(FatherMatrix)) then
                 
             if (present(VelocityID))then
@@ -976,11 +995,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                            Dist                 = Me%External_Var%IWD_Distances_U,          &
                                            DecayTime            = LocalTimeDecay,                         &
                                            DT                   = Me%Hydro%VelDT,                         &
-                                           AuxMatrix            = GetPointer(Me%Father%AuxMatrix),         &
                                            IgnoreOBCells        = GetPointer(Me%IgnoreOBCells),           &
-                                           Nodes                = Me%External_Var%IWD_NumberOfNodes,      &
-                                           IWDn                 = Me%Hydro%IWDn,                          &
-                                           NodesPerCell         = Me%External_Var%IWD_NodesPerCell)
+                                           Nodes                = Me%External_Var%IWD_Nodes_U,      &
+                                           IWDn                 = Me%Hydro%IWDn,                    &
+                                           Nom                  = GetPointer(Me%Father%IWDNom),                 &
+                                           Denom                = GetPointer(Me%Father%IWDDenom))
                 !If velocity V    
                 else
                     call FeedBack_IWD_UV (FatherMatrix         = FatherMatrix,                           &
@@ -996,11 +1015,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                            Dist             = Me%External_Var%IWD_Distances_U,          &
                                            DecayTime            = LocalTimeDecay,                         &
                                            DT                   = Me%Hydro%VelDT,                         &
-                                           AuxMatrix            = GetPointer(Me%Father%AuxMatrix),         &
                                            IgnoreOBCells        = GetPointer(Me%IgnoreOBCells),           &
-                                           Nodes                = Me%External_Var%IWD_NumberOfNodes,      &
-                                           IWDn                 = Me%Hydro%IWDn,                          &
-                                           NodesPerCell         = Me%External_Var%IWD_NodesPerCell)
+                                           Nodes                = Me%External_Var%IWD_Nodes_V,      &
+                                           IWDn                 = Me%Hydro%IWDn,                    &
+                                           Nom                  = GetPointer(Me%Father%IWDNom),                 &
+                                           Denom                = GetPointer(Me%Father%IWDDenom))
                 endif
             else
                 !compute nudging Z type cell
@@ -1015,11 +1034,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                       Dist             = Me%External_Var%IWD_Distances_Z,          &
                                       DecayTime        = LocalTimeDecay,                  &
                                       DT               = Me%Hydro%DT,                     &
-                                      AuxMatrix        = GetPointer(Me%Father%AuxMatrix),             &
                                       IgnoreOBCells    = GetPointer(Me%IgnoreOBCells),           &
-                                      Nodes            = Me%External_Var%IWD_NumberOfNodes,      &
-                                      IWDn             = Me%Hydro%IWDn,                          &
-                                      NodesPerCell     = Me%External_Var%IWD_NodesPerCell)
+                                      Nodes            = Me%External_Var%IWD_Nodes_Z,      &
+                                      IWDn             = Me%Hydro%IWDn,                    &
+                                      Nom              = GetPointer(Me%Father%IWDNom),                 &
+                                      Denom            = GetPointer(Me%Father%IWDDenom))
             endif
                 
         else
@@ -1035,11 +1054,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                   Dist             = Me%External_Var%IWD_Distances_Z,          &
                                   DecayTime        = LocalTimeDecay,                  &
                                   DT               = Me%Hydro%DT,                     &
-                                  AuxMatrix2D      = GetPointer(Me%Father%AuxMatrix2D),           &
                                   IgnoreOBCells    = GetPointer(Me%IgnoreOBCells),           &
-                                  Nodes            = Me%External_Var%IWD_NumberOfNodes,      &
-                                  IWDn             = Me%Hydro%IWDn,                          &
-                                  NodesPerCell     = Me%External_Var%IWD_NodesPerCell)               
+                                  Nodes            = Me%External_Var%IWD_Nodes_Z,      &
+                                  IWDn             = Me%Hydro%IWDn,                    &
+                                  Nom              = GetPointer(Me%Father%IWDNom),                 &
+                                  Denom            = GetPointer(Me%Father%IWDDenom))               
                 
         endif
 
@@ -1220,7 +1239,14 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         endif
         if (allocated(Me%IgnoreOBCells)) then
             deallocate(Me%IgnoreOBCells)
-        endif        
+        endif
+        
+        if (allocated(Me%Father%IWDNom)) then
+            deallocate(Me%Father%IWDNom)
+        endif
+        if (allocated(Me%Father%IWDDenom)) then
+            deallocate(Me%Father%IWDDenom)
+        endif
 
         
     
