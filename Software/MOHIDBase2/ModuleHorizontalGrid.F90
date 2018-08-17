@@ -73,9 +73,6 @@ Module ModuleHorizontalGrid
     public  :: ConstructFatherGridLocation
     private ::      ConstructNewFatherGrid1D
     private ::      ConstructNewFatherGrid2D
-    private ::      CheckNesting
-    private ::      ConstructIWDSon2Father2D !Joao Sobrinho
-    private ::      DetermineMaxRatio
     private ::      Add_FatherGrid
     private :: CheckGridBorder
     private :: DefineBorderPolygons
@@ -86,7 +83,6 @@ Module ModuleHorizontalGrid
     public  :: WriteHorizontalGrid
     public  :: WriteHorizontalGrid_UV
     public  :: LocateCell
-    private :: LocateCell_2
     public  :: LocateCell1D    
     public  :: LocateCellPolygons
     public  :: RecenterHorizontalGrid    
@@ -419,14 +415,6 @@ Module ModuleHorizontalGrid
         integer, dimension(:,:), pointer :: JV     => null()
         integer, dimension(:,:), pointer :: ICross => null()
         integer, dimension(:,:), pointer :: JCross => null()
-        
-        integer, dimension(:,:), pointer :: ILinkZ => null() !Joao Sobrinho
-        integer, dimension(:,:), pointer :: JLinkZ => null()
-        integer, dimension(:,:), pointer :: ILinkU => null()
-        integer, dimension(:,:), pointer :: JLinkU => null()
-        integer, dimension(:,:), pointer :: ILinkV => null()
-        integer, dimension(:,:), pointer :: JLinkV => null()
-        
         type (T_Size2D)                  :: MPI_Window
         type (T_FatherGrid),     pointer :: Next => null()
         type (T_FatherGrid),     pointer :: Prev => null()
@@ -497,7 +485,8 @@ Module ModuleHorizontalGrid
         integer                                 :: FilesListID    = null_int
         character(PathLength)                   :: ModelPath      = null_str  
         type (T_Coef2D)                         :: Coef2D
-        type (T_Coef3D)                         :: Coef3D        
+        type (T_Coef3D)                         :: Coef3D      
+        logical                                 :: AutomaticLines = .false. 
     end type T_DDecomp
     
 
@@ -524,10 +513,6 @@ Module ModuleHorizontalGrid
         integer                                 :: ZoneLong   = null_int
         integer                                 :: ZoneLat    = null_int
         integer, dimension(2)                   :: Grid_Zone
-        
-        integer, pointer, dimension(:, :)       :: IWD_connections => null()
-        real, pointer, dimension(:)             :: IWD_Distances   => null()      
-        logical                                 :: UsedIWD_2Way = .false. 
 
         type(T_Compute)                         :: Compute
 
@@ -1295,9 +1280,21 @@ iSl:    do i =1, Me%DDecomp%Nslaves + 1
         call Block_Unlock(Me%ObjEnterData2, ClientNumber, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR210'
 
-iAuto:  if (.not. Me%DDecomp%Auto) then
+iAuto:  if (Me%DDecomp%Auto) then
+
+            call GetData(Value          = Me%DDecomp%AutomaticLines,                    &
+                         EnterDataID    = Me%ObjEnterData2,                             & 
+                         flag           = iflag,                                        &
+                         keyword        = 'AUTOMATIC_LINES',                            &
+                         SearchType     = FromFile,                                     &
+                         default        = .false.,                                      &
+                         ClientModule   = 'ModuleHorizontalGrid',                       &
+                         STAT           = STAT_CALL)            
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR230'
         
-            call GetData(Value          = Me%DDecomp%NInterfaces,               &
+        else
+        
+            call GetData(Value          = Me%DDecomp%NInterfaces,                       &
                          EnterDataID    = Me%ObjEnterData2,                                 & 
                          flag           = iflag,                                            &
                          keyword        = 'INTERFACES_NUMBER',                              &
@@ -1483,7 +1480,7 @@ iAuto:  if (.not. Me%DDecomp%Auto) then
         
         write(*,*) 'halo_points', Me%DDecomp%Halo_Points        
         
-        if (Me%DDecomp%Global%IUB  > Me%DDecomp%Global%JUB) then
+        if (Me%DDecomp%Global%IUB  > Me%DDecomp%Global%JUB .or. Me%DDecomp%AutomaticLines) then
             call AutomaticDDecompLines  ()
         else
             call AutomaticDDecompColumns()        
@@ -1666,7 +1663,7 @@ iAuto:  if (.not. Me%DDecomp%Auto) then
     !--------------------------------------------------------------------------
 
     subroutine ConstructFatherGridLocation(HorizontalGridID, HorizontalGridFatherID, & 
-                                           GridID, OkCross, OkZ, OkU, OkV, Window, TwoWay, STAT)
+                                           GridID, OkCross, OkZ, OkU, OkV, Window, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                   :: HorizontalGridID
@@ -1674,14 +1671,13 @@ iAuto:  if (.not. Me%DDecomp%Auto) then
         integer, optional,           intent (IN)  :: GridID
         logical, optional,           intent (IN)  :: OkCross, OkZ, OkU, OkV
         type (T_Size2D), optional                 :: Window
-        integer, optional,           intent (OUT) :: STAT
-        logical, optional,            intent (IN) :: TwoWay
+        integer, optional,           intent (OUT) :: STAT    
 
         !Local-----------------------------------------------------------------
         type (T_HorizontalGrid), pointer          :: ObjHorizontalGridFather
         type (T_FatherGrid), pointer              :: NewFatherGrid
         integer                                   :: STAT_, ready_, GridID_
-        logical                                   :: OkZ_, OkU_, OkV_, OkCross_, GoForIWD !João Sobrinho
+        logical                                   :: OkZ_, OkU_, OkV_, OkCross_
 
         !------------------------------------------------------------------------
 
@@ -1742,16 +1738,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 call ConstructNewFatherGrid1D (ObjHorizontalGridFather, NewFatherGrid, GridID_, &
                                              OkZ_, OkU_, OkV_, OkCross_)
             endif
-            
-            if (TwoWay)then !Joao Sobrinho
-                call CheckNesting(ObjHorizontalGridFather, GoForIWD, NewFatherGrid)
-                if (GoForIWD) then
-                    Me%UsedIWD_2Way = .true.
-                    Call ConstructIWDSon2Father2D(ObjHorizontalGridFather, NewFatherGrid)                    
-                endif
-
-            endif
-            
             
             if (Me%CoordType == SIMPLE_GEOG_ .and. .not. Me%ReadCartCorners .and. Me%ProjType == PAULO_PROJECTION_) then
                 if (ObjHorizontalGridFather%Longitude /= Me%Longitude) then
@@ -1899,9 +1885,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         integer                                   :: ILB, IUB, JLB, JUB, i, j
         integer                                   :: ILBwork, IUBwork, JLBwork, JUBwork
         logical                                   :: CheckRotation_
-        integer                                   :: ILBFAther, IUBFather, JLBFather, JUBFather, U, V
+        integer                                   :: ILBFAther, IUBFather, JLBFather, JUBFather 
 
         !----------------------------------------------------------------------
+
+        !if (Me%CornersXYInput) stop 'ConstructNewFatherGrid1D - ModuleHoriuzontalGrid - ERR01'
 
         if (present(CheckRotation)) then
             CheckRotation_ = CheckRotation
@@ -1952,8 +1940,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         NewFatherGrid%MPI_Window%JLB    = -null_int
         NewFatherGrid%MPI_Window%JUB    =  null_int
 
-        U = 1
-        V = 1
+
         !Compute points location ib the father grid
         if (NewFatherGrid%OkZ) then
 
@@ -1964,19 +1951,14 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !Initialize Values
             NewFatherGrid%XX_Z (:,:)  = FillValueReal
             NewFatherGrid%YY_Z (:,:)  = FillValueReal
-            !Joao Sobrinho
-            allocate (NewFatherGrid%ILinkZ (ILB:IUB, JLB:JUB))
-            allocate (NewFatherGrid%JLinkZ (ILB:IUB, JLB:JUB))
-            
+
+
             allocate (NewFatherGrid%IZ   (ILB:IUB, JLB:JUB))
             allocate (NewFatherGrid%JZ   (ILB:IUB, JLB:JUB))
 
             NewFatherGrid%IZ   (:,:)  = FillValueInt
             NewFatherGrid%JZ   (:,:)  = FillValueInt
-            
-            NewFatherGrid%ILinkZ (:,:) = FillValueInt
-            NewFatherGrid%JLinkZ (:,:) = FillValueInt
-            
+
             XX_Z  => NewFatherGrid%XX_Z
             YY_Z  => NewFatherGrid%YY_Z
             IZ    => NewFatherGrid%IZ
@@ -1985,6 +1967,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         endif
 
         if (NewFatherGrid%OkU) then
+
             allocate (NewFatherGrid%XX_U (ILB:IUB, JLB:JUB))
             allocate (NewFatherGrid%YY_U (ILB:IUB, JLB:JUB))
 
@@ -1993,16 +1976,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             allocate (NewFatherGrid%IU   (ILB:IUB, JLB:JUB))
             allocate (NewFatherGrid%JU   (ILB:IUB, JLB:JUB))
-            !Joao Sobrinho
-            allocate (NewFatherGrid%ILinkU (ILB:IUB, JLB:JUB))
-            allocate (NewFatherGrid%JLinkU (ILB:IUB, JLB:JUB))
 
             NewFatherGrid%IU   (:,:)  = FillValueInt
             NewFatherGrid%JU   (:,:)  = FillValueInt
 
-            NewFatherGrid%ILinkU (:,:) = FillValueInt
-            NewFatherGrid%JLinkU (:,:) = FillValueInt
-            
             XX_U  => NewFatherGrid%XX_U
             YY_U  => NewFatherGrid%YY_U
             IU    => NewFatherGrid%IU
@@ -2011,6 +1988,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         endif
 
         if (NewFatherGrid%OkV) then
+
             allocate (NewFatherGrid%XX_V (ILB:IUB, JLB:JUB))
             allocate (NewFatherGrid%YY_V (ILB:IUB, JLB:JUB))
 
@@ -2019,16 +1997,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             allocate (NewFatherGrid%IV   (ILB:IUB, JLB:JUB))
             allocate (NewFatherGrid%JV   (ILB:IUB, JLB:JUB))
-            
-            !Joao Sobrinho
-            allocate (NewFatherGrid%ILinkV (ILB:IUB, JLB:JUB))
-            allocate (NewFatherGrid%JLinkV (ILB:IUB, JLB:JUB))
-            
+
             NewFatherGrid%IV   (:,:)  = FillValueInt
             NewFatherGrid%JV   (:,:)  = FillValueInt
-            
-            NewFatherGrid%ILinkV (:,:) = FillValueInt
-            NewFatherGrid%JLinkV (:,:) = FillValueInt
 
             YY_V  => NewFatherGrid%YY_V
             XX_V  => NewFatherGrid%XX_V
@@ -2116,18 +2087,11 @@ do4 :       do i = ILBwork, IUBwork
 
                 call RODAXY(Xorig, Yorig, Rotation, XX_Z(i, j), YY_Z(i, j))  
 
-                call LocateCell (ObjHorizontalGridFather%Compute%XX_Z,                 &
-                                 ObjHorizontalGridFather%Compute%YY_Z,                 &
-                                 XX_Z(i, j), YY_Z(i, j),                               &
-                                 ILBFAther, IUBFather, JLBFather, JUBFather,           &
+                call LocateCell (ObjHorizontalGridFather%Compute%XX_Z,               &
+                                 ObjHorizontalGridFather%Compute%YY_Z,               &
+                                 XX_Z(i, j), YY_Z(i, j),                             &
+                                 ILBFAther, IUBFather, JLBFather, JUBFather,         &
                                  IZ(i, j), JZ(i, j))
-                
-                call LocateCell_2(ObjHorizontalGridFather%Compute%XX_U,                &
-                                 ObjHorizontalGridFather%Compute%YY_V,                 &
-                                 XX_Z(i, j), YY_Z(i, j),                               &
-                                 ILBFAther, IUBFather, JLBFather, JUBFather,           &
-                                 NewFatherGrid%ILinkZ(i, j), NewFatherGrid%JLinkZ(i, j))
-                
                 
                 !Window
                 NewFatherGrid%MPI_Window%ILB = min(NewFatherGrid%MPI_Window%ILB, IZ(i, j))
@@ -2172,17 +2136,11 @@ do2 :       do i = ILBwork, IUBwork
                 call RODAXY(Xorig, Yorig, Rotation, XX_U(i, j), YY_U(i, j))  
 
 
-                call LocateCell (ObjHorizontalGridFather%Compute%XX_U,                 &
-                                 ObjHorizontalGridFather%Compute%YY_U,                 &
-                                 XX_U(i, j), YY_U(i, j),                               &
-                                 ILBFAther, IUBFather, JLBFather, JUBFather + 1,       &
+                call LocateCell (ObjHorizontalGridFather%Compute%XX_U,               &
+                                 ObjHorizontalGridFather%Compute%YY_U,               &
+                                 XX_U(i, j), YY_U(i, j),                             &
+                                 ILBFAther, IUBFather, JLBFather, JUBFather + 1,     &
                                  IU(i, j), JU(i, j))
-                
-                call LocateCell_2(ObjHorizontalGridFather%Compute%XX_Z,                &
-                                 ObjHorizontalGridFather%Compute%YY_V,                 &
-                                 XX_U(i, j), YY_U(i, j),                               &
-                                 ILBFAther, IUBFather, JLBFather, JUBFather,           &
-                                 NewFatherGrid%ILinkU(i, j), NewFatherGrid%JLinkU(i, j), U = U)
 
                 !Window
                 NewFatherGrid%MPI_Window%ILB = min(NewFatherGrid%MPI_Window%ILB, IU(i, j))
@@ -2226,17 +2184,11 @@ do6:       do i = ILBwork, IUBwork+1
 
                 call RODAXY(Xorig, Yorig, Rotation, XX_V(i, j), YY_V(i, j))  
 
-                call LocateCell (ObjHorizontalGridFather%Compute%XX_V,                 &
-                                 ObjHorizontalGridFather%Compute%YY_V,                 &
-                                 XX_V(i, j), YY_V(i, j),                               &
-                                 ILBFAther, IUBFather + 1, JLBFather, JUBFather,       &
+                call LocateCell (ObjHorizontalGridFather%Compute%XX_V,               &
+                                 ObjHorizontalGridFather%Compute%YY_V,               &
+                                 XX_V(i, j), YY_V(i, j),                             &
+                                 ILBFAther, IUBFather + 1, JLBFather, JUBFather,     &
                                  IV(i, j), JV(i, j))
-                
-                call LocateCell_2(ObjHorizontalGridFather%Compute%XX_U,                                &
-                                 ObjHorizontalGridFather%Compute%YY_Z,                                 &
-                                 XX_V(i, j), YY_V(i, j),                                               &
-                                 ILBFAther, IUBFather, JLBFather, JUBFather,                           &
-                                 NewFatherGrid%ILinkV(i, j), NewFatherGrid%JLinkV(i, j), V = V)
 
                 !MPI_Window
                 NewFatherGrid%MPI_Window%ILB = min(NewFatherGrid%MPI_Window%ILB, IV(i, j))
@@ -2578,166 +2530,7 @@ do8:       do i = ILBwork, IUBwork
         NewFatherGrid%MPI_Window%JUB = NewFatherGrid%MPI_Window%JUB + 1
         
     end subroutine ConstructNewFatherGrid2D
-                                
-    !-------------------------------------------------------------------------------------
-    
-    !-------------------------------------------------------------------------------------
-    subroutine CheckNesting(ObjHorizontalGridFather, GoForIWD, NewFatherGrid)
-        !Joao Sobrinho
-        !Arguments-------------------------------------------------------------
-        type (T_HorizontalGrid), pointer          :: ObjHorizontalGridFather
-        logical,                intent (OUT)      :: GoForIWD
-        type (T_FatherGrid), pointer              :: NewFatherGrid        
-        !Local-----------------------------------------------------------------
-        integer                                   :: JUB, j
-        real                                      :: DistanceToFather, DxFather, DistanceToFather_Next
-        logical                                   :: Trigger
-        
-        !----------------------------------------------------------------------
-        GoForIWD         = .false.
-        JUB              = Me%Size%JUB
-        j                = 1
-        DistanceToFather = 0.0
-        Trigger          = .true.
-        
-        if (Me%Grid_Angle .NE. ObjHorizontalGridFather%Grid_Angle)then
-            GoForIWD = .true.
-        else
-    
-            do while (Trigger .AND. j < JUB)
-                
-                DxFather = ObjHorizontalGridFather%XX(NewFatherGrid%JU(j, 1)) -  &
-                           ObjHorizontalGridFather%XX(NewFatherGrid%JU(j, 1) + 1)
-                                        
-                if (NewFatherGrid%JU(1, j + 1) > NewFatherGrid%JU(1, j))then
-                    DistanceToFather      = NewFatherGrid%XX_U(1, j) - ObjHorizontalGridFather%XX(NewFatherGrid%JU(1, j + 1))
-                    DistanceToFather_Next = NewFatherGrid%XX_U(1, j + 1) - ObjHorizontalGridFather%XX(NewFatherGrid%JU(1, j + 1))
-                    
-                    if (abs(DistanceToFather) > abs(DxFather) * 0.09 .and. DistanceToFather < 0.0 &
-                        .and. abs(DistanceToFather_Next > abs(DxFather) * 0.09) )then
-                        Trigger = .false.
-                        GoForIWD = .true.
-                    else
-                        j = j + 1
-                    endif
-                    
-                else
-                    j = j + 1
-                endif
-                
-            enddo
-            
-        endif
-        
-    end subroutine CheckNesting
-    
-    !---------------------------------------------------------------------------
-    
-    subroutine ConstructIWDSon2Father2D(ObjHorizontalGridFather, NewFatherGrid)
-        !Routine made to build the matrix of distances from son to father, to be used in IWD. Joao sobrinho
-        !Arguments--------------------------------------------------------------
-        type (T_HorizontalGrid), pointer    :: ObjHorizontalGridFather
-        type (T_FatherGrid), pointer        :: NewFatherGrid            
-        !Local------------------------------------------------------------------
-        real                                :: FatherCenterX, FatherCenterY, DistanceToFather, SonCenterX, SonCenterY
-        real                                :: SearchRadious
-        integer                             :: index, Nbr_Connections, MaxRatio, min_J, min_I, max_J, max_I
-        integer                             :: i, j, i2, j2
-        !-------------------------------------------------------------------------
-        index = 1
-        ! Compute max ratio, which will be used to alocate IWD_Connections
-        call DetermineMaxRatio(ObjHorizontalGridFather, NewFatherGrid, MaxRatio)
-        
-         !Nbr_Connections = (NewFatherGrid%JV(1, Me%Size%JUB - 1) - NewFatherGrid%JV(1, 1)) * &
-         !                  (NewFatherGrid%IV(1, Me%Size%IUB - 1) - NewFatherGrid%IV(1, 1)) * MaxRatio
-
-        min_J = min(NewFatherGrid%JZ(1,1), NewFatherGrid%JZ(1, Me%Size%JUB - 1), &
-                     NewFatherGrid%JZ(Me%Size%IUB - 1, 1), NewFatherGrid%JZ(Me%Size%IUB - 1, Me%Size%JUB - 1)) 
-        min_I = min(NewFatherGrid%IZ(1,1), NewFatherGrid%IZ(1, Me%Size%JUB - 1), &
-                     NewFatherGrid%IZ(Me%Size%IUB - 1, 1), NewFatherGrid%IZ(Me%Size%IUB - 1, Me%Size%JUB - 1))
-        max_J = max(NewFatherGrid%JZ(1,1), NewFatherGrid%JZ(1, Me%Size%JUB - 1), &
-                     NewFatherGrid%JZ(Me%Size%IUB - 1, 1), NewFatherGrid%JZ(Me%Size%IUB - 1, Me%Size%JUB - 1))
-        max_I = max(NewFatherGrid%JZ(1,1), NewFatherGrid%JZ(1, Me%Size%JUB - 1), &
-                     NewFatherGrid%JZ(Me%Size%IUB - 1, 1), NewFatherGrid%JZ(Me%Size%IUB - 1, Me%Size%JUB - 1))
-         
-        Nbr_Connections = (max_J - min_J) * (max_I - min_I) * MaxRatio
-         
-        allocate (Me%IWD_connections(Nbr_Connections, 4)) !Joao Sobrinho   -  Falta desalocar no fim!
-        allocate (Me%IWD_Distances(Nbr_Connections))
-        
-        Me%IWD_connections(:, :) = FillValueInt
-        Me%IWD_Distances(:)      = FillValueReal
-        !i and j   -> father cell
-        !i2 and j2 -> son cell
-        !Paralelizar!
-        do j = min_J, max_J
-        do i = min_I, max_I
-                
-            !Find Father cell center   
-            
-            FatherCenterX = (( ObjHorizontalGridFather%XX_IE(i, j  ) +  ObjHorizontalGridFather%XX_IE(i+1, j  ))/2. + &
-                             ( ObjHorizontalGridFather%XX_IE(i, j+1) +  ObjHorizontalGridFather%XX_IE(i+1, j+1))/2.)/2.
-            FatherCenterY = (( ObjHorizontalGridFather%YY_IE(i, j  ) +  ObjHorizontalGridFather%YY_IE(i+1, j  ))/2. + &
-                             ( ObjHorizontalGridFather%YY_IE(i, j+1) +  ObjHorizontalGridFather%YY_IE(i+1, j+1))/2.)/2.
-            
-            SearchRadious = 1.1 * Sqrt((FatherCenterX - ObjHorizontalGridFather%XX(j))**2 + &
-                                       (FatherCenterY - ObjHorizontalGridFather%YY(j))**2)
-            
-            ! Find and build matrix of correspondent son cells
-            do j2 = 1, Me%Size%JUB - 1
-            do i2 = 1, Me%Size%IUB - 1
-                SonCenterX = (( Me%XX_IE(i, j  ) +  Me%XX_IE(i+1, j  ))/2. + &
-                                ( Me%XX_IE(i, j+1) +  Me%XX_IE(i+1, j+1))/2.)/2.
-                SonCenterY = (( Me%YY_IE(i, j  ) +  Me%YY_IE(i+1, j  ))/2. + &
-                                ( Me%YY_IE(i, j+1) +  Me%YY_IE(i+1, j+1))/2.)/2.
-                    
-                DistanceToFather = Sqrt((SonCenterX - FatherCenterX)**2.0 + &
-                                        (SonCenterY - FatherCenterY)**2.0)
-                if (DistanceToFather <= SearchRadious) then
-                    Me%IWD_connections(index, 1) = i
-                    Me%IWD_connections(index, 2) = j
-                    Me%IWD_connections(index, 3) = i2
-                    Me%IWD_connections(index, 4) = j2
-                        
-                    Me%IWD_Distances(index)      = DistanceToFather
-                        
-                    index = index + 1
-                endif
-            enddo
-            enddo
-            
-        enddo
-        enddo
-    
-    end subroutine ConstructIWDSon2Father2D
-    
-    !---------------------------------------------------------------------------
-    
-    subroutine DetermineMaxRatio(ObjHorizontalGridFather, NewFatherGrid, Ratio)
-        !Argumments---------------------------------------------------------------------
-        type (T_HorizontalGrid), pointer    :: ObjHorizontalGridFather
-        type (T_FatherGrid), pointer        :: NewFatherGrid
-        integer, intent(OUT)                :: Ratio
-        !local--------------------------------------------------------------------------
-        real                                :: MaxRatio, aux, i, j
-        
-        !-------------------------------------------------------------------------------
-        MaxRatio = 1.0
-        aux      = 1.0
-        Ratio    = 1
-        
-        do j = 1, Me%Size%JUB - 1
-        do i = 1, Me%Size%IUB - 1
-            aux = ObjHorizontalGridFather%GridCellArea(NewFatherGrid%IV(i, j), NewFatherGrid%JV(i, j)) / Me%GridCellArea(i, j)
-            if (aux > MaxRatio) then
-                MaxRatio = aux               
-            endif
-        enddo
-        enddo
-        
-        Ratio = INT(MaxRatio) + 1
-
-    end subroutine DetermineMaxRatio
+    !--------------------------------------------------------------------------
     ! This subroutine adds a new grid to the father grid List  
 
     subroutine Add_FatherGrid(NewFatherGrid)
@@ -4985,15 +4778,15 @@ Inp:    if (Me%CornersXYInput) then
 
     !***********************************************************************
     !                                                                      *
-    !  Esta subroutina calcula 2 vectores e um escalar para a conversão    *
-    !  de coordenadas geodésicas em UTM:                                   *
+    !  Esta subroutina calcula 2 vectores e um escalar para a conversÃ£o    *
+    !  de coordenadas geodÃ©sicas em UTM:                                   *
     !                                                                      *
     !        comprimento do fuso:                    DLZONE(I)             *
-    !        nº do fuso:                             IZONE1(J)             *
-    !        nº do fuso de origem:                   IZONE_ORIG            *
+    !        nÂº do fuso:                             IZONE1(J)             *
+    !        nÂº do fuso de origem:                   IZONE_ORIG            *
     !                                                                      *
-    !  O meridiano de Greenwich está no fuso 31. Considera-se como origem  *
-    !  o ínicio do 1º fuso da malha. Cada fuso tem 6 graus e há 60 fusos.  *
+    !  O meridiano de Greenwich estÃ¡ no fuso 31. Considera-se como origem  *
+    !  o Ã­nicio do 1Âº fuso da malha. Cada fuso tem 6 graus e hÃ¡ 60 fusos.  *
     !                                                                      *
     !                                                                      *
     !    AIRES: 30/6/1977                                                  *
@@ -8334,7 +8127,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                         iFN = len_trim(Filename)
                         ipath = 0
                         do i = iFN, 1, -1
-                            if (Filename(i:i) == '/' .or. Filename(i:i) == '\') then
+                            if (Filename(i:i) == '/' .or. Filename(i:i) == backslash) then
                                 ipath = i
                                 exit
                             endif
@@ -8513,8 +8306,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     subroutine GetHorizontalGrid(HorizontalGridID, XX_IE, YY_IE, XX_Z, YY_Z,            &
                                  XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross,            &
                                  DXX, DYY, DZX, DZY, DUX, DUY, DVX, DVY, XX, YY,        & 
-                                 XX2D_Z, YY2D_Z, XX2D_U, YY2D_U, XX2D_V, YY2D_V, IV, JV,&
-                                 IU, JU, IZ, JZ, STAT)
+                                 XX2D_Z, YY2D_Z, XX2D_U, YY2D_U, XX2D_V, YY2D_V, IV, JV, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
@@ -8523,8 +8315,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real, dimension(:   ), pointer, optional    :: XX_Z, YY_Z, XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross
         real, dimension(:, :), pointer, optional    :: DXX, DYY, DZX, DZY
         real, dimension(:, :), pointer, optional    :: DUX, DUY, DVX, DVY
-        integer, dimension(:, :), pointer, optional :: IV, JV
-		integer, dimension(:, :), pointer, optional :: IU, JU, IZ, JZ !Joao Sobrinho
+        integer, dimension(:, :), pointer, optional :: IV, JV     !JoÃ£o Sobrinho
         real, dimension(:   ), pointer, optional    :: XX, YY
         integer, optional,  intent(OUT)             :: STAT    
 
@@ -8691,26 +8482,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             !JV. Father cell inside which is each son cell(column).
             if (present(JV)) then
                 JV => Me%LastFatherGrid%JV
-                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
-            endif
-            !IV. Father cell inside which is each son cell (row).
-            if (present(IU)) then
-                IU => Me%LastFatherGrid%IU
-                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
-            endif
-            !JV. Father cell inside which is each son cell(column).
-            if (present(JU)) then
-                JU => Me%LastFatherGrid%JU
-                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
-            endif
-            !IV. Father cell inside which is each son cell (row).
-            if (present(IZ)) then
-                IZ => Me%LastFatherGrid%IZ
-                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
-            endif
-            !JV. Father cell inside which is each son cell(column).
-            if (present(JZ)) then
-                JZ => Me%LastFatherGrid%JZ
                 call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
             endif
 
@@ -10795,28 +10566,23 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         
         !Begin-----------------------------------------------------------------
         
-        LineInterSection        = .false. 
-        ColumnInterSection      = .false. 
+        LineInterSection        = .true. 
+        ColumnInterSection      = .true. 
         
-        if ((WorkSizeA%ILB >= WorkSizeB%ILB .and. WorkSizeA%ILB <= WorkSizeB%IUB) .or. &
-            (WorkSizeA%IUB >= WorkSizeB%ILB .and. WorkSizeA%IUB <= WorkSizeB%IUB)) then
-            LineInterSection = .true.                
+        if (WorkSizeA%ILB < WorkSizeB%ILB .and. WorkSizeA%IUB < WorkSizeB%ILB) then
+            LineInterSection   = .false.                
         endif            
 
-        if ((WorkSizeB%ILB >= WorkSizeA%ILB .and. WorkSizeB%ILB <= WorkSizeA%IUB) .or. &
-            (WorkSizeB%IUB >= WorkSizeA%ILB .and. WorkSizeB%IUB <= WorkSizeA%IUB)) then
-            LineInterSection = .true.                
+        if (WorkSizeA%ILB > WorkSizeB%IUB .and. WorkSizeA%IUB > WorkSizeB%IUB) then
+            LineInterSection   = .false.                
         endif            
         
-
-        if ((WorkSizeA%JLB >= WorkSizeB%JLB .and. WorkSizeA%JLB >= WorkSizeB%JUB) .or. &
-            (WorkSizeA%JUB >= WorkSizeB%JLB .and. WorkSizeA%JUB <= WorkSizeB%JUB)) then
-            ColumnInterSection = .true.                
+        if (WorkSizeA%JLB < WorkSizeB%JLB .and. WorkSizeA%JUB < WorkSizeB%JLB) then
+            ColumnInterSection = .false.                
         endif            
 
-        if ((WorkSizeB%JLB >= WorkSizeA%JLB .and. WorkSizeB%JLB >= WorkSizeA%JUB) .or. &
-            (WorkSizeB%JUB >= WorkSizeA%JLB .and. WorkSizeB%JUB <= WorkSizeA%JUB)) then
-            ColumnInterSection = .true.                
+        if (WorkSizeA%JLB > WorkSizeB%JUB .and. WorkSizeA%JUB > WorkSizeB%JUB) then
+            ColumnInterSection = .false.                
         endif            
         
         if (LineInterSection .and. ColumnInterSection) then
@@ -12976,13 +12742,13 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR04'
 
-                call HDF5WriteData   (ObjHDF5, "/Grid/Longitude", "Longitude", "º",     &
+                call HDF5WriteData   (ObjHDF5, "/Grid/Longitude", "Longitude", "Âº",     &
                                       Array2D = Me%LongitudeConn,                       &
                                       OutputNumber = OutputNumber,                      &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR05'
 
-                call HDF5WriteData   (ObjHDF5, "/Grid/Latitude", "Latitude", "º",       &
+                call HDF5WriteData   (ObjHDF5, "/Grid/Latitude", "Latitude", "Âº",       &
                                       Array2D = Me%LatitudeConn,                        &
                                       OutputNumber = OutputNumber,                      &
                                       STAT = STAT_CALL)
@@ -13011,12 +12777,12 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR04'
 
-                call HDF5WriteData   (ObjHDF5, "/Grid", "Longitude", "º",               &
+                call HDF5WriteData   (ObjHDF5, "/Grid", "Longitude", "Âº",               &
                                       Array2D = Me%LongitudeConn,                       &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR05'
 
-                call HDF5WriteData   (ObjHDF5, "/Grid", "Latitude", "º",                &
+                call HDF5WriteData   (ObjHDF5, "/Grid", "Latitude", "Âº",                &
                                       Array2D = Me%LatitudeConn,                        &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR06'
@@ -13150,7 +12916,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                         
                         if (STAT_CALL /= SUCCESS_) then
                             !linux path
-                            AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//"\"//trim(adjustl(Me%DDecomp%FilesListName))
+                            AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//backslash//trim(adjustl(Me%DDecomp%FilesListName))
                             
                             open(file   = AuxFile,                                      &
                                  unit   = Me%DDecomp%FilesListID,                       &
@@ -13172,7 +12938,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                         iFile = 1
                         ilen  = len_trim(FileName)
                         do i = ilen,1,-1
-                            if (FileName(i:i) == '/' .or. FileName(i:i) == '\') then
+                            if (FileName(i:i) == '/' .or. FileName(i:i) == backslash) then
                                 iFile = i+1 
                                 exit
                             endif                                
@@ -13268,7 +13034,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             Aux2D(WorkIUB+2        , WorkJLB:WorkJUB+1) = Me%LongitudeConn(WorkIUB+1        , WorkJLB:WorkJUB+1)
             Aux2D(WorkILB:WorkIUB+2,         WorkJUB+2) = Aux2D           (WorkILB:WorkIUB+2,         WorkJUB+1)
 
-            call HDF5WriteData   (ObjHDF5, "/Grid", "Longitude", "º",               &
+            call HDF5WriteData   (ObjHDF5, "/Grid", "Longitude", "Âº",               &
                                   Array2D = Aux2D,                                  &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR40'
@@ -13277,7 +13043,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             Aux2D(WorkIUB+2        , WorkJLB:WorkJUB+1) = Me%LatitudeConn(WorkIUB+1        , WorkJLB:WorkJUB+1)
             Aux2D(WorkILB:WorkIUB+2,         WorkJUB+2) = Aux2D          (WorkILB:WorkIUB+2,         WorkJUB+1)
 
-            call HDF5WriteData   (ObjHDF5, "/Grid", "Latitude", "º",                &
+            call HDF5WriteData   (ObjHDF5, "/Grid", "Latitude", "Âº",                &
                                   Array2D = Aux2D,                                  &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR50'
@@ -13374,7 +13140,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                     
                     if (STAT_CALL /= SUCCESS_) then
                         !linux path
-                        AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//"\"//trim(adjustl(Me%DDecomp%FilesListName))
+                        AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//backslash//trim(adjustl(Me%DDecomp%FilesListName))
                         
                         open(file   = AuxFile,                                      &
                              unit   = Me%DDecomp%FilesListID,           &
@@ -13396,7 +13162,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                     iFile = 1
                     ilen  = len_trim(FileName)
                     do i = ilen,1,-1
-                        if (FileName(i:i) == '/' .or. FileName(i:i) == '\') then
+                        if (FileName(i:i) == '/' .or. FileName(i:i) == backslash) then
                             iFile = i+1 
                             exit
                         endif                                
@@ -14873,14 +14639,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 
                 deallocate(Me%AuxPolygon%VerticesF)
                 deallocate(Me%AuxPolygon)
-                
-                if  (Me%UsedIWD_2way)then !Joao Sobrinho
-                    deallocate(Me%IWD_connections)
-                    nullify   (Me%IWD_connections)
-                    deallocate(Me%IWD_Distances)
-                    nullify   (Me%IWD_Distances)
-                endif
-                
 
                 call KillFatherGridList
                 
@@ -14991,21 +14749,6 @@ do1 :   do while(associated(FatherGrid))
                     call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR40") 
 
                 nullify   (FatherGrid%JZ)
-                
-                !ILinkZ
-                deallocate(FatherGrid%ILinkZ, STAT = status)
-                if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR41") 
-
-                nullify   (FatherGrid%ILinkZ)
-                !Joao Sobrinho
-                !JLinkZ
-                deallocate(FatherGrid%JLinkZ, STAT = status)
-                if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR42") 
-
-                nullify   (FatherGrid%JLinkZ)                
-                
 
             endif
 
@@ -15046,23 +14789,6 @@ do1 :   do while(associated(FatherGrid))
                     call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR80") 
 
                 nullify   (FatherGrid%JU)
-                
-                !ILinkU
-                deallocate(FatherGrid%ILinkU, STAT = status)
-
-                if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR81") 
-
-                nullify   (FatherGrid%ILinkU)
-                
-                !Joao Sobrinho
-                !JLinkU
-                deallocate(FatherGrid%JLinkU, STAT = status)
-
-                if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR82") 
-
-                nullify   (FatherGrid%JLinkU)                
 
             endif 
 
@@ -15101,23 +14827,6 @@ do1 :   do while(associated(FatherGrid))
                     call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR120") 
 
                 nullify   (FatherGrid%JV)
-                
-                !Joao Sobrinho                
-                !ILinkV
-                deallocate(FatherGrid%ILinkV, STAT = status)
-
-                if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR111") 
-
-                nullify   (FatherGrid%ILinkV)
-
-                !JLinkV
-                deallocate(FatherGrid%JLinkV, STAT = status)
-
-                if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR112") 
-
-                nullify   (FatherGrid%JLinkV)
 
             endif
 
@@ -15388,7 +15097,9 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
             ObjHorizontalGrid => ObjHorizontalGrid%Next
         enddo
 
-        if (.not. associated(ObjHorizontalGrid)) stop 'HorizontalGrid - LocateObjFather - ERR01'
+        if (.not. associated(ObjHorizontalGrid)) then
+            stop 'HorizontalGrid - LocateObjFather - ERR01'
+        endif                        
 
     end subroutine LocateObjFather
 
@@ -17161,95 +16872,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
 
 
 !------------------------------------------------------------------------------
-    Subroutine LocateCell_2  (XX, YY, XPos, YPos,                                         &
-                            ILB, IUB, JLB, JUB, ILink, JLink, U, V)
-    
-        !Arguments---------------------------------------------------------
-        real,   dimension(:)  , pointer      :: XX, YY
-        real                  , intent (IN ) :: XPos, YPos
-        integer               , intent (IN ) :: ILB, IUB, JLB, JUB
-        integer               , intent (OUT) :: ILink, JLink
-        integer, optional                    :: U, V
-        
-        !Local-------------------------------------------------------------
-        integer                              :: IMiddle, JMiddle, Dcd1, Dcd2, IUpper, JUpper
-    
-        !Begin-------------------------------------------------------------
-        ILink  = ILB
-        IUpper = IUB
-    
-        Dcd1 = 2
-        Dcd2 = 2
-    
-        if(Ypos < YY(ILB) .or. Ypos > YY(IUB))then
-    
-            ILink = null_int
-    
-        elseif (present(V))then
-            do while (Dcd1 > 1)
-                IMiddle = int((ILink + IUpper)/2)
-                if (Ypos > YY(IMiddle - 1)) then
-                    ILink = IMiddle
-                else 
-                    IUpper = IMiddle
-                endif
-                Dcd1 = IUpper - ILink
-            enddo
-        else
-            do while (Dcd1 > 1)
-                IMiddle = int((ILink + IUpper)/2)
-                if (Ypos > YY(IMiddle)) then
-                    ILink = IMiddle
-                else 
-                    IUpper = IMiddle
-                endif
-                Dcd1 = IUpper - ILink
-            enddo       
-    
-        end if
-    
-    
-        JLink = JLB
-        JUpper = JUB
-    
-        if(Xpos < XX(JLB) .or. Xpos > XX(JUB))then
-    
-            JLink = null_int
-    
-        elseif (present(U))then
-            do while (Dcd2 > 1)
-                JMiddle = int((JLink + JUpper)/2)
-                if (Xpos > XX(JMiddle - 1)) then
-                    JLink = JMiddle
-                else 
-                    JUpper = JMiddle
-                endif
-                Dcd2 = JUpper - JLink
-            enddo
-        else        
-    
-            do while (Dcd2 > 1)
-                JMiddle = int((JLink + JUpper)/2)
-                if (Xpos > XX(JMiddle)) then
-                    JLink = JMiddle
-                else 
-                    JUpper = JMiddle
-                endif
-                Dcd2 = JUpper - JLink
-            enddo
-    
-        end if
-    
-        if (.not. Dcd1>0 .and. Dcd2>0) then
-    
-            call SetError(FATAL_, INTERNAL_, 'LocateCell - HorizontalGrid - ERR01')
-    
-           
-        endif
-        
-        
-        end subroutine LocateCell_2
-!------------------------------------------------------------------------------
+
 
     real  function Bilinear (YYUpper, YYLower, YPos,                                     &
                             XXUpper, XXLower, XPos,                                      &  
@@ -17942,7 +17565,7 @@ end module ModuleHorizontalGrid
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior TÃ©cnico, Technical University of Lisbon. 
 !----------------------------------------------------------------------------------------------------------
 
 

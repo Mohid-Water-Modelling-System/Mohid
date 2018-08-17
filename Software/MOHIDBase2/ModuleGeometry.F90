@@ -77,8 +77,7 @@ Module ModuleGeometry
 #endif _USE_MPI           
                                       
     use ModuleFunctions,        only: SetMatrixValue, SetMatrixValueAllocatable,        &
-                                      Chunk_J, Chunk_K, GetPointer,                     &
-                                      ComputeAvgVerticalVelocity
+                                      Chunk_J, Chunk_K, GetPointer
     use ModuleHDF5
     use ModuleStopWatch,        only : StartWatch, StopWatch         
 
@@ -120,7 +119,6 @@ Module ModuleGeometry
     private ::      ComputeDistances
     private ::      ComputeAreas
     private ::      ComputeVolumes
-    private ::      ComputeVolume2D
     private ::      StoreVolumeZOld
 
 #ifdef _USE_SEQASSIMILATION
@@ -243,7 +241,6 @@ Module ModuleGeometry
         real                                    :: BottomLayerThickness      = FillValueReal
         real                                    :: GridMovementDump          = FillValueReal
         real                                    :: DisplacementLimit         = FillValueReal 
-        real                                    :: RelaxToAverageFactor      = FillValueReal
         integer                                 :: InitializationMethod      = FillValueInt
         real                                    :: Equidistant               = FillValueReal        
         logical                                 :: RomsDistortion            = .false.
@@ -274,7 +271,6 @@ Module ModuleGeometry
 
     type T_Volumes
         real(8), dimension(:, :, :), allocatable    :: VolumeZ, VolumeU, VolumeV, VolumeW, VolumeZOld
-        real(8), dimension(:, :),    allocatable    :: VolumeZ_2D   !Joao Sobrinho
         logical                                     :: FirstVolW = .true.
     end type T_Volumes
 
@@ -311,7 +307,6 @@ Module ModuleGeometry
                                                    VolumeU      => null(), &
                                                    VolumeV      => null(), &
                                                    VolumeZOld   => null()
-        real(8), dimension(:, :,  ), pointer    :: VolumeZ_2D   => null(), &        
     end type T_StatePointer
 #endif _USE_SEQASSIMILATION
 
@@ -347,8 +342,6 @@ Module ModuleGeometry
         logical                                 :: BathymNotCorrect         = .false. 
        
         character(len=Pathlength)               :: InputFile                = null_str !initialization: Jauch
-        
-        real, dimension(:,:,:), pointer         :: NearbyAvgVel_Z           => null() ! Joao Sobrinho
 
 #ifdef _USE_SEQASSIMILATION
         !This variable is used to retain location of original memory space for variables
@@ -800,11 +793,7 @@ Module ModuleGeometry
         allocate (Me%Volumes%VolumeZ(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS)
         if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR10'
         Me%Volumes%VolumeZ = FillValueDouble
-        !Joao Sobrinho
-        allocate (Me%Volumes%VolumeZ_2D(ILB:IUB, JLB:JUB), stat = STATUS)
-        if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR11'
-        Me%Volumes%VolumeZ_2D = FillValueDouble
-        
+
         allocate (Me%Volumes%VolumeU(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS)
         if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR20'
         Me%Volumes%VolumeU = FillValueDouble
@@ -903,10 +892,6 @@ Module ModuleGeometry
         allocate (Me%KTop%Z(ILB:IUB, JLB:JUB), stat = STATUS)
         if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR250'
         Me%KTop%Z(:,:) = FillValueInt
-        
-        allocate (Me%NearbyAvgVel_Z(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS) !Joao Sobrinho
-        if (STATUS /= SUCCESS_) stop "AllocateVariables - Geometry - ERR255"
-        call SetMatrixValue(Me%NearbyAvgVel_Z, Me%Size, FillValueReal)
 
     end subroutine AllocateVariables
 
@@ -1297,16 +1282,6 @@ cd2 :                       if (BlockLayersFound) then
                                      STAT           = STATUS)
                         if (STATUS /= SUCCESS_)                                         &
                             stop "GetDomainsFromFile - Geometry - ERR230"
-                        !Joao Sobrinho
-                        call GetData(NewDomain%RelaxToAverageFactor,                    &
-                                     ObjEnterData, iflag,                               &
-                                     SearchType     = FromBlock,                        &
-                                     keyword        = 'RELAXTOAVERAGEFACTOR',           &
-                                     ClientModule   = 'ModuleGeometry',                 &
-                                     Default        = 0.7,                              &
-                                     STAT           = STATUS)
-                        if (STATUS /= SUCCESS_)                         &
-                            stop "GetDomainsFromFile - Geometry - ERR235"
 
                        if (LagrangianOld_flag == 1) then
                             call GetData(DomainType,                                        &
@@ -1334,8 +1309,7 @@ cd2 :                       if (BlockLayersFound) then
                                 write (*,*) "Initialization Method invalid"
                                 stop "GetDomainsFromFile - Geometry - ERR250"
                             endif                       
-                       endif
-                                        
+                        endif
                     endif
 
 
@@ -2652,8 +2626,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             Me%AuxPointer%WaterColumnZ => Me%WaterColumn%Z
 
             Me%AuxPointer%VolumeZ => Me%Volumes%VolumeZ
-            
-            Me%AuxPointer%VolumeZ_2D => Me%Volumes%VolumeZ_2D
 
             Me%AuxPointer%VolumeU => Me%Volumes%VolumeU
 
@@ -2917,23 +2889,22 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
     subroutine ComputeVerticalGeometry(GeometryID, WaterPoints3D, SurfaceElevation,      &
                                        ActualTime, VerticalVelocity, DT_Waterlevel,      &
-                                       SZZ, DecayTime, KTop, OpenPoints3D, STAT)
-        !Joao Sobrinho - added OpenPoints3D
+                                       SZZ, DecayTime, KTop, STAT)
+
         !Arguments-------------------------------------------------------------
-        integer                                        :: GeometryID
-        integer, dimension(:, :, :), pointer           :: WaterPoints3D
-        integer, dimension(:, :, :), pointer, optional        :: OpenPoints3D
-        real, dimension(:, :), pointer, optional       :: SurfaceElevation
-        type (T_Time),            optional             :: ActualTime
-        real, dimension(:, :, :), pointer, optional    :: VerticalVelocity             !Gives the vertical variation
-        real, intent(in), optional                     :: DT_Waterlevel                !for the lagragean coordinate
-        real, dimension(:, :, :), pointer, optional    :: SZZ, DecayTime
-        integer, dimension(:, :), pointer, optional    :: KTop
-        integer, intent(out), optional                 :: STAT
+        integer                                     :: GeometryID
+        integer, dimension(:, :, :), pointer        :: WaterPoints3D
+        real, dimension(:, :), pointer, optional    :: SurfaceElevation
+        type (T_Time),            optional          :: ActualTime
+        real, dimension(:, :, :), pointer, optional :: VerticalVelocity             !Gives the vertical variation
+        real, intent(in), optional                  :: DT_Waterlevel                !for the lagragean coordinate
+        real, dimension(:, :, :), pointer, optional :: SZZ, DecayTime
+        integer, dimension(:, :), pointer, optional :: KTop
+        integer, intent(out), optional              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                        :: ready_   
-        integer                                        :: STAT_
+        integer                                     :: ready_   
+        integer                                     :: STAT_
 
         !----------------------------------------------------------------------
 
@@ -2954,8 +2925,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 call SetMatrixValue( GetPointer(Me%Distances%SZZ), Me%Size, SZZ )
             else
                !Computes SZZ
-                call ComputeSZZ(SurfaceElevation, TRANSIENTGEOMETRY, VerticalVelocity, DT_Waterlevel, WaterPoints3D, &
-                                OpenPoints3D)
+                call ComputeSZZ(SurfaceElevation, TRANSIENTGEOMETRY, VerticalVelocity, DT_Waterlevel, WaterPoints3D)
                 
                 if (Me%LastDomain%DomainType == Sigma) then
                     if (Me%LastDomain%SigmaZleveHybrid) then
@@ -2991,11 +2961,12 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !It is necessary for the Soil model
             call ComputeZCellCenter
 
-            !Computes the WaterColumn
-            if (Me%FirstDomain%DomainType /= FixSediment) then
-                call ComputeWaterColumn(SurfaceElevation)
-                call ComputeVolume2D
-            endif
+            if (present(SurfaceElevation)) then
+                !Computes the WaterColumn
+                if (Me%FirstDomain%DomainType /= FixSediment) then
+                    call ComputeWaterColumn(SurfaceElevation)
+                endif
+            endif                
 
             nullify(Me%Externalvar%DecayTime)
 
@@ -3196,40 +3167,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
      end subroutine ComputeWaterColumn
 
     !--------------------------------------------------------------------------
-    subroutine ComputeVolume2D !João Sobrinho
-        !locals-----------------------------------------------------------------
-        integer                                 :: i, j, STAT_CALL
-        real, dimension(:,:),     pointer       :: DUX, DVY
-        integer, dimension(:, :), pointer       :: WaterPoints2D
-        !Begin------------------------------------------------------------------
-        
-        !Gets DUX, DVY
-        call GetHorizontalGrid(Me%ObjHorizontalGrid, DUX = DUX, DVY = DVY, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeVolume2D - Geometry - ERR01'
-        
-        !Gets WaterPoints2D
-        call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeVolume2D - Geometry - ERR02'
-        
-        !Integrate volumeZ - for 2way nesting purposes
-        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-            Me%Volumes%VolumeZ_2D(i, j) = Me%WaterColumn%Z(i, j) * dble(DUX(i, j)) * dble(DVY(i, j)) *  &
-                                          WaterPoints2D(i, j)
-        enddo
-        enddo
-        
-        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DUX, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeVolume2D - Geometry - ERR03'
 
-
-        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DVY, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeVolume2D - Geometry - ERR04'
-        
-        call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeVolume2D - Geometry - ERR05'
-    
-    end subroutine ComputeVolume2D
 
     !--------------------------------------------------------------------------
     !Computes the Distances (DWZ + DZZ + DUZ + DVZ + DZI + DZE)
@@ -3820,16 +3758,14 @@ cd1:    if (FacesOption == MinTickness) then
 
     !--------------------------------------------------------------------------
     !For every domain calls the respective computation rotine
-    subroutine ComputeSZZ (SurfaceElevation, ComputionType, VerticalVelocity, DT_Waterlevel, WaterPoints3D, &
-                           OpenPoints3D)
+    subroutine ComputeSZZ (SurfaceElevation, ComputionType, VerticalVelocity, DT_Waterlevel, WaterPoints3D)
 
         !Parameter-------------------------------------------------------------
         real, dimension(:, :), pointer                 :: SurfaceElevation
         integer                                        :: ComputionType
         real, dimension(:, :, :), optional, pointer    :: VerticalVelocity
         real, intent(in), optional                     :: DT_Waterlevel
-        integer, dimension(:, :, :), optional, pointer :: WaterPoints3D, OpenPoints3D
-        real, dimension(:, :, :),              pointer :: ZonalVerticalVelocity
+        integer, dimension(:, :, :), optional, pointer :: WaterPoints3D
 
         !Esternal--------------------------------------------------------------
 
@@ -3920,11 +3856,8 @@ cd1:    if (FacesOption == MinTickness) then
                         call ComputeSigma(SurfaceElevation, CurrentDomain)  
                     
                     else if (CurrentDomain%IsLagrangian) then
-                             
-                        call ComputeAvgVerticalVelocity(VerticalVelocity, Me%NearbyAvgVel_Z, Me%WorkSize, OpenPoints3D)
-                        
-                        call ComputeLagrangianNew(SurfaceElevation, VerticalVelocity,           &
-                                                  Me%NearbyAvgVel_Z, DT_Waterlevel, CurrentDomain)
+                        call ComputeLagrangianNew(SurfaceElevation, VerticalVelocity,   &
+                                                  DT_Waterlevel, CurrentDomain)
                     endif
                     
                 case (Isopycnic)
@@ -3963,12 +3896,9 @@ cd1:    if (FacesOption == MinTickness) then
                                 call ComputeCartesian(SurfaceElevation, CurrentDomain, ComputionType)
                             endif
                             
-                        else
-                            call ComputeAvgVerticalVelocity(VerticalVelocity, Me%NearbyAvgVel_Z, Me%WorkSize, &
-                                                            OpenPoints3D)
-                            
-                            call ComputeLagrangianNew(SurfaceElevation, VerticalVelocity,            &
-                                                      Me%NearbyAvgVel_Z, DT_Waterlevel, CurrentDomain)
+                        else        
+                            call ComputeLagrangianNew(SurfaceElevation, VerticalVelocity,    &
+                                                      DT_Waterlevel, CurrentDomain)
                         endif
                     endif
                     
@@ -4850,11 +4780,11 @@ cd0 :       if (WaterPoints2D(i, j) == WaterPoint) then
 
     !--------------------------------------------------------------------------
     !Computes SZZ for a Lagrangian Domain - from up
-    subroutine ComputeLagrangianNew(SurfaceElevation, VerticalVelocity, ZonalVerticalVelocity, DT_Waterlevel, Domain)
+    subroutine ComputeLagrangianNew(SurfaceElevation, VerticalVelocity, DT_Waterlevel, Domain)
 
         !Parameter-------------------------------------------------------------
         real, dimension(:, :), pointer          :: SurfaceElevation
-        real, dimension(:, :, :), pointer       :: VerticalVelocity,  ZonalVerticalVelocity
+        real, dimension(:, :, :), pointer       :: VerticalVelocity
         real, intent(in)                        :: DT_Waterlevel
         type (T_Domain), pointer                :: Domain
 
@@ -4862,6 +4792,7 @@ cd0 :       if (WaterPoints2D(i, j) == WaterPoint) then
         integer                                 :: i, j, k, ILB, IUB, JLB, JUB
         integer                                 :: LowerLayer, UpperLayer
         integer, dimension(:, :), pointer       :: WaterPoints2D
+!        real   , dimension(:, :,:), pointer     :: OldSZZ
         real                                    :: TopDepth, BottomDepth, DomainThickness
         real                                    :: MinimalThickness
         real                                    :: DisplacementLimit
@@ -4948,9 +4879,7 @@ do1 :           do k = UpperLayer-1, LowerLayer, -1
                     !For the Layer k the Vertical Velocity to consider is the velocity in 
                     !k+1(Upper Face) once the vertical velocity has a different index than 
                     !the SZZ
-                    ! Joao Sobrinho - Added relaxation to average of the nearby (and current cell) vertical velocity
-                    FreeGridVelocity  = VerticalVelocity(i, j, k+1)      * (1 - Domain%RelaxToAverageFactor) + &
-                                        ZonalVerticalVelocity(i, j, k+1) * Domain%RelaxToAverageFactor
+                    FreeGridVelocity  = VerticalVelocity(i, j, k+1)
 
                     FreeSZZ           = Me%Distances%SZZ(i, j, k) -           &
                                         FreeGridVelocity * DT_Waterlevel
@@ -6009,12 +5938,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !--------------------------------------------------------------------------
 
     subroutine GetGeometryVolumes(GeometryID, VolumeZ, VolumeU, VolumeV, &
-                                  VolumeW, VolumeZOld, VolumeZ_2D, ActualTime, STAT)
+                                  VolumeW, VolumeZOld, ActualTime, STAT)
 
         !Parameter-------------------------------------------------------------
         integer                                         :: GeometryID
         real(8), dimension(:, :, :), pointer, optional  :: VolumeZ, VolumeU, VolumeV, VolumeW, VolumeZOld
-        real(8), dimension(:,    :), pointer, optional  :: VolumeZ_2D
         type (T_Time), optional                         :: ActualTime
         integer, intent(out), optional                  :: STAT
 
@@ -6042,11 +5970,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 call Read_Lock(mGEOMETRY_, Me%InstanceID)
                 VolumeZ => Me%Volumes%VolumeZ
             endif
-            !VolumeZ_2D - Joao Sobrinho
-            if (present(VolumeZ_2D)) then
-                call Read_Lock(mGEOMETRY_, Me%InstanceID)
-                VolumeZ_2D => Me%Volumes%VolumeZ_2D
-            endif            
 
             !VolumeU
             if (present(VolumeU)) then
@@ -6682,8 +6605,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             Me%Areas%AreaV => Me%AuxPointer%AreaV
 
             Me%Volumes%VolumeZ => Me%AuxPointer%VolumeZ
-            
-            Me%Volumes%VolumeZ_2D => Me%AuxPointer%VolumeZ_2D
 
             Me%Volumes%VolumeZOld => Me%AuxPointer%VolumeZOld
 
@@ -6836,14 +6757,13 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             deallocate (Me%Volumes%VolumeZ, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR10'
         endif
-        if (allocated(Me%Volumes%VolumeZ_2D)) then
-            deallocate (Me%Volumes%VolumeZ_2D, stat = STATUS)
-            if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR11'
-        endif
+
         if (allocated(Me%Volumes%VolumeU)) then
             deallocate (Me%Volumes%VolumeU, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR20'
         endif
+
+
         if (allocated(Me%Volumes%VolumeV)) then
             deallocate (Me%Volumes%VolumeV, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR30'
@@ -6956,11 +6876,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             deallocate (Me%KTop%Z, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR230'
         endif
-        !Joao Sobrinho
-        if (allocated(Me%NearbyAvgVel_Z)) then
-            deallocate (Me%NearbyAvgVel_Z, stat = STATUS)
-            if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR240'            
-        endif
         
 
     end subroutine DeallocateVariables
@@ -7069,8 +6984,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             nullify(Me%AuxPointer%AreaV)
 
             nullify(Me%AuxPointer%VolumeZ)
-            
-            nullify(Me%AuxPointer%VolumeZ_2D)
 
             nullify(Me%AuxPointer%VolumeZOld)
 
