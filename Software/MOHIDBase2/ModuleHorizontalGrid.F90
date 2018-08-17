@@ -8523,7 +8523,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real, dimension(:   ), pointer, optional    :: XX_Z, YY_Z, XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross
         real, dimension(:, :), pointer, optional    :: DXX, DYY, DZX, DZY
         real, dimension(:, :), pointer, optional    :: DUX, DUY, DVX, DVY
-        integer, dimension(:, :), pointer, optional :: IV, JV, IU, JU, IZ, JZ     !João Sobrinho
+        integer, dimension(:, :), pointer, optional :: IV, JV
+		integer, dimension(:, :), pointer, optional :: IU, JU, IZ, JZ !Joao Sobrinho
         real, dimension(:   ), pointer, optional    :: XX, YY
         integer, optional,  intent(OUT)             :: STAT    
 
