@@ -246,6 +246,7 @@ Module ModuleAtmosphere
     type      T_Atmosphere
         integer                                     :: InstanceID   = null_int !initialization: Jauch
         character(PathLength)                       :: ModelName    = null_str !initialization: Jauch
+        integer                                     :: ModelType    = MOHIDLAND_
         type(T_Size2D)                              :: Size
         type(T_Size2D)                              :: WorkSize
         type(T_External)                            :: ExternalVar
@@ -347,6 +348,7 @@ Module ModuleAtmosphere
 
 
     subroutine StartAtmosphere(ModelName,                                       &
+                               ModelType,                                       &
                                AtmosphereID,                                    &
                                TimeID,                                          &
                                GridDataID,                                      &
@@ -357,6 +359,7 @@ Module ModuleAtmosphere
 
         !Arguments--------------------------------------------------------------
         character(Len=*)                            :: ModelName
+        integer                                     :: ModelType
         integer                                     :: AtmosphereID
         integer                                     :: TimeID         
         integer                                     :: GridDataID     
@@ -392,7 +395,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call AllocateInstance 
 
             Me%ModelName = ModelName
-
+            Me%ModelType = ModelType
+            
             !Associates External Instances
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
             Me%ObjGridData       = AssociateInstance (mGRIDDATA_,       GridDataID      )
@@ -633,7 +637,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - ModuleAtmosphere - ERR60'        
 
-        if (trim(Me%ModelName) == 'MOHID Land Model') then
+        !This can not be a string that is set by the user.
+        !In operational models this value is not 'MOHID Land Model'
+        !so that the timeseries are saved with a correct model name
+        !This was changed to a integer that is not changed by the user
+        !if (trim(Me%ModelName) == 'MOHID Land Model') then
+        if (Me%ModelType == MOHIDLAND_) then
             defValue = 2
         else
             defValue = 1

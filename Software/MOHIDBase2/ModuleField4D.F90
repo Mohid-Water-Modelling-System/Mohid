@@ -1675,24 +1675,24 @@ wwd1:       if (Me%WindowWithData) then
         
         !Field NAme was setted by argument?
         if (.not. Me%File%FieldNameArgument) then
-            call GetData(PropField%FieldName,                                               &
-                         Me%ObjEnterData , iflag,                                           &
-                         SearchType   = ExtractType,                                        &
-                         keyword      = 'FIELD_NAME',                                       &
-                         default      = trim(PropField%ID%Name),                            &
-                         ClientModule = 'ModuleField4D',                                    &
+            call GetData(PropField%FieldName,                                           &
+                         Me%ObjEnterData , iflag,                                       &
+                         SearchType   = ExtractType,                                    &
+                         keyword      = 'FIELD_NAME',                                   &
+                         default      = trim(PropField%ID%Name),                        &
+                         ClientModule = 'ModuleField4D',                                &
                          STAT         = STAT_CALL)                                      
             if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR70'
         
             if (iflag == 0) then
-                call GetData(PropField%FieldName,                                           &
-                             Me%ObjEnterData , iflag,                                       &
-                             SearchType   = ExtractType,                                    &
-                             keyword      = 'HDF_FIELD_NAME',                               &
-                             default      = trim(PropField%ID%Name),                        &
-                             ClientModule = 'ModuleField4D',                                &
+                call GetData(PropField%FieldName,                                       &
+                             Me%ObjEnterData , iflag,                                   &
+                             SearchType   = ExtractType,                                &
+                             keyword      = 'HDF_FIELD_NAME',                           &
+                             default      = trim(PropField%ID%Name),                    &
+                             ClientModule = 'ModuleField4D',                            &
                              STAT         = STAT_CALL)                                      
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR75'
+                if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR80'
             endif
         else
             PropField%FieldName = Me%File%FieldName
@@ -1705,7 +1705,7 @@ wwd1:       if (Me%WindowWithData) then
                      default      = .true.,                                             &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR80'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR90'
 
         call GetData(PropField%From2Dto3D,                                              &
                      Me%ObjEnterData , iflag,                                           &
@@ -1714,7 +1714,7 @@ wwd1:       if (Me%WindowWithData) then
                      default      = .false.,                                            &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR90'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR100'
         
 
         call GetData(PropField%From3Dto2D,                                              &
@@ -1724,7 +1724,7 @@ wwd1:       if (Me%WindowWithData) then
                      default      = .false.,                                            &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR95'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR110'
 
         
         call GetOutPutTime(Me%ObjEnterData,                                             &
@@ -1736,7 +1736,7 @@ wwd1:       if (Me%WindowWithData) then
                            OutPutsOn        = Me%OutPut%Yes,                            &
                            OutPutsNumber    = Me%OutPut%TotalOutputs,                   &
                            STAT             = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR100'        
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR120'        
 
         Me%OutPut%NextOutPut = 1
         
@@ -1747,7 +1747,7 @@ wwd1:       if (Me%WindowWithData) then
                      default      = .false.,                                            &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR160'    
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR130'    
         
         if (PropField%Harmonics%ON) then
             call GetData(PropField%Harmonics%Extract,                                   &
@@ -1757,7 +1757,7 @@ wwd1:       if (Me%WindowWithData) then
                          default      = .false.,                                        &
                          ClientModule = 'ModuleField4D',                                &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR170'    
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR140'    
             
             call GetData(PropField%Harmonics%FieldNameDim,                              &
                          Me%ObjEnterData , iflag,                                       &
@@ -1766,7 +1766,27 @@ wwd1:       if (Me%WindowWithData) then
                          default      = char_residual_,                                 &
                          ClientModule = 'ModuleField4D',                                &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR175'    
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR150'    
+        
+            call GetData(PropField%Harmonics%TimeReference,                             &
+                         Me%ObjEnterData , iflag,                                       &
+                         SearchType   = ExtractType,                                    &
+                         keyword      = 'TIME_REF',                                     &
+                         default      = 0.,                                             &
+                         ClientModule = 'ModuleField4D',                                &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR160'
+            
+            if (iflag == 1) PropField%Harmonics%TimeReference = - PropField%Harmonics%TimeReference
+        
+            call GetData(PropField%Harmonics%ReferenceValue,                            &
+                         Me%ObjEnterData , iflag,                                       &
+                         SearchType   = ExtractType,                                    &
+                         keyword      = 'REF_VALUE',                                    &
+                         default      = 0.,                                             &
+                         ClientModule = 'ModuleField4D',                                &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR170'            
 
 
             call GetData(PropField%Harmonics%TideStateON,                               &
@@ -1776,18 +1796,18 @@ wwd1:       if (Me%WindowWithData) then
                          default      = .false.,                                        &
                          ClientModule = 'ModuleField4D',                                &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR177'                
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR180'                
             
             
             if (PropField%Harmonics%TideStateON) then
-                call GetData(PropField%Harmonics%TideStateDT,                               &
-                             Me%ObjEnterData , iflag,                                       &
-                             SearchType   = ExtractType,                                    &
-                             keyword      = 'TIDE_STATE_DT',                                &
-                             default      = 1800.,                                          &
-                             ClientModule = 'ModuleField4D',                                &
+                call GetData(PropField%Harmonics%TideStateDT,                           &
+                             Me%ObjEnterData , iflag,                                   &
+                             SearchType   = ExtractType,                                &
+                             keyword      = 'TIDE_STATE_DT',                            &
+                             default      = 1800.,                                      &
+                             ClientModule = 'ModuleField4D',                            &
                              STAT         = STAT_CALL)                                      
-                if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR179'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR190'
             endif 
 
         endif
@@ -1802,7 +1822,7 @@ wwd1:       if (Me%WindowWithData) then
                      default      = Me%MaskDim,                                         &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR110'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR200'
         
         if (iflag == 0 .and. Me%File%Form == HDF5_) then
         
@@ -1810,12 +1830,12 @@ wwd1:       if (Me%WindowWithData) then
                 call GetHDF5ArrayDimensions (Me%File%Obj, trim(PropField%VGroupPath),   &
                                   PropField%Harmonics%FieldNameDim,                     &
                                   NDim = PropField%SpaceDim, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadOptions - ModuleField4D - ERR115'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadOptions - ModuleField4D - ERR210'
             else                
                 call GetHDF5ArrayDimensions (Me%File%Obj, trim(PropField%VGroupPath),   &
                                   trim(PropField%FieldName), OutputNumber = 1,          &
                                   NDim = PropField%SpaceDim, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadOptions - ModuleField4D - ERR120'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadOptions - ModuleField4D - ERR220'
             endif                
         endif
         if (PropField%Harmonics%ON) then
@@ -1834,7 +1854,7 @@ wwd1:       if (Me%WindowWithData) then
             
             else
             
-                stop 'ReadOptions - ModuleField4D - ERR170'
+                stop 'ReadOptions - ModuleField4D - ERR230'
             
             endif
             
@@ -1849,7 +1869,7 @@ wwd1:       if (Me%WindowWithData) then
                      default      = .true.,                                             &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR130'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR240'
 
 
         call GetData(PropField%MinValue,                                                &
@@ -1859,7 +1879,7 @@ wwd1:       if (Me%WindowWithData) then
                      default      = FillValueReal,                                      &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR140'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR250'
         
         PropField%MinValueON = .false.
         
@@ -1874,7 +1894,7 @@ wwd1:       if (Me%WindowWithData) then
                      default      = -FillValueReal,                                     &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR150'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR260'
         
         PropField%MaxValueON = .false.
         
@@ -1888,7 +1908,7 @@ wwd1:       if (Me%WindowWithData) then
                      default      = Me%Extrapolate,                                     &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR160'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR270'
 
         !ExtrapolAverage_ = 1, ExtrapolNearstCell_ = 2
         call GetData(PropField%ExtrapolateMethod,                                       &
@@ -1898,7 +1918,7 @@ wwd1:       if (Me%WindowWithData) then
                      default      = Me%ExtrapolateMethod,                               &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR160'        
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR280'        
         
         !Bilinear2D_         = 1, NearestNeighbor2D_  = 2
         call GetData(PropField%InterpolMethod,                                          &
@@ -1908,11 +1928,11 @@ wwd1:       if (Me%WindowWithData) then
                      default      = Bilinear2D_,                                        &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR170'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR290'        
         
         if (PropField%InterpolMethod /= Bilinear2D_ .and.                               &
             PropField%InterpolMethod /= NearestNeighbor2D_) then
-            stop 'ReadOptions - ModuleField4D - ERR180'
+            stop 'ReadOptions - ModuleField4D - ERR300'
         endif            
         
         
@@ -1923,7 +1943,7 @@ wwd1:       if (Me%WindowWithData) then
                      default      = .false.,                                            &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR180'             
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR310'             
         
         call GetData(PropField%DiscardFillValues,                                       &
                      Me%ObjEnterData , iflag,                                           &
@@ -1932,12 +1952,12 @@ wwd1:       if (Me%WindowWithData) then
                      default      = .true.,                                             &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR190'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR320'        
         
 
         ! Check if the simulation goes backward in time or forward in time (default mode)
         call GetBackTracking(Me%ObjTime, Me%BackTracking, STAT = STAT_CALL)                    
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR200' 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR330' 
         
         
 
@@ -2088,24 +2108,7 @@ i0:     if(PropField%SpaceDim == Dim2D) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadHarmonicWaves - ModuleField4D - ERR70'
         endif
         
-        call GetData(PropField%Harmonics%TimeReference,                                 &
-                     Me%ObjEnterData , iflag,                                           &
-                     SearchType   = ExtractType,                                        &
-                     keyword      = 'TIME_REF',                                         &
-                     default      = 0.,                                                 &
-                     ClientModule = 'ModuleField4D',                                    &
-                     STAT         = STAT_CALL)                                      
-        if (STAT_CALL /= SUCCESS_) stop 'ReadHarmonicWaves - ModuleField4D - ERR80'
-        
-        call GetData(PropField%Harmonics%ReferenceValue,                                &
-                     Me%ObjEnterData , iflag,                                           &
-                     SearchType   = ExtractType,                                        &
-                     keyword      = 'REF_VALUE',                                        &
-                     default      = 0.,                                                 &
-                     ClientModule = 'ModuleField4D',                                    &
-                     STAT         = STAT_CALL)                                      
-        if (STAT_CALL /= SUCCESS_) stop 'ReadHarmonicWaves - ModuleField4D - ERR90'
-   
+
 
     end subroutine ReadHarmonicWaves
 

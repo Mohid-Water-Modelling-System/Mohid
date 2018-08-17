@@ -1645,7 +1645,7 @@ if2 :   if (control == 0) then
                      STAT       = status)
         if (status /= SUCCESS_) stop 'ReadGaugeData - ModuleGauge - ERR120'
 
-        if (flag == 1) PresentGauge%TimeReference = - PresentGauge%TimeReference !rcm
+        if (flag == 1) PresentGauge%TimeReference = - PresentGauge%TimeReference
 
 
         call GetData(AuxChar ,                                                           &
