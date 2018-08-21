@@ -471,7 +471,7 @@ do1:     do
             Number = '    '
             write(Number, fmt='(i4)')Counter
             open(UNIT   = Me%Files%AsciiUnit,                                      &
-                 FILE   = '..\res\SQ_Situation_'//trim(adjustl(Number))//'.log', &
+                 FILE   = '..'//backslash//'res'//backslash//'SQ_Situation_'//trim(adjustl(Number))//'.log', &
                  STATUS = "REPLACE",                                      &
                  IOSTAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_) then

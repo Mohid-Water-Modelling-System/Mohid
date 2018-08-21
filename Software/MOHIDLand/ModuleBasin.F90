@@ -509,6 +509,7 @@ Module ModuleBasin
     type T_Basin
         integer                                     :: InstanceID           = 0
         character(len=StringLength)                 :: ModelName            = null_str
+        integer                                     :: ModelType            = MOHIDLAND_
         logical                                     :: StopOnBathymetryChange = .true.
         type (T_Size2D)                             :: Size, WorkSize
         type (T_Coupling)                           :: Coupled
@@ -740,6 +741,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             ObjBasinID          = Me%InstanceID
             
             Me%ModelName        = ModelName
+            Me%ModelType        = MOHIDLAND_
 
             !Associates External Instances
             Me%ObjTime           = AssociateInstance (mTIME_,   ObjTime)
@@ -3154,6 +3156,7 @@ i1:         if (CoordON) then
         !Constructs Atmosphere
         if (Me%Coupled%Atmosphere) then
             call StartAtmosphere        (ModelName          = Me%ModelName,              &
+                                         ModelType          = Me%ModelType,              &
                                          AtmosphereID       = Me%ObjAtmosphere,          &
                                          TimeID             = Me%ObjTime,                &
                                          GridDataID         = Me%ObjGridData,            &
@@ -4157,6 +4160,8 @@ cd0:    if (Exist) then
         character (Len = StringLength)              :: OptionsType
         type (T_BasinProperty), pointer             :: Property
         logical                                     :: IsFinalFile
+        logical                                     :: VariableDT
+        
         !----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "ModifyBasin")
@@ -4403,7 +4408,14 @@ cd0:    if (Exist) then
             UnLockToWhichModules = 'AllModules'
             OptionsType = 'ModifyBasin'
             call ReadUnLockExternalVar (UnLockToWhichModules, OptionsType)
-            call ComputeNextDT(NewDT)
+
+            call GetVariableDT          (Me%ObjTime, VariableDT, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyBasin - ModuleBasin - ERR00'
+
+            
+            if (VariableDT) then 
+                call ComputeNextDT(NewDT)
+            endif
 
             STAT_ = SUCCESS_
         else               

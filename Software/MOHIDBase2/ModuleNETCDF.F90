@@ -210,7 +210,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if      (Access == NCDF_CREATE_) then
 
                 STAT_CALL = nf90_create(path  = trim(FileName),                         &
-                                        cmode = NF90_CLOBBER,                           &
+!                                        cmode = NF90_CLOBBER,                           &
+                                         cmode = NF90_HDF5,                           &
                                         ncid  = Me%ncid)
                 if(STAT_CALL /= nf90_noerr) stop 'ConstructNETCDF - ModuleNETCDF - ERR01'
 

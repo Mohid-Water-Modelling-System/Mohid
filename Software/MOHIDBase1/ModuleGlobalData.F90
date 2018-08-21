@@ -189,6 +189,12 @@ Module ModuleGlobalData
     integer, parameter :: NOT_ASSOCIATE_         = 20
     integer, parameter :: FILE_EXISTS_ERR_       = 21
     integer, parameter :: OUT_OF_BOUNDS_ERR_     = 22 !Add to use with ModulePhreeqC
+    
+    !MOHID LAND AND MOHID WATER and MOHID RIVER
+    integer, parameter :: MOHIDLAND_      = 1
+    integer, parameter :: MOHIDWATER_     = 2
+    integer, parameter :: MOHIDRIVER_     = 3
+    
 
     !Types of coordinates
     integer, parameter :: GEOG_             = 1         !Coordenadas Geograficas  
