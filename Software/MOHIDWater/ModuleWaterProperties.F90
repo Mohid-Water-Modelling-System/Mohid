@@ -19204,6 +19204,7 @@ do1 :   do while (associated(PropertyX))
         !Local variables--------------------------------------------------------------------------------------
         type (T_WaterProperties), pointer       :: ObjWaterPropertiesSon
         type (T_Property), pointer              :: PropertyX, PropertySon
+        integer                                 :: STAT_CALL
 
         !Begin------------------------------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "UpdateFatherModelWP")
@@ -19253,15 +19254,6 @@ do1 :   do while (associated(PropertyX))
         enddo
 
         nullify (PropertyX)
-
-        call UngetHydrodynamic(FatherWaterPropertiesID, Me%ExternalVar%TotSonVolInFather, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR05')
-
-        call UngetHydrodynamic(FatherWaterPropertiesID, Me%ExternalVar%Aux2Way, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR06')
-
-        call UngetHydrodynamic(FatherWaterPropertiesID, Me%ExternalVar%Corners, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR07')
 
         call UngetTwoWayExternal_Vars(SonID             = SonWaterPropertiesID,    &
                                       FatherID          = FatherWaterPropertiesID, &

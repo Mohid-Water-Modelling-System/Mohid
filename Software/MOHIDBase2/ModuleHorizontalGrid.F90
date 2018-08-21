@@ -422,6 +422,14 @@ Module ModuleHorizontalGrid
         integer, dimension(:,:), pointer :: JV     => null()
         integer, dimension(:,:), pointer :: ICross => null()
         integer, dimension(:,:), pointer :: JCross => null()
+        
+        integer, dimension(:,:), pointer :: ILinkZ => null() !Joao Sobrinho
+        integer, dimension(:,:), pointer :: JLinkZ => null()
+        integer, dimension(:,:), pointer :: ILinkU => null()
+        integer, dimension(:,:), pointer :: JLinkU => null()
+        integer, dimension(:,:), pointer :: ILinkV => null()
+        integer, dimension(:,:), pointer :: JLinkV => null()
+        
         type (T_Size2D)                  :: MPI_Window
         type (T_FatherGrid),     pointer :: Next => null()
         type (T_FatherGrid),     pointer :: Prev => null()
@@ -521,9 +529,9 @@ Module ModuleHorizontalGrid
         integer                                 :: ZoneLat    = null_int
         integer, dimension(2)                   :: Grid_Zone
 
-        integer, pointer, dimension(:, :)       :: IWD_connections_U => null()
-        integer, pointer, dimension(:, :)       :: IWD_connections_V => null()
-        integer, pointer, dimension(:, :)       :: IWD_connections_Z => null()
+        integer, dimension(:, :), allocatable   :: IWD_connections_U
+        integer, dimension(:, :), allocatable   :: IWD_connections_V
+        integer, dimension(:, :), allocatable   :: IWD_connections_Z
         real, pointer, dimension(:)             :: IWD_Distances_U   => null()
         real, pointer, dimension(:)             :: IWD_Distances_V   => null()
         real, pointer, dimension(:)             :: IWD_Distances_Z   => null()
@@ -1996,7 +2004,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         integer                                   :: ILB, IUB, JLB, JUB, i, j
         integer                                   :: ILBwork, IUBwork, JLBwork, JUBwork
         logical                                   :: CheckRotation_
-        integer                                   :: ILBFAther, IUBFather, JLBFather, JUBFather
+        integer                                   :: ILBFAther, IUBFather, JLBFather, JUBFather, U, V
 
         !----------------------------------------------------------------------
 
@@ -2066,9 +2074,15 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             allocate (NewFatherGrid%IZ   (ILB:IUB, JLB:JUB))
             allocate (NewFatherGrid%JZ   (ILB:IUB, JLB:JUB))
+            
+            allocate (NewFatherGrid%ILinkZ (ILB:IUB, JLB:JUB))
+            allocate (NewFatherGrid%JLinkZ (ILB:IUB, JLB:JUB))
 
             NewFatherGrid%IZ   (:,:)  = FillValueInt
             NewFatherGrid%JZ   (:,:)  = FillValueInt
+            
+            NewFatherGrid%ILinkZ (:,:) = FillValueInt
+            NewFatherGrid%JLinkZ (:,:) = FillValueInt
 
             XX_Z  => NewFatherGrid%XX_Z
             YY_Z  => NewFatherGrid%YY_Z
@@ -2087,9 +2101,15 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             allocate (NewFatherGrid%IU   (ILB:IUB, JLB:JUB))
             allocate (NewFatherGrid%JU   (ILB:IUB, JLB:JUB))
+            
+            allocate (NewFatherGrid%ILinkU (ILB:IUB, JLB:JUB))
+            allocate (NewFatherGrid%JLinkU (ILB:IUB, JLB:JUB))
 
             NewFatherGrid%IU   (:,:)  = FillValueInt
             NewFatherGrid%JU   (:,:)  = FillValueInt
+            
+            NewFatherGrid%ILinkU (:,:) = FillValueInt
+            NewFatherGrid%JLinkU (:,:) = FillValueInt
 
             XX_U  => NewFatherGrid%XX_U
             YY_U  => NewFatherGrid%YY_U
@@ -2108,9 +2128,15 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             allocate (NewFatherGrid%IV   (ILB:IUB, JLB:JUB))
             allocate (NewFatherGrid%JV   (ILB:IUB, JLB:JUB))
+            
+            allocate (NewFatherGrid%ILinkV (ILB:IUB, JLB:JUB))
+            allocate (NewFatherGrid%JLinkV (ILB:IUB, JLB:JUB))
 
             NewFatherGrid%IV   (:,:)  = FillValueInt
             NewFatherGrid%JV   (:,:)  = FillValueInt
+            
+            NewFatherGrid%ILinkV (:,:) = FillValueInt
+            NewFatherGrid%JLinkV (:,:) = FillValueInt
 
             YY_V  => NewFatherGrid%YY_V
             XX_V  => NewFatherGrid%XX_V
@@ -2203,6 +2229,12 @@ do4 :       do i = ILBwork, IUBwork
                                  XX_Z(i, j), YY_Z(i, j),                             &
                                  ILBFAther, IUBFather, JLBFather, JUBFather,         &
                                  IZ(i, j), JZ(i, j))
+                
+                call LocateCell_2(ObjHorizontalGridFather%Compute%XX_U,                &
+                                 ObjHorizontalGridFather%Compute%YY_V,                 &
+                                 XX_Z(i, j), YY_Z(i, j),                               &
+                                 ILBFAther, IUBFather, JLBFather, JUBFather,           &
+                                 NewFatherGrid%ILinkZ(i, j), NewFatherGrid%JLinkZ(i, j))
 
                 !Window
                 NewFatherGrid%MPI_Window%ILB = min(NewFatherGrid%MPI_Window%ILB, IZ(i, j))
@@ -2252,6 +2284,12 @@ do2 :       do i = ILBwork, IUBwork
                                  XX_U(i, j), YY_U(i, j),                             &
                                  ILBFAther, IUBFather, JLBFather, JUBFather + 1,     &
                                  IU(i, j), JU(i, j))
+                
+                call LocateCell_2(ObjHorizontalGridFather%Compute%XX_Z,                &
+                                 ObjHorizontalGridFather%Compute%YY_V,                 &
+                                 XX_U(i, j), YY_U(i, j),                               &
+                                 ILBFAther, IUBFather, JLBFather, JUBFather,           &
+                                 NewFatherGrid%ILinkU(i, j), NewFatherGrid%JLinkU(i, j), U = U)
 
                 !Window
                 NewFatherGrid%MPI_Window%ILB = min(NewFatherGrid%MPI_Window%ILB, IU(i, j))
@@ -2300,6 +2338,12 @@ do6:       do i = ILBwork, IUBwork+1
                                  XX_V(i, j), YY_V(i, j),                             &
                                  ILBFAther, IUBFather + 1, JLBFather, JUBFather,     &
                                  IV(i, j), JV(i, j))
+                
+                call LocateCell_2(ObjHorizontalGridFather%Compute%XX_U,                                &
+                                 ObjHorizontalGridFather%Compute%YY_Z,                                 &
+                                 XX_V(i, j), YY_V(i, j),                                               &
+                                 ILBFAther, IUBFather, JLBFather, JUBFather,                           &
+                                 NewFatherGrid%ILinkV(i, j), NewFatherGrid%JLinkV(i, j), V = V)
 
                 !MPI_Window
                 NewFatherGrid%MPI_Window%ILB = min(NewFatherGrid%MPI_Window%ILB, IV(i, j))
@@ -8659,8 +8703,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real, dimension(:   ), pointer, optional    :: XX_Z, YY_Z, XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross
         real, dimension(:, :), pointer, optional    :: DXX, DYY, DZX, DZY
         real, dimension(:, :), pointer, optional    :: DUX, DUY, DVX, DVY
-        integer, dimension(:, :), pointer, optional :: ILinkV, JLinkV, ILinkU, JLinkU, ILinkZ, JLinkZ !Jo�o Sobrinho
-        integer, dimension(:, :), pointer, optional :: IV, JV, IU, JU, IZ, JZ !Jo�o Sobrinho
+        integer, dimension(:, :), pointer, optional :: ILinkV, JLinkV, ILinkU, JLinkU, ILinkZ, JLinkZ !Joao Sobrinho
+        integer, dimension(:, :), pointer, optional :: IV, JV, IU, JU, IZ, JZ !Joao Sobrinho
         real, dimension(:   ), pointer, optional    :: XX, YY
         integer, optional,  intent(OUT)             :: STAT
 
@@ -15037,19 +15081,16 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 if (allocated(Me%IWD_connections_U)) then !Sobrinho
                     deallocate(Me%IWD_connections_U)
-                    nullify   (Me%IWD_connections_U)
                     deallocate(Me%IWD_Distances_U)
                     nullify   (Me%IWD_Distances_U)
                 endif
                 if (allocated(Me%IWD_connections_V)) then! Sobrinho
                     deallocate(Me%IWD_connections_V)
-                    nullify   (Me%IWD_connections_V)
                     deallocate(Me%IWD_Distances_V)
                     nullify   (Me%IWD_Distances_V)
                 endif
                 if (allocated(Me%IWD_connections_Z)) then !Sobrinho
                     deallocate(Me%IWD_connections_Z)
-                    nullify   (Me%IWD_connections_Z)
                     deallocate(Me%IWD_Distances_Z)
                     nullify   (Me%IWD_Distances_Z)
                 endif
@@ -15163,6 +15204,20 @@ do1 :   do while(associated(FatherGrid))
                     call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR40")
 
                 nullify   (FatherGrid%JZ)
+                
+                !ILinkZ
+                deallocate(FatherGrid%ILinkZ, STAT = status)
+                if (status /= SUCCESS_)                                                 &
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR41") 
+
+                nullify   (FatherGrid%ILinkZ)
+                !Joao Sobrinho
+                !JLinkZ
+                deallocate(FatherGrid%JLinkZ, STAT = status)
+                if (status /= SUCCESS_)                                                 &
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR42") 
+
+                nullify   (FatherGrid%JLinkZ) 
 
             endif
 
@@ -15203,6 +15258,23 @@ do1 :   do while(associated(FatherGrid))
                     call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR80")
 
                 nullify   (FatherGrid%JU)
+                
+                !ILinkU
+                deallocate(FatherGrid%ILinkU, STAT = status)
+
+                if (status /= SUCCESS_)                                                 &
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR81") 
+
+                nullify   (FatherGrid%ILinkU)
+                
+                !Joao Sobrinho
+                !JLinkU
+                deallocate(FatherGrid%JLinkU, STAT = status)
+
+                if (status /= SUCCESS_)                                                 &
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR82") 
+
+                nullify   (FatherGrid%JLinkU)
 
             endif
 
@@ -15241,6 +15313,23 @@ do1 :   do while(associated(FatherGrid))
                     call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR120")
 
                 nullify   (FatherGrid%JV)
+                
+                !Joao Sobrinho                
+                !ILinkV
+                deallocate(FatherGrid%ILinkV, STAT = status)
+
+                if (status /= SUCCESS_)                                                 &
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR111") 
+
+                nullify   (FatherGrid%ILinkV)
+
+                !JLinkV
+                deallocate(FatherGrid%JLinkV, STAT = status)
+
+                if (status /= SUCCESS_)                                                 &
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR112") 
+
+                nullify   (FatherGrid%JLinkV)
 
             endif
 

@@ -24586,7 +24586,7 @@ X1:         if (Me%External_Var%OpenPoints3D(i, j,KUB) == OpenPoint) then
         !Arguments------------------------------------------------------------
 
         !Local----------------------------------------------------------------
-        integer, dimension(:,:,:), pointer  :: WaterPoints3D
+        integer, dimension(:,:,:), pointer  :: WaterPoints3D, OpenPoints3D
         real,    dimension(:,:  ), pointer  :: SurfaceElevation
         real,    dimension(:,:,:), pointer  :: Velocity_Z, DecayTime
         real                                :: DT_WaterLevel
@@ -24597,6 +24597,8 @@ X1:         if (Me%External_Var%OpenPoints3D(i, j,KUB) == OpenPoint) then
         !Begin----------------------------------------------------------------
 
         WaterPoints3D    => Me%External_Var%WaterPoints3D
+        
+        OpenPoints3D       => Me%External_Var%OpenPoints3D !Joao Sobrinho
 
         SurfaceElevation => Me%WaterLevel%New
 
@@ -24684,7 +24686,8 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
             call ComputeVerticalGeometry(Me%ObjGeometry, WaterPoints3D,                     &
                                          SurfaceElevation, Me%CurrentTime,                  &
                                          Velocity_Z, DT_WaterLevel,                         &
-                                         DecayTime = DecayTime, STAT = STAT_CALL)
+                                         DecayTime = DecayTime, OpenPoints3D = OpenPoints3D,   &
+                                         STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                                      &
                  stop 'Subroutine New_Geometry - ModuleHydrodynamic. ERR30'
@@ -24693,7 +24696,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
             call ComputeVerticalGeometry(Me%ObjGeometry, WaterPoints3D,                     &
                                          SurfaceElevation, Me%CurrentTime,                  &
                                          Velocity_Z, DT_WaterLevel,                         &
-                                         STAT = STAT_CALL)
+                                         OpenPoints3D = OpenPoints3D, stat = stat_call)
 
             if (STAT_CALL /= SUCCESS_)                                                      &
                  stop 'Subroutine New_Geometry - ModuleHydrodynamic. ERR40'
