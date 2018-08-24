@@ -179,7 +179,7 @@ Module ModuleFunctions
     public  :: FillMatrix2D
     public  :: FillMatrix3D
 
-    !Assimilation - TwoWay   Jo�o Sobrinho
+    !Nudging - TwoWay   Joao Sobrinho
     public  :: FeedBack_Avrg_UV
     public  :: FeedBack_Avrg
     public  :: FeedBack_Avrg_WL
@@ -3771,7 +3771,7 @@ do4 :       DO II = KLB+1, KUB+1
 
     real function SigmaUNESCO (T, S)
 
-        ! Modified jul/2004     :Jo�o Nogueira
+        ! Modified jul/2004     :Joao Nogueira
         ! Modified Mar/2005     :Guillaume Riflet
         !                       Now it gives a sigma density variable (1000 kg/m3)
 
@@ -3835,7 +3835,7 @@ do4 :       DO II = KLB+1, KUB+1
 
     real function SigmaUNESCOPressureCorrection (T, S, Depth, Sigma_P0)
 
-        ! Created jul/2004     :Jo�o Nogueira
+        ! Created jul/2004     :Joao Nogueira
         !
         ! The correction is made with the UNESCO International Equation of State
 
@@ -3931,7 +3931,7 @@ do4 :       DO II = KLB+1, KUB+1
 
     real function SigmaJMD95PressureCorrection (T, S, Depth, Sigma_P0)
 
-        ! Created jul/2004     :Jo�o Nogueira
+        ! Created jul/2004     :Joao Nogueira
         !
         ! The correction is made with the UNESCO International Equation of State
 
@@ -5691,7 +5691,7 @@ d5:     do k = klast + 1,KUB
         KLBFather = SizeFather%KLB
         KUBFather = SizeFather%KUB
         ! This function will have to be changed if the son domain is allowed to have cells outside the father domain
-        !Paralelizar! Jo�o Sobrinho
+        !Paralelizar! Joao Sobrinho
         do k = KLBSon, KUBSon
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
@@ -5704,7 +5704,7 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
 
-        !Paralelizar! Jo�o Sobrinho
+        !Paralelizar! Joao Sobrinho
         do k = KLBFather, KUBFather
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
@@ -5749,7 +5749,7 @@ d5:     do k = klast + 1,KUB
         KLBFather = SizeFather%KLB
         KUBFather = SizeFather%KUB
         ! This function will have to be changed if the son domain is allowed to have cells outside the father domain
-        !Paralelizar! Jo�o Sobrinho
+        !Paralelizar! Joao Sobrinho
         do k = KLBSon, KUBSon
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
@@ -5761,7 +5761,7 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
 
-        !Paralelizar! Jo�o Sobrinho
+        !Paralelizar! Joao Sobrinho
         do k = KLBFather, KUBFather
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)

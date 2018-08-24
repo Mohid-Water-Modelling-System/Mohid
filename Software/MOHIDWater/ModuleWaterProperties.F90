@@ -429,7 +429,7 @@ Module ModuleWaterProperties
 
     private ::          Search_Property
     private ::      Search_PropertyFather
-    private ::      Search_PropertySon   ! Jo�o Sobrinho
+    private ::      Search_PropertySon   ! Joao Sobrinho
 
     public  :: UngetWaterProperties
 
@@ -544,7 +544,7 @@ Module ModuleWaterProperties
     private ::      Ready
     private ::          LocateObjWaterProperties
     private ::          LocateObjFather
-    private ::          LocateObjSon   !Jo�o Sobrinho
+    private ::          LocateObjSon   !Joao Sobrinho
 
     private ::              ReadLockExternalVar
     private ::              ReadUnlockExternalVar
@@ -876,7 +876,7 @@ Module ModuleWaterProperties
          real                                   :: C_CHLA
          real,    pointer, dimension(:,:,:)     :: Aux3D
          real,    pointer, dimension(:,:)       :: Aux2D
-         real(4), pointer, dimension(:,:,:)     :: Aux3Dreal4           => null() !Jo�o Sobrinho
+         real(4), pointer, dimension(:,:,:)     :: Aux3Dreal4           => null() !Joao Sobrinho
         logical                                 :: Simple               = .false.
     end type T_OutPut
 
@@ -925,7 +925,7 @@ Module ModuleWaterProperties
         real                                    :: OffSet               = FillValueReal
         logical                                 :: TimeSerie            = .false.
         logical                                 :: OutputHDF            = .false.
-        logical                                 :: OutputReal4          = .true. !Jo�o Sobrinho
+        logical                                 :: OutputReal4          = .true. !Joao Sobrinho
         logical                                 :: OutputSurfaceHDF     = .false.
         logical                                 :: OutputProfile        = .false.
         logical                                 :: OutputHDFSedVel      = .false.
@@ -1227,8 +1227,8 @@ Module ModuleWaterProperties
         real(8), pointer, dimension(:,:,:)      :: CellMass
 
         logical                                 :: FirstIteration   = .true.
-        logical                                 :: Start2way        = .false. !Jo�o Sobrinho
-        logical                                 :: WriteHDFReal4    = .true. !Jo�o Sobrinho
+        logical                                 :: Start2way        = .false. !Joao Sobrinho
+        logical                                 :: WriteHDFReal4    = .true. !Joao Sobrinho
         logical                                 :: OxygenSaturation = .false.
         logical                                 :: CO2_PP_Output    = .false.
         logical                                 :: O2_Sat_Output    = .false.
@@ -9453,7 +9453,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
         if (STAT_CALL /= SUCCESS_)                                                       &
             call CloseAllAndStop ('ReadSubModelOptions - ModuleWaterProperties - ERR40')
 
-        if (NewProperty%Submodel%TwoWay .and. .not. NewProperty%SubModel%ON) then   !Jo�o Sobrinho
+        if (NewProperty%Submodel%TwoWay .and. .not. NewProperty%SubModel%ON) then   !Joao Sobrinho
 
             write(*,*) 'Keyword TWO_WAY must ONLY be defined in nested son domains'
             call CloseAllAndStop ('ReadSubModelOptions - ModuleWaterProperties - ERR50')
@@ -9462,7 +9462,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
 
         if (NewProperty%Submodel%TwoWay)then
 
-            !Period during which the two way is not computed (to avoid assimilation of instabilities) Jo�o Sobrinho
+            !Period during which the two way is not computed (to avoid assimilation of instabilities) Joao Sobrinho
             call GetData(NewProperty%Submodel%TwoWayWaitPeriod,                               &
                         Me%ObjEnterData, iflag,                                               &
                         Keyword      = 'TWO_WAY_WAIT_PERIOD',                                 &
@@ -11630,7 +11630,7 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
                 CurrentProperty => CurrentProperty%Next
 
             enddo
-            !Jo�o Sobrinho
+            !Joao Sobrinho
             if(Me%WriteHDFReal4)then
 
                 nullify(Me%Output%Aux3Dreal4)
@@ -12298,7 +12298,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (.not. Me%VirtualRun) then
 #endif _USE_SEQASSIMILATION
 
-            !Jo�o Sobrinho
+            !Joao Sobrinho
             if (.not. associated (Me%Next))then
                 Call ComputeTwoWay (WaterPropertiesID, Me%ExternalVar%Now)
             endif
@@ -12999,7 +12999,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if(InitialField)then
 
-                Me%WPFatherInstanceID = ObjWaterPropertiesFather%InstanceID   !Jo�o Sobrinho
+                Me%WPFatherInstanceID = ObjWaterPropertiesFather%InstanceID   !Joao Sobrinho
 
                 if(PropertyFather%Evolution%Variable .and. .not. PropertySon%Evolution%Variable) then
                     write(*,*)'Property father is variable and property son is not.'
@@ -19177,10 +19177,12 @@ do1 :   do while (associated(PropertyX))
 
                 FatherWaterpropertiesID = Me%WPFatherInstanceID    ! Changes ID to Father
 
-                    call Ready (FatherWaterpropertiesID, ready_) ! switches Me% from Son to Father
-
+                    !call Ready (FatherWaterpropertiesID, ready_) ! switches Me% from Son to Father
+                    
                     ! ID = sonID ,  FatherWaterpropertiesID = FatherID
+                if (FatherWaterpropertiesID > 0) then
                     call UpdateFatherModelWP(ID, FatherWaterpropertiesID)
+                endif
 
             enddo
 
@@ -19202,18 +19204,21 @@ do1 :   do while (associated(PropertyX))
         !Arguments--------------------------------------------------------------------------------------------
         integer                                 :: SonWaterPropertiesID, FatherWaterPropertiesID
         !Local variables--------------------------------------------------------------------------------------
-        type (T_WaterProperties), pointer       :: ObjWaterPropertiesSon
-        type (T_Property), pointer              :: PropertyX, PropertySon
+        !type (T_WaterProperties), pointer       :: ObjWaterPropertiesSon
+        type (T_WaterProperties), pointer       :: ObjWaterPropertiesFather
+        !type (T_Property), pointer              :: PropertyX, PropertySon
+        type (T_Property), pointer              :: PropertyX, PropertyFather
         integer                                 :: STAT_CALL
 
         !Begin------------------------------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "UpdateFatherModelWP")
 
-        !Me% is pointing to Father domain!
+        !Me% is pointing to Son domain!
 
         PropertyX => Me%FirstProperty
 
-        call LocateObjSon(SonWaterPropertiesID, ObjWaterPropertiesSon) !Gets son solution
+        !call LocateObjSon(SonWaterPropertiesID, ObjWaterPropertiesSon) !Gets son solution
+        call LocateObjFather(ObjWaterPropertiesFather, FatherWaterPropertiesID) !Gets father solution
         !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
         call PrepTwoWay (SonID             = SonWaterPropertiesID,    &
                          FatherID          = FatherWaterPropertiesID, &
@@ -19224,19 +19229,31 @@ do1 :   do while (associated(PropertyX))
         !Assimilates all the properties with twoway option ON
         do while (associated(PropertyX))
 
-            call Search_PropertySon(ObjWaterPropertiesSon, PropertySon,            &
+            !call Search_PropertySon(ObjWaterPropertiesSon, PropertySon,            &
+            !                            PropertyX%ID%IDNumber, STAT = STAT_CALL)
+            
+            call Search_PropertyFather(ObjWaterPropertiesFather, PropertyFather,            &
                                         PropertyX%ID%IDNumber, STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_)then
 
-                if (PropertySon%Submodel%TwoWay)then
+                !if (PropertySon%Submodel%TwoWay)then
+                if (PropertyX%Submodel%TwoWay)then
 
-                    if(PropertySon%Evolution%NextCompute == PropertyX%Evolution%LastCompute)then
+                    if(PropertyX%Evolution%NextCompute == PropertyFather%Evolution%LastCompute)then
                     !Assimilation of son domain into father domain
+                        !call ModifyTwoWay (SonID            = SonWaterPropertiesID,                 &
+                        !                   FatherMatrix     = PropertyX%Concentration,         &
+                        !                   SonMatrix        = PropertySon%Concentration,              &
+                        !                   CallerID         = mWATERPROPERTIES_,                    &
+                        !                   TD               = PropertySon%Submodel%TwoWayTimeDecay, &
+                        !                   STAT             = STAT_CALL)
+                        !if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR02.'
+                        
                         call ModifyTwoWay (SonID            = SonWaterPropertiesID,                 &
-                                           FatherMatrix     = PropertyX%Concentration,              &
-                                           SonMatrix        = PropertySon%Concentration,            &
+                                           FatherMatrix     = PropertyFather%Concentration,         &
+                                           SonMatrix        = PropertyX%Concentration,              &
                                            CallerID         = mWATERPROPERTIES_,                    &
-                                           TD               = PropertySon%Submodel%TwoWayTimeDecay, &
+                                           TD               = PropertyX%Submodel%TwoWayTimeDecay,   &
                                            STAT             = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR02.'
 
@@ -19244,11 +19261,13 @@ do1 :   do while (associated(PropertyX))
                 endif
             else
                 write(*,*)'Cant find property in submodel for the 2way algorithm'
-                write(*,*)'Property missing = ', trim(PropertySon%ID%Name)
+                !write(*,*)'Property missing = ', trim(PropertySon%ID%Name)
+                write(*,*)'Property missing = ', trim(PropertyX%ID%Name)
                 call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR03')
             endif
 
-            nullify (PropertySon)
+            nullify (PropertyFather)
+            !nullify (PropertySon)
             PropertyX => PropertyX%Next
 
         enddo
@@ -22399,7 +22418,7 @@ AO:     if (Actual >= SurfaceOutTime) then
                                          WorkJLB, WorkJUB, WorkKUB, WorkKUB, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)  &
                         call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR60')
-! Jo�o Sobrinho
+! Joao Sobrinho
                    if (Me%WriteHDFReal4)then
                         call SetMatrixValue(Me%Output%Aux3Dreal4, Me%Size, PropertyX%Concentration)
 
@@ -24784,7 +24803,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
     !-----------------------------------------------------------------------------
 
-    ! Jo�o Sobrinho
+    ! Joao Sobrinho
     subroutine Search_PropertySon(ObjWaterPropertiesSon, PropertyX, &
                                      PropertyXID, STAT)
 
@@ -25998,7 +26017,7 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                         call CloseAllAndStop ('KillWaterProperties - ModuleWaterProperties - ERR386')
                     nullify   (Me%OutPut%Aux2D)
                 end if
-                !Jo�o Sobrinho
+                !Joao Sobrinho
                 if (associated(Me%OutPut%Aux3Dreal4)) then
                     deallocate(Me%OutPut%Aux3Dreal4, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
@@ -26871,7 +26890,7 @@ cd1:    if (WaterPropertiesID > 0) then
 
     !--------------------------------------------------------------------------
 
-   !Jo�o Sobrinho - gets son solution
+   !Joao Sobrinho - gets son solution
     subroutine LocateObjSon (ObjWaterPropertiesID, ObjWaterPropertiesSon)
 
         !Arguments-------------------------------------------------------------
@@ -26879,16 +26898,22 @@ cd1:    if (WaterPropertiesID > 0) then
         integer                                     :: ObjWaterPropertiesID
 
         !Local-----------------------------------------------------------------
-
+        
         nullify (ObjWaterPropertiesSon)
+        
         ObjWaterPropertiesSon => FirstObjWaterProperties
+        
         do while (associated (ObjWaterPropertiesSon))
-            if (ObjWaterPropertiesSon%InstanceID == ObjWaterPropertiesID) exit
+            if (ObjWaterPropertiesSon%InstanceID == ObjWaterPropertiesID) then
+                exit
+            endif
             ObjWaterPropertiesSon => ObjWaterPropertiesSon%Next
         enddo
 
-        if (.not. associated(ObjWaterPropertiesSon)) call CloseAllAndStop ('ModuleWaterProperties - LocateObjSon - ERR01')
-
+        if (.not. associated(ObjWaterPropertiesSon))then
+            call CloseAllAndStop ('ModuleWaterProperties - LocateObjSon - ERR01')
+        endif
+    
     end subroutine LocateObjSon
 
 !---------------------------------------------------------------------------------
