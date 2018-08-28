@@ -5683,6 +5683,7 @@ d5:     do k = klast + 1,KUB
                                                              KUBSon, KUBFather, KLBFather, NThreads, OMPmethod, CHUNK
         real                                              :: start_time, stop_time
         !Begin----------------------------------------------------------------------------------------
+        
         ILBSon = SizeSon%ILB
         IUBSon = SizeSon%IUB
         JLBSon = SizeSon%JLB
@@ -5701,7 +5702,9 @@ d5:     do k = klast + 1,KUB
         endif
         if (OMPmethod == 2) then
             CHUNK = CHUNK_K(KLBSon, KUBSon, NThreads)
+            if (MonitorPerformance) call StartWatch ("ModuleFunctions", "FeedBack_Avrg_UVCicle")
             call cpu_time(start_time)
+            write (*,*) 'StartTime: ', start_time*1000
             !$OMP PARALLEL PRIVATE(i,j,k)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = KLBSon, KUBSon
@@ -5718,9 +5721,10 @@ d5:     do k = klast + 1,KUB
             !$OMP END DO
             !$OMP END PARALLEL
             call cpu_time(stop_time)
+            write (*,*) 'StopTime: ', stop_time*1000
             write (*,*) 'Passei o primeiro ciclo. Tempo : ', stop_time-start_time
+             if (MonitorPerformance) call StopWatch ("ModuleFunctions", "FeedBack_Avrg_UVCicle")
 
-            call cpu_time(start_time)
             !$OMP PARALLEL PRIVATE(i,j,k)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = KLBFather, KUBFather
@@ -5737,8 +5741,6 @@ d5:     do k = klast + 1,KUB
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
-            call cpu_time(stop_time)
-            write (*,*) 'Passei o segundo ciclo. Tempo : ', stop_time - start_time
         else
             CHUNK = CHUNK_J(KLBSon, KUBSon, NThreads)
             !$OMP PARALLEL PRIVATE(i,j,k)

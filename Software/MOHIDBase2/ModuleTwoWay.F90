@@ -619,7 +619,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             !call Read_Lock(mTwoWay_, Me%InstanceID)
 
-            if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_Hydrodynamic")
+            if (MonitorPerformance) call StartWatch ("ModuleTwoWay", "ModifyTwoWay")
             
             if (CallerID == mHydrodynamic_) then
                 LocalTimeDecay = Me%Hydro%TimeDecay
@@ -671,7 +671,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call Nudging_IWD (FatherMatrix, SonMatrix, FatherMatrix2D, SonMatrix2D, VelocityID, LocalTimeDecay)
             endif
            
-            if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_Hydrodynamic")  
+            if (MonitorPerformance) call StopWatch ("ModuleTwoWay", "ModifyTwoWay")  
 
             STAT_ = SUCCESS_
         else               
