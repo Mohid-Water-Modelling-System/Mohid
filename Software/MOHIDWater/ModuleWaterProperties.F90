@@ -429,7 +429,6 @@ Module ModuleWaterProperties
 
     private ::          Search_Property
     private ::      Search_PropertyFather
-    private ::      Search_PropertySon   ! Joao Sobrinho
 
     public  :: UngetWaterProperties
 
@@ -19176,8 +19175,6 @@ do1 :   do while (associated(PropertyX))
                 endif
 
                 FatherWaterpropertiesID = Me%WPFatherInstanceID    ! Changes ID to Father
-
-                    !call Ready (FatherWaterpropertiesID, ready_) ! switches Me% from Son to Father
                     
                     ! ID = sonID ,  FatherWaterpropertiesID = FatherID
                 if (FatherWaterpropertiesID > 0) then
@@ -19217,7 +19214,6 @@ do1 :   do while (associated(PropertyX))
 
         PropertyX => Me%FirstProperty
 
-        !call LocateObjSon(SonWaterPropertiesID, ObjWaterPropertiesSon) !Gets son solution
         call LocateObjFather(ObjWaterPropertiesFather, FatherWaterPropertiesID) !Gets father solution
         !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
         call PrepTwoWay (SonID             = SonWaterPropertiesID,    &
@@ -19228,9 +19224,6 @@ do1 :   do while (associated(PropertyX))
 
         !Assimilates all the properties with twoway option ON
         do while (associated(PropertyX))
-
-            !call Search_PropertySon(ObjWaterPropertiesSon, PropertySon,            &
-            !                            PropertyX%ID%IDNumber, STAT = STAT_CALL)
             
             call Search_PropertyFather(ObjWaterPropertiesFather, PropertyFather,            &
                                         PropertyX%ID%IDNumber, STAT = STAT_CALL)
@@ -19241,13 +19234,6 @@ do1 :   do while (associated(PropertyX))
 
                     if(PropertyX%Evolution%NextCompute == PropertyFather%Evolution%LastCompute)then
                     !Assimilation of son domain into father domain
-                        !call ModifyTwoWay (SonID            = SonWaterPropertiesID,                 &
-                        !                   FatherMatrix     = PropertyX%Concentration,         &
-                        !                   SonMatrix        = PropertySon%Concentration,              &
-                        !                   CallerID         = mWATERPROPERTIES_,                    &
-                        !                   TD               = PropertySon%Submodel%TwoWayTimeDecay, &
-                        !                   STAT             = STAT_CALL)
-                        !if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR02.'
                         
                         call ModifyTwoWay (SonID            = SonWaterPropertiesID,                 &
                                            FatherMatrix     = PropertyFather%Concentration,         &
@@ -19261,13 +19247,11 @@ do1 :   do while (associated(PropertyX))
                 endif
             else
                 write(*,*)'Cant find property in submodel for the 2way algorithm'
-                !write(*,*)'Property missing = ', trim(PropertySon%ID%Name)
                 write(*,*)'Property missing = ', trim(PropertyX%ID%Name)
                 call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR03')
             endif
 
             nullify (PropertyFather)
-            !nullify (PropertySon)
             PropertyX => PropertyX%Next
 
         enddo
@@ -24802,45 +24786,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
 
     !-----------------------------------------------------------------------------
-
-    ! Joao Sobrinho
-    subroutine Search_PropertySon(ObjWaterPropertiesSon, PropertyX, &
-                                     PropertyXID, STAT)
-
-        !Arguments-------------------------------------------------------------
-        type(T_WaterProperties),    pointer             :: ObjWaterPropertiesSon
-        type(T_Property),           pointer             :: PropertyX
-        integer         ,           intent (IN)         :: PropertyXID
-        integer         , optional, intent (OUT)        :: STAT
-
-        !Local-----------------------------------------------------------------
-        integer                                         :: STAT_
-
-        !----------------------------------------------------------------------
-
-        STAT_  = UNKNOWN_
-
-        PropertyX => ObjWaterPropertiesSon%FirstProperty
-
-        do while (associated(PropertyX))
-            if (PropertyX%ID%IDNumber==PropertyXID) then
-                exit
-            else
-                PropertyX => PropertyX%Next
-            end if
-        end do
-
-       if (associated(PropertyX)) then
-
-            STAT_ = SUCCESS_
-
-        else
-            STAT_  = NOT_FOUND_ERR_
-        end if
-
-        if (present(STAT)) STAT = STAT_
-
-    end subroutine Search_PropertySon
 
     !-----------------------------------------------------------------------------
 
