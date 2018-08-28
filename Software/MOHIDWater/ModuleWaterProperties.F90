@@ -21091,7 +21091,7 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                             if (WriteNumber > WriteNumberMax) then
                                 write(*,*) 'Too much temperature and/or salinity anomalous values >', WriteNumberMax
-                                call CloseAllAndStop (' ModifyDensity - ModuleWaterProperties - ERR60')
+                                !call CloseAllAndStop (' ModifyDensity - ModuleWaterProperties - ERR60')
                             endif
 
                             Me%Density%Sigma(i, j, k) = SigmaUNESCO     (T(i, j, k), S(i, j, k))

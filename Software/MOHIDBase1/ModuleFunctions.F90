@@ -5681,6 +5681,7 @@ d5:     do k = klast + 1,KUB
         !Local variables -----------------------------------------------------------------------------
         integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
                                                              KUBSon, KUBFather, KLBFather, NThreads, OMPmethod, CHUNK
+        real                                              :: start_time, stop_time
         !Begin----------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB
         IUBSon = SizeSon%IUB
@@ -5700,7 +5701,8 @@ d5:     do k = klast + 1,KUB
         endif
         if (OMPmethod == 2) then
             CHUNK = CHUNK_K(KLBSon, KUBSon, NThreads)
-            !$OMP PARALLEL PRIVATE(i,j,k,AuxMatrix)
+            call cpu_time(start_time)
+            !$OMP PARALLEL PRIVATE(i,j,k)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = KLBSon, KUBSon
             do j = JLBSon, JUBSon
@@ -5715,8 +5717,11 @@ d5:     do k = klast + 1,KUB
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
+            call cpu_time(stop_time)
+            write (*,*) 'Passei o primeiro ciclo. Tempo : ', stop_time-start_time
 
-            !$OMP PARALLEL PRIVATE(i,j,k,FatherMatrix)
+            call cpu_time(start_time)
+            !$OMP PARALLEL PRIVATE(i,j,k)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = KLBFather, KUBFather
             do j = JLink(1, 1), JLink(IUBSon, JUBSon)
@@ -5732,9 +5737,11 @@ d5:     do k = klast + 1,KUB
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
+            call cpu_time(stop_time)
+            write (*,*) 'Passei o segundo ciclo. Tempo : ', stop_time - start_time
         else
             CHUNK = CHUNK_J(KLBSon, KUBSon, NThreads)
-            !$OMP PARALLEL PRIVATE(i,j,k,AuxMatrix)
+            !$OMP PARALLEL PRIVATE(i,j,k)
             do k = KLBSon, KUBSon
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = JLBSon, JUBSon
@@ -5750,7 +5757,7 @@ d5:     do k = klast + 1,KUB
             enddo
             !$OMP END PARALLEL
             
-            !$OMP PARALLEL PRIVATE(i,j,k,FatherMatrix)
+            !$OMP PARALLEL PRIVATE(i,j,k)
             do k = KLBFather, KUBFather
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = JLink(1, 1), JLink(IUBSon, JUBSon)
