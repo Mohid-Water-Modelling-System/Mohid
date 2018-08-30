@@ -14,7 +14,7 @@
 !------------------------------------------------------------------------------
 !
 !This program is free software; you can redistribute it and/or
-!modify it under the terms of the GNU General Public License 
+!modify it under the terms of the GNU General Public License
 !version 2, as published by the Free Software Foundation.
 !
 !This program is distributed in the hope that it will be useful,
@@ -31,7 +31,7 @@
 Module ModuleHorizontalGrid
 
     use ModuleGlobalData
-    
+
     use ModuleFunctions, only   : Rodaxy, FromCartesianToGrid, FromGridToCartesian,     &
                                   UTMToLatLon, LatLonToUTM, ComputeGridZone,            &
                                   LatLonToLambertSP2, RelativePosition4VertPolygon,     &
@@ -41,11 +41,11 @@ Module ModuleHorizontalGrid
     use ModuleFunctions, only   : GeographicToCartesian, CartesianToGeographic
 #endif _USE_PROJ4
 
-#ifdef _USE_MPI       
-    use ModuleFunctions, only   : MPIKind  
-    use mpi    
-#endif _USE_MPI           
-    
+#ifdef _USE_MPI
+    use ModuleFunctions, only   : MPIKind
+    use mpi
+#endif _USE_MPI
+
     use ModuleStopWatch, only   : StartWatch, StopWatch
     use ModuleEnterData
     use ModuleDrawing
@@ -73,19 +73,22 @@ Module ModuleHorizontalGrid
     public  :: ConstructFatherGridLocation
     private ::      ConstructNewFatherGrid1D
     private ::      ConstructNewFatherGrid2D
+    private ::      ConstructIWDVel
+    private ::      DetermineMaxRatio
     private ::      Add_FatherGrid
     private :: CheckGridBorder
     private :: DefineBorderPolygons
     private ::      DefinesBorderPoly
 
+    public  :: ConstructIWDTwoWay
 
     !Modifier
     public  :: WriteHorizontalGrid
     public  :: WriteHorizontalGrid_UV
     public  :: LocateCell
-    public  :: LocateCell1D    
+    public  :: LocateCell1D
     public  :: LocateCellPolygons
-    public  :: RecenterHorizontalGrid    
+    public  :: RecenterHorizontalGrid
     public  :: Add_MPI_ID_2_Filename
     public  :: No_BoxMap_HaloArea
 
@@ -105,10 +108,10 @@ Module ModuleHorizontalGrid
     public  :: GetGridFileName
     public  :: GetCheckDistortion
     public  :: GetGridRotation
-    public  :: GetCellRotation    
+    public  :: GetCellRotation
     public  :: GetDefineCellsMap
     public  :: GetNotDefinedCells
-    public  :: GetZCoordinates 
+    public  :: GetZCoordinates
     public  :: GetCornersCoordinates
     public  :: GetFatherGridID
     public  :: GetGridCellArea
@@ -122,11 +125,11 @@ Module ModuleHorizontalGrid
 
     public  :: GetGridBorderPolygon
     public  :: GetGridOutBorderPolygon
-    public  :: GetGridBorderCartPolygon    
-    public  :: GetGridOutBorderCartPolygon    
+    public  :: GetGridBorderCartPolygon
+    public  :: GetGridOutBorderCartPolygon
     public  :: GetGridBorderLimits
-    public  :: GetGridOutBorderCartLimits    
-    
+    public  :: GetGridOutBorderCartLimits
+
     public  :: GetXYInsideDomain
     private ::      InsideDomainPolygon
 
@@ -136,26 +139,30 @@ Module ModuleHorizontalGrid
     public  :: GetDDecompSlaves
     public  :: GetDDecompSlavesSize
     public  :: GetDDecompWorkSize2D
-    public  :: GetDDecompMapping2D    
-    public  :: GetDDecompMPI_ID    
+    public  :: GetDDecompMapping2D
+    public  :: GetDDecompMPI_ID
     public  :: GetDDecompON
-    
+
     public  :: GetSonWindow
 
+    public  :: GetTwoWayAux
+    public  :: UnGetTwoWayAux
+
+
     public  :: UnGetHorizontalGrid
-    
+
     public  :: InterpolXYPoint
-    
+
     public  :: ReturnsIntersectionCorners
     private ::      ComputesIntersectionCorners
-    
+
     public  :: WindowIntersectDomain
-    private ::      WindowCellsIntersection    
-    
+    private ::      WindowCellsIntersection
+
 #ifdef _USE_PROJ4
     public  :: FromGeo2SpherMercator1D
     public  :: FromGeo2SpherMercatorScalar
-    public  :: FromGeographic2SphericMercator    
+    public  :: FromGeographic2SphericMercator
 #endif
 
     !Destructor
@@ -190,14 +197,14 @@ Module ModuleHorizontalGrid
     private :: bessel2wgs84_
 
     !Interfaces----------------------------------------------------------------
-    
+
     interface  ConstructHorizontalGrid
         module procedure ConstructHorizontalGridV1
         module procedure ConstructHorizontalGridV2
         module procedure ConstructHorizontalGridV3
     end interface  ConstructHorizontalGrid
-    
-    interface  LocateCell1D        
+
+    interface  LocateCell1D
         module procedure LocateCell1DR4
         module procedure LocateCell1DR8
     end interface LocateCell1D
@@ -233,12 +240,12 @@ Module ModuleHorizontalGrid
     end interface  RotateVectorFieldToGrid
 
     private:: RotateVectorGridToField2DR4
-    private:: RotateVectorGridToField2DR8    
+    private:: RotateVectorGridToField2DR8
     private:: RotateVectorGridToField3D
     public :: RotateVectorGridToField
     interface  RotateVectorGridToField
         module procedure RotateVectorGridToField2DR4
-        module procedure RotateVectorGridToField2DR8        
+        module procedure RotateVectorGridToField2DR8
         module procedure RotateVectorGridToField3D
     end interface  RotateVectorGridToField
 
@@ -248,8 +255,8 @@ Module ModuleHorizontalGrid
     interface  RotateAngleFieldToGrid
         module procedure RotateAngleFieldToGrid2D
         module procedure RotateAngleFieldToGrid3D
-    end interface  RotateAngleFieldToGrid    
-    
+    end interface  RotateAngleFieldToGrid
+
     private:: RotateAngleGridToField2D
     private:: RotateAngleGridToField3D
     public :: RotateAngleGridToField
@@ -257,76 +264,76 @@ Module ModuleHorizontalGrid
         module procedure RotateAngleGridToField2D
         module procedure RotateAngleGridToField3D
     end interface  RotateAngleGridToField
-    
+
     private:: ComputeAngleFromGridComponents2D
     private:: ComputeAngleFromGridComponents3D
     public :: ComputeAngleFromGridComponents
     interface  ComputeAngleFromGridComponents
         module procedure ComputeAngleFromGridComponents2D
         module procedure ComputeAngleFromGridComponents3D
-    end interface  ComputeAngleFromGridComponents    
+    end interface  ComputeAngleFromGridComponents
 
-#ifdef _USE_MPI           
+#ifdef _USE_MPI
     public :: THOMAS_DDecompHorizGrid
     interface THOMAS_DDecompHorizGrid
         module procedure THOMAS_2D_DDecompHorizGrid
-        module procedure THOMAS_3D_DDecompHorizGrid        
-    end interface    
+        module procedure THOMAS_3D_DDecompHorizGrid
+    end interface
 
     public :: JoinGridData
     interface JoinGridData
         module procedure JoinGridData_1D
         module procedure JoinGridData_2D_R4
-        module procedure JoinGridData_2D_R8        
-        module procedure JoinGridData_2Dint        
+        module procedure JoinGridData_2D_R8
+        module procedure JoinGridData_2Dint
         module procedure JoinGridData_3D_R4
-        module procedure JoinGridData_3D_R8        
+        module procedure JoinGridData_3D_R8
         module procedure JoinGridData_3Dint
-    end interface 
-    
+    end interface
+
     public :: JoinGridData_In
     interface JoinGridData_In
         module procedure JoinGridData_1D_In
         module procedure JoinGridData_2D_R4_In
-        module procedure JoinGridData_2D_R8_In        
-        module procedure JoinGridData_2Dint_In        
+        module procedure JoinGridData_2D_R8_In
+        module procedure JoinGridData_2Dint_In
         module procedure JoinGridData_3D_R4_In
-        module procedure JoinGridData_3D_R8_In        
+        module procedure JoinGridData_3D_R8_In
         module procedure JoinGridData_3Dint_In
-    end interface 
+    end interface
 
     public :: BroadcastGridData
     interface BroadcastGridData
         module procedure BroadcastGridData2D_R4
-        module procedure BroadcastGridData2D_R8      
+        module procedure BroadcastGridData2D_R8
         module procedure BroadcastGridData3D_R4
-        module procedure BroadcastGridData3D_R8      
-    end interface 
+        module procedure BroadcastGridData3D_R8
+    end interface
 
     public :: BroadcastGridData_In
     interface BroadcastGridData_In
         module procedure BroadcastGridData2D_R4_In
-        module procedure BroadcastGridData2D_R8_In        
+        module procedure BroadcastGridData2D_R8_In
         module procedure BroadcastGridData3D_R4_In
-        module procedure BroadcastGridData3D_R8_In        
-    end interface 
+        module procedure BroadcastGridData3D_R8_In
+    end interface
 
     public :: ReceiveSendProperitiesMPI
     interface ReceiveSendProperitiesMPI
-        module procedure ReceiveSendProperities3DMPIr4    
-        module procedure ReceiveSendProperities2DMPIr4   
-        module procedure ReceiveSendProperities3DMPIr8    
-        module procedure ReceiveSendProperities2DMPIr8   
+        module procedure ReceiveSendProperities3DMPIr4
+        module procedure ReceiveSendProperities2DMPIr4
+        module procedure ReceiveSendProperities3DMPIr8
+        module procedure ReceiveSendProperities2DMPIr8
     endinterface
 
     public :: ReceiveSendLogicalMPI
     interface ReceiveSendLogicalMPI
-        module procedure AtLeastOneDomainIsTrue    
+        module procedure AtLeastOneDomainIsTrue
     endinterface
 
 #endif _USE_MPI
-    
-    
+
+
 
     !Parameter-----------------------------------------------------------------
 
@@ -354,13 +361,13 @@ Module ModuleHorizontalGrid
     integer, dimension(1:4), parameter :: diFace = (/0,1 ,0,-1/), djFace = (/-1, 0, 1,  0/)
 
     integer, parameter :: LargeScaleModel_ = 1
-    integer, parameter :: Assimila_        = 2 
+    integer, parameter :: Assimila_        = 2
     integer, parameter :: SurfaceMM5_      = 3
 
 
     !Input / Output
     integer, parameter :: FileOpen = 1, FileClose = 0
-    
+
 
     !Type----------------------------------------------------------------------
     type T_Compute
@@ -415,6 +422,14 @@ Module ModuleHorizontalGrid
         integer, dimension(:,:), pointer :: JV     => null()
         integer, dimension(:,:), pointer :: ICross => null()
         integer, dimension(:,:), pointer :: JCross => null()
+        
+        integer, dimension(:,:), pointer :: ILinkZ => null() !Joao Sobrinho
+        integer, dimension(:,:), pointer :: JLinkZ => null()
+        integer, dimension(:,:), pointer :: ILinkU => null()
+        integer, dimension(:,:), pointer :: JLinkU => null()
+        integer, dimension(:,:), pointer :: ILinkV => null()
+        integer, dimension(:,:), pointer :: JLinkV => null()
+        
         type (T_Size2D)                  :: MPI_Window
         type (T_FatherGrid),     pointer :: Next => null()
         type (T_FatherGrid),     pointer :: Prev => null()
@@ -423,77 +438,77 @@ Module ModuleHorizontalGrid
     type T_Border
         !Grid boundary
         type(T_Polygon),          pointer       :: Polygon_ => null()
-        integer                                 :: Type_    = null_int 
+        integer                                 :: Type_    = null_int
     end type T_Border
-    
+
     private :: T_Coef2D
     type       T_Coef2D
         logical                                 :: AllocateON       = .false.
-        real(8), pointer, dimension(:)          :: VECG             => null() 
+        real(8), pointer, dimension(:)          :: VECG             => null()
         real(8), pointer, dimension(:)          :: VECW             => null()
         real,    pointer, dimension(:,:)        :: Results2D        => null()
         real,    pointer, dimension(:,:)        :: D                => null()
-        real(8), pointer, dimension(:,:)        :: E                => null()        
-        real   , pointer, dimension(:,:)        :: F                => null()        
-        real   , pointer, dimension(:,:)        :: Ti               => null()        
-    end type T_Coef2D    
+        real(8), pointer, dimension(:,:)        :: E                => null()
+        real   , pointer, dimension(:,:)        :: F                => null()
+        real   , pointer, dimension(:,:)        :: Ti               => null()
+    end type T_Coef2D
 
     private :: T_Coef3D
     type       T_Coef3D
-        logical                                 :: AllocateON       = .false. 
-        real(8), pointer, dimension(:)          :: VECG             => null() 
+        logical                                 :: AllocateON       = .false.
+        real(8), pointer, dimension(:)          :: VECG             => null()
         real(8), pointer, dimension(:)          :: VECW             => null()
         real,    pointer, dimension(:,:,:)      :: Results3D        => null()
         real,    pointer, dimension(:,:,:)      :: D                => null()
-        real(8), pointer, dimension(:,:,:)      :: E                => null()        
-        real,    pointer, dimension(:,:,:)      :: F                => null()        
-        real,    pointer, dimension(:,:,:)      :: Ti               => null()        
-        real,    pointer, dimension(:,:,:)      :: C                => null()        
-        real,    pointer, dimension(:,:,:)      :: G                => null()        
+        real(8), pointer, dimension(:,:,:)      :: E                => null()
+        real,    pointer, dimension(:,:,:)      :: F                => null()
+        real,    pointer, dimension(:,:,:)      :: Ti               => null()
+        real,    pointer, dimension(:,:,:)      :: C                => null()
+        real,    pointer, dimension(:,:,:)      :: G                => null()
         integer                                 :: KLB              = FillValueInt
-        integer                                 :: KUB              = FillValueInt        
-    end type T_Coef3D    
-    
+        integer                                 :: KUB              = FillValueInt
+    end type T_Coef3D
+
     private :: T_DDecomp
-    type       T_DDecomp        
-        logical                                 :: ON               = .false. 
-        logical                                 :: Master           = .false. 
-        logical                                 :: MasterOrSlave    = .false. 
+    type       T_DDecomp
+        logical                                 :: ON               = .false.
+        logical                                 :: Master           = .false.
+        logical                                 :: MasterOrSlave    = .false.
         logical                                 :: Auto             = .false.
-        integer                                 :: Master_MPI_ID    = null_int 
-        integer                                 :: Nslaves          = 0 
+        integer                                 :: Master_MPI_ID    = null_int
+        integer                                 :: Nslaves          = 0
         integer, dimension(:), pointer          :: Slaves_MPI_ID    => null()
         type (T_Size2D), dimension(:), pointer  :: Slaves_Size      => null()
         type (T_Size2D), dimension(:), pointer  :: Slaves_Inner     => null()
         type (T_Size2D), dimension(:), pointer  :: Slaves_Mapping   => null()
         type (T_Size2D), dimension(:), pointer  :: Slaves_HaloMap   => null()
-        integer                                 :: MPI_ID           = null_int 
+        integer                                 :: MPI_ID           = null_int
         type (T_Size2D)                         :: Global
         type (T_Size2D)                         :: Mapping
         type (T_Size2D)                         :: Inner
         type (T_Size2D)                         :: HaloMap
-        integer                                 :: NeighbourSouth = null_int 
-        integer                                 :: NeighbourWest  = null_int 
-        integer                                 :: NeighbourEast  = null_int 
-        integer                                 :: NeighbourNorth = null_int 
-        integer                                 :: Halo_Points    = null_int 
+        integer                                 :: NeighbourSouth = null_int
+        integer                                 :: NeighbourWest  = null_int
+        integer                                 :: NeighbourEast  = null_int
+        integer                                 :: NeighbourNorth = null_int
+        integer                                 :: Halo_Points    = null_int
         integer, pointer, dimension(:,:)        :: Interfaces     => null()
-        integer                                 :: NInterfaces    = null_int 
-        logical, dimension(1:4)                 :: OpenBordersON  = .true. 
+        integer                                 :: NInterfaces    = null_int
+        logical, dimension(1:4)                 :: OpenBordersON  = .true.
         character(PathLength)                   :: FilesListName  = "DecomposedFiles.dat"
         logical                                 :: FilesListOpen  = .false.
         integer                                 :: FilesListID    = null_int
-        character(PathLength)                   :: ModelPath      = null_str  
+        character(PathLength)                   :: ModelPath      = null_str
         type (T_Coef2D)                         :: Coef2D
-        type (T_Coef3D)                         :: Coef3D      
-        logical                                 :: AutomaticLines = .false. 
+        type (T_Coef3D)                         :: Coef3D
+        logical                                 :: AutomaticLines = .false.
     end type T_DDecomp
-    
+
 
     type T_HorizontalGrid
         integer                                 :: InstanceID = null_int !initialization: jauch - or should be set to 0 (zero)?
 
-        !Former Bathymetry    
+        !Former Bathymetry
         real, pointer, dimension(:  )           :: XX         => null()
         real, pointer, dimension(:  )           :: YY         => null()
         real                                    :: Xorig      = null_real
@@ -504,7 +519,7 @@ Module ModuleHorizontalGrid
 
         integer                                 :: ProjType   = null_int
         real                                    :: SP1        = null_real
-        real                                    :: SP2        = null_real 
+        real                                    :: SP2        = null_real
         real                                    :: Easting    = null_real !initialization: jauch
         real                                    :: Northing   = null_real !initialization: jauch
         integer                                 :: Datum      = null_int  !ellipsoid
@@ -513,6 +528,17 @@ Module ModuleHorizontalGrid
         integer                                 :: ZoneLong   = null_int
         integer                                 :: ZoneLat    = null_int
         integer, dimension(2)                   :: Grid_Zone
+
+        integer, dimension(:, :), allocatable   :: IWD_connections_U
+        integer, dimension(:, :), allocatable   :: IWD_connections_V
+        integer, dimension(:, :), allocatable   :: IWD_connections_Z
+        real, pointer, dimension(:)             :: IWD_Distances_U   => null()
+        real, pointer, dimension(:)             :: IWD_Distances_V   => null()
+        real, pointer, dimension(:)             :: IWD_Distances_Z   => null()
+        logical                                 :: UsedIWD_2Way      = .false.
+        integer                                 :: IWD_Nodes_Z       = null_int
+        integer                                 :: IWD_Nodes_U       = null_int
+        integer                                 :: IWD_Nodes_V       = null_int
 
         type(T_Compute)                         :: Compute
 
@@ -524,7 +550,7 @@ Module ModuleHorizontalGrid
         type(T_Border),          pointer        :: GridBorderCoord     => null()
         type(T_Border),          pointer        :: GridOutBorderCoord  => null()
         type(T_Border),          pointer        :: GridBorderAlongGrid => null()
-        type(T_Border),          pointer        :: GridOutBorderCart   => null()        
+        type(T_Border),          pointer        :: GridOutBorderCart   => null()
 
 
         !Distances (DXX... DVY)
@@ -543,7 +569,7 @@ Module ModuleHorizontalGrid
         real, dimension(:, :), pointer          :: LatitudeConn  => null()
         real, dimension(:, :), pointer          :: LongitudeConn => null()
 
-        logical                                 :: ReadCartCorners = .false. 
+        logical                                 :: ReadCartCorners = .false.
 
         real, dimension(:, :), pointer          :: RotationX => null()
         real, dimension(:, :), pointer          :: RotationY => null()
@@ -562,14 +588,14 @@ Module ModuleHorizontalGrid
         !Latitude, Longitude
         real, dimension(:, :), pointer          :: LatitudeZ  => null()
         real, dimension(:, :), pointer          :: LongitudeZ => null()
-        
+
         !Coriolis Factor
         real, dimension(:, :), pointer          :: F => null()
 
-        !Area           
+        !Area
         real, dimension(:, :), pointer          :: GridCellArea => null()
 
-        !1D aux 
+        !1D aux
         real, dimension(:   ), pointer          :: XX1D_Aux => null()
         real, dimension(:   ), pointer          :: YY1D_Aux => null()
 
@@ -577,23 +603,23 @@ Module ModuleHorizontalGrid
         type (T_Size2D)                         :: Size
         type (T_Size2D)                         :: WorkSize
         type (T_Size2D)                         :: GlobalWorkSize
-        
-        character(PathLength)                   :: FileName = null_str 
-        
-        type(T_DDecomp)                         :: DDecomp        
-        
+
+        character(PathLength)                   :: FileName = null_str
+
+        type(T_DDecomp)                         :: DDecomp
+
         !Instances
         integer                                 :: ObjHDF5       = 0
         integer                                 :: ObjEnterData  = 0
         integer                                 :: ObjEnterData2 = 0
-        
+
         type(T_Polygon),          pointer       :: AuxPolygon
-        
+
         type (T_HorizontalGrid), pointer        :: GlobalGrid
 
         type (T_HorizontalGrid), pointer        :: Next => null()
 
-        
+
     end type T_HorizontalGrid
 
     !Global Module Variables
@@ -607,7 +633,7 @@ Module ModuleHorizontalGrid
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    !CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR 
+    !CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -622,7 +648,7 @@ Module ModuleHorizontalGrid
         integer, optional,  intent(IN)          :: MasterID
         integer, optional,  intent(IN)          :: LastSlaveID
         character(len=*), optional,  intent(IN) :: ModelPath
-        integer, optional,  intent(OUT)         :: STAT    
+        integer, optional,  intent(OUT)         :: STAT
 
         !Local-----------------------------------------------------------------
         integer                                 :: STAT_, ready_
@@ -635,15 +661,15 @@ Module ModuleHorizontalGrid
         !Assures nullification of the global variable
         if (.not. ModuleIsRegistered(mHorizontalGrid_)) then
             nullify (FirstHorizontalGrid)
-            call RegisterModule (mHorizontalGrid_) 
+            call RegisterModule (mHorizontalGrid_)
         endif
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
 
 cd2 :   if (ready_ .EQ. OFF_ERR_) then
 
-            call AllocateInstance 
-            
+            call AllocateInstance
+
             nullify (Me%FirstFatherGrid)
             nullify (Me%LastFatherGrid )
 
@@ -654,25 +680,25 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
             else
                 Me%FileName = DataFile
             endif
-            
+
             if (present(MPI_ID)) then
                 Me%DDecomp%MPI_ID = MPI_ID
             endif
-            
-            
+
+
             if (present(MasterID)) then
                 Me%DDecomp%Master_MPI_ID = MasterID
                 if (MasterID == MPI_ID) then
                     Me%DDecomp%Master = .true.
-                endif                  
+                endif
             endif
 
             if (present(LastSlaveID)) then
                 if (MPI_ID > null_int .and. MasterID > null_int) then
                     if (LastSlaveID > null_int) then
                         Me%DDecomp%ON            = .true.
-                        Me%DDecomp%MasterOrSlave = .true. 
-                        Me%DDecomp%Nslaves       = LastSlaveID - MasterID 
+                        Me%DDecomp%MasterOrSlave = .true.
+                        Me%DDecomp%Nslaves       = LastSlaveID - MasterID
                         if (present(ModelPath)) then
                             Me%DDecomp%ModelPath  = ModelPath
                         else
@@ -681,8 +707,8 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
                     endif
                 endif
             endif
-            
-            
+
+
 
             !Construct the variable common to all module
             call ConstructGlobalVariables
@@ -693,9 +719,9 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
             HorizontalGridID    = Me%InstanceID
 
             STAT_ = SUCCESS_
-        else 
-            
-            stop 'HorizontalGrid - ConstructHorizontalGridV1 - ERR99' 
+        else
+
+            stop 'HorizontalGrid - ConstructHorizontalGridV1 - ERR99'
 
         end if cd2
 
@@ -703,7 +729,7 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine ConstructHorizontalGridV1
- 
+
     !--------------------------------------------------------------------------
     subroutine ConstructHorizontalGridV2(HorizontalGridID, LatitudeConn, LongitudeConn, &
                                          XX, YY, Xorig, Yorig, Latitude, Longitude,     &
@@ -714,10 +740,10 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                     :: HorizontalGridID
         real, dimension(:, :), pointer, optional    :: LatitudeConn, LongitudeConn
         real, dimension(:   ), pointer              :: XX, YY
-        real                          , optional    :: Xorig, Yorig              
+        real                          , optional    :: Xorig, Yorig
         real                                        :: Latitude, Longitude
         integer                                     :: ILB, IUB, JLB, JUB
-        integer, optional,  intent(OUT)             :: STAT    
+        integer, optional,  intent(OUT)             :: STAT
 
         !Local-----------------------------------------------------------------
         real, dimension(:, :), pointer              :: LatitudeConn_, LongitudeConn_
@@ -731,18 +757,18 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
         !Assures nullification of the global variable
         if (.not. ModuleIsRegistered(mHorizontalGrid_)) then
             nullify (FirstHorizontalGrid)
-            call RegisterModule (mHorizontalGrid_) 
+            call RegisterModule (mHorizontalGrid_)
         endif
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
 
 cd2 :   if (ready_ .EQ. OFF_ERR_) then
 
-            call AllocateInstance 
-            
+            call AllocateInstance
+
             nullify (Me%FirstFatherGrid)
             nullify (Me%LastFatherGrid )
-            
+
             if (present(LongitudeConn)) then
                 LongitudeConn_ => LongitudeConn
             else
@@ -777,9 +803,9 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
             HorizontalGridID    = Me%InstanceID
 
             STAT_ = SUCCESS_
-        else 
-            
-            stop 'HorizontalGrid - ConstructHorizontalGridV2 - ERR99' 
+        else
+
+            stop 'HorizontalGrid - ConstructHorizontalGridV2 - ERR99'
 
         end if cd2
 
@@ -787,9 +813,9 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine ConstructHorizontalGridV2
- 
+
     !--------------------------------------------------------------------------
-    
+
 
     !--------------------------------------------------------------------------
     subroutine ConstructHorizontalGridV3(HorizontalGridID, HDF5ID, STAT)
@@ -798,7 +824,7 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
         !Arguments-------------------------------------------------------------
         integer                                 :: HorizontalGridID
         integer                                 :: HDF5ID
-        integer, optional,  intent(OUT)         :: STAT    
+        integer, optional,  intent(OUT)         :: STAT
 
         !Local-----------------------------------------------------------------
         integer                             :: STAT_, ready_, nUsers
@@ -810,27 +836,27 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
         !Assures nullification of the global variable
         if (.not. ModuleIsRegistered(mHorizontalGrid_)) then
             nullify (FirstHorizontalGrid)
-            call RegisterModule (mHorizontalGrid_) 
+            call RegisterModule (mHorizontalGrid_)
         endif
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
 
 cd2 :   if (ready_ .EQ. OFF_ERR_) then
 
-            call AllocateInstance 
-            
+            call AllocateInstance
+
             !Associates Horizontal Grid
             Me%ObjHDF5 = AssociateInstance (mHDF5_, HDF5ID)
-            
+
             nullify (Me%FirstFatherGrid)
             nullify (Me%LastFatherGrid )
-            
+
             call ConstructGlobalVariablesV2()
-            
+
             !Associates Horizontal Grid
             nUsers     = DeassociateInstance (mHDF5_, HDF5ID)
             if (nUsers == 0) stop 'HorizontalGrid - ConstructHorizontalGridV3 - ERR10'
-            
+
 
             call GenerateGrid
 
@@ -838,9 +864,9 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
             HorizontalGridID    = Me%InstanceID
 
             STAT_ = SUCCESS_
-        else 
-            
-            stop 'HorizontalGrid - ConstructHorizontalGridV3 - ERR20' 
+        else
+
+            stop 'HorizontalGrid - ConstructHorizontalGridV3 - ERR20'
 
         end if cd2
 
@@ -848,12 +874,12 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine ConstructHorizontalGridV3
- 
+
     !--------------------------------------------------------------------------
 
 
     subroutine GenerateGrid
-    
+
            !Constructs XX_IE, YY_IE, LatitudeZ and LongitudeZ
             call Mercator
 
@@ -885,9 +911,9 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Defines the grid border polygon
             call DefineBorderPolygons
-            
+
             !Intialization of domain decomposition procedure
-            !call ConstructDDecomp                         
+            !call ConstructDDecomp
 
     end subroutine GenerateGrid
 
@@ -902,28 +928,28 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
         character(len = PathLength)             :: DDFile
         character(len = StringLength)           :: Message
         integer                                 :: STAT_CALL, i, iflag
-        integer                                 :: AuxHalo 
+        integer                                 :: AuxHalo
         !type (T_Size2D)                         :: Mapping
         logical                                 :: Exist
         integer, pointer, dimension(:)          :: Aux1D
-        integer                                 :: Source, Destination         
+        integer                                 :: Source, Destination
         integer                                 :: iSize
-        integer, save                           :: Precision        
-        integer                                 :: status(MPI_STATUS_SIZE)               
+        integer, save                           :: Precision
+        integer                                 :: status(MPI_STATUS_SIZE)
         !----------------------------------------------------------------------
 
         Me%DDecomp%Global%JLB = Me%GlobalWorkSize%JLB
         Me%DDecomp%Global%JUB = Me%GlobalWorkSize%JUB
         Me%DDecomp%Global%ILB = Me%GlobalWorkSize%ILB
         Me%DDecomp%Global%IUB = Me%GlobalWorkSize%IUB
-        
+
         allocate(Me%DDecomp%Slaves_MPI_ID(Me%DDecomp%Nslaves))
-        
+
         do i=1, Me%DDecomp%Nslaves
             Me%DDecomp%Slaves_MPI_ID(i) = Me%DDecomp%Master_MPI_ID + i
-        enddo                
+        enddo
 
-        ! ---> ASCII file used to define domain decomposition 
+        ! ---> ASCII file used to define domain decomposition
         Message   ='ASCII file used to define domain decomposition.'
         Message   = trim(Message)
 
@@ -933,17 +959,17 @@ cd2 :   if (ready_ .EQ. OFF_ERR_) then
                      keyword      = 'D_DECOMP',                                         &
                      default      = null_str,                                           &
                      ClientModule = 'HorizontalGrid',                                   &
-                     STAT         = STAT_CALL)           
+                     STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
            call SetError(FATAL_, INTERNAL_, "ConstructDDecomp - Hydrodynamic - ERR10")
-           
+
 ii:     if (iflag == 0) then
             Me%DDecomp%Auto = .true.
         else ii
             inquire(FILE = DDFile, EXIST = Exist)
 iE:         if  (Exist) then
                 !open()
-                call ConstructEnterData(Me%ObjEnterData2, DDFile, STAT = STAT_CALL) 
+                call ConstructEnterData(Me%ObjEnterData2, DDFile, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                     &
                    call SetError(FATAL_, INTERNAL_, "ConstructDDecomp - Hydrodynamic - ERR20")
 
@@ -953,32 +979,32 @@ iE:         if  (Exist) then
                 write(*,*) "Number of domain Slaves = ",Me%DDecomp%Nslaves
                 do i=1, Me%DDecomp%Nslaves
                     write(*,*) "ID of Slave number ",i, "is =", Me%DDecomp%Slaves_MPI_ID(i)
-                enddo                    
+                enddo
 
                 call OptionsDDecomp
-                
-                call KillEnterData(Me%ObjEnterData2, STAT = STAT_CALL) 
+
+                call KillEnterData(Me%ObjEnterData2, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                     &
                    call SetError(FATAL_, INTERNAL_, "ConstructDDecomp - Hydrodynamic - ERR30")
-                
+
             else iE
                 write(*,*) 'keyword D_DECOMP do not exit file =',trim(DDFile)
                 write(*,*) 'Automatic decomposition will be assumed'
                 Me%DDecomp%Auto = .true.
             endif iE
 
-        endif ii              
-        
+        endif ii
+
         if (Me%DDecomp%MasterOrSlave) then
-        
+
             if (Me%DDecomp%Auto) then
                 call AutomaticDDecomp
             endif
-        
-            if (Me%DDecomp%NeighbourSouth /= null_int) then         
+
+            if (Me%DDecomp%NeighbourSouth /= null_int) then
                 AuxHalo = Me%DDecomp%Halo_Points
-                !1 - South; 2 - North; 3 - West; 4 - East        
-                Me%DDecomp%OpenBordersON(1)  = .false. 
+                !1 - South; 2 - North; 3 - West; 4 - East
+                Me%DDecomp%OpenBordersON(1)  = .false.
             else
                 AuxHalo = 0.
             endif
@@ -986,94 +1012,94 @@ iE:         if  (Exist) then
             Me%DDecomp%HaloMap%ILB  = Me%DDecomp%Mapping%ILB - AuxHalo
             Me%WorkSize%ILB         = 1
             Me%DDecomp%Inner%ILB    = Me%WorkSize%ILB        + AuxHalo
-            
-            if (Me%DDecomp%NeighbourNorth /= null_int) then         
+
+            if (Me%DDecomp%NeighbourNorth /= null_int) then
                 AuxHalo = Me%DDecomp%Halo_Points
-                !1 - South; 2 - North; 3 - West; 4 - East        
-                Me%DDecomp%OpenBordersON(2)  = .false. 
+                !1 - South; 2 - North; 3 - West; 4 - East
+                Me%DDecomp%OpenBordersON(2)  = .false.
             else
                 AuxHalo = 0.
             endif
-            
+
             Me%DDecomp%HaloMap%IUB  = Me%DDecomp%Mapping%IUB + AuxHalo
             Me%WorkSize%IUB         = Me%DDecomp%HaloMap%IUB - Me%DDecomp%HaloMap%ILB + 1
             Me%DDecomp%Inner%IUB    = Me%WorkSize%IUB        - AuxHalo
-            
-            
+
+
             if (Me%DDecomp%HaloMap%IUB - Me%DDecomp%HaloMap%ILB /=  &
                 Me%WorkSize%IUB        - Me%WorkSize%ILB) then
-                
+
                 write(*,*) "Decomposition domains is inconsistent with the grid data input - Lines "
                 write(*,*) 'WorkSize ILB,IUB, =',Me%WorkSize%ILB,Me%WorkSize%IUB
                 write(*,*) 'HaloMap  ILB,IUB, =',Me%DDecomp%HaloMap%ILB,Me%DDecomp%HaloMap%IUB
                 stop "ConstructDDecomp - ModuleHorizontalGrid - ERR40"
 
-            endif          
-            
-            if (Me%DDecomp%NeighbourWest /= null_int) then         
+            endif
+
+            if (Me%DDecomp%NeighbourWest /= null_int) then
                 AuxHalo = Me%DDecomp%Halo_Points
-                !1 - South; 2 - North; 3 - West; 4 - East        
-                Me%DDecomp%OpenBordersON(3)  = .false. 
+                !1 - South; 2 - North; 3 - West; 4 - East
+                Me%DDecomp%OpenBordersON(3)  = .false.
             else
                 AuxHalo = 0.
             endif
-            
+
             Me%DDecomp%HaloMap%JLB  = Me%DDecomp%Mapping%JLB - AuxHalo
             Me%WorkSize%JLB         = 1
             Me%DDecomp%Inner%JLB    = Me%WorkSize%JLB        + AuxHalo
 
-            
-            if (Me%DDecomp%NeighbourEast /= null_int) then         
+
+            if (Me%DDecomp%NeighbourEast /= null_int) then
                 AuxHalo = Me%DDecomp%Halo_Points
-                !1 - South; 2 - North; 3 - West; 4 - East        
-                Me%DDecomp%OpenBordersON(4)  = .false. 
+                !1 - South; 2 - North; 3 - West; 4 - East
+                Me%DDecomp%OpenBordersON(4)  = .false.
             else
                 AuxHalo = 0.
             endif
-            
+
             Me%DDecomp%HaloMap%JUB  = Me%DDecomp%Mapping%JUB + AuxHalo
             Me%WorkSize%JUB         = Me%DDecomp%HaloMap%JUB - Me%DDecomp%HaloMap%JLB + 1
             Me%DDecomp%Inner%JUB    = Me%WorkSize%JUB        - AuxHalo
-            
+
             if (Me%DDecomp%HaloMap%JUB - Me%DDecomp%HaloMap%JLB /=  &
                 Me%WorkSize%JUB        - Me%WorkSize%JLB) then
-                
+
                 write(*,*) "Decomposition domains is inconsistent with the grid data input - Columns "
                 write(*,*) 'WorkSize JLB,JUB, =',Me%WorkSize%JLB,Me%WorkSize%JUB
                 write(*,*) 'HaloMap  JLB,JUB, =',Me%DDecomp%HaloMap%JLB,Me%DDecomp%HaloMap%JUB
                 stop "ConstructDDecomp - ModuleHorizontalGrid - ERR50"
 
-            endif            
-            
-            
+            endif
+
+
             if (Me%DDecomp%Master) then
-            
+
                 !if (Me%DDecomp%Nslaves /= 7) write(*,*) 'e44'
-                
+
                 !allocate(Me%DDecomp%Slaves_MPI_ID (Me%DDecomp%Nslaves))
                 allocate(Me%DDecomp%Slaves_Inner  (Me%DDecomp%Nslaves))
                 allocate(Me%DDecomp%Slaves_Size   (Me%DDecomp%Nslaves))
                 allocate(Me%DDecomp%Slaves_Mapping(Me%DDecomp%Nslaves))
                 allocate(Me%DDecomp%Slaves_HaloMap(Me%DDecomp%Nslaves))
-            
+
             endif
-        
+
             !PCL - Master slave mapping
             iSize = 16
             allocate(Aux1D(iSize))
-                    
+
             if (Me%DDecomp%Master) then
-            
+
                 do i=1, Me%DDecomp%Nslaves
 
                     Precision = MPI_INTEGER
                     Source    = Me%DDecomp%Slaves_MPI_ID(i)
-                    
-                    write(*,*) 'mpi_receive from to ', i, Me%DDecomp%MPI_ID                    
-                    
+
+                    write(*,*) 'mpi_receive from to ', i, Me%DDecomp%MPI_ID
+
                     call MPI_Recv (Aux1D(1:iSize), iSize, Precision,   Source, 30001, MPI_COMM_WORLD, status, STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop "ConstructDDecomp - ModuleHorizontalGrid - ERR60"
-                
+
                     Me%DDecomp%Slaves_Inner  (i)%ILB = Aux1D(1)
                     Me%DDecomp%Slaves_Inner  (i)%IUB = Aux1D(2)
                     Me%DDecomp%Slaves_Inner  (i)%JLB = Aux1D(3)
@@ -1097,12 +1123,12 @@ iE:         if  (Exist) then
                 enddo
 
             else
-            
+
                 Aux1D(1) = Me%DDecomp%Inner%ILB
                 Aux1D(2) = Me%DDecomp%Inner%IUB
                 Aux1D(3) = Me%DDecomp%Inner%JLB
                 Aux1D(4) = Me%DDecomp%Inner%JUB
-                
+
                 Aux1D(5) = Me%DDecomp%HaloMap%ILB
                 Aux1D(6) = Me%DDecomp%HaloMap%IUB
                 Aux1D(7) = Me%DDecomp%HaloMap%JLB
@@ -1111,38 +1137,38 @@ iE:         if  (Exist) then
                 Aux1D(9) = Me%WorkSize%ILB
                 Aux1D(10)= Me%WorkSize%IUB
                 Aux1D(11)= Me%WorkSize%JLB
-                Aux1D(12)= Me%WorkSize%JUB            
+                Aux1D(12)= Me%WorkSize%JUB
 
                 Aux1D(13) = Me%DDecomp%Mapping%ILB
                 Aux1D(14) = Me%DDecomp%Mapping%IUB
                 Aux1D(15) = Me%DDecomp%Mapping%JLB
                 Aux1D(16) = Me%DDecomp%Mapping%JUB
-           
+
                 Precision   = MPI_INTEGER
                 Destination = Me%DDecomp%Master_MPI_ID
-                
+
                 write(*,*) 'mpi_send', Me%DDecomp%MPI_ID
-                
+
                 call MPI_Send (Aux1D(1:iSize), iSize, Precision, Destination, 30001, MPI_COMM_WORLD, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop "ConstructDDecomp - ModuleHorizontalGrid - ERR80"
 
             endif
-            
-            deallocate(Aux1d)        
-                        
-        
+
+            deallocate(Aux1d)
+
+
         endif
-        
-#endif _USE_MPI        
+
+#endif _USE_MPI
 
     end subroutine ConstructDDecomp
 
     !End----------------------------------------------------------------
 
-#if _USE_MPI   
+#if _USE_MPI
 
     subroutine OptionsDDecomp()
-        
+
         !Arguments------------------------------------------------------------
 
         !Local----------------------------------------------------------------
@@ -1158,19 +1184,19 @@ iE:         if  (Exist) then
         logical                                     :: BlockFound
         integer                                     :: ClientNumber, STAT_CALL, iflag
         integer                                     :: in, line, FirstLine, LastLine, i, ii, jj
-        integer                                     :: SN_N_Interfaces, WE_N_Interfaces, MPI_ID 
+        integer                                     :: SN_N_Interfaces, WE_N_Interfaces, MPI_ID
         logical                                     :: MissMatchID
-        
+
         !Begin----------------------------------------------------------------
 
-        
+
 
         call RewindBuffer(Me%ObjEnterData2, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR120'
-        
+
 
         Me%DDecomp%Auto = .false.
-        
+
 iSl:    do i =1, Me%DDecomp%Nslaves + 1
 
             !Searches sub-domains blocks
@@ -1180,195 +1206,195 @@ iSl:    do i =1, Me%DDecomp%Nslaves + 1
             if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR130'
             if (.not. BlockFound     ) then
                 Me%DDecomp%Auto = .true.
-                write(*,*) 'OptionsDDecomp  - ModuleHorizontalGrid - WRN140' 
-                write(*,*) 'Domain Decomposition in automatic mode' 
+                write(*,*) 'OptionsDDecomp  - ModuleHorizontalGrid - WRN140'
+                write(*,*) 'Domain Decomposition in automatic mode'
                 exit
             endif
-            
+
             call GetData(Value          = MPI_ID,                                       &
-                         EnterDataID    = Me%ObjEnterData2,                             & 
+                         EnterDataID    = Me%ObjEnterData2,                             &
                          flag           = iflag,                                        &
                          keyword        = 'MPI_ID',                                     &
                          SearchType     = FromBlock,                                    &
                          ClientModule   = 'ModuleHorizontalGrid',                         &
-                         STAT           = STAT_CALL)            
+                         STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR150'
-            if (iflag     == 0       ) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR160' 
-            
-            MissMatchID = .true. 
-                                    
+            if (iflag     == 0       ) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR160'
+
+            MissMatchID = .true.
+
             do ii =1, Me%DDecomp%Nslaves
                 if (Me%DDecomp%Slaves_MPI_ID(ii) == MPI_ID) then
                     MissMatchID = .false.
-                endif                
+                endif
             enddo
-            
+
             if (Me%DDecomp%Master_MPI_ID == MPI_ID) then
                 MissMatchID = .false.
-            endif    
+            endif
 
             if (MissMatchID) then
                 write(*,*) 'MPI ID of present Domain', Me%DDecomp%MPI_ID
-                write(*,*) 'Domain -', MPI_ID, ' is not one of decomposition domains' 
+                write(*,*) 'Domain -', MPI_ID, ' is not one of decomposition domains'
                 write(*,*) "All MPI_ID - Slaves"
                 do ii =1, Me%DDecomp%Nslaves
                     write(*,*) "MPI_ID =", Me%DDecomp%Slaves_MPI_ID(ii)
-                enddo         
+                enddo
                 write(*,*) "MPI_ID Master=",Me%DDecomp%Master_MPI_ID
-                stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR165'            
+                stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR165'
             endif
-            
+
             if (MPI_ID == Me%DDecomp%MPI_ID) then
-            
+
                 Me%DDecomp%MasterOrSlave = .true.
-            
-                allocate(Aux1D(1:2))            
+
+                allocate(Aux1D(1:2))
 
                 call GetData(Vector         = Aux1D,                                        &
-                             EnterDataID    = Me%ObjEnterData2,                             & 
+                             EnterDataID    = Me%ObjEnterData2,                             &
                              flag           = iflag,                                        &
                              keyword        = 'ILB_IUB',                                    &
                              SearchType     = FromBlock,                                    &
                              ClientModule   = 'ModuleHorizontalGrid',                         &
-                             STAT           = STAT_CALL)            
+                             STAT           = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= KEYWORD_NOT_FOUND_ERR_) then
                     stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR170'
-                endif                    
+                endif
                 if (iflag     /= 2) then
                     if (iflag == 0) then
                         Aux1D(1) = Me%DDecomp%Global%ILB
                         Aux1D(2) = Me%DDecomp%Global%IUB
-                    else                        
+                    else
                         stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR180'
                     endif
-                endif                                            
-                
+                endif
+
                 Me%DDecomp%Mapping%ILB = Aux1D(1)
                 Me%DDecomp%Mapping%IUB = Aux1D(2)
-                
+
                 call GetData(Vector         = Aux1D,                                        &
-                             EnterDataID    = Me%ObjEnterData2,                             & 
+                             EnterDataID    = Me%ObjEnterData2,                             &
                              flag           = iflag,                                        &
                              keyword        = 'JLB_JUB',                                    &
                              SearchType     = FromBlock,                                    &
                              ClientModule   = 'ModuleHorizontalGrid',                         &
-                             STAT           = STAT_CALL)            
+                             STAT           = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= KEYWORD_NOT_FOUND_ERR_) then
                     stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR190'
-                endif                    
+                endif
                 if (iflag     /= 2) then
                     if (iflag == 0) then
                         Aux1D(1) = Me%DDecomp%Global%JLB
                         Aux1D(2) = Me%DDecomp%Global%JUB
-                    else                        
+                    else
                         stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR200'
                     endif
                 endif
 
                 Me%DDecomp%Mapping%JLB = Aux1D(1)
                 Me%DDecomp%Mapping%JUB = Aux1D(2)
-                
-                
+
+
                 deallocate(Aux1D)
-                
+
                 exit
-                
-            endif 
-        
+
+            endif
+
         enddo iSl
 
-        call Block_Unlock(Me%ObjEnterData2, ClientNumber, STAT = STAT_CALL) 
+        call Block_Unlock(Me%ObjEnterData2, ClientNumber, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR210'
 
 iAuto:  if (Me%DDecomp%Auto) then
 
             call GetData(Value          = Me%DDecomp%AutomaticLines,                    &
-                         EnterDataID    = Me%ObjEnterData2,                             & 
+                         EnterDataID    = Me%ObjEnterData2,                             &
                          flag           = iflag,                                        &
                          keyword        = 'AUTOMATIC_LINES',                            &
                          SearchType     = FromFile,                                     &
                          default        = .false.,                                      &
                          ClientModule   = 'ModuleHorizontalGrid',                       &
-                         STAT           = STAT_CALL)            
+                         STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR230'
-        
+
         else
-        
+
             call GetData(Value          = Me%DDecomp%NInterfaces,                       &
-                         EnterDataID    = Me%ObjEnterData2,                                 & 
+                         EnterDataID    = Me%ObjEnterData2,                                 &
                          flag           = iflag,                                            &
                          keyword        = 'INTERFACES_NUMBER',                              &
                          SearchType     = FromFile,                                         &
                          ClientModule   = 'ModuleHorizontalGrid',                             &
-                         STAT           = STAT_CALL)            
+                         STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR230'
-            
+
             allocate(Me%DDecomp%Interfaces(Me%DDecomp%NInterfaces,3))
 
-            allocate(Aux1D(1:2))                                                  
-            
+            allocate(Aux1D(1:2))
+
             call RewindBuffer(Me%ObjEnterData2, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR220'
-            
+
             !Searches sub-domains blocks
             call ExtractBlockFromBuffer (Me%ObjEnterData2, ClientNumber,                    &
                                          BeginBlock2, EndBlock2, BlockFound,                &
                                          FirstLine = FirstLine, LastLine = LastLine,        &
                                          STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR240'
-            
+
             if (.not. BlockFound) then
                 SN_N_Interfaces = 0
-            endif  
-            
+            endif
+
             in = 0
-            
+
             if (BlockFound) then
 
                 SN_N_Interfaces = LastLine - FirstLine - 1
-                
+
                 if (LastLine == FirstLine) then
                     SN_N_Interfaces = 0
-                endif                
-                
+                endif
+
                 if (SN_N_Interfaces > Me%DDecomp%NInterfaces) then
                     stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR250'
                 endif
-                
-                do line = FirstLine + 1, LastLine - 1   
-                    
+
+                do line = FirstLine + 1, LastLine - 1
+
                     call GetData(Vector         = Aux1D,                                            &
-                                 EnterDataID    = Me%ObjEnterData2,                                 & 
+                                 EnterDataID    = Me%ObjEnterData2,                                 &
                                  flag           = iflag,                                            &
                                  SearchType     = FromBlock,                                        &
                                  ClientModule   = 'ModuleHorizontalGrid',                             &
                                  Buffer_Line    = line,                                             &
-                                 STAT           = STAT_CALL)            
+                                 STAT           = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR260'
                     if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR270'
-                    
+
                     in = in + 1
-                    
+
                     do jj = 1, 2
-                        MissMatchID = .true. 
-                                                
+                        MissMatchID = .true.
+
                         do ii =1, Me%DDecomp%Nslaves
                             if (Me%DDecomp%Slaves_MPI_ID(ii) == Aux1D(jj)) then
                                 MissMatchID = .false.
-                            endif                
+                            endif
                         enddo
-                        
+
                         if (Me%DDecomp%Master_MPI_ID == Aux1D(jj)) then
                             MissMatchID = .false.
-                        endif    
+                        endif
 
                         if (MissMatchID) then
-                            write(*,*) 'Domain -', Aux1D(jj), ' is not one of decomposition domains' 
+                            write(*,*) 'Domain -', Aux1D(jj), ' is not one of decomposition domains'
                             stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR275'
-                        endif                        
+                        endif
                     enddo
-                                    
-                    
+
+
                     Me%DDecomp%Interfaces(in,1) = Aux1D(1)
                     Me%DDecomp%Interfaces(in,2) = Aux1D(2)
                     Me%DDecomp%Interfaces(in,3) = SouthNorth_
@@ -1376,124 +1402,124 @@ iAuto:  if (Me%DDecomp%Auto) then
                     if (Me%DDecomp%MPI_ID == Aux1D(1)) then
                         Me%DDecomp%NeighbourNorth = Aux1D(2)
                     endif
-                    
+
                     if (Me%DDecomp%MPI_ID == Aux1D(2)) then
                         Me%DDecomp%NeighbourSouth = Aux1D(1)
-                    endif            
-                    
+                    endif
+
                 enddo
 
-             endif              
-             
+             endif
+
             call RewindBuffer(Me%ObjEnterData2, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR275'
-                                         
+
             !Searches sub-domains blocks
             call ExtractBlockFromBuffer (Me%ObjEnterData2, ClientNumber,                    &
                                          BeginBlock3, EndBlock3, BlockFound,                &
                                          FirstLine = FirstLine, LastLine = LastLine,        &
                                          STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR280'        
-            
+            if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR280'
+
             if (.not. BlockFound) then
                 WE_N_Interfaces = 0
-            endif  
-            
+            endif
+
             if (BlockFound) then
 
                 WE_N_Interfaces = LastLine - FirstLine - 1
-                
+
                 if (LastLine == FirstLine) then
                     WE_N_Interfaces = 0
-                endif                     
-                
+                endif
+
                 if (SN_N_Interfaces + WE_N_Interfaces /= Me%DDecomp%NInterfaces) then
                     stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR290'
                 endif
-                
 
-                do line = FirstLine + 1, LastLine - 1   
-                    
+
+                do line = FirstLine + 1, LastLine - 1
+
                     call GetData(Vector         = Aux1D,                                            &
-                                 EnterDataID    = Me%ObjEnterData2,                                 & 
+                                 EnterDataID    = Me%ObjEnterData2,                                 &
                                  flag           = iflag,                                            &
                                  SearchType     = FromBlock,                                        &
                                  ClientModule   = 'ModuleHorizontalGrid',                             &
                                  Buffer_Line    = line,                                             &
-                                 STAT           = STAT_CALL)            
+                                 STAT           = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR300'
                     if (iflag     /= 2       ) stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR310'
-                    
+
                     in = in + 1
 
                     do jj = 1, 2
-                        MissMatchID = .true. 
-                                                
+                        MissMatchID = .true.
+
                         do ii =1, Me%DDecomp%Nslaves
                             if (Me%DDecomp%Slaves_MPI_ID(ii) == Aux1D(jj)) then
                                 MissMatchID = .false.
-                            endif                
+                            endif
                         enddo
-                        
+
                         if (Me%DDecomp%Master_MPI_ID == Aux1D(jj)) then
                             MissMatchID = .false.
-                        endif    
+                        endif
 
                         if (MissMatchID) then
-                            write(*,*) 'Domain -', Aux1D(jj), ' is not one of decomposition domains' 
+                            write(*,*) 'Domain -', Aux1D(jj), ' is not one of decomposition domains'
                             stop 'OptionsDDecomp  - ModuleHorizontalGrid - ERR315'
-                        endif                        
+                        endif
                     enddo
-                    
+
                     Me%DDecomp%Interfaces(in,1) = Aux1D(1)
                     Me%DDecomp%Interfaces(in,2) = Aux1D(2)
                     Me%DDecomp%Interfaces(in,3) = WestEast_
-                    
+
                     if (Me%DDecomp%MPI_ID == Aux1D(1)) then
                         Me%DDecomp%NeighbourEast = Aux1D(2)
                     endif
-                    
+
                     if (Me%DDecomp%MPI_ID == Aux1D(2)) then
                         Me%DDecomp%NeighbourWest = Aux1D(1)
-                    endif               
-                    
+                    endif
+
                 enddo
 
             endif
 
             deallocate(Aux1D)
-    
+
         endif iAuto
-    
+
     end subroutine OptionsDDecomp
-    
+
     !End------------------------------------------------------------------
 
 
     subroutine AutomaticDDecomp()
-        
+
         !Arguments------------------------------------------------------------
 
         !Local----------------------------------------------------------------
         !Begin----------------------------------------------------------------
 
-        
-        write(*,*) 'halo_points', Me%DDecomp%Halo_Points        
-        
+
+        write(*,*) 'halo_points', Me%DDecomp%Halo_Points
+
         if (Me%DDecomp%Global%IUB  > Me%DDecomp%Global%JUB .or. Me%DDecomp%AutomaticLines) then
             call AutomaticDDecompLines  ()
         else
-            call AutomaticDDecompColumns()        
+            call AutomaticDDecompColumns()
         endif
-       
 
-   
+
+
     end subroutine AutomaticDDecomp
-    
+
     !End------------------------------------------------------------------
-    
+
     subroutine AutomaticDDecompLines()
-        
+
         !Arguments------------------------------------------------------------
 
         !Local----------------------------------------------------------------
@@ -1502,21 +1528,21 @@ iAuto:  if (Me%DDecomp%Auto) then
         integer                                     :: i, iSouth, iNorth
         integer                                     :: iub_map, ilb_map, ILB, IUB, ND, is
         real                                        :: IDD
-        
+
         !Begin----------------------------------------------------------------
 
-        
+
         !In automatic mode MOHID slices the domains along the matrix lines (ILB-IUB)
 
         Me%DDecomp%Mapping%JLB = Me%DDecomp%Global%JLB
         Me%DDecomp%Mapping%JUB = Me%DDecomp%Global%JUB
-        
+
         ILB  = Me%DDecomp%Global%ILB
         IUB  = Me%DDecomp%Global%IUB
         ND   = Me%DDecomp%Nslaves + 1
         IDD  = real (IUB - ILB + 1) / real(ND)
         is   = Me%DDecomp%Master_MPI_ID
-        
+
         do i=1, Me%DDecomp%Nslaves + 1
             if (is + i - 1 == Me%DDecomp%MPI_ID) then
                 ilb_map = ILB     + int(real(i-1)*IDD)
@@ -1524,20 +1550,20 @@ iAuto:  if (Me%DDecomp%Auto) then
                 exit
             endif
         enddo
-        
+
         Me%DDecomp%Mapping%ILB = ilb_map
         Me%DDecomp%Mapping%IUB = iub_map
         write(*,*) 'Limits ', Me%DDecomp%MPI_ID, iub_map, ilb_map
-        
+
         Me%DDecomp%NInterfaces = Me%DDecomp%Nslaves
 
         allocate(Me%DDecomp%Interfaces(Me%DDecomp%NInterfaces,3))
-        
+
         do i = 1, Me%DDecomp%NInterfaces
 
             iSouth = Me%DDecomp%Master_MPI_ID + i - 1
             iNorth = Me%DDecomp%Master_MPI_ID + i
-            
+
             Me%DDecomp%Interfaces(i,1) = iSouth
             Me%DDecomp%Interfaces(i,2) = iNorth
             Me%DDecomp%Interfaces(i,3) = SouthNorth_
@@ -1546,21 +1572,21 @@ iAuto:  if (Me%DDecomp%Auto) then
              if (Me%DDecomp%MPI_ID == iSouth) then
                 Me%DDecomp%NeighbourNorth = iNorth
             endif
-            
+
             if (Me%DDecomp%MPI_ID == iNorth) then
                 Me%DDecomp%NeighbourSouth = iSouth
-            endif            
-            
+            endif
+
         enddo
 
-   
+
     end subroutine AutomaticDDecompLines
-    
+
     !End------------------------------------------------------------------
-    
-    
+
+
     subroutine AutomaticDDecompColumns()
-        
+
         !Arguments------------------------------------------------------------
 
         !Local----------------------------------------------------------------
@@ -1569,21 +1595,21 @@ iAuto:  if (Me%DDecomp%Auto) then
         integer                                     :: i, jWest, jEast
         integer                                     :: jub_map, jlb_map, JLB, JUB, ND, is
         real                                        :: IDD
-        
+
         !Begin----------------------------------------------------------------
 
-        
+
         !In automatic mode MOHID slices the domains along the matrix columns (JLB-JUB)
 
         Me%DDecomp%Mapping%ILB = Me%DDecomp%Global%ILB
         Me%DDecomp%Mapping%IUB = Me%DDecomp%Global%IUB
-        
+
         JLB  = Me%DDecomp%Global%JLB
         JUB  = Me%DDecomp%Global%JUB
         ND   = Me%DDecomp%Nslaves + 1
         IDD  = real (JUB - JLB + 1) / real(ND)
         is   = Me%DDecomp%Master_MPI_ID
-        
+
         do i=1, Me%DDecomp%Nslaves + 1
             if (is + i - 1 == Me%DDecomp%MPI_ID) then
                 jlb_map = JLB     + int(real(i-1)*IDD)
@@ -1591,20 +1617,20 @@ iAuto:  if (Me%DDecomp%Auto) then
                 exit
             endif
         enddo
-        
+
         Me%DDecomp%Mapping%JLB = jlb_map
         Me%DDecomp%Mapping%JUB = jub_map
         write(*,*) 'Limits ', Me%DDecomp%MPI_ID, jub_map, jlb_map
-        
+
         Me%DDecomp%NInterfaces = Me%DDecomp%Nslaves
 
         allocate(Me%DDecomp%Interfaces(Me%DDecomp%NInterfaces,3))
-        
+
         do i = 1, Me%DDecomp%NInterfaces
 
             jWest = Me%DDecomp%Master_MPI_ID + i - 1
             jEast = Me%DDecomp%Master_MPI_ID + i
-            
+
             Me%DDecomp%Interfaces(i,1) = jWest
             Me%DDecomp%Interfaces(i,2) = jEast
             Me%DDecomp%Interfaces(i,3) = WestEast_
@@ -1613,25 +1639,25 @@ iAuto:  if (Me%DDecomp%Auto) then
              if (Me%DDecomp%MPI_ID == jWest) then
                 Me%DDecomp%NeighbourEast = jEast
             endif
-            
+
             if (Me%DDecomp%MPI_ID == jEast) then
                 Me%DDecomp%NeighbourWest = jWest
-            endif            
-            
+            endif
+
         enddo
 
-   
+
     end subroutine AutomaticDDecompColumns
-    
-    !End------------------------------------    
 
-#endif _USE_MPI   
+    !End------------------------------------
+
+#endif _USE_MPI
 
 
-    subroutine AllocateInstance 
+    subroutine AllocateInstance
 
         !Arguments-------------------------------------------------------------
-    
+
         !Local-----------------------------------------------------------------
         type (T_HorizontalGrid), pointer            :: NewObjHorizontalGrid
         type (T_HorizontalGrid), pointer            :: PreviousObjHorizontalGrid
@@ -1662,7 +1688,7 @@ iAuto:  if (Me%DDecomp%Auto) then
 
     !--------------------------------------------------------------------------
 
-    subroutine ConstructFatherGridLocation(HorizontalGridID, HorizontalGridFatherID, & 
+    subroutine ConstructFatherGridLocation(HorizontalGridID, HorizontalGridFatherID, &
                                            GridID, OkCross, OkZ, OkU, OkV, Window, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -1671,49 +1697,48 @@ iAuto:  if (Me%DDecomp%Auto) then
         integer, optional,           intent (IN)  :: GridID
         logical, optional,           intent (IN)  :: OkCross, OkZ, OkU, OkV
         type (T_Size2D), optional                 :: Window
-        integer, optional,           intent (OUT) :: STAT    
+        integer, optional,           intent (OUT) :: STAT
 
         !Local-----------------------------------------------------------------
         type (T_HorizontalGrid), pointer          :: ObjHorizontalGridFather
         type (T_FatherGrid), pointer              :: NewFatherGrid
         integer                                   :: STAT_, ready_, GridID_
         logical                                   :: OkZ_, OkU_, OkV_, OkCross_
-
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
-            if (present(GridID)) then 
+            if (present(GridID)) then
                 GridID_ = GridID
             else
                 GridID_ = LargeScaleModel_
             endif
 
 
-            if (present(OkCross)) then 
+            if (present(OkCross)) then
                 OkCross_ = OkCross
             else
                 OkCross_ = .false.
             endif
 
-            if (present(OkZ)) then 
+            if (present(OkZ)) then
                 OkZ_ = OkZ
             else
                 OkZ_ = .true.
             endif
 
-            if (present(OkU)) then 
+            if (present(OkU)) then
                 OkU_ = OkU
             else
                 OkU_ = .true.
             endif
 
 
-            if (present(OkV)) then 
+            if (present(OkV)) then
                 OkV_ = OkV
             else
                 OkV_ = .true.
@@ -1728,7 +1753,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 NewFatherGrid%MPI_Window = Window
             else
                 NewFatherGrid%MPI_Window = ObjHorizontalGridFather%WorkSize
-            endif 
+            endif
 
             if (ObjHorizontalGridFather%CornersXYInput) then
 
@@ -1738,23 +1763,25 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 call ConstructNewFatherGrid1D (ObjHorizontalGridFather, NewFatherGrid, GridID_, &
                                              OkZ_, OkU_, OkV_, OkCross_)
             endif
-            
+
             if (Me%CoordType == SIMPLE_GEOG_ .and. .not. Me%ReadCartCorners .and. Me%ProjType == PAULO_PROJECTION_) then
                 if (ObjHorizontalGridFather%Longitude /= Me%Longitude) then
+                    write(*,*) 'LONGITUDE (in the bathymetry file) must be the same in Father and Son Domains'
                     stop 'ConstructFatherGridLocation - ModuleHorizontalGrid - ERR10'
                 endif
                 if (ObjHorizontalGridFather%Latitude /= Me%Latitude) then
+                    write(*,*) 'LATITUDE (in the bathymetry file) must be the same in Father and Son Domains'
                     stop 'ConstructFatherGridLocation - ModuleHorizontalGrid - ERR20'
                 endif
 
             endif
-           
+
 
             call Add_FatherGrid         (NewFatherGrid)
 
             STAT_ = SUCCESS_
 
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -1763,10 +1790,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
 
     end subroutine ConstructFatherGridLocation
- 
- 
- 
- 
+
+
+
+
     !--------------------------------------------------------------------------
 
     subroutine GetSonWindow(HorizontalGridID, HorizontalGridFatherID, Window, STAT)
@@ -1775,23 +1802,23 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         integer                                   :: HorizontalGridID
         integer                                   :: HorizontalGridFatherID
         type (T_Size2D),             intent (OUT) :: Window
-        integer, optional,           intent (OUT) :: STAT    
+        integer, optional,           intent (OUT) :: STAT
 
         !Local-----------------------------------------------------------------
         type (T_HorizontalGrid), pointer          :: ObjHorizontalGridFather
         integer                                   :: STAT_, ready_
         real,   dimension(:,:), pointer           :: XX2D, YY2D
-        real,      dimension(:,:), pointer        :: WindowInXY 
+        real,      dimension(:,:), pointer        :: WindowInXY
         integer,   dimension(:,:), pointer        :: WindowOutJI
         logical                                   :: WindowWithData
-        real                                      :: West, East, South, North 
+        real                                      :: West, East, South, North
         integer                                   :: ILB, IUB, JLB, JUB
-        
+
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
@@ -1800,37 +1827,37 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             allocate (WindowInXY (1:2,1:2))
             allocate (WindowOutJI(1:2,1:2))
-            
+
             WindowOutJI(:,:) = null_int
             WindowInXY (:,:) = null_real
-            
+
             West    = Me%GridOutBorderCoord%Polygon_%Limits%Left
-            East    = Me%GridOutBorderCoord%Polygon_%Limits%Right            
+            East    = Me%GridOutBorderCoord%Polygon_%Limits%Right
             South   = Me%GridOutBorderCoord%Polygon_%Limits%Bottom
-            North   = Me%GridOutBorderCoord%Polygon_%Limits%Top   
-            
+            North   = Me%GridOutBorderCoord%Polygon_%Limits%Top
+
             WindowInXY(2,1) = South
             WindowInXY(2,2) = North
             WindowInXY(1,1) = West
-            WindowInXY(1,2) = East                   
-            
-            ILB     = ObjHorizontalGridFather%WorkSize%ILB  
+            WindowInXY(1,2) = East
+
+            ILB     = ObjHorizontalGridFather%WorkSize%ILB
             IUB     = ObjHorizontalGridFather%WorkSize%IUB
-            JLB     = ObjHorizontalGridFather%WorkSize%JLB  
+            JLB     = ObjHorizontalGridFather%WorkSize%JLB
             JUB     = ObjHorizontalGridFather%WorkSize%JUB
-            
-            if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then 
+
+            if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then
 
                 XX2D        => ObjHorizontalGridFather%LongitudeConn
                 YY2D        => ObjHorizontalGridFather%LatitudeConn
 
             else
 
-                XX2D        => ObjHorizontalGridFather%XX_IE 
-                YY2D        => ObjHorizontalGridFather%YY_IE 
+                XX2D        => ObjHorizontalGridFather%XX_IE
+                YY2D        => ObjHorizontalGridFather%YY_IE
 
-            endif            
-        
+            endif
+
             call ArrayPolygonWindow(XX              = XX2D,                             &
                                     YY              = YY2D,                             &
                                     WIn             = WindowInXY,                       &
@@ -1845,18 +1872,18 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 write(*,*) 'Father grid do not intersect Nested model'
                 stop       'GetSonWindow - ModuleHoriuzontalGrid - ERR20'
             endif
-            
+
             Window%ILB = max(WindowOutJI(1,1) - 1,ILB)
             Window%IUB = min(WindowOutJI(1,2) + 1,IUB)
             Window%JLB = max(WindowOutJI(2,1) - 1,JLB)
             Window%JUB = min(WindowOutJI(2,2) + 1,JUB)
- 
+
             deallocate (WindowInXY )
             deallocate (WindowOutJI)
-            
+
             STAT_ = SUCCESS_
 
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -1865,7 +1892,99 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
 
     end subroutine GetSonWindow
-  
+
+    !--------------------------------------------------------------------------
+    subroutine GetTwoWayAux (HorizontalGridID, IWD_Connections_U, IWD_Connections_V, IWD_Connections_Z, &
+                             IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z, IWD_Nodes_Z, IWD_Nodes_U, &
+                             IWD_Nodes_V, STAT)
+        !Arguments-------------------------------------------------------------
+        integer                                   :: HorizontalGridID, IWD_Nodes_Z, IWD_Nodes_U, IWD_Nodes_V
+        integer, optional,        intent (OUT)    :: STAT
+        integer,  dimension(:,:), pointer         :: IWD_Connections_U, IWD_Connections_V, IWD_Connections_Z
+        real,     dimension(:  ), pointer         :: IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z
+        !Local-----------------------------------------------------------------
+        integer                                   :: STAT_, ready_
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            IWD_Connections_U => Me%IWD_Connections_U
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+
+            IWD_Connections_V => Me%IWD_Connections_V
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+
+            IWD_Connections_Z => Me%IWD_Connections_Z
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+
+            IWD_Distances_U => Me%IWD_Distances_U
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+
+            IWD_Distances_V => Me%IWD_Distances_V
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+
+            IWD_Distances_Z => Me%IWD_Distances_Z
+            call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+
+            IWD_Nodes_U      = Me%IWD_Nodes_U
+            IWD_Nodes_V      = Me%IWD_Nodes_V
+            IWD_Nodes_Z      = Me%IWD_Nodes_Z
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) &
+            STAT = STAT_
+
+                             end subroutine GetTwoWayAux
+    !--------------------------------------------------------------------------
+    subroutine UnGetTwoWayAux(HorizontalGridID, IWD_Connections_U, IWD_Connections_V, IWD_Connections_Z, &
+                             IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z, STAT)
+        !Arguments-------------------------------------------------------------
+        integer                                   :: HorizontalGridID
+        integer, optional,        intent (OUT)    :: STAT
+        integer,  dimension(:,:), pointer         :: IWD_Connections_U, IWD_Connections_V, IWD_Connections_Z
+        real,     dimension(:  ), pointer         :: IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z
+        !Local-----------------------------------------------------------------
+        integer                                   :: STAT_, ready_
+        !----------------------------------------------------------------------
+        STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            nullify(IWD_Connections_U)
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR01")
+            nullify(IWD_Connections_V)
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR02")
+            nullify(IWD_Connections_Z)
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR03")
+            nullify(IWD_Distances_U)
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR04")
+            nullify(IWD_Distances_V)
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR05")
+            nullify(IWD_Distances_Z)
+            call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UnGetTwoWayAux - ERR06")
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) &
+            STAT = STAT_
+
+    end subroutine UnGetTwoWayAux
+
     !--------------------------------------------------------------------------
 
     subroutine ConstructNewFatherGrid1D(ObjHorizontalGridFather, NewFatherGrid, GridID,    &
@@ -1879,13 +1998,13 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         logical,     optional,  intent (IN)       :: CheckRotation
 
         !Local-----------------------------------------------------------------
-        real,    dimension(:,:), pointer          :: XX_Z, YY_Z, XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross  
+        real,    dimension(:,:), pointer          :: XX_Z, YY_Z, XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross
         integer, dimension(:,:), pointer          :: IZ,  JZ,  IU,  JU,  IV,  JV, ICross, JCross
-        real                                      :: Xorig   , Yorig   , Rotation 
+        real                                      :: Xorig   , Yorig   , Rotation
         integer                                   :: ILB, IUB, JLB, JUB, i, j
         integer                                   :: ILBwork, IUBwork, JLBwork, JUBwork
         logical                                   :: CheckRotation_
-        integer                                   :: ILBFAther, IUBFather, JLBFather, JUBFather 
+        integer                                   :: ILBFAther, IUBFather, JLBFather, JUBFather, U, V
 
         !----------------------------------------------------------------------
 
@@ -1930,7 +2049,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         !Gets the bounds from the Father
 
-        ILBFAther = NewFatherGrid%MPI_Window%ILB 
+        ILBFAther = NewFatherGrid%MPI_Window%ILB
         IUBFather = NewFatherGrid%MPI_Window%IUB
         JLBFather = NewFatherGrid%MPI_Window%JLB
         JUBFather = NewFatherGrid%MPI_Window%JUB
@@ -1955,9 +2074,15 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             allocate (NewFatherGrid%IZ   (ILB:IUB, JLB:JUB))
             allocate (NewFatherGrid%JZ   (ILB:IUB, JLB:JUB))
+            
+            allocate (NewFatherGrid%ILinkZ (ILB:IUB, JLB:JUB))
+            allocate (NewFatherGrid%JLinkZ (ILB:IUB, JLB:JUB))
 
             NewFatherGrid%IZ   (:,:)  = FillValueInt
             NewFatherGrid%JZ   (:,:)  = FillValueInt
+            
+            NewFatherGrid%ILinkZ (:,:) = FillValueInt
+            NewFatherGrid%JLinkZ (:,:) = FillValueInt
 
             XX_Z  => NewFatherGrid%XX_Z
             YY_Z  => NewFatherGrid%YY_Z
@@ -1976,9 +2101,15 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             allocate (NewFatherGrid%IU   (ILB:IUB, JLB:JUB))
             allocate (NewFatherGrid%JU   (ILB:IUB, JLB:JUB))
+            
+            allocate (NewFatherGrid%ILinkU (ILB:IUB, JLB:JUB))
+            allocate (NewFatherGrid%JLinkU (ILB:IUB, JLB:JUB))
 
             NewFatherGrid%IU   (:,:)  = FillValueInt
             NewFatherGrid%JU   (:,:)  = FillValueInt
+            
+            NewFatherGrid%ILinkU (:,:) = FillValueInt
+            NewFatherGrid%JLinkU (:,:) = FillValueInt
 
             XX_U  => NewFatherGrid%XX_U
             YY_U  => NewFatherGrid%YY_U
@@ -1997,9 +2128,15 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             allocate (NewFatherGrid%IV   (ILB:IUB, JLB:JUB))
             allocate (NewFatherGrid%JV   (ILB:IUB, JLB:JUB))
+            
+            allocate (NewFatherGrid%ILinkV (ILB:IUB, JLB:JUB))
+            allocate (NewFatherGrid%JLinkV (ILB:IUB, JLB:JUB))
 
             NewFatherGrid%IV   (:,:)  = FillValueInt
             NewFatherGrid%JV   (:,:)  = FillValueInt
+            
+            NewFatherGrid%ILinkV (:,:) = FillValueInt
+            NewFatherGrid%JLinkV (:,:) = FillValueInt
 
             YY_V  => NewFatherGrid%YY_V
             XX_V  => NewFatherGrid%XX_V
@@ -2049,7 +2186,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 write(*,*) 'ConstructNewFatherGrid1D - HorizontalGrid - WARN10'
             endif
 
-            call RODAXY(0., 0., -Me%Grid_Angle, Xorig, Yorig)  
+            call RODAXY(0., 0., -Me%Grid_Angle, Xorig, Yorig)
 
 
             if (Xorig < 0 .and. Yorig < 0) then
@@ -2060,15 +2197,15 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         !Compute points location ib the father grid
         if (NewFatherGrid%OkZ) then
-            
+
             !Rotation of the points
 do3 :       do j = JLBwork, JUBwork
 do4 :       do i = ILBwork, IUBwork
 
                 if (Me%CornersXYInput) then
 
-                    if (Me%DefineCellsMap(i,j) == 0) then 
-                    
+                    if (Me%DefineCellsMap(i,j) == 0) then
+
                         IZ(i, j) = FillValueInt
                         JZ(i, j) = FillValueInt
                         cycle
@@ -2085,7 +2222,7 @@ do4 :       do i = ILBwork, IUBwork
 
                 endif
 
-                call RODAXY(Xorig, Yorig, Rotation, XX_Z(i, j), YY_Z(i, j))  
+                call RODAXY(Xorig, Yorig, Rotation, XX_Z(i, j), YY_Z(i, j))
 
                 call LocateCell (ObjHorizontalGridFather%Compute%XX_Z,               &
                                  ObjHorizontalGridFather%Compute%YY_Z,               &
@@ -2093,6 +2230,12 @@ do4 :       do i = ILBwork, IUBwork
                                  ILBFAther, IUBFather, JLBFather, JUBFather,         &
                                  IZ(i, j), JZ(i, j))
                 
+                call LocateCell_2(ObjHorizontalGridFather%Compute%XX_U,                &
+                                 ObjHorizontalGridFather%Compute%YY_V,                 &
+                                 XX_Z(i, j), YY_Z(i, j),                               &
+                                 ILBFAther, IUBFather, JLBFather, JUBFather,           &
+                                 NewFatherGrid%ILinkZ(i, j), NewFatherGrid%JLinkZ(i, j))
+
                 !Window
                 NewFatherGrid%MPI_Window%ILB = min(NewFatherGrid%MPI_Window%ILB, IZ(i, j))
                 NewFatherGrid%MPI_Window%IUB = max(NewFatherGrid%MPI_Window%IUB, IZ(i, j))
@@ -2105,7 +2248,7 @@ do4 :       do i = ILBwork, IUBwork
             nullify(XX_Z , YY_Z )
             nullify(IZ   , JZ   )
 
-        endif 
+        endif
 
         if (NewFatherGrid%OkU) then
 
@@ -2115,8 +2258,8 @@ do2 :       do i = ILBwork, IUBwork
 
                 if (Me%CornersXYInput) then
 
-                    if (Me%DefineFacesUMap(i,j) == 0) then 
-                    
+                    if (Me%DefineFacesUMap(i,j) == 0) then
+
                         IU(i, j) = FillValueInt
                         JU(i, j) = FillValueInt
                         cycle
@@ -2133,7 +2276,7 @@ do2 :       do i = ILBwork, IUBwork
 
                 endif
 
-                call RODAXY(Xorig, Yorig, Rotation, XX_U(i, j), YY_U(i, j))  
+                call RODAXY(Xorig, Yorig, Rotation, XX_U(i, j), YY_U(i, j))
 
 
                 call LocateCell (ObjHorizontalGridFather%Compute%XX_U,               &
@@ -2141,6 +2284,12 @@ do2 :       do i = ILBwork, IUBwork
                                  XX_U(i, j), YY_U(i, j),                             &
                                  ILBFAther, IUBFather, JLBFather, JUBFather + 1,     &
                                  IU(i, j), JU(i, j))
+                
+                call LocateCell_2(ObjHorizontalGridFather%Compute%XX_Z,                &
+                                 ObjHorizontalGridFather%Compute%YY_V,                 &
+                                 XX_U(i, j), YY_U(i, j),                               &
+                                 ILBFAther, IUBFather, JLBFather, JUBFather,           &
+                                 NewFatherGrid%ILinkU(i, j), NewFatherGrid%JLinkU(i, j), U = U)
 
                 !Window
                 NewFatherGrid%MPI_Window%ILB = min(NewFatherGrid%MPI_Window%ILB, IU(i, j))
@@ -2151,7 +2300,7 @@ do2 :       do i = ILBwork, IUBwork
             end do do2
             end do do1
 
-            nullify(XX_U , YY_U ) 
+            nullify(XX_U , YY_U )
             nullify(IU   , JU   )
 
         endif
@@ -2164,8 +2313,8 @@ do6:       do i = ILBwork, IUBwork+1
 
                 if (Me%CornersXYInput) then
 
-                    if (Me%DefineFacesVMap(i,j) == 0) then 
-                    
+                    if (Me%DefineFacesVMap(i,j) == 0) then
+
                         IV(i, j) = FillValueInt
                         JV(i, j) = FillValueInt
                         cycle
@@ -2182,13 +2331,19 @@ do6:       do i = ILBwork, IUBwork+1
 
                 endif
 
-                call RODAXY(Xorig, Yorig, Rotation, XX_V(i, j), YY_V(i, j))  
+                call RODAXY(Xorig, Yorig, Rotation, XX_V(i, j), YY_V(i, j))
 
                 call LocateCell (ObjHorizontalGridFather%Compute%XX_V,               &
                                  ObjHorizontalGridFather%Compute%YY_V,               &
                                  XX_V(i, j), YY_V(i, j),                             &
                                  ILBFAther, IUBFather + 1, JLBFather, JUBFather,     &
                                  IV(i, j), JV(i, j))
+                
+                call LocateCell_2(ObjHorizontalGridFather%Compute%XX_U,                                &
+                                 ObjHorizontalGridFather%Compute%YY_Z,                                 &
+                                 XX_V(i, j), YY_V(i, j),                                               &
+                                 ILBFAther, IUBFather, JLBFather, JUBFather,                           &
+                                 NewFatherGrid%ILinkV(i, j), NewFatherGrid%JLinkV(i, j), V = V)
 
                 !MPI_Window
                 NewFatherGrid%MPI_Window%ILB = min(NewFatherGrid%MPI_Window%ILB, IV(i, j))
@@ -2213,8 +2368,8 @@ do8:       do i = ILBwork, IUBwork
 
                 if (Me%CornersXYInput) then
 
-                    if (Me%DefineCrossMap(i,j) == 0) then 
-                    
+                    if (Me%DefineCrossMap(i,j) == 0) then
+
                         ICross(i, j) = FillValueInt
                         JCross(i, j) = FillValueInt
                         cycle
@@ -2231,7 +2386,7 @@ do8:       do i = ILBwork, IUBwork
 
                 endif
 
-                call RODAXY(Xorig, Yorig, Rotation, XX_Cross(i, j), YY_Cross(i, j))  
+                call RODAXY(Xorig, Yorig, Rotation, XX_Cross(i, j), YY_Cross(i, j))
 
 
                 call LocateCell (ObjHorizontalGridFather%Compute%XX_Cross,           &
@@ -2257,7 +2412,7 @@ do8:       do i = ILBwork, IUBwork
         !Increase MPI Window Size by one (Fluxes at the upper boundary)
         NewFatherGrid%MPI_Window%IUB = NewFatherGrid%MPI_Window%IUB + 1
         NewFatherGrid%MPI_Window%JUB = NewFatherGrid%MPI_Window%JUB + 1
-        
+
     end subroutine ConstructNewFatherGrid1D
 
 
@@ -2273,12 +2428,12 @@ do8:       do i = ILBwork, IUBwork
         logical,                intent (IN)       :: OkZ, OkU, OkV, OkCross
 
         !Local-----------------------------------------------------------------
-        real                                      :: XPoint, YPoint  
+        real                                      :: XPoint, YPoint
         integer, dimension(:,:), pointer          :: IZ,  JZ,  IU,  JU,  IV,  JV,       &
                                                      ICross, JCross, DefinedPoint
         integer                                   :: ILB, IUB, JLB, JUB, i, j
         integer                                   :: ILBwork, IUBwork, JLBwork, JUBwork
-        integer                                   :: ILBFAther, IUBFather, JLBFather, JUBFather 
+        integer                                   :: ILBFAther, IUBFather, JLBFather, JUBFather
 
         !----------------------------------------------------------------------
 
@@ -2304,7 +2459,7 @@ do8:       do i = ILBwork, IUBwork
 
         !Gets the bounds from the Father
 
-        ILBFAther = NewFatherGrid%MPI_Window%ILB 
+        ILBFAther = NewFatherGrid%MPI_Window%ILB
         IUBFather = NewFatherGrid%MPI_Window%IUB
         JLBFather = NewFatherGrid%MPI_Window%JLB
         JUBFather = NewFatherGrid%MPI_Window%JUB
@@ -2362,7 +2517,7 @@ do8:       do i = ILBwork, IUBwork
 
 
             DefinedPoint    => ObjHorizontalGridFather%DefineFacesUMap
-        
+
         endif
 
         if (NewFatherGrid%OkV) then
@@ -2398,14 +2553,14 @@ do8:       do i = ILBwork, IUBwork
             NewFatherGrid%XX_Cross => Me%XX_IE
             NewFatherGrid%YY_Cross => Me%YY_IE
 
-            DefinedPoint    => ObjHorizontalGridFather%DefineCrossMap         
+            DefinedPoint    => ObjHorizontalGridFather%DefineCrossMap
 
         endif
 
 
         !Compute points location ib the father grid
         if (NewFatherGrid%OkZ) then
-            
+
             !Rotation of the points
 do3 :       do j = JLBwork, JUBwork
 do4 :       do i = ILBwork, IUBwork
@@ -2429,7 +2584,7 @@ do4 :       do i = ILBwork, IUBwork
                                         ILBFAther, IUBFather, JLBFather, JUBFather,     &
                                         IZ(i, j), JZ(i, j))
 
-               
+
                 !Window
                 NewFatherGrid%MPI_Window%ILB = min(NewFatherGrid%MPI_Window%ILB, IZ(i, j))
                 NewFatherGrid%MPI_Window%IUB = max(NewFatherGrid%MPI_Window%IUB, IZ(i, j))
@@ -2441,7 +2596,7 @@ do4 :       do i = ILBwork, IUBwork
 
             nullify(IZ   , JZ   )
 
-        endif 
+        endif
 
         if (NewFatherGrid%OkU) then
 
@@ -2528,10 +2683,240 @@ do8:       do i = ILBwork, IUBwork
         !Increase MPI Window Size by one (Fluxes at the upper boundary)
         NewFatherGrid%MPI_Window%IUB = NewFatherGrid%MPI_Window%IUB + 1
         NewFatherGrid%MPI_Window%JUB = NewFatherGrid%MPI_Window%JUB + 1
-        
-    end subroutine ConstructNewFatherGrid2D
+
+                                      end subroutine ConstructNewFatherGrid2D
+
+    !-------------------------------------------------------------------------------------
+
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Builds connection matrix between son and father grid on a IWD interpolation
+    !>@param[in] FatherID, SonID
+    subroutine ConstructIWDTwoWay(FatherID, SonID)
+
+        !Arguments--------------------------------------------------------------
+        type (T_HorizontalGrid), pointer    :: ObjHorizontalFather
+        integer                             :: FatherID, SonID
+        !Local------------------------------------------------------------------
+        real                                :: FatherCenterX, FatherCenterY, DistanceToFather, SonCenterX, SonCenterY
+        real                                :: SearchRadious, MaxRatio
+        integer                             :: index, Nbr_Connections, minJ, minI, maxJ, maxI
+        integer                             :: i, j, i2, j2, ready_
+        integer, dimension (:, :), pointer  :: FatherLinkI, FatherLinkJ
+        !-------------------------------------------------------------------------
+        index = 1
+        call Ready (SonID, ready_)
+
+        call LocateObjFather        (ObjHorizontalFather, FatherID)
+
+        call DetermineMaxRatio(ObjHorizontalFather, MaxRatio)
+
+        FatherLinkI      => Me%LastFatherGrid%ILinkZ
+        FatherLinkJ      => Me%LastFatherGrid%JLinkZ
+
+        minJ = min(FatherLinkJ(1,1), FatherLinkJ(1, Me%Size%JUB - 1), &
+                   FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1))
+        minI = min(FatherLinkI(1,1), FatherLinkI(1, Me%Size%JUB - 1), &
+                   FatherLinkI(Me%Size%IUB - 1, 1), FatherLinkI(Me%Size%IUB - 1, Me%Size%JUB - 1))
+        maxJ = max(FatherLinkJ(1,1), FatherLinkJ(1, Me%Size%JUB - 1), &
+                   FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1))
+        maxI = max(FatherLinkI(1,1), FatherLinkI(1, Me%Size%JUB - 1), &
+                   FatherLinkI(Me%Size%IUB - 1, 1), FatherLinkI(Me%Size%IUB - 1, Me%Size%JUB - 1))
+
+        nullify (FatherLinkI)
+        nullify (FatherLinkJ)
+        !Uses the maxRatio to avoid allocating too few indexes. 2nd term is to account for search radious
+        Nbr_Connections   = (maxJ - minJ + 2) * (maxI - minI + 2) * (MaxRatio + 4 * (int(sqrt(MaxRatio))) + 4)
+
+        !Vectorials and scalars
+        allocate (Me%IWD_connections_Z (Nbr_Connections, 4))
+        allocate (Me%IWD_Distances_Z   (Nbr_Connections))
+        Me%IWD_connections_Z(:, :) = FillValueInt
+        Me%IWD_Distances_Z(:)      = FillValueReal
+        allocate (Me%IWD_connections_U(Nbr_Connections, 4))
+        allocate (Me%IWD_Distances_U  (Nbr_Connections))
+        Me%IWD_connections_U(:, :) = FillValueInt
+        Me%IWD_Distances_U(:)      = FillValueReal
+        allocate (Me%IWD_connections_V (Nbr_Connections, 4))
+        allocate (Me%IWD_Distances_V   (Nbr_Connections))
+        Me%IWD_connections_V(:, :) = FillValueInt
+        Me%IWD_Distances_V(:)      = FillValueReal
+
+        call  ConstructIWDVel(ObjHorizontalFather, minI, minJ, maxI, maxJ, MaxRatio)
+
+            !i and j   -> father cell
+            !i2 and j2 -> son cell
+            do j = minJ, maxJ
+            do i = minI, maxI
+
+                !Find Father's cell center coordinates
+                FatherCenterX = (( ObjHorizontalFather%XX_IE(i, j  ) +  ObjHorizontalFather%XX_IE(i+1, j  ))/2. + &
+                                 ( ObjHorizontalFather%XX_IE(i, j+1) +  ObjHorizontalFather%XX_IE(i+1, j+1))/2.)/2.
+                FatherCenterY = (( ObjHorizontalFather%YY_IE(i, j  ) +  ObjHorizontalFather%YY_IE(i+1, j  ))/2. + &
+                                 ( ObjHorizontalFather%YY_IE(i, j+1) +  ObjHorizontalFather%YY_IE(i+1, j+1))/2.)/2.
+
+                SearchRadious = (1.01+(1/(Sqrt(MaxRatio)))) * Sqrt((FatherCenterX - ObjHorizontalFather%XX(j))**2 + &
+                                                                    (FatherCenterY - ObjHorizontalFather%YY(i))**2)
+                 !Find and build matrix of correspondent son cells
+                do j2 = 1, Me%Size%JUB - 1
+                do i2 = 1, Me%Size%IUB - 1
+                    SonCenterX = (( Me%XX_IE(i2, j2  ) +  Me%XX_IE(i2+1, j2  ))/2. + &
+                                  ( Me%XX_IE(i2, j2+1) +  Me%XX_IE(i2+1, j2+1))/2.)/2.
+                    SonCenterY = (( Me%YY_IE(i2, j2  ) +  Me%YY_IE(i2+1, j2  ))/2. + &
+                                  ( Me%YY_IE(i2, j2+1) +  Me%YY_IE(i2+1, j2+1))/2.)/2.
+
+                    DistanceToFather = Sqrt((SonCenterX - FatherCenterX)**2.0 + &
+                                            (SonCenterY - FatherCenterY)**2.0)
+                    if (DistanceToFather <= SearchRadious) then
+                        Me%IWD_connections_Z(index, 1) = i
+                        Me%IWD_connections_Z(index, 2) = j
+                        Me%IWD_connections_Z(index, 3) = i2
+                        Me%IWD_connections_Z(index, 4) = j2
+
+                        if (DistanceToFather == 0)then
+                            Me%IWD_Distances_Z(index) = 1.e-5
+                        else
+                            Me%IWD_Distances_Z(index) = DistanceToFather
+                        endif
+
+                        index = index + 1
+                    endif
+                enddo
+                enddo
+
+            enddo
+            enddo
+           Me%IWD_Nodes_Z = index - 1
+
+    end subroutine ConstructIWDTwoWay
+
+    !---------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Builds connection matrix for velocities cells between son and father grid on a IWD interpolation
+    !>@param[in] ObjHorizontalFather, IWD_Distances, IWD_connections, minI, minJ, maxI, maxJ, MaxRatio
+    subroutine ConstructIWDVel(ObjHorizontalFather, minI, minJ, maxI, maxJ, MaxRatio)
+        !Arguments--------------------------------------------------------------
+        type (T_HorizontalGrid), pointer    :: ObjHorizontalFather
+        integer                             :: minJ, minI, maxJ, maxI
+        real                                :: MaxRatio
+        !Local------------------------------------------------------------------
+        real                                :: FatherCenterX_U, FatherCenterX_V, FatherCenterY_U, FatherCenterY_V, &
+                                               FatherCenterX_Z, FatherCenterY_Z, SonCenterX_U, SonCenterX_V,       &
+                                               SonCenterY_U, SonCenterY_V, DistanceToFather_U, DistanceToFather_V, &
+                                               SearchRadious_U, SearchRadious_V
+        integer                             :: index_U, index_V, i, j, i2, j2
+        !-------------------------------------------------------------------------
+        index_U = 1
+        index_V = 1
+        do j = minJ, maxJ
+        do i = minI, maxI
+
+            !Find Father cell center for U cell and V cell
+
+            FatherCenterX_U = (ObjHorizontalFather%XX_IE(i, j  ))/2. +  (ObjHorizontalFather%XX_IE(i+1, j  ))/2.
+            FatherCenterY_U = (ObjHorizontalFather%YY_IE(i, j  ))/2. +  (ObjHorizontalFather%YY_IE(i+1, j  ))/2.
+
+            FatherCenterX_V = (ObjHorizontalFather%XX_IE(i, j  ))/2. +  (ObjHorizontalFather%XX_IE(i  , j+1))/2.
+            FatherCenterY_V = (ObjHorizontalFather%YY_IE(i, j  ))/2. +  (ObjHorizontalFather%YY_IE(i  , j+1))/2.
+
+            FatherCenterX_Z = (( ObjHorizontalFather%XX_IE(i, j  ) +  ObjHorizontalFather%XX_IE(i+1, j  ))/2. + &
+                               ( ObjHorizontalFather%XX_IE(i, j+1) +  ObjHorizontalFather%XX_IE(i+1, j+1))/2.)/2.
+            FatherCenterY_Z = (( ObjHorizontalFather%YY_IE(i, j  ) +  ObjHorizontalFather%YY_IE(i+1, j  ))/2. + &
+                               ( ObjHorizontalFather%YY_IE(i, j+1) +  ObjHorizontalFather%YY_IE(i+1, j+1))/2.)/2.
+
+            SearchRadious_U = (1.01+(1/(Sqrt(MaxRatio)))) * &
+                              Sqrt((FatherCenterX_U - FatherCenterX_Z)**2 + &
+                                   (FatherCenterY_U - ObjHorizontalFather%YY_IE(i, j))**2)
+            SearchRadious_V = (1.01+(1/(Sqrt(MaxRatio)))) * &
+                              Sqrt((FatherCenterX_V - ObjHorizontalFather%XX_IE(i, j))**2 + &
+                                   (FatherCenterY_V - FatherCenterY_Z)**2)
+
+            ! Find and build matrix of correspondent son cells
+            do j2 = 1, Me%Size%JUB - 1
+            do i2 = 1, Me%Size%IUB - 1
+                SonCenterX_U = (Me%XX_IE(i2, j2  ))/2. +  (Me%XX_IE(i2+1, j2  ))/2.
+                SonCenterY_U = (Me%YY_IE(i2, j2  ))/2. +  (Me%YY_IE(i2+1, j2  ))/2.
+
+                SonCenterX_V = (Me%XX_IE(i2, j2  ))/2. +  (Me%XX_IE(i2  , j2+1))/2.
+                SonCenterY_V = (Me%YY_IE(i2, j2  ))/2. +  (Me%YY_IE(i2  , j2+1))/2.
+
+                DistanceToFather_U = Sqrt((SonCenterX_U - FatherCenterX_U)**2.0 + &
+                                          (SonCenterY_U - FatherCenterY_U)**2.0)
+                DistanceToFather_V = Sqrt((SonCenterX_V - FatherCenterX_V)**2.0 + &
+                                          (SonCenterY_V - FatherCenterY_V)**2.0)
+
+                if (DistanceToFather_U <= SearchRadious_U) then
+                    Me%IWD_connections_U(index_U, 1) = i
+                    Me%IWD_connections_U(index_U, 2) = j
+                    Me%IWD_connections_U(index_U, 3) = i2
+                    Me%IWD_connections_U(index_U, 4) = j2
+
+                    if (DistanceToFather_U == 0)then
+                        !The 0.001 is the reference distance. The if also avoids /0 in module functions
+                        Me%IWD_Distances_U(index_U) = 1.e-5
+                    else
+                        Me%IWD_Distances_U(index_U) = DistanceToFather_U
+                    endif
+
+                    index_U = index_U + 1
+                endif
+
+                if (DistanceToFather_V <= SearchRadious_V) then
+                    Me%IWD_connections_V(index_V, 1) = i
+                    Me%IWD_connections_V(index_V, 2) = j
+                    Me%IWD_connections_V(index_V, 3) = i2
+                    Me%IWD_connections_V(index_V, 4) = j2
+
+                    if (DistanceToFather_V == 0)then
+                        !The 0.001 is the reference distance. The if also avoids /0 in module functions
+                        Me%IWD_Distances_V(index_V) = 1.e-5
+                    else
+                        Me%IWD_Distances_V(index_V) = DistanceToFather_V
+                    endif
+
+                    index_V = index_V + 1
+                endif
+            enddo
+            enddo
+
+        enddo
+        enddo
+        Me%IWD_Nodes_U = index_U - 1
+        Me%IWD_Nodes_V = index_V - 1
+    end subroutine ConstructIWDVel
+
+    !---------------------------------------------------------------------------
+
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Computes Maximum grid ratio between father and son domains
+    !>@param[in] ObjHorizontalGridFather, Ratio
+    subroutine DetermineMaxRatio(ObjHorizontalGridFather, MaxRatio)
+        !Argumments---------------------------------------------------------------------
+        type (T_HorizontalGrid), pointer    :: ObjHorizontalGridFather
+        real, intent(OUT)                   :: MaxRatio
+        !local--------------------------------------------------------------------------
+        integer                             ::  i, j
+        real                                :: aux
+
+        !-------------------------------------------------------------------------------
+        MaxRatio = 1.0
+        aux      = 1.0
+
+        do j = 1, Me%Size%JUB - 1
+        do i = 1, Me%Size%IUB - 1
+            aux = ObjHorizontalGridFather%GridCellArea(Me%LastFatherGrid%IZ(i, j), Me%LastFatherGrid%JZ(i, j)) / &
+                  Me%GridCellArea(i, j)
+            if (aux > MaxRatio) then
+                MaxRatio = aux
+            endif
+        enddo
+        enddo
+
+    end subroutine DetermineMaxRatio
     !--------------------------------------------------------------------------
-    ! This subroutine adds a new grid to the father grid List  
+    ! This subroutine adds a new grid to the father grid List
 
     subroutine Add_FatherGrid(NewFatherGrid)
 
@@ -2541,7 +2926,7 @@ do8:       do i = ILBwork, IUBwork
         !----------------------------------------------------------------------
 
         ! Add to the WaterFatherGrid List a new father grid
-        if (.not.associated(Me%FirstFatherGrid)) then
+        if (.not. associated(Me%FirstFatherGrid)) then
 
             Me%FirstFatherGrid    => NewFatherGrid
             Me%LastFatherGrid     => NewFatherGrid
@@ -2550,11 +2935,11 @@ do8:       do i = ILBwork, IUBwork
             Me%LastFatherGrid%Next => NewFatherGrid
             Me%LastFatherGrid      => NewFatherGrid
 
-        end if 
+        end if
 
         !----------------------------------------------------------------------
 
-    end subroutine Add_FatherGrid 
+    end subroutine Add_FatherGrid
 
     !--------------------------------------------------------------------------
 
@@ -2569,12 +2954,12 @@ do8:       do i = ILBwork, IUBwork
 
         NewFatherGrid => Me%FirstFatherGrid
 
-do1 :   do while (associated(NewFatherGrid)) 
+do1 :   do while (associated(NewFatherGrid))
 
 cd1 :       if (NewFatherGrid%GridID == GridID) then
                 exit do1
             else
-                NewFatherGrid => NewFatherGrid%Next                 
+                NewFatherGrid => NewFatherGrid%Next
             end if cd1
 
         end do do1
@@ -2640,58 +3025,58 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         !Opens Data File
         call ConstructEnterData(Me%ObjEnterData, Me%FileName, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR10'
-        
+
 
         !Reads ILB_IUB
         call GetData(AuxInt,Me%ObjEnterData, flag,                                      &
                      keyword      = 'ILB_IUB',                                          &
                      ClientModule = 'HorizontalGrid',                                   &
-                     STAT         = STAT_CALL)           
+                     STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR20'
         if (flag      /= 2       ) stop 'ConstructGlobalVariables - HorizontalGrid - ERR30'
-        
+
         Me%GlobalWorkSize%ILB = AuxInt(1)
         Me%GlobalWorkSize%IUB = AuxInt(2)
-        
+
         !Reads JLB_JUB
         call GetData(AuxInt,Me%ObjEnterData, flag,                                      &
                      keyword      = 'JLB_JUB',                                          &
                      ClientModule = 'HorizontalGrid',                                   &
-                     STAT         = STAT_CALL)           
+                     STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR40'
         if (flag      /= 2       ) stop 'ConstructGlobalVariables - HorizontalGrid - ERR50'
 
         Me%GlobalWorkSize%JLB = AuxInt(1)
-        Me%GlobalWorkSize%JUB = AuxInt(2)        
-        
+        Me%GlobalWorkSize%JUB = AuxInt(2)
+
         call GetData(Value          = Me%DDecomp%Halo_Points,                           &
-                     EnterDataID    = Me%ObjEnterData,                                  & 
+                     EnterDataID    = Me%ObjEnterData,                                  &
                      flag           = iflag,                                            &
                      keyword        = 'HALOPOINTS',                                     &
                      SearchType     = FromFile,                                         &
                      ClientModule   = 'HorizontalGrid',                                 &
                      default        = 3,                                                &
-                     STAT           = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR440'      
-        
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR440'
+
         if (Me%DDecomp%Halo_Points < 2) then
             write(*,*) 'HALOPOINTS must equal to 2 or bigger'
-            stop 'ConstructGlobalVariables - HorizontalGrid - ERR445'              
+            stop 'ConstructGlobalVariables - HorizontalGrid - ERR445'
         endif
-        
+
         !Intialization of domain decomposition procedure
         if (Me%DDecomp%ON) then
-            call ConstructDDecomp                         
-        endif            
-            
+            call ConstructDDecomp
+        endif
+
 
         if (Me%DDecomp%MasterOrSlave)  then
 
-            Me%Size%ILB     = Me%WorkSize%ILB-1 
+            Me%Size%ILB     = Me%WorkSize%ILB-1
             Me%Size%IUB     = Me%WorkSize%IUB+1
-            
+
             if (Me%GlobalWorkSize%ILB /= Me%DDecomp%Global%ILB) then
-                write(*,*) "Me%GlobalWorkSize%ILB",Me%GlobalWorkSize%ILB                                            
+                write(*,*) "Me%GlobalWorkSize%ILB",Me%GlobalWorkSize%ILB
                 write(*,*) "Me%DDecomp%Global%ILB",Me%DDecomp%Global%ILB
                 stop 'ConstructGlobalVariables - HorizontalGrid - ERR32'
             endif
@@ -2701,9 +3086,9 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
             endif
 
         else
-                
-            Me%Size%ILB     = Me%GlobalWorkSize%ILB-1 
-            Me%Size%IUB     = Me%GlobalWorkSize%IUB+1 
+
+            Me%Size%ILB     = Me%GlobalWorkSize%ILB-1
+            Me%Size%IUB     = Me%GlobalWorkSize%IUB+1
 
             Me%WorkSize%ILB = Me%GlobalWorkSize%ILB
             Me%WorkSize%IUB = Me%GlobalWorkSize%IUB
@@ -2713,9 +3098,9 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
 
         if (Me%DDecomp%MasterOrSlave)  then
 
-            Me%Size%JLB     = Me%WorkSize%JLB-1 
+            Me%Size%JLB     = Me%WorkSize%JLB-1
             Me%Size%JUB     = Me%WorkSize%JUB+1
-            
+
             if (Me%GlobalWorkSize%JLB /= Me%DDecomp%Global%JLB) then
                 stop 'ConstructGlobalVariables - HorizontalGrid - ERR52'
             endif
@@ -2725,9 +3110,9 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
             endif
 
         else
-                
-            Me%Size%JLB     = Me%GlobalWorkSize%JLB-1 
-            Me%Size%JUB     = Me%GlobalWorkSize%JUB+1 
+
+            Me%Size%JLB     = Me%GlobalWorkSize%JLB-1
+            Me%Size%JUB     = Me%GlobalWorkSize%JUB+1
 
             Me%WorkSize%JLB = Me%GlobalWorkSize%JLB
             Me%WorkSize%JUB = Me%GlobalWorkSize%JUB
@@ -2748,11 +3133,11 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
                    (Me%CoordType == SIMPLE_GEOG_) .OR.                                  &
                    (Me%CoordType == GRID_COORD_ ) .OR.                                  &
                    (Me%CoordType == CIRCULAR_   ) .OR.                                  &
-                   (Me%CoordType == NLRD_       ))) then   
+                   (Me%CoordType == NLRD_       ))) then
             call SetError (FATAL_, INTERNAL_, "Invalid Coordinates")
-        endif    
+        endif
 
-        
+
         !Reads Latitude (Reference latitude. If externally specificed is the center of domain)
         call GetData(Me%Latitude, Me%ObjEnterData, flag,                                &
                      keyword      = 'LATITUDE',                                         &
@@ -2766,7 +3151,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
                      ClientModule = 'HorizontalGrid',                                   &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR80'
-        
+
         call GetData(Me%Datum, Me%ObjEnterData, flag,                                      &
                      keyword      = 'DATUM',                                            &
                      default      = WGS_84_DATUM,                                       &
@@ -2793,7 +3178,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
         !Projection Type to convert to cartesian coordinates
         call GetData(Me%ProjType, Me%ObjEnterData, flag,                                   &
                      keyword      = 'PROJ_TYPE',                                        &
-                     default      = PAULO_PROJECTION_,                                  &   
+                     default      = PAULO_PROJECTION_,                                  &
                      ClientModule = 'HorizontalGrid',                                   &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR120'
@@ -2833,24 +3218,24 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
             call GetData(ZoneLong, Me%ObjEnterData, flag,                                  &
                          keyword      = 'ZONE',                                         &
                          ClientModule = 'HorizontalGrid',                               &
-                         STAT         = STAT_CALL)           
+                         STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR140'
             if (flag == 1) then
                 if (ZoneLong /= Me%ZoneLong) stop 'ConstructGlobalVariables - HorizontalGrid - ERR150'
             endif
 
-        else if (Me%CoordType .EQ. MIL_PORT_) then 
+        else if (Me%CoordType .EQ. MIL_PORT_) then
             Me%ZoneLong = PORTUGUESE_UTM_ZONE_
-        else 
+        else
             Me%ZoneLong = null_int
         endif
-        
-        
+
+
         !Reads ORIGIN
         call GetData(AuxReal,Me%ObjEnterData, flag,                                        &
                      keyword      = 'ORIGIN',                                           &
                      ClientModule = 'HorizontalGrid',                                   &
-                     STAT         = STAT_CALL)           
+                     STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR160'
         if (flag      /= 2       ) stop 'ConstructGlobalVariables - HorizontalGrid - ERR170'
 
@@ -2872,7 +3257,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
 
         allocate(Me%XX_IE(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
         allocate(Me%YY_IE(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
-        
+
         allocate(Me%LatitudeConn(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
         allocate(Me%LongitudeConn(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
 
@@ -2889,7 +3274,7 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
 
         Me%LatitudeConn  = null_real
         Me%LongitudeConn = null_real
-        
+
 
         Me%DefineCellsMap(:,:)  = 1
 
@@ -2903,56 +3288,56 @@ cd1 :       if (NewFatherGrid%GridID == GridID) then
                                     STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR200'
 
-BF:     if (BlockFound) then                                                  
+BF:     if (BlockFound) then
 
-            Me%CornersXYInput = .true. 
+            Me%CornersXYInput = .true.
 
-            if (Me%CoordType == CIRCULAR_ .and. Me%CoordType == GEOG_) then   
+            if (Me%CoordType == CIRCULAR_ .and. Me%CoordType == GEOG_) then
                 stop 'ConstructGlobalVariables - HorizontalGrid - ERR210'
-            endif    
+            endif
 
 
             line = FirstLine
-            
-            do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB+1 
-            do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB+1 
+
+            do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB+1
+            do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB+1
 
                 line = line+1
 
                 !Last line found before end?
                 if (line == LastLine) then
-                    write(*,*) 
+                    write(*,*)
                     write(*,*) 'Error reading Corners X Y'
                     stop 'ConstructGlobalVariables - HorizontalGrid - ERR220'
                 end if
 
-                !Reads XX_IE , YY_IE 
+                !Reads XX_IE , YY_IE
                 call GetData(AuxReal, Me%ObjEnterData, flag,                                &
                              Buffer_Line  = Line,                                        &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR230'
-                
+
                 if (Me%DDecomp%MasterOrSlave) then
                     if (i>= Me%DDecomp%HaloMap%ILB .and. &
                         i<= Me%DDecomp%HaloMap%IUB+1) then
                         ii = i - Me%DDecomp%HaloMap%ILB + 1
                     else
                         cycle
-                    endif                                
+                    endif
                 else
                     ii = i
-                endif    
-                        
+                endif
+
                 if (Me%DDecomp%MasterOrSlave) then
                     if (j>= Me%DDecomp%HaloMap%JLB .and. &
                         j<= Me%DDecomp%HaloMap%JUB+1) then
                         jj = j - Me%DDecomp%HaloMap%JLB + 1
                     else
                         cycle
-                    endif                                
+                    endif
                 else
                     jj = j
-                endif    
+                endif
 
                 Me%XX_IE(ii, jj) = AuxReal(1)
                 Me%YY_IE(ii, jj) = AuxReal(2)
@@ -2962,13 +3347,13 @@ BF:     if (BlockFound) then
 
 
             if (Me%CoordType == CIRCULAR_ .or. Me%CornersXYInput) then
-            
-                Me%Distortion      = .true. 
-                Me%RegularRotation = .false. 
+
+                Me%Distortion      = .true.
+                Me%RegularRotation = .false.
 
             else
 
-                Me%Distortion = .false. 
+                Me%Distortion = .false.
 
                 if (abs(Me%Grid_Angle)>0.) then
                     Me%RegularRotation = .true.
@@ -3019,13 +3404,13 @@ BF:     if (BlockFound) then
                     !    Me%DefineFacesUMap(i,j)  = 0
                     !endif
                     if (Me%DefineCellsMap(i, j-1) == 0 .and. Me%DefineCellsMap(i, j) == 0) Me%DefineFacesUMap(i,j)  = 0
- 
+
                 end do
             end do
 
 
             do j = Me%WorkSize%JLB,   Me%WorkSize%JUB
-                
+
                 if (Me%DefineCellsMap(Me%WorkSize%ILB, j) == 0) Me%DefineFacesVMap(Me%WorkSize%ILB,j  )  = 0
                 if (Me%DefineCellsMap(Me%WorkSize%IUB, j) == 0) Me%DefineFacesVMap(Me%WorkSize%IUB+1,j)  = 0
 
@@ -3036,7 +3421,7 @@ BF:     if (BlockFound) then
                     !    Me%DefineFacesVMap(i,j)  = 0
                     !endif
                     if (Me%DefineCellsMap(i-1, j) == 0 .and. Me%DefineCellsMap(i, j) == 0) Me%DefineFacesVMap(i,j)  = 0
- 
+
                 end do
             end do
 
@@ -3055,7 +3440,7 @@ BF:     if (BlockFound) then
             end do
             end do
 
-            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR240'
 
         else BF
@@ -3071,7 +3456,7 @@ BF:     if (BlockFound) then
                          Me%ObjEnterData, flag,                                         &
                          SearchType   = FromFile,                                       &
                          keyword      ='CONSTANT_SPACING_Y',                            &
-                         STAT         = STAT_CALL)        
+                         STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR250'
 
 iconY:      if (ConstantSpacingY) Then
@@ -3080,26 +3465,26 @@ iconY:      if (ConstantSpacingY) Then
                              Me%ObjEnterData, flag,                                     &
                              SearchType   = FromFile,                                   &
                              keyword      ='DY',                                        &
-                             STAT         = STAT_CALL)        
+                             STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR260'
-                
+
                 XY_Aux   = -DY
                 ii       = 0
-                do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB + 1 
-                    
+                do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB + 1
+
                     XY_Aux   = XY_Aux + DY
-                    
+
                     if (Me%DDecomp%MasterOrSlave) then
                         if (i>= Me%DDecomp%HaloMap%ILB .and.                &
                             i<= Me%DDecomp%HaloMap%IUB+1) then
                             ii = ii + 1
                         else
                             cycle
-                        endif                                
+                        endif
                     else
                         ii = i
-                    endif  
-                                        
+                    endif
+
                     Me%YY(ii) = XY_Aux
                 end do
 
@@ -3115,16 +3500,16 @@ iconY:      if (ConstantSpacingY) Then
                                             STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR280'
 
-                if (BlockFound) then                                                  
+                if (BlockFound) then
 
                     line = FirstLine
                     ii   = 0
-                    do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB+1 
+                    do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB+1
                         line = line+1
 
                         !Last line found before end?
                         if (line == LastLine) then
-                            write(*,*) 
+                            write(*,*)
                             write(*,*) 'Error reading YY'
                             stop 'ConstructGlobalVariables - HorizontalGrid - ERR290'
                         end if
@@ -3133,24 +3518,24 @@ iconY:      if (ConstantSpacingY) Then
                                      Buffer_Line  = Line,                               &
                                      STAT         = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR300'
-                        
+
                         if (Me%DDecomp%MasterOrSlave) then
                             if (i>= Me%DDecomp%HaloMap%ILB .and. &
                                 i<= Me%DDecomp%HaloMap%IUB+1) then
                                 ii = ii + 1
                             else
                                 cycle
-                            endif                                
+                            endif
                         else
                             ii = i
-                        endif    
-                        
+                        endif
+
                         Me%YY(ii) = Aux
-                                                
+
                     end do
                 end if
 
-                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR310'
 
             end if iconY
@@ -3160,7 +3545,7 @@ iconY:      if (ConstantSpacingY) Then
                          Me%ObjEnterData, flag,                                         &
                          SearchType   = FromFile,                                       &
                          keyword      ='CONSTANT_SPACING_X',                            &
-                         STAT         = STAT_CALL)        
+                         STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR320'
 
 iconX:      if (ConstantSpacingX) Then
@@ -3169,28 +3554,28 @@ iconX:      if (ConstantSpacingX) Then
                              Me%ObjEnterData, flag,                                     &
                              SearchType   = FromFile,                                   &
                              keyword      ='DX',                                        &
-                             STAT         = STAT_CALL)        
+                             STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR330'
-                
+
                 XY_Aux   = -DX
                 jj       = 0
-                do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB + 1 
+                do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB + 1
 
                     XY_Aux = XY_Aux + DX
-                    
+
                     if (Me%DDecomp%MasterOrSlave) then
                         if (j>= Me%DDecomp%HaloMap%JLB .and. &
                             j<= Me%DDecomp%HaloMap%JUB+1) then
                             jj = jj + 1
                         else
                             cycle
-                        endif                                
+                        endif
                     else
                         jj = j
-                    endif  
+                    endif
 
                     Me%XX(jj) = XY_Aux
-                    
+
                 end do
 
             else iconX
@@ -3206,18 +3591,18 @@ iconX:      if (ConstantSpacingX) Then
                                             STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR350'
 
-                if (BlockFound) then                                                  
+                if (BlockFound) then
 
                     line = FirstLine
 
                     jj = 0
-                    do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB+1 
-                    
+                    do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB+1
+
                         line = line+1
 
                         !Last line found before end?
                         if (line == LastLine) then
-                            write(*,*) 
+                            write(*,*)
                             write(*,*) 'Error reading XX'
                             stop 'ConstructGlobalVariables - HorizontalGrid - ERR360'
                         end if
@@ -3226,7 +3611,7 @@ iconX:      if (ConstantSpacingX) Then
                                      Buffer_Line  = Line,                               &
                                      STAT         = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR370'
-                        
+
 
                         if (Me%DDecomp%MasterOrSlave) then
                             if (j>= Me%DDecomp%HaloMap%JLB .and. &
@@ -3234,17 +3619,17 @@ iconX:      if (ConstantSpacingX) Then
                                 jj = jj + 1
                             else
                                 cycle
-                            endif                                
+                            endif
                         else
                             jj = j
-                        endif    
-                        
+                        endif
+
                         Me%XX(jj) = Aux
-                                                
+
                     end do
                 end if
 
-                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR380'
 
 
@@ -3265,11 +3650,11 @@ iconX:      if (ConstantSpacingX) Then
                                     STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR400'
 
-BF1:    if (Me%ReadCartCorners) then                                                  
+BF1:    if (Me%ReadCartCorners) then
 
-            if (Me%CoordType /= SIMPLE_GEOG_) then   
+            if (Me%CoordType /= SIMPLE_GEOG_) then
                 stop 'ConstructGlobalVariables - HorizontalGrid - ERR410'
-            endif    
+            endif
 
 
             line = FirstLine
@@ -3281,45 +3666,45 @@ BF1:    if (Me%ReadCartCorners) then
 
             ii = 0
             jj = 0
-            do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB+1 
-            do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB+1 
-            
+            do i = Me%GlobalWorkSize%ILB, Me%GlobalWorkSize%IUB+1
+            do j = Me%GlobalWorkSize%JLB, Me%GlobalWorkSize%JUB+1
+
                 line = line+1
 
                 !Last line found before end?
                 if (line == LastLine) then
-                    write(*,*) 
+                    write(*,*)
                     write(*,*) 'Error reading Cartesian Corners X Y'
                     stop 'ConstructGlobalVariables - HorizontalGrid - ERR420'
                 end if
 
-                !Reads XX_IE , YY_IE 
+                !Reads XX_IE , YY_IE
                 call GetData(AuxReal, Me%ObjEnterData, flag,                                &
                              Buffer_Line  = Line,                                        &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR430'
-                
+
                 if (Me%DDecomp%MasterOrSlave) then
                     if (i>= Me%DDecomp%HaloMap%ILB .and. &
                         i<= Me%DDecomp%HaloMap%IUB+1) then
                         ii = ii + 1
                     else
                         cycle
-                    endif                                
+                    endif
                 else
                     ii = i
-                endif    
-                        
+                endif
+
                 if (Me%DDecomp%MasterOrSlave) then
                     if (j>= Me%DDecomp%HaloMap%JLB .and. &
                         j<= Me%DDecomp%HaloMap%JUB+1) then
                         jj = jj + 1
                     else
                         cycle
-                    endif                                
+                    endif
                 else
                     jj = j
-                endif                  
+                endif
 
                 Me%XX_IE(ii, jj) = AuxReal(1)
                 Me%YY_IE(ii, jj) = AuxReal(2)
@@ -3337,15 +3722,15 @@ BF1:    if (Me%ReadCartCorners) then
         !Closes Data File
         call KillEnterData      (Me%ObjEnterData, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR450'
-        
-     
+
+
         !Allocates variables common to the module
         call AllocateVariables
 
     end subroutine ConstructGlobalVariables
 
     !--------------------------------------------------------------------------
-    
+
 
     subroutine ConstructGlobalVariablesV1(LatitudeConn, LongitudeConn, XX, YY,          &
                                           Xorig, Yorig, Latitude, Longitude,            &
@@ -3396,14 +3781,14 @@ BF1:    if (Me%ReadCartCorners) then
         nullify (Me%LongitudeConn)
 
 
-        Me%Size%ILB     = ILB-1 
-        Me%Size%IUB     = IUB+1 
+        Me%Size%ILB     = ILB-1
+        Me%Size%IUB     = IUB+1
 
         Me%WorkSize%ILB = ILB
         Me%WorkSize%IUB = IUB
 
-        Me%Size%JLB     = JLB-1 
-        Me%Size%JUB     = JUB+1 
+        Me%Size%JLB     = JLB-1
+        Me%Size%JUB     = JUB+1
 
         Me%WorkSize%JLB = JLB
         Me%WorkSize%JUB = JUB
@@ -3412,36 +3797,36 @@ BF1:    if (Me%ReadCartCorners) then
         !Reads COORD_TIP
         Me%CoordType = SIMPLE_GEOG_
 
-        
+
         Me%Latitude   = Latitude
         Me%Longitude  = Longitude
-        
+
         Me%Datum = WGS_84_DATUM
-        
-        
+
+
         Me%ProjType = PAULO_PROJECTION_
-        
+
         Me%Xorig = Xorig
         Me%Yorig = Yorig
 
         Me%Grid_Angle = 0
-        
-        Me%Distortion      = .false. 
-        Me%RegularRotation = .false. 
-        Me%CornersXYInput  = .false. 
-        
+
+        Me%Distortion      = .false.
+        Me%RegularRotation = .false.
+        Me%CornersXYInput  = .false.
+
         if (associated(LongitudeConn))                                                  &
             Me%CornersXYInput = .true.
-                
-        
-        
+
+
+
         !Allocates XX and YY
         allocate(Me%XX(Me%Size%JLB+1 : Me%Size%JUB+1))
         allocate(Me%YY(Me%Size%ILB+1 : Me%Size%IUB+1))
 
         allocate(Me%XX_IE(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
         allocate(Me%YY_IE(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
-        
+
         allocate(Me%LatitudeConn(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
         allocate(Me%LongitudeConn(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
 
@@ -3458,31 +3843,31 @@ BF1:    if (Me%ReadCartCorners) then
 
         Me%LatitudeConn  = null_real
         Me%LongitudeConn = null_real
-        
+
 
         Me%DefineCellsMap(:,:)  = 1
 
         if (Me%CornersXYInput) then
 
             Me%YY_IE(:,:) = LatitudeConn (:,:)
-            Me%XX_IE(:,:) = LongitudeConn(:,:)            
+            Me%XX_IE(:,:) = LongitudeConn(:,:)
 
-            Me%Distortion      = .true. 
-            
+            Me%Distortion      = .true.
+
         else
             Me%XX(:) = XX(:)
             Me%YY(:) = YY(:)
-            
-        endif            
 
-     
+        endif
+
+
         !Allocates variables common to the module
         call AllocateVariables
 
     end subroutine ConstructGlobalVariablesV1
 
-    !--------------------------------------------------------------------------    
-    
+    !--------------------------------------------------------------------------
+
     subroutine ConstructGlobalVariablesV2()
 
         !Arguments-------------------------------------------------------------
@@ -3523,15 +3908,15 @@ BF1:    if (Me%ReadCartCorners) then
         nullify (Me%GridCellArea )
         nullify (Me%LatitudeConn )
         nullify (Me%LongitudeConn)
-        
+
         call GetHDF5DataSetExist (HDF5ID        = Me%ObjHDF5,                           &
                                   DataSetName   = "/Grid/Latitude",                     &
-                                  Exist         = Exist,                                & 
+                                  Exist         = Exist,                                &
                                   STAT          = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariablesV2 - HorizontalGrid - ERR10'
-        
+
         if (Exist) then
-        
+
             call GetHDF5ArrayDimensions (HDF5ID = Me%ObjHDF5, GroupName = "/Grid",      &
                                         ItemName = "Latitude", Imax = Imax, Jmax = Jmax,&
                                         STAT = STAT_CALL)
@@ -3539,66 +3924,66 @@ BF1:    if (Me%ReadCartCorners) then
 
             !Reads COORD_TIP
             Me%CoordType = SIMPLE_GEOG_
-            
+
             Me%Datum     = WGS_84_DATUM
-            
+
             Me%ProjType = PAULO_PROJECTION_
         else
 
             call GetHDF5DataSetExist (HDF5ID        = Me%ObjHDF5,                       &
                                       DataSetName   = "/Grid/ConnectionX",              &
-                                      Exist         = Exist,                            & 
+                                      Exist         = Exist,                            &
                                       STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariablesV2 - HorizontalGrid - ERR30'
-            
+
                 if (Exist) then
                 call GetHDF5ArrayDimensions (HDF5ID = Me%ObjHDF5, GroupName = "/Grid",      &
                                             ItemName = "ConnectionX", Imax = Imax, Jmax = Jmax,&
                                             STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariablesV2 - HorizontalGrid - ERR40'            
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariablesV2 - HorizontalGrid - ERR40'
 
                 !Reads COORD_TIP
                 Me%CoordType = GRID_COORD_
-                
+
             else
                 stop 'ConstructGlobalVariablesV2 - HorizontalGrid - ERR50'
             endif
 
-        
+
         endif
-    
+
         Me%WorkSize%ILB = 1
         Me%WorkSize%IUB = Imax - 1
 
         Me%WorkSize%JLB = 1
         Me%WorkSize%JUB = Jmax - 1
- 
 
-        Me%Size%ILB     = Me%WorkSize%ILB-1 
-        Me%Size%IUB     = Me%WorkSize%IUB+1 
 
-        Me%Size%JLB     = Me%WorkSize%JLB-1 
-        Me%Size%JUB     = Me%WorkSize%JUB+1 
+        Me%Size%ILB     = Me%WorkSize%ILB-1
+        Me%Size%IUB     = Me%WorkSize%IUB+1
+
+        Me%Size%JLB     = Me%WorkSize%JLB-1
+        Me%Size%JUB     = Me%WorkSize%JUB+1
 
 
         Me%Xorig = 0
         Me%Yorig = 0
 
         Me%Grid_Angle = 0
-        
-        Me%Distortion      = .false. 
-        Me%RegularRotation = .false. 
-        Me%CornersXYInput  = .false. 
-        
+
+        Me%Distortion      = .false.
+        Me%RegularRotation = .false.
+        Me%CornersXYInput  = .false.
+
         Me%CornersXYInput = .true.
-                
+
         !Allocates XX and YY
         allocate(Me%XX(Me%Size%JLB+1 : Me%Size%JUB+1))
         allocate(Me%YY(Me%Size%ILB+1 : Me%Size%IUB+1))
 
         allocate(Me%XX_IE(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
         allocate(Me%YY_IE(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
-        
+
         allocate(Me%LatitudeConn(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
         allocate(Me%LongitudeConn(Me%Size%ILB : Me%Size%IUB, Me%Size%JLB : Me%Size%JUB))
 
@@ -3615,28 +4000,28 @@ BF1:    if (Me%ReadCartCorners) then
 
         Me%LatitudeConn  = null_real
         Me%LongitudeConn = null_real
-        
+
         Me%DefineCellsMap(:,:)  = 1
-        
+
         call ReadHDF5HorizontalGrid()
-        
+
         if (Me%CoordType == SIMPLE_GEOG_) then
-        
+
             Me%YY_IE = Me%LatitudeConn
             Me%XX_IE = Me%LongitudeConn
-            
+
             Me%Latitude   = Me%LatitudeConn (1,1)
             Me%Longitude  = Me%LongitudeConn(1,1)
-        
+
         endif
-        
+
         !Allocates variables common to the module
         call AllocateVariables
 
     end subroutine ConstructGlobalVariablesV2
 
-    !--------------------------------------------------------------------------    
-    
+    !--------------------------------------------------------------------------
+
 
     subroutine AllocateVariables()
 
@@ -3788,7 +4173,7 @@ BF1:    if (Me%ReadCartCorners) then
 
         if (Me%CoordType == CIRCULAR_ .or. Me%CornersXYInput) then
 
-            Me%Distortion      = .true. 
+            Me%Distortion      = .true.
 
             allocate (Me%RotationX(ILB:IUB, JLB:JUB), stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'AllocateVariables - HorizontalGrid - ERR310'
@@ -3808,9 +4193,9 @@ BF1:    if (Me%ReadCartCorners) then
 
         allocate (Me%YY1D_Aux(ILB:IUB), stat = STATUS)
         if (STATUS /= SUCCESS_) stop 'AllocateVariables - HorizontalGrid - ERR330'
-        
+
         allocate(Me%AuxPolygon)
-        Me%AuxPolygon%Count = 5                
+        Me%AuxPolygon%Count = 5
         allocate(Me%AuxPolygon%VerticesF(1:5))
 
     end subroutine AllocateVariables
@@ -3826,7 +4211,7 @@ BF1:    if (Me%ReadCartCorners) then
         !Local-----------------------------------------------------------------
 #ifdef _USE_PROJ4
         real(8), dimension(:,:), pointer    :: XX_Pointer, YY_Pointer
-#endif        
+#endif
         real(8), dimension(:,:), allocatable, target :: XX_aux, YY_aux
         real, dimension(:,:), pointer       :: XX_IE, YY_IE
         real, dimension(:  ), pointer       :: XX, YY
@@ -3839,8 +4224,8 @@ BF1:    if (Me%ReadCartCorners) then
         integer                             :: i, j, STATUS, k
         integer, dimension(2)               :: GridUTMmax, GridUTMmin, GridUTM
 
-        real(8)                             :: radians, Radius, Angle, EarthRadius, Rad_Lat, CosenLat        
-        
+        real(8)                             :: radians, Radius, Angle, EarthRadius, Rad_Lat, CosenLat
+
         real                                :: MaxLon, MinLon, MaxLat, MinLat, MinX, MinY
 
 
@@ -3857,7 +4242,7 @@ BF1:    if (Me%ReadCartCorners) then
         XX    => Me%XX
         YY    => Me%YY
 
-        !By default 
+        !By default
 do5 :   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do6 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
            Me%LatitudeZ (i, j) = Me%Latitude
@@ -3871,7 +4256,7 @@ do6 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
 cd1:    if (Me%CoordType == UTM_            .or.    &
             Me%CoordType == MIL_PORT_       .or.    &
-            Me%CoordType == GRID_COORD_     .or.    & 
+            Me%CoordType == GRID_COORD_     .or.    &
             Me%CoordType == NLRD_           .or.    &
             Me%CoordType == SIMPLE_GEOG_) then
 
@@ -3889,7 +4274,7 @@ do2 :           do i = ILB, IUB + 1
 do3 :           do j = JLB, JUB + 1
 do4 :           do i = ILB, IUB + 1
                     call RODAXY(Me%Xorig, Me%Yorig,            &
-                                Me%Grid_Angle, XX_IE(i, j), YY_IE(i, j))  
+                                Me%Grid_Angle, XX_IE(i, j), YY_IE(i, j))
                 end do do4
                 end do do3
 
@@ -3897,10 +4282,10 @@ do4 :           do i = ILB, IUB + 1
 
         endif cd1
 
-            !Computes the Geographic Coordinates in the center od the cells (to use later, 
+            !Computes the Geographic Coordinates in the center od the cells (to use later,
             !when computing Coriolis and the elevation of the sun
-cd2:    if ((Me%CoordType == UTM_) .OR. (Me%CoordType == MIL_PORT_)) then 
-                    
+cd2:    if ((Me%CoordType == UTM_) .OR. (Me%CoordType == MIL_PORT_)) then
+
 do7 :       do j = JLB, JUB
 do8 :       do i = ILB, IUB
 
@@ -3918,11 +4303,11 @@ do8 :       do i = ILB, IUB
 
 
                 if      (Me%CoordType == MIL_PORT_) then
-   
-                    !from Portuguese coord. to geographic coord. 
-                    AuxCoordTip = 5 
 
-                    call USCONVCO (AuxCoordTip, Me%ZoneLong, DB_LAT, DB_LONG,        & 
+                    !from Portuguese coord. to geographic coord.
+                    AuxCoordTip = 5
+
+                    call USCONVCO (AuxCoordTip, Me%ZoneLong, DB_LAT, DB_LONG,        &
                                    dble(X_PONTO), dble(Y_PONTO))
 
                 else if (Me%CoordType == UTM_) then
@@ -3941,9 +4326,9 @@ do8 :       do i = ILB, IUB
         endif cd2
 
 
-            
+
 cd21:   if(Me%CoordType == NLRD_) then
-                
+
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -3961,9 +4346,9 @@ cd21:   if(Me%CoordType == NLRD_) then
                 Me%LatitudeZ(i, j)  = real(DB_LAT)
                 Me%LongitudeZ(i, j) = real(DB_LONG)
 
-            end do 
             end do
-            
+            end do
+
         endif cd21
 
         !Geographic coordinates
@@ -3971,7 +4356,7 @@ cd22:   if (Me%CoordType == GEOG_               .or.  &
             Me%CoordType == SIMPLE_GEOG_) then
 
 
-            !Computes the Geographic Coordinates in the center od the cells (to use later, 
+            !Computes the Geographic Coordinates in the center od the cells (to use later,
             !when computing Coriolis and the elevation of the sun
 
             if (.not. Me%CornersXYInput .and. Me%CoordType == GEOG_) then
@@ -3995,7 +4380,7 @@ do20 :          do i = ILB, IUB
             endif
 
 cd36:       if (Me%CoordType == GEOG_) then
-               
+
 Inp3:           if (.not. Me%CornersXYInput) then
 
 cd33 :              if (Me%Grid_Angle .NE. 0.0) then
@@ -4056,7 +4441,7 @@ ipp:            if (Me%ProjType == PAULO_PROJECTION_) then
 
                     do j = JLB, JUB + 1
                     do i = ILB, IUB + 1
-                        Rad_Lat     = Me%LatitudeConn(i,j)* radians 
+                        Rad_Lat     = Me%LatitudeConn(i,j)* radians
                         CosenLat    = cos(Rad_Lat)
                         XX_IE(i, j) = CosenLat * EarthRadius * (Me%LongitudeConn(i, j) - Me%Longitude) * radians
                         YY_IE(i, j) =            EarthRadius * (Me%LatitudeConn (i, j) - Me%Latitude ) * radians
@@ -4072,22 +4457,22 @@ ifU:                if (.not. Me%UseLambert) then
 #endif
 
                         GridUTMmax(1) = -999
-                        GridUTMmax(2) = -999 
-                        GridUTMmin(1) = +999 
-                        GridUTMmin(2) = +999 
+                        GridUTMmax(2) = -999
+                        GridUTMmin(1) = +999
+                        GridUTMmin(2) = +999
 
                         do j = JLB, JUB + 1
                         do i = ILB, IUB + 1
-                         
+
                             if (XX_IE(i,j) > FillValueReal/3.) then
-                            
+
                                 !DATUM - WGS84
                                 call LatLonToUTM (dble(XX_IE(i,j)), dble(YY_IE(i,j)),   &
                                                   DB_LONG, DB_LAT, GridUTM, WGS_84_DATUM)
 
                                 YY_aux(i,j) = real(DB_LAT)
                                 XX_aux(i,j) = real(DB_LONG)
-                               
+
                                 do k=1,2
                                     if (GridUTM(k) > GridUTMmax(k)) GridUTMmax(k) = GridUTM(k)
                                     if (GridUTM(k) < GridUTMmin(k)) GridUTMmin(k) = GridUTM(k)
@@ -4097,7 +4482,7 @@ ifU:                if (.not. Me%UseLambert) then
                         enddo
                         enddo
 
-                        
+
                         do k=1,2
                             if (GridUTMmax(k) /= GridUTMmin(k)) then
 
@@ -4125,11 +4510,11 @@ ifU:                if (.not. Me%UseLambert) then
 
                                 enddo
                                 enddo
-                                
+
                                 write(*,*)'Max, Min Lon', MaxLon, MinLon
                                 write(*,*)'Max, Min Lat', MaxLat, MinLat
 
-                                Me%Longitude = (MaxLon + MinLon) / 2. 
+                                Me%Longitude = (MaxLon + MinLon) / 2.
                                 Me%Latitude  = (MaxLat + MinLat) / 2.
 
                                 Me%Easting  = null_real
@@ -4138,22 +4523,22 @@ ifU:                if (.not. Me%UseLambert) then
 
 #ifdef _USE_PROJ4
                                 Me%ProjType = SPHERE_MERCATOR_
-                                Me%SP1      = 0.0                                
+                                Me%SP1      = 0.0
 #else
-                                Me%UseLambert = .true.   
+                                Me%UseLambert = .true.
 
 #endif
-                                                             
+
                             endif
                         enddo
 
                     endif ifU
 #ifdef _USE_PROJ4
-ifP:                if (Me%ProjType == LAMB_CONF_CONIC_) then 
-#else                    
-ifP:                if (Me%UseLambert) then 
+ifP:                if (Me%ProjType == LAMB_CONF_CONIC_) then
+#else
+ifP:                if (Me%UseLambert) then
 #endif
-                            
+
                         write(*,*)'Using Lambert Conformal Conic Projection'
                         write(*,*)'with parameters :'
                         write(*,*)'SP1                  = ', Me%SP1
@@ -4169,7 +4554,7 @@ ifP:                if (Me%UseLambert) then
                                 call LatLonToLambertSP2 (dble(YY_IE(i,j)),dble(XX_IE(i,j)),      &
                                                          dble(Me%Latitude), dble(Me%Longitude),  &
                                                          dble(Me%SP1), dble(Me%SP2),             &
-                                                         Me%Datum, DB_LONG, DB_LAT) 
+                                                         Me%Datum, DB_LONG, DB_LAT)
 
                                 YY_aux(i,j) = real(DB_LAT)
                                 XX_aux(i,j) = real(DB_LONG)
@@ -4179,23 +4564,23 @@ ifP:                if (Me%UseLambert) then
                         enddo
 #ifdef _USE_PROJ4
                     elseif (Me%ProjType == SPHERE_MERCATOR_) then  !ifP
-                    
+
                         XX_Pointer => XX_aux
                         YY_Pointer => YY_aux
-                    
-                        call FromGeographic2SphericMercator(XX_IE, YY_IE, Me%WorkSize, XX_Pointer, YY_Pointer)
-                        
-                        nullify (XX_Pointer, YY_Pointer)
-#endif                    
-                    endif ifP
-                                       
 
-#ifdef _USE_PROJ4                
+                        call FromGeographic2SphericMercator(XX_IE, YY_IE, Me%WorkSize, XX_Pointer, YY_Pointer)
+
+                        nullify (XX_Pointer, YY_Pointer)
+#endif
+                    endif ifP
+
+
+#ifdef _USE_PROJ4
                 if (Me%ProjType > 0  .and. Me%Easting .LT. 0.0) then
 #else
                 if (Me%UseLambert .and. Me%Easting .LT. 0.0) then
 #endif
-                   
+
                     MinX = - null_real
                     MinY = - null_real
 
@@ -4211,8 +4596,8 @@ ifP:                if (Me%UseLambert) then
                 end if
 
                 XX_aux = XX_aux + Me%Easting
-                YY_aux = YY_aux + Me%Northing 
-                
+                YY_aux = YY_aux + Me%Northing
+
                 XX_IE(:, :) = XX_aux(:, :)
                 YY_IE(:, :) = YY_aux(:, :)
 
@@ -4226,20 +4611,20 @@ ifP:                if (Me%UseLambert) then
 
         !Circular coordinates
 cd23:   if (Me%CoordType == CIRCULAR_) then
-            
-            radians      = PI / 180.0 
 
-            
+            radians      = PI / 180.0
+
+
             do  i = ILB, IUB + 1
 
                 Angle  = Me%Yorig * radians + YY(i)* radians
-           
+
                 do  j = JLB, JUB + 1
 
                     Radius      = Me%Xorig + XX(j)
 
-                    XX_IE(i, j) = Radius * cos (Angle) 
-                    YY_IE(i, j) = Radius * sin (Angle) 
+                    XX_IE(i, j) = Radius * cos (Angle)
+                    YY_IE(i, j) = Radius * sin (Angle)
 
                 enddo
             enddo
@@ -4275,10 +4660,10 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
                     X_PONTO = 0.
                     Y_PONTO = 0.
                 endif
-            
+
                 if (Me%CoordType == MIL_PORT_) then
-                
-                    AuxCoordTip = 5 !from Portuguese coord. to geographic coord. 
+
+                    AuxCoordTip = 5 !from Portuguese coord. to geographic coord.
 
                     call USCONVCO (AuxCoordTip, Me%ZoneLong, DB_LAT, DB_LONG, &
                                    dble(X_PONTO), dble(Y_PONTO))
@@ -4332,8 +4717,8 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
 
 
 
-#ifdef _USE_PROJ4  
-    
+#ifdef _USE_PROJ4
+
     subroutine FromGeographic2SphericMercator(XX_IE, YY_IE, WorkSize, XX_aux, YY_aux)
 
         use proj4
@@ -4347,13 +4732,13 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         real(8)                                  :: DB_LAT, DB_LONG
         integer                                  :: ILB, IUB, JLB, JUB
         integer                                  :: status, i, j
-       
+
         character(len=20), dimension(:), pointer :: params
         type(prj90_projection)                   :: proj
 
-   
+
         !Begin-----------------------------------------------------------------
-        
+
         allocate(params(10))
         params(1) = 'proj=merc'
         params(2) = 'lat_ts=0.0'
@@ -4365,21 +4750,21 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         params(8) = 'b=6371000'
         params(9) = 'datum=WGS84'
         params(10)= 'units=m'
-        
-        ILB = WorkSize%ILB 
-        IUB = WorkSize%IUB 
-        JLB = WorkSize%JLB 
-        JUB = WorkSize%JUB 
 
-        
+        ILB = WorkSize%ILB
+        IUB = WorkSize%IUB
+        JLB = WorkSize%JLB
+        JUB = WorkSize%JUB
+
+
         status=prj90_init(proj,params)
         if (status.ne.PRJ90_NOERR) then
             write(*,*) prj90_strerrno(status)
             stop 'FromGeographic2SphericMercator - ModuleHorizontalGrid - ERR10'
         endif
-        
+
         do j = JLB, JUB + 1
-        do i = ILB, IUB + 1 
+        do i = ILB, IUB + 1
             if (XX_IE(i,j) > FillValueReal/3.) then
 
                 status = prj90_fwd(proj,dble(XX_IE(i,j)),dble(YY_IE(i,j)),DB_LONG, DB_LAT)
@@ -4388,7 +4773,7 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
                     stop 'FromGeographic2SphericMercator - ModuleHorizontalGrid - ERR20'
                 end if
 
-                                           
+
                 YY_aux(i,j) = real(DB_LAT)
                 XX_aux(i,j) = real(DB_LONG)
 
@@ -4402,7 +4787,7 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
             stop 'FromGeographic2SphericMercator - ModuleHorizontalGrid - ERR30'
         end if
 
-        deallocate(params)     
+        deallocate(params)
 
 
     end subroutine FromGeographic2SphericMercator
@@ -4413,19 +4798,19 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
 
         !Arguments-------------------------------------------------------------
         real(8), dimension(:  ), pointer         :: X1D_Geo, Y1D_Geo
-        real(8), dimension(:  ), pointer         :: X1D_Out, Y1D_Out        
+        real(8), dimension(:  ), pointer         :: X1D_Out, Y1D_Out
         integer                                  :: ILB, IUB
 
         !Local-----------------------------------------------------------------
         real(8)                                  :: DB_LAT, DB_LONG
         integer                                  :: status, i
-       
+
         character(len=20), dimension(:), pointer :: params
         type(prj90_projection)                   :: proj
 
-   
+
         !Begin-----------------------------------------------------------------
-     
+
         allocate(params(8))
         params(1) = 'proj=merc'
         params(2) = 'lat_ts=0.0'
@@ -4435,14 +4820,14 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         params(6) = 'y_0=0.0'
         params(7) = 'a=6371000'
         params(8) = 'b=6371000'
-        
-        
+
+
         status=prj90_init(proj,params)
         if (status.ne.PRJ90_NOERR) then
             write(*,*) prj90_strerrno(status)
             stop 'FromGeo2SpherMercator1D - ModuleHorizontalGrid - ERR10'
         endif
-        
+
         do i = ILB, IUB
             status = prj90_fwd(proj,dble(X1D_Geo(i)),dble(Y1D_Geo(i)),DB_LONG, DB_LAT)
             if (status.ne.PRJ90_NOERR) then
@@ -4450,7 +4835,7 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
                 stop 'FromGeo2SpherMercator1D - ModuleHorizontalGrid - ERR20'
             end if
 
-                                       
+
             Y1D_Out(i) = real(DB_LAT)
             X1D_Out(i) = real(DB_LONG)
         enddo
@@ -4461,7 +4846,7 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
             stop 'FromGeo2SpherMercator1D - ModuleHorizontalGrid - ERR30'
         end if
 
-        deallocate(params)     
+        deallocate(params)
 
 
     end subroutine FromGeo2SpherMercator1D
@@ -4471,18 +4856,18 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         use proj4
 
         !Arguments-------------------------------------------------------------
-        real(8)                                  :: X_Geo, Y_Geo, X_Out, Y_Out        
+        real(8)                                  :: X_Geo, Y_Geo, X_Out, Y_Out
 
         !Local-----------------------------------------------------------------
         real(8)                                  :: DB_LAT, DB_LONG
         integer                                  :: status
-       
+
         character(len=20), dimension(:), pointer :: params
         type(prj90_projection)                   :: proj
 
-   
+
         !Begin-----------------------------------------------------------------
-     
+
         allocate(params(8))
         params(1) = 'proj=merc'
         params(2) = 'lat_ts=0.0'
@@ -4492,21 +4877,21 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         params(6) = 'y_0=0.0'
         params(7) = 'a=6371000'
         params(8) = 'b=6371000'
-        
-        
+
+
         status=prj90_init(proj,params)
         if (status.ne.PRJ90_NOERR) then
             write(*,*) prj90_strerrno(status)
             stop 'FromGeo2SpherMercatorScalar - ModuleHorizontalGrid - ERR10'
         endif
-        
+
         status = prj90_fwd(proj,dble(X_Geo),dble(Y_Geo),DB_LONG, DB_LAT)
         if (status.ne.PRJ90_NOERR) then
             write(*,*) prj90_strerrno(status)
             stop 'FromGeo2SpherMercatorScalar - ModuleHorizontalGrid - ERR20'
         end if
 
-                                   
+
         Y_Out = real(DB_LAT)
         X_Out = real(DB_LONG)
 
@@ -4517,12 +4902,12 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
             stop 'FromGeo2SpherMercatorScalar - ModuleHorizontalGrid - ERR30'
         end if
 
-        deallocate(params)     
+        deallocate(params)
 
 
     end subroutine FromGeo2SpherMercatorScalar
 
-    
+
 #endif
 
     subroutine CheckGridBorder()
@@ -4535,7 +4920,7 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
 
         nullify (Me%GridBorderCart     )
         nullify (Me%GridBorderCoord    )
-        nullify (Me%GridOutBorderCoord )        
+        nullify (Me%GridOutBorderCoord )
         nullify (Me%GridBorderAlongGrid)
         nullify (Me%GridOutBorderCart  )
 
@@ -4551,7 +4936,7 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         Me%GridBorderCoord%Type_        = Rectang_
         Me%GridOutBorderCoord%Type_     = Rectang_
         Me%GridBorderAlongGrid%Type_    = Rectang_
-        Me%GridOutBorderCart%Type_      = Rectang_        
+        Me%GridOutBorderCart%Type_      = Rectang_
 
 Inp:    if (Me%CornersXYInput) then
 
@@ -4559,7 +4944,7 @@ Inp:    if (Me%CornersXYInput) then
             Me%GridBorderCoord%Type_     = ComplexPolygon_
             Me%GridOutBorderCoord%Type_  = ComplexPolygon_
             Me%GridBorderAlongGrid%Type_ = ComplexPolygon_
-            Me%GridOutBorderCart%Type_   = ComplexPolygon_                    
+            Me%GridOutBorderCart%Type_   = ComplexPolygon_
 
         else  Inp
 
@@ -4569,19 +4954,19 @@ Inp:    if (Me%CornersXYInput) then
                 Me%GridBorderCoord%Type_     = RotatedRectang_
                 Me%GridOutBorderCoord%Type_  = RotatedRectang_
                 Me%GridBorderAlongGrid%Type_ = RotatedRectang_
-                Me%GridOutBorderCart%Type_   = RotatedRectang_    
+                Me%GridOutBorderCart%Type_   = RotatedRectang_
 
-            
+
             endif
 
 
         endif Inp
 
-        if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then 
+        if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then
 
             Me%GridBorderCart%Type_      = ComplexPolygon_
             Me%GridBorderAlongGrid%Type_ = ComplexPolygon_
-            Me%GridOutBorderCart%Type_   = ComplexPolygon_                            
+            Me%GridOutBorderCart%Type_   = ComplexPolygon_
         endif
 
 
@@ -4600,27 +4985,27 @@ Inp:    if (Me%CornersXYInput) then
 
         !Begin-----------------------------------------------------------------
 
-          
-        if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then 
+
+        if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then
 
             XX2D        => Me%LongitudeConn
             YY2D        => Me%LatitudeConn
 
         else
 
-            XX2D        => Me%XX_IE 
-            YY2D        => Me%YY_IE 
+            XX2D        => Me%XX_IE
+            YY2D        => Me%YY_IE
 
         endif
 
         call DefinesBorderPoly(XX2D, YY2D, Me%GridBorderCoord)
-        
-        call DefinesBorderPoly(XX2D, YY2D, Me%GridOutBorderCoord, Outer = .true.)        
-                                                                             
+
+        call DefinesBorderPoly(XX2D, YY2D, Me%GridOutBorderCoord, Outer = .true.)
+
         nullify(XX2D, YY2D)
 
         call DefinesBorderPoly(Me%XX_IE, Me%YY_IE, Me%GridBorderCart)
-                               
+
         call DefinesBorderPoly(Me%XX_IE, Me%YY_IE, Me%GridOutBorderCart, Outer = .true.)
 
         call DefinesBorderPoly(Me%XX_AlongGrid, Me%YY_AlongGrid, Me%GridBorderAlongGrid)
@@ -4634,9 +5019,9 @@ Inp:    if (Me%CornersXYInput) then
 
         !Arguments-------------------------------------------------------------
         type (T_Border),  pointer                   :: GridBorder
-        real,   dimension(:,:), pointer             :: XX2D, YY2D 
-        logical, optional, intent(IN)               :: Outer       
-        
+        real,   dimension(:,:), pointer             :: XX2D, YY2D
+        logical, optional, intent(IN)               :: Outer
+
         !Local-----------------------------------------------------------------
         integer                                     :: ILB, IUB, JLB, JUB
         integer                                     :: Nvert, i, j, di
@@ -4644,63 +5029,63 @@ Inp:    if (Me%CornersXYInput) then
 
         !Begin-----------------------------------------------------------------
 
-        ILB = Me%WorkSize%ILB 
-        IUB = Me%WorkSize%IUB 
-        JLB = Me%WorkSize%JLB 
-        JUB = Me%WorkSize%JUB 
-        
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+
         if (present(Outer)) then
             Outer_ = Outer
         else
             Outer_ = .false.
-        endif            
+        endif
 
 
-        if      (GridBorder%Type_ == ComplexPolygon_) then 
+        if      (GridBorder%Type_ == ComplexPolygon_) then
 
             Nvert = 0
 
             if ((IUB-ILB)>=2) then
-                            
+
                 Nvert = 2*(IUB-ILB-1)
-                
+
                 if (Outer_) then
                     Nvert = Nvert + 4
                 endif
-                
+
             else
-            
+
                 Nvert = 2
-            
+
             endif
-            
+
 
             if ((JUB-JLB)>=2) then
-                            
+
                 Nvert = Nvert + 2*(JUB-JLB-1)
-                
+
                 if (Outer_) then
                     Nvert = Nvert + 4
                 endif
 
             else
-            
-                Nvert = Nvert + 2                    
+
+                Nvert = Nvert + 2
 
             endif
-            
 
-!        else if (GridBorder%Type_ == RotatedRectang_) then 
+
+!        else if (GridBorder%Type_ == RotatedRectang_) then
         else
 
             Nvert = 4
 
         endif
-        
-        !The last vertix equal to the first 
+
+        !The last vertix equal to the first
         Nvert = Nvert + 1
-        
-        
+
+
 
         allocate(GridBorder%Polygon_)
         allocate(GridBorder%Polygon_%VerticesF(1:Nvert))
@@ -4708,13 +5093,13 @@ Inp:    if (Me%CornersXYInput) then
         if (Outer_) then
             di = 0
         else
-            di = 1                
+            di = 1
         endif
-        
-        if      (GridBorder%Type_ == ComplexPolygon_) then 
+
+        if      (GridBorder%Type_ == ComplexPolygon_) then
 
             GridBorder%Polygon_%Count = 0
-            
+
             !West boundary
             do i = ILB + di, IUB-di
                 GridBorder%Polygon_%Count = GridBorder%Polygon_%Count + 1
@@ -4744,9 +5129,9 @@ Inp:    if (Me%CornersXYInput) then
                 GridBorder%Polygon_%VerticesF(GridBorder%Polygon_%Count)%Y = YY2D(ILB+di, j)
             enddo
 
-!        else if (GridBorder%Type_ == RotatedRectang_) then 
-            
-        else    
+!        else if (GridBorder%Type_ == RotatedRectang_) then
+
+        else
 
             GridBorder%Polygon_%Count = Nvert
 
@@ -4762,10 +5147,10 @@ Inp:    if (Me%CornersXYInput) then
 
             GridBorder%Polygon_%VerticesF(4)%X = XX2D(IUB+1-di,   JLB+di)
             GridBorder%Polygon_%VerticesF(4)%Y = YY2D(IUB+1-di,   JLB+di)
-            
-            !Last vertex equal to first 
+
+            !Last vertex equal to first
             GridBorder%Polygon_%VerticesF(5)   = GridBorder%Polygon_%VerticesF(1)
-            
+
         endif
 
         call SetLimits(GridBorder%Polygon_)
@@ -4792,14 +5177,14 @@ Inp:    if (Me%CornersXYInput) then
     !    AIRES: 30/6/1977                                                  *
     !    Pedro Montero 20/11/97   Se pasan las variables por argumentos    *
     !***********************************************************************
-    
+
     subroutine ConvertCoordenates(XX, YY, XORIG, YORIG, IZONE1, DLZONE)
 
         !Arguments-------------------------------------------------------------
-        real, dimension(:), pointer         :: XX, YY  
+        real, dimension(:), pointer         :: XX, YY
         real                                :: XORIG, YORIG
         integer, dimension(:), pointer      :: IZONE1
-        real(8), dimension(:), pointer      :: DLZONE  
+        real(8), dimension(:), pointer      :: DLZONE
 
         !Local-----------------------------------------------------------------
 
@@ -4807,7 +5192,7 @@ Inp:    if (Me%CornersXYInput) then
         integer :: ILB, IUB, JLB, JUB
         integer :: IZONE_ORIG
 
-        real    :: radians, DB_LAT, DB_LONG, DB_LONG_ORIG 
+        real    :: radians, DB_LAT, DB_LONG, DB_LONG_ORIG
 
         !----------------------------------------------------------------------
 
@@ -4817,7 +5202,7 @@ Inp:    if (Me%CornersXYInput) then
 
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
-        
+
         radians = 180.0 / PI
 
 do1:    do i = ILB, IUB+1
@@ -4833,11 +5218,11 @@ do2:        do j = JLB+1, JUB+1
             enddo do2
         enddo do1
 
-    !-------------------------------------------------------------------------- 
+    !--------------------------------------------------------------------------
 
     end subroutine ConvertCoordenates
 
-    !--------------------------------------------------------------------------    
+    !--------------------------------------------------------------------------
 
     subroutine GridPointsLocation1D
 
@@ -4860,8 +5245,8 @@ do2:        do j = JLB+1, JUB+1
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
 
-        XX        => Me%XX 
-        YY        => Me%YY 
+        XX        => Me%XX
+        YY        => Me%YY
         XX_Z      => Me%Compute%XX_Z
         YY_Z      => Me%Compute%YY_Z
         XX_U      => Me%Compute%XX_U
@@ -4884,7 +5269,7 @@ do1 :   do j = JLB, JUB
 do2 :   do i = ILB, IUB
 
             YY_Z(I) = (YY(I) + YY(I+1)) / 2.
-            
+
             YY_U(I) = YY_Z(I)
 
         end do do2
@@ -4893,7 +5278,7 @@ do3 :   do j = JLB, JUB + 1
 
             XX_U(J)     = XX(J)
 
-            XX_Cross(J) = XX(J) 
+            XX_Cross(J) = XX(J)
 
         end do do3
 
@@ -4901,7 +5286,7 @@ do4 :   do i = ILB, IUB + 1
 
             YY_V    (I) = YY(I)
 
-            YY_Cross(I) = YY(I) 
+            YY_Cross(I) = YY(I)
 
         end do do4
 
@@ -4945,15 +5330,15 @@ do4 :   do i = ILB, IUB + 1
 
 
 
-        if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then 
+        if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then
 
             XX        => Me%LongitudeConn
             YY        => Me%LatitudeConn
 
         else
-            
-            XX        => Me%XX_IE 
-            YY        => Me%YY_IE 
+
+            XX        => Me%XX_IE
+            YY        => Me%YY_IE
 
         endif
 
@@ -5026,7 +5411,7 @@ do8:   do i = ILB, IUB + 1
 
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
-         
+
 
 cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXYInput) then
 
@@ -5051,7 +5436,7 @@ cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXY
                            dble(Me%XX_IE(i, j)))**2. +    &
                           (dble(Me%YY_IE(i+1, j))    -    &
                            dble(Me%YY_IE(i, j)))**2. )
-                           
+
                 Me%DYY(i, j) = real (AuxDble)
             enddo
             enddo
@@ -5068,13 +5453,13 @@ cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXY
 
             !DYY
             do j = JLB, JUB + 1
-            do i = ILB, IUB 
+            do i = ILB, IUB
                 Me%DYY(i, j) = Me%YY_IE(i+1, j  ) -    &
                                               Me%YY_IE(i  , j  )
             enddo
             enddo
 
-        
+
         endif cd1
 
         !DUX, DVY
@@ -5086,7 +5471,7 @@ cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXY
                                            Me%DYY(i, j+1)) / 2.
         enddo
         enddo
-    
+
         !DVX
         do j = JLB, JUB - 1
         do i = ILB, IUB + 1
@@ -5108,7 +5493,7 @@ cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXY
         do i = ILB, IUB - 1
             Me%DUY(i, j) = (Me%DYY(i, j) +       &
                                            Me%DYY(i+1, j)) / 2.
-            
+
         enddo
         enddo
 
@@ -5126,7 +5511,7 @@ cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXY
         else
 
             Me%XX_AlongGrid(ILB:IUB+1, JLB)  = 0.
-        
+
             do j = JLB, JUB
             do i = ILB, IUB + 1
                 Me%XX_AlongGrid(i, j+1) = Me%XX_AlongGrid(i, j) + Me%DXX(i, j)
@@ -5140,7 +5525,7 @@ cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXY
         else
 
             Me%YY_AlongGrid(ILB, JLB:JUB+1)  = 0.
-        
+
             do j = JLB, JUB + 1
             do i = ILB, IUB
                 Me%YY_AlongGrid(i+1, j) = Me%YY_AlongGrid(i, j) + Me%DYY(i, j)
@@ -5170,7 +5555,7 @@ cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXY
 
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
-         
+
 
 cd1:    if (Me%CornersXYInput .or. Me%CoordType == CIRCULAR_) then
 
@@ -5211,7 +5596,7 @@ cd1:    if (Me%CornersXYInput .or. Me%CoordType == CIRCULAR_) then
 
     end subroutine ComputeRotation
 
-    !--------------------------------------------------------------------------    
+    !--------------------------------------------------------------------------
 
     subroutine ComputeGridCellArea
 
@@ -5220,7 +5605,7 @@ cd1:    if (Me%CornersXYInput .or. Me%CoordType == CIRCULAR_) then
         !Local-----------------------------------------------------------------
         integer                             :: ILB, IUB, JLB, JUB
         integer                             :: i, j
-       
+
         !Worksize
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -5235,11 +5620,11 @@ cd1:    if (Me%CornersXYInput .or. Me%CoordType == CIRCULAR_) then
 
         enddo
         enddo
-        
+
 
     end subroutine ComputeGridCellArea
 
-    !--------------------------------------------------------------------------    
+    !--------------------------------------------------------------------------
 
     subroutine ComputeCoriolis
 
@@ -5290,43 +5675,43 @@ cd1:    if (Me%CornersXYInput .or. Me%CoordType == CIRCULAR_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             ILB = Me%WorkSize%ILB
             IUB = Me%WorkSize%IUB
 
             JLB = Me%WorkSize%JLB
-            JUB = Me%WorkSize%JUB        
+            JUB = Me%WorkSize%JUB
 
             if (Me%CornersXYInput) then
-            
+
                 ic = int((IUB - ILB + 2)/2.)
-                jc = int((JUB - JLB + 2)/2.)   
-                
+                jc = int((JUB - JLB + 2)/2.)
+
                 TranslationX = Xcenter - Me%XX_IE(ic,jc)
-                TranslationY = Ycenter - Me%YY_IE(ic,jc)                
-                
-                Me%XX_IE(:,:) = Me%XX_IE(:,:) + TranslationX            
+                TranslationY = Ycenter - Me%YY_IE(ic,jc)
+
+                Me%XX_IE(:,:) = Me%XX_IE(:,:) + TranslationX
                 Me%YY_IE(:,:) = Me%YY_IE(:,:) + TranslationY
-                                
+
             else
                 DX = Me%XX(JUB+1) - Me%XX(JLB)
                 DY = Me%YY(IUB+1) - Me%YY(ILB)
-                                
+
                 TranslationX = Xcenter - Me%Xorig - 0.5*DX
-                TranslationY = Ycenter - Me%Yorig - 0.5*DY                
-                
-                Me%Xorig = Me%Xorig + TranslationX            
+                TranslationY = Ycenter - Me%Yorig - 0.5*DY
+
+                Me%Xorig = Me%Xorig + TranslationX
                 Me%Yorig = Me%Yorig + TranslationY
-                
-            endif                    
-            
+
+            endif
+
             call GenerateGrid
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -5338,8 +5723,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     end subroutine ReCenterHorizontalGrid
 
     !--------------------------------------------------------------------------
-    
-#ifdef _USE_MPI    
+
+#ifdef _USE_MPI
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -5353,7 +5738,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     subroutine JoinGridData_1D(HorizontalGridID, In1D, Out1D, Type1DIJ, dj, di, STAT)
-   
+
 
         !Arguments------------------------------------------------------------
         integer                                     :: HorizontalGridID
@@ -5365,23 +5750,23 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         !Local---------------------------------------------------------------
         integer                                     :: di_, dj_
-        integer                                     :: STAT_, ready_        
-        
+        integer                                     :: STAT_, ready_
+
         !Begin---------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-        
+
             if (present(di     )) then
                 di_ = di
             else
                 di_ = 0
             endif
-            
+
             if (present(dj     )) then
                 dj_ = dj
             else
@@ -5389,21 +5774,21 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             endif
 
             call JoinGridData_In(In1D, Out1D, Type1DIJ, dj_, di_)
-            
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
 
-        if (present(STAT)) STAT = STAT_            
+        if (present(STAT)) STAT = STAT_
 
-    end subroutine JoinGridData_1D         
+    end subroutine JoinGridData_1D
 
     !-----------------------------------------------------------------------------------
 
     subroutine JoinGridData_1D_In(In1D, Out1D, Type1DIJ, dj_, di_)
-   
+
 
         !Arguments------------------------------------------------------------
         real,   dimension(:), pointer               :: In1D
@@ -5414,26 +5799,26 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         !Local---------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB, imin, imax, i
-        
-        integer                                     :: Source, Destination         
+
+        integer                                     :: Source, Destination
         integer                                     :: iSize
         integer, save                               :: Precision
-        integer                                     :: status(MPI_STATUS_SIZE)       
-        
+        integer                                     :: status(MPI_STATUS_SIZE)
+
         type(T_Size2D)                              :: Inner, Mapping
-        
+
         !Begin---------------------------------------------------------------
 
-        
+
         IUB     = Me%DDecomp%Global%IUB
-        ILB     = Me%DDecomp%Global%ILB 
+        ILB     = Me%DDecomp%Global%ILB
         JUB     = Me%DDecomp%Global%JUB
         JLB     = Me%DDecomp%Global%JLB
-        
+
         if (Type1DIJ /= Type1DI .and. Type1DIJ /= Type1DJ) then
             stop 'JoinGridData_1D - ModuleHorizontalGrid - ERR10'
-        endif                        
-        
+        endif
+
         if (Me%DDecomp%Master) then
 
             Inner   = Me%DDecomp%Inner
@@ -5443,64 +5828,64 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             if (Type1DIJ == Type1DI) then
                 if (.not. associated(Out1D)) allocate(Out1D(ILB:IUB+di_))
                 Out1D(Mapping%ILB:Mapping%IUB+di_) = In1D(Inner%ILB:Inner%IUB+di_)
-            endif                    
+            endif
             if (Type1DIJ == Type1DJ) then
                 if (.not. associated(Out1D)) allocate(Out1D(JLB:JUB+dj_))
                 Out1D(Mapping%JLB:Mapping%JUB+dj_) = In1D(Inner%JLB:Inner%JUB+dj_)
-            endif                    
-            
+            endif
+
             !Receive from slaves (input) to Global (output)
-            do i=1, Me%DDecomp%Nslaves            
-            
-                Mapping = Me%DDecomp%Slaves_Mapping(i)                
-                
+            do i=1, Me%DDecomp%Nslaves
+
+                Mapping = Me%DDecomp%Slaves_Mapping(i)
+
                 if     (Type1DIJ == Type1DI) then
                     imin      = Mapping%ILB
-                    imax      = Mapping%IUB + di_                        
-                elseif (Type1DIJ == Type1DJ) then          
+                    imax      = Mapping%IUB + di_
+                elseif (Type1DIJ == Type1DJ) then
                     imin      = Mapping%JLB
-                    imax      = Mapping%JUB + dj_                                               
+                    imax      = Mapping%JUB + dj_
                 endif
-                
-                iSize     = (imax-imin+1)    
-                
+
+                iSize     = (imax-imin+1)
+
                 Precision = MPIKind(In1D)
-                
+
                 Source    = Me%DDecomp%Slaves_MPI_ID(i)
-                
+
                 call MPI_Recv (Out1D(imin:imax), iSize, Precision, Source, 9001, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_1D_In - ModuleHorizontalGrid - ERR40'
-                
+
             enddo
-            
+
         else
 
             Inner       = Me%DDecomp%Inner
-            
+
             if     (Type1DIJ == Type1DI) then
                 imin      = Inner%ILB
                 imax      = Inner%IUB + di_
-            elseif (Type1DIJ == Type1DJ) then          
+            elseif (Type1DIJ == Type1DJ) then
                 imin      = Inner%JLB
-                imax      = Inner%JUB + dj_               
-            endif              
-            
-            iSize     = (imax-imin+1)    
-            
+                imax      = Inner%JUB + dj_
+            endif
+
+            iSize     = (imax-imin+1)
+
             Precision   = MPIKind(In1D)
-            
+
             Destination = Me%DDecomp%Master_MPI_ID
-            
+
             call MPI_Send (In1D(imin:imax), iSize, Precision, Destination, 9001, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_1D_In - ModuleHorizontalGrid - ERR50'
-            
-        endif
-        
 
-    end subroutine JoinGridData_1D_In       
-    
-    !-----------------------------------------------------------------------------------  
-    
+        endif
+
+
+    end subroutine JoinGridData_1D_In
+
+    !-----------------------------------------------------------------------------------
+
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -5514,7 +5899,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     subroutine JoinGridData_2D_R4(HorizontalGridID, In2D, Out2D, dj, di, STAT)
-   
+
 
         !Arguments------------------------------------------------------------
         integer                                     :: HorizontalGridID
@@ -5525,46 +5910,46 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Local---------------------------------------------------------------
         integer                                     :: di_, dj_
-        integer                                     :: STAT_, ready_        
-        
+        integer                                     :: STAT_, ready_
+
         !Begin---------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-        
+
             if (present(di     )) then
                 di_ = di
             else
                 di_ = 0
             endif
-            
+
             if (present(dj     )) then
                 dj_ = dj
             else
                 dj_ = 0
             endif
-            
+
             call JoinGridData_In(In2D, Out2D, dj_, di_)
- 
-            
+
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
 
-        if (present(STAT)) STAT = STAT_            
+        if (present(STAT)) STAT = STAT_
 
     end subroutine JoinGridData_2D_R4
 
     !-----------------------------------------------------------------------------------
 
     subroutine JoinGridData_2D_R4_In(In2D, Out2D, dj_, di_)
-   
+
 
         !Arguments------------------------------------------------------------
         real(4),dimension(:,:), pointer             :: In2D
@@ -5574,77 +5959,77 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB
         integer                                     :: imin, imax, jmin, jmax
-        
-        integer                                     :: Source, Destination         
+
+        integer                                     :: Source, Destination
         integer                                     :: iSize, i
         integer, save                               :: Precision
-        integer                                     :: status(MPI_STATUS_SIZE)       
-        
+        integer                                     :: status(MPI_STATUS_SIZE)
+
         type(T_Size2D)                              :: Inner, Mapping
 
         !Begin---------------------------------------------------------------
-            
+
         IUB     = Me%DDecomp%Global%IUB
-        ILB     = Me%DDecomp%Global%ILB 
+        ILB     = Me%DDecomp%Global%ILB
         JUB     = Me%DDecomp%Global%JUB
         JLB     = Me%DDecomp%Global%JLB
-        
+
         if (Me%DDecomp%Master) then
 
             !Copy form Master (input) to Global (output)
             Inner   = Me%DDecomp%Inner
-            Mapping = Me%DDecomp%Mapping                
-            
+            Mapping = Me%DDecomp%Mapping
+
             if (.not. associated(Out2D)) allocate(Out2D(ILB:IUB+di_,JLB:JUB+dj_))
 
             Out2D(Mapping%ILB:Mapping%IUB+di_,Mapping%JLB:Mapping%JUB+dj_) =        &
             In2D (  Inner%ILB:  Inner%IUB+di_,  Inner%JLB:  Inner%JUB+dj_)
-            
-            
+
+
             !Receive from slaves (input) to Global (output)
-            do i=1, Me%DDecomp%Nslaves            
-            
-                Mapping   = Me%DDecomp%Slaves_Mapping(i)   
-                
+            do i=1, Me%DDecomp%Nslaves
+
+                Mapping   = Me%DDecomp%Slaves_Mapping(i)
+
                 imax      = Mapping%IUB+di_
                 imin      = Mapping%ILB
                 jmax      = Mapping%JUB+dj_
                 jmin      = Mapping%JLB
-                
+
                 iSize     = (imax-imin+1)*(jmax-jmin+1)
 
                 Precision = MPI_REAL
-                
+
                 Source    =  Me%DDecomp%Slaves_MPI_ID(i)
-                
+
                 !Receive from sub-domanins to global output
                 call MPI_Recv (Out2D(imin:imax,jmin:jmax),                          &
                                iSize, Precision, Source, 9002, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_2D_R4_In - ModuleHorizontalGrid - ERR40'
 
             enddo
-            
+
         else
 
             Inner       = Me%DDecomp%Inner
-                    
+
             imax        = Inner%IUB+di_
             imin        = Inner%ILB
             jmax        = Inner%JUB+dj_
             jmin        = Inner%JLB
-            
-            iSize       = (imax-imin+1)*(jmax-jmin+1)                
-            
+
+            iSize       = (imax-imin+1)*(jmax-jmin+1)
+
             Precision   = MPI_REAL
-                                                      
+
             Destination = Me%DDecomp%Master_MPI_ID
-            
+
             call MPI_Send (In2D(imin:imax,jmin:jmax), iSize, Precision,             &
                            Destination, 9002, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_2D - ModuleHorizontalGrid - ERR50'
-            
+
         endif
-        
+
 
     end subroutine JoinGridData_2D_R4_In
 
@@ -5660,7 +6045,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     subroutine JoinGridData_2D_R8(HorizontalGridID, In2D, Out2D, dj, di, STAT)
-   
+
 
         !Arguments------------------------------------------------------------
         integer                                     :: HorizontalGridID
@@ -5671,46 +6056,46 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Local---------------------------------------------------------------
         integer                                     :: di_, dj_
-        integer                                     :: STAT_, ready_        
-        
+        integer                                     :: STAT_, ready_
+
         !Begin---------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-        
+
             if (present(di     )) then
                 di_ = di
             else
                 di_ = 0
             endif
-            
+
             if (present(dj     )) then
                 dj_ = dj
             else
                 dj_ = 0
             endif
-            
+
             call JoinGridData_In(In2D, Out2D, dj_, di_)
- 
-            
+
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
 
-        if (present(STAT)) STAT = STAT_            
+        if (present(STAT)) STAT = STAT_
 
     end subroutine JoinGridData_2D_R8
 
     !-----------------------------------------------------------------------------------
 
     subroutine JoinGridData_2D_R8_In(In2D, Out2D, dj_, di_)
-   
+
 
         !Arguments------------------------------------------------------------
         real(8),dimension(:,:), pointer             :: In2D
@@ -5720,80 +6105,80 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB
         integer                                     :: imin, imax, jmin, jmax
-        
-        integer                                     :: Source, Destination         
+
+        integer                                     :: Source, Destination
         integer                                     :: iSize, i
         integer, save                               :: Precision
-        integer                                     :: status(MPI_STATUS_SIZE)       
-        
+        integer                                     :: status(MPI_STATUS_SIZE)
+
         type(T_Size2D)                              :: Inner, Mapping
 
         !Begin---------------------------------------------------------------
-            
+
         IUB     = Me%DDecomp%Global%IUB
-        ILB     = Me%DDecomp%Global%ILB 
+        ILB     = Me%DDecomp%Global%ILB
         JUB     = Me%DDecomp%Global%JUB
         JLB     = Me%DDecomp%Global%JLB
-        
+
         if (Me%DDecomp%Master) then
 
             !Copy form Master (input) to Global (output)
             Inner   = Me%DDecomp%Inner
-            Mapping = Me%DDecomp%Mapping                
-            
+            Mapping = Me%DDecomp%Mapping
+
             if (.not. associated(Out2D)) allocate(Out2D(ILB:IUB+di_,JLB:JUB+dj_))
 
             Out2D(Mapping%ILB:Mapping%IUB+di_,Mapping%JLB:Mapping%JUB+dj_) =        &
             In2D (  Inner%ILB:  Inner%IUB+di_,  Inner%JLB:  Inner%JUB+dj_)
-            
-            
+
+
             !Receive from slaves (input) to Global (output)
-            do i=1, Me%DDecomp%Nslaves            
-            
-                Mapping   = Me%DDecomp%Slaves_Mapping(i)   
-                
+            do i=1, Me%DDecomp%Nslaves
+
+                Mapping   = Me%DDecomp%Slaves_Mapping(i)
+
                 imax      = Mapping%IUB+di_
                 imin      = Mapping%ILB
                 jmax      = Mapping%JUB+dj_
                 jmin      = Mapping%JLB
-                
+
                 iSize     = (imax-imin+1)*(jmax-jmin+1)
 
                 Precision = MPI_DOUBLE_PRECISION
-                
+
                 Source    =  Me%DDecomp%Slaves_MPI_ID(i)
-                
+
                 !Receive from sub-domanins to global output
                 call MPI_Recv (Out2D(imin:imax,jmin:jmax),                          &
                                iSize, Precision, Source, 9003, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_2D_R8_In - ModuleHorizontalGrid - ERR40'
 
             enddo
-            
+
         else
 
             Inner       = Me%DDecomp%Inner
-                    
+
             imax        = Inner%IUB+di_
             imin        = Inner%ILB
             jmax        = Inner%JUB+dj_
             jmin        = Inner%JLB
-            
-            iSize       = (imax-imin+1)*(jmax-jmin+1)                
-            
+
+            iSize       = (imax-imin+1)*(jmax-jmin+1)
+
             Precision   = MPI_DOUBLE_PRECISION
-                                                      
+
             Destination = Me%DDecomp%Master_MPI_ID
-            
+
             call MPI_Send (In2D(imin:imax,jmin:jmax), iSize, Precision,             &
                            Destination, 9003, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_2D_R8_In - ModuleHorizontalGrid - ERR50'
-            
+
         endif
-        
+
 
     end subroutine JoinGridData_2D_R8_In
-    
+
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -5807,7 +6192,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     subroutine JoinGridData_2Dint(HorizontalGridID, In2D, Out2D, dj, di, STAT)
-   
+
 
         !Arguments------------------------------------------------------------
         integer                                     :: HorizontalGridID
@@ -5818,45 +6203,45 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Local---------------------------------------------------------------
         integer                                 :: di_, dj_
-        integer                                 :: STAT_, ready_        
-        
+        integer                                 :: STAT_, ready_
+
         !Begin---------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-       
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-                    
+
             if (present(di     )) then
                 di_ = di
             else
                 di_ = 0
             endif
-            
+
             if (present(dj     )) then
                 dj_ = dj
             else
                 dj_ = 0
             endif
-            
+
             call JoinGridData_In(In2D, Out2D, dj_, di_)
-            
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
 
-        if (present(STAT)) STAT = STAT_            
+        if (present(STAT)) STAT = STAT_
 
-    end subroutine JoinGridData_2Dint         
-    
+    end subroutine JoinGridData_2Dint
+
     !-----------------------------------------------------------------------------------
-    
+
     subroutine JoinGridData_2Dint_In(In2D, Out2D, dj_, di_)
-   
+
 
         !Arguments------------------------------------------------------------
         integer,dimension(:,:), pointer         :: In2D
@@ -5866,22 +6251,22 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         !Local---------------------------------------------------------------
         integer                                 :: STAT_CALL
         integer                                 :: ILB, IUB, JLB, JUB
-        integer                                 :: imin, imax, jmin, jmax, i        
-        
-        integer                                 :: Source, Destination         
+        integer                                 :: imin, imax, jmin, jmax, i
+
+        integer                                 :: Source, Destination
         integer                                 :: iSize
         integer, save                           :: Precision
-        integer                                 :: status(MPI_STATUS_SIZE)       
-        
+        integer                                 :: status(MPI_STATUS_SIZE)
+
         type(T_Size2D)                          :: Inner, Mapping
-        
+
         !Begin---------------------------------------------------------------
-           
+
         IUB     = Me%DDecomp%Global%IUB
-        ILB     = Me%DDecomp%Global%ILB 
+        ILB     = Me%DDecomp%Global%ILB
         JUB     = Me%DDecomp%Global%JUB
         JLB     = Me%DDecomp%Global%JLB
-        
+
         if (Me%DDecomp%Master) then
 
             Inner   = Me%DDecomp%Inner
@@ -5892,54 +6277,54 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
             Out2D(Mapping%ILB:Mapping%IUB+di_,Mapping%JLB:Mapping%JUB+dj_) =        &
             In2D (  Inner%ILB:  Inner%IUB+di_,  Inner%JLB:  Inner%JUB+dj_)
-            
+
             !Receive from slaves (input) to Global (output)
-            do i=1, Me%DDecomp%Nslaves            
-            
-                Mapping   = Me%DDecomp%Slaves_Mapping(i)   
-                
+            do i=1, Me%DDecomp%Nslaves
+
+                Mapping   = Me%DDecomp%Slaves_Mapping(i)
+
                 imax      = Mapping%IUB+di_
                 imin      = Mapping%ILB
                 jmax      = Mapping%JUB+dj_
                 jmin      = Mapping%JLB
-                
+
                 iSize     = (imax-imin+1)*(jmax-jmin+1)
 
                 Precision = MPI_INTEGER
-                
+
                 Source    =  Me%DDecomp%Slaves_MPI_ID(i)
-                
+
                 !Receive from sub-domanins to global output
                 call MPI_Recv (Out2D(imin:imax,jmin:jmax),                          &
                                iSize, Precision, Source, 9004, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_2Dint_In - ModuleHorizontalGrid - ERR40'
 
             enddo
-            
+
         else
 
             Inner       = Me%DDecomp%Inner
-                    
+
             imax        = Inner%IUB+di_
             imin        = Inner%ILB
             jmax        = Inner%JUB+dj_
             jmin        = Inner%JLB
-            
-            iSize       = (imax-imin+1)*(jmax-jmin+1)                
-            
+
+            iSize       = (imax-imin+1)*(jmax-jmin+1)
+
             Precision   = MPI_INTEGER
-                                                      
+
             Destination = Me%DDecomp%Master_MPI_ID
-            
+
             call MPI_Send (In2D(imin:imax,jmin:jmax), iSize, Precision,             &
                            Destination, 9004, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_2Dint_In - ModuleHorizontalGrid - ERR50'
-            
-        endif
-        
 
-    end subroutine JoinGridData_2Dint_In         
-    
+        endif
+
+
+    end subroutine JoinGridData_2Dint_In
+
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -5953,7 +6338,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     subroutine JoinGridData_3D_R4(HorizontalGridID, In3D, Out3D, KLB, KUB, dj, di, STAT)
-   
+
 
         !Arguments------------------------------------------------------------
         integer                                     :: HorizontalGridID
@@ -5962,18 +6347,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer                                     :: KLB, KUB
         integer                 , optional          :: di, dj
         integer                 , optional          :: STAT
-                
+
 
         !Local---------------------------------------------------------------
         integer                                     :: di_, dj_
-        integer                                     :: STAT_, ready_        
-        
+        integer                                     :: STAT_, ready_
+
         !Begin---------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -5982,57 +6367,57 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             else
                 di_ = 0
             endif
-            
+
             if (present(dj     )) then
                 dj_ = dj
             else
                 dj_ = 0
             endif
-            
+
             call JoinGridData_In(In3D, Out3D, KLB, KUB, dj_, di_)
-            
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
 
-        if (present(STAT)) STAT = STAT_            
+        if (present(STAT)) STAT = STAT_
 
 
     end subroutine JoinGridData_3D_R4
 
     !-----------------------------------------------------------------------------------
-    
-    
+
+
     subroutine JoinGridData_3D_R4_In(In3D, Out3D, KLB, KUB, dj_, di_)
-   
+
 
         !Arguments------------------------------------------------------------
         real(4),dimension(:,:,:), pointer           :: In3D
         real(4),dimension(:,:,:), pointer           :: Out3D
         integer                                     :: KLB, KUB
         integer                                     :: di_, dj_
-                
+
 
         !Local---------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB
-        integer                                     :: imin, imax, jmin, jmax, i        
-        integer                                     :: Source, Destination         
+        integer                                     :: imin, imax, jmin, jmax, i
+        integer                                     :: Source, Destination
         integer                                     :: iSize
         integer, save                               :: Precision
-        integer                                     :: status(MPI_STATUS_SIZE)       
-        
+        integer                                     :: status(MPI_STATUS_SIZE)
+
         type(T_Size2D)                              :: Inner, Mapping
-        
+
         !Begin---------------------------------------------------------------
 
         IUB     = Me%DDecomp%Global%IUB
-        ILB     = Me%DDecomp%Global%ILB 
+        ILB     = Me%DDecomp%Global%ILB
         JUB     = Me%DDecomp%Global%JUB
         JLB     = Me%DDecomp%Global%JLB
-        
+
         if (Me%DDecomp%Master) then
 
             Inner   = Me%DDecomp%Inner
@@ -6043,58 +6428,58 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
             Out3D(Mapping%ILB:Mapping%IUB+di_,Mapping%JLB:Mapping%JUB+dj_,KLB:KUB) =        &
             In3D (  Inner%ILB:  Inner%IUB+di_,  Inner%JLB:  Inner%JUB+dj_,KLB:KUB)
-            
+
             !Receive from slaves (input) to Global (output)
-            do i=1, Me%DDecomp%Nslaves            
-            
-                Mapping   = Me%DDecomp%Slaves_Mapping(i)   
-                
+            do i=1, Me%DDecomp%Nslaves
+
+                Mapping   = Me%DDecomp%Slaves_Mapping(i)
+
                 imax      = Mapping%IUB+di_
                 imin      = Mapping%ILB
                 jmax      = Mapping%JUB+dj_
                 jmin      = Mapping%JLB
-                
+
                 iSize     = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)
 
                 Precision = MPI_REAL
-                
+
                 Source    =  Me%DDecomp%Slaves_MPI_ID(i)
-                
+
                 !Receive from sub-domanins to global output
                 call MPI_Recv (Out3D(imin:imax,jmin:jmax,KLB:KUB),                  &
                                iSize, Precision, Source, 9005, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_3D_R4_In - ModuleHorizontalGrid - ERR40'
 
             enddo
-            
+
         else
 
             Inner       = Me%DDecomp%Inner
-                    
+
             imax        = Inner%IUB+di_
             imin        = Inner%ILB
             jmax        = Inner%JUB+dj_
             jmin        = Inner%JLB
-            
-            iSize       = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)                
-            
+
+            iSize       = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)
+
             Precision   = MPI_REAL
-                                                      
+
             Destination = Me%DDecomp%Master_MPI_ID
-            
+
             call MPI_Send (In3D(imin:imax,jmin:jmax,KLB:KUB), iSize, Precision,             &
                            Destination, 9005, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_3D_R4_In - ModuleHorizontalGrid - ERR50'
-            
+
         endif
-            
+
 
     end subroutine JoinGridData_3D_R4_In
 
     !-----------------------------------------------------------------------------------
 
     subroutine JoinGridData_3D_R8(HorizontalGridID, In3D, Out3D, KLB, KUB, dj, di, STAT)
-   
+
 
         !Arguments------------------------------------------------------------
         integer                                     :: HorizontalGridID
@@ -6103,18 +6488,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer                                     :: KLB, KUB
         integer                 , optional          :: di, dj
         integer                 , optional          :: STAT
-                
+
 
         !Local---------------------------------------------------------------
         integer                                     :: di_, dj_
-        integer                                     :: STAT_, ready_        
-        
+        integer                                     :: STAT_, ready_
+
         !Begin---------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -6123,58 +6508,58 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             else
                 di_ = 0
             endif
-            
+
             if (present(dj     )) then
                 dj_ = dj
             else
                 dj_ = 0
             endif
-            
+
             call JoinGridData_In(In3D, Out3D, KLB, KUB, dj_, di_)
-            
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
 
-        if (present(STAT)) STAT = STAT_            
+        if (present(STAT)) STAT = STAT_
 
 
     end subroutine JoinGridData_3D_R8
 
     !-----------------------------------------------------------------------------------
-    
-    
+
+
     subroutine JoinGridData_3D_R8_In(In3D, Out3D, KLB, KUB, dj_, di_)
-   
+
 
         !Arguments------------------------------------------------------------
         real(8),dimension(:,:,:), pointer           :: In3D
         real(8),dimension(:,:,:), pointer           :: Out3D
         integer                                     :: KLB, KUB
         integer                                     :: di_, dj_
-                
+
 
         !Local---------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB
-        integer                                     :: imin, imax, jmin, jmax, i        
-        integer                                     :: Source, Destination         
+        integer                                     :: imin, imax, jmin, jmax, i
+        integer                                     :: Source, Destination
         integer                                     :: iSize
         integer, save                               :: Precision
-        integer                                     :: status(MPI_STATUS_SIZE)       
-        
+        integer                                     :: status(MPI_STATUS_SIZE)
+
         type(T_Size2D)                              :: Inner, Mapping
-        
+
         !Begin---------------------------------------------------------------
 
 
         IUB     = Me%DDecomp%Global%IUB
-        ILB     = Me%DDecomp%Global%ILB 
+        ILB     = Me%DDecomp%Global%ILB
         JUB     = Me%DDecomp%Global%JUB
         JLB     = Me%DDecomp%Global%JLB
-        
+
         if (Me%DDecomp%Master) then
 
             Inner   = Me%DDecomp%Inner
@@ -6185,56 +6570,56 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
             Out3D(Mapping%ILB:Mapping%IUB+di_,Mapping%JLB:Mapping%JUB+dj_,KLB:KUB) =        &
             In3D (  Inner%ILB:  Inner%IUB+di_,  Inner%JLB:  Inner%JUB+dj_,KLB:KUB)
-            
+
             !Receive from slaves (input) to Global (output)
-            do i=1, Me%DDecomp%Nslaves            
-            
-                Mapping   = Me%DDecomp%Slaves_Mapping(i)   
-                
+            do i=1, Me%DDecomp%Nslaves
+
+                Mapping   = Me%DDecomp%Slaves_Mapping(i)
+
                 imax      = Mapping%IUB+di_
                 imin      = Mapping%ILB
                 jmax      = Mapping%JUB+dj_
                 jmin      = Mapping%JLB
-                
+
                 iSize     = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)
 
                 Precision = MPI_DOUBLE_PRECISION
-                
+
                 Source    =  Me%DDecomp%Slaves_MPI_ID(i)
-                
+
                 !Receive from sub-domanins to global output
                 call MPI_Recv (Out3D(imin:imax,jmin:jmax,KLB:KUB),                  &
                                iSize, Precision, Source, 9006, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_3D_R8_In - ModuleHorizontalGrid - ERR40'
 
             enddo
-            
+
         else
 
             Inner       = Me%DDecomp%Inner
-                    
+
             imax        = Inner%IUB+di_
             imin        = Inner%ILB
             jmax        = Inner%JUB+dj_
             jmin        = Inner%JLB
-            
-            iSize       = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)                
-            
+
+            iSize       = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)
+
             Precision   = MPI_DOUBLE_PRECISION
-                                                      
+
             Destination = Me%DDecomp%Master_MPI_ID
-            
+
             call MPI_Send (In3D(imin:imax,jmin:jmax,KLB:KUB), iSize, Precision,             &
                            Destination, 9006, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_3D_R8_In - ModuleHorizontalGrid - ERR50'
-            
+
         endif
-        
+
 
     end subroutine JoinGridData_3D_R8_In
 
     !-----------------------------------------------------------------------------------
-    
+
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
     ! When using a domain decomposition approach this subroutine aggregates in one global  !
@@ -6247,7 +6632,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     subroutine JoinGridData_3Dint(HorizontalGridID, In3D, Out3D, KLB, KUB, dj, di, STAT)
-   
+
 
         !Arguments------------------------------------------------------------
         integer                                         :: HorizontalGridID
@@ -6255,19 +6640,19 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer, dimension(:,:,:), pointer              :: Out3D
         integer                                         :: KLB, KUB
         integer                  , optional             :: di, dj
-        integer                  , optional             :: STAT        
+        integer                  , optional             :: STAT
 
         !Local---------------------------------------------------------------
 
         integer                                         :: di_, dj_
-        integer                                         :: STAT_, ready_        
-        
+        integer                                         :: STAT_, ready_
+
         !Begin---------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-       
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -6276,29 +6661,29 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             else
                 di_ = 0
             endif
-            
+
             if (present(dj     )) then
                 dj_ = dj
             else
                 dj_ = 0
             endif
-            
+
             call JoinGridData_In(In3D, Out3D, KLB, KUB, dj_, di_)
-            
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
 
-        if (present(STAT)) STAT = STAT_            
+        if (present(STAT)) STAT = STAT_
 
     end subroutine JoinGridData_3Dint
 
     !------------------------------------------------------------------------------
 
     subroutine JoinGridData_3Dint_In(In3D, Out3D, KLB, KUB, dj_, di_)
-   
+
 
         !Arguments------------------------------------------------------------
         integer, dimension(:,:,:), pointer              :: In3D
@@ -6310,23 +6695,23 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer                                         :: STAT_CALL
         integer                                         :: ILB, IUB, JLB, JUB
 
-        integer                                         :: imin, imax, jmin, jmax, i        
-        
-        integer                                         :: Source, Destination         
+        integer                                         :: imin, imax, jmin, jmax, i
+
+        integer                                         :: Source, Destination
         integer                                         :: iSize
         integer, save                                   :: Precision
-        integer                                         :: status(MPI_STATUS_SIZE)       
-        
+        integer                                         :: status(MPI_STATUS_SIZE)
+
         type(T_Size2D)                                  :: Inner, Mapping
 
         !Begin---------------------------------------------------------------
 
-            
+
         IUB     = Me%DDecomp%Global%IUB
-        ILB     = Me%DDecomp%Global%ILB 
+        ILB     = Me%DDecomp%Global%ILB
         JUB     = Me%DDecomp%Global%JUB
         JLB     = Me%DDecomp%Global%JLB
-        
+
         if (Me%DDecomp%Master) then
 
             Inner   = Me%DDecomp%Inner
@@ -6337,50 +6722,50 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
             Out3D(Mapping%ILB:Mapping%IUB+di_,Mapping%JLB:Mapping%JUB+dj_,KLB:KUB) =        &
             In3D (  Inner%ILB:  Inner%IUB+di_,  Inner%JLB:  Inner%JUB+dj_,KLB:KUB)
-            
+
             !Receive from slaves (input) to Global (output)
-            do i=1, Me%DDecomp%Nslaves            
-            
-                Mapping   = Me%DDecomp%Slaves_Mapping(i)   
-                
+            do i=1, Me%DDecomp%Nslaves
+
+                Mapping   = Me%DDecomp%Slaves_Mapping(i)
+
                 imax      = Mapping%IUB+di_
                 imin      = Mapping%ILB
                 jmax      = Mapping%JUB+dj_
                 jmin      = Mapping%JLB
-                
+
                 iSize     = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)
 
                 Precision = MPI_INTEGER
-                
+
                 Source    =  Me%DDecomp%Slaves_MPI_ID(i)
-                
+
                 !Receive from sub-domanins to global output
                 call MPI_Recv (Out3D(imin:imax,jmin:jmax,KLB:KUB),                  &
                                iSize, Precision, Source, 9007, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_3Dint_In - ModuleHorizontalGrid - ERR40'
 
             enddo
-            
+
         else
 
             Inner       = Me%DDecomp%Inner
-                    
+
             imax        = Inner%IUB+di_
             imin        = Inner%ILB
             jmax        = Inner%JUB+dj_
             jmin        = Inner%JLB
-            
-            iSize       = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)                
-            
+
+            iSize       = (imax-imin+1)*(jmax-jmin+1)*(KUB-KLB+1)
+
             Precision   = MPI_INTEGER
-                                                      
+
             Destination = Me%DDecomp%Master_MPI_ID
-            
+
             call MPI_Send (In3D(imin:imax,jmin:jmax,KLB:KUB), iSize, Precision,             &
                            Destination, 9007, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'JoinGridData_3Dint_In - ModuleHorizontalGrid - ERR50'
-            
-        endif            
+
+        endif
 
     end subroutine JoinGridData_3Dint_In
 
@@ -6397,7 +6782,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     subroutine BroadcastGridData2D_R4(HorizontalGridID, In2D, Out2D, STAT)
-   
+
 
         !Arguments------------------------------------------------------------
         integer                                     :: HorizontalGridID
@@ -6406,34 +6791,34 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer               , optional            :: STAT
 
         !Local---------------------------------------------------------------
-        integer                                     :: STAT_, ready_        
-        
+        integer                                     :: STAT_, ready_
+
         !Begin---------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-        
+
             call BroadcastGridData_In(In2D, Out2D)
-            
+
             STAT_ = SUCCESS_
-            
-        else 
+
+        else
             STAT_ = ready_
         end if cd1
 
 
-        if (present(STAT)) STAT = STAT_            
+        if (present(STAT)) STAT = STAT_
 
-    end subroutine BroadcastGridData2D_R4         
+    end subroutine BroadcastGridData2D_R4
 
     !------------------------------------------------------------------------------
 
     subroutine BroadcastGridData2D_R4_In(In2D, Out2D)
-   
+
 
         !Arguments------------------------------------------------------------
         real(4),   dimension(:,:), pointer          :: In2D
@@ -6443,43 +6828,43 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real(8), dimension(:,:), pointer            :: Aux2D
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB
-        
-        integer                                     :: Source, Destination         
+
+        integer                                     :: Source, Destination
         integer                                     :: iSize, i
         integer, save                               :: Precision
-        integer                                     :: status(MPI_STATUS_SIZE)       
-        
+        integer                                     :: status(MPI_STATUS_SIZE)
+
         type(T_Size2D)                              :: WorkSize, HaloMap
-        
+
         !Begin---------------------------------------------------------------
-        
+
         IUB     = Me%DDecomp%Global%IUB
-        ILB     = Me%DDecomp%Global%ILB 
+        ILB     = Me%DDecomp%Global%ILB
         JUB     = Me%DDecomp%Global%JUB
         JLB     = Me%DDecomp%Global%JLB
 
         if (Me%DDecomp%Master) then
-        
+
             WorkSize = Me%WorkSize
             HaloMap  = Me%DDecomp%HaloMap
-        
+
             Out2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB) =           &
                 In2D(HaloMap%ILB:HaloMap%IUB,HaloMap%JLB:HaloMap%JUB)
 
             do i=1, Me%DDecomp%Nslaves
-            
+
                 WorkSize =  Me%DDecomp%Slaves_Size   (i)
                 HaloMap  =  Me%DDecomp%Slaves_HaloMap(i)
-                
+
                 allocate(Aux2D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB))
-                
+
                 Aux2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB) =       &
                     In2D(HaloMap%ILB:HaloMap%IUB, HaloMap%JLB:HaloMap%JUB)
-                    
+
                 iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)
-                
+
                 Precision   = MPI_DOUBLE_PRECISION
-                
+
                 Destination =  Me%DDecomp%Slaves_MPI_ID(i)
 
                 call MPI_Send (Aux2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB), iSize, Precision,   &
@@ -6490,17 +6875,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 nullify   (Aux2D)
 
             enddo
-            
+
         else
-            WorkSize    = Me%WorkSize        
-        
-            allocate(Aux2D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB))     
-            
-       
+            WorkSize    = Me%WorkSize
+
+            allocate(Aux2D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB))
+
+
             iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)
             Precision   = MPI_DOUBLE_PRECISION
             Source      = Me%DDecomp%Master_MPI_ID
-            
+
             call MPI_Recv (Aux2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB), iSize, Precision,   &
                            Source, 90016, MPI_COMM_WORLD, status, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'BroadcastGridData2D_R4_In - ModuleHorizontalGrid - ERR20'
@@ -6509,7 +6894,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 Aux2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB)
 
             deallocate(Aux2D)
-            nullify   (Aux2D)                
+            nullify   (Aux2D)
 
         endif
 
@@ -6518,7 +6903,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !------------------------------------------------------------------------------
 
     subroutine BroadcastGridData2D_R8(HorizontalGridID, In2D, Out2D, STAT)
-   
+
 
         !Arguments------------------------------------------------------------
         integer                                     :: HorizontalGridID
@@ -6528,34 +6913,34 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Local---------------------------------------------------------------
 
-        integer                                     :: STAT_, ready_        
-        
+        integer                                     :: STAT_, ready_
+
         !Begin---------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-        
+
             call BroadcastGridData_In(In2D, Out2D)
-            
+
             STAT_ = SUCCESS_
-            
-        else 
+
+        else
             STAT_ = ready_
         end if cd1
 
 
-        if (present(STAT)) STAT = STAT_            
+        if (present(STAT)) STAT = STAT_
 
-    end subroutine BroadcastGridData2D_R8         
+    end subroutine BroadcastGridData2D_R8
 
     !------------------------------------------------------------------------------
 
     subroutine BroadcastGridData2D_R8_In(In2D, Out2D)
-   
+
 
         !Arguments------------------------------------------------------------
         real(8),   dimension(:,:), pointer          :: In2D
@@ -6565,43 +6950,43 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real(8), dimension(:,:), pointer            :: Aux2D
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB
-        
-        integer                                     :: Source, Destination         
+
+        integer                                     :: Source, Destination
         integer                                     :: iSize, i
         integer, save                               :: Precision
-        integer                                     :: status(MPI_STATUS_SIZE)       
-        
+        integer                                     :: status(MPI_STATUS_SIZE)
+
         type(T_Size2D)                              :: WorkSize, HaloMap
-        
+
         !Begin---------------------------------------------------------------
-        
+
         IUB     = Me%DDecomp%Global%IUB
-        ILB     = Me%DDecomp%Global%ILB 
+        ILB     = Me%DDecomp%Global%ILB
         JUB     = Me%DDecomp%Global%JUB
         JLB     = Me%DDecomp%Global%JLB
 
         if (Me%DDecomp%Master) then
-        
+
             WorkSize = Me%WorkSize
             HaloMap  = Me%DDecomp%HaloMap
-        
+
             Out2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB) =           &
                 In2D(HaloMap%ILB:HaloMap%IUB,HaloMap%JLB:HaloMap%JUB)
 
             do i=1, Me%DDecomp%Nslaves
-            
+
                 WorkSize =  Me%DDecomp%Slaves_Size   (i)
                 HaloMap  =  Me%DDecomp%Slaves_HaloMap(i)
-                
+
                 allocate(Aux2D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB))
-                
+
                 Aux2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB) =       &
                     In2D(HaloMap%ILB:HaloMap%IUB, HaloMap%JLB:HaloMap%JUB)
-                    
+
                 iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)
-                
+
                 Precision   = MPI_DOUBLE_PRECISION
-                
+
                 Destination =  Me%DDecomp%Slaves_MPI_ID(i)
 
                 call MPI_Send (Aux2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB), iSize, Precision,   &
@@ -6612,17 +6997,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 nullify   (Aux2D)
 
             enddo
-            
+
         else
-            WorkSize    = Me%WorkSize        
-        
-            allocate(Aux2D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB))     
-            
-       
+            WorkSize    = Me%WorkSize
+
+            allocate(Aux2D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB))
+
+
             iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)
             Precision   = MPI_DOUBLE_PRECISION
             Source      = Me%DDecomp%Master_MPI_ID
-            
+
             call MPI_Recv (Aux2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB), iSize, Precision,   &
                            Source, 90026, MPI_COMM_WORLD, status, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'BroadcastGridData2D_R8_In - ModuleHorizontalGrid - ERR20'
@@ -6631,7 +7016,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 Aux2D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB)
 
             deallocate(Aux2D)
-            nullify   (Aux2D)                
+            nullify   (Aux2D)
 
         endif
 
@@ -6649,7 +7034,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     subroutine BroadcastGridData3D_R4(HorizontalGridID, In3D, Out3D, KLB, KUB, STAT)
-   
+
 
         !Arguments------------------------------------------------------------
         integer                                     :: HorizontalGridID
@@ -6659,35 +7044,35 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer               , optional            :: STAT
 
         !Local---------------------------------------------------------------
-        integer                                     :: STAT_, ready_        
-        
+        integer                                     :: STAT_, ready_
+
         !Begin---------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-        
+
             call BroadcastGridData_In(In3D, Out3D, KLB, KUB)
 
             STAT_ = SUCCESS_
-            
-        else 
+
+        else
             STAT_ = ready_
         end if cd1
 
 
-        if (present(STAT)) STAT = STAT_            
+        if (present(STAT)) STAT = STAT_
 
     end subroutine BroadcastGridData3D_R4
 
     !-----------------------------------------------------------------------------------
-    
+
 
     subroutine BroadcastGridData3D_R4_In(In3D, Out3D, KLB, KUB)
-   
+
 
         !Arguments------------------------------------------------------------
         real(4),   dimension(:,:,:), pointer        :: In3D
@@ -6697,43 +7082,43 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real(8), dimension(:,:,:), pointer          :: Aux3D
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB
-        
-        integer                                     :: Source, Destination         
+
+        integer                                     :: Source, Destination
         integer                                     :: iSize, i
         integer, save                               :: Precision
-        integer                                     :: status(MPI_STATUS_SIZE)       
-        
+        integer                                     :: status(MPI_STATUS_SIZE)
+
         type(T_Size2D)                              :: WorkSize, HaloMap
-        
+
         !Begin---------------------------------------------------------------
-        
+
         IUB     = Me%DDecomp%Global%IUB
-        ILB     = Me%DDecomp%Global%ILB 
+        ILB     = Me%DDecomp%Global%ILB
         JUB     = Me%DDecomp%Global%JUB
         JLB     = Me%DDecomp%Global%JLB
 
         if (Me%DDecomp%Master) then
-        
+
             WorkSize = Me%WorkSize
             HaloMap  = Me%DDecomp%HaloMap
-        
+
             Out3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB) =  &
                 In3D(HaloMap%ILB:HaloMap%IUB,HaloMap%JLB:HaloMap%JUB, KLB:KUB)
 
             do i=1, Me%DDecomp%Nslaves
-            
+
                 WorkSize =  Me%DDecomp%Slaves_Size   (i)
                 HaloMap  =  Me%DDecomp%Slaves_HaloMap(i)
-                
+
                 allocate(Aux3D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB))
-                
+
                 Aux3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB) = &
                     In3D(HaloMap%ILB:HaloMap%IUB, HaloMap%JLB:HaloMap%JUB, KLB:KUB)
-                    
+
                 iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)*(KUB-KLB+1)
-                
+
                 Precision   = MPI_DOUBLE_PRECISION
-                
+
                 Destination =  Me%DDecomp%Slaves_MPI_ID(i)
 
                 call MPI_Send (Aux3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB), iSize, Precision,   &
@@ -6744,17 +7129,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 nullify   (Aux3D)
 
             enddo
-            
+
         else
-            WorkSize    = Me%WorkSize        
-        
-            allocate(Aux3D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB))     
-            
-       
+            WorkSize    = Me%WorkSize
+
+            allocate(Aux3D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB))
+
+
             iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1) * (KUB-KLB+1)
             Precision   = MPI_DOUBLE_PRECISION
             Source      = Me%DDecomp%Master_MPI_ID
-            
+
             call MPI_Recv (Aux3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB), iSize, Precision,   &
                            Source, 90018, MPI_COMM_WORLD, status, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'BroadcastGridData3D_R4_In - ModuleHorizontalGrid - ERR20'
@@ -6763,16 +7148,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 Aux3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB)
 
             deallocate(Aux3D)
-            nullify   (Aux3D)                
-        
-        endif  
+            nullify   (Aux3D)
 
-    end subroutine BroadcastGridData3D_R4_In         
+        endif
+
+    end subroutine BroadcastGridData3D_R4_In
 
     !-----------------------------------------------------------------------------------
 
     subroutine BroadcastGridData3D_R8(HorizontalGridID, In3D, Out3D, KLB, KUB, STAT)
-   
+
 
         !Arguments------------------------------------------------------------
         integer                                     :: HorizontalGridID
@@ -6782,35 +7167,35 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer               , optional            :: STAT
 
         !Local---------------------------------------------------------------
-        integer                                     :: STAT_, ready_        
-        
+        integer                                     :: STAT_, ready_
+
         !Begin---------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-        
+
             call BroadcastGridData_In(In3D, Out3D, KLB, KUB)
 
             STAT_ = SUCCESS_
-            
-        else 
+
+        else
             STAT_ = ready_
         end if cd1
 
 
-        if (present(STAT)) STAT = STAT_            
+        if (present(STAT)) STAT = STAT_
 
     end subroutine BroadcastGridData3D_R8
 
     !-----------------------------------------------------------------------------------
-    
+
 
     subroutine BroadcastGridData3D_R8_In(In3D, Out3D, KLB, KUB)
-   
+
 
         !Arguments------------------------------------------------------------
         real(8),   dimension(:,:,:), pointer        :: In3D
@@ -6820,43 +7205,43 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real(8), dimension(:,:,:), pointer          :: Aux3D
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB
-        
-        integer                                     :: Source, Destination         
+
+        integer                                     :: Source, Destination
         integer                                     :: iSize, i
         integer, save                               :: Precision
-        integer                                     :: status(MPI_STATUS_SIZE)       
-        
+        integer                                     :: status(MPI_STATUS_SIZE)
+
         type(T_Size2D)                              :: WorkSize, HaloMap
-        
+
         !Begin---------------------------------------------------------------
-        
+
         IUB     = Me%DDecomp%Global%IUB
-        ILB     = Me%DDecomp%Global%ILB 
+        ILB     = Me%DDecomp%Global%ILB
         JUB     = Me%DDecomp%Global%JUB
         JLB     = Me%DDecomp%Global%JLB
 
         if (Me%DDecomp%Master) then
-        
+
             WorkSize = Me%WorkSize
             HaloMap  = Me%DDecomp%HaloMap
-        
+
             Out3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB) =  &
                 In3D(HaloMap%ILB:HaloMap%IUB,HaloMap%JLB:HaloMap%JUB, KLB:KUB)
 
             do i=1, Me%DDecomp%Nslaves
-            
+
                 WorkSize =  Me%DDecomp%Slaves_Size   (i)
                 HaloMap  =  Me%DDecomp%Slaves_HaloMap(i)
-                
+
                 allocate(Aux3D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB))
-                
+
                 Aux3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB) = &
                     In3D(HaloMap%ILB:HaloMap%IUB, HaloMap%JLB:HaloMap%JUB, KLB:KUB)
-                    
+
                 iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1)*(KUB-KLB+1)
-                
+
                 Precision   = MPI_DOUBLE_PRECISION
-                
+
                 Destination =  Me%DDecomp%Slaves_MPI_ID(i)
 
                 call MPI_Send (Aux3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB), iSize, Precision,   &
@@ -6867,17 +7252,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 nullify   (Aux3D)
 
             enddo
-            
+
         else
-            WorkSize    = Me%WorkSize        
-        
-            allocate(Aux3D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB))     
-            
-       
+            WorkSize    = Me%WorkSize
+
+            allocate(Aux3D (WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB))
+
+
             iSize       = (WorkSize%IUB-WorkSize%ILB+1) * (WorkSize%JUB-WorkSize%JLB+1) * (KUB-KLB+1)
             Precision   = MPI_DOUBLE_PRECISION
             Source      = Me%DDecomp%Master_MPI_ID
-            
+
             call MPI_Recv (Aux3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB), iSize, Precision,   &
                            Source, 90019, MPI_COMM_WORLD, status, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'BroadcastGridData3D_R8_In - ModuleHorizontalGrid - ERR20'
@@ -6886,15 +7271,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 Aux3D(WorkSize%ILB:WorkSize%IUB, WorkSize%JLB:WorkSize%JUB, KLB:KUB)
 
             deallocate(Aux3D)
-            nullify   (Aux3D)                
-        
-        endif  
+            nullify   (Aux3D)
 
-    end subroutine BroadcastGridData3D_R8_In           
+        endif
+
+    end subroutine BroadcastGridData3D_R8_In
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
-    ! This subroutine computes the thomaz 2D in parallel following a                       ! 
+    ! This subroutine computes the thomaz 2D in parallel following a                       !
     ! domain decomposition approach                                                        !
     !                                                                                      !
     ! Input : Coefficients of the  linear system equation                                  !
@@ -6904,8 +7289,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     subroutine THOMAS_2D_DDecompHorizGrid(HorizontalGridID, DCoef_2D, FCoef_2D,         &
-                                          TiCoef_2D, ECoef_2D, Results_2D, di, dj, STAT)     
-    
+                                          TiCoef_2D, ECoef_2D, Results_2D, di, dj, STAT)
+
         !Arguments------------------------------------------------------------
         integer                          :: HorizontalGridID
         real,    dimension(:,:), pointer :: DCoef_2D, FCoef_2D, TiCoef_2D
@@ -6918,36 +7303,36 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer                          :: STAT_, ready_
         real(8), pointer, dimension(:)   :: VECG
         real(8), pointer, dimension(:)   :: VECW
-        real,    pointer, dimension(:,:) :: R2D 
-        real,    pointer, dimension(:,:) :: D   
-        real(8), pointer, dimension(:,:) :: E          
-        real,    pointer, dimension(:,:) :: F          
-        real,    pointer, dimension(:,:) :: Ti         
+        real,    pointer, dimension(:,:) :: R2D
+        real,    pointer, dimension(:,:) :: D
+        real(8), pointer, dimension(:,:) :: E
+        real,    pointer, dimension(:,:) :: F
+        real,    pointer, dimension(:,:) :: Ti
         integer                          :: IUB, ILB, JUB, JLB
         integer                          :: IJmin, IJmax
         integer                          :: JImin, JImax
-        
+
         !Begin---------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-        
+
             call AllocateMasterCoef2D
- 
+
             !Joins all the sub-domain coefficients in a global domain
             call JoinGridData_In(In2D = DCoef_2D,  Out2D = Me%DDecomp%Coef2D%D , dj_= 0, di_ = 0)
             call JoinGridData_In(In2D = ECoef_2D,  Out2D = Me%DDecomp%Coef2D%E , dj_= 0, di_ = 0)
             call JoinGridData_In(In2D = FCoef_2D,  Out2D = Me%DDecomp%Coef2D%F , dj_= 0, di_ = 0)
             call JoinGridData_In(In2D = TiCoef_2D, Out2D = Me%DDecomp%Coef2D%Ti, dj_= 0, di_ = 0)
-            
-            nullify(R2D)            
-            
+
+            nullify(R2D)
+
 if2:        if (Me%DDecomp%Master) then
-               
+
                 IUB = Me%DDecomp%Global%IUB
                 ILB = Me%DDecomp%Global%ILB
                 JUB = Me%DDecomp%Global%JUB
@@ -6957,19 +7342,19 @@ if2:        if (Me%DDecomp%Master) then
                 E   => Me%DDecomp%Coef2D%E
                 F   => Me%DDecomp%Coef2D%F
                 Ti  => Me%DDecomp%Coef2D%Ti
-                R2D => Me%DDecomp%Coef2D%Results2D                            
-                
+                R2D => Me%DDecomp%Coef2D%Results2D
+
                 VECG    => Me%DDecomp%Coef2D%VECG
                 VECW    => Me%DDecomp%Coef2D%VECW
-                       
+
                 IJmin = ILB * dj + JLB * di
                 IJmax = IUB * dj + JUB * di
 
                 JImin = ILB * di + JLB * dj
-                JImax = IUB * di + JUB * dj        
-                
-                !call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, D, E, F, Ti, R2D, VECG, VECW)    
-                
+                JImax = IUB * di + JUB * dj
+
+                !call THOMAS_2D(IJmin, IJmax, JImin, JImax, di, dj, D, E, F, Ti, R2D, VECG, VECW)
+
                 call THOMAS_2D(IJmin       = IJmin,                                    &
                                IJmax       = IJmax,                                    &
                                JImin       = JImin,                                    &
@@ -6982,34 +7367,34 @@ if2:        if (Me%DDecomp%Master) then
                                TiCoef_2D   = Ti,                                       &
                                ANSWER      = R2D,                                      &
                                VECG        = VECG,                                     &
-                               VECW        = VECW)                
-                
+                               VECW        = VECW)
+
                 nullify(D, E, F, Ti, VECG, VECW)
-               
+
             endif if2
-            
+
             !Send for each the water level result
             call BroadcastGridData_In(In2D = R2D, Out2D = Results_2D)
-            
-            nullify(R2D)            
-            
+
+            nullify(R2D)
+
             STAT_ = SUCCESS_
-            
-        else 
+
+        else
             STAT_ = ready_
         end if cd1
 
 
-        if (present(STAT)) STAT = STAT_            
+        if (present(STAT)) STAT = STAT_
 
 
-    end subroutine THOMAS_2D_DDecompHorizGrid         
+    end subroutine THOMAS_2D_DDecompHorizGrid
 
     !------------------------------------------------------------------------------
-    
+
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
-    ! This subroutine computes the thomaz 3D in parallel following a                       ! 
+    ! This subroutine computes the thomaz 3D in parallel following a                       !
     ! domain decomposition approach                                                        !
     !                                                                                      !
     ! Input : Coefficients of the  linear system equation                                  !
@@ -7020,8 +7405,8 @@ if2:        if (Me%DDecomp%Master) then
 
     subroutine THOMAS_3D_DDecompHorizGrid(HorizontalGridID, DCoef_3D, FCoef_3D,         &
                                           TiCoef_3D, ECoef_3D, Results_3D, di, dj,      &
-                                          KLB, KUB, STAT)     
-    
+                                          KLB, KUB, STAT)
+
         !Arguments------------------------------------------------------------
         integer                             :: HorizontalGridID
         real,    dimension(:,:,:), pointer  :: DCoef_3D, FCoef_3D, TiCoef_3D
@@ -7035,39 +7420,39 @@ if2:        if (Me%DDecomp%Master) then
         integer                             :: STAT_, ready_
         real(8), pointer, dimension(:)      :: VECG
         real(8), pointer, dimension(:)      :: VECW
-        real,    pointer, dimension(:,:,:)  :: R3D 
-        real,    pointer, dimension(:,:,:)  :: D   
-        real(8), pointer, dimension(:,:,:)  :: E          
-        real,    pointer, dimension(:,:,:)  :: F          
-        real,    pointer, dimension(:,:,:)  :: Ti         
+        real,    pointer, dimension(:,:,:)  :: R3D
+        real,    pointer, dimension(:,:,:)  :: D
+        real(8), pointer, dimension(:,:,:)  :: E
+        real,    pointer, dimension(:,:,:)  :: F
+        real,    pointer, dimension(:,:,:)  :: Ti
         integer                             :: IUB, ILB, JUB, JLB
         integer                             :: IJmin, IJmax
         integer                             :: JImin, JImax
-        
+
         !Begin---------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-            
+
             Me%DDecomp%Coef3D%KLB = KLB
             Me%DDecomp%Coef3D%KUB = KUB
-        
+
             call AllocateMasterCoef3D
- 
+
             !Joins all the sub-domain coefficients in a global domain
             call JoinGridData_In(In3D = DCoef_3D,  Out3D = Me%DDecomp%Coef3D%D , KLB = KLB, KUB = KUB, dj_= 0, di_ = 0)
             call JoinGridData_In(In3D = ECoef_3D,  Out3D = Me%DDecomp%Coef3D%E , KLB = KLB, KUB = KUB, dj_= 0, di_ = 0)
             call JoinGridData_In(In3D = FCoef_3D,  Out3D = Me%DDecomp%Coef3D%F , KLB = KLB, KUB = KUB, dj_= 0, di_ = 0)
             call JoinGridData_In(In3D = TiCoef_3D, Out3D = Me%DDecomp%Coef3D%Ti, KLB = KLB, KUB = KUB, dj_= 0, di_ = 0)
-            
-            nullify(R3D)            
-            
+
+            nullify(R3D)
+
 if2:        if (Me%DDecomp%Master) then
-               
+
                 IUB = Me%DDecomp%Global%IUB
                 ILB = Me%DDecomp%Global%ILB
                 JUB = Me%DDecomp%Global%JUB
@@ -7077,17 +7462,17 @@ if2:        if (Me%DDecomp%Master) then
                 E   => Me%DDecomp%Coef3D%E
                 F   => Me%DDecomp%Coef3D%F
                 Ti  => Me%DDecomp%Coef3D%Ti
-                R3D => Me%DDecomp%Coef3D%Results3D                            
-                
+                R3D => Me%DDecomp%Coef3D%Results3D
+
                 VECG    => Me%DDecomp%Coef3D%VECG
                 VECW    => Me%DDecomp%Coef3D%VECW
-                       
+
                 IJmin = ILB * dj + JLB * di
                 IJmax = IUB * dj + JUB * di
 
                 JImin = ILB * di + JLB * dj
-                JImax = IUB * di + JUB * dj        
-                
+                JImax = IUB * di + JUB * dj
+
                 call THOMAS_3D(IJmin       = IJmin,                                    &
                                IJmax       = IJmax,                                    &
                                JImin       = JImin,                                    &
@@ -7103,44 +7488,44 @@ if2:        if (Me%DDecomp%Master) then
                                ANSWER      = R3D,                                      &
                                VECG        = VECG,                                     &
                                VECW        = VECW)
-                
+
                 nullify(D, E, F, Ti, VECG, VECW)
-               
+
             endif if2
-            
+
             !Send for each the water level result
             call BroadcastGridData_In(In3D = R3D, Out3D = Results_3D, KLB = KLB, KUB = KUB)
-            
-            nullify(R3D)            
-            
+
+            nullify(R3D)
+
             STAT_ = SUCCESS_
-            
-        else 
+
+        else
             STAT_ = ready_
         end if cd1
 
 
-        if (present(STAT)) STAT = STAT_            
+        if (present(STAT)) STAT = STAT_
 
 
-    end subroutine THOMAS_3D_DDecompHorizGrid         
+    end subroutine THOMAS_3D_DDecompHorizGrid
 
     !------------------------------------------------------------------------------
 
 
-    subroutine AllocateMasterCoef2D            
+    subroutine AllocateMasterCoef2D
 
         !Arguments------------------------------------------------------------
-        
+
         !Local---------------------------------------------------------------
         integer                          :: IUB, ILB, JUB, JLB
         integer                          :: IUS, ILS, JUS, JLS
         integer                          :: JImin, JImax
-        
+
         !Begin---------------------------------------------------------------
 
         if  (.not. Me%DDecomp%Coef2D%AllocateON .and. Me%DDecomp%Master) then
-        
+
             IUB = Me%DDecomp%Global%IUB
             ILB = Me%DDecomp%Global%ILB
             JUB = Me%DDecomp%Global%JUB
@@ -7150,96 +7535,96 @@ if2:        if (Me%DDecomp%Master) then
             IUS = IUB+1
             JLS = JLB-1
             JUS = JUB+1
-            
+
             write(*,*) 'ILS, IUS, JLS, JUS', ILS, IUS, JLS, JUS
 
             allocate(Me%DDecomp%Coef2D%D        (ILS:IUS, JLS:JUS))
             allocate(Me%DDecomp%Coef2D%E        (ILS:IUS, JLS:JUS))
             allocate(Me%DDecomp%Coef2D%F        (ILS:IUS, JLS:JUS))
             allocate(Me%DDecomp%Coef2D%Ti       (ILS:IUS, JLS:JUS))
-            allocate(Me%DDecomp%Coef2D%Results2D(ILS:IUS, JLS:JUS))                
-            
+            allocate(Me%DDecomp%Coef2D%Results2D(ILS:IUS, JLS:JUS))
+
             Me%DDecomp%Coef2D%D        (:,:) = 0.
             Me%DDecomp%Coef2D%E        (:,:) = 1.
             Me%DDecomp%Coef2D%F        (:,:) = 0.
             Me%DDecomp%Coef2D%Ti       (:,:) = 0.
             Me%DDecomp%Coef2D%Results2D(:,:) = 0.
-            
-        
+
+
             JImin = MIN(ILS,JLS)
-            JImax = MAX(IUS,JUS)            
+            JImax = MAX(IUS,JUS)
 
             allocate(Me%DDecomp%Coef2D%VECG(JImin:JImax))
             allocate(Me%DDecomp%Coef2D%VECW(JImin:JImax))
-            
+
             Me%DDecomp%Coef2D%VECG(:) = 0
             Me%DDecomp%Coef2D%VECW(:) = 0
-            
-            Me%DDecomp%Coef2D%AllocateON = .true. 
+
+            Me%DDecomp%Coef2D%AllocateON = .true.
 
         endif
 
-    end subroutine AllocateMasterCoef2D            
-    
-    
+    end subroutine AllocateMasterCoef2D
 
-    subroutine AllocateMasterCoef3D            
+
+
+    subroutine AllocateMasterCoef3D
 
         !Arguments------------------------------------------------------------
-        
+
         !Local---------------------------------------------------------------
         integer                          :: IUB, ILB, JUB, JLB
         integer                          :: IUS, ILS, JUS, JLS
         integer                          :: JImin, JImax
         integer                          :: KLB, KUB, KLS, KUS
-        
+
         !Begin---------------------------------------------------------------
 
         if  (.not. Me%DDecomp%Coef3D%AllocateON .and. Me%DDecomp%Master) then
-        
+
             IUB = Me%DDecomp%Global%IUB
             ILB = Me%DDecomp%Global%ILB
             JUB = Me%DDecomp%Global%JUB
             JLB = Me%DDecomp%Global%JLB
-            
+
             KLB = Me%DDecomp%Coef3D%KLB
-            KUB = Me%DDecomp%Coef3D%KUB            
+            KUB = Me%DDecomp%Coef3D%KUB
 
             ILS = ILB-1
             IUS = IUB+1
             JLS = JLB-1
             JUS = JUB+1
             KLS = KLB-1
-            KUS = KUB+1            
-            
+            KUS = KUB+1
+
             allocate(Me%DDecomp%Coef3D%D        (ILS:IUS, JLS:JUS, KLS:KUS))
             allocate(Me%DDecomp%Coef3D%E        (ILS:IUS, JLS:JUS, KLS:KUS))
             allocate(Me%DDecomp%Coef3D%F        (ILS:IUS, JLS:JUS, KLS:KUS))
             allocate(Me%DDecomp%Coef3D%Ti       (ILS:IUS, JLS:JUS, KLS:KUS))
             allocate(Me%DDecomp%Coef3D%Results3D(ILS:IUS, JLS:JUS, KLS:KUS))
-            
+
             Me%DDecomp%Coef3D%D        (:,:,:) = 0.
             Me%DDecomp%Coef3D%E        (:,:,:) = 1.
             Me%DDecomp%Coef3D%F        (:,:,:) = 0.
             Me%DDecomp%Coef3D%Ti       (:,:,:) = 0.
             Me%DDecomp%Coef3D%Results3D(:,:,:) = 0.
-            
-        
+
+
             JImin = MIN(ILS,JLS)
-            JImax = MAX(IUS,JUS)            
+            JImax = MAX(IUS,JUS)
 
             allocate(Me%DDecomp%Coef3D%VECG(JImin:JImax))
             allocate(Me%DDecomp%Coef3D%VECW(JImin:JImax))
-            
+
             Me%DDecomp%Coef3D%VECG(:) = 0
             Me%DDecomp%Coef3D%VECW(:) = 0
-            
-            Me%DDecomp%Coef3D%AllocateON = .true. 
+
+            Me%DDecomp%Coef3D%AllocateON = .true.
 
         endif
 
-    end subroutine AllocateMasterCoef3D             
-    
+    end subroutine AllocateMasterCoef3D
+
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -7256,41 +7641,41 @@ if2:        if (Me%DDecomp%Master) then
 
         !Arguments------------------------------------------------------------
         integer                            :: HorizontalGridID
-        real(8), dimension(:,:,:), pointer :: Property3D    
+        real(8), dimension(:,:,:), pointer :: Property3D
         integer                            :: KLB, KUB
         integer                 , optional :: di, dj
-        integer                 , optional :: STAT        
+        integer                 , optional :: STAT
         !Local---------------------------------------------------------------
         integer                            :: STAT_CALL, IUB, ILB, JUB, JLB
         integer                            :: IUB_R, ILB_R, JUB_R, JLB_R
         integer                            :: IUB_S, ILB_S, JUB_S, JLB_S
         integer                            :: Bandwidth
         integer                            :: DomainA, DomainB, ifd, Direction
-        
-        integer                            :: Source, Destination         
+
+        integer                            :: Source, Destination
         integer                            :: iSize
         integer, save                      :: Precision
-        integer                            :: status(MPI_STATUS_SIZE)    
-        integer                            :: di_, dj_   
+        integer                            :: status(MPI_STATUS_SIZE)
+        integer                            :: di_, dj_
         integer                            :: STAT_, ready_
-        
+
         !Begin---------------------------------------------------------------
-        
+
        STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-       
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-        
-            
+
+
     idd:    if (Me%DDecomp%MasterOrSlave) then
 
                 IUB = Me%WorkSize%IUB
                 ILB = Me%WorkSize%ILB
                 JUB = Me%WorkSize%JUB
                 JLB = Me%WorkSize%JLB
-                
+
                 if (present(di)) then
                     di_ = di
                 else
@@ -7304,16 +7689,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 endif
 
                 !Precision   = MPIKind(Property3D)
-                Precision = MPI_DOUBLE_PRECISION                
-                
+                Precision = MPI_DOUBLE_PRECISION
+
         difd:   do ifd = 1, Me%DDecomp%NInterfaces
 
-                    DomainA   = Me%DDecomp%Interfaces(ifd,1) 
-                    DomainB   = Me%DDecomp%Interfaces(ifd,2) 
+                    DomainA   = Me%DDecomp%Interfaces(ifd,1)
+                    DomainB   = Me%DDecomp%Interfaces(ifd,2)
                     Direction = Me%DDecomp%Interfaces(ifd,3)
-                
+
         iSN:        if (Direction == SouthNorth_) then
-                
+
                         !Then North border communication
         iN:             if (Me%DDecomp%MPI_ID == DomainA) then
 
@@ -7321,22 +7706,22 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             iSize       = Bandwidth * (JUB-JLB+1) * (KUB-KLB+1)
                             Source      = DomainB
                             Destination = Source
-                            
+
                             IUB_R = IUB                     + di_
-                            ILB_R = IUB_R - Bandwidth   + 1 
+                            ILB_R = IUB_R - Bandwidth   + 1
                             IUB_S = ILB_R               - 1 + di_
                             ILB_S = IUB_S - Bandwidth   + 1
-                            
+
                             !Receive
                             call MPI_Recv (Property3D(ILB_R:IUB_R, JLB:JUB, KLB:KUB), iSize, Precision,      &
                                            Source, 180001, MPI_COMM_WORLD, status, STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR20'
-                            
+
                             !Send
                             call MPI_Send (Property3D(ILB_S:IUB_S, JLB:JUB, KLB:KUB), iSize, Precision,      &
                                            Destination, 180002, MPI_COMM_WORLD, STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR30'
-                        
+
                         endif iN
 
                         !Then South border communication
@@ -7346,12 +7731,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             iSize       = Bandwidth * (JUB-JLB+1) * (KUB-KLB+1)
                             Source      = DomainA
                             Destination = Source
-                            
+
                             ILB_R = ILB
-                            IUB_R = ILB_R + Bandwidth - 1             
+                            IUB_R = ILB_R + Bandwidth - 1
                             ILB_S = IUB_R             + 1 - di_
-                            IUB_S = ILB_S + Bandwidth - 1 
-                            
+                            IUB_S = ILB_S + Bandwidth - 1
+
                             !Send
                             call MPI_Send (Property3D(ILB_S:IUB_S, JLB:JUB, KLB:KUB), iSize, Precision,      &
                                            Destination, 180001, MPI_COMM_WORLD, STAT_CALL)
@@ -7363,11 +7748,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR50'
 
                         endif iS
-                        
-                    endif iSN  
-                    
+
+                    endif iSN
+
         iWE:        if (Direction == WestEast_) then
-                    
+
                         !Then East border communication
         iE:             if (Me%DDecomp%MPI_ID == DomainA) then
 
@@ -7375,13 +7760,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             iSize       = Bandwidth * (IUB-ILB+1) * (KUB-KLB+1)
                             Source      = DomainB
                             Destination = Source
-                            
+
                             !Receive
                             JUB_R = JUB                     + dj_
-                            JLB_R = JUB_R - Bandwidth   + 1 
+                            JLB_R = JUB_R - Bandwidth   + 1
                             JUB_S = JLB_R               - 1 + dj_
                             JLB_S = JUB_S - Bandwidth   + 1
-                            
+
                             call MPI_Recv (Property3D(ILB:IUB, JLB_R:JUB_R, KLB:KUB), iSize, Precision,      &
                                            Source, 180005, MPI_COMM_WORLD, status, STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR60'
@@ -7400,12 +7785,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             iSize       = Bandwidth * (IUB-ILB+1) * (KUB-KLB+1)
                             Source      = DomainA
                             Destination = Source
-                            
+
                             !Receive
                             JLB_R = JLB
-                            JUB_R = JLB_R + Bandwidth - 1  
+                            JUB_R = JLB_R + Bandwidth - 1
                             JLB_S = JUB_R             + 1 - dj_
-                            JUB_S = JLB_S + Bandwidth - 1 
+                            JUB_S = JLB_S + Bandwidth - 1
 
                             !Send
                             call MPI_Send (Property3D(ILB:IUB, JLB_S:JUB_S, KLB:KUB), iSize, Precision,      &
@@ -7417,22 +7802,22 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR90'
 
                         endif iW
-                        
-                    endif iWE                
-                       
+
+                    endif iWE
+
                 enddo difd
 
-            endif idd     
-            
+            endif idd
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
-        if (present(STAT)) STAT = STAT_                     
-        
+        if (present(STAT)) STAT = STAT_
 
-    end subroutine ReceiveSendProperities3DMPIr8         
+
+    end subroutine ReceiveSendProperities3DMPIr8
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -7449,41 +7834,41 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Arguments------------------------------------------------------------
         integer                            :: HorizontalGridID
-        real(4), dimension(:,:,:), pointer :: Property3D    
+        real(4), dimension(:,:,:), pointer :: Property3D
         integer                            :: KLB, KUB
         integer                 , optional :: di, dj
-        integer                 , optional :: STAT        
+        integer                 , optional :: STAT
         !Local---------------------------------------------------------------
         integer                            :: STAT_CALL, IUB, ILB, JUB, JLB
         integer                            :: IUB_R, ILB_R, JUB_R, JLB_R
         integer                            :: IUB_S, ILB_S, JUB_S, JLB_S
         integer                            :: Bandwidth
         integer                            :: DomainA, DomainB, ifd, Direction
-        
-        integer                            :: Source, Destination         
+
+        integer                            :: Source, Destination
         integer                            :: iSize
         integer, save                      :: Precision
-        integer                            :: status(MPI_STATUS_SIZE)    
-        integer                            :: di_, dj_   
+        integer                            :: status(MPI_STATUS_SIZE)
+        integer                            :: di_, dj_
         integer                            :: STAT_, ready_
-        
+
         !Begin---------------------------------------------------------------
-        
+
        STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-       
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-        
-            
+
+
     idd:    if (Me%DDecomp%MasterOrSlave) then
 
                 IUB = Me%WorkSize%IUB
                 ILB = Me%WorkSize%ILB
                 JUB = Me%WorkSize%JUB
                 JLB = Me%WorkSize%JLB
-                
+
                 if (present(di)) then
                     di_ = di
                 else
@@ -7497,16 +7882,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 endif
 
                 !Precision   = MPIKind(Property3D)
-                Precision = MPI_REAL                
-                
+                Precision = MPI_REAL
+
         difd:   do ifd = 1, Me%DDecomp%NInterfaces
 
-                    DomainA   = Me%DDecomp%Interfaces(ifd,1) 
-                    DomainB   = Me%DDecomp%Interfaces(ifd,2) 
+                    DomainA   = Me%DDecomp%Interfaces(ifd,1)
+                    DomainB   = Me%DDecomp%Interfaces(ifd,2)
                     Direction = Me%DDecomp%Interfaces(ifd,3)
-                
+
         iSN:        if (Direction == SouthNorth_) then
-                
+
                         !Then North border communication
         iN:             if (Me%DDecomp%MPI_ID == DomainA) then
 
@@ -7514,22 +7899,22 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             iSize       = Bandwidth * (JUB-JLB+1) * (KUB-KLB+1)
                             Source      = DomainB
                             Destination = Source
-                            
+
                             IUB_R = IUB                     + di_
-                            ILB_R = IUB_R - Bandwidth   + 1 
+                            ILB_R = IUB_R - Bandwidth   + 1
                             IUB_S = ILB_R               - 1 + di_
                             ILB_S = IUB_S - Bandwidth   + 1
-                            
+
                             !Receive
                             call MPI_Recv (Property3D(ILB_R:IUB_R, JLB:JUB, KLB:KUB), iSize, Precision,      &
                                            Source, 180001, MPI_COMM_WORLD, status, STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR20'
-                            
+
                             !Send
                             call MPI_Send (Property3D(ILB_S:IUB_S, JLB:JUB, KLB:KUB), iSize, Precision,      &
                                            Destination, 180002, MPI_COMM_WORLD, STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR30'
-                        
+
                         endif iN
 
                         !Then South border communication
@@ -7539,12 +7924,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             iSize       = Bandwidth * (JUB-JLB+1) * (KUB-KLB+1)
                             Source      = DomainA
                             Destination = Source
-                            
+
                             ILB_R = ILB
-                            IUB_R = ILB_R + Bandwidth - 1             
+                            IUB_R = ILB_R + Bandwidth - 1
                             ILB_S = IUB_R             + 1 - di_
-                            IUB_S = ILB_S + Bandwidth - 1 
-                            
+                            IUB_S = ILB_S + Bandwidth - 1
+
                             !Send
                             call MPI_Send (Property3D(ILB_S:IUB_S, JLB:JUB, KLB:KUB), iSize, Precision,      &
                                            Destination, 180001, MPI_COMM_WORLD, STAT_CALL)
@@ -7556,11 +7941,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR50'
 
                         endif iS
-                        
-                    endif iSN  
-                    
+
+                    endif iSN
+
         iWE:        if (Direction == WestEast_) then
-                    
+
                         !Then East border communication
         iE:             if (Me%DDecomp%MPI_ID == DomainA) then
 
@@ -7568,13 +7953,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             iSize       = Bandwidth * (IUB-ILB+1) * (KUB-KLB+1)
                             Source      = DomainB
                             Destination = Source
-                            
+
                             !Receive
                             JUB_R = JUB                     + dj_
-                            JLB_R = JUB_R - Bandwidth   + 1 
+                            JLB_R = JUB_R - Bandwidth   + 1
                             JUB_S = JLB_R               - 1 + dj_
                             JLB_S = JUB_S - Bandwidth   + 1
-                            
+
                             call MPI_Recv (Property3D(ILB:IUB, JLB_R:JUB_R, KLB:KUB), iSize, Precision,      &
                                            Source, 180005, MPI_COMM_WORLD, status, STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR60'
@@ -7593,12 +7978,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             iSize       = Bandwidth * (IUB-ILB+1) * (KUB-KLB+1)
                             Source      = DomainA
                             Destination = Source
-                            
+
                             !Receive
                             JLB_R = JLB
-                            JUB_R = JLB_R + Bandwidth - 1  
+                            JUB_R = JLB_R + Bandwidth - 1
                             JLB_S = JUB_R             + 1 - dj_
-                            JUB_S = JLB_S + Bandwidth - 1 
+                            JUB_S = JLB_S + Bandwidth - 1
 
                             !Send
                             call MPI_Send (Property3D(ILB:IUB, JLB_S:JUB_S, KLB:KUB), iSize, Precision,      &
@@ -7610,22 +7995,22 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities3DMPI - ModuleHorizontalGrid - ERR90'
 
                         endif iW
-                        
-                    endif iWE                
-                       
+
+                    endif iWE
+
                 enddo difd
 
-            endif idd     
-            
+            endif idd
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
-        if (present(STAT)) STAT = STAT_                     
-        
+        if (present(STAT)) STAT = STAT_
 
-    end subroutine ReceiveSendProperities3DMPIr4         
+
+    end subroutine ReceiveSendProperities3DMPIr4
 
 
 
@@ -7644,73 +8029,73 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Arguments------------------------------------------------------------
         integer                            :: HorizontalGridID
-        real(8), dimension(:,:)  , pointer :: Property2D    
-        integer                 , optional :: STAT        
+        real(8), dimension(:,:)  , pointer :: Property2D
+        integer                 , optional :: STAT
         !Local---------------------------------------------------------------
         integer                            :: STAT_CALL, IUB, ILB, JUB, JLB
         integer                            :: IUB_R, ILB_R, JUB_R, JLB_R
         integer                            :: IUB_S, ILB_S, JUB_S, JLB_S
         integer                            :: Bandwidth
         integer                            :: DomainA, DomainB, ifd, Direction
-        
-        integer                            :: Source, Destination         
+
+        integer                            :: Source, Destination
         integer                            :: iSize
         integer, save                      :: Precision
-        integer                            :: status(MPI_STATUS_SIZE)       
+        integer                            :: status(MPI_STATUS_SIZE)
         integer                            :: STAT_, ready_
-        
+
         !Begin---------------------------------------------------------------
-        
+
        STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-       
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-        
-            
+
+
     idd:    if (Me%DDecomp%MasterOrSlave) then
 
                 IUB = Me%WorkSize%IUB
                 ILB = Me%WorkSize%ILB
                 JUB = Me%WorkSize%JUB
                 JLB = Me%WorkSize%JLB
-                
+
                 !Precision   = MPIKind(Property2D)
                 Precision = MPI_DOUBLE_PRECISION
-                
-                
+
+
         difd:   do ifd = 1, Me%DDecomp%NInterfaces
 
-                    DomainA   = Me%DDecomp%Interfaces(ifd,1) 
-                    DomainB   = Me%DDecomp%Interfaces(ifd,2) 
+                    DomainA   = Me%DDecomp%Interfaces(ifd,1)
+                    DomainB   = Me%DDecomp%Interfaces(ifd,2)
                     Direction = Me%DDecomp%Interfaces(ifd,3)
-                
+
         iSN:        if (Direction == SouthNorth_) then
-                
+
                         !Then North border communication
         iN:             if (Me%DDecomp%MPI_ID == DomainA) then
 
-                            Bandwidth   = Me%DDecomp%Halo_Points 
+                            Bandwidth   = Me%DDecomp%Halo_Points
                             iSize       = Bandwidth * (JUB-JLB+1)
                             Source      = DomainB
                             Destination = Source
-                            
-                            IUB_R = IUB                 
-                            ILB_R = IUB_R - Bandwidth   + 1 
+
+                            IUB_R = IUB
+                            ILB_R = IUB_R - Bandwidth   + 1
                             IUB_S = ILB_R               - 1
                             ILB_S = IUB_S - Bandwidth   + 1
-                            
+
                             !Receive
                             call MPI_Recv (Property2D(ILB_R:IUB_R, JLB:JUB), iSize, Precision,      &
                                            Source, 281001, MPI_COMM_WORLD, status, STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR20'
-                            
+
                             !Send
                             call MPI_Send (Property2D(ILB_S:IUB_S, JLB:JUB), iSize, Precision,      &
                                            Destination, 281002, MPI_COMM_WORLD, STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR30'
-                        
+
                         endif iN
 
                         !Then South border communication
@@ -7720,12 +8105,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             iSize       = Bandwidth * (JUB-JLB+1)
                             Source      = DomainA
                             Destination = Source
-                            
+
                             ILB_R = ILB
-                            IUB_R = ILB_R + Bandwidth - 1             
+                            IUB_R = ILB_R + Bandwidth - 1
                             ILB_S = IUB_R             + 1
-                            IUB_S = ILB_S + Bandwidth - 1 
-                            
+                            IUB_S = ILB_S + Bandwidth - 1
+
                             !Send
                             call MPI_Send (Property2D(ILB_S:IUB_S, JLB:JUB), iSize, Precision,      &
                                            Destination, 281001, MPI_COMM_WORLD, STAT_CALL)
@@ -7737,25 +8122,25 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR50'
 
                         endif iS
-                        
-                    endif iSN  
-                    
+
+                    endif iSN
+
         iWE:        if (Direction == WestEast_) then
-                    
+
                         !Then East border communication
         iE:             if (Me%DDecomp%MPI_ID == DomainA) then
 
-                            Bandwidth   = Me%DDecomp%Halo_Points 
+                            Bandwidth   = Me%DDecomp%Halo_Points
                             iSize       = Bandwidth * (IUB-ILB+1)
                             Source      = DomainB
                             Destination = Source
-                            
+
                             !Receive
-                            JUB_R = JUB                 
-                            JLB_R = JUB_R - Bandwidth   + 1 
+                            JUB_R = JUB
+                            JLB_R = JUB_R - Bandwidth   + 1
                             JUB_S = JLB_R               - 1
                             JLB_S = JUB_S - Bandwidth   + 1
-                            
+
                             call MPI_Recv (Property2D(ILB:IUB, JLB_R:JUB_R), iSize, Precision, &
                                            Source, 281005, MPI_COMM_WORLD, status, STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR60'
@@ -7770,16 +8155,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                         !Then West border communication
         iW:             if (Me%DDecomp%MPI_ID == DomainB) then
 
-                            Bandwidth   = Me%DDecomp%Halo_Points 
+                            Bandwidth   = Me%DDecomp%Halo_Points
                             iSize       = Bandwidth * (IUB-ILB+1)
                             Source      = DomainA
                             Destination = Source
-                            
+
                             !Receive
                             JLB_R = JLB
-                            JUB_R = JLB_R + Bandwidth - 1  
+                            JUB_R = JLB_R + Bandwidth - 1
                             JLB_S = JUB_R             + 1
-                            JUB_S = JLB_S + Bandwidth - 1 
+                            JUB_S = JLB_S + Bandwidth - 1
 
                             !Send
                             call MPI_Send (Property2D(ILB:IUB, JLB_S:JUB_S), iSize, Precision,      &
@@ -7791,23 +8176,23 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR90'
 
                         endif iW
-                        
-                    endif iWE                
-                       
+
+                    endif iWE
+
                 enddo difd
 
-            endif idd     
-            
+            endif idd
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
-        if (present(STAT)) STAT = STAT_                     
-        
+        if (present(STAT)) STAT = STAT_
 
-    end subroutine ReceiveSendProperities2DMPIr8         
-    
+
+    end subroutine ReceiveSendProperities2DMPIr8
+
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
     ! This subroutine exchange 2D properties between decompose domains                     !
@@ -7823,72 +8208,72 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Arguments------------------------------------------------------------
         integer                            :: HorizontalGridID
-        real(4), dimension(:,:)  , pointer :: Property2D    
-        integer                 , optional :: STAT        
+        real(4), dimension(:,:)  , pointer :: Property2D
+        integer                 , optional :: STAT
         !Local---------------------------------------------------------------
         integer                            :: STAT_CALL, IUB, ILB, JUB, JLB
         integer                            :: IUB_R, ILB_R, JUB_R, JLB_R
         integer                            :: IUB_S, ILB_S, JUB_S, JLB_S
         integer                            :: Bandwidth
         integer                            :: DomainA, DomainB, ifd, Direction
-        
-        integer                            :: Source, Destination         
+
+        integer                            :: Source, Destination
         integer                            :: iSize
         integer, save                      :: Precision
-        integer                            :: status(MPI_STATUS_SIZE)       
+        integer                            :: status(MPI_STATUS_SIZE)
         integer                            :: STAT_, ready_
-        
+
         !Begin---------------------------------------------------------------
-        
+
        STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-       
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-        
-            
+
+
     idd:    if (Me%DDecomp%MasterOrSlave) then
 
                 IUB = Me%WorkSize%IUB
                 ILB = Me%WorkSize%ILB
                 JUB = Me%WorkSize%JUB
                 JLB = Me%WorkSize%JLB
-                
+
                 !Precision   = MPIKind(Property2D)
-                Precision = MPI_REAL               
-                
+                Precision = MPI_REAL
+
         difd:   do ifd = 1, Me%DDecomp%NInterfaces
 
-                    DomainA   = Me%DDecomp%Interfaces(ifd,1) 
-                    DomainB   = Me%DDecomp%Interfaces(ifd,2) 
+                    DomainA   = Me%DDecomp%Interfaces(ifd,1)
+                    DomainB   = Me%DDecomp%Interfaces(ifd,2)
                     Direction = Me%DDecomp%Interfaces(ifd,3)
-                
+
         iSN:        if (Direction == SouthNorth_) then
-                
+
                         !Then North border communication
         iN:             if (Me%DDecomp%MPI_ID == DomainA) then
 
-                            Bandwidth   = Me%DDecomp%Halo_Points 
+                            Bandwidth   = Me%DDecomp%Halo_Points
                             iSize       = Bandwidth * (JUB-JLB+1)
                             Source      = DomainB
                             Destination = Source
-                            
-                            IUB_R = IUB                 
-                            ILB_R = IUB_R - Bandwidth   + 1 
+
+                            IUB_R = IUB
+                            ILB_R = IUB_R - Bandwidth   + 1
                             IUB_S = ILB_R               - 1
                             ILB_S = IUB_S - Bandwidth   + 1
-                            
+
                             !Receive
                             call MPI_Recv (Property2D(ILB_R:IUB_R, JLB:JUB), iSize, Precision,      &
                                            Source, 281001, MPI_COMM_WORLD, status, STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR20'
-                            
+
                             !Send
                             call MPI_Send (Property2D(ILB_S:IUB_S, JLB:JUB), iSize, Precision,      &
                                            Destination, 281002, MPI_COMM_WORLD, STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR30'
-                        
+
                         endif iN
 
                         !Then South border communication
@@ -7898,12 +8283,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             iSize       = Bandwidth * (JUB-JLB+1)
                             Source      = DomainA
                             Destination = Source
-                            
+
                             ILB_R = ILB
-                            IUB_R = ILB_R + Bandwidth - 1             
+                            IUB_R = ILB_R + Bandwidth - 1
                             ILB_S = IUB_R             + 1
-                            IUB_S = ILB_S + Bandwidth - 1 
-                            
+                            IUB_S = ILB_S + Bandwidth - 1
+
                             !Send
                             call MPI_Send (Property2D(ILB_S:IUB_S, JLB:JUB), iSize, Precision,      &
                                            Destination, 281001, MPI_COMM_WORLD, STAT_CALL)
@@ -7915,25 +8300,25 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR50'
 
                         endif iS
-                        
-                    endif iSN  
-                    
+
+                    endif iSN
+
         iWE:        if (Direction == WestEast_) then
-                    
+
                         !Then East border communication
         iE:             if (Me%DDecomp%MPI_ID == DomainA) then
 
-                            Bandwidth   = Me%DDecomp%Halo_Points 
+                            Bandwidth   = Me%DDecomp%Halo_Points
                             iSize       = Bandwidth * (IUB-ILB+1)
                             Source      = DomainB
                             Destination = Source
-                            
+
                             !Receive
-                            JUB_R = JUB                 
-                            JLB_R = JUB_R - Bandwidth   + 1 
+                            JUB_R = JUB
+                            JLB_R = JUB_R - Bandwidth   + 1
                             JUB_S = JLB_R               - 1
                             JLB_S = JUB_S - Bandwidth   + 1
-                            
+
                             call MPI_Recv (Property2D(ILB:IUB, JLB_R:JUB_R), iSize, Precision, &
                                            Source, 281005, MPI_COMM_WORLD, status, STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR60'
@@ -7948,16 +8333,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                         !Then West border communication
         iW:             if (Me%DDecomp%MPI_ID == DomainB) then
 
-                            Bandwidth   = Me%DDecomp%Halo_Points 
+                            Bandwidth   = Me%DDecomp%Halo_Points
                             iSize       = Bandwidth * (IUB-ILB+1)
                             Source      = DomainA
                             Destination = Source
-                            
+
                             !Receive
                             JLB_R = JLB
-                            JUB_R = JLB_R + Bandwidth - 1  
+                            JUB_R = JLB_R + Bandwidth - 1
                             JLB_S = JUB_R             + 1
-                            JUB_S = JLB_S + Bandwidth - 1 
+                            JUB_S = JLB_S + Bandwidth - 1
 
                             !Send
                             call MPI_Send (Property2D(ILB:IUB, JLB_S:JUB_S), iSize, Precision,      &
@@ -7969,22 +8354,22 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                             if (STAT_CALL /= SUCCESS_) stop 'ReceiveSendProperities2DMPI - ModuleHorizontalGrid - ERR90'
 
                         endif iW
-                        
-                    endif iWE                
-                       
+
+                    endif iWE
+
                 enddo difd
 
-            endif idd     
-            
+            endif idd
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
-        if (present(STAT)) STAT = STAT_                     
-        
+        if (present(STAT)) STAT = STAT_
 
-    end subroutine ReceiveSendProperities2DMPIr4         
+
+    end subroutine ReceiveSendProperities2DMPIr4
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -8001,93 +8386,93 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Arguments------------------------------------------------------------
         integer            , intent(IN)    :: HorizontalGridID
-        logical            , intent(IN)    :: LogicalIn    
-        logical            , intent(OUT)   :: LogicalOut        
-        integer            , optional      :: STAT        
+        logical            , intent(IN)    :: LogicalIn
+        logical            , intent(OUT)   :: LogicalOut
+        integer            , optional      :: STAT
         !Local---------------------------------------------------------------
         integer                            :: STAT_CALL, i
         logical                            :: LogicalAux
-        integer                            :: Source, Destination         
+        integer                            :: Source, Destination
         integer                            :: iSize
         integer, save                      :: Precision
-        integer                            :: status(MPI_STATUS_SIZE)       
+        integer                            :: status(MPI_STATUS_SIZE)
         integer                            :: STAT_, ready_
-        
+
         !Begin---------------------------------------------------------------
-        
+
        STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-       
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-            
-            LogicalOut = .false. 
-            
+
+            LogicalOut = .false.
+
             if (Me%DDecomp%Master) then
 
                 if (LogicalIn) LogicalOut = .true.
-                
+
                 iSize     = 1
 
                 Precision = MPI_LOGICAL
-                
-                    
+
+
                 !Receive from slaves
-                do i=1, Me%DDecomp%Nslaves            
-                
+                do i=1, Me%DDecomp%Nslaves
+
                     Source    =  Me%DDecomp%Slaves_MPI_ID(i)
-                    
+
                     !Receive logical from slaves
                     call MPI_Recv (LogicalAux, iSize, Precision, Source, 999003, MPI_COMM_WORLD, status, STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'AtLeastOneDomainIsTrue - ModuleHorizontalGrid - ERR10'
 
-                    if (LogicalAux) LogicalOut = .true. 
+                    if (LogicalAux) LogicalOut = .true.
 
                 enddo
-                
+
                 !send to slaves
-                do i=1, Me%DDecomp%Nslaves            
-                
+                do i=1, Me%DDecomp%Nslaves
+
                     Destination  =  Me%DDecomp%Slaves_MPI_ID(i)
-                    
+
                     !Send logical to slaves
                     call MPI_Send (LogicalOut, iSize, Precision, Destination, 999004, MPI_COMM_WORLD, status, STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'AtLeastOneDomainIsTrue - ModuleHorizontalGrid - ERR20'
 
-                enddo                
-                
+                enddo
+
             else
 
-                iSize       = 1           
-                
+                iSize       = 1
+
                 Precision   = MPI_INTEGER
-                                                          
+
                 Destination = Me%DDecomp%Master_MPI_ID
-                
+
                 !Send logical to master
                 call MPI_Send (LogicalIn, iSize, Precision, Destination, 999003, MPI_COMM_WORLD, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'AtLeastOneDomainIsTrue - ModuleHorizontalGrid - ERR30'
-                
+
                 Source      = Me%DDecomp%Master_MPI_ID
-                
+
                 !Receive logical from master
                 call MPI_Recv (LogicalOut, iSize, Precision, Source, 999004, MPI_COMM_WORLD, status, STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'AtLeastOneDomainIsTrue - ModuleHorizontalGrid - ERR40'                
-                
-            endif            
-        
+                if (STAT_CALL /= SUCCESS_) stop 'AtLeastOneDomainIsTrue - ModuleHorizontalGrid - ERR40'
+
+            endif
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
-        if (present(STAT)) STAT = STAT_                     
-        
+        if (present(STAT)) STAT = STAT_
 
-    end subroutine AtLeastOneDomainIsTrue       
 
-#endif _USE_MPI            
+    end subroutine AtLeastOneDomainIsTrue
+
+#endif _USE_MPI
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -8103,22 +8488,22 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Arguments------------------------------------------------------------
         integer            , intent(IN)    :: HorizontalGridID
-        character(len=*)   , intent(INOUT) :: FileName    
-        integer            , optional      :: STAT        
+        character(len=*)   , intent(INOUT) :: FileName
+        integer            , optional      :: STAT
         !Local---------------------------------------------------------------
         integer                            :: I, ipath, iFN
         character(LEN = StringLength)      :: AuxChar
         integer                            :: STAT_, ready_
-        
+
         !Begin---------------------------------------------------------------
-        
+
        STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-       
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-            
+
             if (Me%DDecomp%ON) then
                 if (STAT_ == SUCCESS_) then
                     if (Me%DDecomp%MPI_ID > null_int) then
@@ -8131,26 +8516,26 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                                 ipath = i
                                 exit
                             endif
-                        enddo    
+                        enddo
                         if (ipath > 0) then
                             Filename = Filename(1:ipath)//trim(Auxchar)//Filename(ipath+1:iFN)
                         endif
-                    endif                    
+                    endif
                 endif
-            endif                
+            endif
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
-        if (present(STAT)) STAT = STAT_                     
-        
+        if (present(STAT)) STAT = STAT_
 
-    end subroutine Add_MPI_ID_2_Filename     
-    
+
+    end subroutine Add_MPI_ID_2_Filename
+
    !--------------------------------------------------------------------------
-    
+
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
     ! This subroutine assumes null box mapping in the halo area                            !
@@ -8168,37 +8553,37 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer, dimension(:,:  ), pointer, optional, intent(INOUT) :: Boxes2D
         integer, dimension(:,:,:), pointer, optional, intent(INOUT) :: Boxes3D
         integer                           , optional, intent(IN)    :: KLB, KUB
-        integer                           , optional, intent(OUT)   :: STAT        
+        integer                           , optional, intent(OUT)   :: STAT
         !Local---------------------------------------------------------------
         integer                                                     :: STAT_, ready_
         integer                                                     :: NeighbourSouth, NeighbourWest
         integer                                                     :: NeighbourEast, NeighbourNorth
         integer                                                     :: Halo_Points, WILB, WIUB, WJLB, WJUB
-        
+
         !Begin---------------------------------------------------------------
-        
+
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-       
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-            
+
             if (Me%DDecomp%ON) then
-            
+
                 WILB = Me%WorkSize%ILB
                 WIUB = Me%WorkSize%IUB
                 WJLB = Me%WorkSize%JLB
                 WJUB = Me%WorkSize%JUB
-                
+
                 NeighbourSouth = Me%DDecomp%NeighbourSouth
-                NeighbourWest  = Me%DDecomp%NeighbourWest 
-                NeighbourEast  = Me%DDecomp%NeighbourEast 
+                NeighbourWest  = Me%DDecomp%NeighbourWest
+                NeighbourEast  = Me%DDecomp%NeighbourEast
                 NeighbourNorth = Me%DDecomp%NeighbourNorth
-                Halo_Points    = Me%DDecomp%Halo_Points   
-                
+                Halo_Points    = Me%DDecomp%Halo_Points
+
                 if (present(Boxes2D)) then
-                    
+
                     if (NeighbourSouth /= null_int) then
                         Boxes2D(WILB:WILB+Halo_Points-1,WJLB:WJUB) = -99
                     endif
@@ -8206,19 +8591,19 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                     if (NeighbourNorth /= null_int) then
                         Boxes2D(WIUB-Halo_Points+2:WIUB,WJLB:WJUB) = -99
                     endif
-                    
+
                     if (NeighbourWest /= null_int) then
                         Boxes2D(WILB:WIUB, WJLB:WJLB+Halo_Points-1) = -99
                     endif
 
                     if (NeighbourEast /= null_int) then
                         Boxes2D(WILB:WIUB, WJUB-Halo_Points+2:WJUB) = -99
-                    endif                    
-                    
+                    endif
+
                 endif
 
                 if (present(Boxes3D)) then
-                
+
                     if (present(KLB).and.present(KUB)) then
                         if (NeighbourSouth /= null_int) then
                             Boxes3D(WILB:WILB+Halo_Points-1,WJLB:WJUB,KLB:KUB) = -99
@@ -8227,40 +8612,40 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                         if (NeighbourNorth /= null_int) then
                             Boxes3D(WIUB-Halo_Points+2:WIUB,WJLB:WJUB,KLB:KUB) = -99
                         endif
-                        
+
                         if (NeighbourWest /= null_int) then
                             Boxes3D(WILB:WIUB, WJLB:WJLB+Halo_Points-1,KLB:KUB) = -99
                         endif
 
                         if (NeighbourEast /= null_int) then
                             Boxes3D(WILB:WIUB, WJUB-Halo_Points+2:WJUB,KLB:KUB) = -99
-                        endif   
+                        endif
                     else
                         stop "HorizontalGrid - No_BoxMap_HaloArea - ERR10"
                     endif
-                
+
                 endif
 
-            endif                
+            endif
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
-        if (present(STAT)) STAT = STAT_                     
-        
+        if (present(STAT)) STAT = STAT_
 
-    end subroutine No_BoxMap_HaloArea     
-    
-    
+
+    end subroutine No_BoxMap_HaloArea
+
+
     !--------------------------------------------------------------------------
- 
-    
+
+
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    !SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR 
+    !SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -8277,21 +8662,21 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-        
+
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             !Size
             if (present(Size            )) Size           = Me%Size
             if (present(WorkSize        )) WorkSize       = Me%WorkSize
-            if (present(GlobalWorkSize  )) GlobalWorkSize = Me%GlobalWorkSize            
+            if (present(GlobalWorkSize  )) GlobalWorkSize = Me%GlobalWorkSize
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -8305,8 +8690,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     subroutine GetHorizontalGrid(HorizontalGridID, XX_IE, YY_IE, XX_Z, YY_Z,            &
                                  XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross,            &
-                                 DXX, DYY, DZX, DZY, DUX, DUY, DVX, DVY, XX, YY,        & 
-                                 XX2D_Z, YY2D_Z, XX2D_U, YY2D_U, XX2D_V, YY2D_V, IV, JV, STAT)
+                                 DXX, DYY, DZX, DZY, DUX, DUY, DVX, DVY, XX, YY,        &
+                                 XX2D_Z, YY2D_Z, XX2D_U, YY2D_U, XX2D_V, YY2D_V,        &
+                                 IV, JV, IU, JU, IZ, JZ,                                &
+                                 ILinkV, JLinkV, ILinkU, JLinkU, ILinkZ, JLinkZ,        &
+                                 STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
@@ -8315,17 +8703,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real, dimension(:   ), pointer, optional    :: XX_Z, YY_Z, XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross
         real, dimension(:, :), pointer, optional    :: DXX, DYY, DZX, DZY
         real, dimension(:, :), pointer, optional    :: DUX, DUY, DVX, DVY
-        integer, dimension(:, :), pointer, optional :: IV, JV     !João Sobrinho
+        integer, dimension(:, :), pointer, optional :: ILinkV, JLinkV, ILinkU, JLinkU, ILinkZ, JLinkZ !Joao Sobrinho
+        integer, dimension(:, :), pointer, optional :: IV, JV, IU, JU, IZ, JZ !Joao Sobrinho
         real, dimension(:   ), pointer, optional    :: XX, YY
-        integer, optional,  intent(OUT)             :: STAT    
+        integer, optional,  intent(OUT)             :: STAT
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-        
+
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -8475,8 +8864,48 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
             endif
             !IV. Father cell inside which is each son cell (row).
-            if (present(IV)) then
-                IV => Me%LastFatherGrid%IV
+            if (present(ILinkV)) then
+                ILinkV => Me%LastFatherGrid%ILinkV
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+            !JV. Father cell inside which is each son cell(column).
+            if (present(JLinkV)) then
+                JLinkV => Me%LastFatherGrid%JLinkV
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+            !IV. Father cell inside which is each son cell (row).
+            if (present(ILinkU)) then
+                ILinkU => Me%LastFatherGrid%ILinkU
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+            !JV. Father cell inside which is each son cell(column).
+            if (present(JLinkU)) then
+                JLinkU => Me%LastFatherGrid%JLinkU
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+            !IV. Father cell inside which is each son cell (row).
+            if (present(JLinkZ)) then
+                JLinkZ => Me%LastFatherGrid%JLinkZ
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+            !JV. Father cell inside which is each son cell(column).
+            if (present(ILinkZ)) then
+                ILinkZ => Me%LastFatherGrid%ILinkZ
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+            !JV. Father cell inside which is each son cell(column).
+            if (present(IZ)) then
+                IZ => Me%LastFatherGrid%IZ
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+            !JV. Father cell inside which is each son cell(column).
+            if (present(JZ)) then
+                JZ => Me%LastFatherGrid%JZ
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+            !JV. Father cell inside which is each son cell(column).
+            if (present(JU)) then
+                JU => Me%LastFatherGrid%JU
                 call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
             endif
             !JV. Father cell inside which is each son cell(column).
@@ -8484,9 +8913,19 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 JV => Me%LastFatherGrid%JV
                 call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
             endif
+            !JV. Father cell inside which is each son cell(column).
+            if (present(IU)) then
+                IU => Me%LastFatherGrid%IU
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
+            !JV. Father cell inside which is each son cell(column).
+            if (present(IV)) then
+                IV => Me%LastFatherGrid%IV
+                call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
+            endif
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -8495,23 +8934,23 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             STAT = STAT_
 
     end subroutine GetHorizontalGrid
-    
-    !--------------------------------------------------------------------------        
+
+    !--------------------------------------------------------------------------
 
     subroutine GetGridCellArea (HorizontalGridID, GridCellArea, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
         real, dimension(:, :), pointer, optional    :: GridCellArea
-        integer, optional,  intent(OUT)             :: STAT    
+        integer, optional,  intent(OUT)             :: STAT
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-        
+
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -8520,7 +8959,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -8541,11 +8980,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-        
+
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -8553,7 +8992,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             Yorig = Me%Yorig
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -8576,18 +9015,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-        
+
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             Angle = Me%Grid_Angle
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -8611,11 +9050,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-        
+
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -8623,7 +9062,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             if(present(Longitude))Longitude = Me%Longitude
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -8645,18 +9084,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-        
+
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             Zone = Me%ZoneLong
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -8680,11 +9119,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-        
+
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -8699,7 +9138,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             endif
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -8714,11 +9153,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     subroutine GetCoordTypeList(GEOG, UTM, MIL_PORT, SIMPLE_GEOG, GRID_COORD, CIRCULAR, NLRD, &
                                 LAMB_CONF_CONIC, PORTUGUESE_UTM_ZONE)
-        
+
         !Arguments-------------------------------------------------------------
 
-        integer, optional, intent(OUT) :: GEOG                  !Coordenadas Geograficas       
-        integer, optional, intent(OUT) :: SIMPLE_GEOG           !Coordenadas Geograficas Simplificadas     
+        integer, optional, intent(OUT) :: GEOG                  !Coordenadas Geograficas
+        integer, optional, intent(OUT) :: SIMPLE_GEOG           !Coordenadas Geograficas Simplificadas
         integer, optional, intent(OUT) :: UTM                   !Coordenadas (UTM)
         integer, optional, intent(OUT) :: MIL_PORT              !Coordenadas Militares Portuguesas
         integer, optional, intent(OUT) :: GRID_COORD            !Coordenadas da malha
@@ -8739,7 +9178,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         if (present(LAMB_CONF_CONIC     )) LAMB_CONF_CONIC      = LAMB_CONF_CONIC_
 
         if (present(PORTUGUESE_UTM_ZONE )) PORTUGUESE_UTM_ZONE  = PORTUGUESE_UTM_ZONE_
-                                                                                                 
+
         !----------------------------------------------------------------------
 
     end subroutine GetCoordTypeList
@@ -8756,11 +9195,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-        
+
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -8768,7 +9207,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             Longitude = Me%Longitude
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -8786,14 +9225,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
         real, dimension(:, :), pointer              :: F
-        integer, optional,  intent(OUT)             :: STAT    
+        integer, optional,  intent(OUT)             :: STAT
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-        
+
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
 
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
             (ready_ .EQ. READ_LOCK_ERR_)) then
@@ -8801,7 +9240,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             F => Me%F
             STAT_ = SUCCESS_
 
-        else 
+        else
 
             STAT_ = ready_
 
@@ -8820,14 +9259,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
         integer, dimension(:, :), pointer           :: DefineCellsMap
-        integer, optional,  intent(OUT)             :: STAT    
+        integer, optional,  intent(OUT)             :: STAT
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-        
+
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
 
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
             (ready_ .EQ. READ_LOCK_ERR_)) then
@@ -8835,7 +9274,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             DefineCellsMap => Me%DefineCellsMap
             STAT_ = SUCCESS_
 
-        else 
+        else
 
             STAT_ = ready_
 
@@ -8854,14 +9293,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
         logical                                     :: NotDefinedCells
-        integer, optional,  intent(OUT)             :: STAT    
+        integer, optional,  intent(OUT)             :: STAT
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-        
+
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
 
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
             (ready_ .EQ. READ_LOCK_ERR_)) then
@@ -8869,7 +9308,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             NotDefinedCells = Me%NotDefinedCells
             STAT_ = SUCCESS_
 
-        else 
+        else
 
             STAT_ = ready_
 
@@ -8890,16 +9329,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer                                     :: HorizontalGridID
         logical          ,  intent(OUT)             :: Distortion
         logical, optional,  intent(OUT)             :: CornersXYInput
-        integer, optional,  intent(OUT)             :: STAT    
+        integer, optional,  intent(OUT)             :: STAT
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
 
         !Begin-----------------------------------------------------------------
-        
+
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
 
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
             (ready_ .EQ. READ_LOCK_ERR_)) then
@@ -8910,7 +9349,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
             STAT_ = SUCCESS_
 
-        else 
+        else
 
             STAT_ = ready_
 
@@ -8929,29 +9368,29 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
         real, dimension(:, :), pointer              :: RotationX, RotationY
-        integer, optional,  intent(OUT)             :: STAT    
+        integer, optional,  intent(OUT)             :: STAT
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
 
         !Begin-----------------------------------------------------------------
-        
+
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
 
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
             RotationX  => Me%RotationX
-             
+
             call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
             RotationY  => Me%RotationY
 
-            STAT_ = SUCCESS_                
+            STAT_ = SUCCESS_
 
-        else 
+        else
 
             STAT_ = ready_
 
@@ -8965,7 +9404,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !--------------------------------------------------------------------------
 
-    !Get cell rotation in radians 
+    !Get cell rotation in radians
     subroutine GetCellRotation(HorizontalGridID, i, j, CellRotation, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -8986,21 +9425,21 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
             CellRotation = 0.
 
-            if      (Me%Distortion) then 
-                
+            if      (Me%Distortion) then
+
                 !with distortion, the cell trigonometric circle origin is coincident with cell "x plane"
                 !and rotation Y is not accounted
-                CellRotation = Me%RotationX(i, j) 
-                
+                CellRotation = Me%RotationX(i, j)
+
             else if (Me%RegularRotation) then
 
-                CellRotation = Me%Grid_Angle * Pi / 180. 
+                CellRotation = Me%Grid_Angle * Pi / 180.
 
             endif
 
             STAT_ = SUCCESS_
 
-        else               
+        else
 
             STAT_ = ready_
 
@@ -9023,18 +9462,18 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
         integer                                     :: HorizontalGridID
         real, dimension(:,:), optional, pointer     :: GridLongitude, GridLatitude
         real, dimension(:,:), optional, pointer     :: GridLongitudeConn, GridLatitudeConn
-        integer, optional,  intent(OUT)             :: STAT    
+        integer, optional,  intent(OUT)             :: STAT
 
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
 
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
         if ((ready_ == IDLE_ERR_     ) .OR.                                     &
             (ready_ == READ_LOCK_ERR_)) then
 
@@ -9042,7 +9481,7 @@ cd1 :       if (present(GridLongitude)) then
                 call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
                 GridLongitude => Me%LongitudeZ
             end if cd1
-            
+
 
 cd2 :       if (present(GridLatitude)) then
                 call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
@@ -9060,9 +9499,9 @@ cd4 :       if (present(GridLongitudeConn)) then
                 GridLongitudeConn => Me%LongitudeConn
             end if cd4
 
-            
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if
 
@@ -9074,7 +9513,7 @@ cd4 :       if (present(GridLongitudeConn)) then
     end subroutine GetGridLatitudeLongitude
 
     !----------------------------------------------------------------------------
-    
+
     !----------------------------------------------------------------------------
 
 
@@ -9083,34 +9522,34 @@ cd4 :       if (present(GridLongitudeConn)) then
         !Arguments---------------------------------------------------------------
         integer                                     :: HorizontalGridID
         real, dimension(:,:),  pointer              :: CoordX, CoordY
-        integer, optional,  intent(OUT)             :: STAT    
+        integer, optional,  intent(OUT)             :: STAT
 
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
 
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
         if ((ready_ == IDLE_ERR_     ) .OR.                                     &
             (ready_ == READ_LOCK_ERR_)) then
-            
+
             call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
             call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
-            
-            if (Me%CoordType == GEOG_ .or. Me%CoordType == SIMPLE_GEOG_) then            
+
+            if (Me%CoordType == GEOG_ .or. Me%CoordType == SIMPLE_GEOG_) then
                 CoordX => Me%LongitudeZ
                 CoordY => Me%LatitudeZ
             else
                 CoordX => Me%Compute%XX2D_Z
                 CoordY => Me%Compute%YY2D_Z
             endif
-            
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if
 
@@ -9126,34 +9565,34 @@ cd4 :       if (present(GridLongitudeConn)) then
         !Arguments---------------------------------------------------------------
         integer                                     :: HorizontalGridID
         real, dimension(:,:), optional, pointer     :: CoordX, CoordY
-        integer, optional,  intent(OUT)             :: STAT    
+        integer, optional,  intent(OUT)             :: STAT
 
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
 
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
         if ((ready_ == IDLE_ERR_     ) .OR.                                     &
             (ready_ == READ_LOCK_ERR_)) then
-            
+
             call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
             call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
-            
-            if (Me%CoordType == GEOG_ .or. Me%CoordType == SIMPLE_GEOG_) then            
+
+            if (Me%CoordType == GEOG_ .or. Me%CoordType == SIMPLE_GEOG_) then
                 CoordX => Me%LongitudeConn
                 CoordY => Me%LatitudeConn
             else
                 CoordX => Me%XX_IE
                 CoordY => Me%YY_IE
             endif
-            
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if
 
@@ -9173,25 +9612,25 @@ cd4 :       if (present(GridLongitudeConn)) then
         integer                                     :: HorizontalGridID
         integer, optional,  intent(OUT)             :: ComputeZ, ComputeU, ComputeV
         integer, optional,  intent(OUT)             :: ComputeCross, ComputeZU, ComputeZV
-        integer, optional,  intent(OUT)  :: STAT    
+        integer, optional,  intent(OUT)  :: STAT
 
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
-        
+        integer                                     :: STAT_
+        integer                                     :: ready_
+
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
-        if ((ready_ == IDLE_ERR_     ) .OR.                                              & 
+        call Ready(HorizontalGridID, ready_)
+
+        if ((ready_ == IDLE_ERR_     ) .OR.                                              &
             (ready_ == READ_LOCK_ERR_)) then
 
 cd1 :       if (present(ComputeZ)) then
                 ComputeZ = ComputeZ_
             end if cd1
-            
+
 cd2 :       if (present(ComputeU)) then
                 ComputeU = ComputeU_
             end if cd2
@@ -9211,9 +9650,9 @@ cd5 :       if (present(ComputeZU)) then
 cd6 :       if (present(ComputeZV)) then
                 ComputeZV = ComputeZV_
             end if cd6
-            
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if
 
@@ -9231,25 +9670,25 @@ cd6 :       if (present(ComputeZV)) then
         !Arguments---------------------------------------------------------------
         integer                                     :: HorizontalGridID
         integer, optional,  intent(OUT)             :: LargeScaleModel, Assimila, SurfaceMM5
-        integer, optional,  intent(OUT)             :: STAT    
- 
+        integer, optional,  intent(OUT)             :: STAT
+
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
-        
+        integer                                     :: STAT_
+        integer                                     :: ready_
+
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
-        if ((ready_ == IDLE_ERR_     ) .OR.                                              & 
+        call Ready(HorizontalGridID, ready_)
+
+        if ((ready_ == IDLE_ERR_     ) .OR.                                              &
             (ready_ == READ_LOCK_ERR_)) then
 
 cd1 :       if (present(LargeScaleModel)) then
                 LargeScaleModel = LargeScaleModel_
             end if cd1
-            
+
 cd2 :       if (present(Assimila)) then
                 Assimila = Assimila_
             end if cd2
@@ -9259,7 +9698,7 @@ cd3 :       if (present(SurfaceMM5)) then
             end if cd3
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if
 
@@ -9277,24 +9716,24 @@ cd3 :       if (present(SurfaceMM5)) then
         !Arguments---------------------------------------------------------------
         integer                                     :: HorizontalGridID
         character(len=*)                            :: FileName
-        integer, optional,  intent(OUT)             :: STAT    
- 
+        integer, optional,  intent(OUT)             :: STAT
+
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
-        
+        integer                                     :: STAT_
+        integer                                     :: ready_
+
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
-        if ((ready_ == IDLE_ERR_     ) .OR.                                              & 
+        call Ready(HorizontalGridID, ready_)
+
+        if ((ready_ == IDLE_ERR_     ) .OR.                                              &
             (ready_ == READ_LOCK_ERR_)) then
-    
+
             FileName = Me%FileName
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if
 
@@ -9314,14 +9753,14 @@ cd3 :       if (present(SurfaceMM5)) then
         real,    optional,  intent(OUT)             :: PercI, PercJ
         integer, optional,  intent(IN)              :: Referential
         integer, optional,  intent(IN)              :: Iold, Jold
-        integer, optional,  intent(OUT)             :: STAT    
- 
+        integer, optional,  intent(OUT)             :: STAT
+
         !Local-------------------------------------------------------------------
         real,   dimension(:,:), pointer             :: XX2D, YY2D
         real,   dimension(:  ), pointer             :: XX1D, YY1D
         real,   dimension(:  ), pointer             :: XX1D_Aux, YY1D_Aux
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
         real                                        :: XPoint2, YPoint2, Xorig2, Yorig2
         integer                                     :: Referential_, GetGridBorderType
         integer                                     :: ILB, IUB, JLB, JUB
@@ -9331,9 +9770,9 @@ cd3 :       if (present(SurfaceMM5)) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
-i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+        call Ready(HorizontalGridID, ready_)
+
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
             (ready_ == READ_LOCK_ERR_)) then
 
             ILB = Me%Size%ILB
@@ -9352,17 +9791,17 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
             endif
 
- 
-            XX2D        => Me%XX_IE 
-            YY2D        => Me%YY_IE 
 
-            XX1D        => Me%Compute%XX_Cross 
-            YY1D        => Me%Compute%YY_Cross 
-            
+            XX2D        => Me%XX_IE
+            YY2D        => Me%YY_IE
+
+            XX1D        => Me%Compute%XX_Cross
+            YY1D        => Me%Compute%YY_Cross
+
             allocate(XX1D_Aux(JLB:JUB))
             allocate(YY1D_Aux(ILB:IUB))
 
-            if (Referential_ == Cartesian_) then  
+            if (Referential_ == Cartesian_) then
 
                 GetGridBorderType = Me%GridBorderCart%Type_
 
@@ -9370,10 +9809,10 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
             if (Referential_ == GridCoord_) then
 
-                GetGridBorderType = Me%GridBorderCoord%Type_    
-            
-                if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then 
- 
+                GetGridBorderType = Me%GridBorderCoord%Type_
+
+                if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then
+
                     XX2D        => Me%LongitudeConn
                     YY2D        => Me%LatitudeConn
 
@@ -9390,7 +9829,7 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
             endif
 
-    
+
 i2:         if (GetGridBorderType == ComplexPolygon_) then
 
                 if (present(Iold) .and. present(Jold)) then
@@ -9417,7 +9856,7 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
                 else
 
                     if (present(PercI) .and. present(PercJ)) then
-                        ! 
+                        !
                         call RelativePosition4VertPolygon(Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ), &
                                                           Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1), &
                                                           Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ), &
@@ -9442,17 +9881,17 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
 
                     Xorig2  = Me%Xorig
                     Yorig2  = Me%Yorig
-                       
+
                     XPoint2 =  XPoint - Xorig2
                     YPoint2 =  YPoint - Yorig2
 
-                    call RODAXY(0., 0., -Me%Grid_Angle, XPoint2, YPoint2) 
+                    call RODAXY(0., 0., -Me%Grid_Angle, XPoint2, YPoint2)
 
                     XX1D_Aux(JLB+1:JUB) = Me%XX(JLB+1:JUB)
                     YY1D_Aux(ILB+1:IUB) = Me%YY(ILB+1:IUB)
 
                 endif
-                
+
                 call LocateCell (XX1D_Aux,                                           &
                                  YY1D_Aux,                                           &
                                  XPoint2, YPoint2,                                      &
@@ -9467,7 +9906,7 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
                         PercI  = (YPoint2 - YY1D_Aux(I)) / (YY1D_Aux(I+1) - YY1D_Aux(I))
                     endif
                 endif
-                
+
                 if (present(PercJ)) then
                     if (J < 0) then
                         STAT_ = OUT_OF_BOUNDS_ERR_
@@ -9477,22 +9916,22 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
                 endif
 
             endif i2
-            
+
             deallocate(XX1D_Aux)
             deallocate(YY1D_Aux)
-           
+
             nullify(XX1D_Aux)
             nullify(YY1D_Aux)
-           
+
             nullify(XX2D)
             nullify(YY2D)
 
             if (STAT_ == UNKNOWN_) STAT_ = SUCCESS_
-            
+
         else    i1
-        
+
             STAT_ = ready_
-            
+
         end if  i1
 
         if (present(STAT)) STAT = STAT_
@@ -9509,14 +9948,14 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
         integer,            intent(OUT)             :: I, J
         real,    optional,  intent(OUT)             :: PercI, PercJ
         integer, optional,  intent(IN)              :: Referential
-        integer, optional,  intent(OUT)             :: STAT    
- 
+        integer, optional,  intent(OUT)             :: STAT
+
         !Local-------------------------------------------------------------------
         real,   dimension(:,:), pointer             :: XX2D, YY2D
         real,   dimension(:  ), pointer             :: XX1D, YY1D
         real,   dimension(:  ), pointer             :: XX1D_Aux, YY1D_Aux
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
         real                                        :: XPoint2, YPoint2, Xorig2, Yorig2
         integer                                     :: Referential_, GetGridBorderType
         integer                                     :: ILB, IUB, JLB, JUB
@@ -9526,9 +9965,9 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
 
         STAT_ = UNKNOWN_
 
-        LocalMe => Ready_ThreadSafe(HorizontalGridID, ready_)    
-        
-i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+        LocalMe => Ready_ThreadSafe(HorizontalGridID, ready_)
+
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
             (ready_ == READ_LOCK_ERR_)) then
 
             ILB = LocalMe%Size%ILB
@@ -9547,17 +9986,17 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
             endif
 
- 
-            XX2D        => LocalMe%XX_IE 
-            YY2D        => LocalMe%YY_IE 
 
-            XX1D        => LocalMe%Compute%XX_Cross 
-            YY1D        => LocalMe%Compute%YY_Cross 
-            
+            XX2D        => LocalMe%XX_IE
+            YY2D        => LocalMe%YY_IE
+
+            XX1D        => LocalMe%Compute%XX_Cross
+            YY1D        => LocalMe%Compute%YY_Cross
+
             allocate(XX1D_Aux(JLB:JUB))
             allocate(YY1D_Aux(ILB:IUB))
 
-            if (Referential_ == Cartesian_) then  
+            if (Referential_ == Cartesian_) then
 
                 GetGridBorderType = LocalMe%GridBorderCart%Type_
 
@@ -9565,10 +10004,10 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
             if (Referential_ == GridCoord_) then
 
-                GetGridBorderType = LocalMe%GridBorderCoord%Type_    
-            
-                if (LocalMe%CoordType == SIMPLE_GEOG_ .or. LocalMe%CoordType == GEOG_) then 
- 
+                GetGridBorderType = LocalMe%GridBorderCoord%Type_
+
+                if (LocalMe%CoordType == SIMPLE_GEOG_ .or. LocalMe%CoordType == GEOG_) then
+
                     XX2D        => LocalMe%LongitudeConn
                     YY2D        => LocalMe%LatitudeConn
 
@@ -9585,7 +10024,7 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
             endif
 
-    
+
 i2:         if (GetGridBorderType == ComplexPolygon_) then
 
                 call LocateCellPolygons(XX2D,                                           &
@@ -9604,7 +10043,7 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
                 else
 
                     if (present(PercI) .and. present(PercJ)) then
-                        ! 
+                        !
                         call RelativePosition4VertPolygon(Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ), &
                                                           Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1), &
                                                           Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ), &
@@ -9629,17 +10068,17 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
 
                     Xorig2  = LocalMe%Xorig
                     Yorig2  = LocalMe%Yorig
-                       
+
                     XPoint2 =  XPoint - Xorig2
                     YPoint2 =  YPoint - Yorig2
 
-                    call RODAXY(0., 0., -LocalMe%Grid_Angle, XPoint2, YPoint2) 
+                    call RODAXY(0., 0., -LocalMe%Grid_Angle, XPoint2, YPoint2)
 
                     XX1D_Aux(JLB+1:JUB) = LocalMe%XX(JLB+1:JUB)
                     YY1D_Aux(ILB+1:IUB) = LocalMe%YY(ILB+1:IUB)
 
                 endif
-                
+
                 call LocateCell (XX1D_Aux,                                           &
                                  YY1D_Aux,                                           &
                                  XPoint2, YPoint2,                                      &
@@ -9654,7 +10093,7 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
                         PercI  = (YPoint2 - YY1D_Aux(I)) / (YY1D_Aux(I+1) - YY1D_Aux(I))
                     endif
                 endif
-                
+
                 if (present(PercJ)) then
                     if (J < 0) then
                         STAT_ = OUT_OF_BOUNDS_ERR_
@@ -9664,22 +10103,22 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
                 endif
 
             endif i2
-            
+
             deallocate(XX1D_Aux)
             deallocate(YY1D_Aux)
-           
+
             nullify(XX1D_Aux)
             nullify(YY1D_Aux)
-           
+
             nullify(XX2D)
             nullify(YY2D)
 
             if (STAT_ == UNKNOWN_) STAT_ = SUCCESS_
-            
+
         else    i1
-        
+
             STAT_ = ready_
-            
+
         end if  i1
 
         if (present(STAT)) STAT = STAT_
@@ -9698,21 +10137,21 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
         real,               intent(IN )             :: PercI, PercJ
         real,               intent(OUT)             :: XPoint, YPoint
         integer, optional,  intent(IN )             :: Referential
-        integer, optional,  intent(OUT)             :: STAT    
- 
+        integer, optional,  intent(OUT)             :: STAT
+
         !Local-------------------------------------------------------------------
         real,   dimension(:,:), pointer             :: XX2D, YY2D
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
         real                                        :: xac, yac, xbd, ybd
         integer                                     :: Referential_
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
-i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+        call Ready(HorizontalGridID, ready_)
+
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
             (ready_ == READ_LOCK_ERR_)) then
 
             if (present(Referential)) then
@@ -9725,10 +10164,10 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
             endif
 
-            XX2D        => Me%XX_IE 
-            YY2D        => Me%YY_IE 
+            XX2D        => Me%XX_IE
+            YY2D        => Me%YY_IE
 
-            if (Referential_ == GridCoord_.and. (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_)) then 
+            if (Referential_ == GridCoord_.and. (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_)) then
 
                 XX2D        => Me%LongitudeConn
                 YY2D        => Me%LatitudeConn
@@ -9743,19 +10182,19 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
             endif
 
             xac    = XX2D(I+1, J) * PercI + XX2D(I, J) * (1. - PercI)
-            yac    = YY2D(I+1, J) * PercI + YY2D(I, J) * (1. - PercI)            
+            yac    = YY2D(I+1, J) * PercI + YY2D(I, J) * (1. - PercI)
 
             xbd    = XX2D(I+1, J+1) * PercI + XX2D(I, J+1) * (1. - PercI)
-            ybd    = YY2D(I+1, J+1) * PercI + YY2D(I, J+1) * (1. - PercI)            
+            ybd    = YY2D(I+1, J+1) * PercI + YY2D(I, J+1) * (1. - PercI)
 
 
-            XPoint = xbd * PercJ + xac * (1. - PercJ) 
-            YPoint = ybd * PercJ + yac * (1. - PercJ) 
+            XPoint = xbd * PercJ + xac * (1. - PercJ)
+            YPoint = ybd * PercJ + yac * (1. - PercJ)
 
             nullify(XX2D)
             nullify(YY2D)
 
-           
+
             STAT_ = SUCCESS_
         else    i1
             STAT_ = ready_
@@ -9775,27 +10214,27 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
         integer,            intent(IN)              :: HorizontalGridID
         real,               intent(IN)              :: XPoint, YPoint
         integer, optional,  intent(IN)              :: Referential
-        integer, optional,  intent(OUT)             :: STAT    
- 
+        integer, optional,  intent(OUT)             :: STAT
+
         !Local-------------------------------------------------------------------
         real,   dimension(:,:), pointer             :: XX2D, YY2D
         integer                                     :: Referential_
         integer                                     :: ILB, IUB, JLB, JUB
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
-i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+        call Ready(HorizontalGridID, ready_)
+
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
             (ready_ == READ_LOCK_ERR_)) then
 
-            ILB = Me%WorkSize%ILB 
-            IUB = Me%WorkSize%IUB 
-            JLB = Me%WorkSize%JLB 
-            JUB = Me%WorkSize%JUB 
+            ILB = Me%WorkSize%ILB
+            IUB = Me%WorkSize%IUB
+            JLB = Me%WorkSize%JLB
+            JUB = Me%WorkSize%JUB
 
             if (present(Referential)) then
 
@@ -9807,26 +10246,26 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
             endif
 
-iR:         if (Referential_ == GridCoord_) then  
+iR:         if (Referential_ == GridCoord_) then
 
-                if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then 
+                if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then
 
                     XX2D        => Me%LongitudeConn
                     YY2D        => Me%LatitudeConn
 
                 else
-        
-                    XX2D        => Me%XX_IE 
-                    YY2D        => Me%YY_IE 
+
+                    XX2D        => Me%XX_IE
+                    YY2D        => Me%YY_IE
 
                 endif
 
-                if (Me%GridBorderCoord%Type_ == Rectang_) then 
+                if (Me%GridBorderCoord%Type_ == Rectang_) then
                     if (XPoint >= XX2D(ILB+1, JLB+1) .and. XPoint <= XX2D(IUB, JUB) .and. &
                         YPoint >= YY2D(ILB+1, JLB+1) .and. YPoint <= YY2D(IUB, JUB)) then
-                        GetXYInsideDomain = .true. 
+                        GetXYInsideDomain = .true.
                     else
-                        GetXYInsideDomain = .false. 
+                        GetXYInsideDomain = .false.
                     endif
 
                 else
@@ -9837,12 +10276,12 @@ iR:         if (Referential_ == GridCoord_) then
 
             else if (Referential_ == Cartesian_) then  iR
 
-                if (Me%GridBorderCart%Type_ == Rectang_) then 
+                if (Me%GridBorderCart%Type_ == Rectang_) then
                     if (XPoint >= Me%XX_IE(ILB+1, JLB+1) .and. XPoint <= Me%XX_IE(IUB, JUB) .and. &
                         YPoint >= Me%YY_IE(ILB+1, JLB+1) .and. YPoint <= Me%YY_IE(IUB, JUB)) then
-                        GetXYInsideDomain = .true. 
+                        GetXYInsideDomain = .true.
                     else
-                        GetXYInsideDomain = .false. 
+                        GetXYInsideDomain = .false.
                     endif
 
                 else
@@ -9852,12 +10291,12 @@ iR:         if (Referential_ == GridCoord_) then
 
             else if (Referential_ == AlongGrid_) then  iR
 
-                if (Me%GridBorderAlongGrid%Type_ == Rectang_) then 
+                if (Me%GridBorderAlongGrid%Type_ == Rectang_) then
                     if (XPoint >= Me%XX_AlongGrid(ILB+1, JLB+1) .and. XPoint <= Me%XX_AlongGrid(IUB, JUB) .and. &
                         YPoint >= Me%YY_AlongGrid(ILB+1, JLB+1) .and. YPoint <= Me%YY_AlongGrid(IUB, JUB)) then
-                        GetXYInsideDomain = .true. 
+                        GetXYInsideDomain = .true.
                     else
-                        GetXYInsideDomain = .false. 
+                        GetXYInsideDomain = .false.
                     endif
 
                 else
@@ -9884,29 +10323,29 @@ iR:         if (Referential_ == GridCoord_) then
         !Arguments---------------------------------------------------------------
         integer,            intent(IN)              :: HorizontalGridID
         integer,            intent(IN)              :: Referential
-        integer, optional,  intent(OUT)             :: STAT    
- 
+        integer, optional,  intent(OUT)             :: STAT
+
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
-i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+        call Ready(HorizontalGridID, ready_)
+
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
             (ready_ == READ_LOCK_ERR_)) then
 
-            if      (Referential == GridCoord_) then  
-            
+            if      (Referential == GridCoord_) then
+
                 GetGridBorderType = Me%GridBorderCoord%Type_
-            
-            else if (Referential == Cartesian_) then  
+
+            else if (Referential == Cartesian_) then
 
                 GetGridBorderType = Me%GridBorderCart%Type_
 
-            else if (Referential == AlongGrid_) then  
+            else if (Referential == AlongGrid_) then
 
                 GetGridBorderType = Me%GridBorderAlongGrid%Type_
 
@@ -9930,18 +10369,18 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
         !Arguments---------------------------------------------------------------
         integer,                  intent(IN)        :: HorizontalGridID
         type(T_Polygon),  pointer                   :: Polygon
-        integer, optional,        intent(OUT)       :: STAT    
- 
+        integer, optional,        intent(OUT)       :: STAT
+
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
-i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+        call Ready(HorizontalGridID, ready_)
+
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
             (ready_ == READ_LOCK_ERR_)) then
 
             call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
@@ -9966,18 +10405,18 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
         !Arguments---------------------------------------------------------------
         integer,                  intent(IN)        :: HorizontalGridID
         type(T_Polygon),  pointer                   :: Polygon
-        integer, optional,        intent(OUT)       :: STAT    
- 
+        integer, optional,        intent(OUT)       :: STAT
+
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
-i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+        call Ready(HorizontalGridID, ready_)
+
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
             (ready_ == READ_LOCK_ERR_)) then
 
             call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
@@ -10000,18 +10439,18 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
         !Arguments---------------------------------------------------------------
         integer,                  intent(IN)        :: HorizontalGridID
         type(T_Polygon),  pointer                   :: Polygon
-        integer, optional,        intent(OUT)       :: STAT    
- 
+        integer, optional,        intent(OUT)       :: STAT
+
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
-i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+        call Ready(HorizontalGridID, ready_)
+
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
             (ready_ == READ_LOCK_ERR_)) then
 
             call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
@@ -10027,7 +10466,7 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
     end subroutine GetGridBorderCartPolygon
 
-    !-------------------------------------------------------------------------    
+    !-------------------------------------------------------------------------
     !--------------------------------------------------------------------------
 
     subroutine GetGridOutBorderCartPolygon(HorizontalGridID, Polygon, STAT)
@@ -10035,18 +10474,18 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
         !Arguments---------------------------------------------------------------
         integer,                  intent(IN)        :: HorizontalGridID
         type(T_Polygon),  pointer                   :: Polygon
-        integer, optional,        intent(OUT)       :: STAT    
- 
+        integer, optional,        intent(OUT)       :: STAT
+
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
-i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+        call Ready(HorizontalGridID, ready_)
+
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
             (ready_ == READ_LOCK_ERR_)) then
 
             call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
@@ -10072,24 +10511,24 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
         !Arguments---------------------------------------------------------------
         integer,                  intent(IN)        :: HorizontalGridID
         real,    optional,        intent(OUT)       :: West, East, South, North
-        integer, optional,        intent(OUT)       :: STAT    
- 
+        integer, optional,        intent(OUT)       :: STAT
+
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
-i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+        call Ready(HorizontalGridID, ready_)
+
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
             (ready_ == READ_LOCK_ERR_)) then
 
             West    = Me%GridBorderCoord%Polygon_%Limits%Left
-            East    = Me%GridBorderCoord%Polygon_%Limits%Right            
+            East    = Me%GridBorderCoord%Polygon_%Limits%Right
             South   = Me%GridBorderCoord%Polygon_%Limits%Bottom
-            North   = Me%GridBorderCoord%Polygon_%Limits%Top            
+            North   = Me%GridBorderCoord%Polygon_%Limits%Top
 
             STAT_ = SUCCESS_
         else    i1
@@ -10101,7 +10540,7 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
     end subroutine GetGridBorderLimits
 
     !--------------------------------------------------------------------------
-    
+
     !--------------------------------------------------------------------------
 
     subroutine GetGridOutBorderCartLimits(HorizontalGridID, West, East, South, North, STAT)
@@ -10109,24 +10548,24 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
         !Arguments---------------------------------------------------------------
         integer,                  intent(IN)        :: HorizontalGridID
         real,    optional,        intent(OUT)       :: West, East, South, North
-        integer, optional,        intent(OUT)       :: STAT    
- 
+        integer, optional,        intent(OUT)       :: STAT
+
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
-i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+        call Ready(HorizontalGridID, ready_)
+
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
             (ready_ == READ_LOCK_ERR_)) then
 
             West    = Me%GridOutBorderCart%Polygon_%Limits%Left
-            East    = Me%GridOutBorderCart%Polygon_%Limits%Right            
+            East    = Me%GridOutBorderCart%Polygon_%Limits%Right
             South   = Me%GridOutBorderCart%Polygon_%Limits%Bottom
-            North   = Me%GridOutBorderCart%Polygon_%Limits%Top            
+            North   = Me%GridOutBorderCart%Polygon_%Limits%Top
 
             STAT_ = SUCCESS_
         else    i1
@@ -10137,7 +10576,7 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
     end subroutine GetGridOutBorderCartLimits
 
-    !--------------------------------------------------------------------------    
+    !--------------------------------------------------------------------------
     !--------------------------------------------------------------------------
 
     subroutine GetCellZInterceptByXYZPoints(HorizontalGridID, XYZPoints,                &
@@ -10148,22 +10587,22 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
         type (T_XYZPoints),      pointer            :: XYZPoints
         integer, dimension(:),   pointer            :: VectorI, VectorJ, VectorK
         integer                                     :: nCell
-        integer, optional,  intent(OUT)             :: STAT    
- 
+        integer, optional,  intent(OUT)             :: STAT
+
         !Local-------------------------------------------------------------------
         type (T_XYZPoints), pointer                 :: CurrentXYZPoints
         integer, dimension(:), pointer              :: AuxI, AuxJ
         integer                                     :: nCell_, l
-        integer                                     :: STAT_, STAT_CALL             
-        integer                                     :: ready_              
+        integer                                     :: STAT_, STAT_CALL
+        integer                                     :: ready_
 
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
-i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+        call Ready(HorizontalGridID, ready_)
+
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
             (ready_ == READ_LOCK_ERR_)) then
 
             nCell_ = (Me%WorkSize%JUB-Me%WorkSize%JLB) * (Me%WorkSize%IUB-Me%WorkSize%ILB)
@@ -10174,27 +10613,27 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
             CurrentXYZPoints => XYZPoints
 
-dw:         do while (associated(CurrentXYZPoints)) 
+dw:         do while (associated(CurrentXYZPoints))
 
                 do l = 1, CurrentXYZPoints%Count
-                
+
                     call GetXYCellZ(Me%InstanceID, CurrentXYZPoints%X(l),               &
                                     CurrentXYZPoints%Y(l), AuxI(nCell_), AuxJ(nCell_),  &
                                     STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
                         stop 'GetCellZInterceptByXYZPoints - ModuleHorizontalGrid - ERR10'
                     endif
-                    
+
                     if (STAT_CALL == OUT_OF_BOUNDS_ERR_) then
                         cycle
                     else
                         nCell_ = nCell_ + 1
-                    endif                    
-                    
+                    endif
+
                 enddo
-                
+
                 CurrentXYZPoints => CurrentXYZPoints%Next
-            
+
             enddo dw
 
             nullify   (CurrentXYZPoints)
@@ -10230,8 +10669,8 @@ dw:         do while (associated(CurrentXYZPoints))
         integer, dimension(:,:), pointer            :: WaterPoints2D
         integer, dimension(:),   pointer            :: VectorI, VectorJ, VectorK
         integer                                     :: nCell
-        integer, optional,  intent(OUT)             :: STAT    
- 
+        integer, optional,  intent(OUT)             :: STAT
+
         !Local-------------------------------------------------------------------
         real,    dimension(:,:), pointer            :: XX2D, YY2D
         type (T_Lines), pointer                     :: CurrentLine
@@ -10239,28 +10678,28 @@ dw:         do while (associated(CurrentXYZPoints))
         type (T_Polygon), pointer                   :: Polygon
         integer, dimension(:), pointer              :: AuxI, AuxJ
         integer                                     :: nCell_, i, j, l, k
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
         logical                                     :: DoesCount
 
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
-i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+        call Ready(HorizontalGridID, ready_)
+
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
             (ready_ == READ_LOCK_ERR_)) then
 
-            if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then 
+            if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then
 
                 XX2D        => Me%LongitudeConn
                 YY2D        => Me%LatitudeConn
 
             else
-        
-                XX2D        => Me%XX_IE 
-                YY2D        => Me%YY_IE 
+
+                XX2D        => Me%XX_IE
+                YY2D        => Me%YY_IE
 
             endif
 
@@ -10268,7 +10707,7 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
             allocate(Segment)
             allocate(Segment%StartAt)
             allocate(Segment%EndAt)
-    
+
             Polygon%Count = 5
 
             allocate(Polygon%VerticesF(Polygon%Count))
@@ -10276,15 +10715,15 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
             nCell_ = (Me%WorkSize%JUB-Me%WorkSize%JLB) * (Me%WorkSize%IUB-Me%WorkSize%ILB)
 
             allocate(AuxI(nCell_)); allocate(AuxJ(nCell_));
-            
+
             AuxI(:) = FillValueInt
-            AuxJ(:) = FillValueInt            
+            AuxJ(:) = FillValueInt
 
             nCell_ = 0
 
             CurrentLine => Line
 
-dw:         do while (associated(CurrentLine)) 
+dw:         do while (associated(CurrentLine))
 
 d1:             do l = 1, CurrentLine%nNodes - 1
 
@@ -10315,12 +10754,12 @@ i2:                     if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j
                             Polygon%VerticesF(5)%X = Polygon%VerticesF(1)%X
                             Polygon%VerticesF(5)%Y = Polygon%VerticesF(1)%Y
 
-                            if (Intersect2D_SegPoly(Segment, Polygon)) then 
-                            
+                            if (Intersect2D_SegPoly(Segment, Polygon)) then
+
                                 DoesCount =.true.
                                 do k=1, nCell_
                                     if (i == AuxI(k) .and. j==AuxJ(k)) then
-                                        DoesCount =.false. 
+                                        DoesCount =.false.
                                         exit
                                     endif
                                 enddo
@@ -10342,7 +10781,7 @@ i2:                     if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j
                 enddo d1
 
                 CurrentLine => CurrentLine%Next
-            
+
             enddo dw
 
             deallocate(Polygon%VerticesF)
@@ -10356,7 +10795,7 @@ i2:                     if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j
 
             deallocate(Segment%EndAt)
             nullify   (Segment%EndAt)
-            
+
             deallocate(Segment)
             nullify   (Segment)
 
@@ -10394,25 +10833,25 @@ i2:                     if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j
         integer, dimension(:,:), pointer            :: WaterPoints2D
         integer, dimension(:),   pointer            :: VectorI, VectorJ, VectorK
         integer                                     :: nCell
-        integer, optional,  intent(OUT)             :: STAT    
- 
+        integer, optional,  intent(OUT)             :: STAT
+
         !Local-------------------------------------------------------------------
         real,    dimension(:,:), pointer            :: XX2D, YY2D
         type (T_Polygon), pointer                   :: CurrentPolygon
         type (T_PointF),   pointer                  :: Point
         integer, dimension(:), pointer              :: AuxI, AuxJ
         integer                                     :: nCell_, i, j, k
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
         logical                                     :: DoesCount
 
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
-        
-i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             & 
+        call Ready(HorizontalGridID, ready_)
+
+i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
             (ready_ == READ_LOCK_ERR_)) then
 
             allocate(Point)
@@ -10423,36 +10862,36 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
             nCell_ = 0
 
-            if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then 
+            if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then
 
                 XX2D        => Me%LongitudeConn
                 YY2D        => Me%LatitudeConn
 
             else
-        
-                XX2D        => Me%XX_IE 
-                YY2D        => Me%YY_IE 
+
+                XX2D        => Me%XX_IE
+                YY2D        => Me%YY_IE
 
             endif
 
             CurrentPolygon => Polygon
 
-dw:         do while (associated(CurrentPolygon)) 
+dw:         do while (associated(CurrentPolygon))
 
 d2:             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 d3:             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                
+
 i2:                 if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j) == WaterPoint) then
 
                         Point%X  = (XX2D(i  , j+1) + XX2D(i, j) + XX2D(i+1, j+1) + XX2D(i+1, j)) / 4.
                         Point%Y  = (YY2D(i  , j+1) + YY2D(i, j) + YY2D(i+1, j+1) + YY2D(i+1, j)) / 4.
 
-                        if (IsPointInsidePolygon(Point, CurrentPolygon)) then 
+                        if (IsPointInsidePolygon(Point, CurrentPolygon)) then
 
                             DoesCount =.true.
                             do k=1, nCell_
                                 if (i == AuxI(k) .and. j==AuxJ(k)) then
-                                    DoesCount =.false. 
+                                    DoesCount =.false.
                                     exit
                                 endif
                             enddo
@@ -10473,7 +10912,7 @@ i2:                 if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j) ==
 
                 CurrentPolygon => CurrentPolygon%Next
 
-            enddo dw 
+            enddo dw
 
 
             nCell = nCell_
@@ -10502,21 +10941,21 @@ i2:                 if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j) ==
     end subroutine GetCellZInterceptByPolygon
 
     !--------------------------------------------------------------------------
-                
+
     !--------------------------------------------------------------------------
 
     logical function WindowIntersectDomain(HorizontalGridID, WorkSize2D, STAT)
-                                                
+
 
         !Arguments-------------------------------------------------------------
-        integer,                     intent(IN )    :: HorizontalGridID   
+        integer,                     intent(IN )    :: HorizontalGridID
         type (T_Size2D),             intent(IN )    :: WorkSize2D
         integer, optional,           intent(OUT)    :: STAT
 
 
         !External--------------------------------------------------------------
 
-        integer :: ready_        
+        integer :: ready_
 
         !Local-----------------------------------------------------------------
 
@@ -10526,23 +10965,23 @@ i2:                 if (Me%DefineCellsMap(i, j) == 1 .and. WaterPoints2D(i,j) ==
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_) 
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             if (Me%DDecomp%MasterOrSlave) then
-                
+
                 WindowIntersectDomain = WindowCellsIntersection(Me%DDecomp%HaloMap, WorkSize2D)
 
             else
-            
+
                 WindowIntersectDomain = WindowCellsIntersection(Me%WorkSize, WorkSize2D)
-            
+
             endif
-                        
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -10552,96 +10991,96 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !----------------------------------------------------------------------
 
     end function WindowIntersectDomain
-    
-    !----------------------------------------------------------------------    
+
+    !----------------------------------------------------------------------
 
     logical function WindowCellsIntersection(WorkSizeA, WorkSizeB)
-                                                
+
 
         !Arguments-------------------------------------------------------------
         type (T_Size2D), intent(IN )    :: WorkSizeA, WorkSizeB
 
         !Local-----------------------------------------------------------------
         logical                         :: LineInterSection, ColumnInterSection
-        
+
         !Begin-----------------------------------------------------------------
-        
-        LineInterSection        = .true. 
-        ColumnInterSection      = .true. 
-        
+
+        LineInterSection        = .true.
+        ColumnInterSection      = .true.
+
         if (WorkSizeA%ILB < WorkSizeB%ILB .and. WorkSizeA%IUB < WorkSizeB%ILB) then
-            LineInterSection   = .false.                
-        endif            
+            LineInterSection   = .false.
+        endif
 
         if (WorkSizeA%ILB > WorkSizeB%IUB .and. WorkSizeA%IUB > WorkSizeB%IUB) then
-            LineInterSection   = .false.                
-        endif            
-        
+            LineInterSection   = .false.
+        endif
+
         if (WorkSizeA%JLB < WorkSizeB%JLB .and. WorkSizeA%JUB < WorkSizeB%JLB) then
-            ColumnInterSection = .false.                
-        endif            
+            ColumnInterSection = .false.
+        endif
 
         if (WorkSizeA%JLB > WorkSizeB%JUB .and. WorkSizeA%JUB > WorkSizeB%JUB) then
-            ColumnInterSection = .false.                
-        endif            
-        
+            ColumnInterSection = .false.
+        endif
+
         if (LineInterSection .and. ColumnInterSection) then
             WindowCellsIntersection = .true.
         else
-            WindowCellsIntersection = .false.        
-        endif            
+            WindowCellsIntersection = .false.
+        endif
         !----------------------------------------------------------------------
 
-    end function WindowCellsIntersection    
+    end function WindowCellsIntersection
 
     !--------------------------------------------------------------------------
-    
+
     !--------------------------------------------------------------------------
 
     type (T_Size2D) function ReturnsIntersectionCorners(HorizontalGridID, WorkSize2D, STAT)
-                                                
+
 
         !Arguments-------------------------------------------------------------
-        integer,                     intent(IN )    :: HorizontalGridID   
+        integer,                     intent(IN )    :: HorizontalGridID
         type (T_Size2D),             intent(IN )    :: WorkSize2D
         integer, optional,           intent(OUT)    :: STAT
 
 
         !External--------------------------------------------------------------
 
-        integer :: ready_        
+        integer :: ready_
 
         !Local-----------------------------------------------------------------
         type (T_Size2D)                             :: WorkSize2DAux
-        integer                                     :: STAT_ 
+        integer                                     :: STAT_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_) 
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             if (Me%DDecomp%MasterOrSlave) then
-                
+
                 WorkSize2DAux                  = ComputesIntersectionCorners(Me%DDecomp%HaloMap, WorkSize2D)
-                
+
                 ReturnsIntersectionCorners%ILB = WorkSize2DAux%ILB - Me%DDecomp%HaloMap%ILB + 1
                 ReturnsIntersectionCorners%IUB = WorkSize2DAux%IUB - Me%DDecomp%HaloMap%ILB + 1
-                
+
                 ReturnsIntersectionCorners%JLB = WorkSize2DAux%JLB - Me%DDecomp%HaloMap%JLB + 1
                 ReturnsIntersectionCorners%JUB = WorkSize2DAux%JUB - Me%DDecomp%HaloMap%JLB + 1
 
             else
-            
+
                 ReturnsIntersectionCorners = ComputesIntersectionCorners(Me%WorkSize, WorkSize2D)
-            
+
             endif
-                        
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -10651,56 +11090,56 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !----------------------------------------------------------------------
 
     end function ReturnsIntersectionCorners
-    
-    !----------------------------------------------------------------------    
+
+    !----------------------------------------------------------------------
 
     type (T_Size2D) function ComputesIntersectionCorners(WorkSizeA, WorkSizeB)
-                                                
+
 
         !Arguments-------------------------------------------------------------
         type (T_Size2D), intent(IN )    :: WorkSizeA, WorkSizeB
 
 
         !Begin-----------------------------------------------------------------
-        
+
         ComputesIntersectionCorners%ILB = max(WorkSizeA%ILB,WorkSizeB%ILB)
         ComputesIntersectionCorners%IUB = min(WorkSizeA%IUB,WorkSizeB%IUB)
         ComputesIntersectionCorners%JLB = max(WorkSizeA%JLB,WorkSizeB%JLB)
         ComputesIntersectionCorners%JUB = min(WorkSizeA%JUB,WorkSizeB%JUB)
-            
+
         !----------------------------------------------------------------------
 
-    end function ComputesIntersectionCorners    
+    end function ComputesIntersectionCorners
 
     !--------------------------------------------------------------------------
-    
+
     subroutine GetDDecompParameters(HorizontalGridID, ON, Master,           &
                                                 Master_MPI_ID, MasterOrSlave,           &
                                                 NInterfaces, Interfaces, Halo_Points,   &
                                                 MPI_ID, Global, Mapping, Inner, HaloMap,&
                                                 STAT)
-                                                
+
 
         !Arguments-------------------------------------------------------------
-        integer,                     intent(IN )    :: HorizontalGridID   
+        integer,                     intent(IN )    :: HorizontalGridID
         logical, optional,           intent(OUT)    :: ON
         logical, optional,           intent(OUT)    :: Master
         integer, optional,           intent(OUT)    :: Master_MPI_ID
         logical, optional,           intent(OUT)    :: MasterOrSlave
         integer, optional,           intent(OUT)    :: NInterfaces
         integer, optional, dimension(:,:), pointer  :: Interfaces
-        integer, optional,           intent(OUT)    :: Halo_Points            
+        integer, optional,           intent(OUT)    :: Halo_Points
         integer, optional,           intent(OUT)    :: MPI_ID
         type (T_Size2D), optional,   intent(OUT)    :: Global
         type (T_Size2D), optional,   intent(OUT)    :: Mapping
-        type (T_Size2D), optional,   intent(OUT)    :: Inner        
+        type (T_Size2D), optional,   intent(OUT)    :: Inner
         type (T_Size2D), optional,   intent(OUT)    :: HaloMap
         integer, optional,           intent(OUT)    :: STAT
 
 
         !External--------------------------------------------------------------
 
-        integer :: ready_        
+        integer :: ready_
 
         !Local-----------------------------------------------------------------
 
@@ -10710,62 +11149,62 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_) 
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             if (present(ON)) then
                 ON            = Me%DDecomp%ON
             endif
-            
+
             if (present(Master)) then
               Master          = Me%DDecomp%Master
             endif
-            
+
             if (present(Master_MPI_ID)) then
               Master_MPI_ID   = Me%DDecomp%Master_MPI_ID
             endif
-              
+
             if (present(MasterOrSlave)) then
                 MasterOrSlave = Me%DDecomp%MasterOrSlave
-            endif                
+            endif
 
             if (present(NInterfaces)) then
-                NInterfaces   = Me%DDecomp%NInterfaces   
+                NInterfaces   = Me%DDecomp%NInterfaces
             endif
-            
+
             if (present(Interfaces)) then
                 call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
-                Interfaces   => Me%DDecomp%Interfaces   
+                Interfaces   => Me%DDecomp%Interfaces
             endif
-                
+
             if (present(Halo_Points)) then
                 Halo_Points   = Me%DDecomp%Halo_Points
             endif
-            
+
             if (present(MPI_ID)) then
-                MPI_ID        = Me%DDecomp%MPI_ID  
+                MPI_ID        = Me%DDecomp%MPI_ID
             endif
-            
+
             if (present(Global)) then
                 Global       = Me%DDecomp%Global
             endif
-            
+
             if (present(Mapping)) then
                 Mapping      = Me%DDecomp%Mapping
             endif
-            
+
             if (present(Inner)) then
                 Inner        = Me%DDecomp%Inner
             endif
 
             if (present(HaloMap)) then
                 HaloMap       = Me%DDecomp%HaloMap
-            endif          
-                        
+            endif
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -10781,10 +11220,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     !--------------------------------------------------------------------------
 
     subroutine GetDDecompSlaves(HorizontalGridID, Nslaves, Slaves_MPI_ID, STAT)
-                                                
+
 
         !Arguments-------------------------------------------------------------
-        integer,                     intent(IN )    :: HorizontalGridID   
+        integer,                     intent(IN )    :: HorizontalGridID
         integer,                     intent(OUT)    :: Nslaves
         integer, dimension(:),       pointer        :: Slaves_MPI_ID
         integer, optional,           intent(OUT)    :: STAT
@@ -10792,7 +11231,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         !External--------------------------------------------------------------
 
-        integer :: ready_        
+        integer :: ready_
 
         !Local-----------------------------------------------------------------
 
@@ -10802,18 +11241,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_) 
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             Nslaves          = Me%DDecomp%Nslaves
 
             call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
-            Slaves_MPI_ID   => Me%DDecomp%Slaves_MPI_ID   
-                        
+            Slaves_MPI_ID   => Me%DDecomp%Slaves_MPI_ID
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -10831,21 +11270,21 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     subroutine GetDDecompSlavesSize(HorizontalGridID, iSlave,               &
                                                 Slaves_Inner, Slaves_Size,              &
                                                 Slaves_Mapping, Slaves_HaloMap, STAT)
-                                                
+
 
         !Arguments-------------------------------------------------------------
-        integer,                     intent(IN )    :: HorizontalGridID   
+        integer,                     intent(IN )    :: HorizontalGridID
         integer,                     intent(IN )    :: iSlave
         type (T_Size2D), optional,   intent(OUT)    :: Slaves_Inner
         type (T_Size2D), optional,   intent(OUT)    :: Slaves_Size
-        type (T_Size2D), optional,   intent(OUT)    :: Slaves_Mapping        
+        type (T_Size2D), optional,   intent(OUT)    :: Slaves_Mapping
         type (T_Size2D), optional,   intent(OUT)    :: Slaves_HaloMap
         integer, optional,           intent(OUT)    :: STAT
 
 
         !External--------------------------------------------------------------
 
-        integer :: ready_        
+        integer :: ready_
 
         !Local-----------------------------------------------------------------
 
@@ -10855,15 +11294,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_) 
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             if (present(Slaves_Inner)) then
                 Slaves_Inner   = Me%DDecomp%Slaves_Inner   (iSlave)
             endif
-                            
+
             if (present(Slaves_Size)) then
                 Slaves_Size    = Me%DDecomp%Slaves_Size    (iSlave)
             endif
@@ -10871,13 +11310,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
            if (present(Slaves_Mapping)) then
                 Slaves_Mapping = Me%DDecomp%Slaves_Mapping (iSlave)
             endif
-                            
+
             if (present(Slaves_HaloMap)) then
                 Slaves_HaloMap = Me%DDecomp%Slaves_HaloMap (iSlave)
             endif
-                        
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -10895,12 +11334,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     integer function GetDDecompMPI_ID(HorizontalGridID, STAT)
 
         !Arguments-------------------------------------------------------------
-        integer,                     intent(IN )    :: HorizontalGridID   
+        integer,                     intent(IN )    :: HorizontalGridID
         integer,   optional,         intent(OUT)    :: STAT
 
         !External--------------------------------------------------------------
 
-        integer :: ready_        
+        integer :: ready_
 
         !Local-----------------------------------------------------------------
 
@@ -10909,18 +11348,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
-        
+
         GetDDecompMPI_ID = null_int
 
-        call Ready(HorizontalGridID, ready_) 
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             GetDDecompMPI_ID  = Me%DDecomp%MPI_ID
-            
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -10937,12 +11376,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     logical function GetDDecompON(HorizontalGridID, STAT)
 
         !Arguments-------------------------------------------------------------
-        integer,                     intent(IN )    :: HorizontalGridID   
+        integer,                     intent(IN )    :: HorizontalGridID
         integer,   optional,         intent(OUT)    :: STAT
 
         !External--------------------------------------------------------------
 
-        integer :: ready_        
+        integer :: ready_
 
         !Local-----------------------------------------------------------------
 
@@ -10951,18 +11390,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
-        
+
         GetDDecompON = .false.
 
-        call Ready(HorizontalGridID, ready_) 
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             GetDDecompON  = Me%DDecomp%MasterOrSlave
-            
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -10974,19 +11413,19 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     end function GetDDecompON
 
     !--------------------------------------------------------------------------
-   
+
     !--------------------------------------------------------------------------
 
     function GetDDecompOpenBorders(HorizontalGridID, STAT)
 
         !Arguments-------------------------------------------------------------
-        integer,           intent(IN )              :: HorizontalGridID   
+        integer,           intent(IN )              :: HorizontalGridID
         integer, optional, intent(OUT)              :: STAT
 
 
         !External--------------------------------------------------------------
         logical,  dimension(1:4)                    :: GetDDecompOpenBorders
-        integer :: ready_        
+        integer :: ready_
 
         !Local-----------------------------------------------------------------
 
@@ -10996,15 +11435,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_) 
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             GetDDecompOpenBorders(1:4) = Me%DDecomp%OpenBordersON(1:4)
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -11016,20 +11455,20 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     end function GetDDecompOpenBorders
 
     !--------------------------------------------------------------------------
-    
+
 
     !--------------------------------------------------------------------------
 
     subroutine GetDDecompWorkSize2D(HorizontalGridID, WorkSize, STAT)
 
         !Arguments-------------------------------------------------------------
-        integer,           intent(IN )              :: HorizontalGridID   
+        integer,           intent(IN )              :: HorizontalGridID
         type(T_Size2D)   , intent(OUT)              :: WorkSize
         integer, optional, intent(OUT)              :: STAT
 
 
         !External--------------------------------------------------------------
-        integer :: ready_        
+        integer :: ready_
 
         !Local-----------------------------------------------------------------
 
@@ -11039,8 +11478,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_) 
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -11050,7 +11489,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             WorkSize%JUB = Me%DDecomp%HaloMap%JUB
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -11066,13 +11505,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     subroutine GetDDecompMapping2D(HorizontalGridID, Mapping2D, STAT)
 
         !Arguments-------------------------------------------------------------
-        integer,           intent(IN )              :: HorizontalGridID   
+        integer,           intent(IN )              :: HorizontalGridID
         type(T_Size2D)   , intent(OUT)              :: Mapping2D
         integer, optional, intent(OUT)              :: STAT
 
 
         !External--------------------------------------------------------------
-        integer :: ready_        
+        integer :: ready_
 
         !Local-----------------------------------------------------------------
 
@@ -11082,8 +11521,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_) 
-        
+        call Ready(HorizontalGridID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -11093,7 +11532,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             Mapping2D%JUB = Me%DDecomp%Mapping%JUB
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -11103,8 +11542,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         !----------------------------------------------------------------------
 
     end subroutine GetDDecompMapping2D
-    
-    !--------------------------------------------------------------------------    
+
+    !--------------------------------------------------------------------------
 
     subroutine UngetHorizontalGrid1D(HorizontalGridID, Array, STAT)
 
@@ -11112,27 +11551,27 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer                                     :: HorizontalGridID
         real, pointer, dimension(:)                 :: Array
         integer, optional, intent(OUT)              :: STAT
-   
+
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
 
-        if ((ready_ == IDLE_ERR_     ) .OR.                                              & 
+        if ((ready_ == IDLE_ERR_     ) .OR.                                              &
             (ready_ == READ_LOCK_ERR_)) then
 
             nullify(Array)
             call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UngetHorizontalGrid1D")
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
-        end if 
+        end if
 
 
         if (present(STAT)) STAT = STAT_
@@ -11149,18 +11588,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer                                     :: HorizontalGridID
         real, pointer, dimension(:,:)               :: Array
         integer, optional, intent(OUT)              :: STAT
-   
+
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
 
-        if ((ready_ == IDLE_ERR_     ) .OR.                                              & 
+        if ((ready_ == IDLE_ERR_     ) .OR.                                              &
             (ready_ == READ_LOCK_ERR_)) then
 
             nullify(Array)
@@ -11168,7 +11607,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UngetHorizontalGrid2D")
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if
 
@@ -11186,18 +11625,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer                                     :: HorizontalGridID
         integer, pointer, dimension(:,:)            :: Array
         integer, optional, intent(OUT)              :: STAT
-   
+
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
 
-        if ((ready_ == IDLE_ERR_     ) .OR.                                              & 
+        if ((ready_ == IDLE_ERR_     ) .OR.                                              &
             (ready_ == READ_LOCK_ERR_)) then
 
             nullify(Array)
@@ -11205,7 +11644,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UngetHorizontalGrid2DInt")
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if
 
@@ -11223,18 +11662,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer                                     :: HorizontalGridID
         type (T_Polygon), pointer                   :: polygon
         integer, optional, intent(OUT)              :: STAT
-   
+
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
 
-        if ((ready_ == IDLE_ERR_     ) .OR.                                              & 
+        if ((ready_ == IDLE_ERR_     ) .OR.                                              &
             (ready_ == READ_LOCK_ERR_)) then
 
             nullify(polygon)
@@ -11242,7 +11681,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UngetHorizontalGridPolygon")
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if
 
@@ -11258,27 +11697,27 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer                                     :: HorizontalGridID
         integer, pointer, dimension(:)              :: Array
         integer, optional, intent(OUT)              :: STAT
-   
+
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_             
-        integer                                     :: ready_              
+        integer                                     :: STAT_
+        integer                                     :: ready_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
 
-        if ((ready_ == IDLE_ERR_     ) .OR.                                              & 
+        if ((ready_ == IDLE_ERR_     ) .OR.                                              &
             (ready_ == READ_LOCK_ERR_)) then
 
             nullify(Array)
             call Read_UnLock(mHORIZONTALGRID_, Me%InstanceID, "UngetHorizontalGrid1DInt")
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
-        end if 
+        end if
 
 
         if (present(STAT)) STAT = STAT_
@@ -11292,7 +11731,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    !MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER  
+    !MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -11320,16 +11759,16 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         real                                                :: YYUpper, YYLower, XXUpper, XXLower,  &
                                                                PropLowLeft,  PropUpLeft, PropLowRight, PropUpRight
-        
+
         integer                                             :: ONLowLeft, ONUpLeft, ONLowRight, ONUpRight
         integer                                             :: ready_
-            
-        integer                                             :: Jlower, Jupper, Ilower, Iupper 
-        integer                                             :: STAT_            
+
+        integer                                             :: Jlower, Jupper, Ilower, Iupper
+        integer                                             :: STAT_
 
         integer                                             :: I, J
         real                                                :: PercI, PercJ
-        integer                                             :: Compute_ 
+        integer                                             :: Compute_
         logical                                             :: InterPolOK
         real                                                :: XPosition, YPosition, InterpolatedValue
         integer                                             :: Dij, Dji, JUBFather, IUBFather
@@ -11338,28 +11777,28 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
 
 cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
-             
+
             if (.NOT. associated(Field2DFather))                                        &
                 call SetError(FATAL_, INTERNAL_,                                        &
-                             "InterpolXYPoint; HorizontalGrid. ERR10") 
-            if (present(Compute)) then 
+                             "InterpolXYPoint; HorizontalGrid. ERR10")
+            if (present(Compute)) then
                 Compute_ = Compute
             else
                 Compute_ = ComputeZ_
             endif
 
             InsideDomain = InsideDomainPolygon(Me%GridBorderCoord%Polygon_, XInput, YInput)
-            
+
 id:         if (InsideDomain) then
-            
+
                 call  GetXYCellZ(Me%InstanceID, XInput, YInput, I, J, PercI = PercI, PercJ = PercJ)
-            
+
                 if      (Compute_ == ComputeU_)  then
-       
+
                     JUBFather = JUBFather + 1
 
                     XXFather => Me%Compute%XX_U
@@ -11373,16 +11812,16 @@ id:         if (InsideDomain) then
 
                     Dij = 0
                     Dji = 1
-                    
+
                     Jlower = J
                     Jupper = J + 1
-                    
+
                     if (PercI < 0.5) then
-                        Ilower = I-1 
+                        Ilower = I-1
                     else
                         Ilower = I
                     endif
-                    
+
                     Iupper = Ilower + 1
 
                     if (Me%CornersXYInput) DefinedPoint => Me%DefineFacesUMap
@@ -11402,21 +11841,21 @@ id:         if (InsideDomain) then
                     DYFather => Me%DYY
 
                     Dij = 1
-                    Dji = 0 
-                    
+                    Dji = 0
+
                     if (Me%CornersXYInput) DefinedPoint => Me%DefineFacesVMap
-                    
+
                     Ilower = I
                     Iupper = I + 1
-                    
+
                     if (PercJ < 0.5) then
-                        Jlower = J-1 
+                        Jlower = J-1
                     else
                         Jlower = J
                     endif
-                    
+
                     Jupper = Jlower + 1
-                    
+
 
                 else if (Compute_ == ComputeZ_)  then
 
@@ -11433,23 +11872,23 @@ id:         if (InsideDomain) then
                     Dij = 1
 
                     if (Me%CornersXYInput) DefinedPoint => Me%DefineCellsMap
-                    
+
                     if (PercI < 0.5) then
-                        Ilower = I-1 
+                        Ilower = I-1
                     else
                         Ilower = I
                     endif
-                    
+
                     Iupper = Ilower + 1
-                    
+
                     if (PercJ < 0.5) then
-                        Jlower = J-1 
+                        Jlower = J-1
                     else
                         Jlower = J
                     endif
-                    
+
                     Jupper = Jlower + 1
-                    
+
 
                 else if (Compute_ == ComputeCross_)  then
 
@@ -11469,15 +11908,15 @@ id:         if (InsideDomain) then
                     Dij = 0
 
                     if (Me%CornersXYInput) DefinedPoint => Me%DefineCrossMap
-                    
+
                     Ilower = I
-                    Iupper = I + 1                    
+                    Iupper = I + 1
                     Jlower = J
-                    Jupper = J + 1                    
-                    
+                    Jupper = J + 1
+
 
                 endif
-                
+
                 if (.not. Me%CornersXYInput) then
 
                     XXLower  = XXFather(Jlower)
@@ -11485,11 +11924,11 @@ id:         if (InsideDomain) then
 
                     YYLower  = YYFather(Ilower)
                     YYUpper  = YYFather(Iupper)
-                    
+
                     XPosition = XInput
-                    YPosition = YInput                    
-                    
-                    call RODAXY(-Me%Xorig, -Me%Yorig, -Me%Grid_Angle, XPosition, YPosition)                      
+                    YPosition = YInput
+
+                    call RODAXY(-Me%Xorig, -Me%Yorig, -Me%Grid_Angle, XPosition, YPosition)
 
                 else
 
@@ -11501,29 +11940,29 @@ id:         if (InsideDomain) then
                                          XPosition, YPosition,                          &
                                          YYUpper, YYLower, XXUpper, XXLower)
 
-                endif                
+                endif
 
                 PropLowLeft = Field2DFather(Ilower, Jlower)
                 PropUpLeft  = Field2DFather(Iupper, Jlower)
                 PropLowRight= Field2DFather(Ilower, Jupper)
-                PropUpRight = Field2DFather(Iupper, Jupper)           
-                
+                PropUpRight = Field2DFather(Iupper, Jupper)
+
                 if (present(ComputeFather)) then
-                
+
                     ONLowLeft   = ComputeFather(Ilower, Jlower)
                     ONUpLeft    = ComputeFather(Iupper, Jlower)
                     ONLowRight  = ComputeFather(Ilower, Jupper)
                     ONUpRight   = ComputeFather(Iupper, Jupper)
-                    
+
                 else
-                
+
                     ONLowLeft   = 1
                     ONUpLeft    = 1
                     ONLowRight  = 1
                     ONUpRight   = 1
 
-                endif                    
-                
+                endif
+
                 if (ONLowLeft + ONUpLeft + ONLowRight + ONUpRight == 4) then
 
                     call InterpolPoint(XPosition, YPosition,                             &
@@ -11535,31 +11974,31 @@ id:         if (InsideDomain) then
                     if (InterPolOK)   then
 
                         InterpolXYPoint = InterpolatedValue
-                        
+
                     else
-                        
+
                         InterpolXYPoint = FillValueReal
 
                     endif
-                
+
                 else
-                
+
                     InterpolXYPoint = FillValueReal
-                
+
                 endif
 
                 nullify(XXFather,   YYFather  )
                 nullify(XXFather2D, YYFather2D)
                 nullify(DXFather,   DYFather  )
-            
+
             else  id
-            
+
                 InterpolXYPoint = FillValueReal
-            
+
             endif id
-           
+
             STAT_ = SUCCESS_
-        else               
+        else
             STAT_ = ready_
         end if cd1
 
@@ -11590,7 +12029,7 @@ id:         if (InsideDomain) then
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
-        type(T_HorizontalGrid),    pointer          :: ObjHorizontalGridFather  
+        type(T_HorizontalGrid),    pointer          :: ObjHorizontalGridFather
         type (T_FatherGrid),       pointer          :: FatherGrid
         real   , pointer, dimension(:,:)            :: XXSon, YYSon, DXFather, DYFather, XXFather2D, YYFather2D
         real   , pointer, dimension(:  )            :: XXFather, YYFather
@@ -11599,42 +12038,42 @@ id:         if (InsideDomain) then
 
         real    :: YYUpper, YYLower, XXUpper, XXLower,                                   &
                    PropLowLeft,  PropUpLeft, PropLowRight, PropUpRight
-        
+
         integer :: ONLowLeft, ONUpLeft, ONLowRight, ONUpRight
         integer :: ready_, GridID_
-            
+
         integer :: JLBSon, JUBSon, ILBSon, IUBSon
         integer :: JLBFather, JUBFather, ILBFather, IUBFather
-        integer :: Jlower, Jupper, Ilower, Iupper 
-        integer :: STAT_            
+        integer :: Jlower, Jupper, Ilower, Iupper
+        integer :: STAT_
 
         integer :: i, j
-        integer :: Compute_, KUBFather_ 
+        integer :: Compute_, KUBFather_
         logical :: InterPolOK, MapFatherGrid
 
         real    :: XPosition, YPosition
         integer :: Dij, Dji
 
         !$ integer :: CHUNK
-        
+
         !Begin------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleHorizontalGrid", "InterpolRegularGrid2D")
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridSonID, ready_)    
+        call Ready(HorizontalGridSonID, ready_)
 
 cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
-             
+
             if (.NOT. associated(Field2DFather))                                         &
                 call SetError(FATAL_, INTERNAL_,                                           &
-                             "InterpolRegularGrid2D; HorizontalGrid. ERR01") 
+                             "InterpolRegularGrid2D; HorizontalGrid. ERR01")
 
             if (.NOT. associated(Field2DSon))                                            &
                 call SetError(FATAL_, INTERNAL_,                                           &
-                             "InterpolRegularGrid2D; HorizontalGrid. ERR02") 
+                             "InterpolRegularGrid2D; HorizontalGrid. ERR02")
 
             nullify(ObjHorizontalGridFather)
             call LocateObjFather (ObjHorizontalGridFather, HorizontalGridFatherID)
@@ -11644,41 +12083,41 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             ILBSon = Me%WorkSize%ILB
             IUBSon = Me%WorkSize%IUB
 
-            if (present(GridID)) then 
+            if (present(GridID)) then
                 GridID_ = GridID
             else
                 GridID_ = LargeScaleModel_
             endif
 
-            if (present(ComputeFather)) then 
+            if (present(ComputeFather)) then
                 MapFatherGrid = .true.
             else
                 MapFatherGrid = .false.
             endif
 
-            if (present(Compute)) then 
+            if (present(Compute)) then
                 Compute_ = Compute
             else
                 Compute_ = ComputeZ_
             endif
 
-            if (present(KUBFather)) then 
+            if (present(KUBFather)) then
                 KUBFather_ = KUBFather
             else
                 KUBFather_ = 1
             endif
 
             call Search_FatherGrid (FatherGrid, GridID_)
-            
+
 
             !Gets the bounds from the Father
-            ILBFAther = ObjHorizontalGridFather%WorkSize%ILB 
+            ILBFAther = ObjHorizontalGridFather%WorkSize%ILB
             IUBFather = ObjHorizontalGridFather%WorkSize%IUB
             JLBFather = ObjHorizontalGridFather%WorkSize%JLB
             JUBFather = ObjHorizontalGridFather%WorkSize%JUB
 
             if      (Compute_ == ComputeU_)  then
-   
+
                 JUBFather = JUBFather + 1
                 JUBSon    = JUBSon    + 1
 
@@ -11724,8 +12163,8 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                 DYFather => ObjHorizontalGridFather%DYY
 
                 Dij = 1
-                Dji = 0 
-                
+                Dji = 0
+
                 if (Me%CornersXYInput) DefinedPoint => Me%DefineFacesVMap
 
             else if (Compute_ == ComputeZ_)  then
@@ -11776,7 +12215,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                 Dij = 0
 
                 if (Me%CornersXYInput) DefinedPoint => Me%DefineCrossMap
-                
+
             else
                 write(*,*) 'Compute ==', Compute
                 stop "InterpolRegularGrid2D; HorizontalGrid. ERR10"
@@ -11806,7 +12245,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             !! $OMP                   PropLowRight,PropUpRight,   &
             !! $OMP                   ONLowLeft,ONUpLeft,         &
             !! $OMP                   ONLowRight,ONUpRight,       &
-            !! $OMP                   InterPolOK)            
+            !! $OMP                   InterPolOK)
             !! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
 doj:        do j = JLBSon, JUBSon
 doi:        do i = ILBSon, IUBSon
@@ -11816,32 +12255,32 @@ doi:        do i = ILBSon, IUBSon
                 endif
 
                 Jlower = JSon(i, j)
-                
+
                 !Father domain smaller than son domain
                 if (Jlower < -100) then
                     Field2DSon(i, j) = FillValueReal
                     cycle
                 endif
-                
+
                 Jupper = JSon(i, j) + 1
 
                 Ilower = ISon(i, j)
-                
-                !Father domain smaller than son domain                
+
+                !Father domain smaller than son domain
                 if (Ilower < -100) then
                     Field2DSon(i, j) = FillValueReal
                     cycle
                 endif
-                
+
                 Iupper = ISon(i, j) + 1
 
                 if (Jupper > JUBFather) Jupper = JUBFather
                 if (Iupper > IUBFather) Iupper = IUBFather
                 if (Jlower < JLBFather) Jlower = JLBFather
                 if (Ilower < ILBFather) Ilower = ILBFather
-                
+
                 if (Jupper < JLBFather) Jupper = JLBFather
-                if (Iupper < ILBFather) Iupper = ILBFather              
+                if (Iupper < ILBFather) Iupper = ILBFather
 
                 if (.not. ObjHorizontalGridFather%CornersXYInput) then
 
@@ -11856,7 +12295,7 @@ doi:        do i = ILBSon, IUBSon
 
                 else
 
-                    !griflet: All write argument variables are scalars and are all declared 
+                    !griflet: All write argument variables are scalars and are all declared
                     !griflet: PRIVATE. Clear! Ok!
                     call CellReferential(DXFather, DYFather, XXFather2D, YYFather2D,    &
                                          ObjHorizontalGridFather%RotationX,             &
@@ -11871,7 +12310,7 @@ doi:        do i = ILBSon, IUBSon
                 PropLowLeft = Field2DFather(Ilower, Jlower)
                 PropUpLeft  = Field2DFather(Iupper, Jlower)
                 PropLowRight= Field2DFather(Ilower, Jupper)
-                PropUpRight = Field2DFather(Iupper, Jupper)           
+                PropUpRight = Field2DFather(Iupper, Jupper)
 
                 if (MapFatherGrid) then
 
@@ -11890,12 +12329,12 @@ doi:        do i = ILBSon, IUBSon
                                    Field2DSon(i, j), InterPolOK)
 
 ifc:            if (.not. InterPolOK)   then
-                    
+
                     Field2DSon(i, j) = FillValueReal
 
                 endif ifc
 
-            
+
             enddo doi
             enddo doj
             !! $OMP END DO NOWAIT
@@ -11905,9 +12344,9 @@ ifc:            if (.not. InterPolOK)   then
             nullify(JSon,     ISon    )
             nullify(XXFather, YYFather)
 
-           
+
             STAT_ = SUCCESS_
-        else               
+        else
             STAT_ = ready_
         end if cd1
 
@@ -11926,7 +12365,7 @@ ifc:            if (.not. InterPolOK)   then
     subroutine InterpolRegularGrid3D(HorizontalGridSonID, HorizontalGridFatherID,         &
                                       Field3DFather, Field3DSon,                          &
                                       ComputeFather, Compute,                             &
-                                      KLBFather, KUBFather, KUBSon,                       & 
+                                      KLBFather, KUBFather, KUBSon,                       &
                                       FluxType, GridID, STAT)
 
 
@@ -11942,7 +12381,7 @@ ifc:            if (.not. InterPolOK)   then
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
-        type(T_HorizontalGrid),    pointer          :: ObjHorizontalGridFather  
+        type(T_HorizontalGrid),    pointer          :: ObjHorizontalGridFather
         type (T_FatherGrid),       pointer          :: FatherGrid
         real,    dimension(:,:  ), pointer          :: DXFather, DYFather, XXFather2D, YYFather2D
         real   , pointer, dimension(:,:)            :: XXSon, YYSon, DYXFather
@@ -11951,14 +12390,14 @@ ifc:            if (.not. InterPolOK)   then
 
         real    :: YYUpper, YYLower, XXUpper, XXLower,                                   &
                    PropLowLeft,  PropUpLeft, PropLowRight, PropUpRight, PropSon
-        
+
         integer :: ONLowLeft, ONUpLeft, ONLowRight, ONUpRight
         integer :: ready_, GridID_
-            
+
         integer :: JLBSon, JUBSon, ILBSon, IUBSon
         integer :: JLBFather, JUBFather, ILBFather, IUBFather
-        integer :: Jlower, Jupper, Ilower, Iupper 
-        integer :: STAT_            
+        integer :: Jlower, Jupper, Ilower, Iupper
+        integer :: STAT_
 
         integer :: i, j, k
         logical :: InterPolOK, FluxType_
@@ -11980,11 +12419,11 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
             if (.NOT. associated(Field3DFather))                                         &
                 call SetError(FATAL_, INTERNAL_,                                           &
-                             "InterpolRegularGrid3D; HorizontalGrid. ERR01") 
+                             "InterpolRegularGrid3D; HorizontalGrid. ERR01")
 
             if (.NOT. associated(Field3DSon))                                            &
                 call SetError(FATAL_, INTERNAL_,                                           &
-                             "InterpolRegularGrid3D; HorizontalGrid. ERR02") 
+                             "InterpolRegularGrid3D; HorizontalGrid. ERR02")
 
             nullify(ObjHorizontalGridFather)
             call LocateObjFather (ObjHorizontalGridFather, HorizontalGridFatherID)
@@ -11994,7 +12433,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             ILBSon = Me%WorkSize%ILB
             IUBSon = Me%WorkSize%IUB
 
-            if (present(GridID)) then 
+            if (present(GridID)) then
 
                 GridID_ = GridID
 
@@ -12005,10 +12444,10 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             endif
 
             call Search_FatherGrid (FatherGrid, GridID_)
- 
+
 
             !Gets the bounds from the Father
-            ILBFAther = ObjHorizontalGridFather%WorkSize%ILB 
+            ILBFAther = ObjHorizontalGridFather%WorkSize%ILB
             IUBFather = ObjHorizontalGridFather%WorkSize%IUB
             JLBFather = ObjHorizontalGridFather%WorkSize%JLB
             JUBFather = ObjHorizontalGridFather%WorkSize%JUB
@@ -12071,7 +12510,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                 DYFather => ObjHorizontalGridFather%DYY
 
                 Dij = 1
-                Dji = 0 
+                Dji = 0
 
                 if (Me%CornersXYInput) DefinedPoint => Me%DefineFacesVMap
 
@@ -12079,7 +12518,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             else if (Compute == ComputeZ_)  then
 
                 if (FluxType_) call SetError(FATAL_, INTERNAL_,                            &
-                             "InterpolRegularGrid3D; HorizontalGrid. ERR04") 
+                             "InterpolRegularGrid3D; HorizontalGrid. ERR04")
 
                 XXSon => FatherGrid%XX_Z
                 YYSon => FatherGrid%YY_Z
@@ -12100,9 +12539,9 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                 Dij = 1
 
                 if (Me%CornersXYInput) DefinedPoint => Me%DefineCellsMap
-                
+
             else
-                
+
                 write(*,*) 'Compute ==', Compute
                 stop "InterpolRegularGrid3D; HorizontalGrid. ERR10"
 
@@ -12123,7 +12562,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             !! $OMP                   ONLowRight,ONUpRight,PropSon)
             !! $OMP           SHARED ( DXFather,DYFather,         &
             !! $OMP                   XXFather2D, YYFather2D,     &
-            !! $OMP                   XXSon, YYSon)  
+            !! $OMP                   XXSon, YYSon)
 dok:        do k = KLBFather   , KUBFather
             !! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
 doj:        do j = JLBSon, JUBSon
@@ -12132,18 +12571,18 @@ doi:        do i = ILBSon, IUBSon
                 if (Me%CornersXYInput) then
                     if(DefinedPoint(i,j) == 0) cycle
                 endif
-                
+
                 InterPolOK    = .false.
 
                 Jlower = JSon(i, j)
-                
+
                 !Father domain smaller than son domain
                 if (Jlower < -100) then
                     Field3DSon(i, j, k) = FillValueReal
                     cycle
                 endif
 
-                
+
                 Jupper = JSon(i, j) + 1
 
                 Ilower = ISon(i, j)
@@ -12153,8 +12592,8 @@ doi:        do i = ILBSon, IUBSon
                     Field3DSon(i, j, k) = FillValueReal
                     cycle
                 endif
-                
-                
+
+
                 Iupper = ISon(i, j) + 1
 
                 if (.not. ObjHorizontalGridFather%CornersXYInput) then
@@ -12185,7 +12624,7 @@ doi:        do i = ILBSon, IUBSon
                 endif
 
 
-                if (FluxType_) then 
+                if (FluxType_) then
 
                     PropLowLeft = Field3DFather(Ilower, Jlower, k) / DYXFather(Ilower, Jlower)
                     PropUpLeft  = Field3DFather(Iupper, Jlower, k) / DYXFather(Iupper, Jlower)
@@ -12197,7 +12636,7 @@ doi:        do i = ILBSon, IUBSon
                     PropLowLeft = Field3DFather(Ilower, Jlower, k)
                     PropUpLeft  = Field3DFather(Iupper, Jlower, k)
                     PropLowRight= Field3DFather(Ilower, Jupper, k)
-                    PropUpRight = Field3DFather(Iupper, Jupper, k)           
+                    PropUpRight = Field3DFather(Iupper, Jupper, k)
 
                 endif
 
@@ -12231,7 +12670,7 @@ doi:        do i = ILBSon, IUBSon
                 endif
 
 
-            
+
             enddo doi
             enddo doj
             !! $OMP END DO NOWAIT
@@ -12243,9 +12682,9 @@ doi:        do i = ILBSon, IUBSon
             nullify(XXFather, YYFather)
             nullify(DYXFather         )
 
-           
+
             STAT_ = SUCCESS_
-        else               
+        else
             STAT_ = ready_
         end if cd1
 
@@ -12281,7 +12720,7 @@ doi:        do i = ILBSon, IUBSon
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
-        type(T_HorizontalGrid),    pointer          :: ObjHorizontalGridFather  
+        type(T_HorizontalGrid),    pointer          :: ObjHorizontalGridFather
         type (T_FatherGrid),       pointer          :: FatherGrid
         real,    dimension(:,:  ), pointer          :: DXFather, DYFather, XXFather2D, YYFather2D
         real   , pointer, dimension(:,:)            :: XXSon, YYSon, DYXFather
@@ -12291,14 +12730,14 @@ doi:        do i = ILBSon, IUBSon
 
         real    :: YYUpper, YYLower, XXUpper, XXLower,                                   &
                    PropLowLeft,  PropUpLeft, PropLowRight, PropUpRight, PropSon
-        
+
         integer :: ONLowLeft, ONUpLeft, ONLowRight, ONUpRight
-        integer :: ready_, GridID_ 
-            
+        integer :: ready_, GridID_
+
         integer :: JLBSon, JUBSon, ILBSon, IUBSon
         integer :: JLBFather, JUBFather, ILBFather, IUBFather
-        integer :: Jlower, Jupper, Ilower, Iupper 
-        integer :: STAT_            
+        integer :: Jlower, Jupper, Ilower, Iupper
+        integer :: STAT_
 
         integer :: i, j, k
         logical :: InterPolOK, FluxType_
@@ -12306,7 +12745,7 @@ doi:        do i = ILBSon, IUBSon
         real    :: XPosition, YPosition
         integer :: Dij, Dji
         !$ integer  :: CHUNK
-        
+
         !Begin------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleHorizontalGrid", "InterpolRegularGrid3D8")
@@ -12318,14 +12757,14 @@ doi:        do i = ILBSon, IUBSon
 
 cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
-               
+
             if (.NOT. associated(Field3DFather))                                         &
                 call SetError(FATAL_, INTERNAL_,                                           &
-                             "InterpolRegularGrid3D8; HorizontalGrid. ERR01") 
+                             "InterpolRegularGrid3D8; HorizontalGrid. ERR01")
 
             if (.NOT. associated(Field3DSon))                                            &
                 call SetError(FATAL_, INTERNAL_,                                           &
-                             "InterpolRegularGrid3D8; HorizontalGrid. ERR02") 
+                             "InterpolRegularGrid3D8; HorizontalGrid. ERR02")
 
             nullify(ObjHorizontalGridFather)
             call LocateObjFather (ObjHorizontalGridFather, HorizontalGridFatherID)
@@ -12346,7 +12785,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             ILBSon = Me%WorkSize%ILB
             IUBSon = Me%WorkSize%IUB
 
-            if (present(GridID)) then 
+            if (present(GridID)) then
                 GridID_ = GridID
             else
                 GridID_ = LargeScaleModel_
@@ -12357,14 +12796,14 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
 
             !Gets the bounds from the Father
-            ILBFAther = ObjHorizontalGridFather%WorkSize%ILB 
+            ILBFAther = ObjHorizontalGridFather%WorkSize%ILB
             IUBFather = ObjHorizontalGridFather%WorkSize%IUB
             JLBFather = ObjHorizontalGridFather%WorkSize%JLB
             JUBFather = ObjHorizontalGridFather%WorkSize%JUB
 
 
             if      (Compute == ComputeU_)  then
-   
+
                 JUBFather = JUBFather + 1
                 JUBSon    = JUBSon    + 1
 
@@ -12415,15 +12854,15 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                 DYFather => ObjHorizontalGridFather%DYY
 
                 Dij = 1
-                Dji = 0 
+                Dji = 0
 
                 if (Me%CornersXYInput) DefinedPoint => Me%DefineFacesVMap
-                
+
 
             else if (Compute == ComputeZ_)  then
 
                 if (FluxType_) call SetError(FATAL_, INTERNAL_,                            &
-                             "InterpolRegularGrid3D8; HorizontalGrid. ERR04") 
+                             "InterpolRegularGrid3D8; HorizontalGrid. ERR04")
 
                 XXSon => FatherGrid%XX_Z
                 YYSon => FatherGrid%YY_Z
@@ -12446,7 +12885,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                 if (Me%CornersXYInput) DefinedPoint => Me%DefineCellsMap
 
             else
-                
+
                 write(*,*) 'Compute ==', Compute
                 stop "InterpolRegularGrid3D8; HorizontalGrid. ERR10"
 
@@ -12468,7 +12907,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             !! $OMP                   ONLowRight,ONUpRight,PropSon)
             !! $OMP           SHARED ( DXFather,DYFather,         &
             !! $OMP                   XXFather2D, YYFather2D,     &
-            !! $OMP                   XXSon, YYSon)  
+            !! $OMP                   XXSon, YYSon)
 dok:        do k = KLBFather, KUBFather
             !! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
 doj:        do j = JLBSon, JUBSon
@@ -12477,11 +12916,11 @@ doi:        do i = ILBSon, IUBSon
                 if (Me%CornersXYInput) then
                     if (DefinedPoint(i,j) == 0) cycle
                 endif
-                                
+
                 InterPolOK    = .false.
 
                 Jlower = JSon(i, j)
-                
+
                 !Father domain smaller than son domain
                 if (Jlower < -100) then
                     Field3DSon(i, j, k) = FillValueReal
@@ -12510,7 +12949,7 @@ doi:        do i = ILBSon, IUBSon
                 if (Iupper < ILBFather) Iupper = ILBFather
 
                 if (.not. ObjHorizontalGridFather%CornersXYInput) then
-                
+
 
                     XXLower  = XXFather(Jlower)
                     XXUpper  = XXFather(Jupper)
@@ -12522,7 +12961,7 @@ doi:        do i = ILBSon, IUBSon
                     YPosition = YYSon(i,j)
 
                 else
-                
+
                     call CellReferential(DXFather, DYFather, XXFather2D, YYFather2D,    &
                                          ObjHorizontalGridFather%RotationX,             &
                                          ObjHorizontalGridFather%RotationY,             &
@@ -12534,7 +12973,7 @@ doi:        do i = ILBSon, IUBSon
                 endif
 
 
-                if (FluxType_) then 
+                if (FluxType_) then
 
                     PropLowLeft = Field3DFather(Ilower, Jlower, k) / DYXFather(Ilower, Jlower)
                     PropUpLeft  = Field3DFather(Iupper, Jlower, k) / DYXFather(Iupper, Jlower)
@@ -12546,7 +12985,7 @@ doi:        do i = ILBSon, IUBSon
                     PropLowLeft = Field3DFather(Ilower, Jlower, k)
                     PropUpLeft  = Field3DFather(Iupper, Jlower, k)
                     PropLowRight= Field3DFather(Ilower, Jupper, k)
-                    PropUpRight = Field3DFather(Iupper, Jupper, k)           
+                    PropUpRight = Field3DFather(Iupper, Jupper, k)
 
                 endif
 
@@ -12588,7 +13027,7 @@ doi:        do i = ILBSon, IUBSon
             nullify(DYXFather         )
 
             STAT_ = SUCCESS_
-        else               
+        else
             STAT_ = ready_
         end if cd1
 
@@ -12611,7 +13050,7 @@ doi:        do i = ILBSon, IUBSon
                                Ilower, Iupper, Jlower, Jupper, dij, dji,      &
                                XPosition, YPosition,                          &
                                YYUpper, YYLower, XXUpper, XXLower)
-        
+
         !Arguments-------------------------------------------------------------
         real   , pointer, dimension(:,:), intent(IN)  :: DXFather, DYFather,            &
                                                          XXFather2D, YYFather2D,        &
@@ -12631,7 +13070,7 @@ doi:        do i = ILBSon, IUBSon
 
             YYLower  = 0.
             YYUpper  = DYFather(Ilower, Jlower + dij)
-            
+
             !West-East
             XlocalOrigin = (XXFather2D(Ilower, Jlower) + XXFather2D(Iupper, Jlower)) / 2.
             YlocalOrigin = (YYFather2D(Ilower, Jlower) + YYFather2D(Iupper, Jlower)) / 2.
@@ -12642,7 +13081,7 @@ doi:        do i = ILBSon, IUBSon
             XPosition    = sqrt(dx**2 + dy**2)
             XPosition    = XPosition * cos(dteta)
             XPosition    = abs(XPosition)
-            
+
             !South-North
             XlocalOrigin = (XXFather2D(Ilower, Jlower) + XXFather2D(Ilower, Jupper)) / 2.
             YlocalOrigin = (YYFather2D(Ilower, Jlower) + YYFather2D(Ilower, Jupper)) / 2.
@@ -12673,9 +13112,9 @@ doi:        do i = ILBSon, IUBSon
         integer,        optional                    :: STAT
 
         !Local-----------------------------------------------------------------
-#if _GOOGLEMAPS   
+#if _GOOGLEMAPS
         real(8),     dimension(:,:), pointer        :: XX_aux, YY_aux
-#endif        
+#endif
         integer,     dimension(:  ), pointer        :: AuxInt4
         type(T_Size2D)                              :: WorkSize_
         integer                                     :: WorkILB, WorkIUB
@@ -12685,7 +13124,7 @@ doi:        do i = ILBSon, IUBSon
         character(len=StringLength)                 :: AuxChar
         logical                                     :: WindowGrid_
         type(T_Size2D)                              :: GlobalWorkSizeWindow_
-        
+
         !Begin-----------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -12701,7 +13140,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
                 WorkJLB = WorkSize%JLB
                 WorkJUB = WorkSize%JUB
-                
+
                 WorkSize_ = WorkSize
             else
                 WorkILB = Me%WorkSize%ILB
@@ -12709,15 +13148,15 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
                 WorkJLB = Me%WorkSize%JLB
                 WorkJUB = Me%WorkSize%JUB
-                
+
                 WorkSize_ = Me%WorkSize
             endif
-            
+
             if (present(WindowGrid)) then
                 WindowGrid_ = WindowGrid
             else
                 WindowGrid_ = .false.
-            endif                                
+            endif
 
             if (present(GlobalWorkSizeWindow)) then
                 GlobalWorkSizeWindow_ = GlobalWorkSizeWindow
@@ -12813,7 +13252,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
                         !Sets limits for next write operations
                         call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB+1, WorkJLB, WorkJUB+1,      &
-                                              STAT = STAT_CALL)                        
+                                              STAT = STAT_CALL)
 
                         call HDF5WriteData   (ObjHDF5, "/Grid", "googlemaps_x", "-",    &
                                               Array2D = XX_aux,                         &
@@ -12826,22 +13265,22 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                         if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR30'
 
                         deallocate(XX_aux,YY_Aux)
-           
+
                 endif
 
 #endif
 
                 if (Me%DDecomp%MasterOrSlave) then
-                
+
                     allocate(AuxInt4(4))
-                    
+
                     !Sets limits for next write operations
                     call HDF5SetLimits   (ObjHDF5, 1, 4, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR40'
-                    
-                    
+
+
                     if (WindowGrid_) then
-                    !For the case of the window hdf5 output 
+                    !For the case of the window hdf5 output
                         AuxInt4(1) = GlobalWorkSizeWindow_%ILB
                         AuxInt4(2) = GlobalWorkSizeWindow_%IUB
                         AuxInt4(3) = GlobalWorkSizeWindow_%JLB
@@ -12851,7 +13290,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                         AuxInt4(2) = Me%DDecomp%Global%IUB
                         AuxInt4(3) = Me%DDecomp%Global%JLB
                         AuxInt4(4) = Me%DDecomp%Global%JUB
-                    endif                        
+                    endif
 
                     call HDF5WriteData   (ObjHDF5, "/Grid/Decomposition/Global", "ILB_IUB_JLB_JUB", &
                                           "-", Array1D = AuxInt4, STAT = STAT_CALL)
@@ -12865,19 +13304,19 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                     call HDF5WriteData   (ObjHDF5, "/Grid/Decomposition/Mapping", "ILB_IUB_JLB_JUB",&
                                           "-", Array1D = AuxInt4, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR60'
-                    
+
                     if (AuxInt4(1) == Me%DDecomp%HaloMap%ILB) then
                         AuxInt4(1) =  Me%DDecomp%Mapping%ILB
                     endif
-                    
+
                     if (AuxInt4(2) == Me%DDecomp%HaloMap%IUB) then
                         AuxInt4(2) =  Me%DDecomp%Mapping%IUB
                     endif
-                    
+
                     if (AuxInt4(3) == Me%DDecomp%HaloMap%JLB) then
                         AuxInt4(3) =  Me%DDecomp%Mapping%JLB
                     endif
-                    
+
                     if (AuxInt4(4) == Me%DDecomp%HaloMap%JUB) then
                         AuxInt4(4) =  Me%DDecomp%Mapping%JUB
                     endif
@@ -12887,24 +13326,24 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                     if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR70'
 
                     deallocate(AuxInt4)
-                    
+
                     if (.not. Me%DDecomp%FilesListOpen) then
-                    
-                        call UnitsManager(Me%DDecomp%FilesListID, FileOpen, STAT = STAT_CALL) 
+
+                        call UnitsManager(Me%DDecomp%FilesListID, FileOpen, STAT = STAT_CALL)
 
                         if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR80'
-                        
+
                         write(AuxChar,fmt='(i5)') Me%DDecomp%MPI_ID
-                        
+
                         Me%DDecomp%FilesListName = trim(adjustl(Me%DDecomp%FilesListName))
                         Me%DDecomp%ModelPath     = trim(adjustl(Me%DDecomp%ModelPath    ))
-                        
+
                         Me%DDecomp%FilesListName = "MPI_"//trim(adjustl(Auxchar))//"_"//trim(Me%DDecomp%FilesListName)
-                        
+
                         ilen = len_trim(Me%DDecomp%ModelPath)
-                        
+
                         Me%DDecomp%ModelPath(ilen-2: ilen) = "res"
-                        
+
                         !windows path
                         AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//"/"//trim(adjustl(Me%DDecomp%FilesListName))
 
@@ -12913,41 +13352,41 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                              status = "unknown",                                        &
                              form   = "formatted",                                      &
                              IOSTAT = STAT_CALL)
-                        
+
                         if (STAT_CALL /= SUCCESS_) then
                             !linux path
                             AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//backslash//trim(adjustl(Me%DDecomp%FilesListName))
-                            
+
                             open(file   = AuxFile,                                      &
                                  unit   = Me%DDecomp%FilesListID,                       &
                                  status = "unknown",                                    &
                                  form   = "formatted",                                  &
                                  IOSTAT = STAT_CALL)
-                                 
+
                             if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR90'
-                        endif                     
-                        
-                        Me%DDecomp%FilesListOpen = .true.       
-                        
+                        endif
+
+                        Me%DDecomp%FilesListOpen = .true.
+
                     endif
-                    
+
                     if (Me%DDecomp%FilesListOpen) then
-                    
+
                         call GetHDF5FileName (ObjHDF5, FileName, STAT= STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid - HorizontalGrid - ERR100'
                         iFile = 1
                         ilen  = len_trim(FileName)
                         do i = ilen,1,-1
                             if (FileName(i:i) == '/' .or. FileName(i:i) == backslash) then
-                                iFile = i+1 
+                                iFile = i+1
                                 exit
-                            endif                                
+                            endif
                         enddo
-                        
+
                         write(Me%DDecomp%FilesListID,'(A)') trim(FileName(iFile:ilen))
-                        
+
                     endif
-                    
+
                 endif
 
             endif
@@ -12964,7 +13403,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
         if (present(STAT))  STAT = STAT_
 
 
-    end subroutine WriteHorizontalGrid 
+    end subroutine WriteHorizontalGrid
 
     !--------------------------------------------------------------------------
 
@@ -12987,7 +13426,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
         integer                                     :: STAT_, ready_, STAT_CALL, ilen, iFile, i
         character(len=PathLength)                   :: FileName, AuxFile
         character(len=StringLength)                 :: AuxChar
-        
+
         !Begin-----------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -13002,16 +13441,16 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
             WorkJLB = WorkSize%JLB
             WorkJUB = WorkSize%JUB
-            
+
             WorkSize_ = WorkSize
 
             !Sets limits for next write operations
             call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB+2, WorkJLB, WorkJUB+2,      &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR10'
-            
+
             allocate(Aux2D(WorkILB:WorkIUB+2, WorkJLB:WorkJUB+2))
-            
+
             Aux2D(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1) = Me%XX_IE(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1)
             Aux2D(WorkIUB+2        , WorkJLB:WorkJUB+1) = Me%XX_IE(WorkIUB+1        , WorkJLB:WorkJUB+1)
             Aux2D(WorkILB:WorkIUB+2,         WorkJUB+2) = Aux2D   (WorkILB:WorkIUB+2,         WorkJUB+1)
@@ -13029,7 +13468,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                                   Array2D = Aux2D,                                  &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR30'
-            
+
             Aux2D(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1) = Me%LongitudeConn(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1)
             Aux2D(WorkIUB+2        , WorkJLB:WorkJUB+1) = Me%LongitudeConn(WorkIUB+1        , WorkJLB:WorkJUB+1)
             Aux2D(WorkILB:WorkIUB+2,         WorkJUB+2) = Aux2D           (WorkILB:WorkIUB+2,         WorkJUB+1)
@@ -13038,7 +13477,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                                   Array2D = Aux2D,                                  &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR40'
-            
+
             Aux2D(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1) = Me%LatitudeConn(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1)
             Aux2D(WorkIUB+2        , WorkJLB:WorkJUB+1) = Me%LatitudeConn(WorkIUB+1        , WorkJLB:WorkJUB+1)
             Aux2D(WorkILB:WorkIUB+2,         WorkJUB+2) = Aux2D          (WorkILB:WorkIUB+2,         WorkJUB+1)
@@ -13047,14 +13486,14 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                                   Array2D = Aux2D,                                  &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR50'
-            
+
             deallocate(Aux2D)
 
             if (Me%CornersXYInput) then
-            
+
                 call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB+1, WorkJLB, WorkJUB+1,      &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR60'            
+                if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR60'
 
                 call HDF5WriteData   (ObjHDF5, "/Grid", "Define Cells", "-",        &
                                       Array2D = Me%DefineCellsMap,                  &
@@ -13065,13 +13504,13 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
             endif
 
             if (Me%DDecomp%MasterOrSlave) then
-            
+
                 allocate(AuxInt4(4))
-                
+
                 !Sets limits for next write operations
                 call HDF5SetLimits   (ObjHDF5, 1, 4, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR80'
-                
+
                 AuxInt4(1) = Me%DDecomp%Global%ILB
                 AuxInt4(2) = Me%DDecomp%Global%IUB + 1
                 AuxInt4(3) = Me%DDecomp%Global%JLB
@@ -13089,19 +13528,19 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                 call HDF5WriteData   (ObjHDF5, "/Grid/Decomposition/Mapping", "ILB_IUB_JLB_JUB",&
                                       "-", Array1D = AuxInt4, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR100'
-                
+
                 if (AuxInt4(1) == Me%DDecomp%HaloMap%ILB) then
                     AuxInt4(1) =  Me%DDecomp%Mapping%ILB
                 endif
-                
+
                 if (AuxInt4(2) == Me%DDecomp%HaloMap%IUB) then
                     AuxInt4(2) =  Me%DDecomp%Mapping%IUB + 1
                 endif
-                
+
                 if (AuxInt4(3) == Me%DDecomp%HaloMap%JLB) then
                     AuxInt4(3) =  Me%DDecomp%Mapping%JLB
                 endif
-                
+
                 if (AuxInt4(4) == Me%DDecomp%HaloMap%JUB) then
                     AuxInt4(4) =  Me%DDecomp%Mapping%JUB + 1
                 endif
@@ -13111,24 +13550,24 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                 if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR110'
 
                 deallocate(AuxInt4)
-                
+
                 if (.not. Me%DDecomp%FilesListOpen) then
-                
-                    call UnitsManager(Me%DDecomp%FilesListID, FileOpen, STAT = STAT_CALL) 
+
+                    call UnitsManager(Me%DDecomp%FilesListID, FileOpen, STAT = STAT_CALL)
 
                     if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR120'
-                    
+
                     write(AuxChar,fmt='(i5)') Me%DDecomp%MPI_ID
-                    
+
                     Me%DDecomp%FilesListName = trim(adjustl(Me%DDecomp%FilesListName))
                     Me%DDecomp%ModelPath     = trim(adjustl(Me%DDecomp%ModelPath    ))
-                    
+
                     Me%DDecomp%FilesListName = "MPI_"//trim(adjustl(Auxchar))//"_"//trim(Me%DDecomp%FilesListName)
-                    
+
                     ilen = len_trim(Me%DDecomp%ModelPath)
-                    
+
                     Me%DDecomp%ModelPath(ilen-2: ilen) = "res"
-                    
+
                     !windows path
                     AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//"/"//trim(adjustl(Me%DDecomp%FilesListName))
 
@@ -13137,41 +13576,41 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                          status = "unknown",                                        &
                          form   = "formatted",                                      &
                          IOSTAT = STAT_CALL)
-                    
+
                     if (STAT_CALL /= SUCCESS_) then
                         !linux path
                         AuxFile = trim(adjustl(Me%DDecomp%ModelPath))//backslash//trim(adjustl(Me%DDecomp%FilesListName))
-                        
+
                         open(file   = AuxFile,                                      &
                              unit   = Me%DDecomp%FilesListID,           &
                              status = "unknown",                                    &
                              form   = "formatted",                                  &
                              IOSTAT = STAT_CALL)
-                             
+
                         if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR130'
-                    endif                     
-                    
-                    Me%DDecomp%FilesListOpen = .true.       
-                    
+                    endif
+
+                    Me%DDecomp%FilesListOpen = .true.
+
                 endif
-                
+
                 if (Me%DDecomp%FilesListOpen) then
-                
+
                     call GetHDF5FileName (ObjHDF5, FileName, STAT= STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteHorizontalGrid_UV - HorizontalGrid - ERR140'
                     iFile = 1
                     ilen  = len_trim(FileName)
                     do i = ilen,1,-1
                         if (FileName(i:i) == '/' .or. FileName(i:i) == backslash) then
-                            iFile = i+1 
+                            iFile = i+1
                             exit
-                        endif                                
+                        endif
                     enddo
-                    
+
                     write(Me%DDecomp%FilesListID,'(A)') trim(FileName(iFile:ilen))
-                    
+
                 endif
-                
+
             endif
 
             STAT_ = SUCCESS_
@@ -13186,7 +13625,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
         if (present(STAT))  STAT = STAT_
 
 
-    end subroutine WriteHorizontalGrid_UV 
+    end subroutine WriteHorizontalGrid_UV
 
     !--------------------------------------------------------------------------
 
@@ -13201,14 +13640,14 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
         integer                                     :: STAT_CALL
         logical                                     :: Exist
         !Begin-----------------------------------------------------------------
- 
+
 
         !WorkSize
         WorkILB = Me%WorkSize%ILB
         WorkIUB = Me%WorkSize%IUB
         WorkJLB = Me%WorkSize%JLB
         WorkJUB = Me%WorkSize%JUB
-        
+
 
         !Sets limits for next write operations
         call HDF5SetLimits   (Me%ObjHDF5, WorkILB, WorkIUB+1, WorkJLB, WorkJUB+1,      &
@@ -13226,9 +13665,9 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                                   Array2D = Me%LatitudeConn,                                &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR30'
-        
+
         else
-        
+
             call HDF5ReadData   (Me%ObjHDF5, "/Grid", "ConnectionX",                        &
                                   Array2D = Me%XX_IE,                                       &
                                   STAT    = STAT_CALL)
@@ -13238,12 +13677,12 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                                   Array2D = Me%YY_IE,                                       &
                                   STAT    = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR50'
-        
+
         endif
 
 
         if (Me%CornersXYInput) then
-        
+
             call GetHDF5DataSetExist (Me%ObjHDF5, DataSetName ="/Grid/Define Cells",    &
                                       Exist = Exist, STAT= STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5HorizontalGrid - HorizontalGrid - ERR60'
@@ -13260,7 +13699,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
         endif
 
 
-    end subroutine ReadHDF5HorizontalGrid 
+    end subroutine ReadHDF5HorizontalGrid
 
     !--------------------------------------------------------------------------
 
@@ -13292,39 +13731,39 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
 cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
-            
-        
+
+
 if1:        if  (Me%Distortion .or. Me%RegularRotation) then
 
                 !Bounds
-                ILB = Me%WorkSize%ILB 
-                IUB = Me%WorkSize%IUB 
+                ILB = Me%WorkSize%ILB
+                IUB = Me%WorkSize%IUB
 
-                JLB = Me%WorkSize%JLB 
-                JUB = Me%WorkSize%JUB 
+                JLB = Me%WorkSize%JLB
+                JUB = Me%WorkSize%JUB
 
                 GridRotationRadians = Me%Grid_Angle * Pi/180.
 
                 !Rotate
                 do j = JLB, JUB
                 do i = ILB, IUB
-                        
+
 if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
                         !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
                         !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
-                        
-                        AngleX = 0. 
+
+                        AngleX = 0.
                         AngleY = Pi / 2.
 
-                        if      (Me%Distortion) then 
-                
+                        if      (Me%Distortion) then
+
                             AngleX = Me%RotationX(i, j)
                             AngleY = Me%RotationY(i, j)
 
                         else if (Me%RegularRotation) then
 
-                            AngleX = GridRotationRadians 
+                            AngleX = GridRotationRadians
                             AngleY = GridRotationRadians + Pi / 2.
 
                         endif
@@ -13368,7 +13807,7 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
             STAT_ = SUCCESS_
 
-        else               
+        else
 
             STAT_ = ready_
 
@@ -13408,16 +13847,16 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
 cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
-        
-        
+
+
 if1:        if  (Me%Distortion .or. Me%RegularRotation) then
 
                 !Bounds
-                ILB = Me%WorkSize%ILB 
-                IUB = Me%WorkSize%IUB 
+                ILB = Me%WorkSize%ILB
+                IUB = Me%WorkSize%IUB
 
-                JLB = Me%WorkSize%JLB 
-                JUB = Me%WorkSize%JUB 
+                JLB = Me%WorkSize%JLB
+                JUB = Me%WorkSize%JUB
 
                 GridRotationRadians = Me%Grid_Angle * Pi/180.
 
@@ -13425,23 +13864,23 @@ if1:        if  (Me%Distortion .or. Me%RegularRotation) then
                 do k = KLB, KUB
                 do j = JLB, JUB
                 do i = ILB, IUB
-                        
+
 if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
                         !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
                         !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
-                        
-                        AngleX = 0. 
-                        AngleY = Pi / 2.                        
 
-                        if      (Me%Distortion) then 
-                
+                        AngleX = 0.
+                        AngleY = Pi / 2.
+
+                        if      (Me%Distortion) then
+
                             AngleX = Me%RotationX(i, j)
                             AngleY = Me%RotationY(i, j)
 
                         else if (Me%RegularRotation) then
 
-                            AngleX = GridRotationRadians 
+                            AngleX = GridRotationRadians
                             AngleY = GridRotationRadians + Pi / 2.
 
                         endif
@@ -13487,7 +13926,7 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
             STAT_ = SUCCESS_
 
-        else               
+        else
 
             STAT_ = ready_
 
@@ -13526,37 +13965,37 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
 cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
-            
-        
+
+
 !if1:        if  (Me%Distortion .or. Me%RegularRotation) then
 
                 !Bounds
-                ILB = Me%WorkSize%ILB 
-                IUB = Me%WorkSize%IUB 
+                ILB = Me%WorkSize%ILB
+                IUB = Me%WorkSize%IUB
 
-                JLB = Me%WorkSize%JLB 
-                JUB = Me%WorkSize%JUB 
+                JLB = Me%WorkSize%JLB
+                JUB = Me%WorkSize%JUB
 
                 !Rotate
                 do j = JLB, JUB
                 do i = ILB, IUB
-                        
+
 if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
                         !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
                         !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
-                        
+
                         GridAngle = 0.
 
-                        if      (Me%Distortion) then 
-                            
+                        if      (Me%Distortion) then
+
                             !with distortion, the cell trigonometric circle origin is coincident with cell "x plane"
                             !and rotation Y is not accounted
                             GridAngle = Me%RotationX(i, j) / 180. * Pi
 
                         else if (Me%RegularRotation) then
 
-                            GridAngle = Me%Grid_Angle 
+                            GridAngle = Me%Grid_Angle
 
                         endif
 
@@ -13588,7 +14027,7 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
             STAT_ = SUCCESS_
 
-        else               
+        else
 
             STAT_ = ready_
 
@@ -13626,38 +14065,38 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
 cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
-            
-        
+
+
 !if1:        if  (Me%Distortion .or. Me%RegularRotation) then
 
                 !Bounds
-                ILB = Me%WorkSize%ILB 
-                IUB = Me%WorkSize%IUB 
+                ILB = Me%WorkSize%ILB
+                IUB = Me%WorkSize%IUB
 
-                JLB = Me%WorkSize%JLB 
-                JUB = Me%WorkSize%JUB 
+                JLB = Me%WorkSize%JLB
+                JUB = Me%WorkSize%JUB
 
                 !Rotate
                 do k = KLB, KUB
                 do j = JLB, JUB
                 do i = ILB, IUB
-                        
+
 if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
                         !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
                         !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
-                        
-                        GridAngle = 0.                        
 
-                        if      (Me%Distortion) then 
-                            
+                        GridAngle = 0.
+
+                        if      (Me%Distortion) then
+
                             !with distortion, the cell trigonometric circle origin is coincident with cell "x plane"
                             !and rotation Y is not accounted
                             GridAngle = Me%RotationX(i, j) / 180. * Pi
 
                         else if (Me%RegularRotation) then
 
-                            GridAngle = Me%Grid_Angle 
+                            GridAngle = Me%Grid_Angle
 
                         endif
 
@@ -13690,7 +14129,7 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
             STAT_ = SUCCESS_
 
-        else               
+        else
 
             STAT_ = ready_
 
@@ -13701,8 +14140,8 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
     end subroutine RotateAngleFieldToGrid3D
 
-    !--------------------------------------------------------------------------                                         
-                                         
+    !--------------------------------------------------------------------------
+
     subroutine RotateVectorGridToField2DR4(HorizontalGridID, VectorInX, VectorInY,      &
                                            VectorOutX, VectorOutY, WaterPoints2D,       &
                                            RotateX, RotateY, STAT)
@@ -13728,33 +14167,33 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
 cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
-            
-        
+
+
 if1:        if  (Me%Distortion .or. Me%RegularRotation) then
 
                 !Bounds
-                ILB = Me%WorkSize%ILB 
-                IUB = Me%WorkSize%IUB 
+                ILB = Me%WorkSize%ILB
+                IUB = Me%WorkSize%IUB
 
-                JLB = Me%WorkSize%JLB 
-                JUB = Me%WorkSize%JUB 
-                
+                JLB = Me%WorkSize%JLB
+                JUB = Me%WorkSize%JUB
+
                 GridRotationRadians = Me%Grid_Angle * Pi / 180.
 
                 !Rotate
                 do j = JLB, JUB
                 do i = ILB, IUB
-                        
+
 if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
                         !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
                         !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
-                        
-                        AngleX = 0. 
+
+                        AngleX = 0.
                         AngleY = Pi / 2.
 
-                        if      (Me%Distortion) then 
-                
+                        if      (Me%Distortion) then
+
                             AngleX = Me%RotationX(i, j)
                             AngleY = Me%RotationY(i, j)
 
@@ -13806,7 +14245,7 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
             STAT_ = SUCCESS_
 
-        else               
+        else
 
             STAT_ = ready_
 
@@ -13818,8 +14257,8 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
     end subroutine RotateVectorGridToField2DR4
     !--------------------------------------------------------------------------
 
-    !--------------------------------------------------------------------------                                         
-                                         
+    !--------------------------------------------------------------------------
+
     subroutine RotateVectorGridToField2DR8(HorizontalGridID, VectorInX, VectorInY,      &
                                            VectorOutX, VectorOutY, WaterPoints2D,       &
                                            RotateX, RotateY, STAT)
@@ -13845,33 +14284,33 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
 cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
-            
-        
+
+
 if1:        if  (Me%Distortion .or. Me%RegularRotation) then
 
                 !Bounds
-                ILB = Me%WorkSize%ILB 
-                IUB = Me%WorkSize%IUB 
+                ILB = Me%WorkSize%ILB
+                IUB = Me%WorkSize%IUB
 
-                JLB = Me%WorkSize%JLB 
-                JUB = Me%WorkSize%JUB 
-                
+                JLB = Me%WorkSize%JLB
+                JUB = Me%WorkSize%JUB
+
                 GridRotationRadians = Me%Grid_Angle * Pi / 180.
 
                 !Rotate
                 do j = JLB, JUB
                 do i = ILB, IUB
-                        
+
 if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
                         !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
                         !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
-                        
-                        AngleX = 0. 
+
+                        AngleX = 0.
                         AngleY = Pi / 2.
 
-                        if      (Me%Distortion) then 
-                
+                        if      (Me%Distortion) then
+
                             AngleX = Me%RotationX(i, j)
                             AngleY = Me%RotationY(i, j)
 
@@ -13923,7 +14362,7 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
             STAT_ = SUCCESS_
 
-        else               
+        else
 
             STAT_ = ready_
 
@@ -13963,16 +14402,16 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
 cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
-        
-        
+
+
 if1:        if  (Me%Distortion .or. Me%RegularRotation) then
 
                 !Bounds
-                ILB = Me%WorkSize%ILB 
-                IUB = Me%WorkSize%IUB 
+                ILB = Me%WorkSize%ILB
+                IUB = Me%WorkSize%IUB
 
-                JLB = Me%WorkSize%JLB 
-                JUB = Me%WorkSize%JUB 
+                JLB = Me%WorkSize%JLB
+                JUB = Me%WorkSize%JUB
 
                 GridRotationRadians = Me%Grid_Angle * Pi / 180.
 
@@ -13980,23 +14419,23 @@ if1:        if  (Me%Distortion .or. Me%RegularRotation) then
                 do k = KLB, KUB
                 do j = JLB, JUB
                 do i = ILB, IUB
-                        
+
 if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
                         !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
                         !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
-                        
-                        AngleX = 0. 
+
+                        AngleX = 0.
                         AngleY = Pi / 2.
-                        
-                        if      (Me%Distortion) then 
-                
+
+                        if      (Me%Distortion) then
+
                             AngleX = Me%RotationX(i, j)
                             AngleY = Me%RotationY(i, j)
 
                         else if (Me%RegularRotation) then
 
-                            AngleX = GridRotationRadians 
+                            AngleX = GridRotationRadians
                             AngleY = GridRotationRadians + Pi / 2.
 
                         endif
@@ -14042,7 +14481,7 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
             STAT_ = SUCCESS_
 
-        else               
+        else
 
             STAT_ = ready_
 
@@ -14079,38 +14518,38 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
 cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
-            
-        
+
+
 !if1:        !if  (Me%Distortion .or. Me%RegularRotation) then
 
                 !Bounds
-                ILB = Me%WorkSize%ILB 
-                IUB = Me%WorkSize%IUB 
+                ILB = Me%WorkSize%ILB
+                IUB = Me%WorkSize%IUB
 
-                JLB = Me%WorkSize%JLB 
-                JUB = Me%WorkSize%JUB 
+                JLB = Me%WorkSize%JLB
+                JUB = Me%WorkSize%JUB
 
 
                 !Rotate
                 do j = JLB, JUB
                 do i = ILB, IUB
-                        
+
 if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
                         !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
                         !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
-                        
+
                         GridAngle = 0.
 
-                        if      (Me%Distortion) then 
-                            
+                        if      (Me%Distortion) then
+
                             !with distortion, the cell trigonometric circle origin is coincident with cell "x plane"
                             !and rotation Y is not accounted
                             GridAngle = Me%RotationX(i, j) * 180. / Pi
 
                         else if (Me%RegularRotation) then
 
-                            GridAngle = Me%Grid_Angle 
+                            GridAngle = Me%Grid_Angle
 
                         endif
 
@@ -14142,7 +14581,7 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
             STAT_ = SUCCESS_
 
-        else               
+        else
 
             STAT_ = ready_
 
@@ -14180,38 +14619,38 @@ if2:                if (WaterPoints2D(i, j) == WaterPoint) then
 
 cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
-            
-        
+
+
 !if1:        !if  (Me%Distortion .or. Me%RegularRotation) then
 
                 !Bounds
-                ILB = Me%WorkSize%ILB 
-                IUB = Me%WorkSize%IUB 
+                ILB = Me%WorkSize%ILB
+                IUB = Me%WorkSize%IUB
 
-                JLB = Me%WorkSize%JLB 
-                JUB = Me%WorkSize%JUB 
+                JLB = Me%WorkSize%JLB
+                JUB = Me%WorkSize%JUB
 
                 !Rotate
                 do k = KLB, KUB
                 do j = JLB, JUB
                 do i = ILB, IUB
-                        
+
 if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
                         !VectorX = X_Grid * cos(AngleX) + Y_Grid * cos(AngleY)
                         !VectorY = X_Grid * sin(AngleX) + Y_Grid * sin(AngleY)
-                        
+
                         GridAngle = 0.
 
-                        if      (Me%Distortion) then 
-                            
+                        if      (Me%Distortion) then
+
                             !with distortion, the cell trigonometric circle origin is coincident with cell "x plane"
                             !and rotation Y is not accounted
                             GridAngle = Me%RotationX(i, j) * 180. / Pi
 
                         else if (Me%RegularRotation) then
 
-                            GridAngle = Me%Grid_Angle 
+                            GridAngle = Me%Grid_Angle
 
                         endif
 
@@ -14244,7 +14683,7 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
             STAT_ = SUCCESS_
 
-        else               
+        else
 
             STAT_ = ready_
 
@@ -14255,8 +14694,8 @@ if2:                if (WaterPoints3D(i, j, k) == WaterPoint) then
 
     end subroutine RotateAngleGridToField3D
 
-    !--------------------------------------------------------------------------         
-                                         
+    !--------------------------------------------------------------------------
+
     subroutine ComputeAngleFromGridComponents2D(HorizontalGridID, VectorU, VectorV,       &
                                          AngleOutField, AngleOutGrid, WaterPoints2D,  OutReferential,             &
                                          Rotate, STAT)
@@ -14281,22 +14720,22 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
 
             !Bounds
-            ILB = Me%WorkSize%ILB 
-            IUB = Me%WorkSize%IUB 
+            ILB = Me%WorkSize%ILB
+            IUB = Me%WorkSize%IUB
 
-            JLB = Me%WorkSize%JLB 
-            JUB = Me%WorkSize%JUB 
-            
+            JLB = Me%WorkSize%JLB
+            JUB = Me%WorkSize%JUB
+
             do j = JLB, JUB
             do i = ILB, IUB
-                        
+
                 if (WaterPoints2D(i, j) == WaterPoint) then
                     AngleOutGrid(i,j) = atan2(VectorV(i,j), VectorU(i,j)) * 180. / Pi
                 endif
-                
+
             enddo
             enddo
-            
+
             !rotate the angles to input referential
             call RotateAngleGridToField2D(HorizontalGridID,                         &
                                             AngleIn = AngleOutGrid,                 &
@@ -14304,11 +14743,11 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                                             AngleOut = AngleOutField,               &
                                             WaterPoints2D = WaterPoints2D,          &
                                             Rotate = Rotate,                        &
-                                            STAT = STAT_CALL)   
-            
+                                            STAT = STAT_CALL)
+
             STAT_ = SUCCESS_
 
-        else               
+        else
 
             STAT_ = ready_
 
@@ -14319,8 +14758,8 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
     end subroutine ComputeAngleFromGridComponents2D
 
-    !-------------------------------------------------------------------------- 
-                                         
+    !--------------------------------------------------------------------------
+
     subroutine ComputeAngleFromGridComponents3D(HorizontalGridID, VectorU, VectorV,       &
                                          AngleOutField, AngleOutGrid, WaterPoints3D, OutReferential,         &
                                          Rotate, KLB, KUB, STAT)
@@ -14343,27 +14782,27 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
 cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
-                    
-            !Bounds
-            ILB = Me%WorkSize%ILB 
-            IUB = Me%WorkSize%IUB 
 
-            JLB = Me%WorkSize%JLB 
-            JUB = Me%WorkSize%JUB 
-            
-            
+            !Bounds
+            ILB = Me%WorkSize%ILB
+            IUB = Me%WorkSize%IUB
+
+            JLB = Me%WorkSize%JLB
+            JUB = Me%WorkSize%JUB
+
+
             do k = KLB, KUB
             do j = JLB, JUB
             do i = ILB, IUB
-                        
+
                 if (WaterPoints3D(i, j, k) == WaterPoint) then
                     AngleOutGrid(i,j, k) = atan2(VectorV(i,j,k), VectorU(i,j,k)) * 180. / Pi
                 endif
-                
+
             enddo
             enddo
             enddo
-                
+
             !rotate the angles to input referential
             call RotateAngleGridToField3D(HorizontalGridID,                         &
                                             AngleIn = AngleOutGrid,                 &
@@ -14373,11 +14812,11 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
                                             Rotate = Rotate,                        &
                                             KLB    = KLB,                           &
                                             KUB    = KUB,                           &
-                                            STAT = STAT_CALL)   
-            
+                                            STAT = STAT_CALL)
+
             STAT_ = SUCCESS_
 
-        else               
+        else
 
             STAT_ = ready_
 
@@ -14388,12 +14827,12 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
     end subroutine ComputeAngleFromGridComponents3D
 
-    !--------------------------------------------------------------------------                                          
-                                         
+    !--------------------------------------------------------------------------
+
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    !DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR  
+    !DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -14412,7 +14851,7 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(HorizontalGridID, ready_)    
+        call Ready(HorizontalGridID, ready_)
 
 cd1 :   if (ready_ .NE. OFF_ERR_) then
 
@@ -14508,7 +14947,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     deallocate (Me%Compute%YY_V, stat = STATUS)
                     if (STATUS /= SUCCESS_) stop 'KillHorizontalGrid - HorizontalGrid - ERR210'
 
-        
+
                     !XX_V
                     deallocate (Me%Compute%XX_V, stat = STATUS)
                     if (STATUS /= SUCCESS_) stop 'KillHorizontalGrid - HorizontalGrid - ERR220'
@@ -14544,7 +14983,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 deallocate (Me%Compute%YY2D_V, stat = STATUS)
                 if (STATUS /= SUCCESS_) stop 'KillHorizontalGrid - HorizontalGrid - ERR290'
 
-    
+
                 !XX2D_V
                 deallocate (Me%Compute%XX2D_V, stat = STATUS)
                 if (STATUS /= SUCCESS_) stop 'KillHorizontalGrid - HorizontalGrid - ERR300'
@@ -14603,27 +15042,27 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 deallocate(Me%GridBorderCart%Polygon_)
                 nullify   (Me%GridBorderCart%Polygon_)
-                
+
                 deallocate(Me%GridOutBorderCart%Polygon_%VerticesF)
                 nullify   (Me%GridOutBorderCart%Polygon_%VerticesF)
 
                 deallocate(Me%GridOutBorderCart%Polygon_)
                 nullify   (Me%GridOutBorderCart%Polygon_)
- 
+
                 deallocate(Me%GridBorderAlongGrid%Polygon_%VerticesF)
                 nullify   (Me%GridBorderAlongGrid%Polygon_%VerticesF)
 
                 deallocate(Me%GridBorderAlongGrid%Polygon_)
                 nullify   (Me%GridBorderAlongGrid%Polygon_)
 
-                
+
                 deallocate(Me%GridBorderCart     )
-                deallocate(Me%GridOutBorderCart  )                
+                deallocate(Me%GridOutBorderCart  )
                 deallocate(Me%GridBorderCoord    )
                 deallocate(Me%GridOutBorderCoord )
                 deallocate(Me%GridBorderAlongGrid)
 
- 
+
                 nullify   (Me%GridBorderCart     )
                 nullify   (Me%GridOutBorderCart  )
                 nullify   (Me%GridBorderCoord    )
@@ -14634,26 +15073,42 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 deallocate (Me%XX1D_Aux)
                 deallocate (Me%YY1D_Aux)
 
-                nullify    (Me%XX1D_Aux) 
+                nullify    (Me%XX1D_Aux)
                 nullify    (Me%YY1D_Aux)
-                
+
                 deallocate(Me%AuxPolygon%VerticesF)
                 deallocate(Me%AuxPolygon)
 
+                if (allocated(Me%IWD_connections_U)) then !Sobrinho
+                    deallocate(Me%IWD_connections_U)
+                    deallocate(Me%IWD_Distances_U)
+                    nullify   (Me%IWD_Distances_U)
+                endif
+                if (allocated(Me%IWD_connections_V)) then! Sobrinho
+                    deallocate(Me%IWD_connections_V)
+                    deallocate(Me%IWD_Distances_V)
+                    nullify   (Me%IWD_Distances_V)
+                endif
+                if (allocated(Me%IWD_connections_Z)) then !Sobrinho
+                    deallocate(Me%IWD_connections_Z)
+                    deallocate(Me%IWD_Distances_Z)
+                    nullify   (Me%IWD_Distances_Z)
+                endif
+
                 call KillFatherGridList
-                
+
                 call KillDDecomp
 
 
                 !ObjHorizontalGrid
                 call DeallocateInstance
-                
+
                 HorizontalGridID = 0
                 STAT_            = SUCCESS_
 
             end if
 
-        else 
+        else
 
             STAT_ = ready_
 
@@ -14694,8 +15149,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
         !Deallocates instance
         deallocate (Me)
-        nullify    (Me) 
-            
+        nullify    (Me)
+
     end subroutine DeallocateInstance
 
     !--------------------------------------------------------------------------
@@ -14708,12 +15163,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         type (T_FatherGrid)    , pointer    :: FatherGrid
         integer                             :: status
 
-        ! Deallocates all the water properties 
+        ! Deallocates all the water properties
 
         FatherGrid => Me%FirstFatherGrid
 
-do1 :   do while(associated(FatherGrid))  
-            
+do1 :   do while(associated(FatherGrid))
+
             if (FatherGrid%OkZ) then
 
 
@@ -14723,13 +15178,13 @@ do1 :   do while(associated(FatherGrid))
                     deallocate(FatherGrid%XX_Z, STAT = status)
 
                     if (status /= SUCCESS_)                                             &
-                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR10") 
+                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR10")
 
                     !YY_Z
                     deallocate(FatherGrid%YY_Z, STAT = status)
 
                     if (status /= SUCCESS_)                                             &
-                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR20") 
+                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR20")
 
                 endif
 
@@ -14739,16 +15194,30 @@ do1 :   do while(associated(FatherGrid))
                 !IZ
                 deallocate(FatherGrid%IZ, STAT = status)
                 if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR30") 
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR30")
 
                 nullify   (FatherGrid%IZ)
 
                 !JZ
                 deallocate(FatherGrid%JZ, STAT = status)
                 if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR40") 
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR40")
 
                 nullify   (FatherGrid%JZ)
+                
+                !ILinkZ
+                deallocate(FatherGrid%ILinkZ, STAT = status)
+                if (status /= SUCCESS_)                                                 &
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR41") 
+
+                nullify   (FatherGrid%ILinkZ)
+                !Joao Sobrinho
+                !JLinkZ
+                deallocate(FatherGrid%JLinkZ, STAT = status)
+                if (status /= SUCCESS_)                                                 &
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR42") 
+
+                nullify   (FatherGrid%JLinkZ) 
 
             endif
 
@@ -14760,13 +15229,13 @@ do1 :   do while(associated(FatherGrid))
                     deallocate(FatherGrid%XX_U, STAT = status)
 
                     if (status /= SUCCESS_)                                             &
-                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR50") 
+                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR50")
 
                     !YY_U
                     deallocate(FatherGrid%YY_U, STAT = status)
 
                     if (status /= SUCCESS_)                                             &
-                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR60") 
+                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR60")
 
                 endif
 
@@ -14778,7 +15247,7 @@ do1 :   do while(associated(FatherGrid))
                 deallocate(FatherGrid%IU, STAT = status)
 
                 if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR70") 
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR70")
 
                 nullify   (FatherGrid%IU)
 
@@ -14786,11 +15255,28 @@ do1 :   do while(associated(FatherGrid))
                 deallocate(FatherGrid%JU, STAT = status)
 
                 if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR80") 
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR80")
 
                 nullify   (FatherGrid%JU)
+                
+                !ILinkU
+                deallocate(FatherGrid%ILinkU, STAT = status)
 
-            endif 
+                if (status /= SUCCESS_)                                                 &
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR81") 
+
+                nullify   (FatherGrid%ILinkU)
+                
+                !Joao Sobrinho
+                !JLinkU
+                deallocate(FatherGrid%JLinkU, STAT = status)
+
+                if (status /= SUCCESS_)                                                 &
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR82") 
+
+                nullify   (FatherGrid%JLinkU)
+
+            endif
 
             if (FatherGrid%OkV) then
 
@@ -14800,13 +15286,13 @@ do1 :   do while(associated(FatherGrid))
                     deallocate(FatherGrid%YY_V, STAT = status)
 
                     if (status /= SUCCESS_)                                             &
-                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR90") 
+                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR90")
 
                     !XX_V
                     deallocate(FatherGrid%XX_V, STAT = status)
 
                     if (status /= SUCCESS_)                                             &
-                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR100") 
+                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR100")
                 endif
 
                 nullify   (FatherGrid%XX_V)
@@ -14816,7 +15302,7 @@ do1 :   do while(associated(FatherGrid))
                 deallocate(FatherGrid%IV, STAT = status)
 
                 if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR110") 
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR110")
 
                 nullify   (FatherGrid%IV)
 
@@ -14824,30 +15310,47 @@ do1 :   do while(associated(FatherGrid))
                 deallocate(FatherGrid%JV, STAT = status)
 
                 if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR120") 
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR120")
 
                 nullify   (FatherGrid%JV)
+                
+                !Joao Sobrinho                
+                !ILinkV
+                deallocate(FatherGrid%ILinkV, STAT = status)
+
+                if (status /= SUCCESS_)                                                 &
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR111") 
+
+                nullify   (FatherGrid%ILinkV)
+
+                !JLinkV
+                deallocate(FatherGrid%JLinkV, STAT = status)
+
+                if (status /= SUCCESS_)                                                 &
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR112") 
+
+                nullify   (FatherGrid%JLinkV)
 
             endif
 
             if (FatherGrid%OkCross) then
 
                 if (.not. FatherGrid%CornersXYInput) then
-                
+
                     !XX_Cross
                     deallocate(FatherGrid%XX_Cross, STAT = status)
 
                     if (status /= SUCCESS_)                                             &
-                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR130") 
+                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR130")
 
                     !YY_Cross
                     deallocate(FatherGrid%YY_Cross, STAT = status)
 
                     if (status /= SUCCESS_)                                             &
-                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR140") 
+                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR140")
 
                 endif
-                
+
                 nullify   (FatherGrid%XX_Cross)
                 nullify   (FatherGrid%YY_Cross)
 
@@ -14857,7 +15360,7 @@ do1 :   do while(associated(FatherGrid))
                 deallocate(FatherGrid%ICross, STAT = status)
 
                 if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR150") 
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR150")
 
                 nullify   (FatherGrid%ICross)
 
@@ -14865,16 +15368,16 @@ do1 :   do while(associated(FatherGrid))
                 deallocate(FatherGrid%JCross, STAT = status)
 
                 if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR160") 
+                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR160")
 
                 nullify   (FatherGrid%JCross)
 
             endif
 
             FatherGrid => FatherGrid%Next
-                    
+
         end do do1
-        
+
         nullify   (Me%FirstFatherGrid,Me%LastFatherGrid)
 
     end subroutine KillFatherGridList
@@ -14887,15 +15390,15 @@ do1 :   do while(associated(FatherGrid))
 
         !Local-----------------------------------------------------------------
         integer                     :: STAT_CALL
-        
-        
-        !Begin-----------------------------------------------------------------        
+
+
+        !Begin-----------------------------------------------------------------
 
         if (associated(Me%DDecomp%Slaves_MPI_ID))    then
             deallocate(Me%DDecomp%Slaves_MPI_ID)
             nullify   (Me%DDecomp%Slaves_MPI_ID)
         endif
-        
+
         if (associated(Me%DDecomp%Slaves_Size))      then
             deallocate(Me%DDecomp%Slaves_Size)
             nullify   (Me%DDecomp%Slaves_Size)
@@ -14905,12 +15408,12 @@ do1 :   do while(associated(FatherGrid))
             deallocate(Me%DDecomp%Slaves_Inner)
             nullify   (Me%DDecomp%Slaves_Inner)
         endif
-        
+
         if (associated(Me%DDecomp%Slaves_Mapping))   then
             deallocate(Me%DDecomp%Slaves_Mapping)
             nullify   (Me%DDecomp%Slaves_Mapping)
         endif
-        
+
         if (associated(Me%DDecomp%Slaves_HaloMap))   then
             deallocate(Me%DDecomp%Slaves_HaloMap)
             nullify   (Me%DDecomp%Slaves_HaloMap)
@@ -14919,48 +15422,48 @@ do1 :   do while(associated(FatherGrid))
         if (associated(Me%DDecomp%Interfaces))       then
             deallocate(Me%DDecomp%Interfaces)
             nullify   (Me%DDecomp%Interfaces)
-        endif              
-        
-        if (Me%DDecomp%FilesListOpen) then
-                    
-            call UnitsManager(Me%DDecomp%FilesListID, FileClose, STAT = STAT_CALL) 
+        endif
 
-            if (STAT_CALL /= SUCCESS_) stop 'KillDDecomp - HorizontalGrid - ERR10'                                 
+        if (Me%DDecomp%FilesListOpen) then
+
+            call UnitsManager(Me%DDecomp%FilesListID, FileClose, STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'KillDDecomp - HorizontalGrid - ERR10'
 
         endif
-        
+
         call DeAllocateMasterCoef2D
 
-        call DeAllocateMasterCoef3D        
-        
+        call DeAllocateMasterCoef3D
+
         !----------------------------------------------------------------------
-        
-#endif _USE_MPI        
+
+#endif _USE_MPI
 
     end subroutine KillDDecomp
-    
 
-    subroutine DeAllocateMasterCoef2D            
+
+    subroutine DeAllocateMasterCoef2D
 
         !Arguments------------------------------------------------------------
-        
+
         !Local---------------------------------------------------------------
-        
+
         !Begin---------------------------------------------------------------
 
         if  (Me%DDecomp%Coef2D%AllocateON .and. Me%DDecomp%Master) then
-        
+
             deallocate(Me%DDecomp%Coef2D%D        )
             deallocate(Me%DDecomp%Coef2D%E        )
             deallocate(Me%DDecomp%Coef2D%F        )
             deallocate(Me%DDecomp%Coef2D%Ti       )
-            deallocate(Me%DDecomp%Coef2D%Results2D)                
+            deallocate(Me%DDecomp%Coef2D%Results2D)
             deallocate(Me%DDecomp%Coef2D%VECG     )
             deallocate(Me%DDecomp%Coef2D%VECW     )
-            
+
         endif
 
-    end subroutine DeAllocateMasterCoef2D        
+    end subroutine DeAllocateMasterCoef2D
 
     !End----------------------------------------------------------------
 
@@ -14968,13 +15471,13 @@ do1 :   do while(associated(FatherGrid))
     subroutine DeAllocateMasterCoef3D
 
         !Arguments------------------------------------------------------------
-        
+
         !Local---------------------------------------------------------------
-        
+
         !Begin---------------------------------------------------------------
 
         if  (Me%DDecomp%Coef3D%AllocateON .and. Me%DDecomp%Master) then
-        
+
             deallocate(Me%DDecomp%Coef3D%D        )
             deallocate(Me%DDecomp%Coef3D%E        )
             deallocate(Me%DDecomp%Coef3D%F        )
@@ -14982,10 +15485,10 @@ do1 :   do while(associated(FatherGrid))
             deallocate(Me%DDecomp%Coef3D%Results3D)
             deallocate(Me%DDecomp%Coef3D%VECG     )
             deallocate(Me%DDecomp%Coef3D%VECW     )
-            
+
         endif
 
-    end subroutine DeAllocateMasterCoef3D        
+    end subroutine DeAllocateMasterCoef3D
 
     !End----------------------------------------------------------------
 
@@ -14998,14 +15501,14 @@ do1 :   do while(associated(FatherGrid))
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine Ready (ObjHorizontalGrid_ID, ready_) 
+    subroutine Ready (ObjHorizontalGrid_ID, ready_)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjHorizontalGrid_ID
         integer                                     :: ready_
 
         !----------------------------------------------------------------------
-           
+
         nullify (Me)
 
 cd1:    if (ObjHorizontalGrid_ID > 0) then
@@ -15020,14 +15523,14 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
     end subroutine Ready
 
     !--------------------------------------------------------------------------
-    
+
     function Ready_ThreadSafe (ObjHorizontalGrid_ID, ready_) result(LocalMe)
 
         !Arguments-------------------------------------------------------------
         integer,           intent(IN )              :: ObjHorizontalGrid_ID
         integer,           intent(OUT)              :: ready_
         type (T_HorizontalGrid), pointer            :: LocalMe
-        
+
         !----------------------------------------------------------------------
 
         nullify (LocalMe)
@@ -15041,7 +15544,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
 
         !----------------------------------------------------------------------
 
-    end function Ready_ThreadSafe    
+    end function Ready_ThreadSafe
 
     !--------------------------------------------------------------------------
 
@@ -15059,7 +15562,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         enddo
 
         if (.not. associated(Me)) stop 'HorizontalGrid - LocateObjHorizontalGrid - ERR01'
-        
+
     end subroutine LocateObjHorizontalGrid
 
     !--------------------------------------------------------------------------
@@ -15079,9 +15582,9 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         enddo
 
         if (.not. associated(LocatedMe)) stop 'HorizontalGrid - LocateObjHorizontalGrid_ThreadSafe - ERR01'
-        
+
     end function LocateObjHorizontalGrid_ThreadSafe
-    
+
     !--------------------------------------------------------------------------
     subroutine LocateObjFather (ObjHorizontalGrid, ObjHorizontalGridID)
 
@@ -15099,7 +15602,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
 
         if (.not. associated(ObjHorizontalGrid)) then
             stop 'HorizontalGrid - LocateObjFather - ERR01'
-        endif                        
+        endif
 
     end subroutine LocateObjFather
 
@@ -15114,7 +15617,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
 
 
     subroutine wgs84_to_rd(lat_wgs84, lon_wgs84, x_rd, y_rd)
-        
+
         !Source code converted from C code by Ejo Schrama <e.j.o.schrama@lr.tudelft.nl>
         !The source is provided as is and has only been tested within the range of
         !the RD coordinate system and the accuracy of the conversion is no better than 50 cm
@@ -15128,7 +15631,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         real(8)                             :: lambes, phibes
 
         !Begin-----------------------------------------------------------------
-        
+
 
         call wgs842bessel_(lat_wgs84, lon_wgs84, phibes, lambes)
 
@@ -15151,7 +15654,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         real(8)                             :: dlam, dphi, lamcor, phicor
 
         !Begin-----------------------------------------------------------------
-        
+
         dphi = phiwgs - 52.
         dlam = lamwgs - 5.
         phicor = (-96.862 - dphi * 11.714 - dlam * .125) * 1e-5
@@ -15163,7 +15666,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
 
 
     subroutine rd_to_wgs84(x_rd, y_rd, lat_wgs84, lon_wgs84)
-        
+
         !Source code converted from C code by Ejo Schrama <e.j.o.schrama@lr.tudelft.nl>
         !The source is provided as is and has only been tested within the range of
         !the RD coordinate system and the accuracy of the conversion is no better than 50 cm
@@ -15186,7 +15689,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
 
 
     subroutine rd2bessel_(x, y, phi, lambda)
-        
+
         !Source code converted from C code by Ejo Schrama <e.j.o.schrama@lr.tudelft.nl>
         !The source is provided as is and has only been tested within the range of
         !the RD coordinate system and the accuracy of the conversion is no better than 50 cm
@@ -15206,7 +15709,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         integer                             :: i
 
         !Begin-----------------------------------------------------------------
-        
+
         x0 = 1.55e5
         y0 = 4.63e5
         k = .9999079
@@ -15254,7 +15757,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
 
 
         do i = 1, 4
-            
+
             dq = e / 2. * log((e * sin(phiprime) + 1.) / (1. - e * sin(phiprime)))
             phi = atan(exp(q + dq)) * 2. - pi / 2.
             phiprime = phi
@@ -15265,7 +15768,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         phi    = phi / pi * 180.
 
 
-    end subroutine 
+    end subroutine
 
 
 
@@ -15275,7 +15778,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         !The source is provided as is and has only been tested within the range of
         !the RD coordinate system and the accuracy of the conversion is no better than 50 cm
 
-        
+
         !Arguments-------------------------------------------------------------
         real(8)                             :: phibes, lambes, phiwgs, lamwgs
 
@@ -15301,7 +15804,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         !The source is provided as is and has only been tested within the range of
         !the RD coordinate system and the accuracy of the conversion is no better than 50 cm
 
-        
+
         !Arguments-------------------------------------------------------------
         real(8)                             :: argphi, arglam, x, y
 
@@ -15365,739 +15868,739 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
 
 
 
-!********************************************************************** 
-!                                                                     * 
-!     THIS PROGRAM IS SHAREWARE AND HAS BEEN DOWNLOADED FROM INTERNET * 
-!                                                                     * 
-!     THIS PROGRAM CONVERTS GPS TO UNIVERSIAL TRANSVERSE MERACTOR     * 
-!     COORDINATES AND VICE VERSA FOR THE NAD27 AND NAD83 DATUM.       * 
-!     THIS PROGRAM WAS WRITTEN BY E. CARLSON                          * 
-!     SUBROUTINES TMGRID, TCONST, TMGEOD, TCONPC,                     * 
-!     WERE WRITTEN BY T. VINCENTY, NGS, IN JULY 1984 .                * 
-!     THE ORGINAL PROGRAM WAS WRITTEN IN SEPTEMBER OF 1988.           * 
-!                                                                     * 
-!     THIS PROGRAM WAS UPDATED ON FEBUARY 16, 1989.  THE UPDATE WAS   * 
-!     HAVING THE OPTION OF SAVING AND *81* RECORD FILE.               * 
-!                                                                     * 
-!                                                                     * 
-!     THIS PROGRAM WAS UPDATED ON APRIL 3, 1990.  THE FOLLOWING UPDATE* 
-!     WERE MADE:                                                      * 
-!      1. CHANGE FROM JUST A CHOICE OF NAD27 OF NAD83 REFERENCE       * 
-!         ELLIPSOIDS TO; CLARKE 1866, GRS80/WGS84, INTERNATIONAL, AND * 
-!         ALLOW FOR USER DEFINED OTHER.                               * 
-!      2. ALLOW USE OF LATITUDES IN SOUTHERN HEMISPHERE AND LONGITUDES* 
-!         UP TO 360 DEGREES WEST.                                     * 
-!                                                                     * 
-!********************************************************************** 
-!                  DISCLAIMER                                         * 
-!                                                                     * 
-!   THIS PROGRAM AND SUPPORTING INFORMATION IS FURNISHED BY THE       * 
-! GOVERNMENT OF THE UNITED STATES OF AMERICA, AND IS ACCEPTED AND     * 
-! USED BY THE RECIPIENT WITH THE UNDERSTANDING THAT THE UNITED STATES * 
-! GOVERNMENT MAKES NO WARRANTIES, EXPRESS OR IMPLIED, CONCERNING THE  * 
-! ACCURACY, COMPLETENESS, RELIABILITY, OR SUITABILITY OF THIS         * 
-! PROGRAM, OF ITS CONSTITUENT PARTS, OR OF ANY SUPPORTING DATA.       * 
-!                                                                     * 
-!   THE GOVERNMENT OF THE UNITED STATES OF AMERICA SHALL BE UNDER NO  * 
-! LIABILITY WHATSOEVER RESULTING FROM ANY USE OF THIS PROGRAM.  THIS  * 
-! PROGRAM SHOULD NOT BE RELIED UPON AS THE SOLE BASIS FOR SOLVING A   * 
-! PROBLEM WHOSE INCORRECT SOLUTION COULD RESULT IN INJURY TO PERSON   * 
-! OR PROPERTY.                                                        * 
-!                                                                     * 
-!   THIS PROGRAM IS PROPERTY OF THE GOVERNMENT OF THE UNITED STATES   * 
-! OF AMERICA.  THEREFORE, THE RECIPIENT FURTHER AGREES NOT TO ASSERT  * 
-! PROPRIETARY RIGHTS THEREIN AND NOT TO REPRESENT THIS PROGRAM TO     * 
-! ANYONE AS BEING OTHER THAN A GOVERNMENT PROGRAM.                    * 
-!                                                                     * 
-!********************************************************************** 
-! TRANSFORMADO EM SUBROTINA DE CHAMADA (FLAVIO)                         
-!                                                                       
-!     SIGNIFICADO DAS VARIAVEIS:                                        
-!                                                                       
-!     (in) icode: zona UTM para inum=2                                  
-!     (in)valores de inum:                                              
-!       ' 1  GEODETIC POSITIONS TO UTM COORDINATES '/,                  
-!       ' 2  UTM COORDINATES TO GEODETIC POSITIONS'/,                   
-!       ' 4  GEODETIC POSITIONS TO PORTUGUESE COORDINATES (HIDROMOD)'/, 
-!       ' 5  PORTUGUESE COORDINATES TO GEODETIC POSITIONS (HIDROMOD)'/, 
-!                                                                       
-!     (in) or (out)  REAIS DE DUPLA PRECISAO                            
-!            ext_lat LATITUDE EM GRAUS (POSITIVO PARA NORTE)            
-!            ext_long LONGITUDE EM GRAUS (POSITIVO PARA ESTE)           
-!            ext_x COORDENADA X EM METROS (POSITIVO PARA ESTE)          
-!            ext_y COORDENADA Y EM METROS (POSITIVO PARA NORTE)         
+!**********************************************************************
+!                                                                     *
+!     THIS PROGRAM IS SHAREWARE AND HAS BEEN DOWNLOADED FROM INTERNET *
+!                                                                     *
+!     THIS PROGRAM CONVERTS GPS TO UNIVERSIAL TRANSVERSE MERACTOR     *
+!     COORDINATES AND VICE VERSA FOR THE NAD27 AND NAD83 DATUM.       *
+!     THIS PROGRAM WAS WRITTEN BY E. CARLSON                          *
+!     SUBROUTINES TMGRID, TCONST, TMGEOD, TCONPC,                     *
+!     WERE WRITTEN BY T. VINCENTY, NGS, IN JULY 1984 .                *
+!     THE ORGINAL PROGRAM WAS WRITTEN IN SEPTEMBER OF 1988.           *
+!                                                                     *
+!     THIS PROGRAM WAS UPDATED ON FEBUARY 16, 1989.  THE UPDATE WAS   *
+!     HAVING THE OPTION OF SAVING AND *81* RECORD FILE.               *
+!                                                                     *
+!                                                                     *
+!     THIS PROGRAM WAS UPDATED ON APRIL 3, 1990.  THE FOLLOWING UPDATE*
+!     WERE MADE:                                                      *
+!      1. CHANGE FROM JUST A CHOICE OF NAD27 OF NAD83 REFERENCE       *
+!         ELLIPSOIDS TO; CLARKE 1866, GRS80/WGS84, INTERNATIONAL, AND *
+!         ALLOW FOR USER DEFINED OTHER.                               *
+!      2. ALLOW USE OF LATITUDES IN SOUTHERN HEMISPHERE AND LONGITUDES*
+!         UP TO 360 DEGREES WEST.                                     *
+!                                                                     *
+!**********************************************************************
+!                  DISCLAIMER                                         *
+!                                                                     *
+!   THIS PROGRAM AND SUPPORTING INFORMATION IS FURNISHED BY THE       *
+! GOVERNMENT OF THE UNITED STATES OF AMERICA, AND IS ACCEPTED AND     *
+! USED BY THE RECIPIENT WITH THE UNDERSTANDING THAT THE UNITED STATES *
+! GOVERNMENT MAKES NO WARRANTIES, EXPRESS OR IMPLIED, CONCERNING THE  *
+! ACCURACY, COMPLETENESS, RELIABILITY, OR SUITABILITY OF THIS         *
+! PROGRAM, OF ITS CONSTITUENT PARTS, OR OF ANY SUPPORTING DATA.       *
+!                                                                     *
+!   THE GOVERNMENT OF THE UNITED STATES OF AMERICA SHALL BE UNDER NO  *
+! LIABILITY WHATSOEVER RESULTING FROM ANY USE OF THIS PROGRAM.  THIS  *
+! PROGRAM SHOULD NOT BE RELIED UPON AS THE SOLE BASIS FOR SOLVING A   *
+! PROBLEM WHOSE INCORRECT SOLUTION COULD RESULT IN INJURY TO PERSON   *
+! OR PROPERTY.                                                        *
+!                                                                     *
+!   THIS PROGRAM IS PROPERTY OF THE GOVERNMENT OF THE UNITED STATES   *
+! OF AMERICA.  THEREFORE, THE RECIPIENT FURTHER AGREES NOT TO ASSERT  *
+! PROPRIETARY RIGHTS THEREIN AND NOT TO REPRESENT THIS PROGRAM TO     *
+! ANYONE AS BEING OTHER THAN A GOVERNMENT PROGRAM.                    *
+!                                                                     *
+!**********************************************************************
+! TRANSFORMADO EM SUBROTINA DE CHAMADA (FLAVIO)
+!
+!     SIGNIFICADO DAS VARIAVEIS:
+!
+!     (in) icode: zona UTM para inum=2
+!     (in)valores de inum:
+!       ' 1  GEODETIC POSITIONS TO UTM COORDINATES '/,
+!       ' 2  UTM COORDINATES TO GEODETIC POSITIONS'/,
+!       ' 4  GEODETIC POSITIONS TO PORTUGUESE COORDINATES (HIDROMOD)'/,
+!       ' 5  PORTUGUESE COORDINATES TO GEODETIC POSITIONS (HIDROMOD)'/,
+!
+!     (in) or (out)  REAIS DE DUPLA PRECISAO
+!            ext_lat LATITUDE EM GRAUS (POSITIVO PARA NORTE)
+!            ext_long LONGITUDE EM GRAUS (POSITIVO PARA ESTE)
+!            ext_x COORDENADA X EM METROS (POSITIVO PARA ESTE)
+!            ext_y COORDENADA Y EM METROS (POSITIVO PARA NORTE)
 !***********************************************************************
-      SUBROUTINE USCONVCO (inum, icode, ext_lat, ext_long, ext_x, ext_y) 
-!                                                                       
-!      IMPLICIT DOUBLEPRECISION (A - H, O - Z) 
+      SUBROUTINE USCONVCO (inum, icode, ext_lat, ext_long, ext_x, ext_y)
+!
+!      IMPLICIT DOUBLEPRECISION (A - H, O - Z)
         !Arguments-------------------------------------------------------------
         real(8)                                     :: ext_lat, ext_long
         real(8)                                     :: ext_x, ext_y
         integer                                     :: inum, icode, LD, LM, LOD, LOM
-        character(1)                                :: DATNUM, NORS, EORW 
-        logical                                     :: MILP 
+        character(1)                                :: DATNUM, NORS, EORW
+        logical                                     :: MILP
         !Local-----------------------------------------------------------------
         real(8)                                     :: PI, RAD, SLAT, SLON
         real(8)                                     :: north, east, lat, lon
-        real(8)                                     :: ER, RF, F, ESQ        
-        
-        COMMON / MIL / MILP 
-        COMMON / CONST / RAD, ER, RF, ESQ, PI 
-        COMMON / DATUM / DATNUM 
-        COMMON / XY / NORTH, EAST 
-                                                                        
+        real(8)                                     :: ER, RF, F, ESQ
+
+        COMMON / MIL / MILP
+        COMMON / CONST / RAD, ER, RF, ESQ, PI
+        COMMON / DATUM / DATNUM
+        COMMON / XY / NORTH, EAST
 
 
-      PI = 4.D0 * DATAN (1.D0) 
-      RAD = 180.D0 / PI 
-      MILP = .FALSE. 
 
-! passagem para as variaveis internas                                   
-      IF (INUM.EQ.1.OR.INUM.EQ.4) THEN 
-         IF (ext_lat.gt.0.) then 
-            NORS = 'N' 
-         ELSE 
-            NORS = 'S' 
-         ENDIF 
-         IF (dabs (ext_long) .lt.180) then 
-            IF (ext_long.lt.0.) then 
-               EORW = 'W' 
-            ELSE 
-               EORW = 'E' 
-            ENDIF 
-         ELSEIF (dabs (ext_long) .lt.360) then 
-            IF (ext_long.lt.0.) then 
-               ext_long = 360. - dabs (ext_long) 
-               EORW = 'E' 
-            ELSE 
-               ext_long = 360. - dabs (ext_long) 
-               EORW = 'W' 
-            ENDIF 
-         ELSE 
-            WRITE ( * , * ) 'erro na longitude em usconvco' 
-            STOP 
-         ENDIF 
-         ext_lat = DABS (ext_lat) / RAD 
-         ext_long = DABS (ext_long) / RAD 
-         CALL TODMS (ext_lat, LD, LM, SLAT) 
-         CALL TODMS (ext_long, LOD, LOM, SLON) 
-      ELSEIF (INUM.EQ.2.OR.INUM.EQ.5) then 
-         north = ext_y 
-         east = ext_x 
-      ENDIF 
-!***                                                                    
+      PI = 4.D0 * DATAN (1.D0)
+      RAD = 180.D0 / PI
+      MILP = .FALSE.
+
+! passagem para as variaveis internas
+      IF (INUM.EQ.1.OR.INUM.EQ.4) THEN
+         IF (ext_lat.gt.0.) then
+            NORS = 'N'
+         ELSE
+            NORS = 'S'
+         ENDIF
+         IF (dabs (ext_long) .lt.180) then
+            IF (ext_long.lt.0.) then
+               EORW = 'W'
+            ELSE
+               EORW = 'E'
+            ENDIF
+         ELSEIF (dabs (ext_long) .lt.360) then
+            IF (ext_long.lt.0.) then
+               ext_long = 360. - dabs (ext_long)
+               EORW = 'E'
+            ELSE
+               ext_long = 360. - dabs (ext_long)
+               EORW = 'W'
+            ENDIF
+         ELSE
+            WRITE ( * , * ) 'erro na longitude em usconvco'
+            STOP
+         ENDIF
+         ext_lat = DABS (ext_lat) / RAD
+         ext_long = DABS (ext_long) / RAD
+         CALL TODMS (ext_lat, LD, LM, SLAT)
+         CALL TODMS (ext_long, LOD, LOM, SLON)
+      ELSEIF (INUM.EQ.2.OR.INUM.EQ.5) then
+         north = ext_y
+         east = ext_x
+      ENDIF
+!***
                                                      !escolha do elipsoi
-      IF (INUM.NE.6) CALL DATUMM (ER, RF, F, ESQ, DATNUM) 
-!                                                                       
-!**   USE THE NUM TO DO THE CORRECT FUNCTION                            
-                                                                        
-      IF (INUM.EQ.1.OR.INUM.EQ.4) THEN 
+      IF (INUM.NE.6) CALL DATUMM (ER, RF, F, ESQ, DATNUM)
+!
+!**   USE THE NUM TO DO THE CORRECT FUNCTION
+
+      IF (INUM.EQ.1.OR.INUM.EQ.4) THEN
                                    !Geodetic p. -> Portuguese Mil. Coord
-         IF (INUM.EQ.4) MILP = .TRUE. 
-         CALL GPUT83 (LD, LM, SLAT, NORS, LOD, LOM, SLON, EORW) 
-      ELSEIF (INUM.EQ.2.OR.INUM.EQ.5) THEN 
+         IF (INUM.EQ.4) MILP = .TRUE.
+         CALL GPUT83 (LD, LM, SLAT, NORS, LOD, LOM, SLON, EORW)
+      ELSEIF (INUM.EQ.2.OR.INUM.EQ.5) THEN
                                    !Portuguese Mil. Coordinates -> Geode
-         IF (INUM.EQ.5) MILP = .TRUE. 
-         CALL UTGP83 (ICODE, lat, lon) 
-      ENDIF 
-      IF (INUM.EQ.1.OR.INUM.EQ.4) THEN 
-         ext_x = east 
-         ext_y = north 
-      ELSE 
-         ext_lat  = lat * rad 
-         ext_long = lon * rad 
-      ENDIF 
+         IF (INUM.EQ.5) MILP = .TRUE.
+         CALL UTGP83 (ICODE, lat, lon)
+      ENDIF
+      IF (INUM.EQ.1.OR.INUM.EQ.4) THEN
+         ext_x = east
+         ext_y = north
+      ELSE
+         ext_lat  = lat * rad
+         ext_long = lon * rad
+      ENDIF
 
-      END SUBROUTINE USCONVCO    
-
-    !--------------------------------------------------------------------------
-
+      END SUBROUTINE USCONVCO
 
     !--------------------------------------------------------------------------
 
-    SUBROUTINE UTGP83 (ICODE, lat, lon) 
 
-        !IMPLICIT DOUBLEPRECISION (A - H, O - Z) 
+    !--------------------------------------------------------------------------
+
+    SUBROUTINE UTGP83 (ICODE, lat, lon)
+
+        !IMPLICIT DOUBLEPRECISION (A - H, O - Z)
         !Arguments-------------------------------------------------------------
         integer                                     :: ICODE
-        real(8)                                     :: lat, lon 
-        
+        real(8)                                     :: lat, lon
+
         !Local-----------------------------------------------------------------
-        real(8)                                     :: RAD, ER, RF, ESQ, PI 
-        common / CONST / RAD, ER, RF, ESQ, PI 
+        real(8)                                     :: RAD, ER, RF, ESQ, PI
+        common / CONST / RAD, ER, RF, ESQ, PI
 
 
-        CALL IUTPC (ICODE, lat, lon) 
+        CALL IUTPC (ICODE, lat, lon)
 
-    END SUBROUTINE UTGP83      
+    END SUBROUTINE UTGP83
 
     !--------------------------------------------------------------------------
-      
-                         
-    !--------------------------------------------------------------------------
-    
-    SUBROUTINE GPUT83 (LD, LM, SLAT, NORS, LOD, LOM, SLON, EORW) 
 
-        !IMPLICIT DOUBLEPRECISION (A - H, O - Z) 
+
+    !--------------------------------------------------------------------------
+
+    SUBROUTINE GPUT83 (LD, LM, SLAT, NORS, LOD, LOM, SLON, EORW)
+
+        !IMPLICIT DOUBLEPRECISION (A - H, O - Z)
         !Arguments-------------------------------------------------------------
         real(8)                                     :: SLAT, SLON
         integer                                     :: LD, LM, LOD, LOM
         character(1)                                :: NORS, EORW
 
         !Local-----------------------------------------------------------------
-        real(8)                                     :: RAD, ER, RF, ESQ, PI                                      
-        COMMON / CONST / RAD, ER, RF, ESQ, PI 
+        real(8)                                     :: RAD, ER, RF, ESQ, PI
+        COMMON / CONST / RAD, ER, RF, ESQ, PI
 
 
-        CALL IUTGP (LD, LM, SLAT, NORS, LOD, LOM, SLON, EORW) 
+        CALL IUTGP (LD, LM, SLAT, NORS, LOD, LOM, SLON, EORW)
 
-    END SUBROUTINE GPUT83                         
-
-    !--------------------------------------------------------------------------
-
+    END SUBROUTINE GPUT83
 
     !--------------------------------------------------------------------------
 
-    SUBROUTINE IUTPC (ICODE, lat, lon) 
 
-        !IMPLICIT DOUBLEPRECISION (A - H, O - Z) 
+    !--------------------------------------------------------------------------
+
+    SUBROUTINE IUTPC (ICODE, lat, lon)
+
+        !IMPLICIT DOUBLEPRECISION (A - H, O - Z)
         !Arguments-------------------------------------------------------------
         integer                                     :: ICODE
-        real(8)                                     :: lat, lon 
-        
+        real(8)                                     :: lat, lon
+
         !Local-----------------------------------------------------------------
-        logical                                     :: FILFLAG, FILPRT 
-        character(1)                                :: DATNUM 
-        character(30)                               :: NAME 
-        character(80)                               :: CARDR 
+        logical                                     :: FILFLAG, FILPRT
+        character(1)                                :: DATNUM
+        character(30)                               :: NAME
+        character(80)                               :: CARDR
         real(8)                                     :: north, east
-        logical                                     :: MILP 
+        logical                                     :: MILP
 
-        COMMON / MIL / MILP 
-        COMMON / XY / NORTH, EAST 
-        COMMON / DATUM / DATNUM 
+        COMMON / MIL / MILP
+        COMMON / XY / NORTH, EAST
+        COMMON / DATUM / DATNUM
 
 
-        FILFLAG = .FALSE. 
-        FILPRT = .FALSE. 
-        NAME = '                              ' 
-        WRITE (CARDR, 41) NAME 
-        41 FORMAT(T15,A30) 
+        FILFLAG = .FALSE.
+        FILPRT = .FALSE.
+        NAME = '                              '
+        WRITE (CARDR, 41) NAME
+        41 FORMAT(T15,A30)
 
-        ! Only to give it a number!                            
-        IF (MILP)                                                             & 
-            ICODE = 29 
+        ! Only to give it a number!
+        IF (MILP)                                                             &
+            ICODE = 29
 
-        CALL DRUTGP (ICODE, lat, lon) 
+        CALL DRUTGP (ICODE, lat, lon)
 
-    END SUBROUTINE IUTPC                          
-
-    !--------------------------------------------------------------------------
-
+    END SUBROUTINE IUTPC
 
     !--------------------------------------------------------------------------
 
-      SUBROUTINE IUTGP (LD, LM, SLAT, NORS, LOD, LOM, SLON, EORW) 
 
-      !IMPLICIT DOUBLEPRECISION (A - H, O - Z) 
+    !--------------------------------------------------------------------------
+
+      SUBROUTINE IUTGP (LD, LM, SLAT, NORS, LOD, LOM, SLON, EORW)
+
+      !IMPLICIT DOUBLEPRECISION (A - H, O - Z)
         !Arguments-------------------------------------------------------------
         real(8)                                     :: SLAT, SLON
         integer                                     :: LD, LM, LOD, LOM, ISEC, JSEC
-        character(1)                                :: EORW 
-        character(1)                                :: NORS 
-        character(11)                               :: CLAT 
-        character(12)                               :: CLON 
-        character(30)                               :: NAME 
-        character(80)                               :: CARDR 
-        logical FILFLAG 
-        logical FIL81FL 
-                                                                        
-      FILFLAG = .FALSE. 
-      FIL81FL = .FALSE. 
-      NAME = '                              ' 
-                                                                        
-      ISEC = SLAT * 1.0D5 + 0.5D0 
-      JSEC = SLON * 1.0D5 + 0.5D0 
-                                                                        
-      WRITE (CLAT, 67) LD, LM, ISEC 
-   67 FORMAT(I6.2,I6.2,I14.7) 
-                                                                        
-      WRITE (CLON, 68) LOD, LOM, JSEC 
-   68 FORMAT(I6.3,I6.2,I14.7) 
-                                                                        
-      WRITE (CARDR, 70) NAME, CLAT, NORS, CLON, EORW 
-   70 FORMAT(T7,'*80*',T15,A30,T45,A11,A1,T57,A12,A1) 
-                                                                        
-      CALL DRGPUT (CARDR) 
-                                                                        
-      RETURN 
-      END SUBROUTINE IUTGP                          
+        character(1)                                :: EORW
+        character(1)                                :: NORS
+        character(11)                               :: CLAT
+        character(12)                               :: CLON
+        character(30)                               :: NAME
+        character(80)                               :: CARDR
+        logical FILFLAG
+        logical FIL81FL
+
+      FILFLAG = .FALSE.
+      FIL81FL = .FALSE.
+      NAME = '                              '
+
+      ISEC = SLAT * 1.0D5 + 0.5D0
+      JSEC = SLON * 1.0D5 + 0.5D0
+
+      WRITE (CLAT, 67) LD, LM, ISEC
+   67 FORMAT(I6.2,I6.2,I14.7)
+
+      WRITE (CLON, 68) LOD, LOM, JSEC
+   68 FORMAT(I6.3,I6.2,I14.7)
+
+      WRITE (CARDR, 70) NAME, CLAT, NORS, CLON, EORW
+   70 FORMAT(T7,'*80*',T15,A30,T45,A11,A1,T57,A12,A1)
+
+      CALL DRGPUT (CARDR)
+
+      RETURN
+      END SUBROUTINE IUTGP
 !***********************************************************************
-      SUBROUTINE DRGPUT (CARDR) 
-!*********************************************************************  
-!                                                                       
-!                                                                       
-!      THIS IS THE DRIVER TO COMPUTE UTM NORTHINGS AND EASTINGS         
-!      FOR EACH PRIMARY ZONE AND THE AJACENT ZONE IF THE LONGITUDE      
-!      IS WITH 5 MINUTES OF THE ZONE BOUNDARIES                         
-!                                                                       
-!      THE OUTPUT IS FOR THE DATA SHEET PROGRAM                         
-!                                                                       
-!      VARIABLES                                                        
-!      CARDR = A MODIFIED 80 RECORD CARD WITH A LENGTH OF 211 COLS      
-!      ER = EQUATORIAL RADIUS OF THE ELLIPSOID (SEMI-MAJOR AXIS)        
-!      RF = RECIPROCAL OF FLATTING OF THE ELLIPSOD                      
-!      ESQ= E SQUARED                                                   
-!      RAD = RADIAN CONVERSION FACTOR                                   
-!      CM = CENTRAL MERIDIAN ( COMPUTED USING THE LONGITUDE)            
-!      SF = SCALE FACTOR OF CENTRAL MERIDIAN ( ALWAYS .9996 FOR UTM)    
-!      OR = SOUTHERNMOST PARALLEL OF LATITUDE ( ALWAYS ZERO FOR UTM)    
-!      R, A, B, C, U, V, W = ELLIPSOID CONSTANTS USED FOR COMPUTING     
-!                            MERIDIONAL DISTANCE FROM LATITUDE          
-!      SO = MERIDIONAL DISTANCE (MULTIPLIED BY SCALE FACTOR )           
-!           FROM THE EQUATOR TO THE SOUTHERNMOST PARALLEL OF LATITUDE   
-!           ( ALWAYS ZERO FOR UTM)                                      
-!                                                                       
-                                                                        
-      !IMPLICIT DOUBLEPRECISION (A - H, O - Z) 
+      SUBROUTINE DRGPUT (CARDR)
+!*********************************************************************
+!
+!
+!      THIS IS THE DRIVER TO COMPUTE UTM NORTHINGS AND EASTINGS
+!      FOR EACH PRIMARY ZONE AND THE AJACENT ZONE IF THE LONGITUDE
+!      IS WITH 5 MINUTES OF THE ZONE BOUNDARIES
+!
+!      THE OUTPUT IS FOR THE DATA SHEET PROGRAM
+!
+!      VARIABLES
+!      CARDR = A MODIFIED 80 RECORD CARD WITH A LENGTH OF 211 COLS
+!      ER = EQUATORIAL RADIUS OF THE ELLIPSOID (SEMI-MAJOR AXIS)
+!      RF = RECIPROCAL OF FLATTING OF THE ELLIPSOD
+!      ESQ= E SQUARED
+!      RAD = RADIAN CONVERSION FACTOR
+!      CM = CENTRAL MERIDIAN ( COMPUTED USING THE LONGITUDE)
+!      SF = SCALE FACTOR OF CENTRAL MERIDIAN ( ALWAYS .9996 FOR UTM)
+!      OR = SOUTHERNMOST PARALLEL OF LATITUDE ( ALWAYS ZERO FOR UTM)
+!      R, A, B, C, U, V, W = ELLIPSOID CONSTANTS USED FOR COMPUTING
+!                            MERIDIONAL DISTANCE FROM LATITUDE
+!      SO = MERIDIONAL DISTANCE (MULTIPLIED BY SCALE FACTOR )
+!           FROM THE EQUATOR TO THE SOUTHERNMOST PARALLEL OF LATITUDE
+!           ( ALWAYS ZERO FOR UTM)
+!
+
+      !IMPLICIT DOUBLEPRECISION (A - H, O - Z)
         !Arguments-------------------------------------------------------------
-        character(80)                               :: CARDR 
+        character(80)                               :: CARDR
 
         !Local-----------------------------------------------------------------
-        character(1)                                :: EORW 
-        character(1)                                :: NORS 
-        character(4)                                :: ZONE 
+        character(1)                                :: EORW
+        character(1)                                :: NORS
+        character(4)                                :: ZONE
         integer                                     :: LD, LM, LOD, LOM, FOUND, IZ, ICM
-        real(8)                                     :: SLAT, SLON, FI, LAM, LCM, UCM 
-        real(8)                                     :: KP 
-        real(8)                                     :: TD, TM, ND, NM 
+        real(8)                                     :: SLAT, SLON, FI, LAM, LCM, UCM
+        real(8)                                     :: KP
+        real(8)                                     :: TD, TM, ND, NM
         real(8)                                     :: north, east
         real(8)                                     :: LOD1, R, RAD, CM, TOL, FN, FE, SF, OR
         real(8)                                     :: ER, RF, ESQ, EPS, A, B, C, U, V, W, SO
         real(8)                                     :: CONV, PI
-        logical                                     :: MILP 
-        COMMON / MIL / MILP 
-        COMMON / CONST / RAD, ER, RF, ESQ, PI 
-        COMMON / XY / NORTH, EAST 
-                                                                        
-      READ (CARDR, 50) LD, LM, SLAT, NORS, LOD, LOM, SLON, EORW 
-   50 FORMAT (T45,I2,I2,F10.5,A1,I3,I2,F10.5,A1) 
-                                                                        
-                                                                        
-!                                                                       
-!      CONVERT THE LATITUDE AND LONGITUDE TO PI AND LAM                 
-!                                                                       
-      TD = DBLE (FLOAT (LD) ) 
-      TM = DBLE (FLOAT (LM) ) 
-      FI = (TD+ (TM + SLAT / 60.D0) / 60.D0) / RAD 
-                                                                        
-      ND = DBLE (FLOAT (LOD) ) 
-      NM = DBLE (FLOAT (LOM) ) 
-                                                                        
-      IF ( (EORW.EQ.'E') .OR. (EORW.EQ.'e') ) THEN 
-         LAM = (360.D0 - (ND+ (NM + SLON / 60.D0) / 60.D0) ) / RAD 
-         LOD1 = (360.D0 - (ND+ (NM + SLON / 60.D0) / 60.D0) ) 
-         LOD = DINT (LOD1) 
-      ENDIF 
-                                                                        
-      IF ( (EORW.EQ.'W') .OR. (EORW.EQ.'w') ) THEN 
-         LAM = (ND+ (NM + SLON / 60.D0) / 60.D0) / RAD 
-         LOD = LOD 
-      ENDIF 
-                                                                        
-                                                                        
-                                                                        
-!                                                                       
-!      FIND THE ZONE FOR LONGITUDE LESS THAN 180 DEGREES                
-!                                                                       
-      IF (LOD.LT.180) THEN 
-         IZ = LOD / 6 
-         IZ = 30 - IZ 
-                                                                        
-         ICM = (183 - (6 * IZ) ) 
-         CM = DBLE (FLOAT (ICM) ) / RAD 
-         UCM = (ICM + 3) / RAD 
-         LCM = (ICM - 3) / RAD 
-      ENDIF 
-!                                                                       
-!       FIND THE ZONE FOR LONGITUDE GREATER THAN 180 DEGREES            
-!                                                                       
-      IF (LOD.GE.180) THEN 
-         IZ = (LOD) / 6 
-         IZ = 90 - IZ 
-         ICM = (543 - (6 * IZ) ) 
-         CM = DBLE (FLOAT (ICM) ) / RAD 
-         UCM = (ICM + 3) / RAD 
-         LCM = (ICM - 3) / RAD 
-      ENDIF 
-                                                                        
-                                                                        
-                                                                        
-      TOL = (5.0D0 / 60.0D0) / RAD 
-                                                                        
-      FN = 0.D0 
-                                                                        
-      IF ( (NORS.EQ.'S') .OR. (NORS.EQ.'s') ) THEN 
-         FN = 10000000.D0 
-      ENDIF 
-                                                                        
-      IF ( (NORS.EQ.'N') .OR. (NORS.EQ.'n') ) THEN 
-         FN = 0.D0 
-      ENDIF 
-                                                                        
-                                                                        
-      FE = 500000.0D0 
-      SF = 0.9996D0 
-      OR = 0.0D0 
-                                                                        
-      FOUND = 0 
-                                                                        
-      CALL TCONST (ER, RF, SF, OR, ESQ, EPS, R, A, B, C, U, V, W, SO) 
-                                                                        
-!                                                                       
-!      COMPUTE THE NORTH AND EASTINGS                                   
-!                                                                       
+        logical                                     :: MILP
+        COMMON / MIL / MILP
+        COMMON / CONST / RAD, ER, RF, ESQ, PI
+        COMMON / XY / NORTH, EAST
+
+      READ (CARDR, 50) LD, LM, SLAT, NORS, LOD, LOM, SLON, EORW
+   50 FORMAT (T45,I2,I2,F10.5,A1,I3,I2,F10.5,A1)
+
+
+!
+!      CONVERT THE LATITUDE AND LONGITUDE TO PI AND LAM
+!
+      TD = DBLE (FLOAT (LD) )
+      TM = DBLE (FLOAT (LM) )
+      FI = (TD+ (TM + SLAT / 60.D0) / 60.D0) / RAD
+
+      ND = DBLE (FLOAT (LOD) )
+      NM = DBLE (FLOAT (LOM) )
+
+      IF ( (EORW.EQ.'E') .OR. (EORW.EQ.'e') ) THEN
+         LAM = (360.D0 - (ND+ (NM + SLON / 60.D0) / 60.D0) ) / RAD
+         LOD1 = (360.D0 - (ND+ (NM + SLON / 60.D0) / 60.D0) )
+         LOD = DINT (LOD1)
+      ENDIF
+
+      IF ( (EORW.EQ.'W') .OR. (EORW.EQ.'w') ) THEN
+         LAM = (ND+ (NM + SLON / 60.D0) / 60.D0) / RAD
+         LOD = LOD
+      ENDIF
+
+
+
+!
+!      FIND THE ZONE FOR LONGITUDE LESS THAN 180 DEGREES
+!
+      IF (LOD.LT.180) THEN
+         IZ = LOD / 6
+         IZ = 30 - IZ
+
+         ICM = (183 - (6 * IZ) )
+         CM = DBLE (FLOAT (ICM) ) / RAD
+         UCM = (ICM + 3) / RAD
+         LCM = (ICM - 3) / RAD
+      ENDIF
+!
+!       FIND THE ZONE FOR LONGITUDE GREATER THAN 180 DEGREES
+!
+      IF (LOD.GE.180) THEN
+         IZ = (LOD) / 6
+         IZ = 90 - IZ
+         ICM = (543 - (6 * IZ) )
+         CM = DBLE (FLOAT (ICM) ) / RAD
+         UCM = (ICM + 3) / RAD
+         LCM = (ICM - 3) / RAD
+      ENDIF
+
+
+
+      TOL = (5.0D0 / 60.0D0) / RAD
+
+      FN = 0.D0
+
+      IF ( (NORS.EQ.'S') .OR. (NORS.EQ.'s') ) THEN
+         FN = 10000000.D0
+      ENDIF
+
+      IF ( (NORS.EQ.'N') .OR. (NORS.EQ.'n') ) THEN
+         FN = 0.D0
+      ENDIF
+
+
+      FE = 500000.0D0
+      SF = 0.9996D0
+      OR = 0.0D0
+
+      FOUND = 0
+
+      CALL TCONST (ER, RF, SF, OR, ESQ, EPS, R, A, B, C, U, V, W, SO)
+
+!
+!      COMPUTE THE NORTH AND EASTINGS
+!
                                           ! Long. of origin of Portugues
-      IF (MILP) CM = DBLE (8.13190611) / RAD 
-                                          ! coordinates (8d 7' 54.862") 
-!                                                                       
+      IF (MILP) CM = DBLE (8.13190611) / RAD
+                                          ! coordinates (8d 7' 54.862")
+!
   200 CALL TMGRID (FI, LAM, NORTH, EAST, CONV, KP, ER, ESQ, EPS, CM, FE,&
-      FN, SF, SO, R, A, B, C)                                           
-!                                                                       
+      FN, SF, SO, R, A, B, C)
+!
 ! --> Computes the transformations from UTM's to Portuguese Mil. coordin
-!                                                                       
-      IF (MILP) THEN 
-         NORTH = NORTH / SF - 4092593.43D0 
-         EAST = EAST / SF - 300200.D0 
-      ENDIF 
-!                                                                       
-!      WRITE THE ZONE NUMBER                                            
-!                                                                       
-      IF (IZ.GT.9) THEN 
-         WRITE (ZONE, 600) IZ 
-  600 FORMAT   (1X,I2) 
-      ELSE 
-         WRITE (ZONE, 605) IZ 
-  605 FORMAT   (1X,I6.2) 
-      ENDIF 
-                                                                        
-!                                                                       
-!      DO THE TEST TO SEE IF THE LONGITUDE IS WITHIN 5 MINUTES          
-!      OF THE BOUNDARIES FOR THE ZONE AND IF SO COMPUTE THE             
-!      NORHT AND EASTING FOR THE ADJACENT ZONE                          
-!                                                                       
-      IF (FOUND.NE.0) THEN 
-         RETURN 
-      ENDIF 
-                                                                        
-      IF (DABS (UCM - LAM) .LE.TOL) THEN 
-         CM = DBLE (FLOAT (ICM + 6) ) / RAD 
-         IZ = IZ - 1 
-         IF (IZ.EQ.0) IZ = 60 
-         FOUND = FOUND+1 
-         GOTO 200 
-      ENDIF 
-                                                                        
-      IF (DABS (LCM - LAM) .LE.TOL) THEN 
-         CM = DBLE (FLOAT (ICM - 6) ) / RAD 
-         IZ = IZ + 1 
-         IF (IZ.EQ.61) IZ = 1 
-         FOUND = FOUND+1 
-         GOTO 200 
-      ENDIF 
-                                                                        
-                                                                        
-      RETURN 
-      END SUBROUTINE DRGPUT                         
-                                                                        
-!******************************************************************     
-      SUBROUTINE DRUTGP (ICODE, lat, lon) 
-!                                                                       
-!                                                                       
-!                                                                       
-!      THIS IS THE DRIVER TO COMPUTE LATITUDES AND LONGITUDES FROM      
-!      THE UTMs FOR EACH ZONE                                           
-!                                                                       
-!                                                                       
-!      VARIABLES                                                        
-!      CARDR = A MODIFIED 80 RECORD CARD WITH A LENGTH OF 211 COLS      
-!      ER = EQUATORIAL RADIUS OF THE ELLIPSOID (SEMI-MAJOR AXIS)        
-!      RF = RECIPROCAL OF FLATTING OF THE ELLIPSOD                      
-!      ESQ= E SQUARED                                                   
-!      RAD = RADIAN CONVERSION FACTOR                                   
-!      CM = CENTRAL MERIDIAN ( COMPUTED USEING THE LONGITUDE)           
-!      SF = SCALE FACTOR OF CENTRAL MERIDIAN ( ALWAYS .9996 FOR UTM)    
-!      OR = SOUTHERNMOST PARALLEL OF LATITUDE ( ALWAYS ZERO FOR UTM)    
-!      R, A, B, C, U, V, W = ELLIPSOID CONSTANTS USED FOR COMPUTING     
-!                            MERIDIONAL DISTANCE FROM LATITUDE          
-!      SO = MERIDIONAL DISTANCE (MULTIPLIED BY SCALE FACTOR )           
-!           FROM THE EQUATOR TO THE SOUTHERNMOST PARALLEL OF LATITUDE   
-!           ( ALWAYS ZERO FOR UTM)                                      
-!                                                                       
-                                                                        
-      !IMPLICIT DOUBLEPRECISION (A - H, O - Z) 
+!
+      IF (MILP) THEN
+         NORTH = NORTH / SF - 4092593.43D0
+         EAST = EAST / SF - 300200.D0
+      ENDIF
+!
+!      WRITE THE ZONE NUMBER
+!
+      IF (IZ.GT.9) THEN
+         WRITE (ZONE, 600) IZ
+  600 FORMAT   (1X,I2)
+      ELSE
+         WRITE (ZONE, 605) IZ
+  605 FORMAT   (1X,I6.2)
+      ENDIF
+
+!
+!      DO THE TEST TO SEE IF THE LONGITUDE IS WITHIN 5 MINUTES
+!      OF THE BOUNDARIES FOR THE ZONE AND IF SO COMPUTE THE
+!      NORHT AND EASTING FOR THE ADJACENT ZONE
+!
+      IF (FOUND.NE.0) THEN
+         RETURN
+      ENDIF
+
+      IF (DABS (UCM - LAM) .LE.TOL) THEN
+         CM = DBLE (FLOAT (ICM + 6) ) / RAD
+         IZ = IZ - 1
+         IF (IZ.EQ.0) IZ = 60
+         FOUND = FOUND+1
+         GOTO 200
+      ENDIF
+
+      IF (DABS (LCM - LAM) .LE.TOL) THEN
+         CM = DBLE (FLOAT (ICM - 6) ) / RAD
+         IZ = IZ + 1
+         IF (IZ.EQ.61) IZ = 1
+         FOUND = FOUND+1
+         GOTO 200
+      ENDIF
+
+
+      RETURN
+      END SUBROUTINE DRGPUT
+
+!******************************************************************
+      SUBROUTINE DRUTGP (ICODE, lat, lon)
+!
+!
+!
+!      THIS IS THE DRIVER TO COMPUTE LATITUDES AND LONGITUDES FROM
+!      THE UTMs FOR EACH ZONE
+!
+!
+!      VARIABLES
+!      CARDR = A MODIFIED 80 RECORD CARD WITH A LENGTH OF 211 COLS
+!      ER = EQUATORIAL RADIUS OF THE ELLIPSOID (SEMI-MAJOR AXIS)
+!      RF = RECIPROCAL OF FLATTING OF THE ELLIPSOD
+!      ESQ= E SQUARED
+!      RAD = RADIAN CONVERSION FACTOR
+!      CM = CENTRAL MERIDIAN ( COMPUTED USEING THE LONGITUDE)
+!      SF = SCALE FACTOR OF CENTRAL MERIDIAN ( ALWAYS .9996 FOR UTM)
+!      OR = SOUTHERNMOST PARALLEL OF LATITUDE ( ALWAYS ZERO FOR UTM)
+!      R, A, B, C, U, V, W = ELLIPSOID CONSTANTS USED FOR COMPUTING
+!                            MERIDIONAL DISTANCE FROM LATITUDE
+!      SO = MERIDIONAL DISTANCE (MULTIPLIED BY SCALE FACTOR )
+!           FROM THE EQUATOR TO THE SOUTHERNMOST PARALLEL OF LATITUDE
+!           ( ALWAYS ZERO FOR UTM)
+!
+
+      !IMPLICIT DOUBLEPRECISION (A - H, O - Z)
         !Arguments-------------------------------------------------------------
         integer                                     :: ICODE
-        real(8)                                     :: lat, lon 
-        
+        real(8)                                     :: lat, lon
+
         !Local-----------------------------------------------------------------
         integer                                     :: IZ, ICM
-        character(1)                                :: NORS 
-        character(4)                                :: ZONE 
-        integer                                     :: FOUND 
-        real(8)                                     :: LCM, UCM 
-        real(8)                                     :: KP 
-        real(8)                                     :: NORTH, EAST, R 
-        character(1)                                :: EORW 
+        character(1)                                :: NORS
+        character(4)                                :: ZONE
+        integer                                     :: FOUND
+        real(8)                                     :: LCM, UCM
+        real(8)                                     :: KP
+        real(8)                                     :: NORTH, EAST, R
+        character(1)                                :: EORW
         logical                                     :: MILP
         real(8)                                     :: CM, RAD, TOL, FN, FE, SF, OR, CONV
-        real(8)                                     :: EPS, SO, V0, V2, V4, V6, ER, ESQ, RF 
+        real(8)                                     :: EPS, SO, V0, V2, V4, V6, ER, ESQ, RF
         real(8)                                     :: PI
-        COMMON / MIL / MILP 
-        COMMON / CONST / RAD, ER, RF, ESQ, PI 
-        COMMON / XY / NORTH, EAST 
+        COMMON / MIL / MILP
+        COMMON / CONST / RAD, ER, RF, ESQ, PI
+        COMMON / XY / NORTH, EAST
 
 
-!                                                                       
-!      FIND THE CENTRAL MERIDAIN IF THE ZONE NUMBER IS LESS THAN 30     
-!                                                                       
-      IF (ICODE.LT.30) THEN 
-         IZ = ICODE 
-         ICM = (183 - (6 * IZ) ) 
-         CM = DBLE (FLOAT (ICM) ) / RAD 
-         UCM = (ICM + 3) / RAD 
-         LCM = (ICM - 3) / RAD 
-      ENDIF 
-!                                                                       
-!       FIND THE CENTRAL MERIDAN IF THE ZONE NUMBER IS LARGER THAN 30   
-!                                                                       
-      IF (ICODE.GE.30) THEN 
-         IZ = ICODE 
-         ICM = (543 - (6 * IZ) ) 
-         CM = DBLE (FLOAT (ICM) ) / RAD 
-         UCM = (ICM + 3) / RAD 
-         LCM = (ICM - 3) / RAD 
-      ENDIF 
-                                                                        
-      TOL = (5.0D0 / 60.0D0) / RAD 
-                                                                        
-      IF (NORTH.GT.10000000.0) THEN 
-         FN = 10000000.0D0 
-         NORS = 'S' 
-      ELSE 
-         FN = 0.D0 
-         NORS = 'N' 
-      ENDIF 
-                                                                        
-      FE = 500000.0D0 
-      SF = 0.9996D0 
-      OR = 0.0D0 
-                                                                        
-      FOUND = 0 
-                                                                        
-      CALL TCONPC (SF, OR, EPS, R, SO, V0, V2, V4, V6, ER, ESQ, RF) 
-                                                                        
-!                                                                       
-!      COMPUTE THE LATITUDES AND LONGITUDES                             
-!                                                                       
+!
+!      FIND THE CENTRAL MERIDAIN IF THE ZONE NUMBER IS LESS THAN 30
+!
+      IF (ICODE.LT.30) THEN
+         IZ = ICODE
+         ICM = (183 - (6 * IZ) )
+         CM = DBLE (FLOAT (ICM) ) / RAD
+         UCM = (ICM + 3) / RAD
+         LCM = (ICM - 3) / RAD
+      ENDIF
+!
+!       FIND THE CENTRAL MERIDAN IF THE ZONE NUMBER IS LARGER THAN 30
+!
+      IF (ICODE.GE.30) THEN
+         IZ = ICODE
+         ICM = (543 - (6 * IZ) )
+         CM = DBLE (FLOAT (ICM) ) / RAD
+         UCM = (ICM + 3) / RAD
+         LCM = (ICM - 3) / RAD
+      ENDIF
+
+      TOL = (5.0D0 / 60.0D0) / RAD
+
+      IF (NORTH.GT.10000000.0) THEN
+         FN = 10000000.0D0
+         NORS = 'S'
+      ELSE
+         FN = 0.D0
+         NORS = 'N'
+      ENDIF
+
+      FE = 500000.0D0
+      SF = 0.9996D0
+      OR = 0.0D0
+
+      FOUND = 0
+
+      CALL TCONPC (SF, OR, EPS, R, SO, V0, V2, V4, V6, ER, ESQ, RF)
+
+!
+!      COMPUTE THE LATITUDES AND LONGITUDES
+!
                                           ! Long. of origin of Portugues
-      IF (MILP) CM = DBLE (8.13190611) / RAD 
-                                          ! coordinates (8d 7' 54.862") 
-!                                                                       
-!                                                                       
+      IF (MILP) CM = DBLE (8.13190611) / RAD
+                                          ! coordinates (8d 7' 54.862")
+!
+!
 ! --> Computes the transformations from UTM's to Portuguese Mil. coordin
-!                                                                       
-      IF (MILP) THEN 
-         NORTH = (NORTH + 4092593.43D0) * SF 
-         EAST = (EAST + 300200.D0) * SF 
-      ENDIF 
+!
+      IF (MILP) THEN
+         NORTH = (NORTH + 4092593.43D0) * SF
+         EAST = (EAST + 300200.D0) * SF
+      ENDIF
   200 CALL TMGEOD (NORTH, EAST, LAT, LON, EPS, CM, FE, SF, SO, R, V0,   &
-      V2, V4, V6, FN, ER, ESQ, CONV, KP)                                
-                                                                        
-!                                                                       
-!      WRITE THE ZONE NUMBER                                            
-!                                                                       
-      IF (IZ.GT.9) THEN 
-         WRITE (ZONE, 600) IZ 
-  600 FORMAT   (1X,I2) 
-      ELSE 
-         WRITE (ZONE, 605) IZ 
-  605 FORMAT   (1X,I6.2) 
-      ENDIF 
-                                                                        
-      EORW = 'W' 
-      IF (nors.eq.'s'.or.nors.eq.'S') lat = - 1.d0 * lat 
-      IF (eorw.eq.'w'.or.eorw.eq.'W') lon = - 1.d0 * lon 
-!                                                                       
-!      DO THE TEST TO SEE IF THE LONGITUDE IS WITHIN 5 MINUTES          
-!      OF THE BOUNDARIES FOR THE ZONE AND IF SO COMPUTE THE             
-!      NORHT AND EASTING FOR THE ADJACENT ZONE                          
-!                                                                       
-      IF (FOUND.NE.0) THEN 
-         RETURN 
-      ENDIF 
-                                                                        
-      IF (DABS (UCM) .LE.TOL) THEN 
-         CM = DBLE (FLOAT (ICM + 6) ) / RAD 
-         IZ = IZ - 1 
-         IF (IZ.EQ.0) IZ = 60 
-         FOUND = FOUND+1 
-         GOTO 200 
-      ENDIF 
-                                                                        
-      IF (DABS (LCM) .LE.TOL) THEN 
-         CM = DBLE (FLOAT (ICM - 6) ) / RAD 
-         IZ = IZ + 1 
-         IF (IZ.EQ.61) IZ = 1 
-         FOUND = FOUND+1 
-         GOTO 200 
-      ENDIF 
-                                                                        
-                                                                        
-      RETURN 
-      END SUBROUTINE DRUTGP                         
-                                                                        
-!********************************************************************   
-      SUBROUTINE TODMS (RAD, IDG, MIN, SEC) 
-!********************************************************************   
-!     RADIANS TO DEGREES,MINUTES AND SECONDS                            
-!                                                                       
+      V2, V4, V6, FN, ER, ESQ, CONV, KP)
+
+!
+!      WRITE THE ZONE NUMBER
+!
+      IF (IZ.GT.9) THEN
+         WRITE (ZONE, 600) IZ
+  600 FORMAT   (1X,I2)
+      ELSE
+         WRITE (ZONE, 605) IZ
+  605 FORMAT   (1X,I6.2)
+      ENDIF
+
+      EORW = 'W'
+      IF (nors.eq.'s'.or.nors.eq.'S') lat = - 1.d0 * lat
+      IF (eorw.eq.'w'.or.eorw.eq.'W') lon = - 1.d0 * lon
+!
+!      DO THE TEST TO SEE IF THE LONGITUDE IS WITHIN 5 MINUTES
+!      OF THE BOUNDARIES FOR THE ZONE AND IF SO COMPUTE THE
+!      NORHT AND EASTING FOR THE ADJACENT ZONE
+!
+      IF (FOUND.NE.0) THEN
+         RETURN
+      ENDIF
+
+      IF (DABS (UCM) .LE.TOL) THEN
+         CM = DBLE (FLOAT (ICM + 6) ) / RAD
+         IZ = IZ - 1
+         IF (IZ.EQ.0) IZ = 60
+         FOUND = FOUND+1
+         GOTO 200
+      ENDIF
+
+      IF (DABS (LCM) .LE.TOL) THEN
+         CM = DBLE (FLOAT (ICM - 6) ) / RAD
+         IZ = IZ + 1
+         IF (IZ.EQ.61) IZ = 1
+         FOUND = FOUND+1
+         GOTO 200
+      ENDIF
+
+
+      RETURN
+      END SUBROUTINE DRUTGP
+
+!********************************************************************
+      SUBROUTINE TODMS (RAD, IDG, MIN, SEC)
+!********************************************************************
+!     RADIANS TO DEGREES,MINUTES AND SECONDS
+!
       INTEGER IDG, MIN
-      DOUBLEPRECISION RAD, SEC, RHOSEC 
-      DATA RHOSEC / 2.062648062471D05 / 
-      SEC = RAD * RHOSEC 
-      IDG = SEC / 3600.D0 
-      SEC = SEC - DBLE (IDG * 3600) 
-      MIN = SEC / 60.D0 
-      SEC = SEC - DBLE (MIN * 60) 
-      IF ( (60.D0 - DABS (SEC) ) .GT.5.D-6) GOTO 100 
-      SEC = SEC - DSIGN (60.D0, SEC) 
-      MIN = MIN + ISIGN (1, MIN) 
-  100 IF (IABS (MIN) .LT.60) GOTO 101 
-      MIN = MIN - ISIGN (60, MIN) 
-      IDG = IDG + ISIGN (1, IDG) 
-  101 MIN = IABS (MIN) 
-      SEC = DABS (SEC) 
-      IF (RAD.GE.0.D0) GOTO 102 
-      IF (IDG.EQ.0) MIN = - MIN 
-      IF (IDG.EQ.0.AND.MIN.EQ.0) SEC = - SEC 
-  102 RETURN 
-      END SUBROUTINE TODMS                          
-!***********************************************************            
-      SUBROUTINE DATUMM (ER, RF, F, ESQ, DATNUM) 
-                                                                        
-      CHARACTER(1) ANS, DATNUM 
-      DOUBLEPRECISION ER 
-      DOUBLEPRECISION RF 
-      DOUBLEPRECISION F 
-      DOUBLEPRECISION ESQ 
-                                                                        
-                                                                        
-                                                                        
-!   50 PRINT *, '                                          '            
-!      PRINT *, '   WHICH ELLIPSOID DO YOU WANT ANSWER:    '            
-!      PRINT *, '   1.  CLARKE 1866                       '             
-!      PRINT *, '   2.  GRS80/WGS84                       '             
-!      PRINT *, '   3.  INTERNATIONAL 1910                '             
-!      PRINT *, '   4.  WGS72                             '             
-!      PRINT *, '   5.  OTHER ELLIPSOID                   '             
-!      PRINT *, '   TYPE NUMBER:  '                                     
-!      READ(*,FMT='(A1)') ANS                                           
-                !faz sempre para internacional                          
-   50 ans = '3' 
-!*                                                                      
-!*     FIND THE RIGHT SEMI MAJOR AXIS AND FLATTING                      
-!*                                                                      
-      IF (ANS.EQ.'1') THEN 
-!*      FOR THE NAD 27 DATUM                                            
-!*                                                                      
-         ER = 6378206.4D0 
-         RF = 294.978698D0 
-         F = 1.D0 / RF 
-         ESQ = (F + F - F * F) 
-                                                                        
-      ELSEIF (ANS.EQ.'2') THEN 
-!*     FOR THE NAD83 DATUM                                              
-!*                                                                      
-         ER = 6378137.D0 
-         RF = 298.257222101D0 
-         F = 1.D0 / RF 
-         ESQ = (F + F - F * F) 
-                                                                        
-      ELSEIF (ANS.EQ.'3') THEN 
-!*     FOR THE INT24 DATUM                                              
-!*                                                                      
-         ER = 6378388.D0 
-         RF = 297.0D0 
-         F = 1.D0 / RF 
-         ESQ = (F + F - F * F) 
-                                                                        
-      ELSEIF (ANS.EQ.'4') THEN 
-!*     FOR THE WGS72                                                    
-!*                                                                      
-         ER = 6378135.D0 
-         RF = 298.26D0 
-         F = 1.D0 / RF 
-         ESQ = (F + F - F * F) 
-                                                                        
-      ELSEIF (ANS.EQ.'5') THEN 
-!*     FOR THE OTHER DATUM                                              
-!*                                                                      
-   10 PRINT * , '                    ' 
-      PRINT * , '  SEMIMAJOR AXIS (meters)  ' 
-      PRINT * , '  TYPE VALUE NOW:  ' 
-         READ ( * , FMT = '(F12.0)') ER 
-                                                                        
-         IF ( (ER.LE.6376400.D0) .OR. (ER.GT.6378500.D0) ) THEN 
-      PRINT * , '                  ' 
-            PRINT * , ' SEMIMAJOR AXIS IS OUT OF RANGE - DO YOU' 
-            PRINT * , ' WANT TO TRY AGAIN ' 
-            PRINT * , ' TYPE Y OR N ' 
-            READ ( * , FMT = '(A1)') ANS 
-            IF ( (ANS.EQ.'Y') .OR. (ANS.EQ.'y') ) THEN 
-               GOTO 10 
-            ELSE 
-               GOTO 50 
-            ENDIF 
-         ENDIF 
-                                                                        
-   20 PRINT * , '                  ' 
-      PRINT * , ' FLATTENING            ' 
-      PRINT * , ' TYPE VALUE NOW:  ' 
-         READ ( * , FMT = '(F11.0)') RF 
-                                                                        
-         IF ( (RF.LE.290.D0) .OR. (RF.GT.302.D0) ) THEN 
-      PRINT * , '                  ' 
-            PRINT * , ' FLATTENING IS OUT OF RANGE - DO YOU ' 
-            PRINT * , ' WANT TO TRY AGAIN ' 
-            PRINT * , ' TYPE Y OR N ' 
-            READ ( * , FMT = '(A1)') ANS 
-            IF ( (ANS.EQ.'Y') .OR. (ANS.EQ.'y') ) THEN 
-               GOTO 20 
-            ELSE 
-               GOTO 50 
-            ENDIF 
-         ENDIF 
-                                                                        
-         F = 1.D0 / RF 
-         ESQ = (F + F - F * F) 
-                                                                        
-      ELSE 
-      PRINT * , ' YOU TYPED THE INCORRECT NUMBER   ' 
-         PRINT * , ' SO LET''S TRY AGAIN ' 
-      PRINT * , '                  ' 
-         GOTO 50 
-      ENDIF 
-                                                                        
-      DATNUM = ANS 
-                                                                        
-      RETURN 
-      END SUBROUTINE DATUMM                         
+      DOUBLEPRECISION RAD, SEC, RHOSEC
+      DATA RHOSEC / 2.062648062471D05 /
+      SEC = RAD * RHOSEC
+      IDG = SEC / 3600.D0
+      SEC = SEC - DBLE (IDG * 3600)
+      MIN = SEC / 60.D0
+      SEC = SEC - DBLE (MIN * 60)
+      IF ( (60.D0 - DABS (SEC) ) .GT.5.D-6) GOTO 100
+      SEC = SEC - DSIGN (60.D0, SEC)
+      MIN = MIN + ISIGN (1, MIN)
+  100 IF (IABS (MIN) .LT.60) GOTO 101
+      MIN = MIN - ISIGN (60, MIN)
+      IDG = IDG + ISIGN (1, IDG)
+  101 MIN = IABS (MIN)
+      SEC = DABS (SEC)
+      IF (RAD.GE.0.D0) GOTO 102
+      IF (IDG.EQ.0) MIN = - MIN
+      IF (IDG.EQ.0.AND.MIN.EQ.0) SEC = - SEC
+  102 RETURN
+      END SUBROUTINE TODMS
+!***********************************************************
+      SUBROUTINE DATUMM (ER, RF, F, ESQ, DATNUM)
+
+      CHARACTER(1) ANS, DATNUM
+      DOUBLEPRECISION ER
+      DOUBLEPRECISION RF
+      DOUBLEPRECISION F
+      DOUBLEPRECISION ESQ
+
+
+
+!   50 PRINT *, '                                          '
+!      PRINT *, '   WHICH ELLIPSOID DO YOU WANT ANSWER:    '
+!      PRINT *, '   1.  CLARKE 1866                       '
+!      PRINT *, '   2.  GRS80/WGS84                       '
+!      PRINT *, '   3.  INTERNATIONAL 1910                '
+!      PRINT *, '   4.  WGS72                             '
+!      PRINT *, '   5.  OTHER ELLIPSOID                   '
+!      PRINT *, '   TYPE NUMBER:  '
+!      READ(*,FMT='(A1)') ANS
+                !faz sempre para internacional
+   50 ans = '3'
+!*
+!*     FIND THE RIGHT SEMI MAJOR AXIS AND FLATTING
+!*
+      IF (ANS.EQ.'1') THEN
+!*      FOR THE NAD 27 DATUM
+!*
+         ER = 6378206.4D0
+         RF = 294.978698D0
+         F = 1.D0 / RF
+         ESQ = (F + F - F * F)
+
+      ELSEIF (ANS.EQ.'2') THEN
+!*     FOR THE NAD83 DATUM
+!*
+         ER = 6378137.D0
+         RF = 298.257222101D0
+         F = 1.D0 / RF
+         ESQ = (F + F - F * F)
+
+      ELSEIF (ANS.EQ.'3') THEN
+!*     FOR THE INT24 DATUM
+!*
+         ER = 6378388.D0
+         RF = 297.0D0
+         F = 1.D0 / RF
+         ESQ = (F + F - F * F)
+
+      ELSEIF (ANS.EQ.'4') THEN
+!*     FOR THE WGS72
+!*
+         ER = 6378135.D0
+         RF = 298.26D0
+         F = 1.D0 / RF
+         ESQ = (F + F - F * F)
+
+      ELSEIF (ANS.EQ.'5') THEN
+!*     FOR THE OTHER DATUM
+!*
+   10 PRINT * , '                    '
+      PRINT * , '  SEMIMAJOR AXIS (meters)  '
+      PRINT * , '  TYPE VALUE NOW:  '
+         READ ( * , FMT = '(F12.0)') ER
+
+         IF ( (ER.LE.6376400.D0) .OR. (ER.GT.6378500.D0) ) THEN
+      PRINT * , '                  '
+            PRINT * , ' SEMIMAJOR AXIS IS OUT OF RANGE - DO YOU'
+            PRINT * , ' WANT TO TRY AGAIN '
+            PRINT * , ' TYPE Y OR N '
+            READ ( * , FMT = '(A1)') ANS
+            IF ( (ANS.EQ.'Y') .OR. (ANS.EQ.'y') ) THEN
+               GOTO 10
+            ELSE
+               GOTO 50
+            ENDIF
+         ENDIF
+
+   20 PRINT * , '                  '
+      PRINT * , ' FLATTENING            '
+      PRINT * , ' TYPE VALUE NOW:  '
+         READ ( * , FMT = '(F11.0)') RF
+
+         IF ( (RF.LE.290.D0) .OR. (RF.GT.302.D0) ) THEN
+      PRINT * , '                  '
+            PRINT * , ' FLATTENING IS OUT OF RANGE - DO YOU '
+            PRINT * , ' WANT TO TRY AGAIN '
+            PRINT * , ' TYPE Y OR N '
+            READ ( * , FMT = '(A1)') ANS
+            IF ( (ANS.EQ.'Y') .OR. (ANS.EQ.'y') ) THEN
+               GOTO 20
+            ELSE
+               GOTO 50
+            ENDIF
+         ENDIF
+
+         F = 1.D0 / RF
+         ESQ = (F + F - F * F)
+
+      ELSE
+      PRINT * , ' YOU TYPED THE INCORRECT NUMBER   '
+         PRINT * , ' SO LET''S TRY AGAIN '
+      PRINT * , '                  '
+         GOTO 50
+      ENDIF
+
+      DATNUM = ANS
+
+      RETURN
+      END SUBROUTINE DATUMM
 
       SUBROUTINE TMGRID (FI, LAM, NORTH, EAST, CONV, KP, ER, ESQ, EPS,  &
-                         CM, FE, FN, SF, SO, R, A, B, C)                                   
-                                                                        
-        !IMPLICIT DOUBLEPRECISION (A - H, K - Z) 
+                         CM, FE, FN, SF, SO, R, A, B, C)
+
+        !IMPLICIT DOUBLEPRECISION (A - H, K - Z)
         !Arguments-------------------------------------------------------------
         real(8)                                     :: FI, LAM, NORTH, EAST
         real(8)                                     :: CONV, KP, ER, ESQ, EPS
@@ -16109,195 +16612,195 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         REAL(8)                                     :: C1, C3, C5, F2, F4
         real(8)                                     :: OM, S, SINFI, COSFI, TN, TS
         real(8)                                     :: ETS, L, LS, RN
-!                                                                       
-!*****  TRANSVERSE MERCATOR PROJECTION                                  
-!       CONVERSION OF GEODETIC COORDINATES TO GRID COORDINATES          
-!*****  Programmed by T. Vincenty, NGS, in July 1984.                   
-!*****************  SYMBOLS AND DEFINITIONS *************************   
-!   Latitude positive north, longitude positive west.  All angles are   
-!     in radian measure.                                                
-!   N, E are northing and easting coordinates respectively.             
-!   LAT, LON are latitude and longitude respectively.                   
-!   CONV is convergence.                                                
-!   KP is point scale factor.                                           
-!   ER is equatorial radius of the ellipsoid (= major semiaxis).        
-!   ESQ is the square of first eccentricity of the ellipsoid.           
-!   EPS is the square of second eccentricity of the ellipsoid.          
-!   CM is the central meridian of the projection zone.                  
-!   FE is false easting value at the central meridian.                  
-!   FN is "false northing" at the southernmost latitude, usually zero.  
-!   SF is scale factor at the central meridian.                         
-!   SO is meridional distance (multiplied by the scale factor) from     
+!
+!*****  TRANSVERSE MERCATOR PROJECTION
+!       CONVERSION OF GEODETIC COORDINATES TO GRID COORDINATES
+!*****  Programmed by T. Vincenty, NGS, in July 1984.
+!*****************  SYMBOLS AND DEFINITIONS *************************
+!   Latitude positive north, longitude positive west.  All angles are
+!     in radian measure.
+!   N, E are northing and easting coordinates respectively.
+!   LAT, LON are latitude and longitude respectively.
+!   CONV is convergence.
+!   KP is point scale factor.
+!   ER is equatorial radius of the ellipsoid (= major semiaxis).
+!   ESQ is the square of first eccentricity of the ellipsoid.
+!   EPS is the square of second eccentricity of the ellipsoid.
+!   CM is the central meridian of the projection zone.
+!   FE is false easting value at the central meridian.
+!   FN is "false northing" at the southernmost latitude, usually zero.
+!   SF is scale factor at the central meridian.
+!   SO is meridional distance (multiplied by the scale factor) from
 !     the equator to the southernmost parallel of latitude for the zone.
-!   R is the radius of the rectifying sphere (used for computing        
-!     meridional distance from latitude and vice versa).                
-!   A, B, C, U, V, W are other precomputed constants for determination  
-!     of meridional distance from latitude and vice versa.              
-!                                                                       
-!   The formula used in this subroutine gives geodetic accuracy within  
-!   zones of 7 degrees in east-west extent.  Within State transverse    
-!   Mercator projection zones, several minor terms of the equations     
-!   may be omitted (see a separate NGS publication).  If programmed     
-!   in full, the subroutine can be used for computations in surveys     
-!   extending over two zones.                                           
-!                                                                       
-!*********************************************************************  
+!   R is the radius of the rectifying sphere (used for computing
+!     meridional distance from latitude and vice versa).
+!   A, B, C, U, V, W are other precomputed constants for determination
+!     of meridional distance from latitude and vice versa.
+!
+!   The formula used in this subroutine gives geodetic accuracy within
+!   zones of 7 degrees in east-west extent.  Within State transverse
+!   Mercator projection zones, several minor terms of the equations
+!   may be omitted (see a separate NGS publication).  If programmed
+!   in full, the subroutine can be used for computations in surveys
+!   extending over two zones.
+!
+!*********************************************************************
       OM = FI + A * SIN (2. * FI) + B * SIN (4. * FI) + C * SIN (6. *   &
-      FI)                                                               
-      S = R * OM * SF 
-      SINFI = SIN (FI) 
-      COSFI = COS (FI) 
-      TN = SINFI / COSFI 
-      TS = TN**2 
-      ETS = EPS * COSFI**2 
-      L = (LAM - CM) * COSFI 
-      LS = L * L 
-      RN = SF * ER / SQRT (1. - ESQ * SINFI**2) 
-!                                                                       
-      A2 = RN * TN / 2. 
-      A4 = (5. - TS + ETS * (9. + 4. * ETS) ) / 12. 
-      A6 = (61. + TS * (TS - 58.) + ETS * (270. - 330. * TS) ) / 360. 
-      A1 = - RN 
-      A3 = (1. - TS + ETS) / 6. 
-      A5 = (5. + TS * (TS - 18.) + ETS * (14. - 58. * TS) ) / 120. 
-      A7 = (61. - 479. * TS + 179. * TS**2 - TS**3) / 5040. 
-      NORTH = S - SO + A2 * LS * (1. + LS * (A4 + A6 * LS) ) - FN 
-      EAST = FE+A1 * L * (1. + LS * (A3 + LS * (A5 + A7 * LS) ) ) 
-                                                                        
-      IF (NORTH.LT.0.0) THEN 
-         NORTH = NORTH * ( - 1.0D0) 
-      ENDIF 
-!                                                                       
-!*** CONVERGENCE                                                        
-      C1 = - TN 
-      C3 = (1. + 3. * ETS + 2. * ETS**2) / 3. 
-      C5 = (2. - TS) / 15. 
-      CONV = C1 * L * (1. + LS * (C3 + C5 * LS) ) 
-!                                                                       
-!*** POINT SCALE FACTOR                                                 
-      F2 = (1. + ETS) / 2. 
-      F4 = (5. - 4. * TS + ETS * (9. - 24. * TS) ) / 12. 
-      KP = SF * (1. + F2 * LS * (1. + F4 * LS) ) 
-!                                                                       
-      RETURN 
-      END SUBROUTINE TMGRID                         
-!********************************************************************   
+      FI)
+      S = R * OM * SF
+      SINFI = SIN (FI)
+      COSFI = COS (FI)
+      TN = SINFI / COSFI
+      TS = TN**2
+      ETS = EPS * COSFI**2
+      L = (LAM - CM) * COSFI
+      LS = L * L
+      RN = SF * ER / SQRT (1. - ESQ * SINFI**2)
+!
+      A2 = RN * TN / 2.
+      A4 = (5. - TS + ETS * (9. + 4. * ETS) ) / 12.
+      A6 = (61. + TS * (TS - 58.) + ETS * (270. - 330. * TS) ) / 360.
+      A1 = - RN
+      A3 = (1. - TS + ETS) / 6.
+      A5 = (5. + TS * (TS - 18.) + ETS * (14. - 58. * TS) ) / 120.
+      A7 = (61. - 479. * TS + 179. * TS**2 - TS**3) / 5040.
+      NORTH = S - SO + A2 * LS * (1. + LS * (A4 + A6 * LS) ) - FN
+      EAST = FE+A1 * L * (1. + LS * (A3 + LS * (A5 + A7 * LS) ) )
+
+      IF (NORTH.LT.0.0) THEN
+         NORTH = NORTH * ( - 1.0D0)
+      ENDIF
+!
+!*** CONVERGENCE
+      C1 = - TN
+      C3 = (1. + 3. * ETS + 2. * ETS**2) / 3.
+      C5 = (2. - TS) / 15.
+      CONV = C1 * L * (1. + LS * (C3 + C5 * LS) )
+!
+!*** POINT SCALE FACTOR
+      F2 = (1. + ETS) / 2.
+      F4 = (5. - 4. * TS + ETS * (9. - 24. * TS) ) / 12.
+      KP = SF * (1. + F2 * LS * (1. + F4 * LS) )
+!
+      RETURN
+      END SUBROUTINE TMGRID
+!********************************************************************
       SUBROUTINE TCONST (ER, RF, SF, OR, ESQ, EPS, R, A, B, C, U, V, W, &
-                         SO)                                                               
-        !IMPLICIT DOUBLEPRECISION (A - H, O - Z) 
+                         SO)
+        !IMPLICIT DOUBLEPRECISION (A - H, O - Z)
         !Arguments-------------------------------------------------------------
         real(8)                                     :: ER, RF, SF, OR, ESQ, EPS
         real(8)                                     :: R, A, B, C, U, V, W, SO
 
         !Local-----------------------------------------------------------------
         real(8)                                     :: F, PR, EN, OMO
-!                                                                       
-!***** TRANSVERSE MERCATOR PROJECTION                                   
-!      PRECOMPUTATION OF CONSTANTS                                      
-!***** Programmed by T. Vincenty, NGS, in July 1984.                    
-!******************** SYMBOLS AND DEFINITIONS  **********************   
-!   ER is equatorial radius of the ellipsoid (= major semiaxis).        
-!   RF is reciprocal of flattening of the ellipsoid.                    
-!   SF is scale factor of the central meridian.                         
-!   OR is southernmost parallel of latitude (in radians) for which      
-!     the northing coordinate is zero at the central meridian.          
-!   R, A, B, C, U, V, W are ellipsoid constants used for computing      
-!     meridional distance from latitude and vice versa.                 
-!   SO is meridional distance (multiplied by the scale factor) from     
-!     the equator to the southernmost parallel of latitude.             
-!******************************************************************     
-!                                                                       
-      F = 1. / RF 
-      ESQ = (F + F - F**2) 
-      EPS = ESQ / (1. - ESQ) 
-      PR = (1. - F) * ER 
-      EN = (ER - PR) / (ER + PR) 
-      A = - 1.5D0 * EN + (9. / 16.) * EN**3 
-      B = 0.9375D0 * EN**2 - (15. / 32.) * EN**4 
-      C = - (35. / 48.) * EN**3 
-      U = 1.5D0 * EN - (27. / 32.) * EN**3 
-      V = 1.3125D0 * EN**2 - (55. / 32.) * EN**4 
-      W = (151. / 96.) * EN**3 
+!
+!***** TRANSVERSE MERCATOR PROJECTION
+!      PRECOMPUTATION OF CONSTANTS
+!***** Programmed by T. Vincenty, NGS, in July 1984.
+!******************** SYMBOLS AND DEFINITIONS  **********************
+!   ER is equatorial radius of the ellipsoid (= major semiaxis).
+!   RF is reciprocal of flattening of the ellipsoid.
+!   SF is scale factor of the central meridian.
+!   OR is southernmost parallel of latitude (in radians) for which
+!     the northing coordinate is zero at the central meridian.
+!   R, A, B, C, U, V, W are ellipsoid constants used for computing
+!     meridional distance from latitude and vice versa.
+!   SO is meridional distance (multiplied by the scale factor) from
+!     the equator to the southernmost parallel of latitude.
+!******************************************************************
+!
+      F = 1. / RF
+      ESQ = (F + F - F**2)
+      EPS = ESQ / (1. - ESQ)
+      PR = (1. - F) * ER
+      EN = (ER - PR) / (ER + PR)
+      A = - 1.5D0 * EN + (9. / 16.) * EN**3
+      B = 0.9375D0 * EN**2 - (15. / 32.) * EN**4
+      C = - (35. / 48.) * EN**3
+      U = 1.5D0 * EN - (27. / 32.) * EN**3
+      V = 1.3125D0 * EN**2 - (55. / 32.) * EN**4
+      W = (151. / 96.) * EN**3
       R = ER * (1. - EN) * (1. - EN**2) * (1. + 2.25D0 * EN**2 +        &
-      (225. / 64.) * EN**4)                                             
+      (225. / 64.) * EN**4)
       OMO = OR + A * SIN (2. * OR) + B * SIN (4. * OR) + C * SIN (6. *  &
-      OR)                                                               
-      SO = SF * R * OMO 
-!                                                                       
-      RETURN 
-      END SUBROUTINE TCONST                         
+      OR)
+      SO = SF * R * OMO
+!
+      RETURN
+      END SUBROUTINE TCONST
 
       SUBROUTINE TCONPC (SF, OR, EPS, R, SO, V0, V2, V4, V6, ER, ESQ,   &
-                         RF)                                                               
+                         RF)
 
-        !IMPLICIT DOUBLEPRECISION (A - H, O - Z) 
+        !IMPLICIT DOUBLEPRECISION (A - H, O - Z)
         !Arguments-------------------------------------------------------------
         real(8)                                     :: SF, OR, EPS, R, SO, RF
         real(8)                                     :: V0, V2, V4, V6, ER, ESQ
-        
+
         !Local-----------------------------------------------------------------
         real(8)                                     :: F, PR, EN, EN2, EN3, EN4
         real(8)                                     :: C2, C4, C6, C8, U0, U2, U4, U6
         real(8)                                     :: COSOR, OMO
-                                                                        
-!**          TRANSVERSE MERCATOR PROJECTION               ***           
-!** CONVERSION OF GRID COORDS TO GEODETIC COORDS                        
-!** REVISED SUBROUTINE OF T. VINCENTY  FEB. 25, 1985                    
-!************* SYMBOLS AND DEFINITIONS ***********************          
-!** ER IS THE SEMI-MAJOR AXIS FOR GRS-80                                
-!** SF IS THE SCALE FACTOR AT THE CM                                    
-!** SO IS THE MERIDIONAL DISTANCE (TIMES THE SF) FROM THE               
-!**       EQUATOR TO SOUTHERNMOST PARALLEL OF LAT. FOR THE ZONE         
-!** R IS THE RADIUS OF THE RECTIFYING SPHERE                            
-!** U0,U2,U4,U6,V0,V2,V4,V6 ARE PRECOMPUTED CONSTANTS FOR               
-!**   DETERMINATION OF MERIDIONAL DIST. FROM LATITUDE                   
-!** OR IS THE SOUTHERNMOST PARALLEL OF LATITUDE FOR WHICH THE           
-!**       NORTHING COORD IS ZERO AT THE CM                              
-!*************************************************************          
-                                                                        
-                                                                        
-      F = 1.D0 / RF 
-      EPS = ESQ / (1.D0 - ESQ) 
-      PR = (1.D0 - F) * ER 
-      EN = (ER - PR) / (ER + PR) 
-      EN2 = EN * EN 
-      EN3 = EN * EN * EN 
-      EN4 = EN2 * EN2 
-                                                                        
-      C2 = - 3.D0 * EN / 2.D0 + 9.D0 * EN3 / 16.D0 
-      C4 = 15.D0 * EN2 / 16.D0 - 15.D0 * EN4 / 32.D0 
-      C6 = - 35.D0 * EN3 / 48.D0 
-      C8 = 315.D0 * EN4 / 512.D0 
-      U0 = 2.D0 * (C2 - 2.D0 * C4 + 3.D0 * C6 - 4.D0 * C8) 
-      U2 = 8.D0 * (C4 - 4.D0 * C6 + 10.D0 * C8) 
-      U4 = 32.D0 * (C6 - 6.D0 * C8) 
-      U6 = 128.D0 * C8 
-                                                                        
-      C2 = 3.D0 * EN / 2.D0 - 27.D0 * EN3 / 32.D0 
-      C4 = 21.D0 * EN2 / 16.D0 - 55.D0 * EN4 / 32.D0 
-      C6 = 151.D0 * EN3 / 96.D0 
-      C8 = 1097.D0 * EN4 / 512.D0 
-      V0 = 2.D0 * (C2 - 2.D0 * C4 + 3.D0 * C6 - 4.D0 * C8) 
-      V2 = 8.D0 * (C4 - 4.D0 * C6 + 10.D0 * C8) 
-      V4 = 32.D0 * (C6 - 6.D0 * C8) 
-      V6 = 128.D0 * C8 
-                                                                        
+
+!**          TRANSVERSE MERCATOR PROJECTION               ***
+!** CONVERSION OF GRID COORDS TO GEODETIC COORDS
+!** REVISED SUBROUTINE OF T. VINCENTY  FEB. 25, 1985
+!************* SYMBOLS AND DEFINITIONS ***********************
+!** ER IS THE SEMI-MAJOR AXIS FOR GRS-80
+!** SF IS THE SCALE FACTOR AT THE CM
+!** SO IS THE MERIDIONAL DISTANCE (TIMES THE SF) FROM THE
+!**       EQUATOR TO SOUTHERNMOST PARALLEL OF LAT. FOR THE ZONE
+!** R IS THE RADIUS OF THE RECTIFYING SPHERE
+!** U0,U2,U4,U6,V0,V2,V4,V6 ARE PRECOMPUTED CONSTANTS FOR
+!**   DETERMINATION OF MERIDIONAL DIST. FROM LATITUDE
+!** OR IS THE SOUTHERNMOST PARALLEL OF LATITUDE FOR WHICH THE
+!**       NORTHING COORD IS ZERO AT THE CM
+!*************************************************************
+
+
+      F = 1.D0 / RF
+      EPS = ESQ / (1.D0 - ESQ)
+      PR = (1.D0 - F) * ER
+      EN = (ER - PR) / (ER + PR)
+      EN2 = EN * EN
+      EN3 = EN * EN * EN
+      EN4 = EN2 * EN2
+
+      C2 = - 3.D0 * EN / 2.D0 + 9.D0 * EN3 / 16.D0
+      C4 = 15.D0 * EN2 / 16.D0 - 15.D0 * EN4 / 32.D0
+      C6 = - 35.D0 * EN3 / 48.D0
+      C8 = 315.D0 * EN4 / 512.D0
+      U0 = 2.D0 * (C2 - 2.D0 * C4 + 3.D0 * C6 - 4.D0 * C8)
+      U2 = 8.D0 * (C4 - 4.D0 * C6 + 10.D0 * C8)
+      U4 = 32.D0 * (C6 - 6.D0 * C8)
+      U6 = 128.D0 * C8
+
+      C2 = 3.D0 * EN / 2.D0 - 27.D0 * EN3 / 32.D0
+      C4 = 21.D0 * EN2 / 16.D0 - 55.D0 * EN4 / 32.D0
+      C6 = 151.D0 * EN3 / 96.D0
+      C8 = 1097.D0 * EN4 / 512.D0
+      V0 = 2.D0 * (C2 - 2.D0 * C4 + 3.D0 * C6 - 4.D0 * C8)
+      V2 = 8.D0 * (C4 - 4.D0 * C6 + 10.D0 * C8)
+      V4 = 32.D0 * (C6 - 6.D0 * C8)
+      V6 = 128.D0 * C8
+
       R = ER * (1.D0 - EN) * (1.D0 - EN * EN) * (1.D0 + 2.25D0 * EN *   &
-      EN + (225.D0 / 64.D0) * EN4)                                      
-      COSOR = DCOS (OR) 
+      EN + (225.D0 / 64.D0) * EN4)
+      COSOR = DCOS (OR)
       OMO = OR + DSIN (OR) * COSOR * (U0 + U2 * COSOR * COSOR + U4 *    &
-      COSOR**4 + U6 * COSOR**6)                                         
-      SO = SF * R * OMO 
-                                                                        
-      RETURN 
-      END SUBROUTINE TCONPC                         
+      COSOR**4 + U6 * COSOR**6)
+      SO = SF * R * OMO
+
+      RETURN
+      END SUBROUTINE TCONPC
 
       !------------------------------------------------------------------------
 
       SUBROUTINE TMGEOD (N, E, LAT, LON, EPS, CM, FE, SF, SO, R, V0, V2,&
-                         V4, V6, FN, ER, ESQ, CONV, KP)                                    
-        
-        !IMPLICIT DOUBLEPRECISION (A - H, K - Z) 
+                         V4, V6, FN, ER, ESQ, CONV, KP)
+
+        !IMPLICIT DOUBLEPRECISION (A - H, K - Z)
         !Arguments-------------------------------------------------------------
         real(8)                                     :: N, E
         real(8)                                     :: LAT, LON, EPS, CM, FE
@@ -16306,92 +16809,92 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
 
         !Local----------------------------------------------------------------
         real(8)                                     :: B1, B2, C1, TN, TS, ETS, RN, Q
-        real(8)                                     :: OM, COSOM, FOOT, SINF, COSF 
+        real(8)                                     :: OM, COSOM, FOOT, SINF, COSF
         real(8)                                     :: QS, B4, B6, B3, B5, B7, L, FI, LAM
         real(8)                                     :: SINFI, COSFI, L1, LS, C3, C5, F2, F4
-                                                                        
-!**          TRANSVERSE MERCATOR PROJECTION               ***           
-!** CONVERSION OF GRID COORDS TO GEODETIC COORDS                        
-!** REVISED SUBROUTINE OF T. VINCENTY  FEB. 25, 1985                    
-!************* SYMBOLS AND DEFINITIONS ***********************          
-!** LATITUDE POSITIVE NORTH, LONGITUDE POSITIVE WEST.  ALL              
-!**          ANGLES ARE IN RADIAN MEASURE.                              
-!** LAT,LON ARE LAT. AND LONG. RESPECTIVELY                             
-!** N,E ARE NORTHING AND EASTING COORDINATES RESPECTIVELY               
-!** K IS POINT SCALE FACTOR                                             
-!** ER IS THE SEMI-MAJOR AXIS OF THE ELLIPSOID                          
-!** ESQ IS THE SQUARE OF THE 1ST ECCENTRICITY                           
-!** E IS THE 1ST ECCENTRICITY                                           
-!** CM IS THE CENTRAL MERIDIAN OF THE PROJECTION ZONE                   
-!** FE IS THE FALSE EASTING VALUE AT THE CM                             
-!** CONV IS CONVERGENCE                                                 
-!** EPS IS THE SQUARE OF THE 2ND ECCENTRICITY                           
-!** SF IS THE SCALE FACTOR AT THE CM                                    
-!** SO IS THE MERIDIONAL DISTANCE (TIMES THE SF) FROM THE               
-!**       EQUATOR TO SOUTHERNMOST PARALLEL OF LAT. FOR THE ZONE         
-!** R IS THE RADIUS OF THE RECTIFYING SPHERE                            
-!** U0,U2,U4,U6,V0,V2,V4,V6 ARE PRECOMPUTED CONSTANTS FOR               
-!**   DETERMINATION OF MERIDIANAL DIST. FROM LATITUDE                   
-!**                                                                     
-!** THE FORMULA USED IN THIS SUBROUTINE GIVES GEODETIC ACCURACY         
-!** WITHIN ZONES OF 7 DEGREES IN EAST-WEST EXTENT.  WITHIN STATE        
-!** TRANSVERSE MERCATOR PROJECTION ZONES, SEVERAL MINOR TERMS OF        
-!** THE EQUATIONS MAY BE OMITTED (SEE A SEPARATE NGS PUBLICATION).      
-!** IF PROGRAMMED IN FULL, THE SUBROUTINE CAN BE USED FOR               
-!** COMPUTATIONS IN SURVEYS EXTENDING OVER TWO ZONES.                   
-!********************************************************************** 
-      OM = (N - FN + SO) / (R * SF) 
-      COSOM = DCOS (OM) 
+
+!**          TRANSVERSE MERCATOR PROJECTION               ***
+!** CONVERSION OF GRID COORDS TO GEODETIC COORDS
+!** REVISED SUBROUTINE OF T. VINCENTY  FEB. 25, 1985
+!************* SYMBOLS AND DEFINITIONS ***********************
+!** LATITUDE POSITIVE NORTH, LONGITUDE POSITIVE WEST.  ALL
+!**          ANGLES ARE IN RADIAN MEASURE.
+!** LAT,LON ARE LAT. AND LONG. RESPECTIVELY
+!** N,E ARE NORTHING AND EASTING COORDINATES RESPECTIVELY
+!** K IS POINT SCALE FACTOR
+!** ER IS THE SEMI-MAJOR AXIS OF THE ELLIPSOID
+!** ESQ IS THE SQUARE OF THE 1ST ECCENTRICITY
+!** E IS THE 1ST ECCENTRICITY
+!** CM IS THE CENTRAL MERIDIAN OF THE PROJECTION ZONE
+!** FE IS THE FALSE EASTING VALUE AT THE CM
+!** CONV IS CONVERGENCE
+!** EPS IS THE SQUARE OF THE 2ND ECCENTRICITY
+!** SF IS THE SCALE FACTOR AT THE CM
+!** SO IS THE MERIDIONAL DISTANCE (TIMES THE SF) FROM THE
+!**       EQUATOR TO SOUTHERNMOST PARALLEL OF LAT. FOR THE ZONE
+!** R IS THE RADIUS OF THE RECTIFYING SPHERE
+!** U0,U2,U4,U6,V0,V2,V4,V6 ARE PRECOMPUTED CONSTANTS FOR
+!**   DETERMINATION OF MERIDIANAL DIST. FROM LATITUDE
+!**
+!** THE FORMULA USED IN THIS SUBROUTINE GIVES GEODETIC ACCURACY
+!** WITHIN ZONES OF 7 DEGREES IN EAST-WEST EXTENT.  WITHIN STATE
+!** TRANSVERSE MERCATOR PROJECTION ZONES, SEVERAL MINOR TERMS OF
+!** THE EQUATIONS MAY BE OMITTED (SEE A SEPARATE NGS PUBLICATION).
+!** IF PROGRAMMED IN FULL, THE SUBROUTINE CAN BE USED FOR
+!** COMPUTATIONS IN SURVEYS EXTENDING OVER TWO ZONES.
+!**********************************************************************
+      OM = (N - FN + SO) / (R * SF)
+      COSOM = DCOS (OM)
       FOOT = OM + DSIN (OM) * COSOM * (V0 + V2 * COSOM * COSOM + V4 *   &
-      COSOM**4 + V6 * COSOM**6)                                         
-      SINF = DSIN (FOOT) 
-      COSF = DCOS (FOOT) 
-      TN = SINF / COSF 
-      TS = TN * TN 
-      ETS = EPS * COSF * COSF 
-      RN = ER * SF / DSQRT (1.D0 - ESQ * SINF * SINF) 
-      Q = (E-FE) / RN 
-      QS = Q * Q 
-      B2 = - TN * (1.D0 + ETS) / 2.D0 
+      COSOM**4 + V6 * COSOM**6)
+      SINF = DSIN (FOOT)
+      COSF = DCOS (FOOT)
+      TN = SINF / COSF
+      TS = TN * TN
+      ETS = EPS * COSF * COSF
+      RN = ER * SF / DSQRT (1.D0 - ESQ * SINF * SINF)
+      Q = (E-FE) / RN
+      QS = Q * Q
+      B2 = - TN * (1.D0 + ETS) / 2.D0
       B4 = - (5.D0 + 3.D0 * TS + ETS * (1.D0 - 9.D0 * TS) - 4.D0 * ETS *&
-      ETS) / 12.D0                                                      
+      ETS) / 12.D0
       B6 = (61.D0 + 45.D0 * TS * (2.D0 + TS) + ETS * (46.D0 - 252.D0 *  &
-      TS - 60.D0 * TS * TS) ) / 360.D0                                  
-      B1 = 1.D0 
-      B3 = - (1.D0 + TS + TS + ETS) / 6.D0 
+      TS - 60.D0 * TS * TS) ) / 360.D0
+      B1 = 1.D0
+      B3 = - (1.D0 + TS + TS + ETS) / 6.D0
       B5 = (5.D0 + TS * (28.D0 + 24.D0 * TS) + ETS * (6.D0 + 8.D0 * TS) &
-      ) / 120.D0                                                        
+      ) / 120.D0
       B7 = - (61.D0 + 662.D0 * TS + 1320.D0 * TS * TS + 720.D0 * TS**3) &
-      / 5040.D0                                                         
-      LAT = FOOT + B2 * QS * (1.D0 + QS * (B4 + B6 * QS) ) 
-      L = B1 * Q * (1.D0 + QS * (B3 + QS * (B5 + B7 * QS) ) ) 
-      LON = - L / COSF + CM 
-                                                                        
-!*********************************************************************  
-!     COMPUTE CONVERENCE AND SCALE FACTOR                               
-      FI = LAT 
-      LAM = LON 
-      SINFI = SIN (FI) 
-      COSFI = COS (FI) 
-      L1 = (LAM - CM) * COSFI 
-      LS = L1 * L1 
-                                                                        
-      TN = SINFI / COSFI 
-      TS = TN * TN 
-!                                                                       
-!*** CONVERGENCE                                                        
-      C1 = - TN 
-      C3 = (1. + 3. * ETS + 2. * ETS**2) / 3. 
-      C5 = (2. - TS) / 15. 
-      CONV = C1 * L1 * (1. + LS * (C3 + C5 * LS) ) 
-!                                                                       
-!*** POINT SCALE FACTOR                                                 
-      F2 = (1. + ETS) / 2. 
-      F4 = (5. - 4. * TS + ETS * (9. - 24. * TS) ) / 12. 
-      KP = SF * (1. + F2 * LS * (1. + F4 * LS) ) 
-                                                                        
-      RETURN 
-      END SUBROUTINE TMGEOD                         
+      / 5040.D0
+      LAT = FOOT + B2 * QS * (1.D0 + QS * (B4 + B6 * QS) )
+      L = B1 * Q * (1.D0 + QS * (B3 + QS * (B5 + B7 * QS) ) )
+      LON = - L / COSF + CM
+
+!*********************************************************************
+!     COMPUTE CONVERENCE AND SCALE FACTOR
+      FI = LAT
+      LAM = LON
+      SINFI = SIN (FI)
+      COSFI = COS (FI)
+      L1 = (LAM - CM) * COSFI
+      LS = L1 * L1
+
+      TN = SINFI / COSFI
+      TS = TN * TN
+!
+!*** CONVERGENCE
+      C1 = - TN
+      C3 = (1. + 3. * ETS + 2. * ETS**2) / 3.
+      C5 = (2. - TS) / 15.
+      CONV = C1 * L1 * (1. + LS * (C3 + C5 * LS) )
+!
+!*** POINT SCALE FACTOR
+      F2 = (1. + ETS) / 2.
+      F4 = (5. - 4. * TS + ETS * (9. - 24. * TS) ) / 12.
+      KP = SF * (1. + F2 * LS * (1. + F4 * LS) )
+
+      RETURN
+      END SUBROUTINE TMGEOD
 
     !--------------------------------------------------------------------------
 !-------------------------------------------------------------------------
@@ -16493,7 +16996,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
     end Subroutine Interf2D
 
 !------------------------------------------------------------------------------
-    
+
     Subroutine Interf3D (FatherGrid, X, Y, PP, ILB, JLB, IUB, JUB, K, Abs1, Ord1, F)
 
         !Arguments-------------------------------------------------------------
@@ -16583,11 +17086,11 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
           IF (JX.GT.JUB) JX=JUB
           IF (IY.LT.ILB) IY=ILB
           IF (IY.GT.IUB) IY=IUB
-    
 
-        
+
+
     end Subroutine Interf3D
-                          
+
 !------------------------------------------------------------------------------
 
     Subroutine Interf3D8 (FatherGrid, X, Y, PP, ILB, JLB, IUB, JUB, K, Abs1, Ord1, F)
@@ -16680,14 +17183,14 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
           IF (JX.GT.JUB) JX=JUB
           IF (IY.LT.ILB) IY=ILB
           IF (IY.GT.IUB) IY=IUB
-        
-        
+
+
 
     end Subroutine Interf3D8
-        
+
 
 !------------------------------------------------------------------------------
-        
+
     Subroutine LocateCell  (XX, YY, XPos, YPos,                                         &
                             ILB, IUB, JLB, JUB, ILower, Jlower)
 
@@ -16698,11 +17201,11 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         integer               , intent (IN ) :: ILB, IUB, JLB, JUB
         integer               , intent (OUT) :: ILower, Jlower
 
-        
-        !Local-------------------------------------------------------------
-        integer                              :: IMiddle, JMiddle, Dcd1, Dcd2, IUpper, JUpper 
 
-        !Begin------------------------------------------------------------- 
+        !Local-------------------------------------------------------------
+        integer                              :: IMiddle, JMiddle, Dcd1, Dcd2, IUpper, JUpper
+
+        !Begin-------------------------------------------------------------
 
 
         ILower = ILB
@@ -16721,7 +17224,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
                 IMiddle = int((ILower + IUpper)/2)
                 if (Ypos > YY(IMiddle)) then
                     ILower = IMiddle
-                else 
+                else
                     IUpper = IMiddle
                 endif
                 Dcd1 = IUpper - ILower
@@ -16743,7 +17246,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
                 JMiddle = int((Jlower + JUpper)/2)
                 if (Xpos > XX(JMiddle)) then
                     Jlower = JMiddle
-                else 
+                else
                     JUpper = JMiddle
                 endif
                 Dcd2 = JUpper - Jlower
@@ -16755,7 +17258,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
 
             call SetError(FATAL_, INTERNAL_, 'LocateCell - HorizontalGrid - ERR01')
 
-           
+
         endif
 
     end subroutine LocateCell
@@ -16764,7 +17267,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
 !------------------------------------------------------------------------------
 
 !------------------------------------------------------------------------------
-        
+
     Subroutine LocateCell1DR4 (XX, XPos, JLB, JUB, Jlower)
 
 
@@ -16774,11 +17277,11 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         integer                , intent (IN ) :: JLB, JUB
         integer                , intent (OUT) :: Jlower
 
-        
-        !Local-------------------------------------------------------------
-        integer                              :: JMiddle, Dcd2, JUpper 
 
-        !Begin------------------------------------------------------------- 
+        !Local-------------------------------------------------------------
+        integer                              :: JMiddle, Dcd2, JUpper
+
+        !Begin-------------------------------------------------------------
 
         Dcd2 = 2
 
@@ -16789,7 +17292,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
 
             Jlower = JLB
 
-        elseif (Xpos >= XX(JUB))then            
+        elseif (Xpos >= XX(JUB))then
 
             Jlower = JUB
 
@@ -16799,7 +17302,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
                 JMiddle = int((Jlower + JUpper)/2)
                 if (Xpos > XX(JMiddle)) then
                     Jlower = JMiddle
-                else 
+                else
                     JUpper = JMiddle
                 endif
                 Dcd2 = JUpper - Jlower
@@ -16811,7 +17314,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
 
             call SetError(FATAL_, INTERNAL_, 'LocateCell1DR4 - HorizontalGrid - ERR01')
 
-           
+
         endif
 
     end subroutine LocateCell1DR4
@@ -16828,11 +17331,11 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         integer                , intent (IN ) :: JLB, JUB
         integer                , intent (OUT) :: Jlower
 
-        
-        !Local-------------------------------------------------------------
-        integer                              :: JMiddle, Dcd2, JUpper 
 
-        !Begin------------------------------------------------------------- 
+        !Local-------------------------------------------------------------
+        integer                              :: JMiddle, Dcd2, JUpper
+
+        !Begin-------------------------------------------------------------
 
         Dcd2 = 2
 
@@ -16843,7 +17346,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
 
             Jlower = JLB
 
-        elseif (Xpos >= XX(JUB))then            
+        elseif (Xpos >= XX(JUB))then
 
             Jlower = JUB
 
@@ -16853,7 +17356,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
                 JMiddle = int((Jlower + JUpper)/2)
                 if (Xpos > XX(JMiddle)) then
                     Jlower = JMiddle
-                else 
+                else
                     JUpper = JMiddle
                 endif
                 Dcd2 = JUpper - Jlower
@@ -16865,17 +17368,105 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
 
             call SetError(FATAL_, INTERNAL_, 'LocateCell1DR8 - HorizontalGrid - ERR01')
 
-           
+
         endif
 
     end subroutine LocateCell1DR8
 
 
 !------------------------------------------------------------------------------
+    Subroutine LocateCell_2  (XX, YY, XPos, YPos,                                         &
+                            ILB, IUB, JLB, JUB, ILink, JLink, U, V)
 
+        !Arguments---------------------------------------------------------
+        real,   dimension(:)  , pointer      :: XX, YY
+        real                  , intent (IN ) :: XPos, YPos
+        integer               , intent (IN ) :: ILB, IUB, JLB, JUB
+        integer               , intent (OUT) :: ILink, JLink
+        integer, optional                    :: U, V
+
+        !Local-------------------------------------------------------------
+        integer                              :: IMiddle, JMiddle, Dcd1, Dcd2, IUpper, JUpper
+
+        !Begin-------------------------------------------------------------
+        ILink  = ILB
+        IUpper = IUB
+
+        Dcd1 = 2
+        Dcd2 = 2
+
+        if(Ypos < YY(ILB) .or. Ypos > YY(IUB))then
+
+            ILink = null_int
+
+        elseif (present(V))then
+            do while (Dcd1 > 1)
+                IMiddle = int((ILink + IUpper)/2)
+                if (Ypos > YY(IMiddle - 1)) then
+                    ILink = IMiddle
+                else
+                    IUpper = IMiddle
+                endif
+                Dcd1 = IUpper - ILink
+            enddo
+        else
+            do while (Dcd1 > 1)
+                IMiddle = int((ILink + IUpper)/2)
+                if (Ypos > YY(IMiddle)) then
+                    ILink = IMiddle
+                else
+                    IUpper = IMiddle
+                endif
+                Dcd1 = IUpper - ILink
+            enddo
+
+        end if
+
+
+        JLink = JLB
+        JUpper = JUB
+
+        if(Xpos < XX(JLB) .or. Xpos > XX(JUB))then
+
+            JLink = null_int
+
+        elseif (present(U))then
+            do while (Dcd2 > 1)
+                JMiddle = int((JLink + JUpper)/2)
+                if (Xpos > XX(JMiddle - 1)) then
+                    JLink = JMiddle
+                else
+                    JUpper = JMiddle
+                endif
+                Dcd2 = JUpper - JLink
+            enddo
+        else
+
+            do while (Dcd2 > 1)
+                JMiddle = int((JLink + JUpper)/2)
+                if (Xpos > XX(JMiddle)) then
+                    JLink = JMiddle
+                else
+                    JUpper = JMiddle
+                endif
+                Dcd2 = JUpper - JLink
+            enddo
+
+        end if
+
+        if (.not. Dcd1>0 .and. Dcd2>0) then
+
+            call SetError(FATAL_, INTERNAL_, 'LocateCell_2 - HorizontalGrid - ERR01')
+
+
+        endif
+
+
+        end subroutine LocateCell_2
+!------------------------------------------------------------------------------
 
     real  function Bilinear (YYUpper, YYLower, YPos,                                     &
-                            XXUpper, XXLower, XPos,                                      &  
+                            XXUpper, XXLower, XPos,                                      &
                             PropLowLeft,  PropUpLeft, PropLowRight, PropUpRight,         &
                             ONLowLeft,    ONUpLeft,   ONLowRight,   ONUpRight)
 
@@ -16889,7 +17480,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         real    :: Prop1, Prop2, Dx3, Dx2, Dy2, Dy3, D1, D2, D3
         integer :: ON1, ON2
 
-        !Begin------------------------------------------------------------- 
+        !Begin-------------------------------------------------------------
 
         Dy2   = YYUpper - YPos
         Dy3   = YPos    - YYLower
@@ -16898,7 +17489,7 @@ cd1:    if (ObjHorizontalGrid_ID > 0) then
         Dx3   = XPos    - XXLower
 
         D1    =  Dy2 * ONLowLeft  + Dy3 * ONUpLeft
-        D2    =  Dy2 * ONLowRight + Dy3 * ONUpRight 
+        D2    =  Dy2 * ONLowRight + Dy3 * ONUpRight
 
 cd1:    if (D1 /= 0) then
 
@@ -16945,7 +17536,7 @@ cd2:    if (D2 /= 0) then
 
         if (ON2 > 1) ON2 = 1
 
-        D3 = Dx2 * ON1 + Dx3 * ON2 
+        D3 = Dx2 * ON1 + Dx3 * ON2
 
 
 cd3:    if (D3 /= 0) then
@@ -16966,12 +17557,12 @@ cd3:    if (D3 /= 0) then
 
         endif cd3
 
-            
+
 
     end function Bilinear
 
 !------------------------------------------------------------------------------
-    
+
     subroutine InterpolPoint(XXSon, YYSon,                                              &
                              YYUpper, YYLower, XXUpper, XXLower,                        &
                              PropLowLeft,  PropUpLeft, PropLowRight, PropUpRight,       &
@@ -16992,29 +17583,29 @@ cd3:    if (D3 /= 0) then
         integer                            :: SumON
 
         !Begin -------------------------------------------------------------
-        
+
         SumON = ONLowLeft + ONUpLeft + ONLowRight + ONUpRight
 
 cd1:    if      (SumON > 0) then
 
             PropSon = Bilinear(YYUpper, YYLower, YYSon,                                 &
-                               XXUpper, XXLower, XXSon,                                 &  
+                               XXUpper, XXLower, XXSon,                                 &
                                PropLowLeft,  PropUpLeft, PropLowRight, PropUpRight,     &
                                ONLowLeft,    ONUpLeft,   ONLowRight,   ONUpRight)
 
             OK = .True.
 
         else cd1
-           
-            OK = .False.            
+
+            OK = .False.
 
         endif cd1
 
 
     end subroutine InterpolPoint
-    
-   !------------------------------------------------------------------------    
-    
+
+   !------------------------------------------------------------------------
+
     subroutine LocateCellPolygons(XX2D_Z, YY2D_Z, XPoint, YPoint,                       &
                                   DefinedPoint, ILB, IUB, JLB, JUB, IZ, JZ,             &
                                   CellLocated, Iold, Jold)
@@ -17038,24 +17629,24 @@ cd1:    if      (SumON > 0) then
         integer                                         :: J1, J2, J3, J4
         logical                                         :: IsPointInside, SearchCell, CellFound
         logical                                         :: UnknownInitialIJ
-        
+
         !Begin -------------------------------------------------------------
 
         CellFound        = .false.
         SearchCell       = .true.
         UnknownInitialIJ = .true.
-        
+
         allocate(Point)
         Point%X = XPoint
         Point%Y = YPoint
 
-        !check if 
+        !check if
 f1:     if (present(Iold) .and. present(Jold)) then
 
 f12:        if (Iold>=ILB .and. Iold<=IUB .and. Jold>=JLB .and. Jold<=JUB) then
 
                 UnknownInitialIJ = .false.
-                
+
                 Me%AuxPolygon%VerticesF(1)%X  = XX2D_Z(Iold  ,Jold  )
                 Me%AuxPolygon%VerticesF(1)%Y  = YY2D_Z(Iold  ,Jold  )
 
@@ -17067,35 +17658,35 @@ f12:        if (Iold>=ILB .and. Iold<=IUB .and. Jold>=JLB .and. Jold<=JUB) then
 
                 Me%AuxPolygon%VerticesF(4)%X  = XX2D_Z(Iold  ,Jold+1)
                 Me%AuxPolygon%VerticesF(4)%Y  = YY2D_Z(Iold  ,Jold+1)
-                
-                !close polygon 
+
+                !close polygon
                 Me%AuxPolygon%VerticesF(5)%X  = Me%AuxPolygon%VerticesF(1)%X
                 Me%AuxPolygon%VerticesF(5)%Y  = Me%AuxPolygon%VerticesF(1)%Y
-                
+
                 call SetLimits(Me%AuxPolygon)
-                
+
                 if (IsPointInsidePolygon(Point, Me%AuxPolygon)) then
-                    
+
                     SearchCell = .false.
                     CellFound  = .true.
-                    
+
                     IZ         = Iold
                     JZ         = Jold
-                    
+
                 endif
-                
+
             else f12
-            
+
                 UnknownInitialIJ = .true.
-                
-            endif f12            
-        
+
+            endif f12
+
         endif f1
 
 f2:     if (SearchCell) then
 
             !search adjacent cells
-f3:         if (present(Iold) .and. present(Jold) .and. (.not. UnknownInitialIJ)) then 
+f3:         if (present(Iold) .and. present(Jold) .and. (.not. UnknownInitialIJ)) then
 
                 ILower = Iold - 1
                 IUpper = Iold + 1
@@ -17105,24 +17696,24 @@ f3:         if (present(Iold) .and. present(Jold) .and. (.not. UnknownInitialIJ)
                 if(JLower .lt. JLB)then
                     JLower = JLB
                 end if
-                
+
                 if(JUpper .gt. JUB)then
                     JUpper = JUB
                 end if
-                
+
                 if(ILower .lt. ILB)then
                     ILower = ILB
                 end if
-                
+
                 if(IUpper .gt. IUB)then
                     IUpper = IUB
                 end if
 
                 do j = JLower, JUpper
                 do i = ILower, IUpper
-                
+
                     if(i == iold .and. j == jold) cycle
-                    
+
                     if(DefinedPoint(i,j) == 1)then
 
                         Me%AuxPolygon%VerticesF(1)%X  = XX2D_Z(i  ,j  )
@@ -17136,62 +17727,62 @@ f3:         if (present(Iold) .and. present(Jold) .and. (.not. UnknownInitialIJ)
 
                         Me%AuxPolygon%VerticesF(4)%X  = XX2D_Z(i  ,j+1)
                         Me%AuxPolygon%VerticesF(4)%Y  = YY2D_Z(i  ,j+1)
-                        
-                        !close polygon 
+
+                        !close polygon
                         Me%AuxPolygon%VerticesF(5)%X  = Me%AuxPolygon%VerticesF(1)%X
                         Me%AuxPolygon%VerticesF(5)%Y  = Me%AuxPolygon%VerticesF(1)%Y
-                        
+
                         call SetLimits(Me%AuxPolygon)
-                
+
                         if (IsPointInsidePolygon(Point, Me%AuxPolygon)) then
-                            
+
                             SearchCell = .false.
                             CellFound  = .true.
-                            
+
                             IZ         = i
                             JZ         = j
-                            
+
                             exit
-                            
+
                         endif
-                        
+
                     endif
 
                 enddo
-                if(CellFound) exit  !exit do J loop 
+                if(CellFound) exit  !exit do J loop
                 enddo
- 
+
             end if f3
-            
+
             !if still has not found the grid cell
 f4:         if(SearchCell)then
-            
+
                 Iupper = IUB
                 ILower = ILB
 
                 Jupper = JUB
                 JLower = JLB
-                
+
                 allocate(Polygon)
                 allocate(Polygon%VerticesF(1: 2*(IUB-ILB+1+JUB-JLB+1)))
 
-               
+
                 do while (SearchCell)
 
                     ICenter = int(real((Iupper - ILower)/ 2.)) + ILower
                     JCenter = int(real((Jupper - JLower)/ 2.)) + JLower
-                    
+
                     IsPointInside = .false.
 
                     !Construct 4 polygons NW, NE, SW, SE
                     do pi = 1, 4
-                        
-                        !All polygons are defined anti-Clockwise 
+
+                        !All polygons are defined anti-Clockwise
                         if      (pi==1) then
 
                             if (ILower == ICenter) cycle
                             if (JLower == JCenter) cycle
-                            
+
                             I1 = ILower;  J1 = JLower
                             I2 = ILower;  J2 = JCenter
                             I3 = ICenter; J3 = JCenter
@@ -17224,62 +17815,62 @@ f4:         if(SearchCell)then
                             I4 = IUpper;  J4 = JCenter;
 
                         endif
-                        
+
                         Polygon%Count = 0.
 
                         do j = J1, J2
 
                             if (DefinedPoint(I1,j) == 1) then
 
-                                Polygon%Count = Polygon%Count + 1                   
+                                Polygon%Count = Polygon%Count + 1
 
                                 Polygon%VerticesF(Polygon%Count)%X  = XX2D_Z(I1,j)
                                 Polygon%VerticesF(Polygon%Count)%Y  = YY2D_Z(I1,j)
 
                             endif
-                        
+
                         end do
 
                         do i = I2, I3
 
                             if (DefinedPoint(i,J2) == 1) then
 
-                                Polygon%Count = Polygon%Count + 1                   
+                                Polygon%Count = Polygon%Count + 1
 
                                 Polygon%VerticesF(Polygon%Count)%X  = XX2D_Z(i,J2)
                                 Polygon%VerticesF(Polygon%Count)%Y  = YY2D_Z(i,J2)
 
                             endif
-                        
+
                         end do
 
                         do j = J3, J4, -1
 
                             if (DefinedPoint(I3,j) == 1) then
 
-                                Polygon%Count = Polygon%Count + 1                   
+                                Polygon%Count = Polygon%Count + 1
 
                                 Polygon%VerticesF(Polygon%Count)%X  = XX2D_Z(I3,j)
                                 Polygon%VerticesF(Polygon%Count)%Y  = YY2D_Z(I3,j)
 
                             endif
-                        
+
                         end do
 
                         do i = I4, I1, -1
 
                             if (DefinedPoint(i,J4) == 1) then
 
-                                Polygon%Count = Polygon%Count + 1                   
+                                Polygon%Count = Polygon%Count + 1
 
                                 Polygon%VerticesF(Polygon%Count)%X  = XX2D_Z(i,J4)
                                 Polygon%VerticesF(Polygon%Count)%Y  = YY2D_Z(i,J4)
 
                             endif
-                        
+
                         end do
 
-                        Polygon%Count = Polygon%Count + 1                   
+                        Polygon%Count = Polygon%Count + 1
 
                         !Close polygon
                         Polygon%VerticesF(Polygon%Count)%X  = Polygon%VerticesF(1)%X
@@ -17298,34 +17889,34 @@ f4:         if(SearchCell)then
 
                     Jupper  = J2
                     JLower  = J1
-                    
+
                     if ((Iupper - ILower) == 1 .and. (Jupper - JLower) == 1) then
-                        
-                        SearchCell = .false.           
-                    
+
+                        SearchCell = .false.
+
                         if (IsPointInside) then
                             !Test if the cell was found
                              CellFound = .true.
                         endif
                     endif
-                                    
-                end do 
+
+                end do
 
                 IZ = ILower
                 JZ = JLower
 
-                deallocate(Polygon%VerticesF)        
-                nullify   (Polygon%VerticesF)        
+                deallocate(Polygon%VerticesF)
+                nullify   (Polygon%VerticesF)
 
                 deallocate(Polygon)
                 nullify   (Polygon)
-                
+
             endif f4
 
         endif f2
-                
+
         if (present(CellLocated)) CellLocated = CellFound
-        
+
         deallocate(Point)
         nullify(Point)
 
@@ -17333,8 +17924,8 @@ f4:         if(SearchCell)then
     end subroutine LocateCellPolygons
 
 
-   !------------------------------------------------------------------------    
-    
+   !------------------------------------------------------------------------
+
     logical function InsideDomainPolygon(DomainPolygon, XPoint, YPoint)
 
         !Arguments ---------------------------------------------------------
@@ -17349,7 +17940,7 @@ f4:         if(SearchCell)then
 
         allocate(Point)
 
-       
+
 
         Point%X = XPoint
         Point%Y = YPoint
@@ -17381,24 +17972,24 @@ f4:         if(SearchCell)then
     !dec$ attributes dllexport,alias:"_GETIUB"::GetIUB
     !DEC$ ENDIF
     integer function GetIUB(HorizontalGridID)
-    
+
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
-        
+
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: ready_         
+        integer                                     :: ready_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-        
+
             GetIUB = Me%WorkSize%IUB
 
-        else 
+        else
             GetIUB = - 99
         end if
-           
+
         return
 
     end function GetIUB
@@ -17409,24 +18000,24 @@ f4:         if(SearchCell)then
     !dec$ attributes dllexport,alias:"_GETJUB"::GetJUB
     !DEC$ ENDIF
     integer function GetJUB(HorizontalGridID)
-    
+
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
-        
+
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: ready_         
+        integer                                     :: ready_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-        
+
             GetJUB = Me%WorkSize%JUB
 
-        else 
+        else
             GetJUB = - 99
         end if
-           
+
         return
 
     end function GetJUB
@@ -17439,23 +18030,23 @@ f4:         if(SearchCell)then
     !dec$ attributes dllexport,alias:"_GETCENTERXCOORDINATE"::GetCenterXCoordinate
     !DEC$ ENDIF
     real(8) function GetCenterXCoordinate(HorizontalGridID, i, j)
-    
+
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
         integer                                     :: i, j
-        
+
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: ready_         
+        integer                                     :: ready_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
             GetCenterXCoordinate = Me%Compute%XX2D_Z(i, j)
-        else 
+        else
             GetCenterXCoordinate = - 99.0
         end if
-           
+
         return
 
     end function GetCenterXCoordinate
@@ -17466,24 +18057,24 @@ f4:         if(SearchCell)then
     !dec$ attributes dllexport,alias:"_GETCENTERYCOORDINATE"::GetCenterYCoordinate
     !DEC$ ENDIF
     real(8) function GetCenterYCoordinate(HorizontalGridID, i, j)
-    
+
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
         integer                                     :: i, j
-        
+
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: ready_         
+        integer                                     :: ready_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-        
+
             GetCenterYCoordinate = Me%Compute%YY2D_Z(i, j)
-        else 
+        else
             GetCenterYCoordinate = - 99.0
         end if
-           
+
         return
 
     end function GetCenterYCoordinate
@@ -17495,22 +18086,22 @@ f4:         if(SearchCell)then
     !dec$ attributes dllexport,alias:"_GETGRIDCELLCOORDINATES"::GetGridCellCoordinates
     !DEC$ ENDIF
     logical function GetGridCellCoordinates(HorizontalGridID, i, j, xCoords, yCoords)
-    
+
         !Arguments-------------------------------------------------------------
         integer                                     :: HorizontalGridID
         integer                                     :: i, j
         real(8), dimension(5)                       :: xCoords
         real(8), dimension(5)                       :: yCoords
-        
+
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: ready_         
+        integer                                     :: ready_
 
-        call Ready(HorizontalGridID, ready_)    
-        
+        call Ready(HorizontalGridID, ready_)
+
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-        
-        
+
+
             if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then
 
                 !Anticlockwise, closed
@@ -17519,25 +18110,25 @@ f4:         if(SearchCell)then
                 xCoords(3) = Me%LongitudeConn(i+1, j+1)
                 xCoords(4) = Me%LongitudeConn(i+1, j)
                 xCoords(5) = Me%LongitudeConn(i, j)
-                
-                !Anticlockwise, closed  
+
+                !Anticlockwise, closed
                 yCoords(1) = Me%LatitudeConn(i, j)
                 yCoords(2) = Me%LatitudeConn(i, j+1)
                 yCoords(3) = Me%LatitudeConn(i+1, j+1)
                 yCoords(4) = Me%LatitudeConn(i+1, j)
                 yCoords(5) = Me%LatitudeConn(i, j)
 
-            
+
             else
-        
+
                 !Anticlockwise, closed
                 xCoords(1) = Me%XX_IE(i, j)
                 xCoords(2) = Me%XX_IE(i, j+1)
                 xCoords(3) = Me%XX_IE(i+1, j+1)
                 xCoords(4) = Me%XX_IE(i+1, j)
                 xCoords(5) = Me%XX_IE(i, j)
-                
-                !Anticlockwise, closed  
+
+                !Anticlockwise, closed
                 yCoords(1) = Me%YY_IE(i, j)
                 yCoords(2) = Me%YY_IE(i, j+1)
                 yCoords(3) = Me%YY_IE(i+1, j+1)
@@ -17547,11 +18138,11 @@ f4:         if(SearchCell)then
             endif
 
             GetGridCellCoordinates = .true.
-        else 
+        else
             call PlaceErrorMessageOnStack("Horizontal Grid not ready")
             GetGridCellCoordinates = .false.
         end if
-           
+
 
 
 
@@ -17565,7 +18156,5 @@ end module ModuleHorizontalGrid
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon.
 !----------------------------------------------------------------------------------------------------------
-
-

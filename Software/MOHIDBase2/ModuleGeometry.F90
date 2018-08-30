@@ -9,9 +9,9 @@
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
 ! DATE          : May 2003
 ! REVISION      : Frank Braunschweig - v4.0
-! DESCRIPTION   : Module to calculate the vertical Geometry 
+! DESCRIPTION   : Module to calculate the vertical Geometry
 !
-!----------------------------------------------------------------------------- 
+!-----------------------------------------------------------------------------
 ! IMPERMEABILITY                : 0/1               -           !Consider impermeable cell faces
 ! IMPER_COEF_U                  : real             [1]          !
 ! IMPER_COEFX_U                 : real             [0]          !
@@ -28,11 +28,11 @@
 !   LAYERTHICKNESS              : real vector       -           !If not equidistant specifies layers thickness
 !                                                               !starting from bottom layer (e.g. 50. 20. 10. 5.)
 !   TOLERANCEDEPTH              : real            [0.05]        !Just for SIGMA,ISOPYCNIC coordinates
-!   TOTALTHICKNESS              : real              -           !Total domain thickness 
+!   TOTALTHICKNESS              : real              -           !Total domain thickness
 !                                                               !(Just for FIXSPACING, FIXSEDIMENT, SOIL_TOPLAYER)
 !   EMPTY_TOP_LAYERS            : int              [0]          !Number of empty layers counting from top
 !   DOMAINDEPTH                 : real
-!   LAGRANGIAN                  : 0/1              [0]          !Use lagrangian approach for distorting grometry? 
+!   LAGRANGIAN                  : 0/1              [0]          !Use lagrangian approach for distorting grometry?
 !                                                               !Layers are displaced with vertical velocity
 !   MINEVOLVELAYERTHICKNESS     : real            [0.5]         !Allowed distortion in percentage of initial thickness
 !                                                               !(if LAGRANGIAN : 1)
@@ -41,7 +41,7 @@
 !------------------------------------------------------------------------------
 !
 !This program is free software; you can redistribute it and/or
-!modify it under the terms of the GNU General Public License 
+!modify it under the terms of the GNU General Public License
 !version 2, as published by the Free Software Foundation.
 !
 !This program is distributed in the hope that it will be useful,
@@ -58,11 +58,11 @@
 Module ModuleGeometry
 
     use ModuleGlobalData
-    use ModuleTime                 
-    use ModuleEnterData          
+    use ModuleTime
+    use ModuleEnterData
     use ModuleGridData,         only: GetGridData, UngetGridData, GetMaximumValue,      &
                                       GetGridDataFileName, WriteGridData,               &
-                                      GetGridDataEvolution     
+                                      GetGridDataEvolution
     use ModuleHorizontalMap,    only: GetWaterPoints2D, GetExteriorBoundaryFaces,       &
                                       UnGetHorizontalMap
     use ModuleHorizontalGrid,   only: GetHorizontalGridSize, GetHorizontalGrid,         &
@@ -70,16 +70,16 @@ Module ModuleGeometry
                                       GetLatitudeLongitude, GetGridOrigin,              &
                                       GetGridLatitudeLongitude, GetCoordTypeList,       &
                                       GetCheckDistortion, UnGetHorizontalGrid,          &
-                                      GetDDecompWorkSize2D, GetDDecompParameters 
-                                      
-#ifdef _USE_MPI       
-    use ModuleHorizontalGrid,   only: ReceiveSendLogicalMPI  
-#endif _USE_MPI           
-                                      
+                                      GetDDecompWorkSize2D, GetDDecompParameters
+
+#ifdef _USE_MPI
+    use ModuleHorizontalGrid,   only: ReceiveSendLogicalMPI
+#endif _USE_MPI
+
     use ModuleFunctions,        only: SetMatrixValue, SetMatrixValueAllocatable,        &
-                                      Chunk_J, Chunk_K, GetPointer
+                                      Chunk_J, Chunk_K, GetPointer, ComputeAvgVerticalVelocity
     use ModuleHDF5
-    use ModuleStopWatch,        only : StartWatch, StopWatch         
+    use ModuleStopWatch,        only : StartWatch, StopWatch
 
     implicit none
     private
@@ -120,6 +120,7 @@ Module ModuleGeometry
     private ::      ComputeAreas
     private ::      ComputeVolumes
     private ::      StoreVolumeZOld
+    private ::      ComputeVolume2D
 
 #ifdef _USE_SEQASSIMILATION
     !Copy subroutines usable in sequential data assimilation to change variables' value
@@ -136,7 +137,7 @@ Module ModuleGeometry
     public  :: WriteGeometryHDF
 
     !Selector
-    public  :: GetGeometryDistances                 !SZZ, DZZ, DWZ, ZCellCenter, DUZ, DVZ, DWZ_Xgrad, DWZ_Ygrad, 
+    public  :: GetGeometryDistances                 !SZZ, DZZ, DWZ, ZCellCenter, DUZ, DVZ, DWZ_Xgrad, DWZ_Ygrad,
     public  :: GetGeometryAreas
     public  :: GetGeometryVolumes
     public  :: GetGeometryKFloor
@@ -191,7 +192,7 @@ Module ModuleGeometry
     interface  ConstructGeometry
         module procedure ConstructGeometryV1
         module procedure ConstructGeometryV2
-    end interface 
+    end interface
 
     !Parameter-----------------------------------------------------------------
 
@@ -229,48 +230,50 @@ Module ModuleGeometry
         integer                                 :: UpperLayer, LowerLayer    = FillValueInt
         integer                                 :: ActiveUpperLayer          = FillValueInt
         real                                    :: DomainDepth               = FillValueReal
-        real                                    :: TotalThickness            = FillValueReal 
+        real                                    :: TotalThickness            = FillValueReal
         real, dimension(:), pointer             :: LayerThickness            => null()
         real, dimension(:), pointer             :: LayerMinThickness         => null()
         real, dimension(:), pointer             :: LayerMaxThickness         => null()
-        real                                    :: ToleranceDepth            = FillValueReal 
+        real                                    :: ToleranceDepth            = FillValueReal
         real                                    :: MinInitialLayerThickness  = FillValueReal
-        real                                    :: MaxThicknessGrad          = FillValueReal 
+        real                                    :: MaxThicknessGrad          = FillValueReal
         real                                    :: MinEvolveLayerThickness   = FillValueReal
         real                                    :: MinEsp                    = FillValueReal
         real                                    :: BottomLayerThickness      = FillValueReal
         real                                    :: GridMovementDump          = FillValueReal
-        real                                    :: DisplacementLimit         = FillValueReal 
+        real                                    :: DisplacementLimit         = FillValueReal
+        real                                    :: RelaxToAverageFactor      = FillValueReal
         integer                                 :: InitializationMethod      = FillValueInt
-        real                                    :: Equidistant               = FillValueReal        
+        real                                    :: Equidistant               = FillValueReal
         logical                                 :: RomsDistortion            = .false.
-        real                                    :: theta_s                   = null_real, & 
-                                                   theta_b                   = null_real, & 
-                                                   Hc                        = null_real    
+        real                                    :: theta_s                   = null_real, &
+                                                   theta_b                   = null_real, &
+                                                   Hc                        = null_real
         logical                                 :: SigmaZleveHybrid          = .false.
         real                                    :: SigmaZleveHybrid_Hmin     = null_real
-        real                                    :: SigmaZleveHybrid_Hmax     = null_real        
+        real                                    :: SigmaZleveHybrid_Hmax     = null_real
         type (T_Domain), pointer                :: Next                      => null(), &
                                                    Prev                      => null()
     end type T_Domain
 
     type T_Distances
-        real, dimension(:, :, :), allocatable       :: SZZ 
-        real, dimension(:, :, :), allocatable       :: DZZ 
-        real, dimension(:, :, :), allocatable       :: DWZ, DUZ, DVZ, DZI, DZE, DWZ_Xgrad, DWZ_Ygrad 
-        real, dimension(:, :, :), allocatable       :: InitialSZZ 
-        real, dimension(:, :, :), allocatable       :: ZCellCenter  !Distance from the refernce level, 
+        real, dimension(:, :, :), allocatable       :: SZZ
+        real, dimension(:, :, :), allocatable       :: DZZ
+        real, dimension(:, :, :), allocatable       :: DWZ, DUZ, DVZ, DZI, DZE, DWZ_Xgrad, DWZ_Ygrad
+        real, dimension(:, :, :), allocatable       :: InitialSZZ
+        real, dimension(:, :, :), allocatable       :: ZCellCenter  !Distance from the refernce level,
                                                                 ! center of cells, positive upwards
     end type T_Distances
 
     type T_Areas
         real, dimension(:, :, :), allocatable       :: AreaU, AreaV
         logical                                     :: Impermeability = .false.
-        real, dimension(      :), allocatable       :: Coef_U, CoefX_U, Coef_V, CoefX_V  
+        real, dimension(      :), allocatable       :: Coef_U, CoefX_U, Coef_V, CoefX_V
     end type T_Areas
 
     type T_Volumes
         real(8), dimension(:, :, :), allocatable    :: VolumeZ, VolumeU, VolumeV, VolumeW, VolumeZOld
+        real(8), dimension(:, :),    allocatable    :: VolumeZ_2D
         logical                                     :: FirstVolW = .true.
     end type T_Volumes
 
@@ -292,7 +295,7 @@ Module ModuleGeometry
 
 #ifdef _USE_SEQASSIMILATION
     type T_StatePointer
-        real,    dimension(:, :, :), pointer    :: SZZ          => null(), &   
+        real,    dimension(:, :, :), pointer    :: SZZ          => null(), &
                                                    DWZ          => null(), &
                                                    DUZ          => null(), &
                                                    DVZ          => null(), &
@@ -300,7 +303,7 @@ Module ModuleGeometry
                                                    ZCellCenter  => null(), &
                                                    AreaU        => null(), &
                                                    AreaV        => null()
-        real,    dimension(:, :),    pointer    :: WaterColumnU => null(), &        
+        real,    dimension(:, :),    pointer    :: WaterColumnU => null(), &
                                                    WaterColumnV => null(), &
                                                    WaterColumnZ => null()
         real(8), dimension(:, :, :), pointer    :: VolumeZ      => null(), &
@@ -325,29 +328,31 @@ Module ModuleGeometry
         type (T_Distances)                      :: Distances
         type (T_Areas)                          :: Areas
         type (T_Volumes)                        :: Volumes
-        type (T_WaterColumn)                    :: WaterColumn      
+        type (T_WaterColumn)                    :: WaterColumn
         type (T_Domain), pointer                :: FirstDomain
         type (T_Domain), pointer                :: LastDomain
         type (T_KFloor)                         :: KFloor
         type (T_KTop)                           :: KTop
 
-        type (T_Time)                           :: ActualTime  
+        type (T_Time)                           :: ActualTime
         type (T_Size3D)                         :: Size
         type (T_Size3D)                         :: WorkSize
-        
+
         logical                                 :: IsWindow                 = .false. !initialization: Jauch
-        
+
         logical                                 :: LagrangianLimitsComputed = .false.
-        
-        logical                                 :: BathymNotCorrect         = .false. 
-       
+
+        logical                                 :: BathymNotCorrect         = .false.
+
         character(len=Pathlength)               :: InputFile                = null_str !initialization: Jauch
+
+        real, dimension(:,:,:), allocatable     :: NearbyAvgVel_Z ! Joao Sobrinho
 
 #ifdef _USE_SEQASSIMILATION
         !This variable is used to retain location of original memory space for variables
         !changed in sequential data assimilation (some external memory is used ocasionally)
         type(T_StatePointer  )                  :: AuxPointer
-#endif _USE_SEQASSIMILATION    
+#endif _USE_SEQASSIMILATION
 
         !Instance of other modules
         integer                                 :: ObjTopography        = 0
@@ -361,14 +366,14 @@ Module ModuleGeometry
     !Global Module Variables
     type (T_Geometry), pointer                  :: FirstGeometry    => null()
     type (T_Geometry), pointer                  :: Me               => null()
-   
+
 
     contains
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    !CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR 
+    !CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -389,7 +394,7 @@ Module ModuleGeometry
         real,              intent(IN), optional     :: BathymTopoFactor
         logical,           intent(IN), optional     :: StopOnBathymetryChange
         integer,  intent(OUT),         optional     :: STAT
-        
+
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
 
@@ -400,10 +405,10 @@ Module ModuleGeometry
         !Assures nullification of the global variable
         if (.not. ModuleIsRegistered(mGeometry_)) then
             nullify (FirstGeometry)
-            call RegisterModule (mGeometry_) 
+            call RegisterModule (mGeometry_)
         endif
 
-        call Ready(GeometryID, ready_)    
+        call Ready(GeometryID, ready_)
 
         if (ready_ .EQ. OFF_ERR_) then
 
@@ -426,14 +431,14 @@ Module ModuleGeometry
             else
                 Me%ExternalVar%BathymTopoFactor = 1.0
             endif
-            
+
             !stop the model on bathymetry change? - it will be verified in ConstructGlobalVariables and VerifyBathymetry
             if (present(StopOnBathymetryChange)) then
                 Me%ExternalVar%StopOnBathymetryChange = StopOnBathymetryChange
             else
                 Me%ExternalVar%StopOnBathymetryChange = .true.
             endif
-            
+
             !Construct the variable common to all module
             if (present(NewDomain)) then
                 if (present(SurfaceElevation)) then
@@ -454,25 +459,25 @@ Module ModuleGeometry
                 call ConstructKFloor (SurfaceElevation)
             else
                 call ConstructKFloor
-            endif    
-            
+            endif
+
             !Returns ID
             GeometryID    = Me%InstanceID
 
             STAT_ = SUCCESS_
 
-        else 
-            
-            stop 'Geometry - ConstructGeometryV1 - ERR99' 
+        else
 
-        end if 
+            stop 'Geometry - ConstructGeometryV1 - ERR99'
+
+        end if
 
 
         if (present(STAT)) STAT = STAT_
 
 
     end subroutine ConstructGeometryV1
- 
+
     !--------------------------------------------------------------------------
 
     subroutine ConstructGeometryV2(GeometryID, GridDataID, HorizontalGridID,            &
@@ -484,9 +489,9 @@ Module ModuleGeometry
         integer                                     :: GridDataID
         integer                                     :: HorizontalGridID
         integer                                     :: HorizontalMapID
-        integer                                     :: KMAX        
+        integer                                     :: KMAX
         integer,  intent(OUT),         optional     :: STAT
-        
+
         !Local-----------------------------------------------------------------
         type (T_Size2D)                             :: WorkSize2D, Size2D
         integer                                     :: STAT_, ready_, STAT_CALL
@@ -498,10 +503,10 @@ Module ModuleGeometry
         !Assures nullification of the global variable
         if (.not. ModuleIsRegistered(mGeometry_)) then
             nullify (FirstGeometry)
-            call RegisterModule (mGeometry_) 
+            call RegisterModule (mGeometry_)
         endif
 
-        call Ready(GeometryID, ready_)    
+        call Ready(GeometryID, ready_)
 
         if (ready_ .EQ. OFF_ERR_) then
 
@@ -512,8 +517,8 @@ Module ModuleGeometry
             Me%ObjTopography     = AssociateInstance (mGRIDDATA_,       GridDataID      )
             Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
- 
- 
+
+
              !Gets horizontal size from the Bathymetry
             call GetHorizontalGridSize(Me%ObjHorizontalGrid,                                 &
                                        Size     = Size2D,                                    &
@@ -539,24 +544,24 @@ Module ModuleGeometry
 
             STAT_ = SUCCESS_
 
-        else 
-            
-            stop 'Geometry - ConstructGeometryV2 - ERR99' 
+        else
 
-        end if 
+            stop 'Geometry - ConstructGeometryV2 - ERR99'
+
+        end if
 
 
         if (present(STAT)) STAT = STAT_
 
 
     end subroutine ConstructGeometryV2
- 
+
     !--------------------------------------------------------------------------
 
     subroutine AllocateInstance
 
         !Arguments-------------------------------------------------------------
-    
+
         !Local-----------------------------------------------------------------
         type (T_Geometry), pointer                  :: NewObjGeometry
         type (T_Geometry), pointer                  :: PreviousObjGeometry
@@ -592,7 +597,7 @@ Module ModuleGeometry
         !Arguments-------------------------------------------------------------
         character (len=*), intent(IN), optional                 :: NewDomain
         real, dimension(:,:), pointer, optional                 :: SurfaceElevation
-        
+
         !External--------------------------------------------------------------
         integer                                                 :: STAT_CALL
         character(len = StringLength)                           :: Message
@@ -633,7 +638,7 @@ Module ModuleGeometry
 !        nullify (Me%KFloor%U)
 !        nullify (Me%KFloor%V)
 !        nullify (Me%KFloor%Domain)
-       
+
         !Gets horizontal size from the Bathymetry
         call GetHorizontalGridSize(Me%ObjHorizontalGrid,                                 &
                                    Size     = Size2D,                                    &
@@ -658,7 +663,7 @@ Module ModuleGeometry
             Message   ='File of the domain properties.'
             call ReadFileName('DOMAIN', Me%InputFile, Message = Message, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - Geometry - ERR03'
-        endif 
+        endif
 
         !Reads the Domain Properties
         call GetDomainsFromFile
@@ -670,13 +675,13 @@ Module ModuleGeometry
 
         !Checks if Bathymetry is consistent with the tolerance depth - Fromer REBAIXA
         !and if changes bathymetry if cartasian domain type exists
-        
+
         if (present(SurfaceElevation)) then
             call VerifyBathymetry (SurfaceElevation)
         else
             call VerifyBathymetry
         endif
-            
+
         !Allocates variables
         call AllocateVariables
 
@@ -689,14 +694,14 @@ Module ModuleGeometry
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ObjEnterData = 0   
+        integer                                     :: ObjEnterData = 0
         integer                                     :: STATUS
         integer                                     :: iflag
         integer                                     :: WorkKLB, WorkKUB
 
         !Begin-----------------------------------------------------------------
 
-        call ConstructEnterData(ObjEnterData, Me%InputFile, STAT = STATUS)           
+        call ConstructEnterData(ObjEnterData, Me%InputFile, STAT = STATUS)
         if (STATUS /= SUCCESS_) stop "ConstructImpermeability - Geometry - ERR01"
 
             !Searches for the FacesOption
@@ -704,7 +709,7 @@ Module ModuleGeometry
                      ObjEnterData, iflag,                                               &
                      SearchType     = FromFile,                                         &
                      keyword        = 'FACES_IMPERMEABILITY',                           &
-                     Default        = .false.,                                          &  
+                     Default        = .false.,                                          &
                      ClientModule   = 'ModuleGeometry',                                 &
                      STAT           = STATUS)
 
@@ -723,7 +728,7 @@ Module ModuleGeometry
                          ObjEnterData, iflag,                                           &
                          SearchType     = FromFile,                                     &
                          keyword        = 'IMPER_COEF_U',                               &
-                         Default        = 1.,                                           &  
+                         Default        = 1.,                                           &
                          ClientModule   ='ModuleGeometry',                              &
                          STAT           = STATUS)
 
@@ -731,7 +736,7 @@ Module ModuleGeometry
                          ObjEnterData, iflag,                                           &
                          SearchType     = FromFile,                                     &
                          keyword        = 'IMPER_COEFX_U',                              &
-                         Default        = 0.,                                           &  
+                         Default        = 0.,                                           &
                          ClientModule   ='ModuleGeometry',                              &
                          STAT           = STATUS)
 
@@ -739,7 +744,7 @@ Module ModuleGeometry
                          ObjEnterData, iflag,                                           &
                          SearchType     = FromFile,                                     &
                          keyword        = 'IMPER_COEF_V',                               &
-                         Default        = 1.,                                           &  
+                         Default        = 1.,                                           &
                          ClientModule   ='ModuleGeometry',                              &
                          STAT           = STATUS)
 
@@ -747,7 +752,7 @@ Module ModuleGeometry
                          ObjEnterData, iflag,                                           &
                          SearchType     = FromFile,                                     &
                          keyword        = 'IMPER_COEFX_V',                              &
-                         Default        = 0.,                                           &  
+                         Default        = 0.,                                           &
                          ClientModule   ='ModuleGeometry',                              &
                          STAT           = STATUS)
 
@@ -765,10 +770,10 @@ Module ModuleGeometry
         integer, optional               :: Kmax
         !Local-----------------------------------------------------------------
         integer                         :: STATUS
-        integer                         :: ILB, IUB, JLB, JUB, KLB, KUB 
+        integer                         :: ILB, IUB, JLB, JUB, KLB, KUB
 
 
-        
+
         if (present(KMAX)) then
 
             Me%WorkSize%KLB = 1
@@ -785,14 +790,18 @@ Module ModuleGeometry
 
         JLB = Me%Size%JLB
         JUB = Me%Size%JUB
-        
+
         KLB = Me%Size%KLB
-        KUB = Me%Size%KUB        
+        KUB = Me%Size%KUB
 
         !Allocates T_Volumes
         allocate (Me%Volumes%VolumeZ(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS)
         if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR10'
         Me%Volumes%VolumeZ = FillValueDouble
+        
+        allocate (Me%Volumes%VolumeZ_2D(ILB:IUB, JLB:JUB), stat = STATUS)
+        if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR11'
+        Me%Volumes%VolumeZ_2D = FillValueDouble
 
         allocate (Me%Volumes%VolumeU(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS)
         if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR20'
@@ -888,10 +897,14 @@ Module ModuleGeometry
         allocate (Me%WaterColumn%V(ILB:IUB, JLB:JUB), stat = STATUS)
         if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR240'
         Me%WaterColumn%V(:,:) = FillValueReal
-        
+
         allocate (Me%KTop%Z(ILB:IUB, JLB:JUB), stat = STATUS)
         if (STATUS /= SUCCESS_) stop 'AllocateVariables - Geometry - ERR250'
         Me%KTop%Z(:,:) = FillValueInt
+
+        allocate (Me%NearbyAvgVel_Z(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS) !Joao Sobrinho
+        if (STATUS /= SUCCESS_) stop "AllocateVariables - Geometry - ERR255"
+        Me%NearbyAvgVel_Z(:, :, :) = FillValueInt
 
     end subroutine AllocateVariables
 
@@ -915,7 +928,7 @@ Module ModuleGeometry
 
         character(len = StringLength), parameter    :: beginlayers = '<<beginlayers>>'
         character(len = StringLength), parameter    :: endlayers   = '<<endlayers>>'
-        
+
         integer                                     :: LagrangianOld_flag
 
         character(len = StringLength)               :: DomainType
@@ -924,20 +937,20 @@ Module ModuleGeometry
         integer                                     :: ObjEnterData = 0
         integer                                     :: i, ActualID, ID, LastLine, FirstLine, Line
 
-        
+
         LagrangianOld_flag = 0
-        
+
         !Get Enter data parameter
         call GetExtractType(FromBlock = FromBlock, FromFile = FromFile)
 
-        call ConstructEnterData(ObjEnterData, Me%InputFile, STAT = STATUS)           
+        call ConstructEnterData(ObjEnterData, Me%InputFile, STAT = STATUS)
         if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR10"
 
         !Searches for the MinWaterColumn
         call GetData(Me%IsWindow, ObjEnterData, iflag,                          &
                      SearchType     = FromFile,                                         &
                      keyword        = 'WINDOW',                                         &
-                     Default        = .false.,                                          &  
+                     Default        = .false.,                                          &
                      ClientModule   = 'ModuleGeometry',                                 &
                      STAT           = STATUS)
         if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR20"
@@ -946,7 +959,7 @@ Module ModuleGeometry
         call GetData(Me%WaterColumn%Zmin, ObjEnterData, iflag,                          &
                      SearchType     = FromFile,                                         &
                      keyword        = 'MINIMUMDEPTH',                                   &
-                     Default        =  0.1,                                             &  
+                     Default        =  0.1,                                             &
                      ClientModule   = 'ModuleGeometry',                                 &
                      STAT           = STATUS)
         if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR20"
@@ -955,13 +968,13 @@ Module ModuleGeometry
         call GetData(Me%FacesOption, ObjEnterData, iflag,                               &
                      SearchType     = FromFile,                                         &
                      keyword        = 'FACES_OPTION',                                   &
-                     Default        = AverageTickness,                                  & 
+                     Default        = AverageTickness,                                  &
                      ClientModule   ='ModuleGeometry',                                  &
                      STAT = STATUS)
         if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR30"
 
         if (Me%FacesOption /= AverageTickness .and. Me%FacesOption /= MinTickness) then
-            
+
             write(*,*) "The option FACES_OPTION : ", int(Me%FacesOption), " is not valid"
             write(*,*) "The only valid options are FACES_OPTION : ", AverageTickness, " advised option"
             write(*,*) "The only valid options are FACES_OPTION : ", MinTickness, " advanced user option"
@@ -970,7 +983,7 @@ Module ModuleGeometry
         endif
 
         !The MinTickness option gives bad results espeially in the large scales.
-        ! At the estuary scale bad results have also been identified. 
+        ! At the estuary scale bad results have also been identified.
         !It is necessary in the future to understand the reason of this bad results.
 
         !Rewinds Buffer
@@ -988,7 +1001,7 @@ Module ModuleGeometry
                                         block_begin, block_end, BlockFound,             &
                                         STAT = STATUS)
             if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR60"
-            
+
 Block:      if (BlockFound) then
 
                 !Searches for the ID of the domain
@@ -1007,7 +1020,7 @@ CorretID:       if (ID == ActualID) then
                     nullify  (NewDomain%Prev)
                     NewDomain%ID = ActualID
 
-                    !Searches for the type of the domain        
+                    !Searches for the type of the domain
                     call GetData(DomainType, ObjEnterData, iflag,                       &
                                  keyword       = 'TYPE',                                &
                                  SearchType    = FromBlock,                             &
@@ -1019,16 +1032,16 @@ CorretID:       if (ID == ActualID) then
                     select case (trim(adjustl(DomainType)))
 
                     case ("FIXSPACING", "Fixspacing", "fixspacing")
-                        NewDomain%DomainType = FixSpacing   
+                        NewDomain%DomainType = FixSpacing
                     case ("SIGMA", "Sigma", "sigma")
-                        NewDomain%DomainType = Sigma        
+                        NewDomain%DomainType = Sigma
                     case ("LAGRANGIAN", "Lagrangian", "lagrangian")
                         !NewDomain%DomainType = Lagrangian
                         !for backward compatibility mark this domain as having lagrangian method
                         !the domain type itself will be taken from intialization method some lines below
-                        LagrangianOld_flag     = 1 
+                        LagrangianOld_flag     = 1
                         NewDomain%IsLagrangian = .true.
-                        
+
                         write(*,*)
                         write(*,*)
                         write(*,*) '-------------------------------------------------------------'
@@ -1039,7 +1052,7 @@ CorretID:       if (ID == ActualID) then
                         write(*,*) '-------------------------------------------------------------'
                         write(*,*)
                         write(*,*)
-                           
+
                     case ("CARTESIAN", "Cartesian", "cartesian")
                         NewDomain%DomainType = Cartesian
                     !case ("HARMONIC", "Harmonic", "harmonic")
@@ -1074,13 +1087,13 @@ CorretID:       if (ID == ActualID) then
 
                     nullify  (NewDomain%LayerMinThickness)
                     nullify  (NewDomain%LayerMaxThickness)
-                    
+
                     allocate (NewDomain%LayerMinThickness(LBo:UBo), STAT = STATUS)
                     if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR111"
 
                     allocate (NewDomain%LayerMaxThickness(LBo:UBo), STAT = STATUS)
                     if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR112"
-                    
+
                     ! Allows the definition of equidistant layers, layer thickness = constant
                     call GetData(NewDomain%Equidistant,                                 &
                                      ObjEnterData, iflag,                               &
@@ -1099,9 +1112,9 @@ cd0:                if(iflag == 0) then
                                                    FirstLine = FirstLine,               &
                                                    LastLine  = LastLine,                &
                                                    STAT      = STATUS)
-                            
-cd1 :                   if (STATUS .EQ. SUCCESS_      ) then    
-cd2 :                       if (BlockLayersFound) then                        
+
+cd1 :                   if (STATUS .EQ. SUCCESS_      ) then
+cd2 :                       if (BlockLayersFound) then
 
                                 if ((UBo - LBo + 1)/= (LastLine - FirstLine - 1))       &
                                     stop "GetDomainsFromFile - Geometry - ERR130"
@@ -1149,32 +1162,32 @@ cd2 :                       if (BlockLayersFound) then
                         endif cd1
 
                     else  cd0
-                     
+
                         do i = LBo, UBo
                             NewDomain%LayerThickness(i) = NewDomain%Equidistant
                         end do
 
                     endif cd0
-                    
+
                     !New keyword
                     !if geometry is lagrangian than SZZ is changed by vertical velocity
                     !and Lagragian approach can be used in any type of coordinates
-                    if (LagrangianOld_flag == 0) then    
+                    if (LagrangianOld_flag == 0) then
                         call GetData(NewDomain%IsLagrangian, ObjEnterData, iflag,       &
-                                     SearchType   = FromBlock,                          &  
+                                     SearchType   = FromBlock,                          &
                                      keyword      = 'LAGRANGIAN',                       &
                                      ClientModule = 'ModuleGeometry',                   &
                                      Default      = .false.,                            &
                                      STAT         = STATUS)
                         if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR161"
                    endif
-                   
+
                     !Searches for the Tolerance Depth (TYPE == SIGMA or ISOPYCNIC)
                     if ((NewDomain%DomainType == Sigma)     .or.                        &
                         (NewDomain%DomainType == IsoPycnic)) then
-                        
+
                         call GetData(NewDomain%ToleranceDepth, ObjEnterData, iflag,     &
-                                     SearchType   = FromBlock,                          &  
+                                     SearchType   = FromBlock,                          &
                                      keyword      = 'TOLERANCEDEPTH',                   &
                                      ClientModule = 'ModuleGeometry',                   &
                                      Default      = 0.05,                               &
@@ -1232,10 +1245,10 @@ cd2 :                       if (BlockLayersFound) then
 
                     endif
 
-                    !Searches for the coeficient which indicates how much a Lagrangian layer 
-                    !can deform 
+                    !Searches for the coeficient which indicates how much a Lagrangian layer
+                    !can deform
                     if (NewDomain%IsLagrangian) then
-                        
+
                         !The percentage of initial layer thickness that a layer can deform
                         !it may colapse to a size as (1 - MINEVOLVELAYERTHICKNESS) * InitialThickness
                         !and expand to (1 + MINEVOLVELAYERTHICKNESS)* InitialThickness
@@ -1248,19 +1261,19 @@ cd2 :                       if (BlockLayersFound) then
                                      STAT           = STATUS)
                         if (STATUS /= SUCCESS_ .or. iflag == 0)                         &
                             stop "GetDomainsFromFile - Geometry - ERR210"
-                        
+
                         if (NewDomain%MinEvolveLayerThickness < 0. .or. NewDomain%MinEvolveLayerThickness >= 1) then
                             write(*,*)
                             write(*,*)
                             write(*,*) 'MINEVOLVELAYERTHICKNESS keyword in Geometry Doamin'
                             write(*,*) 'can not be < 0 or >= 1. This keyword represents'
-                            write(*,*) 'a percentage of initial defined thickness and the' 
+                            write(*,*) 'a percentage of initial defined thickness and the'
                             write(*,*) 'limit for geometry variation'
                             write(*,*) 'Please verify values'
                             write(*,*)
                             stop "GetDomainsFromFile - Geometry - ERR212"
                         endif
-                        
+
 !                        call GetData(NewDomain%GridMovementDump,                        &
 !                                     ObjEnterData, iflag,                               &
 !                                     SearchType     = FromBlock,                        &
@@ -1282,6 +1295,17 @@ cd2 :                       if (BlockLayersFound) then
                                      STAT           = STATUS)
                         if (STATUS /= SUCCESS_)                                         &
                             stop "GetDomainsFromFile - Geometry - ERR230"
+                        
+                        !Joao Sobrinho
+                        call GetData(NewDomain%RelaxToAverageFactor,                    &
+                                     ObjEnterData, iflag,                               &
+                                     SearchType     = FromBlock,                        &
+                                     keyword        = 'RELAXTOAVERAGEFACTOR',           &
+                                     ClientModule   = 'ModuleGeometry',                 &
+                                     Default        = 0.7,                              &
+                                     STAT           = STATUS)
+                        if (STATUS /= SUCCESS_)                         &
+                            stop "GetDomainsFromFile - Geometry - ERR235"
 
                        if (LagrangianOld_flag == 1) then
                             call GetData(DomainType,                                        &
@@ -1293,12 +1317,12 @@ cd2 :                       if (BlockLayersFound) then
                                          STAT           = STATUS)
                             if (STATUS /= SUCCESS_)                                         &
                                 stop "GetDomainsFromFile - Geometry - ERR240"
-                            
+
                             !Lagrangian is no longer a domain but a process.
                             !As so the domaintype here will be used as the domain type
                             !and the previous keywords are used to compute lagrangian method
                             !in any of the two types
-                            
+
                             if     (DomainType .EQ. "SIGMA"     ) then
                                 !NewDomain%InitializationMethod = Sigma
                                 NewDomain%DomainType = Sigma
@@ -1308,15 +1332,15 @@ cd2 :                       if (BlockLayersFound) then
                             else
                                 write (*,*) "Initialization Method invalid"
                                 stop "GetDomainsFromFile - Geometry - ERR250"
-                            endif                       
+                            endif
                         endif
                     endif
 
 
-                   !Searches for the coeficient which indicates the minimal thickness in % 
+                   !Searches for the coeficient which indicates the minimal thickness in %
                    !of the bottom cells if MinInitialLayerThickness = 1 - classic cartesian coordinates
                    !if < 1 - cartesian with shave cells
-                   !In cartesian coordinates the reference layer thickness is compute for the 
+                   !In cartesian coordinates the reference layer thickness is compute for the
                    !maximum depth
 !                    if (NewDomain%DomainType == Cartesian     .or.                      &
 !                        NewDomain%DomainType == Harmonic) then
@@ -1364,7 +1388,7 @@ cd2 :                       if (BlockLayersFound) then
 !
 !                    endif
 
-                    
+
                     !Seraches for the minimum thickness of bottom layer
                     if (NewDomain%DomainType == CartesianTop) then
 
@@ -1390,7 +1414,7 @@ cd2 :                       if (BlockLayersFound) then
                                      Default        = .false.,                          &
                                      STAT           = STATUS)
                         if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR300"
-                        
+
                         if (NewDomain%RomsDistortion) then
 
                             !theta_s = terrain following coodinates bottom control parameter = 5
@@ -1421,11 +1445,11 @@ cd2 :                       if (BlockLayersFound) then
                                          ClientModule   = 'ModuleGeometry',             &
                                          Default        = 25.,                          &
                                          STAT           = STATUS)
-                            if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR330"                        
-                        
+                            if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR330"
+
                         endif
                     endif
-                    
+
                     call SigmaZleveHybridOptions(NewDomain,ObjEnterData)
 
 
@@ -1447,7 +1471,7 @@ cd2 :                       if (BlockLayersFound) then
             endif Block
 
 
-        enddo 
+        enddo
 
         call Block_Unlock(ObjEnterData, ClientNumber)
 
@@ -1458,7 +1482,7 @@ cd2 :                       if (BlockLayersFound) then
     end subroutine GetDomainsFromFile
 
     !--------------------------------------------------------------------------
-    
+
     subroutine SigmaZleveHybridOptions(NewDomain, ObjEnterData)
 
         !Parameter-------------------------------------------------------------
@@ -1475,17 +1499,17 @@ cd2 :                       if (BlockLayersFound) then
                      ClientModule   = 'ModuleGeometry',                                 &
                      Default        = .false.,                                          &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop "SigmaZleveHybridOptions - Geometry - ERR10"         
-        
+        if (STAT_CALL /= SUCCESS_) stop "SigmaZleveHybridOptions - Geometry - ERR10"
+
 i1:     if (NewDomain%SigmaZleveHybrid) then
-        
+
             call GetData(NewDomain%SigmaZleveHybrid_Hmin,                               &
                          ObjEnterData, iflag,                                           &
                          SearchType     = FromBlock,                                    &
                          keyword        = 'SIGMA_Z_SURFACE_HMIN',                       &
                          ClientModule   = 'ModuleGeometry',                             &
                          STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop "SigmaZleveHybridOptions - Geometry - ERR20"         
+            if (STAT_CALL /= SUCCESS_) stop "SigmaZleveHybridOptions - Geometry - ERR20"
 
             if (iflag == 0) then
                 write(*,*) 'if option SIGMA_Z_SURFACE is ON need to define'
@@ -1508,10 +1532,10 @@ i1:     if (NewDomain%SigmaZleveHybrid) then
             endif
 
         endif i1
-    
+
     end subroutine SigmaZleveHybridOptions
-    
-    !--------------------------------------------------------------------------    
+
+    !--------------------------------------------------------------------------
 
     subroutine ComputeLayers
 
@@ -1537,7 +1561,7 @@ i1:     if (NewDomain%SigmaZleveHybrid) then
         Me%Size%KLB     = 0
         Me%Size%KUB     = Me%WorkSize%KUB + 1
 
-        LayersBelow = 0        
+        LayersBelow = 0
         CurrentDomain => Me%FirstDomain
         do while (associated(CurrentDomain))
 
@@ -1548,7 +1572,7 @@ i1:     if (NewDomain%SigmaZleveHybrid) then
             LayersBelow = LayersBelow + CurrentDomain%NumberOfLayers
 
             !Verifies and corrects relativ layer thickness
-            !This is just done in the case of Sigma, Fixspacing, FixSediment 
+            !This is just done in the case of Sigma, Fixspacing, FixSediment
             !initialization
             if (CurrentDomain%DomainType  == Sigma              .or.                     &
                 CurrentDomain%DomainType  == Fixspacing         .or.                     &
@@ -1575,7 +1599,7 @@ i1:     if (NewDomain%SigmaZleveHybrid) then
                     enddo
                 endif
 
-            else if (CurrentDomain%DomainType  == Cartesian) then 
+            else if (CurrentDomain%DomainType  == Cartesian) then
 
                 Sum = 0.
                 do iLayer = CurrentDomain%LowerLayer, CurrentDomain%UpperLayer
@@ -1588,14 +1612,14 @@ i1:     if (NewDomain%SigmaZleveHybrid) then
                     TopDepth = CurrentDomain%DomainDepth
                 endif
 
-                
+
                 if (CurrentDomain%ID > 1) then
                     BottomDepth = CurrentDomain%Prev%DomainDepth
                 else
                     call GetMaximumValue(Me%ObjTopography, BottomDepth)
                 endif
-                
-                DomainDif = BottomDepth - TopDepth   
+
+                DomainDif = BottomDepth - TopDepth
 
                 !Error = abs(DomainDif - Sum)
 
@@ -1713,8 +1737,8 @@ i1:     if (NewDomain%SigmaZleveHybrid) then
 !                   endif
 !            endif
 
-            !Verifies if the inital Layer thickness of the cartesian coordinates is not small then 
-            !then 1% 
+            !Verifies if the inital Layer thickness of the cartesian coordinates is not small then
+            !then 1%
 !            if  (CurrentDomain%DomainType           == Cartesian .or.                 &
 !                 CurrentDomain%DomainType           == Harmonic ) then
             if  (CurrentDomain%DomainType           == Cartesian) then
@@ -1751,7 +1775,7 @@ i1:     if (NewDomain%SigmaZleveHybrid) then
         integer                                     :: ICOORD_TIP, Zone
         integer                                     :: GEOG, UTM, MIL_PORT, SIMPLE_GEOG, NLRD, GRID_COORD
 
-                                                    
+
         integer                                     :: ILB, IUB, JLB, JUB
         integer                                     :: i, j, iLayer, STAT_CALL
         real                                        :: DomainDepth, Tolerance
@@ -1759,11 +1783,11 @@ i1:     if (NewDomain%SigmaZleveHybrid) then
         real                                        :: LayerTopDepth, LayerMinBottomDepth
         real                                        :: LayerTop, LayerBottom
         real                                        :: DistToBottom, DistToTop
-        real                                        :: MinimalThickness, AllmostZero_ 
+        real                                        :: MinimalThickness, AllmostZero_
         real                                        :: BottomDepth
         character(len=StringLength)                 :: BathymetryFile
         character(len=StringLength)                 :: Comment1, Comment2
-        logical                                     :: WriteNewBathymetry = .false., ConvertsWaterInLand        
+        logical                                     :: WriteNewBathymetry = .false., ConvertsWaterInLand
         !logical                                     :: WriteNewBathymetry = .false., Distortion, ConvertsWaterInLand
         type (T_Domain), pointer                    :: CurrentDomain
         type (T_Size2D)                             :: Size2D
@@ -1782,10 +1806,10 @@ i1:     if (NewDomain%SigmaZleveHybrid) then
 
         call GetGridData(Me%ObjTopography, Bathymetry, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR10'
-        
+
         nullify (NewBathymetry)
         allocate(NewBathymetry(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-        
+
         !Copy bathymetry array
         !NewBathymetry(:,:) = Bathymetry(:,:)
         call SetMatrixValue(NewBathymetry, Size2D, Bathymetry)
@@ -1793,7 +1817,7 @@ i1:     if (NewDomain%SigmaZleveHybrid) then
 
         CurrentDomain => Me%FirstDomain
 do1:    do while (associated(CurrentDomain))
-            
+
 cd1:        if ((CurrentDomain%DomainType == Sigma)      .or.                            &
                 (CurrentDomain%DomainType == IsoPycnic)) then
 
@@ -1837,8 +1861,8 @@ cd1:        if ((CurrentDomain%DomainType == Sigma)      .or.                   
                 LayerTopDepth   = TopDepth
 
 doLayer:        do iLayer = CurrentDomain%UpperLayer, CurrentDomain%LowerLayer, -1
-                    
-                    !MinimalThickness is now defined as a percentage of the initial thickness of each layer  
+
+                    !MinimalThickness is now defined as a percentage of the initial thickness of each layer
                     MinimalThickness = CurrentDomain%MinInitialLayerThickness
 
                     !The LayerThickness is now given in meters, so dont multiply by DomainTickness
@@ -1848,7 +1872,7 @@ doLayer:        do iLayer = CurrentDomain%UpperLayer, CurrentDomain%LowerLayer, 
 
                     LayerMinBottomDepth = LayerTopDepth + CurrentDomain%LayerThickness(iLayer) * &
                                           MinimalThickness
-                    
+
 doj:                do j = JLB, JUB
 doi:                do i = ILB, IUB
                         ! Avoid round-off errors - Hernani Sept 2004
@@ -1859,7 +1883,7 @@ doi:                do i = ILB, IUB
 
                         ConvertsWaterInLand = .false.
 
-                        d1 = LayerTopDepth 
+                        d1 = LayerTopDepth
                         d2 = LayerTopDepth + CurrentDomain%LayerThickness(iLayer)
 
                         AllmostZero_ = 5e-4
@@ -1874,42 +1898,42 @@ doi:                do i = ILB, IUB
                         if (.not. ConvertsWaterInLand) then
                             Tmax =   FillValueReal
 
-                            T1   = Bathymetry(i, j)  - LayerTopDepth 
+                            T1   = Bathymetry(i, j)  - LayerTopDepth
 
-                            if (T1 <=AllmostZero_) cycle 
+                            if (T1 <=AllmostZero_) cycle
 
-                            Taux = Bathymetry(i-1,j) - LayerTopDepth 
+                            Taux = Bathymetry(i-1,j) - LayerTopDepth
 
                             if (Taux > CurrentDomain%LayerThickness(iLayer)) then
                                 Taux = CurrentDomain%LayerThickness(iLayer)
                             endif
                             if (               Taux > Tmax) Tmax = Taux
-                            
-                            Taux = Bathymetry(i+1,j) - LayerTopDepth 
+
+                            Taux = Bathymetry(i+1,j) - LayerTopDepth
 
                             if (Taux > CurrentDomain%LayerThickness(iLayer)) then
                                 Taux = CurrentDomain%LayerThickness(iLayer)
-                            endif                             
+                            endif
                             if (               Taux > Tmax) Tmax = Taux
 
 
-                            Taux = Bathymetry(i,j+1) - LayerTopDepth 
+                            Taux = Bathymetry(i,j+1) - LayerTopDepth
 
                             if (Taux > CurrentDomain%LayerThickness(iLayer)) then
                                 Taux = CurrentDomain%LayerThickness(iLayer)
-                            endif                          
-                               
+                            endif
+
                             if (               Taux > Tmax) Tmax = Taux
 
-                            Taux = Bathymetry(i,j-1) - LayerTopDepth 
+                            Taux = Bathymetry(i,j-1) - LayerTopDepth
 
                             if (Taux > CurrentDomain%LayerThickness(iLayer)) then
                                 Taux = CurrentDomain%LayerThickness(iLayer)
-                            endif                             
+                            endif
                             if (               Taux > Tmax) Tmax = Taux
-                             
+
                             if (Tmax/T1 > CurrentDomain%MaxThicknessGrad) then
-                                ConvertsWaterInLand = .true. 
+                                ConvertsWaterInLand = .true.
                             endif
                         endif
 
@@ -1926,7 +1950,7 @@ doi:                do i = ILB, IUB
 
                     enddo doi
                     enddo doj
-                    
+
                     !
                     !The Layer thickness is now given in meters, so dont multiply by DomainThickness
                     !Frank Jan 2001
@@ -1943,11 +1967,11 @@ doi:                do i = ILB, IUB
                         TopDepth        = SurfaceElevation(i, j)
                         BottomDepth     = Bathymetry(i, j)
 
-                        iLayer          = CurrentDomain%UpperLayer        
+                        iLayer          = CurrentDomain%UpperLayer
                         LayerTop        = TopDepth
                         LayerBottom     = LayerTop - CurrentDomain%LayerThickness(iLayer)
                         do while (iLayer >= CurrentDomain%LowerLayer)
-                        
+
                             AllmostZero_ = AllmostZeroFraction * CurrentDomain%LayerThickness(iLayer)
 
 !                            if (LayerBottom - AllmostZero_ <= BottomDepth  .and. LayerTop + AllmostZero_ >= BottomDepth) then
@@ -1966,33 +1990,33 @@ doi:                do i = ILB, IUB
                                     write(*,*)'j                = ', j
                                     write(*,*)'Bathymetry       = ',Bathymetry(i, j)
                                     write(*,*)'New Bathymetry   = ',NewBathymetry(i, j)
-                            
-                                else 
+
+                                else
                                     NewBathymetry(i, j)         = LayerTop
                                     WriteNewBathymetry          = .true.
                                     write(*,*)'i                = ', i
                                     write(*,*)'j                = ', j
                                     write(*,*)'Bathymetry       = ',Bathymetry(i, j)
                                     write(*,*)'New Bathymetry   = ',NewBathymetry(i, j)
-                                endif                                
-                                
-                                exit 
+                                endif
+
+                                exit
 
                             else
-                            
+
                                 iLayer       = iLayer - 1
-                                
+
                                 if (iLayer > 0) then
                                     LayerTop     = LayerBottom
                                     LayerBottom  = LayerTop - CurrentDomain%LayerThickness(iLayer)
                                 else
                                     exit
                                 endif
-                                
+
                             endif
 
                         enddo
-                    
+
                     endif
 
                 enddo
@@ -2003,35 +2027,35 @@ doi:                do i = ILB, IUB
             CurrentDomain => CurrentDomain%Next
 
         enddo do1
-        
+
         call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,              &
                                   MasterOrSlave    = MasterOrSlave,                     &
                                   Master           = Master,                            &
                                   STAT             = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR20'
-        
-        
+
+
         if (MasterOrSlave) then
 
             WriteBathymAux = WriteNewBathymetry
-        
-#ifdef _USE_MPI       
-        
-            !Check if at least one of the sub-domains need to change the bathymetry        
+
+#ifdef _USE_MPI
+
+            !Check if at least one of the sub-domains need to change the bathymetry
             call ReceiveSendLogicalMPI(HorizontalGridID   = Me%ObjHorizontalGrid,       &
                                        LogicalIn          = WriteBathymAux,             &
-                                       LogicalOut         = WriteNewBathymetry,         &                                       
+                                       LogicalOut         = WriteNewBathymetry,         &
                                        STAT               = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR30'              
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR30'
 
-#endif _USE_MPI           
-            
-        endif            
+#endif _USE_MPI
 
-        
+        endif
+
+
 
         if (WriteNewBathymetry) then
-            
+
             !Gets XX and YY
             call GetHorizontalGrid(Me%ObjHorizontalGrid, XX = XX, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR40'
@@ -2047,9 +2071,9 @@ doi:                do i = ILB, IUB
             !Gets the type of Coordinates
             call GetGridCoordType(Me%ObjHorizontalGrid, ICOORD_TIP, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR60'
- 
+
             if    (ICOORD_TIP == SIMPLE_GEOG)then
-        
+
                 call GetGridLatitudeLongitude(Me%ObjHorizontalGrid,                         &
                                                 GridLatitudeConn  = YY_IE,                  &
                                                 GridLongitudeConn = XX_IE,                  &
@@ -2093,17 +2117,17 @@ doi:                do i = ILB, IUB
 
             !Writes new Bathymetry
             call GetGridDataFileName(Me%ObjTopography, FileName = BathymetryFile, STAT= STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR150'           
-            
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR150'
+
             BathymetryFile  = adjustl(BathymetryFile)
             Comment1        = "Automatic Generated Grid Data File"
             Comment2        = "Based On "//trim(BathymetryFile)
             LengthWithoutExt= len_trim(BathymetryFile) - 4
             !BathymetryFile  = BathymetryFile(1:LengthWithoutExt)//"_"//".new"
-            
+
             !check if already has version in name (2 carachters and can go up to 99 versions)
             if (BathymetryFile(LengthWithoutExt-3:LengthWithoutExt-2) == "_v") then
-                
+
                 !read existing file version
                 FileVersion = trim(adjustl(BathymetryFile(LengthWithoutExt-1:LengthWithoutExt)))
                 read(FileVersion, *, IOSTAT = STAT_CALL) FileVersionInt
@@ -2111,23 +2135,23 @@ doi:                do i = ILB, IUB
                     !user used a letter after "_v". it may happen in a original filename
                     FileVersionInt = 0
                 endif
-                
+
                 !update file version
                 FileVersionInt = FileVersionInt + 1
                 write(FileVersion, "(i2)") FileVersionInt
                 if (FileVersionInt < 10) then
                     FileVersion = "0"//FileVersion(2:2)
                 endif
-            else 
+            else
                 FileVersionInt = 1
             endif
-            
+
             if (FileVersionInt == 1) then
                 BathymetryFile  = BathymetryFile(1:LengthWithoutExt)//"_v"//"01.dat"
             else
                 BathymetryFile  = BathymetryFile(1:LengthWithoutExt-2)//FileVersion//".dat"
             endif
-                
+
             call WriteGridData (FileName            = BathymetryFile,                   &
                                 COMENT1             = Comment1,                         &
                                 COMENT2             = Comment2,                         &
@@ -2136,10 +2160,10 @@ doi:                do i = ILB, IUB
                                 Overwrite           = ON,                               &
                                 GridData2D_Real     = NewBathymetry,                    &
                                 STAT                = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR160'         
-                
-            
-            
+            if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR160'
+
+
+
             !call GetCheckDistortion (Me%ObjHorizontalGrid, Distortion, STAT = STAT_CALL)
             !if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR140'
 
@@ -2150,7 +2174,7 @@ doi:                do i = ILB, IUB
             !                         YY             = YY,                   &
             !                         COMENT1        = Comment1,             &
             !                         COMENT2        = Comment2,             &
-            !                         WorkSize       = Size2D,               & 
+            !                         WorkSize       = Size2D,               &
             !                         CoordType      = ICOORD_TIP,           &
             !                         Xorig          = Xorig,                &
             !                         Yorig          = Yorig,                &
@@ -2171,7 +2195,7 @@ doi:                do i = ILB, IUB
             !                         ConnectionY    = YY_IE,                &
             !                         COMENT1        = "***",                &
             !                         COMENT2        = "***",                &
-            !                         WorkSize       = Size2D,               & 
+            !                         WorkSize       = Size2D,               &
             !                         CoordType      = ICOORD_TIP,           &
             !                         Xorig          = Xorig,                &
             !                         Yorig          = Yorig,                &
@@ -2184,7 +2208,7 @@ doi:                do i = ILB, IUB
             !                         Overwrite      = ON,                   &
             !                         STAT           = STAT_CALL)
             !    if (STAT_CALL /= SUCCESS_) stop 'VerifyBathymetry - Geometry - ERR160'
-                
+
             !endif
 
             deallocate(NewBathymetry)
@@ -2192,18 +2216,18 @@ doi:                do i = ILB, IUB
 
             !Displays Message to inform
             !Check if will stop or not. By default always stop and ask user to run again
-            !But for run on demand this needs to be possible                  
+            !But for run on demand this needs to be possible
             call SetError(WARNING_, INTERNAL_, 'Bathymetry changed due to geometry', Screen = .false.)
             write(*,*)'WARNING'
             write(*,*)'A new Bathymetry has been created, which consists with the geometry'
-            write(*,*)'New Bathymetry file : ', trim(BathymetryFile)   
+            write(*,*)'New Bathymetry file : ', trim(BathymetryFile)
             write(*,*)''
-            
-            if (Me%ExternalVar%StopOnBathymetryChange) then   
+
+            if (Me%ExternalVar%StopOnBathymetryChange) then
                 if (.not.MasterOrSlave .or. (MasterOrSlave .and. Master)) then
-                    write(*,*)'Modify the file Nomfich.dat and Re-run the model'            
+                    write(*,*)'Modify the file Nomfich.dat and Re-run the model'
                     stop 'VerifyBathymetry - Geometry - ERR170'
-                endif                    
+                endif
             endif
         endif
 
@@ -2229,31 +2253,31 @@ doi:                do i = ILB, IUB
         integer                                     :: ILB, IUB, JLB, JUB, KUB
         integer                                     :: iLayer, i, j, LayersBelow
         real(8)                                     :: BottomDepth, TopDepth, LayerTopDepth
-        real(8)                                     :: LayerBottomDepthMin, LayerBottomDepthMax 
+        real(8)                                     :: LayerBottomDepthMin, LayerBottomDepthMax
         real(8)                                     :: MinimalThickness, DomainThickness
         real(8)                                     :: LayerThicknessMin, LayerThicknessMax
         logical                                     :: FoundKFloor
         type (T_Domain), pointer                    :: CurrentDomain
         integer, dimension(:,:), pointer            :: ExteriorFacesU, ExteriorFacesV
         integer                                     :: STAT_CALL
-        logical                                     :: NeedToStop 
+        logical                                     :: NeedToStop
         real(8)                                     :: MaxDomainThickness
         real(8)                                     :: TotalLayerThickness, AuxDepth
         real                                        :: Aux4, AllmostZero_
         real(8)                                     :: hmax, hmin
         integer                                     :: NewKZ, OldKZ, nlayers
 
-        !Begin-----------------------------------------------------------------        
-                                                    
+        !Begin-----------------------------------------------------------------
+
         !WorkSize
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
 
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
-        
+
         KUB = Me%WorkSize%KUB
-        
+
         !Gets a pointer to the Bathymetry
         call GetGridData(Me%ObjTopography, Bathymetry, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructKFloor - Geometry - ERR01'
@@ -2277,7 +2301,7 @@ doi:                do i = ILB, IUB
 
             do j = JLB, JUB
             do i = ILB, IUB
-    
+
                 if (WaterPoints2D(i, j) == WaterPoint) then
                     Me%KFloor%Domain(i, j) = Me%FirstDomain%ID
                 endif
@@ -2286,10 +2310,10 @@ doi:                do i = ILB, IUB
             enddo
 
         else
-            
+
             do j = JLB, JUB
             do i = ILB, IUB
-    
+
                 if (WaterPoints2D(i, j) == WaterPoint) then
 
                     Me%KFloor%Domain(i, j) = Me%LastDomain%ID
@@ -2309,15 +2333,15 @@ doi:                do i = ILB, IUB
 
         endif
 
-         
+
         !Computes for KFloor%Z
         NeedToStop         = .false.
         MaxDomainThickness =  null_real
 doj:    do j = JLB, JUB
 doi:    do i = ILB, IUB
-                
+
 iw:         if (WaterPoints2D(i, j) == WaterPoint) then
-                
+
                 LayersBelow = 0
                 CurrentDomain => Me%FirstDomain
 
@@ -2326,7 +2350,7 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
                     CurrentDomain => CurrentDomain%Next
                 enddo
 
-                
+
                 !Set Current domain so that it points to the domain close to the bottom.
                 CurrentDomain => Me%FirstDomain
                 do while (CurrentDomain%ID /= Me%KFloor%Domain(i, j))
@@ -2359,7 +2383,7 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
                     if (CurrentDomain%ID > 1) then
                         BottomDepth = dble(CurrentDomain%Prev%DomainDepth)
                     else
-                        if (CurrentDomain%DomainType /= CartesianTop) then 
+                        if (CurrentDomain%DomainType /= CartesianTop) then
                             call GetMaximumValue(Me%ObjTopography, Aux4)
                             BottomDepth = dble(Aux4)
                         else
@@ -2372,7 +2396,7 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
                             endif
                         endif
                     endif
-                    
+
                     !Domain Thickness
                     DomainThickness = BottomDepth - TopDepth
 
@@ -2383,10 +2407,10 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
                     iLayer = CurrentDomain%UpperLayer
                     do while (iLayer >= CurrentDomain%LowerLayer .and. .not. FoundKFloor)
 
-                        !MinimalThickness is now defined as a percentage of the initial thickness of each layer  
+                        !MinimalThickness is now defined as a percentage of the initial thickness of each layer
                         MinimalThickness = dble(CurrentDomain%MinInitialLayerThickness)
 
-                        
+
                         !In the case of Cartesian, Harmonic domain
                         !the layer thickness is given in meters
                         if (CurrentDomain%DomainType            == Cartesian    .or.     &
@@ -2406,14 +2430,14 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
 
                         LayerBottomDepthMin = LayerTopDepth + LayerThicknessMin - AllmostZero_
                         LayerBottomDepthMax = LayerTopDepth + LayerThicknessMax + AllmostZero_
-                        
+
                         AuxDepth = 0.0
 
                         !To minimize roundoff errors when BathymTopoFactor = 1
                         if (Me%ExternalVar%BathymTopoFactor/=1.0) then
 
                             AuxDepth = dble(Me%ExternalVar%BathymTopoFactor) * dble(Bathymetry(i, j))
-                        
+
                         else
 
                             AuxDepth = dble(Bathymetry(i, j))
@@ -2424,9 +2448,9 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
 
                             Me%KFloor%Z(i, j) = iLayer
                             FoundKFloor = .true.
-                            
+
                         !else if (Me%BathymNotCorrect .and. LayerBottomDepthMin > AuxDepth) then
-                        else if (LayerBottomDepthMin > AuxDepth) then                        
+                        else if (LayerBottomDepthMin > AuxDepth) then
 
                             Me%KFloor%Z(i, j) = iLayer + 1
                             FoundKFloor = .true.
@@ -2449,13 +2473,13 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
                             NeedToStop = .true.
                         endif
                     endif
-                
+
                 endif
-            
+
             else iw
 
                 Me%KFloor%Z(i, j) = FillValueInt
-                
+
             endif iw
 
         enddo doi
@@ -2467,41 +2491,41 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
             write(*,*)'Total Layer Thickness   : ',TotalLayerThickness
             stop 'ConstructKFloor - ModuleGeometry - ERR99'
         endif
-        
+
 
         if (Me%LastDomain%DomainType == Sigma) then
-        
-            if (Me%LastDomain%SigmaZleveHybrid) then        
-            
+
+            if (Me%LastDomain%SigmaZleveHybrid) then
+
                 hmax = Me%LastDomain%SigmaZleveHybrid_Hmax
                 hmin = Me%LastDomain%SigmaZleveHybrid_Hmin
-            
+
                 do j = JLB, JUB
                 do i = ILB, IUB
-                
+
                     if (WaterPoints2D(i, j) == WaterPoint .and. Bathymetry(i,j) < hmax) then
 
-                        OldKZ   = Me%KFloor%Z(i, j) 
+                        OldKZ   = Me%KFloor%Z(i, j)
                         nlayers = KUB - OldKZ
-                
+
                         if (Bathymetry(i,j) > hmin) then
                             NewKZ = OldKZ + int(nlayers * (hmax - Bathymetry(i,j))/(hmax-hmin))
                         else
                             NewKZ = KUB
                         endif
-                    
+
                         if (NewKZ > OldKZ) then
-                            Me%KFloor%Z(i, j) = NewKZ                
-                        endif    
-                        
+                            Me%KFloor%Z(i, j) = NewKZ
+                        endif
+
                     endif
 
                 enddo
                 enddo
-                
-            endif            
+
+            endif
         endif
-                                                           
+
 
         !Computes KFloor%U
         do j = JLB, JUB + 1
@@ -2515,7 +2539,7 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
             else
                 Me%KFloor%U(i, j) = FillValueInt
             endif
-        
+
         enddo
         enddo
 
@@ -2532,13 +2556,13 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
             else
                 Me%KFloor%V(i, j) = FillValueInt
             endif
-        
+
         enddo
         enddo
 
         call UnGetHorizontalMap(Me%ObjHorizontalMap, ExteriorFacesU, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructKFloor - ModuleGeometry - ERR04'
-        
+
         call UnGetHorizontalMap(Me%ObjHorizontalMap, ExteriorFacesV, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructKFloor - ModuleGeometry - ERR05'
 
@@ -2573,11 +2597,11 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
             NewDomain%Prev       => Me%LastDomain
             Me%LastDomain%Next   => NewDomain
             Me%LastDomain        => NewDomain
-        end if 
+        end if
 
         !----------------------------------------------------------------------
 
-    end subroutine Add_Domain 
+    end subroutine Add_Domain
 
     !--------------------------------------------------------------------------
 
@@ -2590,8 +2614,8 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
         integer,            optional, intent(OUT)    :: STAT
 
         !Local-------------------------------------------------------------------
-        integer                                      :: ready_          
-        integer                                      :: STAT_    
+        integer                                      :: ready_
+        integer                                      :: STAT_
 
         !------------------------------------------------------------------------
 
@@ -2599,12 +2623,12 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_) 
+        call Ready(GeometryID, ready_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             Me%AuxPointer%SZZ => Me%Distances%SZZ
-            
+
             Me%AuxPointer%DWZ => Me%Distances%DWZ
 
             Me%AuxPointer%DUZ => Me%Distances%DUZ
@@ -2633,7 +2657,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             Me%AuxPointer%VolumeZOld => Me%Volumes%VolumeZOld
 
-            STAT_ = SUCCESS_  
+            STAT_ = SUCCESS_
 
         else
             STAT_ = ready_
@@ -2648,7 +2672,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    !MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MO 
+    !MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MO
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -2668,14 +2692,14 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         integer, intent(out), optional              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
+        call Ready(GeometryID, ready_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
@@ -2696,64 +2720,65 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 Me%ExternalVar%ContinuesCompute = .false.
             endif
 
-cd2 :       if (Me%ExternalVar%ContinuesCompute) then 
+cd2 :       if (Me%ExternalVar%ContinuesCompute) then
 
                 !Computes the Distances
                 call ComputeDistances   (WaterPoints3D)
 
                 !Computes the Areas
-                call ComputeAreas      
+                call ComputeAreas
 
                 !Computes the Volumes
-                call ComputeVolumes     
+                call ComputeVolumes
 
                 !It is necessary for the Soil model
-                call ComputeZCellCenter 
+                call ComputeZCellCenter
 
             else cd2
 
-                if (present(SZZ)) then    
+                if (present(SZZ)) then
                     call SetMatrixValue( GetPointer(Me%Distances%SZZ), Me%Size, SZZ )
                 else
                    !Constructs SZZ with the initial surface elevation
                     call ComputeSZZ         (SurfaceElevation, INITIALGEOMETRY, WaterPoints3D = WaterPoints3D)
 
-                    
+
                     if (Me%LastDomain%DomainType == Sigma) then
-                        if (Me%LastDomain%SigmaZleveHybrid) then                    
+                        if (Me%LastDomain%SigmaZleveHybrid) then
                             ! SigmaZHybridSurface
                             call SigmaZHybridSurface(SurfaceElevation, WaterPoints3D)
                         endif
                     endif
-                                                                        
+
                 endif
-                
+
                 !Computes the Distances
                 call ComputeDistances   (WaterPoints3D)
 
                 !Computes the Volumes
-                call ComputeVolumes     
+                call ComputeVolumes
 
                 !Computes the Areas
-                call ComputeAreas       
+                call ComputeAreas
 
                 !Stores VolumeZOLD
                 !In this case VolumeZOld will be equal to VolumeZ
-                call StoreVolumeZOld    
+                call StoreVolumeZOld
 
                 !It is necessary for the Soil model
-                call ComputeZCellCenter 
+                call ComputeZCellCenter
 
             end if cd2
 
             !Computes the WaterColumn
             if (present(SurfaceElevation)) then
                 call ComputeWaterColumn (SurfaceElevation)
+                call ComputeVolume2D
             endif
 
             STAT_ = SUCCESS_
 
-        else cd1              
+        else cd1
 
             STAT_ = ready_
 
@@ -2762,23 +2787,23 @@ cd2 :       if (Me%ExternalVar%ContinuesCompute) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine ComputeInitialGeometry
-    
+
 
 
 
     !--------------------------------------------------------------------------
-    
+
     subroutine SigmaZHybridSurface (SurfaceElevation, WaterPoints3D)
 
         !Arguments-------------------------------------------------------------
         real,    dimension(:,:  ), pointer  :: SurfaceElevation
         integer, dimension(:,:,:), pointer  :: WaterPoints3D
         !Local-----------------------------------------------------------------
-        integer                             :: STAT_CALL        
+        integer                             :: STAT_CALL
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB, kbottom
         integer                             :: i, j, k
         real(8)                             :: hmax
-        real(8)                             :: TotalThickness, TotalWaterColumn, AuxRacio        
+        real(8)                             :: TotalThickness, TotalWaterColumn, AuxRacio
         real,    dimension(:,:), pointer    :: Bathymetry
 
         !Begin-----------------------------------------------------------------
@@ -2789,43 +2814,43 @@ cd2 :       if (Me%ExternalVar%ContinuesCompute) then
         JUB = Me%WorkSize%JUB
         KLB = Me%WorkSize%KLB
         KUB = Me%WorkSize%KUB
-        
+
         !Gets Bathymetry
         call GetGridData(Me%ObjTopography, Bathymetry, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'SigmaZHybridSurface - Geometry - ERR10'
-        
+
         hmax = Me%LastDomain%SigmaZleveHybrid_Hmax
 
         do j = JLB, JUB
         do i = ILB, IUB
-        
+
             if (WaterPoints3D(i, j, KUB) == WaterPoint .and. Bathymetry(i,j) < hmax) then
-                
+
                 kbottom = Me%KFloor%Z(i, j)
-                
+
                 TotalThickness   = sum(Me%LastDomain%LayerThickness(kbottom:KUB))
                 TotalWaterColumn = Bathymetry(i, j) + SurfaceElevation(i, j)
                 AuxRacio         = TotalWaterColumn / TotalThickness
-                
+
                 do k = KUB,KLB-1,-1
                     !surface
-                    if (k == KUB) then     
+                    if (k == KUB) then
                         Me%Distances%SZZ(i, j, k) = -1.* SurfaceElevation(i, j)
-                    !water column                        
+                    !water column
                     else if (k >=kbottom .and. k < KUB) then
                         Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k+1) + Me%LastDomain%LayerThickness(k+1) * AuxRacio
-                    !bottom                        
+                    !bottom
                     else if (k == kbottom - 1) then
                         Me%Distances%SZZ(i, j, k) = Bathymetry(i, j)
-                    !land                        
+                    !land
                     else
                         Me%Distances%SZZ(i, j, k) = FillValueReal
                     endif
-                enddo     
-            endif                                     
+                enddo
+            endif
         enddo
         enddo
-        
+
         !UnGets Bathymetry
         call UnGetGridData(Me%ObjTopography, Bathymetry, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'SigmaZHybridSurface - Geometry - ERR20'
@@ -2833,7 +2858,7 @@ cd2 :       if (Me%ExternalVar%ContinuesCompute) then
     end subroutine SigmaZHybridSurface
 
     !-------------------------------------------------------------------------------
-    
+
 
     subroutine UpdateKfloor(GeometryID, SurfaceElevation, BathymNotCorrect, STAT)
 
@@ -2844,22 +2869,22 @@ cd2 :       if (Me%ExternalVar%ContinuesCompute) then
         integer, intent(out), optional              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
+        call Ready(GeometryID, ready_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
-            
+
             if (present(BathymNotCorrect)) then
                 Me%BathymNotCorrect = BathymNotCorrect
             else
-                Me%BathymNotCorrect = .false. 
+                Me%BathymNotCorrect = .false.
             endif
 
            !Updates the Matrixes which contains the Ks - KFloor, etc...
@@ -2867,11 +2892,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 call ConstructKFloor (SurfaceElevation)
             else
                 call ConstructKFloor
-            endif    
+            endif
 
             STAT_ = SUCCESS_
 
-        else cd1              
+        else cd1
 
             STAT_ = ready_
 
@@ -2889,21 +2914,22 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
     subroutine ComputeVerticalGeometry(GeometryID, WaterPoints3D, SurfaceElevation,      &
                                        ActualTime, VerticalVelocity, DT_Waterlevel,      &
-                                       SZZ, DecayTime, KTop, STAT)
+                                       SZZ, DecayTime, KTop, OpenPoints3D, STAT)
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: GeometryID
-        integer, dimension(:, :, :), pointer        :: WaterPoints3D
-        real, dimension(:, :), pointer, optional    :: SurfaceElevation
-        type (T_Time),            optional          :: ActualTime
-        real, dimension(:, :, :), pointer, optional :: VerticalVelocity             !Gives the vertical variation
-        real, intent(in), optional                  :: DT_Waterlevel                !for the lagragean coordinate
-        real, dimension(:, :, :), pointer, optional :: SZZ, DecayTime
-        integer, dimension(:, :), pointer, optional :: KTop
-        integer, intent(out), optional              :: STAT
+        integer                                        :: GeometryID
+        integer, dimension(:, :, :), pointer           :: WaterPoints3D
+        integer, dimension(:, :, :), pointer, optional :: OpenPoints3D
+        real, dimension(:, :), pointer, optional       :: SurfaceElevation
+        type (T_Time),            optional             :: ActualTime
+        real, dimension(:, :, :), pointer, optional    :: VerticalVelocity             !Gives the vertical variation
+        real, intent(in), optional                     :: DT_Waterlevel                !for the lagragean coordinate
+        real, dimension(:, :, :), pointer, optional    :: SZZ, DecayTime
+        integer, dimension(:, :), pointer, optional    :: KTop
+        integer, intent(out), optional                 :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
 
         !----------------------------------------------------------------------
@@ -2911,7 +2937,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
+        call Ready(GeometryID, ready_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
@@ -2921,20 +2947,21 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             endif
 
 
-            if (present(SZZ)) then    
+            if (present(SZZ)) then
                 call SetMatrixValue( GetPointer(Me%Distances%SZZ), Me%Size, SZZ )
             else
                !Computes SZZ
-                call ComputeSZZ(SurfaceElevation, TRANSIENTGEOMETRY, VerticalVelocity, DT_Waterlevel, WaterPoints3D)
-                
+                call ComputeSZZ(SurfaceElevation, TRANSIENTGEOMETRY, VerticalVelocity, DT_Waterlevel, WaterPoints3D, &
+                                OpenPoints3D)
+
                 if (Me%LastDomain%DomainType == Sigma) then
                     if (Me%LastDomain%SigmaZleveHybrid) then
                         ! SigmaZHybridSurface
                         call SigmaZHybridSurface(SurfaceElevation, WaterPoints3D)
                     endif
-                endif                                            
-                
-            endif  
+                endif
+
+            endif
 
             if(present(KTop))then
                 Me%KTop%Z(:,:) = KTop(:,:)
@@ -2943,9 +2970,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if(present(DecayTime)) then
                 Me%ExternalVar%DecayTime => DecayTime
             endif
-            
 
-            
+
+
             !Stores VolumeZOld
             call StoreVolumeZOld
 
@@ -2966,14 +2993,14 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 if (Me%FirstDomain%DomainType /= FixSediment) then
                     call ComputeWaterColumn(SurfaceElevation)
                 endif
-            endif                
+            endif
 
             nullify(Me%Externalvar%DecayTime)
 
 
             STAT_ = SUCCESS_
 
-        else cd1              
+        else cd1
 
             STAT_ = ready_
 
@@ -2984,7 +3011,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     end subroutine ComputeVerticalGeometry
 
     !--------------------------------------------------------------------------
-    
+
     subroutine ComputeKTop (SedimentDomain)
 
         !Arguments-------------------------------------------------------------
@@ -3091,7 +3118,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
 
         !Computes WaterColumnU
         !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
@@ -3107,7 +3134,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 kbottom             = KFloorU(i, j)
 
                 do k = kbottom, KUB
-                
+
                     WaterColumnU (i, j) =  WaterColumnU (i, j) + DUZ(i, j, k)
 
                 enddo
@@ -3133,7 +3160,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 kbottom             = KFloorV(i, j)
 
                 do k = kbottom, KUB
-                
+
                     WaterColumnV (i, j) =  WaterColumnV (i, j) + DVZ(i, j, k)
 
                 enddo
@@ -3167,7 +3194,40 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
      end subroutine ComputeWaterColumn
 
     !--------------------------------------------------------------------------
+    subroutine ComputeVolume2D !Joao Sobrinho
+        !locals-----------------------------------------------------------------
+        integer                                 :: i, j, STAT_CALL
+        real, dimension(:,:),     pointer       :: DUX, DVY
+        integer, dimension(:, :), pointer       :: WaterPoints2D
+        !Begin------------------------------------------------------------------
+        
+        !Gets DUX, DVY
+        call GetHorizontalGrid(Me%ObjHorizontalGrid, DUX = DUX, DVY = DVY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeVolume2D - Geometry - ERR01'
+        
+        !Gets WaterPoints2D
+        call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeVolume2D - Geometry - ERR02'
+        
+        !Integrate volumeZ - for 2way nesting purposes
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            Me%Volumes%VolumeZ_2D(i, j) = Me%WaterColumn%Z(i, j) * dble(DUX(i, j)) * dble(DVY(i, j)) *  &
+                                          WaterPoints2D(i, j)
+        enddo
+        enddo
+        
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DUX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeVolume2D - Geometry - ERR03'
 
+
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DVY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeVolume2D - Geometry - ERR04'
+        
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeVolume2D - Geometry - ERR05'
+    
+    end subroutine ComputeVolume2D
 
     !--------------------------------------------------------------------------
     !Computes the Distances (DWZ + DZZ + DUZ + DVZ + DZI + DZE)
@@ -3178,14 +3238,14 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         integer, dimension(:, :, :), pointer    :: WaterPoints3D
 
         !Local-----------------------------------------------------------------
-        real   , dimension(:, :, :), pointer    :: DWZ, DZZ, DUZ, DVZ, SZZ, DZI, DZE, DWZ_Xgrad, DWZ_Ygrad 
+        real   , dimension(:, :, :), pointer    :: DWZ, DZZ, DUZ, DVZ, SZZ, DZI, DZE, DWZ_Xgrad, DWZ_Ygrad
         real   , dimension(:, :   ), pointer    :: DUX, DVY
         real                                    :: aux
         integer                                 :: FacesOption
         integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                 :: i, j, k, STAT_CALL
         integer                                 :: CHUNK
-        
+
         !Begin-----------------------------------------------------------------
 
         !Worksize
@@ -3244,7 +3304,7 @@ cd1:    if (FacesOption == MinTickness) then
 
                 if (WaterPoints3D(i, j - 1, k) == WaterPoint .and.                            &
                     WaterPoints3D(i, j    , k) == WaterPoint) then
-                    DUZ(i, j, k) =  min(DWZ(i, j-1, k), DWZ(i, j, k)) 
+                    DUZ(i, j, k) =  min(DWZ(i, j-1, k), DWZ(i, j, k))
                 endif
 
             enddo
@@ -3263,7 +3323,7 @@ cd1:    if (FacesOption == MinTickness) then
                 if (WaterPoints3D(i - 1, j, k) == WaterPoint .and.                            &
                     WaterPoints3D(i    , j, k) == WaterPoint) then
 
-                    DVZ(i, j, k) =  min(DWZ(i-1, j, k), DWZ(i, j, k)) 
+                    DVZ(i, j, k) =  min(DWZ(i-1, j, k), DWZ(i, j, k))
 
                 endif
 
@@ -3277,7 +3337,7 @@ cd1:    if (FacesOption == MinTickness) then
 
             !! $OMP MASTER
             !Gets DZX, DZY
-            call GetHorizontalGrid(Me%ObjHorizontalGrid, DUX = DUX, DVY = DVY, & 
+            call GetHorizontalGrid(Me%ObjHorizontalGrid, DUX = DUX, DVY = DVY, &
                                    STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                                  &
@@ -3298,8 +3358,8 @@ cd1:    if (FacesOption == MinTickness) then
 
                     DUZ(i, j, k) =  (DWZ(i, j, k)     * DUX(i, j - 1) +                  &
                                      DWZ(i, j - 1, k) * DUX(i, j))    /                  &
-                                    (DUX(i, j - 1)    + DUX(i, j)) 
-                
+                                    (DUX(i, j - 1)    + DUX(i, j))
+
                 endif
 
             enddo
@@ -3355,7 +3415,7 @@ cd1:    if (FacesOption == MinTickness) then
         do i = ILB, IUB
 
             if (WaterPoints3D(i, j, k) == WaterPoint) then
-                DZZ(i, j, k) =  (DWZ(i, j, k+1) + DWZ(i, j, k)) / 2.0 
+                DZZ(i, j, k) =  (DWZ(i, j, k+1) + DWZ(i, j, k)) / 2.0
             endif
 
         enddo
@@ -3375,7 +3435,7 @@ cd1:    if (FacesOption == MinTickness) then
                 WaterPoints3D(i, j    , k) == WaterPoint) then
 
                 DZE(i, j, k) =  (DUZ(i, j, k+1) + DUZ(i, j, k)) / 2.
-            
+
             endif
 
         enddo
@@ -3395,7 +3455,7 @@ cd1:    if (FacesOption == MinTickness) then
                 WaterPoints3D(i    , j, k) == WaterPoint) then
 
                 DZI(i, j, k) =  (DVZ(i, j, k+1) + DVZ(i, j, k)) / 2.
-            
+
             endif
 
         enddo
@@ -3413,7 +3473,7 @@ cd1:    if (FacesOption == MinTickness) then
 
             if (WaterPoints3D(i, j - 1, k) == WaterPoint .and.                            &
                 WaterPoints3D(i, j    , k) == WaterPoint) then
-                
+
                 aux=(DWZ(i, j-1, k) + DWZ(i, j, k))
 
                 if (DUZ(i, j, k) > 0. .and. aux > 0.) then
@@ -3423,11 +3483,11 @@ cd1:    if (FacesOption == MinTickness) then
                 endif
 
             else if (WaterPoints3D(i, j - 1, k) == WaterPoint) then
- 
+
                 DWZ_Xgrad(i, j, k) =  0.
- 
+
             else if (WaterPoints3D(i, j    , k) == WaterPoint) then
-            
+
                 DWZ_Xgrad(i, j, k) =   1.
 
             endif
@@ -3447,23 +3507,23 @@ cd1:    if (FacesOption == MinTickness) then
 
             if (WaterPoints3D(i - 1, j, k) == WaterPoint .and.                            &
                 WaterPoints3D(i    , j, k) == WaterPoint) then
-                
+
                 aux= (DWZ(i, j, k) + DWZ(i-1, j, k))
-                
+
                 if (DVZ(i, j, k) > 0. .and. aux > 0.) then
                     DWZ_Ygrad(i, j, k) =  DWZ(i, j, k)/aux
                 else
                     DWZ_Ygrad(i, j, k) = 0.5
                 endif
-                
+
             else if (WaterPoints3D(i - 1, j, k) == WaterPoint) then
-            
+
                 DWZ_Ygrad(i, j, k) =  0.
-            
+
             else if (WaterPoints3D(i    , j, k) == WaterPoint) then
 
                 DWZ_Ygrad(i, j, k) =   1.
-            
+
             endif
 
         enddo
@@ -3518,7 +3578,7 @@ cd1:    if (FacesOption == MinTickness) then
         do j = JLB, JUB
         do i = ILB, IUB
             !Calculo dos volumes das celulas dos Z's como a area projectada * a altura media
-            ! de cada prisma 
+            ! de cada prisma
             Me%Volumes%VolumeZ(i, j ,k) = dble(Me%Distances%DWZ(i, j, k)) * &
                                           dble(DUX(i, j)) * dble(DVY(i, j))
         enddo
@@ -3534,7 +3594,7 @@ cd1:    if (FacesOption == MinTickness) then
             !Calculo dos volumes das celulas dos U's como a area projectada * a altura media
             Me%Volumes%VolumeU(i, j, k) = (Me%Volumes%VolumeZ(i, j-1, k)  + &
                                            Me%Volumes%VolumeZ(i, j, k  )) / &
-                                           2.0 
+                                           2.0
         enddo
         enddo
         !$OMP END DO
@@ -3545,7 +3605,7 @@ cd1:    if (FacesOption == MinTickness) then
         !$OMP DO SCHEDULE(STATIC, CHUNK)
         do j = JLB  , JUB
         do i = ILB+1, IUB
-            !Calculo dos volumes das celulas dos V's 
+            !Calculo dos volumes das celulas dos V's
             Me%Volumes%VolumeV(i, j, k) = (Me%Volumes%VolumeZ(i-1, j, k)  + &
                                            Me%Volumes%VolumeZ(i, j, k  )) / &
                                            2.0
@@ -3569,7 +3629,7 @@ cd1:    if (FacesOption == MinTickness) then
                 Me%Volumes%FirstVolW = .false.
             endif
             !$OMP END MASTER
-            
+
             !$OMP BARRIER
 
             !Computes VolumeW
@@ -3577,7 +3637,7 @@ cd1:    if (FacesOption == MinTickness) then
             !$OMP DO SCHEDULE(STATIC, CHUNK)
             do j = JLB     , JUB
             do i = ILB     , IUB
-                !Calculo dos volumes das celulas dos W's 
+                !Calculo dos volumes das celulas dos W's
                 Me%Volumes%VolumeW(i, j, k) = (Me%Volumes%VolumeZ(i, j, k-1)  + &
                                                Me%Volumes%VolumeZ(i, j, k  )) / &
                                                2.0
@@ -3654,7 +3714,7 @@ cd1:    if (FacesOption == MinTickness) then
         if (MonitorPerformance) call StartWatch ("ModuleGeometry", "ComputeAreas")
 
         CHUNK = Chunk_J(JLB,JUB)
-        !$OMP PARALLEL PRIVATE(i,j,k,WaterLevel)            
+        !$OMP PARALLEL PRIVATE(i,j,k,WaterLevel)
 
         do k = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -3662,7 +3722,7 @@ cd1:    if (FacesOption == MinTickness) then
         do i = ILB, IUB
             !Calculo das areas nas faces nos pontos de calculo U's (AREA_U(I,J,K))
 !PCL
-            Me%Areas%AreaU(i, j, k) = DUZ(i, j, k) * DYY (i, j)  
+            Me%Areas%AreaU(i, j, k) = DUZ(i, j, k) * DYY (i, j)
 
 !PCL
             Me%Areas%AreaV(i, j, k) = DVZ(i, j, k) * DXX (i, j)
@@ -3672,13 +3732,13 @@ cd1:    if (FacesOption == MinTickness) then
                 WaterLevel = max(-Me%Distances%SZZ(i, j, KUB), -Me%Distances%SZZ(i, j+1, KUB))
 
                 Me%Areas%AreaU(i, j, k) = Me%Areas%AreaU(i, j, k) *             &
-                                         (Me%Areas%Coef_U(k) + WaterLevel * Me%Areas%CoefX_U(k)) 
-                                                
+                                         (Me%Areas%Coef_U(k) + WaterLevel * Me%Areas%CoefX_U(k))
+
                 WaterLevel = max(-Me%Distances%SZZ(i, j, KUB), -Me%Distances%SZZ(i+1, j, KUB))
 
                 Me%Areas%AreaV(i, j, k) = Me%Areas%AreaV(i, j, k) *             &
                                          (Me%Areas%Coef_V(k) + WaterLevel * Me%Areas%CoefX_V(k))
-                                                   
+
 
 
             endif
@@ -3688,25 +3748,25 @@ cd1:    if (FacesOption == MinTickness) then
         !$OMP END DO
         enddo
 
-        !$OMP END PARALLEL          
+        !$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleGeometry", "ComputeAreas")
 
         !Nullifies auxilary pointers
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DXX, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ComputeAreas - Geometry - ERR02'
-            
+
 
 
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DYY, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ComputeAreas - Geometry - ERR03'
-            
-        
+
+
         !nullify local pointer
         nullify(DUZ, DVZ)
 
         !----------------------------------------------------------------------
-    
+
     end subroutine ComputeAreas
 
     !--------------------------------------------------------------------------
@@ -3737,13 +3797,13 @@ cd1:    if (FacesOption == MinTickness) then
         if (MonitorPerformance) call StartWatch ("ModuleGeometry", "StoreVolumeZOld")
 
         CHUNK = Chunk_J(JLB,JUB)
-        !$OMP PARALLEL PRIVATE(i,j,k) 
+        !$OMP PARALLEL PRIVATE(i,j,k)
 
         do k = KLB, KUB
         !$OMP DO SCHEDULE(STATIC, CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
-            Me%Volumes%VolumeZOld(i, j ,k) = Me%Volumes%VolumeZ(i, j ,k) 
+            Me%Volumes%VolumeZOld(i, j ,k) = Me%Volumes%VolumeZ(i, j ,k)
         enddo
         enddo
         !$OMP END DO
@@ -3758,14 +3818,15 @@ cd1:    if (FacesOption == MinTickness) then
 
     !--------------------------------------------------------------------------
     !For every domain calls the respective computation rotine
-    subroutine ComputeSZZ (SurfaceElevation, ComputionType, VerticalVelocity, DT_Waterlevel, WaterPoints3D)
+    subroutine ComputeSZZ (SurfaceElevation, ComputionType, VerticalVelocity, DT_Waterlevel, WaterPoints3D, &
+                           OpenPoints3D)
 
         !Parameter-------------------------------------------------------------
         real, dimension(:, :), pointer                 :: SurfaceElevation
         integer                                        :: ComputionType
         real, dimension(:, :, :), optional, pointer    :: VerticalVelocity
         real, intent(in), optional                     :: DT_Waterlevel
-        integer, dimension(:, :, :), optional, pointer :: WaterPoints3D
+        integer, dimension(:, :, :), optional, pointer :: WaterPoints3D, OpenPoints3D
 
         !Esternal--------------------------------------------------------------
 
@@ -3818,13 +3879,13 @@ cd1:    if (FacesOption == MinTickness) then
         endif
 
         !When this rotine is called from the constructor, all domains are initialized, so the
-        !variable ComputionType should be equal to INITIALGEOMETRY. In the case that this 
-        !rotine is called from the modifier, the variable ComputionType should be equal to 
-        !TRANSIENTGEOMETRY 
+        !variable ComputionType should be equal to INITIALGEOMETRY. In the case that this
+        !rotine is called from the modifier, the variable ComputionType should be equal to
+        !TRANSIENTGEOMETRY
 
         CurrentDomain => Me%FirstDomain
         do while (associated(CurrentDomain))
-                  
+
             select case (CurrentDomain%DomainType)
 
                 case (FixSpacing)
@@ -3846,24 +3907,28 @@ cd1:    if (FacesOption == MinTickness) then
                     else
                         !Do Nothing
                     endif
-                    
+
                 case (Sigma)
-                    
+
                     if ((ComputionType == INITIALGEOMETRY) .or.                         &
                         ((CurrentDomain%ID == Me%LastDomain%ID) .and.                   &
-                         (.not. CurrentDomain%IsLagrangian)))  then        
-                        
-                        call ComputeSigma(SurfaceElevation, CurrentDomain)  
-                    
+                         (.not. CurrentDomain%IsLagrangian)))  then
+
+                        call ComputeSigma(SurfaceElevation, CurrentDomain)
+
                     else if (CurrentDomain%IsLagrangian) then
-                        call ComputeLagrangianNew(SurfaceElevation, VerticalVelocity,   &
-                                                  DT_Waterlevel, CurrentDomain)
+
+                        call ComputeAvgVerticalVelocity(VerticalVelocity, GetPointer(Me%NearbyAvgVel_Z), Me%WorkSize, &
+                                                        OpenPoints3D)
+
+                        call ComputeLagrangianNew(SurfaceElevation, VerticalVelocity,           &
+                                                  GetPointer(Me%NearbyAvgVel_Z), DT_Waterlevel, CurrentDomain)
                     endif
-                    
+
                 case (Isopycnic)
 !                    call ConstructIsopycnic(ObjGeometry, CurrentDomain)
-                
-                !Lagrangian moved to cartesian and sigma. 
+
+                !Lagrangian moved to cartesian and sigma.
                 !Lagrangian is not a geometry but a computation method
 !                case (Lagrangian)
 !                    if (ComputionType == INITIALGEOMETRY) then
@@ -3878,30 +3943,33 @@ cd1:    if (FacesOption == MinTickness) then
 !                    endif
 
                 case (Cartesian)
-                    
+
                     if (.not. CurrentDomain%IsLagrangian) then
                         if ((ComputionType == INITIALGEOMETRY) .or.                            &
-                            (CurrentDomain%ID == Me%LastDomain%ID)) then          
-                            
+                            (CurrentDomain%ID == Me%LastDomain%ID)) then
+
                             call ComputeCartesian(SurfaceElevation, CurrentDomain, ComputionType)
-                        
+
                         endif
                     else
                         if (ComputionType == INITIALGEOMETRY) then
-                            
-                            if (CurrentDomain%ID == Me%LastDomain%ID) then 
+
+                            if (CurrentDomain%ID == Me%LastDomain%ID) then
                                 !cartesian domain has to adapt to surface elevation
-                                call ComputeCartesianNew(SurfaceElevation, CurrentDomain)    
+                                call ComputeCartesianNew(SurfaceElevation, CurrentDomain)
                             else
                                 call ComputeCartesian(SurfaceElevation, CurrentDomain, ComputionType)
                             endif
-                            
-                        else        
-                            call ComputeLagrangianNew(SurfaceElevation, VerticalVelocity,    &
-                                                      DT_Waterlevel, CurrentDomain)
+
+                        else
+                            call ComputeAvgVerticalVelocity(VerticalVelocity, GetPointer(Me%NearbyAvgVel_Z), &
+                                                            Me%WorkSize, OpenPoints3D)
+
+                            call ComputeLagrangianNew(SurfaceElevation, VerticalVelocity,            &
+                                                      GetPointer(Me%NearbyAvgVel_Z), DT_Waterlevel, CurrentDomain)
                         endif
                     endif
-                    
+
 !                !This geometry will be discontinued
 !                case (Harmonic)
 !
@@ -3918,7 +3986,7 @@ cd1:    if (FacesOption == MinTickness) then
                         !Do Nothing
                     endif
 
-                case default           
+                case default
                     write(*,*)'UNKNOWN_ Domain type - review data file'
                     stop 'ComputeSZZ - Geometry - ERR01.'
 
@@ -3972,7 +4040,7 @@ cd1:    if (FacesOption == MinTickness) then
             do j = JLB, JUB
             do i = ILB, IUB
                 Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k-1) - LayerThickness
-                                                     
+
             enddo
             enddo
 
@@ -3993,9 +4061,9 @@ cd1:    if (FacesOption == MinTickness) then
         integer                                 :: i, j, k, ILB, IUB, JLB, JUB
         real, dimension(:, :), pointer          :: SedThickness
         integer                                 :: STAT_CALL
-        
+
         !Begin-----------------------------------------------------------------
-        
+
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
 
@@ -4009,22 +4077,22 @@ cd1:    if (FacesOption == MinTickness) then
 
             do j = JLB, JUB
             do i = ILB, IUB
-                
+
                 LayerThickness            = SedThickness(i,j) * Domain%LayerThickness(k)
 
                 Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k-1) - LayerThickness
-                                                     
+
             enddo
             enddo
 
         enddo
-        
+
         call UngetGridData(Me%ObjTopography, SedThickness, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ComputeInitSediment - ModuleGeometry - ERR02'
-            
+
 
     end subroutine ComputeInitSediment
-    
+
 
     !--------------------------------------------------------------------------
     !Computes SZZ for a FixSediment Domain
@@ -4061,7 +4129,7 @@ cd1:    if (FacesOption == MinTickness) then
             if (WaterPoints2D(i, j) == WaterPoint) then
 
                 IntegratedDisplacement = 0.
-                do k = Domain%LowerLayer, Domain%UpperLayer 
+                do k = Domain%LowerLayer, Domain%UpperLayer
                     Displacement            = -1. * VerticalVelocity(i, j, k+1) * DT
                     IntegratedDisplacement  = IntegratedDisplacement + Displacement
                     Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k) + &
@@ -4072,16 +4140,16 @@ cd1:    if (FacesOption == MinTickness) then
 
         enddo
         enddo
-        
+
 
         !UnGets WaterPoints2D
         call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                             &
             stop 'ComputeFixSediment - Geometry - ERR02'
-        
+
     end subroutine ComputeFixSediment
 
-    
+
     !--------------------------------------------------------------------------
     !Computes SZZ for a Cartesian Domain
 
@@ -4102,9 +4170,9 @@ cd1:    if (FacesOption == MinTickness) then
         integer                                 :: ktop, KFloorZ
 
         nullify(WaterPoints2D)
-        
+
         AllmostZero_ = 5e-4
-        
+
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
 
@@ -4119,7 +4187,7 @@ cd1:    if (FacesOption == MinTickness) then
 cd1:    if (ComputionType == INITIALGEOMETRY) then
 
             kbottom = Domain%LowerLayer
-     
+
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -4139,8 +4207,8 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
 
                     !Inits SZZ
                     Me%Distances%SZZ(i, j, Domain%UpperLayer) = TopDepth
-                   
-                    
+
+
                     !griflet: I must pass the structured data variables into scalar variables
                     !otherwise the model returns an access violation in openmp mode
                     !for no apparent reason...
@@ -4148,7 +4216,7 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
                     kbottom = Domain%LowerLayer
                     KFloorZ = Me%KFloor%Z(i,j)
                     if ( kbottom < KFloorZ ) kbottom = KFloorZ
-                    
+
                     do k = ktop - 1, kbottom, -1
 
                         !The Layerthickness is now given in meters
@@ -4160,7 +4228,7 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
                             if (abs(Me%Distances%SZZ(i, j, k) - Me%Distances%SZZ(i, j, k - 1)) <= AllmostZero_) then
                                 Me%Distances%SZZ(i, j, k - 1) = FillValueDouble
                                 Me%KFloor%Z(i, j) = Me%KFloor%Z(i, j) + 1
-                                
+
                                 if (present(WaterPoints3D)) then
                                     WaterPoints3D(i, j, k) = 0
                                 endif
@@ -4176,13 +4244,13 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
 
         endif  cd1
 
-        if (Domain%UpperLayer == Me%WorkSize%KUB) then 
+        if (Domain%UpperLayer == Me%WorkSize%KUB) then
 
             do j = JLB, JUB
             do i = ILB, IUB
 
                 if (WaterPoints2D(i, j) == WaterPoint)  then
-                                
+
                       !In the cartesian domain the layer close to the surface have variable thickness
                       Me%Distances%SZZ(i, j, Me%WorkSize%KUB) = -1. * SurfaceElevation(i, j)
 
@@ -4202,7 +4270,7 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
 
 
     end subroutine ComputeCartesian
-    
+
 
     !--------------------------------------------------------------------------
     !Computes SZZ for a Harmonic Domain
@@ -4284,7 +4352,7 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
                         Me%Distances%SZZ(i, j, kbottom) = Me%Distances%SZZ(i, j, kbottom-1) - MinEsp
                         k = kbottom
                         do while (Me%Distances%SZZ(i, j, k) - Me%Distances%SZZ(i, j, k + 1) <  MinEsp)
-                            Me%Distances%SZZ(i, j, k + 1) = Me%Distances%SZZ(i, j, k) - MinEsp 
+                            Me%Distances%SZZ(i, j, k + 1) = Me%Distances%SZZ(i, j, k) - MinEsp
                             k = k + 1
                         enddo
                     endif
@@ -4333,13 +4401,13 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
 
             if (WaterPoints2D(i, j) == WaterPoint.and.                              &
                 Domain%UpperLayer >= Me%KFloor%Z(i, j)) then
-                
+
                 !Lowest layer in the domain
                 LowerLayer = max(Domain%LowerLayer, Me%KFloor%Z(i, j))
 
                 !Upper layer in the domain
                 UpperLayer = Domain%UpperLayer
-                
+
                 !Inits SZZ
                 Me%Distances%SZZ(i, j, UpperLayer) = 0.0
 
@@ -4354,15 +4422,15 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
 
                 !Sets SZZ(KUB) to waterlevel
                 Me%Distances%SZZ(i, j, UpperLayer)   = -1. * SurfaceElevation(i, j)
-                
+
                 !in negative levels, upper layer will be attached to surface but below need to
                 !be adjusted
                 if (SurfaceElevation(i, j) .lt. 0.) then
-                
+
                     !Calculates cartesian down (as harmonic)
                     k              = UpperLayer - 1
                     LayerThickness = Me%Distances%SZZ(i, j, k) - Me%Distances%SZZ(i, j, k+1)
-                    MinThick       = Domain%LayerThickness(k) * Domain%MinInitialLayerThickness 
+                    MinThick       = Domain%LayerThickness(k) * Domain%MinInitialLayerThickness
                     do while (LayerThickness < MinThick .and. k >= LowerLayer)
                         Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k+1) + MinThick
                         k                         = k - 1
@@ -4376,38 +4444,38 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
                     !2. else, put MinThick in all from bottom until every cell has thickness > MinThick
                     !In these cases velocity is forgotten but this only occurs in extreme events with
                     !very low water columns
-                    LayerThickness   = (Me%Distances%SZZ(i,j,LowerLayer-1) - Me%Distances%SZZ(i,j,LowerLayer)) 
+                    LayerThickness   = (Me%Distances%SZZ(i,j,LowerLayer-1) - Me%Distances%SZZ(i,j,LowerLayer))
                     MinThick         = Domain%LayerThickness(LowerLayer) * Domain%MinInitialLayerThickness
                     if (LayerThickness < MinThick) then
-                        
+
                         TotalMinThick = 0.
                         do k = LowerLayer, UpperLayer
-                            TotalMinThick = TotalMinThick                                              & 
+                            TotalMinThick = TotalMinThick                                              &
                                             + (Domain%LayerThickness(k) * Domain%MinInitialLayerThickness)
                         enddo
 
                         if (Me%Distances%SZZ(i, j, LowerLayer-1)  - Me%Distances%SZZ(i, j, UpperLayer) &
                              <= TotalMinThick) then
-                            
+
                             MeanLayerThickness = (Me%Distances%SZZ(i, j, LowerLayer-1)  -              &
                                                   Me%Distances%SZZ(i, j, UpperLayer)      ) /          &
                                                   float(UpperLayer - LowerLayer + 1)
-                            
+
                             do k = UpperLayer - 1, LowerLayer, -1
                                 Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k+1) + MeanLayerThickness
                             enddo
-                        
+
                         else
-                            
+
                             k = LowerLayer
                             do while (Me%Distances%SZZ(i, j, k-1) - Me%Distances%SZZ(i, j, k) <  MinThick)
-                                Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k-1) - MinThick 
+                                Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k-1) - MinThick
                                 k = k + 1
                                 MinThick   = Domain%LayerThickness(k) * Domain%MinInitialLayerThickness
                             enddo
                         endif
                     endif
-                endif            
+                endif
             endif
         enddo
         enddo
@@ -4458,20 +4526,20 @@ cd1:    if (ComputionType == INITIALGEOMETRY) then
         if (MonitorPerformance) call StartWatch ("ModuleGeometry", "ComputeSigma")
 
         CHUNK = Chunk_J(JLB,JUB)
-        !$OMP PARALLEL PRIVATE(i,j, TopDepth, BottomDepth, DomainThickness) &            
+        !$OMP PARALLEL PRIVATE(i,j, TopDepth, BottomDepth, DomainThickness) &
         !$OMP PRIVATE(LayerThickness, MeanLayerThicknessBelow, MinorThickness) &
         !$OMP PRIVATE(LowerLayerTwoDomain, UpperLayerTwoDomain, TwoDomainThickness) &
-        !$OMP PRIVATE(s, A, B, C) 
+        !$OMP PRIVATE(s, A, B, C)
 
 
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj:    do j = JLB, JUB
 doi:    do i = ILB, IUB
 
-            
+
 cd4:        if (WaterPoints2D(i, j) == WaterPoint .and. &
                 LowerLayer >= Me%KFloor%Z(i, j) ) then
-                
+
                 !Upper Limit (m)
                 if (Domain%ID < Me%LastDomain%ID) then
                     if (associated(Domain%Next)) then
@@ -4489,28 +4557,28 @@ cd4:        if (WaterPoints2D(i, j) == WaterPoint .and. &
 
                 !Lower Limit
                 BottomDepth = Me%Distances%SZZ(i, j, LowerLayer-1)
-        
-                !DomainThickness 
+
+                !DomainThickness
                 DomainThickness = BottomDepth - TopDepth
 
                 !Frank
                 ! The test below is now done in the hydrodynamic module. It can't be done here,
-                ! due to the Volumebalance of the cell. 
-                ! Paulo Chambel Leitão
-                !OLD WAY - is correct because in this way the volume is never zero. 
+                ! due to the Volumebalance of the cell.
+                ! Paulo Chambel Leitï¿½o
+                !OLD WAY - is correct because in this way the volume is never zero.
                 !if the volume is zero all the operations that devided the volume will have a overflow
 !                if (DomainThickness <= Me%WaterColumn%ZMin) then
 !                    write(*,*)'Low domain thickness', i, j
 !                    DomainThickness = Me%WaterColumn%ZMin
 !                endif
 
-                ! Paulo Chambel Leitão
-                !NEW WAY - is wrong            
+                ! Paulo Chambel Leitï¿½o
+                !NEW WAY - is wrong
                 ! NOTE: If the Waterlevel in a certain cell is lower then the WaterColumn%ZMin, water
                 ! can just enter to the cell. So it will be no "danger" (I hope) to calculate the
-                ! volumes of the cell, since the waterlevel is positive. 
-                ! If the WaterLevel is negative, the volumes and areas are set to zero, instead of 
-                ! setting them to WaterColumn%ZMin (like until now), so the erro is smaller. 
+                ! volumes of the cell, since the waterlevel is positive.
+                ! If the WaterLevel is negative, the volumes and areas are set to zero, instead of
+                ! setting them to WaterColumn%ZMin (like until now), so the erro is smaller.
                 ! Frank May 99
                 !if (DomainThickness < 0.) DomainThickness = 0.
 
@@ -4521,34 +4589,34 @@ cd4:        if (WaterPoints2D(i, j) == WaterPoint .and. &
 
                     if (Domain%RomsDistortion) then
                     !ROMS Stretching Function
-                        !Song, Y. and D. B. Haidvogel, 1994: A semi-implicit ocean circulation model 
+                        !Song, Y. and D. B. Haidvogel, 1994: A semi-implicit ocean circulation model
                         !using a generalized topography-following coordinate system, J. Comp. Phys., 115 (1), 228-244. (PDF)
                         !https://www.myroms.org/wiki/index.php/Vertical_S-coordinate
                         s = s + Domain%LayerThickness(k)
-                        
+
                         A = (1.-Domain%theta_b)*sinh(Domain%theta_s * s) / sinh(Domain%theta_s)
-                        
+
                         B = tanh(Domain%theta_s*(s+0.5))/tanh(0.5*Domain%theta_s)
-                        
+
                         C = A  + Domain%theta_b * 0.5*(B-1.)
-                        
-                        Me%Distances%SZZ(i, j, k) = - (Domain%Hc * s + (DomainThickness - Domain%Hc) * C) + Topdepth           
-                    
+
+                        Me%Distances%SZZ(i, j, k) = - (Domain%Hc * s + (DomainThickness - Domain%Hc) * C) + Topdepth
+
                         cycle
-                    endif                
-                    
-                
+                    endif
+
+
                     LayerThickness = DomainThickness * Domain%LayerThickness(k)
                     Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k-1) - LayerThickness
                     if (LayerThickness < MinorThickness) MinorThickness = LayerThickness
                 enddo
-                
+
                  Me%Distances%SZZ(i, j, UpperLayer) = TopDepth
-                
+
                 !Redefinition of the current domain and the lower domain in the case that the lower
-                !one is of the type FixSpacing and, at the same time (the DomainThickness is less 
+                !one is of the type FixSpacing and, at the same time (the DomainThickness is less
                 !or equal to the WaterColumn%ZMin) or (the Minor layer thichness is less or equal to
-                !the mean layer thickness of the fixspacing domain). 
+                !the mean layer thickness of the fixspacing domain).
                 !In the case this happens, the thickness of the two layers is added and then
                 !evenly distributed
                 !
@@ -4564,8 +4632,8 @@ cd2:                if (Domain%Prev%DomainType == FixSpacing) then
                         LowerLayerTwoDomain = Domain%Prev%LowerLayer
                         UpperLayerTwoDomain = Domain%UpperLayer
                         TwoDomainThickness  = Me%Distances%SZZ(i, j, LowerLayerTwoDomain-1) &
-                                            - Me%Distances%SZZ(i, j, UpperLayerTwoDomain) 
-                        
+                                            - Me%Distances%SZZ(i, j, UpperLayerTwoDomain)
+
 cd3:                    if (TwoDomainThickness <= (Me%WaterColumn%ZMin + &
                             Domain%Prev%TotalThickness)) then
 
@@ -4584,7 +4652,7 @@ cd3:                    if (TwoDomainThickness <= (Me%WaterColumn%ZMin + &
                             enddo
 
                         endif cd3
-                    endif cd2   
+                    endif cd2
                 endif cd1
 
             endif cd4
@@ -4594,8 +4662,8 @@ cd3:                    if (TwoDomainThickness <= (Me%WaterColumn%ZMin + &
         !$OMP END DO
 
         !$OMP END PARALLEL
-        
-        if (MonitorPerformance) call StopWatch ("ModuleGeometry", "ComputeSigma")       
+
+        if (MonitorPerformance) call StopWatch ("ModuleGeometry", "ComputeSigma")
 
        !UnGets WaterPoints2D
         call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
@@ -4629,7 +4697,7 @@ cd3:                    if (TwoDomainThickness <= (Me%WaterColumn%ZMin + &
 
         !Begin-----------------------------------------------------------------
 
-        !Shorten variables name 
+        !Shorten variables name
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -4664,10 +4732,10 @@ cd0 :       if (WaterPoints2D(i, j) == WaterPoint) then
 
                 !Lower Limit
                 BottomDepth = Me%Distances%SZZ(i, j, LowerLayer-1)
-            
-                !DomainThickness 
+
+                !DomainThickness
                 DomainThickness = BottomDepth - TopDepth
-            
+
                 !See ComputeSigma for more information about the next statement
                 !This correction is now done in the hydrodynamic module - Frank
 !                if (DomainThickness <= Me%WaterColumn%ZMin) &
@@ -4676,21 +4744,21 @@ cd0 :       if (WaterPoints2D(i, j) == WaterPoint) then
                 !Resizes the layers, according to the vertical velocity
                 !This process is done from the BOTTOM to the TOP
 
-                !MinimalThickness is now defined as a percentage of the initial thickness of each layer  
+                !MinimalThickness is now defined as a percentage of the initial thickness of each layer
                 MinimalThickness   = Domain%MinEvolveLayerThickness
 
 
-                !DisplacementLimit is the maximum displacement that the model allow cell 
+                !DisplacementLimit is the maximum displacement that the model allow cell
                 !faces to move vertically in meters
                 DisplacementLimit  = Domain%DisplacementLimit
 
                 do k = LowerLayer, UpperLayer-1
 
                     if (k+1 == Me%WorkSize%KUB) then
-                        !Free surface and do not have a rigid reference 
+                        !Free surface and do not have a rigid reference
                         UpSZZ = Me%Distances%SZZ(i, j, k+1)
                     else
-                        !Need a rigid reference 
+                        !Need a rigid reference
                         UpSZZ = Me%Distances%InitialSZZ(i, j, k+1)
                     endif
 
@@ -4723,12 +4791,12 @@ cd0 :       if (WaterPoints2D(i, j) == WaterPoint) then
                                               MaximumDisplacement     *                      &
                                               (1.0 - GridMovementDump)
 
-                    !For the Layer k the Vertical Velocity to consider is the velocity in 
-                    !k+1(Upper Face) once the vertical velocity has a different index than 
+                    !For the Layer k the Vertical Velocity to consider is the velocity in
+                    !k+1(Upper Face) once the vertical velocity has a different index than
                     !the SZZ
                     FreeGridVelocity = VerticalVelocity(i, j, k+1)
 
-                    
+
                     FreeSZZ = Me%Distances%SZZ(i, j, k) -                           &
                               FreeGridVelocity * DT_Waterlevel
 
@@ -4756,12 +4824,12 @@ cd0 :       if (WaterPoints2D(i, j) == WaterPoint) then
                                                     (Me%Distances%InitialSZZ(i, j, k) - &
                                                      Me%Distances%SZZ(i, j, k))       * &
                                                      DT_Waterlevel / Me%ExternalVar%DecayTime(i, j, k)
-                                                    
+
                     endif
 
                 enddo
-                !Actualizes SZZ at the surface if the domain exists (DomainThickness>=0) 
-                !in this I,J cell 
+                !Actualizes SZZ at the surface if the domain exists (DomainThickness>=0)
+                !in this I,J cell
                 if (DomainThickness>=0)                                                 &
                     Me%Distances%SZZ(i, j, UpperLayer) = TopDepth
 
@@ -4780,11 +4848,11 @@ cd0 :       if (WaterPoints2D(i, j) == WaterPoint) then
 
     !--------------------------------------------------------------------------
     !Computes SZZ for a Lagrangian Domain - from up
-    subroutine ComputeLagrangianNew(SurfaceElevation, VerticalVelocity, DT_Waterlevel, Domain)
+    subroutine ComputeLagrangianNew(SurfaceElevation, VerticalVelocity, ZonalVerticalVelocity, DT_Waterlevel, Domain)
 
         !Parameter-------------------------------------------------------------
         real, dimension(:, :), pointer          :: SurfaceElevation
-        real, dimension(:, :, :), pointer       :: VerticalVelocity
+        real, dimension(:, :, :), pointer       :: VerticalVelocity, ZonalVerticalVelocity
         real, intent(in)                        :: DT_Waterlevel
         type (T_Domain), pointer                :: Domain
 
@@ -4805,7 +4873,7 @@ cd0 :       if (WaterPoints2D(i, j) == WaterPoint) then
 
         !Begin-----------------------------------------------------------------
 
-        !Shorten variables name 
+        !Shorten variables name
 
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -4816,13 +4884,13 @@ cd0 :       if (WaterPoints2D(i, j) == WaterPoint) then
         !Upper Layer of the Domain
         UpperLayer         = Domain%UpperLayer
 
-        !MinimalThickness is now defined as a percentage of the initial thickness of each layer  
+        !MinimalThickness is now defined as a percentage of the initial thickness of each layer
         MinimalThickness   = Domain%MinEvolveLayerThickness
 
-        !DisplacementLimit is the maximum displacement that the model allow cell 
+        !DisplacementLimit is the maximum displacement that the model allow cell
         !faces to move vertically in meters in one iteration
-        DisplacementLimit  = Domain%DisplacementLimit        
-        
+        DisplacementLimit  = Domain%DisplacementLimit
+
         !cartesian domain limits are computed once (not changing)
         if (Domain%DomainType == Cartesian .and. .not. Me%LagrangianLimitsComputed) then
             do k = Domain%LowerLayer, UpperLayer
@@ -4854,12 +4922,12 @@ cd0 :       if (WaterPoints2D(i, j) == WaterPoint .and.                         
 
                 !Lower Limit
                 BottomDepth      = Me%Distances%SZZ(i, j, LowerLayer-1)
-            
-                !DomainThickness 
+
+                !DomainThickness
                 DomainThickness  = BottomDepth - TopDepth
-                
-                !Actualizes SZZ at the surface if the domain exists (DomainThickness>=0) 
-                !in this I,J cell 
+
+                !Actualizes SZZ at the surface if the domain exists (DomainThickness>=0)
+                !in this I,J cell
                 if (DomainThickness >= 0)  &
                     Me%Distances%SZZ(i, j, UpperLayer) = TopDepth
 
@@ -4870,85 +4938,87 @@ cd0 :       if (WaterPoints2D(i, j) == WaterPoint .and.                         
                                                       * (1. - MinimalThickness)
                         Domain%LayerMaxThickness(k) = Domain%LayerThickness(k) * DomainThickness &
                                                       * (1. + MinimalThickness)
-                    enddo 
+                    enddo
                 endif
 
 do1 :           do k = UpperLayer-1, LowerLayer, -1
-                    
-                    
+
+
                     !For the Layer k the Vertical Velocity to consider is the velocity in 
                     !k+1(Upper Face) once the vertical velocity has a different index than 
                     !the SZZ
-                    FreeGridVelocity  = VerticalVelocity(i, j, k+1)
+                    ! Joao Sobrinho - Added relaxation to average of the nearby (and current cell) vertical velocity
+                    FreeGridVelocity  = VerticalVelocity(i, j, k+1)      * (1 - Domain%RelaxToAverageFactor) + &
+                                        ZonalVerticalVelocity(i, j, k+1) * Domain%RelaxToAverageFactor
 
                     FreeSZZ           = Me%Distances%SZZ(i, j, k) -           &
                                         FreeGridVelocity * DT_Waterlevel
                     
                     NewSZZ            = FreeSZZ
-                                       
+
                     !verify if the displacement was not over the limits (compressed cell min thick
                     !and expanded cell maximum thickness
                     if (NewSZZ > Me%Distances%SZZ(i, j, k)) then !lowered layer, compresses below layer and expands above layer
-                    
+
                         CompressionLimitSZZ     = Me%Distances%SZZ(i,j,k-1) - &
                                                   Domain%LayerMinThickness(k)
-                                              
+
                         ExpansionLimitSZZ       = Me%Distances%SZZ(i,j,k+1) + &
                                                   Domain%LayerMaxThickness(k+1)
-                        
+
                         DisplacementLimitSZZ    = Me%Distances%SZZ(i, j, k) + DisplacementLimit
-                        
-                        
+
+
                         MaxDisplacementSZZ      = min (CompressionLimitSZZ,   &
                                                        ExpansionLimitSZZ,     &
                                                        DisplacementLimitSZZ)
-      
-                        
+
+
                         if (NewSZZ > MaxDisplacementSZZ) NewSZZ = MaxDisplacementSZZ
- 
-                        
+
+
                     elseif  (NewSZZ < Me%Distances%SZZ(i, j, k)) then !raised layer, compresses above layer and expands below layer
-                                               
+
                         CompressionLimitSZZ     = Me%Distances%SZZ(i,j,k+1) + &
                                                   Domain%LayerMinThickness(k+1)
-                                            
+
                         ExpansionLimitSZZ       = Me%Distances%SZZ(i,j,k-1) - &
                                                   Domain%LayerMaxThickness(k)
-                                             
+
                         DisplacementLimitSZZ    = Me%Distances%SZZ(i, j, k) - DisplacementLimit
 
-                        
+
                         MaxDisplacementSZZ      = max (CompressionLimitSZZ,   &
                                                        ExpansionLimitSZZ,     &
                                                        DisplacementLimitSZZ)
-                        
-                        
+
+
                         if (NewSZZ < MaxDisplacementSZZ) NewSZZ = MaxDisplacementSZZ
-                        
-                        
+
+
                     endif
-                    
+
                     Me%Distances%SZZ(i, j, k)     = NewSZZ
-                    
-                    !Layers can not have thickness lower than minimum. push them down 
-                    !Avoid very thin or negative thickness. May happen when surface water 
+
+                    !Layers can not have thickness lower than minimum. push them down
+                    !Avoid very thin or negative thickness. May happen when surface water
                     !is lowering but water is travelling horizontal in the cell so the
                     !above process does not change enough layers position
                     if (Me%Distances%SZZ(i, j, k) - Me%Distances%SZZ(i, j, k+1) <  &
                         Domain%LayerMinThickness(k+1) ) then
-                        
+
                         Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k+1) +  &
                                                     Domain%LayerMinThickness(k+1)
                     endif
-                    
-                    
+
+
                     !Nudging - layers need to have relaxation to initial layer definition
                     if (associated(Me%ExternalVar%DecayTime)) then
                         Me%Distances%SZZ(i, j, k) =  Me%Distances%SZZ(i, j, k) +        &
                                                     (Me%Distances%InitialSZZ(i, j, k) - &
                                                      Me%Distances%SZZ(i, j, k)) *       &
                                                      DT_Waterlevel / Me%ExternalVar%DecayTime(i, j, k)
-                                                    
+
                     endif
 
                 enddo do1
@@ -4960,10 +5030,10 @@ do1 :           do k = UpperLayer-1, LowerLayer, -1
                 !2. else, put MinThick in all from bottom until every cell has thickness > MinThick
                 !In these cases velocity is forgotten but this only occurs in extreme events with
                 !very low water columns
-                Thickness   = (Me%Distances%SZZ(i,j,LowerLayer-1) - Me%Distances%SZZ(i,j,LowerLayer)) 
+                Thickness   = (Me%Distances%SZZ(i,j,LowerLayer-1) - Me%Distances%SZZ(i,j,LowerLayer))
                 MinThick    = Domain%LayerMinThickness(LowerLayer)
                 if (Thickness < MinThick) then
-                    
+
                     TotalMinThick = 0.
                     do k = LowerLayer, UpperLayer
                         TotalMinThick = TotalMinThick + Domain%LayerMinThickness(k)
@@ -4971,25 +5041,25 @@ do1 :           do k = UpperLayer-1, LowerLayer, -1
 
                     if (Me%Distances%SZZ(i, j, LowerLayer-1)  - Me%Distances%SZZ(i, j, UpperLayer) &
                          <= TotalMinThick) then
-                        
+
                         MeanLayerThickness = (Me%Distances%SZZ(i, j, LowerLayer-1)  -              &
                                               Me%Distances%SZZ(i, j, UpperLayer)      ) /          &
                                               float(UpperLayer - LowerLayer + 1)
-                        
+
                         do k = UpperLayer - 1, LowerLayer, -1
                             Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k+1) + MeanLayerThickness
                         enddo
-                    
+
                     else
-                        
+
                         k = LowerLayer
                         do while (Me%Distances%SZZ(i, j, k-1) - Me%Distances%SZZ(i, j, k) <  MinThick)
-                            Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k-1) - MinThick 
+                            Me%Distances%SZZ(i, j, k) = Me%Distances%SZZ(i, j, k-1) - MinThick
                             k = k + 1
                             MinThick   = Domain%LayerMinThickness(k)
                         enddo
                     endif
-                endif                    
+                endif
 
             endif cd0
 
@@ -5000,10 +5070,10 @@ do1 :           do k = UpperLayer-1, LowerLayer, -1
         call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'ComputeLagrangianNew - ModuleGeometry - ERR200'
-        
+
 !        deallocate (OldSZZ)
 !        nullify (OldSZZ)
-        
+
     end subroutine ComputeLagrangianNew
 
     !--------------------------------------------------------------------------
@@ -5017,7 +5087,7 @@ do1 :           do k = UpperLayer-1, LowerLayer, -1
         integer, intent(out), optional              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
         integer                                     :: i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
 
@@ -5026,7 +5096,7 @@ do1 :           do k = UpperLayer-1, LowerLayer, -1
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
+        call Ready(GeometryID, ready_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
@@ -5074,7 +5144,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             STAT_ = SUCCESS_
 
-        else 
+        else
 
             STAT_ = ready_
 
@@ -5098,7 +5168,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         integer, intent(out), optional              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
         integer                                     :: i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
 
@@ -5107,7 +5177,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
+        call Ready(GeometryID, ready_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
@@ -5155,7 +5225,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             STAT_ = SUCCESS_
 
-        else 
+        else
 
             STAT_ = ready_
 
@@ -5166,7 +5236,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             STAT = STAT_
 
     end subroutine WriteGeometryBin
-    
+
     !----------------------------------------------------------------------------
 
 
@@ -5178,24 +5248,24 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Parameter-------------------------------------------------------------
         integer                                     :: GeometryID
         integer, intent(in)                         :: ObjHDF5
-        logical, intent(in ), optional              :: AddFaces                
+        logical, intent(in ), optional              :: AddFaces
         integer, intent(out), optional              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: STAT_CALL
-        logical                                     :: AddFaces_          
+        logical                                     :: AddFaces_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
+        call Ready(GeometryID, ready_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
-            
+
             !WorkSize
             ILB = Me%WorkSize%ILB
             IUB = Me%WorkSize%IUB
@@ -5205,19 +5275,19 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             KLB = Me%WorkSize%KLB
             KUB = Me%WorkSize%KUB
-            
+
             if (present(AddFaces)) then
                 AddFaces_ = AddFaces
             else
-                AddFaces_ = .false. 
-            endif      
- 
+                AddFaces_ = .false.
+            endif
+
             if (AddFaces_) then
                 IUB = IUB + 1
                 JUB = JUB + 1
                 KUB = KUB + 1
             endif
-        
+
             !Sets limits for next write operations
             call HDF5SetLimits(ObjHDF5, ILB, IUB, JLB, JUB, KLB-1, KUB, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR01'
@@ -5246,7 +5316,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                Array3D = GetPointer(Me%Volumes%VolumeZOld),         &
                                STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'WriteGeometryHDF - Geometry - ERR05'
-            
+
             call HDF5WriteData(ObjHDF5,"/Geometry", "KTop", "-",                    &
                                Array2D = GetPointer(Me%KTop%Z),                     &
                                STAT = STAT_CALL)
@@ -5257,7 +5327,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             STAT_ = SUCCESS_
 
-        else 
+        else
 
             STAT_ = ready_
 
@@ -5268,7 +5338,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             STAT = STAT_
 
     end subroutine WriteGeometryHDF
-    
+
     !----------------------------------------------------------------------------
 
     subroutine ReadGeometryHDF(GeometryID, HDF5FileName, MasterOrSlave, AddFaces, STAT)
@@ -5277,31 +5347,31 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         integer                                 :: GeometryID
         character(len=*)                        :: HDF5FileName
         logical, intent(in ), optional          :: MasterOrSlave
-        logical, intent(in ), optional          :: AddFaces        
+        logical, intent(in ), optional          :: AddFaces
         integer, intent(out), optional          :: STAT
 
         !Local-----------------------------------------------------------------
         type (T_Size2D)                         :: WindowLimitsJI
-        integer                                 :: ready_   
+        integer                                 :: ready_
         integer                                 :: STAT_
         integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                                 :: IUW, JUW, ILW, JLW        
-        integer                                 :: Imax, Jmax, Kmax 
+        integer                                 :: IUW, JUW, ILW, JLW
+        integer                                 :: Imax, Jmax, Kmax
         integer                                 :: STAT_CALL
         integer                                 :: ObjHDF5 = 0
         integer                                 :: HDF5_READ
         logical                                 :: MasterOrSlave_
         integer, dimension(:,:  ), pointer      :: Aux2DInt
         real,    dimension(:,:,:), pointer      :: Aux3DReal
-        real(8), dimension(:,:,:), pointer      :: Aux3DR8      
-        logical                                 :: AddFaces_  
+        real(8), dimension(:,:,:), pointer      :: Aux3DR8
+        logical                                 :: AddFaces_
 
         !----------------------------------------------------------------------
 
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
+        call Ready(GeometryID, ready_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
@@ -5310,109 +5380,109 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             else
                 MasterOrSlave_ = .false.
             endif
-            
+
             !Gets File Access Code
             call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
-            
+
             !Opens HDF File
             call ConstructHDF5      (ObjHDF5,                                            &
                                      trim(HDF5FileName),                                 &
                                      HDF5_READ, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR10'
-            
+
             call GetHDF5ArrayDimensions (HDF5ID = ObjHDF5, GroupName = "/Grid",     &
                                         ItemName = "WaterPoints3D",                    &
-                                        Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)        
+                                        Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR20'
-                                        
-            ILB = Me%WorkSize%ILB 
-            IUB = Me%WorkSize%IUB 
-            
-            JLB = Me%WorkSize%JLB 
-            JUB = Me%WorkSize%JUB 
 
-            KLB = Me%WorkSize%KLB 
-            KUB = Me%WorkSize%KUB 
-            
+            ILB = Me%WorkSize%ILB
+            IUB = Me%WorkSize%IUB
+
+            JLB = Me%WorkSize%JLB
+            JUB = Me%WorkSize%JUB
+
+            KLB = Me%WorkSize%KLB
+            KUB = Me%WorkSize%KUB
+
             if (present(AddFaces)) then
                 AddFaces_ = AddFaces
             else
-                AddFaces_ = .false. 
-            endif      
- 
+                AddFaces_ = .false.
+            endif
+
     ifMS:   if (MasterOrSlave_) then
-    
+
                 call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &
                                           WorkSize         = WindowLimitsJI,       &
                                           STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR30'
-                
+
                 ILW = WindowLimitsJI%ILB
                 IUW = WindowLimitsJI%IUB
 
                 JLW = WindowLimitsJI%JLB
                 JUW = WindowLimitsJI%JUB
-                                                      
+
             else ifMS
 
-                ILW = ILB 
+                ILW = ILB
                 IUW = IUB
 
-                JLW = JLB 
-                JUW = JUB 
+                JLW = JLB
+                JUW = JUB
 
-            endif ifMS                                            
-            
+            endif ifMS
+
             if (AddFaces_) then
                 IUB = IUB + 1
                 JUB = JUB + 1
                 KUB = KUB + 1
-                
+
                 IUW = IUW + 1
                 JUW = JUW + 1
 
-            endif            
-            
+            endif
+
             if (ILB < 1   ) stop 'ReadGeometryHDF - Geometry - ERR40'
             if (IUB > Imax) stop 'ReadGeometryHDF - Geometry - ERR50'
-            
+
             if (JLB < 1   ) stop 'ReadGeometryHDF - Geometry - ERR60'
             if (JUB > Jmax) stop 'ReadGeometryHDF - Geometry - ERR70'
 
             if (KLB < 1   ) stop 'ReadGeometryHDF - Geometry - ERR80'
             if (KUB > Kmax) stop 'ReadGeometryHDF - Geometry - ERR90'
-            
+
             allocate(Aux3DReal(ILW:IUW,JLW:JUW,KLB-1:KUB))
-            
+
             !Sets limits for next read operations
             call HDF5SetLimits(ObjHDF5, ILW, IUW, JLW, JUW, KLB-1, KUB, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR100'
-            
-            call HDF5ReadWindow(HDF5ID        = ObjHDF5,                                &                    
+
+            call HDF5ReadWindow(HDF5ID        = ObjHDF5,                                &
                                 GroupName     = "/Geometry",                            &
                                 Name          = "VerticalZ",                            &
                                 Array3D       = Aux3DReal,                              &
                                 OffSet3       = 0,                                      &
                                 STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR110'
-            
+
             Me%Distances%SZZ(ILB:IUB,JLB:JUB,KLB-1:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB-1:KUB)
 
-            call HDF5ReadWindow(HDF5ID        = ObjHDF5,                                &                    
+            call HDF5ReadWindow(HDF5ID        = ObjHDF5,                                &
                                 GroupName     = "/Geometry",                            &
                                 Name          = "InitialSZZ",                           &
                                 Array3D       = Aux3DReal,                              &
                                 OffSet3       = 0,                                      &
                                 STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR120'
-            
+
             Me%Distances%InitialSZZ(ILB:IUB,JLB:JUB,KLB-1:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB-1:KUB)
 
             !Sets limits for next read operations
             call HDF5SetLimits(ObjHDF5, ILW, IUW, JLW, JUW, KLB, KUB, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR130'
-            
-            deallocate(Aux3DReal)            
+
+            deallocate(Aux3DReal)
             allocate  (Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB))
             allocate  (Aux3DR8  (ILW:IUW,JLW:JUW,KLB:KUB))
             allocate  (Aux2DInt (ILW:IUW,JLW:JUW))
@@ -5423,7 +5493,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                 Array3D       = Aux3DReal,                              &
                                 STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR140'
-            
+
             Me%Distances%DWZ(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
 
             call HDF5ReadWindow(HDF5ID        = ObjHDF5,                                &
@@ -5432,8 +5502,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                 Array3D       = Aux3DR8,                                &
                                 STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR150'
-            
-            Me%Volumes%VolumeZOld(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)            
+
+            Me%Volumes%VolumeZOld(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
 
             call HDF5ReadWindow(HDF5ID        = ObjHDF5,                                &
                                 GroupName     = "/Geometry",                            &
@@ -5441,19 +5511,19 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                 Array2D       = Aux2DInt,                               &
                                 STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR160'
-            
+
             Me%KTop%Z(ILB:IUB,JLB:JUB) = Aux2DInt(ILW:IUW,JLW:JUW)
 
             call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadGeometryHDF - Geometry - ERR170'
-            
+
             deallocate  (Aux3DReal)
             deallocate  (Aux3DR8  )
             deallocate  (Aux2DInt )
 
             STAT_ = SUCCESS_
 
-        else 
+        else
 
             STAT_ = ready_
 
@@ -5464,7 +5534,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             STAT = STAT_
 
     end subroutine ReadGeometryHDF
-    
+
     !----------------------------------------------------------------------------
 
 
@@ -5476,8 +5546,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Arguments---------------------------------------------------------------
 
         !Local-------------------------------------------------------------------
-        real, dimension(:, :, :), pointer       :: SZZ 
-        real, dimension(:, :, :), pointer       :: ZCellCenter 
+        real, dimension(:, :, :), pointer       :: SZZ
+        real, dimension(:, :, :), pointer       :: ZCellCenter
         integer                                 :: I, J, K
         integer                                 :: CHUNK
 
@@ -5489,7 +5559,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         if (MonitorPerformance) call StartWatch ("ModuleGeometry", "ComputeZCellCenter")
 
         CHUNK = Chunk_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
-        !$OMP PARALLEL PRIVATE(I,J,K)            
+        !$OMP PARALLEL PRIVATE(I,J,K)
 
 do1 :   do K = Me%WorkSize%KLB, Me%WorkSize%KUB
         !$OMP DO SCHEDULE(STATIC, CHUNK)
@@ -5529,7 +5599,7 @@ do3 :   do I = Me%WorkSize%ILB, Me%WorkSize%IUB
         integer, optional, intent(OUT)              :: STAT
 
         !External--------------------------------------------------------------
-        integer :: ready_        
+        integer :: ready_
 
         !Local-----------------------------------------------------------------
         integer :: STAT_              !Auxiliar local variable
@@ -5538,7 +5608,7 @@ do3 :   do I = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_) 
+        call Ready(GeometryID, ready_)
 
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
             (ready_ .EQ. READ_LOCK_ERR_)) then
@@ -5556,7 +5626,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             call SetMatrixValue(Me%Distances%ZCellCenter, Me%Size, ZCellCenter)
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -5576,7 +5646,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         integer, optional,    intent(OUT)           :: STAT
 
         !External--------------------------------------------------------------
-        integer :: ready_        
+        integer :: ready_
 
         !Local-----------------------------------------------------------------
         integer :: STAT_              !Auxiliar local variable
@@ -5585,17 +5655,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_) 
-        
+        call Ready(GeometryID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-            
+
             call SetMatrixValue(Me%Areas%AreaU, Me%Size, AreaU)
 
             call SetMatrixValue(Me%Areas%AreaV, Me%Size, AreaV)
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -5617,7 +5687,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         integer, optional,    intent(OUT)           :: STAT
 
         !External--------------------------------------------------------------
-        integer :: ready_        
+        integer :: ready_
 
         !Local-----------------------------------------------------------------
         integer :: STAT_              !Auxiliar local variable
@@ -5626,11 +5696,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_) 
-        
+        call Ready(GeometryID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-            
+
             call SetMatrixValue(Me%Volumes%VolumeZ, Me%Size, VolumeZ)
 
             call SetMatrixValue(Me%Volumes%VolumeZOld, Me%Size, VolumeZOld)
@@ -5640,7 +5710,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             call SetMatrixValue(Me%Volumes%VolumeV, Me%Size, VolumeV)
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -5662,7 +5732,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         integer, optional,    intent(OUT)           :: STAT
 
         !External--------------------------------------------------------------
-        integer :: ready_        
+        integer :: ready_
 
         !Local-----------------------------------------------------------------
         integer :: STAT_              !Auxiliar local variable
@@ -5672,11 +5742,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_) 
-        
+        call Ready(GeometryID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-            
+
             Size2D%ILB = Me%Size%ILB
             Size2D%IUB = Me%Size%IUB
             Size2D%JLB = Me%Size%JLB
@@ -5689,7 +5759,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             call SetMatrixValue(Me%WaterColumn%V, Size2D, WaterColumnV)
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -5706,7 +5776,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    !SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR 
+    !SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -5720,14 +5790,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
+        call Ready(GeometryID, ready_)
 
 cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. &
            (ready_ .EQ. READ_LOCK_ERR_)) then
@@ -5736,7 +5806,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. &
             if (present(WorkSize   )) WorkSize    = Me%WorkSize
 
             STAT_ = SUCCESS_
-        else               
+        else
             STAT_ = ready_
         end if cd1
 
@@ -5746,7 +5816,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. &
         !----------------------------------------------------------------------
 
     end subroutine GetGeometrySize
-    
+
     !--------------------------------------------------------------------------
 
     subroutine GetGeometryMinWaterColumn(GeometryID, MinWaterColumn, STAT)
@@ -5757,22 +5827,22 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_) .OR. &
         integer, intent(out), optional              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
-        
+        call Ready(GeometryID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
              MinWaterColumn = Me%WaterColumn%ZMin
 
              STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -5787,21 +5857,21 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         !Parameter-------------------------------------------------------------
         integer                                     :: GeometryID
-        real, dimension(:,:,:), pointer, optional   :: SZZ, DZZ, DWZ, DUZ, DVZ, DWZ_Xgrad, DWZ_Ygrad 
+        real, dimension(:,:,:), pointer, optional   :: SZZ, DZZ, DWZ, DUZ, DVZ, DWZ_Xgrad, DWZ_Ygrad
         real, dimension(:,:,:), pointer, optional   :: DZI, DZE, ZCellCenter
         type(T_Time),                    optional   :: ActualTime
         integer, intent(OUT),            optional   :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
-        
+        call Ready(GeometryID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -5895,7 +5965,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer, intent(out), optional              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
 
         !----------------------------------------------------------------------
@@ -5903,8 +5973,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
-        
+        call Ready(GeometryID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -5927,7 +5997,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             endif
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -5938,24 +6008,25 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !--------------------------------------------------------------------------
 
     subroutine GetGeometryVolumes(GeometryID, VolumeZ, VolumeU, VolumeV, &
-                                  VolumeW, VolumeZOld, ActualTime, STAT)
+                                  VolumeW, VolumeZ_2D, VolumeZOld, ActualTime, STAT)
 
         !Parameter-------------------------------------------------------------
         integer                                         :: GeometryID
         real(8), dimension(:, :, :), pointer, optional  :: VolumeZ, VolumeU, VolumeV, VolumeW, VolumeZOld
+        real(8), dimension(:,    :), pointer, optional  :: VolumeZ_2D
         type (T_Time), optional                         :: ActualTime
         integer, intent(out), optional                  :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                         :: ready_   
+        integer                                         :: ready_
         integer                                         :: STAT_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
-        
+        call Ready(GeometryID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -5994,9 +6065,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 call Read_Lock(mGEOMETRY_, Me%InstanceID)
                 VolumeZOld => Me%Volumes%VolumeZOld
             endif
+            
+            !VolumeZ_2D
+            if (present(VolumeZ_2D)) then
+                call Read_Lock(mGEOMETRY_, Me%InstanceID)
+                VolumeZ_2D => Me%Volumes%VolumeZ_2D
+            endif
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -6015,15 +6092,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer, intent(out), optional              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
-        
+        call Ready(GeometryID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -6034,14 +6111,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             endif
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
         if (present(STAT)) STAT = STAT_
 
     end subroutine GetGeometryKTop
-    
+
     !--------------------------------------------------------------------------
 
     subroutine GetGeometryKFloor(GeometryID, Z, U, V, Domain, STAT)
@@ -6052,15 +6129,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer, intent(out), optional              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
-        
+        call Ready(GeometryID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -6089,7 +6166,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             endif
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -6110,15 +6187,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer, intent(out), optional              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
-        
+        call Ready(GeometryID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -6144,7 +6221,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             endif
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -6164,22 +6241,22 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer, intent(out), optional              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
-        
+        call Ready(GeometryID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             InputFile = Me%InputFile
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -6200,7 +6277,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         integer, intent(OUT), optional              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
         integer                                     :: k, kbottom, KUB
 
@@ -6208,14 +6285,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
-        
+        call Ready(GeometryID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             KUB     = Me%WorkSize%KUB
             kbottom = Me%KFloor%Z(i, j)
-            
+
 i0:         if (kbottom >=1 .and. kbottom <= KUB) then
 
 i1:             if      (DepthLevel < Me%Distances%SZZ(i,j,KUB)) then
@@ -6227,7 +6304,7 @@ i1:             if      (DepthLevel < Me%Distances%SZZ(i,j,KUB)) then
                     GetLayer4Level = kbottom
 
                 else i1
-                
+
                     do k = kbottom, KUB
                         if (DepthLevel <= Me%Distances%SZZ(i,j,k-1) .and.                    &
                             DepthLevel >= Me%Distances%SZZ(i,j,k  )) exit
@@ -6236,15 +6313,15 @@ i1:             if      (DepthLevel < Me%Distances%SZZ(i,j,KUB)) then
                     GetLayer4Level = k
 
                 endif i1
-                
+
             else i0
-            
+
                 GetLayer4Level = KUB
-            
+
             endif i0
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -6262,14 +6339,14 @@ i1:             if      (DepthLevel < Me%Distances%SZZ(i,j,KUB)) then
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
+        call Ready(GeometryID, ready_)
 
 cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
@@ -6277,7 +6354,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             call Read_UnLock(mGEOMETRY_, Me%InstanceID, "UnGetGeometry2Dinteger")
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -6289,7 +6366,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     end subroutine UnGetGeometry2Dinteger
 
     !--------------------------------------------------------------------------
-    
+
     subroutine UnGetGeometry2Dreal(GeometryID, Array, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -6300,7 +6377,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
 
         !----------------------------------------------------------------------
@@ -6308,7 +6385,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         STAT_ = UNKNOWN_
 
 
-        call Ready(GeometryID, ready_)    
+        call Ready(GeometryID, ready_)
 
 cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
@@ -6316,7 +6393,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             call Read_UnLock(mGEOMETRY_, Me%InstanceID, "UnGetGeometry2Dreal")
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -6327,7 +6404,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     end subroutine UnGetGeometry2Dreal
 
     !--------------------------------------------------------------------------
-    
+
     subroutine UnGetGeometry3Dreal4(GeometryID, Array, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -6336,14 +6413,14 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
+        call Ready(GeometryID, ready_)
 
 cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
@@ -6351,7 +6428,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             call Read_Unlock(mGEOMETRY_, Me%InstanceID, "UnGetGeometry3Dreal4")
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -6362,7 +6439,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     end subroutine UnGetGeometry3Dreal4
 
     !--------------------------------------------------------------------------
-    
+
     subroutine UnGetGeometry3Dreal8(GeometryID, Array, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -6371,14 +6448,14 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
+        call Ready(GeometryID, ready_)
 
 cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
@@ -6386,7 +6463,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             call Read_UnLock(mGEOMETRY_, Me%InstanceID, "UnGetGeometry3Dreal8")
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -6411,15 +6488,15 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer, optional, intent(OUT)              :: STAT
 
         !Local-------------------------------------------------------------------
-        integer                                     :: ready_          
-        integer                                     :: STAT_    
+        integer                                     :: ready_
+        integer                                     :: STAT_
 
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_) 
-        
+        call Ready(GeometryID, ready_)
+
         if (ready_ .EQ. IDLE_ERR_) then
 
             Me%Distances%SZZ => SZZ
@@ -6435,14 +6512,14 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             Me%Distances%ZCellCenter => ZCellCenter
             !CAUTION: pointing to an external variable/memory space!
 
-            STAT_ = SUCCESS_  
+            STAT_ = SUCCESS_
 
         else
             STAT_ = ready_
         end if
 
         if (present(STAT))STAT = STAT_
-            
+
     end subroutine SetGeometryDistances
 
     !--------------------------------------------------------------------------
@@ -6455,15 +6532,15 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer, optional, intent(OUT)              :: STAT
 
         !Local-------------------------------------------------------------------
-        integer                                     :: ready_          
-        integer                                     :: STAT_    
+        integer                                     :: ready_
+        integer                                     :: STAT_
 
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_) 
-        
+        call Ready(GeometryID, ready_)
+
         if (ready_ .EQ. IDLE_ERR_) then
 
             Me%Areas%AreaU => AreaU
@@ -6472,14 +6549,14 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
             !CAUTION: pointing to an external variable/memory space!
 
-            STAT_ = SUCCESS_  
+            STAT_ = SUCCESS_
 
         else
             STAT_ = ready_
         end if
 
         if (present(STAT))STAT = STAT_
-            
+
     end subroutine SetGeometryAreas
 
     !--------------------------------------------------------------------------
@@ -6494,15 +6571,15 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer, optional, intent(OUT)              :: STAT
 
         !Local-------------------------------------------------------------------
-        integer                                     :: ready_          
-        integer                                     :: STAT_    
+        integer                                     :: ready_
+        integer                                     :: STAT_
 
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_) 
-        
+        call Ready(GeometryID, ready_)
+
         if (ready_ .EQ. IDLE_ERR_) then
 
             Me%Volumes%VolumeZ => VolumeZ
@@ -6515,14 +6592,14 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
             !CAUTION: pointing to an external variable/memory space!
 
-            STAT_ = SUCCESS_  
+            STAT_ = SUCCESS_
 
         else
             STAT_ = ready_
         end if
 
         if (present(STAT))STAT = STAT_
-            
+
     end subroutine SetGeometryVolumes
 
     !--------------------------------------------------------------------------
@@ -6537,15 +6614,15 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer, optional, intent(OUT)              :: STAT
 
         !Local-------------------------------------------------------------------
-        integer                                     :: ready_          
-        integer                                     :: STAT_    
+        integer                                     :: ready_
+        integer                                     :: STAT_
 
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_) 
-        
+        call Ready(GeometryID, ready_)
+
         if (ready_ .EQ. IDLE_ERR_) then
 
             Me%WaterColumn%Z => WaterColumnZ
@@ -6556,14 +6633,14 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
             !CAUTION: pointing to an external variable/memory space!
 
-            STAT_ = SUCCESS_  
+            STAT_ = SUCCESS_
 
         else
             STAT_ = ready_
         end if
 
         if (present(STAT))STAT = STAT_
-            
+
     end subroutine SetGeometryWaterColumn
 
     !--------------------------------------------------------------------------
@@ -6575,8 +6652,8 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer,            optional, intent(OUT)    :: STAT
 
         !Local-------------------------------------------------------------------
-        integer                                      :: ready_          
-        integer                                      :: STAT_    
+        integer                                      :: ready_
+        integer                                      :: STAT_
 
         !------------------------------------------------------------------------
 
@@ -6584,7 +6661,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_) 
+        call Ready(GeometryID, ready_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
@@ -6618,7 +6695,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             Me%WaterColumn%V => Me%AuxPointer%WaterColumnV
 
-            STAT_ = SUCCESS_  
+            STAT_ = SUCCESS_
 
         else
             STAT_ = ready_
@@ -6634,7 +6711,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    !DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCT 
+    !DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCT
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -6646,7 +6723,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         integer, intent(out), optional              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_   
+        integer                                     :: ready_
         integer                                     :: STAT_
         type (T_Domain), pointer                    :: CurrentDomain, DomainToDelete
         integer                                     :: nUsers
@@ -6655,7 +6732,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_)    
+        call Ready(GeometryID, ready_)
 
 cd1 :   if (ready_ .NE. OFF_ERR_) then
 
@@ -6700,20 +6777,20 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 STAT_      = SUCCESS_
 
             end if
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
 
         if (present(STAT)) STAT = STAT_
-              
+
         !----------------------------------------------------------------------
 
     end subroutine KillGeometry
 
     !--------------------------------------------------------------------------
 
-    subroutine DeallocateInstance 
+    subroutine DeallocateInstance
 
         !Arguments-------------------------------------------------------------
 
@@ -6736,10 +6813,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             PreviousObjGeometry%Next => AuxObjGeometry%Next
 
         endif
-            
+
         !Deallocates instance
         deallocate (Me)
-        nullify    (Me) 
+        nullify    (Me)
 
     end subroutine DeallocateInstance
 
@@ -6756,6 +6833,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         if (allocated(Me%Volumes%VolumeZ)) then
             deallocate (Me%Volumes%VolumeZ, stat = STATUS)
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR10'
+        endif
+        
+        if (allocated(Me%Volumes%VolumeZ_2D)) then
+            deallocate (Me%Volumes%VolumeZ_2D, stat = STATUS)
+            if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR11'
         endif
 
         if (allocated(Me%Volumes%VolumeU)) then
@@ -6877,6 +6959,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR230'
         endif
         
+        !Joao Sobrinho
+        if (allocated(Me%NearbyAvgVel_Z)) then
+            deallocate (Me%NearbyAvgVel_Z, stat = STATUS)
+            if (STATUS /= SUCCESS_) stop 'DeallocateVariables - Geometry - ERR240'            
+        endif
+
 
     end subroutine DeallocateVariables
 
@@ -6953,7 +7041,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
         !External--------------------------------------------------------------
 
-        integer :: ready_   
+        integer :: ready_
 
         !Local-----------------------------------------------------------------
 
@@ -6963,7 +7051,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(GeometryID, ready_) 
+        call Ready(GeometryID, ready_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
@@ -6984,6 +7072,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             nullify(Me%AuxPointer%AreaV)
 
             nullify(Me%AuxPointer%VolumeZ)
+            
+            nullify(Me%AuxPointer%VolumeZ_2D)
 
             nullify(Me%AuxPointer%VolumeZOld)
 
@@ -6998,7 +7088,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             nullify(Me%AuxPointer%WaterColumnV)
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -7020,7 +7110,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-    subroutine Ready (ObjGeometry_ID, ready_) 
+    subroutine Ready (ObjGeometry_ID, ready_)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjGeometry_ID
@@ -7066,6 +7156,5 @@ end module ModuleGeometry
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Tï¿½cnico, Technical University of Lisbon.
 !----------------------------------------------------------------------------------------------------------
-
