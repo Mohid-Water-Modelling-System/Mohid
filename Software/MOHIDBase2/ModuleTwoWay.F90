@@ -223,7 +223,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                        STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ConstructTwoWay - ERR02'
             
-            allocate (Me%IgnoreOBCells(Me%WorkSize%ILB:Me%WorkSize%IUB, Me%WorkSize%JLB:Me%WorkSize%IUB))
+            allocate (Me%IgnoreOBCells(Me%WorkSize2D%ILB:Me%WorkSize2D%IUB, Me%WorkSize2D%JLB:Me%WorkSize2D%JUB))
             call SetMatrixValue (GetPointer(Me%IgnoreOBCells), Me%WorkSize2D, 1)
 
             STAT_ = SUCCESS_
