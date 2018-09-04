@@ -41,7 +41,7 @@
 !
 ! BoundaryPoints2D      - All points which are:
 !                           - Waterpoints at the limit of the domain
-!                           - Waterpoints close to Bathymetry points of the value -80.
+!                           - Waterpoints close to Bathymetry points of the value -85.
 !
 ! ExteriorPoints2D      - All points where:
 !                           - -90 < Bathymetry < -55
@@ -56,7 +56,7 @@
 ! ExteriorBoundaryFaces - All faces which:
 !                           - Exterior faces of open boundary points
 !                           - Faces between boundary points and points of the bathymetry with 
-!                             the value of -80.
+!                             the value of -85.
 !
 ! BoundaryFaces         - All faces which:
 !                           - have in one side a interior point and in another a boundary point
@@ -579,7 +579,7 @@ cd4 :       if (Bathymetry(i, j) > -55.) then
 do5 :   do j = JLB+1 , JUB-1
 do6 :   do i = ILB+1 , IUB-1
 
-            !lower cell of a waterpoint with -80?
+            !lower cell of a waterpoint with -85?
             if (Bathymetry(i, j)    > -55.0     .and.  &
                 Bathymetry(i-1, j)  < -55.0     .and.  &
                 Bathymetry(i-1, j)  > -90.0)    then
@@ -587,7 +587,7 @@ do6 :   do i = ILB+1 , IUB-1
                     Me%ExteriorBoundaryFaces%V(i, j)   = 1
             endif
                     
-            !left call of a waterpoint with -80?
+            !left call of a waterpoint with -85?
             if (Bathymetry(i, j)    > -55.0     .and.  &
                 Bathymetry(i, j-1)  < -55.0     .and.  & 
                 Bathymetry(i, j-1)  > -90.0)    then
@@ -595,7 +595,7 @@ do6 :   do i = ILB+1 , IUB-1
                     Me%ExteriorBoundaryFaces%U(i, j)   = 1
             endif
 
-            !upper cell of a waterpoint with -80?
+            !upper cell of a waterpoint with -85?
             if (Bathymetry(i, j)    > -55.0     .and.  &
                 Bathymetry(i+1, j)  < -55.0     .and.  &
                 Bathymetry(i+1, j)  > -90.0)    then
@@ -604,7 +604,7 @@ do6 :   do i = ILB+1 , IUB-1
             endif
             
 
-            !right cell of a waterpoint with -80?
+            !right cell of a waterpoint with -85?
             if (Bathymetry(i, j)    > -55.0     .and.  &
                 Bathymetry(i, j+1)  < -55.0     .and.  &
                 Bathymetry(i, j+1)  > -90.0)    then
