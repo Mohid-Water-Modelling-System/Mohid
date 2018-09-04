@@ -896,21 +896,12 @@ dok4 :              do k=Kbottom,KUB+1
             write(*,*) 'Does not exist file=',trim(Me%Files%InitialTurbulence)
             stop 'Read_Final_Turbulence_File - ModuleTurbGOTM - ERR10'
         endif            
-            
-        BinaryFormatOK = .false.         
-            
-        if      (ReadContinuousFormat == Binary_) then
-            
-            call Read_Final_Turbulence_Bin(BinaryFormatOK)
-            
-            if (.not. BinaryFormatOK) then            
-                WriteContinuousFormat = HDF5_
-            endif                
-            
-        endif    
-                    
-        if  (ReadContinuousFormat == HDF5_ .or. .not. BinaryFormatOK) then
-            call Read_Final_Turbulence_HDF
+
+
+        call Read_Final_Turbulence_Bin(BinaryFormatOK)
+        
+        if (.not. BinaryFormatOK) then 
+            call Read_Final_Turbulence_HDF            
         endif                
             
 
