@@ -1552,12 +1552,6 @@ Module ModuleHydrodynamic
 
     end type T_HydroOptions
 
-    type T_LandAbsorption
-        logical                         :: ON               = .false.
-        type(T_PropertyID)              :: ID
-        real,   dimension(:,:), pointer :: Coef             => null()
-        real                            :: WaterLevelRef    = null_real
-    end type T_LandAbsorption
 
     type       T_OutPut
          type (T_Time), dimension(:), pointer     :: OutTime, &
@@ -1888,7 +1882,6 @@ Module ModuleHydrodynamic
         type(T_Emersion      ) :: Emersion
         type(T_DDecomp       ) :: DDecomp
         type(T_Tsunami       ) :: Tsunami
-        type(T_LandAbsorption) :: LandAbsorption
 
         type(T_WaveRad3D     ) :: WaveRad3D
         type(T_StokesVel     ) :: StokesVel
@@ -3419,99 +3412,6 @@ Cov2:       if ( Me%External_Var%ComputeFaces3D_V(I, J, K) == Covered) then
     end subroutine ConstructScraper
 
     !-----------------------------------------------------------------------------------
-
-    !-----------------------------------------------------------------------------------
-
-    subroutine ConstructLandAbsorptionCoef
-
-        !Local-----------------------------------------------------------------
-        integer, dimension(:,:), pointer        :: ReadAllCells
-        character(len = StringLength)           :: BeginBlock, EndBlock
-        integer                                 :: STAT_CALL, ClientNumber, iflag
-        logical                                 :: BlockFound
-
-        !----------------------------------------------------------------------
-        !call GetData
-
-        call GetWaterPoints2D(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR10'
-
-        BeginBlock = "<begin_land_absorption_coef>"
-        EndBlock   = "<end_land_absorption_coef>"
-
-        !Searches for Land Absorption coefficients block
-        call ExtractBlockFromBuffer (Me%ObjEnterData, ClientNumber,                     &
-                                     BeginBlock, EndBlock,                              &
-                                     BlockFound, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR20'
-
-        if (BlockFound) then
-
-            call ConstructPropertyID  (Me%LandAbsorption%ID, Me%ObjEnterData, FromBlock)
-
-            allocate(Me%LandAbsorption%Coef(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            allocate(ReadAllCells          (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-
-            Me%LandAbsorption%Coef(:,:) = 0.
-            ReadAllCells          (:,:) = 1
-
-            !Uncovered cells are set to zero
-            call ConstructFillMatrix  (PropertyID       = Me%LandAbsorption%ID,         &
-                                       EnterDataID      = Me%ObjEnterData,              &
-                                       TimeID           = Me%ObjTime,                   &
-                                       HorizontalGridID = Me%ObjHorizontalGrid,         &
-                                       ExtractType      = FromBlock,                    &
-                                       PointsToFill2D   = ReadAllCells,                 &
-                                       Matrix2D         = Me%LandAbsorption%Coef,       &
-                                       TypeZUV          = TypeZ_,                       &
-                                       STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR30'
-
-            deallocate(ReadAllCells)
-            nullify   (ReadAllCells)
-
-            if(.not. Me%LandAbsorption%ID%SolutionFromFile)then
-                call KillFillMatrix(Me%LandAbsorption%ID%ObjFillMatrix, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR40'
-            end if
-
-            call GetData(Me%LandAbsorption%WaterLevelRef,                               &
-                         Me%ObjEnterData, iflag,                                        &
-                         Keyword    = 'LAND_ABSORPTION_WL_REF',                         &
-                         SearchType = FromFile,                                         &
-                         ClientModule ='ModuleHydrodynamic',                            &
-                         STAT       = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR50'
-
-            if (iflag == 0) then
-                write(*,*) 'Need to define the keyword  LAND_ABSORPTION_WL_REF'
-                stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR60'
-            endif
-
-
-        else
-
-            write(*,*) 'Block not found'
-            write(*,*) 'Begin = ',trim(BeginBlock)
-            write(*,*) 'End   = ',trim(EndBlock)
-            stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR70'
-
-        endif
-
-        call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR80'
-
-        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR90'
-
-        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructLandAbsorptionCoef - ModuleHydrodynamic - ERR100'
-
-
-    end subroutine ConstructLandAbsorptionCoef
-
-    !-----------------------------------------------------------------------------------
-
 
     subroutine ConstructThinWalls
 
@@ -7817,31 +7717,6 @@ cd21:   if (Baroclinic) then
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1180')
 
-        !<BeginKeyword>
-            !Keyword          : LAND_ABSORPTION
-            !<BeginDescription>
-               !
-               !Checks if the user want to simulate the effect of wave absortion
-               !by maritime structures
-               !
-            !<EndDescription>
-            !Type             : logical
-            !Default          : 0 (No wave absortion)
-            !File keyword     : IN_DAD3D
-            !Multiple Options : 0 (No wave absortion, 1(with wave absortion)
-            !Search Type      : From File
-        !<EndKeyword>
-
-        call GetData(Me%LandAbsorption%ON,                                              &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword    = 'LAND_ABSORPTION',                                    &
-                     Default    = .false.,                                              &
-                     SearchType = FromFile,                                             &
-                     ClientModule ='ModuleHydrodynamic',                                &
-                     STAT       = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1190')
 
 
         !<BeginKeyword>
@@ -8480,8 +8355,7 @@ cd3:            if (Me%ComputeOptions%Continuous) then
                Me%ComputeOptions%HorizontalAdvection               .or.                 &
                Me%ComputeOptions%HorizontalDiffusion               .or.                 &
                Me%ComputeOptions%VolumeVariation                   .or.                 &
-               Me%ComputeOptions%MomentumDischarge                 .or.                 &
-               Me%LandAbsorption%ON) then
+               Me%ComputeOptions%MomentumDischarge) then
 
             call SetError(WARNING_, KEYWORD_, 'Verify_Numerical_Options - Hydrodynamic - ERR13a.')
        endif
@@ -10836,11 +10710,6 @@ cd10:   if (Evolution == Read_File_) then
 
         endif
 
-        if (Me%LandAbsorption%ON) then
-
-            call ConstructLandAbsorptionCoef
-
-        endif
         !------------------------------------------------------------------------
 
     end subroutine ConstructHydrodynamicProperties
@@ -23362,6 +23231,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         real,    dimension (:,:,:), pointer  :: PressureCorrect
         real,    dimension (:,:  ), pointer  :: VerticalSurfLayerOld
 
+        
         real                                 :: SZZaux, pcf
 
         !Begin----------------------------------------------------------------------
@@ -23432,12 +23302,13 @@ cd2:        if      (Num_Discretization == Abbott    ) then
                                       STAT            = status)
 
             if (status /= SUCCESS_)                                                         &
-                call SetError (FATAL_, INTERNAL_, "ModifyRelaxAcelerationVert - Hydrodynamic - ERR20")
+                call SetError (FATAL_, INTERNAL_, "NonHydroStaticCorrection - Hydrodynamic - ERR10")        
 
         endif
 
 
 
+        
         !----Initialize coefficient matrices
 
         call SetMatrixValue(n, Me%WorkSize,      0.0 )
@@ -23633,7 +23504,7 @@ i1:             if (OpenPoints3D(i, j, k) == OpenPoint) then !cell must not be c
                 if(OpenPoints3D  (i, j, KUB) == OpenPoint) then
                     ![m]= [m^2/s^2]     / [m/s^2]
                     pcl = pc(i, j, KUB) / Gravity
-                    ![m]                   = [m]�+ [m]
+                    ![m]                   = [m]´+ [m]
                     WaterLevel_New(i,j) = WaterLevel_New(i,j) + pcl
                 end if
             enddo !do i
@@ -24070,7 +23941,7 @@ if1:    if (Me%DDecomp%MasterOrSlave) then
     !
     ! ----------------------------
     !
-    ! author : Hern�ni Theias
+    ! author : Hernâni Theias
     ! last modified  : 06/2004
     ! e-mail : hernanitheias@netcabo.pt                                                       !
     !                                                                                      !
@@ -24102,8 +23973,8 @@ if1:    if (Me%DDecomp%MasterOrSlave) then
         JUB = Me%WorkSize%JUB
         KUB = Me%WorkSize%KUB
 
-        !Null gradient
 
+        !Null gradient
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "NonHydroOpenBoundary")
 
         ! !! $OMP PARALLEL PRIVATE(i,j,k)
@@ -24113,7 +23984,12 @@ if1:    if (Me%DDecomp%MasterOrSlave) then
         do i = ILB, IUB
         do j = JLB, JUB
             !Y boundary faces
-Y1:         if (Me%External_Var%BoundaryFacesV(i, j) == Boundary) then
+!Y1:         if (Me%External_Var%BoundaryFacesV(i, j) == Boundary) then
+
+Y1:         if  (Me%External_Var%BoundaryFacesV  (i, j     )  == Boundary     .and.                     &
+                 Me%External_Var%ComputeFaces3D_V(i, j, KUB)  == Covered      .and.                     & 
+                (Me%External_Var%BoundaryPoints  (i,  j)      == Not_Boundary .or.                      &
+                 Me%External_Var%BoundaryPoints  (i-1,j)      == Not_Boundary)) then        
 
                 ! !! $OMP MASTER
                 ! CHUNK = CHUNK_K(Me%External_Var%KFloor_V(i, j), KUB)
@@ -24125,6 +24001,12 @@ Y1:         if (Me%External_Var%BoundaryFacesV(i, j) == Boundary) then
 
                     if      (Me%External_Var%BoundaryPoints(i-1, j) == Boundary) then
 
+                        if ((Me%External_Var%ComputeFaces3D_U(i-1, j  , KUB)  == Covered    .or.    &  
+                             Me%External_Var%ComputeFaces3D_U(i-1, j+1, KUB)  == Covered)   .and.   &
+                             Me%Direction%XY == DirectionX_) then
+                             cycle
+                        endif                            
+                    
                         if (InTime == Implicit_) then
 
                             if      (Me%Direction%XY == DirectionY_) then
@@ -24135,6 +24017,7 @@ Y1:         if (Me%External_Var%BoundaryFacesV(i, j) == Boundary) then
                                 n(i-1, j, k) = -1.
                                 q(i-1, j, k) =  0.
                             elseif  (Me%Direction%XY == DirectionX_) then
+                            
                                 e(i-1, j, k) = 0.
                                 w(i-1, j, k) = 0.
                                 p(i-1, j, k) = 1.
@@ -24153,6 +24036,13 @@ Y1:         if (Me%External_Var%BoundaryFacesV(i, j) == Boundary) then
 
                     else if (Me%External_Var%BoundaryPoints(i, j) == Boundary) then
 
+                    
+                        if ((Me%External_Var%ComputeFaces3D_U(i  , j  , KUB)  == Covered    .or.    &  
+                             Me%External_Var%ComputeFaces3D_U(i  , j+1, KUB)  == Covered)   .and.   &
+                             Me%Direction%XY == DirectionX_) then
+                             cycle
+                        endif                      
+                             
                         if (InTime == Implicit_) then
 
                             if      (Me%Direction%XY == DirectionY_) then
@@ -24163,6 +24053,7 @@ Y1:         if (Me%External_Var%BoundaryFacesV(i, j) == Boundary) then
                                 n(i, j, k) =  0.
                                 q(i, j, k) =  0.
                             elseif  (Me%Direction%XY == DirectionX_) then
+                            
                                 e(i, j, k) = 0.
                                 w(i, j, k) = 0.
                                 p(i, j, k) = 1
@@ -24186,7 +24077,14 @@ Y1:         if (Me%External_Var%BoundaryFacesV(i, j) == Boundary) then
             endif Y1
 
             !X boundary faces
-X1:         if (Me%External_Var%BoundaryFacesU(i, j) == Boundary) then
+!X1:         if (Me%External_Var%BoundaryFacesU(i, j) == Boundary) then
+            
+X1:         if  (Me%External_Var%BoundaryFacesU  (i, j     )  == Boundary     .and.                     &
+                 Me%External_Var%ComputeFaces3D_U(i, j, KUB)  == Covered      .and.                     & 
+                (Me%External_Var%BoundaryPoints  (i,  j  )    == Not_Boundary .or.                      &
+                 Me%External_Var%BoundaryPoints  (i,  j-1)    == Not_Boundary)) then        
+
+            
                 ! !! $OMP MASTER
                 ! CHUNK = CHUNK_K(Me%External_Var%KFloor_U(i, j), KUB)
                 ! !! $OMP END MASTER
@@ -24197,6 +24095,12 @@ X1:         if (Me%External_Var%BoundaryFacesU(i, j) == Boundary) then
 
                     if      (Me%External_Var%BoundaryPoints(i, j - 1) == Boundary) then
 
+                        if ((Me%External_Var%ComputeFaces3D_V(i  , j-1, KUB)  == Covered    .or.    &  
+                             Me%External_Var%ComputeFaces3D_V(i+1, j-1, KUB)  == Covered)   .and.   &
+                             Me%Direction%XY == DirectionY_) then
+                             cycle
+                        endif      
+                    
                         if (InTime == Implicit_) then
 
                             if      (Me%Direction%XY == DirectionX_) then
@@ -24207,6 +24111,7 @@ X1:         if (Me%External_Var%BoundaryFacesU(i, j) == Boundary) then
                                 n(i, j-1, k) = -1.
                                 q(i, j-1, k) =  0.
                             elseif  (Me%Direction%XY == DirectionY_) then
+                            
                                 e(i, j-1, k) = 0.
                                 w(i, j-1, k) = 0.
                                 p(i, j-1, k) = 1.
@@ -24225,6 +24130,13 @@ X1:         if (Me%External_Var%BoundaryFacesU(i, j) == Boundary) then
 
                     else if (Me%External_Var%BoundaryPoints(i, j) == Boundary) then
 
+                   
+                        if ((Me%External_Var%ComputeFaces3D_V(i  , j  , KUB)  == Covered    .or.    &  
+                             Me%External_Var%ComputeFaces3D_V(i+1, j  , KUB)  == Covered)   .and.   &
+                             Me%Direction%XY == DirectionY_) then
+                             cycle
+                        endif                                                              
+                             
                         if (InTime == Implicit_) then
 
                             if      (Me%Direction%XY == DirectionX_) then
@@ -26266,9 +26178,6 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         call WaterLevel_WaterFluxes
         call WaterLevelDischarges
 
-        if (Me%LandAbsorption%ON) then
-            call ComputeLandAbsorption
-        endif
 
         call WaterLevel_OpenBoundary
 
@@ -29501,6 +29410,15 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
         nullify(WaterLevel_New)
         nullify(WaterLevel_Old)
 
+        if (associated(ImposedVelocity)) then
+            deallocate(ImposedVelocity)
+        endif
+
+            
+        if (associated(BoundaryReferenceLevel)) then
+            deallocate(BoundaryReferenceLevel)
+        endif            
+
         !----------------------------------------------------------------------
 
     End Subroutine WaterLevel_FlatherWindWave
@@ -30253,6 +30171,15 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
         nullify(WaterLevel_New)
         nullify(WaterLevel_Old)
 
+        if (associated(ImposedVelocity)) then
+            deallocate(ImposedVelocity)
+        endif
+
+            
+        if (associated(BoundaryReferenceLevel)) then
+            deallocate(BoundaryReferenceLevel)
+        endif            
+
         !----------------------------------------------------------------------
 
     End Subroutine WaterLevel_FlatherWindWaveV2
@@ -30300,7 +30227,7 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
         real,    dimension(:,:,:), pointer  :: SZZ
 
-        real,    dimension(:,:  ), pointer  :: WaveCelerityField
+        real,    dimension(:,:  ), pointer  :: WaveCelerityField, Bathymetry
 
         real                                :: WaveDirection, AverageValue
 
@@ -30412,6 +30339,12 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
         !End   - Shorten variables name
 
+        !Gets Bathymetry
+        call GetGridData(Me%ObjGridData, Bathymetry, STAT = status)
+        
+        if (status /= SUCCESS_)                                                         &
+            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR005")        
+        
 cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
 
@@ -30713,6 +30646,10 @@ cd5:            if (ComputeFaces3D_VU(i4, j4, KUB) == Covered) then
                     WaveEntering = ImposedElevation(ib, jb) - ReferenceLevel
                 endif
 
+                if (Bathymetry(ib-di,jb-dj) < -55. .or. Bathymetry(ib+di,jb+dj) < -55.) then
+                    WaveEntering = 0.
+                endif
+
                 !The wave Celerity compute in the boundary face
                 ![m/s] = [m/s^2*m]^.5 = [m/s]
                 if      (Me%WindWaves%CelerityType == LongWaves_) then
@@ -30887,6 +30824,24 @@ cd15:           if (Me%ComputeOptions%ComputeEnteringWave) then
                     !!!! $OMP END CRITICAL (WLFWW1_STOP01)
                 endif
 
+                !Test absorption boundaries
+                ! -65   80%
+                ! -70   60%
+                ! -75   50%
+                ! -80   40%
+                ! -85   10%                   
+                if      (Bathymetry(ib-di,jb-dj) == -65. .or. Bathymetry(ib+di,jb+dj) == -65.) then
+                    XY_Component_L = 0.8 * XY_Component_L
+                elseif  (Bathymetry(ib-di,jb-dj) == -70. .or. Bathymetry(ib+di,jb+dj) == -70.) then
+                    XY_Component_L = 0.6 * XY_Component_L                    
+                elseif  (Bathymetry(ib-di,jb-dj) == -75. .or. Bathymetry(ib+di,jb+dj) == -75.) then
+                    XY_Component_L = 0.5 * XY_Component_L  
+                elseif  (Bathymetry(ib-di,jb-dj) == -80. .or. Bathymetry(ib+di,jb+dj) == -80.) then
+                    XY_Component_L = 0.4 * XY_Component_L  
+                elseif  (Bathymetry(ib-di,jb-dj) == -85. .or. Bathymetry(ib+di,jb+dj) == -85.) then
+                    XY_Component_L = 0.1 * XY_Component_L                      
+                endif
+
                 if (ImplicitFaces) then
 
 
@@ -31033,6 +30988,11 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
         endif
 
+        call UnGetGridData(Me%ObjGridData, Bathymetry, STAT = status)
+        
+        if (status /= SUCCESS_)                                                         &
+            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR180")           
+        
         !Nullify auxiliar variables
 
         !Linear system equation
@@ -31047,6 +31007,15 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
         !Hydrodynamic
         nullify(WaterLevel_New)
         nullify(WaterLevel_Old)
+
+        if (associated(ImposedVelocity)) then
+            deallocate(ImposedVelocity)
+        endif
+
+            
+        if (associated(BoundaryReferenceLevel)) then
+            deallocate(BoundaryReferenceLevel)
+        endif        
 
         !----------------------------------------------------------------------
 
@@ -32000,265 +31969,6 @@ cd25:   if (Me%ComputeOptions%LocalSolution == AssimilationField_    .or.       
 
     !--------------------------------------------------------------------------
 
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !                                                                                      !
-    ! This subroutine compute marine structures absorption effect using                    !
-    ! the Sommerfeld radiation condition for the open boundary                             !
-    ! The absortion effect is simulated removing mass from the domain                      !
-    !                                                                                      !
-    ! Input :                                                                              !
-    ! OutPut: Water Level correction in cells adjacent to land                             !
-    ! Author: Paulo Chambel (16/1)                                                         !
-    !                                                                                      !
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    Subroutine ComputeLandAbsorption
-
-        !Arguments------------------------------------------------------------
-
-
-        !Local---------------------------------------------------------------------
-        real(8), dimension(:,:,:), pointer :: WaterFlux_X, WaterFlux_Y
-
-        real(8), dimension(:,:  ), pointer :: ECoef_2D
-
-        real,    dimension(:,:)  , pointer :: DUX, DVY, Bathymetry, TiCoef_2D,          &
-                                              WaterLevel_New, WaterColumnZ
-
-        real,    dimension(:,:)  , pointer :: WaveCelerityField
-
-        integer, dimension(:,:,:), pointer :: ComputeFaces3D_U, ComputeFaces3D_V,        &
-                                              OpenPoints3D
-
-        integer, dimension(:,:  ), pointer :: LandPoints2D, KFloor_Z, ReadAllCells
-
-        real(8)                            :: FlowAux, FluxX, FluxY
-        real(8)                            :: DT_Elevation, Wave_Celerity
-        real(8)                            :: WaterLevelRef, WLAbsorption, Aux
-        real                               :: LandAbsorptionCoef, AverageValue
-
-        integer                            :: AuxComputeX, AuxComputeY, AuxLand
-        integer                            :: i, j, k, IUB, ILB, JUB, JLB, KUB
-        integer                            :: STAT_CALL
-        !Begin----------------------------------------------------------------
-
-        if (Me%LandAbsorption%ID%SolutionFromFile) then
-            allocate(ReadAllCells (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-
-            ReadAllCells          (:,:) = 1
-
-            call ModifyFillMatrix (FillMatrixID   = Me%LandAbsorption%ID%ObjFillMatrix, &
-                                   Matrix2D       = Me%LandAbsorption%Coef,             &
-                                   PointsToFill2D = Me%External_Var%WaterPoints2D,      &
-                                   STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeLandAbsorption - ModuleHydrodynamic - ERR10'
-
-            deallocate(ReadAllCells)
-            nullify   (ReadAllCells)
-        endif
-
-
-
-
-        !Begin - Shorten variables name
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-
-        DT_Elevation      =  Me%WaterLevel%DT
-
-        ECoef_2D          => Me%Coef%D2%E
-        TiCoef_2D         => Me%Coef%D2%Ti
-
-        WaterLevel_New    => Me%WaterLevel%New
-
-        WaterFlux_X       => Me%WaterFluxes%X
-        WaterFlux_Y       => Me%WaterFluxes%Y
-
-        WaterColumnZ      => Me%External_Var%WaterColumn
-        DUX               => Me%External_Var%DUX
-        DVY               => Me%External_Var%DVY
-
-        OpenPoints3D      => Me%External_Var%OpenPoints3D
-        ComputeFaces3D_U  => Me%External_Var%ComputeFaces3D_U
-        ComputeFaces3D_V  => Me%External_Var%ComputeFaces3D_V
-        KFloor_Z          => Me%External_Var%KFloor_Z
-        LandPoints2D      => Me%External_Var%LandPoints2D
-
-        !Gets a pointer to Bathymetry
-        call GetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeLandAbsorption - ModuleHydrodynamic - ERR20'
-
-        !End   - Shorten variables name
-
-        if  (Me%WindWaves%CelerityType == AnalyticWaves_) then
-
-            if (Me%ComputeOptions%LocalSolution == AssimilationField_) then
-
-                call GetWaveCelerityField(AssimilationID = Me%ObjAssimilation,          &
-                                          ID              = WaterLevel_,                &
-                                          WaveCelerity    = WaveCelerityField,          &
-                                          AverageValue    = AverageValue,               &
-                                          STAT            = STAT_CALL)
-
-                if (STAT_CALL /= SUCCESS_) stop 'ComputeLandAbsorption - ModuleHydrodynamic - ERR30'
-
-                Me%LandAbsorption%WaterLevelRef = AverageValue
-
-
-            else
-
-                write(*,*) 'Define the analytic celerity in assimilation_x.dat for property WaterLevel_'
-                stop 'ComputeLandAbsorption - ModuleHydrodynamic - ERR40'
-
-            endif
-
-        endif
-
-
-
-dj:     do  j = JLB, JUB
-di:     do  i = ILB, IUB
-
-            !if it is an open point
-iOp:        if (OpenPoints3D(i, j, KUB) == OpenPoint) then
-
-                AuxLand = LandPoints2D(i-1,j) + LandPoints2D(i+1,j) + LandPoints2D(i,j-1) + LandPoints2D(i,j+1)
-
-                !And has between 1 and 3 land cell boundaries
-iLa:            if (AuxLand > 0 .and. AuxLand < 4) then
-
-                    LandAbsorptionCoef = max(Me%LandAbsorption%Coef(i  , j  ),          &
-                                             Me%LandAbsorption%Coef(i-1, j  ),          &
-                                             Me%LandAbsorption%Coef(i+1, j  ),          &
-                                             Me%LandAbsorption%Coef(i  , j-1),          &
-                                             Me%LandAbsorption%Coef(i  , j+1))
-
-                    !If the cell is assumed to have absorption
-iCoef:              if (LandAbsorptionCoef > 0. ) then
-!
-!                        if (LandAbsorptionCoef > 1. ) then
-!                            stop 'ComputeLandAbsorption - ModuleHydrodynamic - ERR50'
-!                        endif
-
-                        WaterLevelRef = max(Me%LandAbsorption%WaterLevelRef, - Bathymetry(i, j))
-                        WLAbsorption  = WaterLevel_New(i, j) - WaterLevelRef
-
-
-                        !if the water level is above the reference above which is assumed that water leaves the domain
-iAbs:                   if (WLAbsorption > 0.) then
-
-                            !Compute incident wave direction
-
-                            !Wave_Celerity - rate per m that the water is able to leave the domain
-                            ! [m/s] = sqrt([m/s^2]*[m])
-                            ![m/s] = [m/s^2*m]^.5 = [m/s]
-
-                            !if      (Me%WindWaves%CelerityType == LongWaves_) then
-
-                                Wave_Celerity = sqrt(Gravity * WaterColumnZ(i, j))
-
-                            !elseif  (Me%WindWaves%CelerityType == Constant_ ) then
-
-                            !    Wave_Celerity = Me%WindWaves%CelerityConstant
-
-                            !elseif  (Me%WindWaves%CelerityType == AnalyticWaves_) then
-
-                            !    Wave_Celerity = WaveCelerityField(i, j)
-
-                            !endif
-
-                            ! [m]    =     [-] * [m/s] * [s]
-                            FlowAux  = LandAbsorptionCoef * Wave_Celerity * DT_Elevation
-
-                            !X flux
-                            AuxComputeX = ComputeFaces3D_U(i,j,KUB) + ComputeFaces3D_U(i,j+1,KUB)
-                            !Y flux
-                            AuxComputeY = ComputeFaces3D_V(i,j,KUB) + ComputeFaces3D_V(i+1,j,KUB)
-
-
-                            FluxX = 0.
-                            FluxY = 0.
-
-dk:                         do k= KFloor_Z(i, j), KUB
-
-                                if (AuxComputeX > 0) then
-                                    FluxX = FluxX + (WaterFlux_X(i, j,   k) * real(ComputeFaces3D_U(i, j, k)) + &
-                                                     WaterFlux_X(i, j+1, k) * real(ComputeFaces3D_U(i,j+1,k)))/real(AuxComputeX)
-                                else
-                                    FluxX = 0.
-                                endif
-
-                                if (AuxComputeY > 0) then
-                                    FluxY = FluxY + (WaterFlux_Y(i,   j, k) * real(ComputeFaces3D_V(i,  j, k)) + &
-                                                     WaterFlux_Y(i+1, j, k) * real(ComputeFaces3D_V(i+1,j, k)))/real(AuxComputeY)
-                                else
-                                    FluxY = 0.
-                                endif
-
-                            enddo dk
-
-                            FluxX = abs(FluxX)
-                            FluxY = abs(FluxY)
-
-                            Aux = 0.
-
-                            !Computes X leaving component
-                            if (AuxComputeX == 1 .and. FluxX > 0.) then
-                                ![-] = [-] + [m]/[m]* [-]
-                                Aux = Aux + FlowAux / DUX(i, j) * (FluxX/(FluxX+FluxY))
-                            endif
-
-                            !Computes Y leaving component
-                            if (AuxComputeY == 1 .and. FluxY > 0.) then
-                                ![-] = [-] + [m]/[m]* [-]
-                                Aux = Aux + FlowAux / DVY(i, j) * (FluxY/(FluxX+FluxY))
-                            endif
-
-                            ![-] = [-] + [-]
-                            ECoef_2D (i, j) = ECoef_2D (i, j) + Aux
-                            ![m] = [m] + [-] * [m]
-                            TiCoef_2D(i, j) = TiCoef_2D(i, j) + Aux * WaterLevelRef
-
-                        endif iAbs
-                    endif iCoef
-                endif iLa
-            endif iOp
-
-        enddo di
-        enddo dj
-
-
-        if  (Me%WindWaves%CelerityType == AnalyticWaves_) then
-
-            call UnGetAssimilation(Me%ObjAssimilation,                      &
-                                    WaveCelerityField, STAT = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_) stop 'ComputeLandAbsorption - ModuleHydrodynamic - ERR60'
-
-        endif
-
-        call UnGetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeLandAbsorption - ModuleHydrodynamic - ERR70'
-
-        !Linear system equation
-        nullify (ECoef_2D, TiCoef_2D)
-
-
-        !----------------------------------------------------------------------
-
-    End Subroutine ComputeLandAbsorption
-
-    !--------------------------------------------------------------------------
-
-
-    !--------------------------------------------------------------------------
-
-
-      !------------------------------------------------------------------------------
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                        !
@@ -52189,17 +51899,6 @@ cd3:            if (Me%OutPut%hdf5ON) then
 
                 endif
 
-                if (Me%LandAbsorption%ON) then
-                    if (Me%LandAbsorption%ID%SolutionFromFile) then
-                        call KillFillMatrix (FillMatrixID   = Me%LandAbsorption%ID%ObjFillMatrix, &
-                                             STAT           = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)  Stop 'KillHydrodynamic - ModuleHydrodynamic - ERR70'
-                    endif
-                    if (associated(Me%LandAbsorption%Coef))then
-                        deallocate(Me%LandAbsorption%Coef)
-                        nullify   (Me%LandAbsorption%Coef)
-                    endif
-                endif
 
 #ifdef _ENABLE_CUDA
                 !Kills ModuleCuda
@@ -53012,17 +52711,9 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
         logical                             :: BinaryFormatOK
         !Begin-----------------------------------------------------------------
 
-        BinaryFormatOK = .false.
-
-        if      (Me%ComputeOptions%ReadContinuousFormat == Binary_) then
             call Read_Final_Bin(BinaryFormatOK)
 
             if (.not. BinaryFormatOK) then
-                Me%ComputeOptions%WriteContinuousFormat = HDF5_
-            endif
-        endif
-
-        if  (Me%ComputeOptions%ReadContinuousFormat == HDF5_  .or. .not. BinaryFormatOK) then
             call Read_Final_HDF5
         endif
 
