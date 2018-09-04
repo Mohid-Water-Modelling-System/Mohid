@@ -58,14 +58,15 @@ Module ModuleHDF5Statistics
 
     use ModuleGlobalData
     use ModuleTime               
-    use ModuleEnterData,         only : ConstructEnterData, KillEnterData,            &
+    use ModuleEnterData,         only : ConstructEnterData, KillEnterData,              &
                                         GetData, ExtractBlockFromBuffer, Block_Unlock
     use ModuleFunctions         
     use ModuleHDF5
 
-    use ModuleStatistic,         only : ConstructStatistic, GetStatisticMethod,       &
-                                        GetStatisticParameters, ModifyStatistic,      &
-                                        KillStatistic       
+    use ModuleStatistic,         only : ConstructStatistic, GetStatisticMethod,         &
+                                        GetStatisticParameters, ModifyStatistic,        &
+                                        GetStatisticLayerDef, AddStatisticLayers,       &
+                                        GetStatisticLayersNumber, KillStatistic       
 
     implicit none
 
@@ -215,6 +216,9 @@ Module ModuleHDF5Statistics
         type(T_Time)                                        :: CurrentTime
         logical                                             :: AditionalMap = .false.
         character(len=StringLength)                         :: StatisticGroupName
+    
+        real,   dimension(:,:,:), pointer                   :: DZ3D        
+        
         type(T_HDF5Statistics), pointer                     :: Next                     => null()
     end type  T_HDF5Statistics
 
@@ -1318,7 +1322,7 @@ cd2 :           if (BlockFound) then
                 stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR10'
 
             endif 
-
+            
         else
             call HDF5WriteData(Me%ObjStatHDF5, "/Grid", trim(Me%Mapping%Name),          &
                                trim(Me%Mapping%Units),                                  & 
@@ -1651,6 +1655,9 @@ cd2 :           if (BlockFound) then
         character(len=StringLength)                 :: GridVariableName
         character(len=StringLength)                 :: GridVariableUnits
         type (T_Parameter), pointer                 :: ObjParameter
+        logical                                     :: ExistVerticalZ
+        real,   dimension(:,:,:), pointer           :: VerticalZ
+        integer                                     :: i, j, k
 
         !Begin-----------------------------------------------------------------
 
@@ -1725,12 +1732,12 @@ cd2 :           if (BlockFound) then
         endif
         Me%WorkSize%KUB = Dimensions(3)
         
-        Me%Size%ILB = Me%WorkSize%ILB
-        Me%Size%JLB = Me%WorkSize%JLB
+        Me%Size%ILB = Me%WorkSize%ILB - 1
+        Me%Size%JLB = Me%WorkSize%JLB - 1
         Me%Size%IUB = Me%WorkSize%IUB + 1 
         Me%Size%JUB = Me%WorkSize%JUB + 1
-        Me%Size%KLB = Me%WorkSize%KLB
-        Me%Size%KUB = Me%WorkSize%KUB
+        Me%Size%KLB = Me%WorkSize%KLB - 1
+        Me%Size%KUB = Me%WorkSize%KUB + 1
 
         !Allocate variable data matrixes
         nullify(Me%ConnectionX%RealValues2D, Me%ConnectionY%RealValues2D)
@@ -1835,6 +1842,7 @@ cd2 :           if (BlockFound) then
 
         !mapping
         if (Me%File3D) then 
+        
             call HDF5SetLimits (HDF5FileX%HDFID, Me%WorkSize%ILB,                       &
                                 Me%WorkSize%IUB, Me%WorkSize%JLB,Me%WorkSize%JUB,       &
                                 Me%WorkSize%KLB,Me%WorkSize%KUB,                        &
@@ -1847,7 +1855,68 @@ cd2 :           if (BlockFound) then
                               Array3D      = Me%Mapping%IntegerValues3D,                &
                               STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                &
-            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR140'
+            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR140'        
+        
+            call GetHDF5DataSetExist (HDF5FileX%HDFID,                                  &
+                                  DataSetName ="/Grid/VerticalZ/Vertical_00001",        &
+                                  Exist = ExistVerticalZ, STAT= STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_)  then
+                stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR150'
+            endif                                       
+                                  
+            if (ExistVerticalZ) then
+            
+                allocate(Me%DZ3D  (Me%Size%ILB:Me%Size%IUB,                             &
+                                   Me%Size%JLB:Me%Size%JUB,                             &
+                                   Me%Size%KLB:Me%Size%KUB))
+                allocate(VerticalZ(Me%Size%ILB:Me%Size%IUB,                             &
+                                   Me%Size%JLB:Me%Size%JUB,                             &
+                                   Me%Size%KLB:Me%Size%KUB))
+                    
+                VerticalZ(:,:,:) = FillValueReal 
+                Me%DZ3D  (:,:,:) = FillValueReal
+                
+                call HDF5SetLimits(HDF5FileX%HDFID, Me%WorkSize%ILB, Me%WorkSize%IUB,   &
+                                    Me%WorkSize%JLB, Me%WorkSize%JUB,                   &
+                                    Me%WorkSize%KLB-1, Me%WorkSize%KUB,                 &
+                                    STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)  then
+                    stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR160'
+                endif                    
+
+                
+                call HDF5ReadData(HDF5FileX%HDFID, "/Grid/VerticalZ",                   &
+                                  "Vertical_00001",                                     &
+                                  Array3D      = VerticalZ,                             &
+                                  STAT = STAT_CALL) 
+
+                if (STAT_CALL /= SUCCESS_)  then
+                    stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR170'
+                endif       
+                                  
+                do k =  Me%WorkSize%KLB, Me%WorkSize%KUB
+                do j =  Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i =  Me%WorkSize%ILB, Me%WorkSize%IUB
+                    if (Me%Mapping%IntegerValues3D(i, j, k) == WaterPoint) then
+                        Me%DZ3D  (i,j,k)  = VerticalZ(i,j,k-1) - VerticalZ(i,j,k)
+                    endif
+                enddo
+                enddo
+                enddo
+                
+                deallocate(VerticalZ)
+                    
+            endif
+        
+        
+            call HDF5SetLimits (HDF5FileX%HDFID, Me%WorkSize%ILB,                       &
+                                Me%WorkSize%IUB, Me%WorkSize%JLB,Me%WorkSize%JUB,       &
+                                Me%WorkSize%KLB,Me%WorkSize%KUB,                        &
+                                STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) then
+                stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR180'
+            endif                
+            
 
             !For each parameter calculate statistic 
             ObjParameter => Me%FirstParameter
@@ -1889,7 +1958,7 @@ do2 :       do while(associated(ObjParameter))
                               Array2D      = Me%Mapping%IntegerValues2D,            &
                               STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                            &
-            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR150'
+            stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR190'
             
         endif
 
@@ -2423,14 +2492,9 @@ do2 :       do while(associated(ObjParameter))
         integer                                 :: MethodStatistic, Value3DStat3D 
         integer                                 :: Value3DStatLayers
         integer                                 :: STAT_CALL
-        !real,    dimension(:,:), pointer        :: MLD_Surf
-        !integer, dimension(:,:), pointer        :: KFloorZ
-        !integer                                 :: LayerDefinition                      
+        integer                                 :: LayerDefinition                      
         integer                                 :: Depth, Layer
-        !integer                                 :: LayersNumber, ln
-        !real,    dimension(:, :   ), pointer  :: UpperDepth, LowerDepth
-        !integer, dimension(:, :   ), pointer   :: UpperLayer, LowerLayer
-        !real,    dimension(:, :, :), pointer            :: DZ3D
+        integer                                 :: LayersNumber, ln
 
         !----------------------------------------------------------------------
 
@@ -2465,68 +2529,54 @@ do2 :       do while(associated(ObjParameter))
         
         if (MethodStatistic == Value3DStatLayers) then
 
-            !Option not yet implemented
-            write(*,*)'Option METHOD_STATISTIC = 2 (statistics in layers) chosen.'
-            write(*,*)'This is not yet implemented.'
-            stop 'CalculateHDF5Statistics3D - ModuleHDF5Statistics - ERR05'
 
             !Get layer specification
             !nullify(MLD_Surf)
             !nullify(KFloorZ)
             
-            !call GetStatisticLayersNumber(StatisticsID, LayersNumber, STAT = STAT_CALL)
+            call GetStatisticLayersNumber(StatisticsID, LayersNumber, STAT = STAT_CALL)
                                             
-            !if (STAT_CALL /= SUCCESS_)                                              &
-            !        call SetError (FATAL_, KEYWORD_,                                & 
-            !                       'CalculateHDF5Statistics3D - ModuleHDF5Statistics - ERR05')
+            if (STAT_CALL /= SUCCESS_)                                              &
+                    call SetError (FATAL_, KEYWORD_,                                & 
+                                   'CalculateHDF5Statistics3D - ModuleHDF5Statistics - ERR05')
 
-            !do ln=1, LayersNumber
+            do ln=1, LayersNumber
 
-            !    call GetStatisticLayerDef(StatisticsID, ln, LayerDefinition, STAT = STAT_CALL)
-                                            
-            !    if (STAT_CALL /= SUCCESS_)                                          &
-            !            call SetError (FATAL_, KEYWORD_,                            & 
-            !                           'CalculateHDF5Statistics3D - ModuleHDF5Statistics - ERR06')
+                call GetStatisticLayerDef(StatisticsID, ln, LayerDefinition, STAT = STAT_CALL)
+                                           
+                if (STAT_CALL /= SUCCESS_)                                          &
+                        call SetError (FATAL_, KEYWORD_,                            & 
+                                       'CalculateHDF5Statistics3D - ModuleHDF5Statistics - ERR06')
+                                       
 
             !    !Statistic of properties values along the bottom 
-            !    if (LayerDefinition == Layer) then 
+                if (LayerDefinition == Layer) then 
+                
+                    call AddStatisticLayers (StatisticID    = StatisticsID,         &
+                                             Value3D        = Field3D,              &
+                                             WaterPoints3D  = Me%Mapping%IntegerValues3D, &
+                                             DZ3D           = Me%DZ3D,              &
+                                             LayerNumber    = ln,                   &
+                                             STAT= STAT_CALL) 
 
-            !        call AddStatisticLayers (StatisticID    = StatisticsID,         &
-            !                                 Value3D        = Field3D,              &
-            !                                 WaterPoints3D  = Me%Mapping%IntegerValues3D, &
-            !                                 DZ3D           = DZ3D,                 &
-            !                                 LayerNumber    = ln,                   &
-            !                                 LowerLayer     = LowerLayer,           &
-            !                                 UpperLayer     = UpperLayer,           &
-            !                                 STAT= STAT_CALL) 
-
-            !        if (STAT_CALL /= SUCCESS_)                                      &
-            !            call SetError (FATAL_, KEYWORD_,                            & 
-            !                           'OutPut_Statistics - ModuleHDF5Statistics - ERR07')
+                    if (STAT_CALL /= SUCCESS_)                                      &
+                        call SetError (FATAL_, KEYWORD_,                            & 
+                                       'OutPut_Statistics - ModuleHDF5Statistics - ERR07')
 
 
-            !    !Statistic of properties values in the surface mixed layer 
-            !    else if (LayerDefinition == Depth) then 
+            !    
+                else if (LayerDefinition == Depth) then 
 
-            !        !call GetMLD_Surf(Me%ObjTurbulence, MLD_Surf, STAT = STAT_CALL) 
-            !        if (STAT_CALL /= SUCCESS_)                                      &
-            !            call SetError (FATAL_, KEYWORD_,                            &   
-            !                           'OutPut_Statistics - ModuleHDF5Statistics - ERR08')
-
-            !        call AddStatisticLayers (StatisticID    = StatisticsID,         &
-            !                                 Value3D        = Field3D,              &
-            !                                 WaterPoints3D  = Me%Mapping%IntegerValues3D, &
-            !                                 DZ3D           = DZ3D,                 &
-            !                                 LayerNumber    = ln,                   &
-            !                                 LowerDepth     = LowerDepth, STAT= STAT_CALL) 
-
-            !        if (STAT_CALL /= SUCCESS_)                                      &
-            !            call SetError (FATAL_, KEYWORD_,                            &
-            !                           'OutPut_Statistics - ModuleWaterProperties - ERR09')
-
-            !    endif
+                    call AddStatisticLayers (StatisticID    = StatisticsID,         &
+                                             Value3D        = Field3D,              &
+                                             WaterPoints3D  = Me%Mapping%IntegerValues3D, &
+                                             DZ3D           = Me%DZ3D,              &
+                                             LayerNumber    = ln,                   &
+                                             STAT= STAT_CALL) 
+                
+                endif
            
-            !enddo
+            enddo
 
         endif
                                                                                     
@@ -2613,6 +2663,10 @@ do2 :       do while(associated(ObjParameter))
         if (STAT_CALL /= SUCCESS_)                                                  &
             call SetError(FATAL_, INTERNAL_,                                        &
             'KillHDF5Statistics - ModuleHDF5Statistics - ERR04')
+            
+        if (associated(Me%DZ3D)) then
+            deallocate(Me%DZ3D)
+        endif
 
         deallocate(Me)
         nullify(Me)
