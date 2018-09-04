@@ -302,6 +302,7 @@ Module ModuleFillMatrix
         real                                        :: Direction     = null_real
         real                                        :: Period        = null_real
         real                                        :: AverageValue  = null_real
+        real                                        :: DepthValue    = null_real
        ! WaveType = 1 (Sine), WaveType = 2 (Cnoidal), WaveType = 3 (solitary)
         integer                                     :: WaveType      = null_int
         real,    dimension(:,:), pointer            :: X2D           => null()
@@ -4520,6 +4521,17 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR120'
         
+        !Gets the depth use to compute the imposed wave (m)
+        call GetData(Me%AnalyticWave%DepthValue,                                        &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'DEPTH_VALUE',                                      &
+                     default      = null_real,                                          &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR120'
+        
+        
         !Gets the file name of the Bathymetry
         call ReadFileName('IN_BATIM', BathymetryFile, "Bathymetry File", STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR130'
@@ -4548,12 +4560,17 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
         if (Me%AnalyticWave%WaveType == SineWaveSeaLevel_  .or.                         &
             Me%AnalyticWave%WaveType == SineWaveVelX_      .or.                         &
             Me%AnalyticWave%WaveType == SineWaveVelY_) then
+            
+            H = Me%AnalyticWave%DepthValue + Me%AnalyticWave%AverageValue
+    
                             
-                
             do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
             do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB        
 
-                H = max(Bathymetry(i, j) + Me%AnalyticWave%AverageValue, 0.1)
+                if (Me%AnalyticWave%DepthValue < HalfFillValueReal) then
+                    H = max(Bathymetry(i, j) + Me%AnalyticWave%AverageValue, 0.1)
+                endif                    
+                
                 Me%AnalyticWave%AmpAux(i, j) = A        
             
                 L = WaveLengthHuntsApproximation(real(T), real(H))
