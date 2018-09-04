@@ -4302,6 +4302,7 @@ em4:        do em =1, Me%EulerModelNumber
         if (Me%LitterON) then
             call ConstructLitter(ObjLitterID    = Me%ObjLitter,                         &
                                  Nomfich        = Me%Files%Nomfich,                     &
+                                 StartTime      = Me%ExternalVar%BeginTime,             &                                 
                                  EndTime        = Me%ExternalVar%EndTime,               &
                                  ModelDomain    = Me%GridsBounds,                       &
                                  STAT           = STAT_CALL)
