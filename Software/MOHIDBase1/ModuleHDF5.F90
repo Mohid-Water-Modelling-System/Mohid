@@ -4393,7 +4393,12 @@ Module ModuleHDF5
         
             !Opens the Group
             call h5gopen_f      (Me%FileID, GroupName, gr_id, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5ReadWindowR8_3D - ModuleHDF5 - ERR10'
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'FileName  = ', trim(Me%FileName)
+                write(*,*) 'GroupName = ', trim(GroupName)
+                stop 'HDF5ReadWindowR8_3D - ModuleHDF5 - ERR10'
+            endif
+            
 
 
             !Opens the DataSet
