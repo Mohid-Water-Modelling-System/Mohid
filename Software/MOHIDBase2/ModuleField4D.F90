@@ -1750,6 +1750,9 @@ wwd1:       if (Me%WindowWithData) then
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR130'    
         
         if (PropField%Harmonics%ON) then
+        
+            PropField%From2Dto3D = .true.
+        
             call GetData(PropField%Harmonics%Extract,                                   &
                          Me%ObjEnterData , iflag,                                       &
                          SearchType   = ExtractType,                                    &
