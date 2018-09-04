@@ -6,9 +6,9 @@
 ! PROJECT       : Mohid Base 1
 ! MODULE        : Litter
 ! URL           : http://www.mohid.com
-! AFFILIATION   : HIDROMOD & ??????
+! AFFILIATION   : HIDROMOD & ????
 ! DATE          : April 2018
-! REVISION      : Paulo Leitao & ?????? 
+! REVISION      : Paulo Leitao & ????
 ! DESCRIPTION   : Module manages the beach and killing of lagrangian litter particles
 !
 !------------------------------------------------------------------------------
@@ -28,6 +28,8 @@ Module ModuleLitter
 !   FILENAME                : char                        [file of polygons delimiting the area where litter can beach]
 !   COAST_TYPE              : integer                     [1 - Type A, 2 - Type B, etc.]
 !   PROBABILITY             : -                           [0 = 0% beach probability , 1 = 100% - beach probability  
+!   AGE_LIMIT               : seconds                     [Age limit after beaching above which the particle 
+!                                                          is delete from module litter]
 !<<EndBeachArea>>
 !<EndLitter>
 
@@ -37,6 +39,7 @@ Module ModuleLitter
     use ModuleFunctions    
     use ModuleDrawing
     use ModuleHDF5
+    use ModuleHorizontalGrid
 
     implicit none
 
@@ -53,6 +56,11 @@ Module ModuleLitter
     
     !Modifier
     public  :: ModifyLitter
+    private ::      CheckBeachLitter
+    private ::      DeleteOldLitter    
+    private ::      OutputNumberGrid
+
+  
 
     !Destructor
     public  :: KillLitter                                                     
@@ -75,7 +83,8 @@ Module ModuleLitter
         integer                                         :: CoastType            = null_int
         real                                            :: VelThreshold         = null_real
         real                                            :: WaveThreshold        = null_real        
-        real                                            :: Probability          = null_real        
+        real                                            :: Probability          = null_real     
+        real                                            :: AgeLimit             = null_real     
     end type T_IndividualArea
 
     type T_BeachAreas
@@ -92,6 +101,7 @@ Module ModuleLitter
     
     type T_ExtVar
         type(T_Time)                                    :: CurrentTime
+        type(T_Time)                                    :: StartTime                      
         type(T_Time)                                    :: EndTime              
         type (T_polygon), pointer                       :: ModelDomain          => null()
         integer                                         :: nParticles           = null_int
@@ -113,7 +123,7 @@ Module ModuleLitter
         integer                                         :: Origin               = null_int 
         integer                                         :: BeachAreaID          = null_int 
         integer                                         :: CoastType            = null_int         
-
+        real(8)                                         :: BeachPeriod          = null_real
         type (T_Particle),     pointer                  :: Next                 => null()    
         type (T_Particle),     pointer                  :: Prev                 => null()            
     end type T_Particle        
@@ -123,6 +133,25 @@ Module ModuleLitter
         type (T_Particle), pointer                      :: First                => null() 
     end type T_ParticleList        
     
+    type T_OutPut
+        type (T_Time), dimension(:), pointer            :: OutTime
+        integer                                         :: NextOutPut           = null_int
+        integer                                         :: Number               = null_int
+        integer,       dimension(:,:), pointer          :: AuxInt2D             => null()
+        character (len = PathLength)                    :: OutputFile           = null_str
+        character (len = PathLength)                    :: InputGridFile        = null_str        
+        integer                                         :: ObjHDF5              = 0
+        integer                                         :: ObjHorizontalGrid    = 0 
+        type (T_Size2D)                                 :: Size
+        type (T_Size2D)                                 :: WorkSize
+    end type T_OutPut    
+    
+
+    type T_OutputGrids
+        type (T_Output), dimension(:), pointer          :: Individual           => null()           
+        integer                                         :: Number               = null_int
+    end type T_OutputGrids       
+    
     private :: T_Litter
     type       T_Litter
         integer                                         :: InstanceID           = null_int
@@ -130,11 +159,14 @@ Module ModuleLitter
         type (T_ExtVar)                                 :: ExtVar        
         
         real                                            :: AgeToBeach           = null_real
-        logical                                         :: KillBeachLitter      = .false.     
+        logical                                         :: KillBeachLitter      = .false.  
+        
+        type (T_Time)                                   :: LastAtualization
 
         type (T_Files)                                  :: Files
         type (T_BeachAreas)                             :: BeachAreas
         type (T_ParticleList)                           :: ParticleList
+        type (T_OutputGrids)                            :: OutputGrids
 
         integer                                         :: ClientNumber         = null_int
         integer                                         :: ObjEnterdata         = 0
@@ -161,11 +193,12 @@ Module ModuleLitter
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructLitter(ObjLitterID, Nomfich, EndTime, ModelDomain, STAT)
+    subroutine ConstructLitter(ObjLitterID, Nomfich, StartTime, EndTime, ModelDomain, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                         :: ObjLitterID 
         character(len=*)                                :: Nomfich
+        type (T_Time)                                   :: StartTime
         type (T_Time)                                   :: EndTime
         type (T_Polygon), pointer                       :: ModelDomain
         integer, optional, intent(OUT)                  :: STAT     
@@ -193,8 +226,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call AllocateInstance
             
             Me%Files%Nomfich        = Nomfich
+            Me%ExtVar%StartTime     = StartTime            
+            Me%ExtVar%CurrentTime   = StartTime                        
             Me%ExtVar%EndTime       = EndTime
             Me%ExtVar%ModelDomain   => ModelDomain
+            
+            Me%LastAtualization     = StartTime
             
             call ConstructFilesNames
             
@@ -358,6 +395,8 @@ BF:     if (BlockFound) then
             call ConstructGlobalOptions
             
             call ReadBeachAreas
+            
+            call ReadOutputGrids
 
         else
         
@@ -570,10 +609,25 @@ i1:         if (AreasFound) then
                 
                 Me%BeachAreas%Individual(nAreas)%ID = nAreas           
                 
+                
+                !   AGE_LIMIT       : seconds                     
+                !   [Age limit after beaching above which the particle is delete from module litter]                                           
+                call GetData(Me%BeachAreas%Individual(nAreas)%AgeLimit,                 &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      ='AGE_LIMIT',                                 &
+                             default      = - null_real,                                &
+                             ClientModule ='ModuleLitter',                              &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadIndividualBeachAreas - ModuleLitter - ERR100'
+                
+                Me%BeachAreas%Individual(nAreas)%ID = nAreas        
+                
                
             else i1
             
-                stop 'ReadIndividualBeachAreas - ModuleLitter - ERR100'
+                stop 'ReadIndividualBeachAreas - ModuleLitter - ERR110'
 
             endif i1
             
@@ -584,6 +638,219 @@ i1:         if (AreasFound) then
     end subroutine ReadIndividualBeachAreas
                 
     !--------------------------------------------------------------------------
+
+    subroutine ReadOutputGrids
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+
+        !----------------------------------------------------------------------
+
+
+        call CountIndividualOutputGrids
+
+        call ReadIndividualOutputGrids 
+            
+
+    end subroutine ReadOutputGrids
+
+    !--------------------------------------------------------------------------
+
+    subroutine CountIndividualOutputGrids()
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_CALL, NGrids
+        logical                                         :: GridsFound
+
+        !Begin-----------------------------------------------------------------
+
+        NGrids = 0
+
+DOPROP: do 
+
+            call ExtractBlockFromBlock (EnterDataID         = Me%ObjEnterData,          &
+                                        ClientNumber        = Me%ClientNumber,          &
+                                        block_begin         = '<<BeginOutputGrid>>',    &
+                                        block_end           = '<<EndOutputGrid>>',      &
+                                        BlockInBlockFound   = GridsFound,               &
+                                        STAT                = STAT_CALL)         
+            if (STAT_CALL /= SUCCESS_) stop 'CountIndividualOutputGrids - ModuleLitter - ERR10'
+            
+i1:         if (GridsFound) then
+
+                NGrids = NGrids + 1
+ 
+            else i1
+            
+                call RewindBlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL)  
+                if (STAT_CALL /= SUCCESS_) stop 'CountIndividualOutputGrids - ModuleLitter - ERR20'
+                exit
+            endif i1
+
+        enddo DOPROP
+        
+        Me%OutputGrids%Number = NGrids
+
+        allocate(Me%OutputGrids%Individual(Me%OutputGrids%Number))
+
+    end subroutine CountIndividualOutputGrids
+    !--------------------------------------------------------------------------
+
+    subroutine ReadIndividualOutputGrids()
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        real,       dimension(:,:), pointer             :: Bathymetry 
+        integer,    dimension(:,:), pointer             :: WaterPoints2D    
+        type (T_Size2D)                                 :: Size, WorkSize
+        logical                                         :: GridsFound, OutputON
+        integer                                         :: STAT_CALL, nGrids, flag, HDF5_CREATE
+        !Begin-----------------------------------------------------------------
+        
+DONB:   do nGrids = 1, Me%OutputGrids%Number
+ 
+            call ExtractBlockFromBlock (EnterDataID         = Me%ObjEnterData,          &
+                                        ClientNumber        = Me%ClientNumber,          &
+                                        block_begin         = '<<BeginOutputGrid>>',    &
+                                        block_end           = '<<EndOutputGrid>>',      &
+                                        BlockInBlockFound   = GridsFound,               &
+                                        STAT                = STAT_CALL)   
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'ReadIndividualOutputGrids - ModuleLitter - ERR10'
+            endif                
+            
+i1:         if (GridsFound) then
+
+                call GetOutPutTime(Me%ObjEnterData,                                     &
+                                   CurrentTime   = Me%ExtVar%CurrentTime,               &
+                                   EndTime       = Me%ExtVar%EndTime,                   &
+                                   keyword       = 'OUTPUT_TIME',                       &
+                                   SearchType    = FromBlockInBlock,                    &
+                                   OutPutsTime   = Me%OutputGrids%Individual(nGrids)%OutTime,&
+                                   OutPutsOn     = OutputON,                            &
+                                   OutPutsNumber = Me%OutputGrids%Individual(nGrids)%Number, &
+                                   STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ReadIndividualOutputGrids - ModuleLitter - ERR20'
+                endif  
+
+                    
+                if (.not. OutputON) then 
+                    stop 'ReadIndividualOutputGrids - ModuleLitter - ERR30'
+                endif
+                
+                Me%OutputGrids%Individual(nGrids)%NextOutPut = 1
+
+                call GetData(Me%OutputGrids%Individual(nGrids)%OutPutFile,              &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      ='OUTPUT_FILENAME',                           &
+                             ClientModule ='ModuleLitter',                              &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadIndividualOutputGrids - ModuleLitter - ERR40'
+                if (flag      ==        0) stop 'ReadIndividualOutputGrids - ModuleLitter - ERR50'
+                
+                !Gets File Access Code
+                call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+    
+                !Opens HDF File
+                call ConstructHDF5(HDF5ID   = Me%OutputGrids%Individual(nGrids)%ObjHDF5,&
+                                   FileName = trim(Me%OutputGrids%Individual(nGrids)%OutPutFile),&
+                                   Access   = HDF5_CREATE,                              &
+                                   STAT     = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadIndividualOutputGrids - ModuleLitter - ERR60'
+ 
+                call GetData(Me%OutputGrids%Individual(nGrids)%InputGridFile,           &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      ='INPUT_GRID_FILENAME',                       &
+                             ClientModule ='ModuleLitter',                              &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadIndividualOutputGrids - ModuleLitter - ERR70'
+                
+                if (flag      ==        0) then
+                    stop 'ReadIndividualOutputGrids - ModuleLitter - ERR80'
+                endif
+                
+                call ConstructHorizontalGrid(HorizontalGridID = Me%OutputGrids%Individual(nGrids)%ObjHorizontalGrid,& 
+                                             DataFile         = Me%OutputGrids%Individual(nGrids)%InputGridFile,    &
+                                             STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadIndividualOutputGrids - ModuleLitter - ERR90'  
+                
+
+                call WriteHorizontalGrid (HorizontalGridID    = Me%OutputGrids%Individual(nGrids)%ObjHorizontalGrid, &
+                                          ObjHDF5             = Me%OutputGrids%Individual(nGrids)%ObjHDF5, &
+                                          STAT                = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadIndividualOutputGrids - ModuleLitter - ERR100'
+                
+                !Gets the grid size 
+                call GetHorizontalGridSize(HorizontalGridID = Me%OutputGrids%Individual(nGrids)%ObjHorizontalGrid,  &
+                                           Size             = Size,                                                 &
+                                           WorkSize         = WorkSize,                                             &
+                                           STAT             = STAT_CALL)     
+                if (STAT_CALL /= SUCCESS_) stop 'ReadIndividualOutputGrids - ModuleLitter - ERR110'
+                                           
+                Me%OutputGrids%Individual(nGrids)%Size      = Size
+                Me%OutputGrids%Individual(nGrids)%WorkSize  = WorkSize                                         
+                
+                allocate(Bathymetry   (Size%ILB:Size%IUB, Size%JLB:Size%JUB))
+                allocate(WaterPoints2D(Size%ILB:Size%IUB, Size%JLB:Size%JUB))                
+                
+
+                call HDF5SetLimits(HDF5ID   = Me%OutputGrids%Individual(nGrids)%ObjHDF5,&
+                                   ILB      = WorkSize%ILB,                             &
+                                   IUB      = WorkSize%IUB,                             &
+                                   JLB      = WorkSize%JLB,                             &
+                                   JUB      = WorkSize%JUB,                             &
+                                   STAT     = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadIndividualOutputGrids - ModuleLitter - ERR120'
+                
+                Bathymetry(:,:) = 0.
+
+                call HDF5WriteData(HDF5ID   = Me%OutputGrids%Individual(nGrids)%ObjHDF5,&
+                                   GroupName= "/Grid",                                  &
+                                   Name     = "Bathymetry",                             &
+                                   Units    = "m",                                      &                           
+                                   Array2D  = Bathymetry,                               &
+                                   STAT     = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConvertGridDataToHDF5 - ERR130'                
+
+                WaterPoints2D(:,:) = 1
+
+                call HDF5WriteData(HDF5ID   = Me%OutputGrids%Individual(nGrids)%ObjHDF5,&
+                                   GroupName= "/Grid",                                  &
+                                   Name     = "WaterPoints",                            &
+                                   Units    = "-",                                      &                           
+                                   Array2D  = WaterPoints2D,                            &
+                                   STAT     = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConvertGridDataToHDF5 - ERR130'                
+                
+                
+                deallocate(Bathymetry   )
+                deallocate(WaterPoints2D)                
+
+                allocate(Me%OutputGrids%Individual(nGrids)%AuxInt2D(Size%ILB:Size%IUB, Size%JLB:Size%JUB))                
+                
+            else i1
+            
+                stop 'ReadIndividualOutputGrids - ModuleLitter - ERR200'
+
+            endif i1
+            
+        enddo DONB
+        
+
+
+    end subroutine ReadIndividualOutputGrids
+                
+    !--------------------------------------------------------------------------
+
 
     !--------------------------------------------------------------------------
 
@@ -612,6 +879,7 @@ i1:         if (AreasFound) then
 
         NewPartic%BeachAreaID   = Me%BeachAreas%Individual(nArea)%ID
         NewPartic%CoastType     = Me%BeachAreas%Individual(nArea)%CoastType       
+        NewPartic%BeachPeriod   = 0
 
     end subroutine AllocateNewParticle
 
@@ -651,10 +919,11 @@ i1:         if (AreasFound) then
 
     !--------------------------------------------------------------------------
 
-    subroutine DeleteParticle (ParticleToDelete)
+    subroutine DeleteParticle (ParticleToDelete, NextParticleOut)
 
         !Arguments-------------------------------------------------------------
         type (T_Particle), pointer                    :: ParticleToDelete
+        type (T_Particle), pointer                    :: NextParticleOut
 
         !Local-----------------------------------------------------------------
         type (T_Particle), pointer                    :: CurrentPartic => null()
@@ -699,10 +968,11 @@ i1:         if (CurrentPartic%ID == ParticleToDelete%ID) then
                     Me%ParticleList%First => NextParticle
                 endif
 
+                NextParticleOut => NextParticle
 
                 !Deallocate Particle
-!                nullify       (ParticleToDelete%Next)
-!                nullify       (ParticleToDelete%Prev)
+                nullify       (ParticleToDelete%Next)
+                nullify       (ParticleToDelete%Prev)
                 deallocate    (ParticleToDelete)
                 nullify       (ParticleToDelete, CurrentPartic)
 
@@ -726,6 +996,9 @@ i1:         if (CurrentPartic%ID == ParticleToDelete%ID) then
         if (.not. ParticleDeleted) then
             stop 'DeleteParticle - ModuleLitter - ERR10'
         endif
+        
+        
+        
 
     end subroutine DeleteParticle    
 
@@ -794,6 +1067,12 @@ i1:         if (CurrentPartic%ID == ParticleToDelete%ID) then
             Me%ExtVar%KillPartic    => KillPartic      
             
             call CheckBeachLitter
+            
+            call DeleteOldLitter
+            
+            call OutputNumberGrid
+            
+            Me%LastAtualization = Me%ExtVar%CurrentTime
 
             STAT_ = SUCCESS_
         else               
@@ -859,6 +1138,167 @@ i4:                         if (Me%KillBeachLitter) then
         deallocate(Point)
 
     end subroutine CheckBeachLitter
+
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine DeleteOldLitter()        
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Particle), pointer                  :: DeletePartic
+        type (T_Particle), pointer                  :: CurrentPartic        
+        real                                        :: DT
+        integer                                     :: nArea
+        
+        !----------------------------------------------------------------------
+        
+        DT = Me%ExtVar%CurrentTime - Me%LastAtualization
+        
+        CurrentPartic => Me%ParticleList%First
+
+d1:     do while (associated(CurrentPartic)) 
+
+            
+            nArea = CurrentPartic%BeachAreaID
+
+            !Check if the particle need to be killed                                    
+i2:         if (CurrentPartic%BeachPeriod >= Me%BeachAreas%Individual(nArea)%AgeLimit) then
+
+                DeletePartic   => CurrentPartic
+                
+                call DeleteParticle(ParticleToDelete = DeletePartic, NextParticleOut = CurrentPartic)
+                            
+            else i2
+            
+                !Atualize the particles beach age if not created in this instant (BeachPeriod = 0)            
+                CurrentPartic%BeachPeriod = CurrentPartic%BeachPeriod + DT
+
+                CurrentPartic => CurrentPartic%Next
+
+            endif i2                
+                    
+        enddo   d1
+        
+
+
+    end subroutine DeleteOldLitter
+
+
+    !--------------------------------------------------------------------------
+
+    
+    !--------------------------------------------------------------------------
+
+    subroutine OutputNumberGrid()        
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Particle), pointer                  :: CurrentPartic
+        real                                        :: PointX, PointY
+        integer                                     :: nGrid, nTotalGrids
+        integer                                     :: iOut, STAT_CALL, I, J
+        logical                                     :: HaveDomain
+        type (T_Time)                               :: Aux
+        real, dimension(6), target                  :: AuxTime
+        real, dimension(:), pointer                 :: TimePtr        
+        
+        !----------------------------------------------------------------------
+        
+        
+        nTotalGrids = Me%OutputGrids%Number
+        
+d1:     do nGrid = 1, nTotalGrids        
+
+            iOut = Me%OutputGrids%Individual(nGrid)%NextOutput
+            
+        
+i1:         if (Me%ExtVar%CurrentTime >=  Me%OutputGrids%Individual(nGrid)%OutTime(iOut)) then
+
+                Me%OutputGrids%Individual(nGrid)%AuxInt2D(:,:) = 0
+        
+        
+                CurrentPartic => Me%ParticleList%First
+
+d2:             do while (associated(CurrentPartic)) 
+
+                    PointX = CurrentPartic%Longitude
+                    PointY = CurrentPartic%Latitude
+                
+                    HaveDomain = GetXYInsideDomain(Me%OutputGrids%Individual(nGrid)%ObjHorizontalGrid,  &
+                                                   PointX,                              &
+                                                   PointY,                              &
+                                                   Referential= GridCoord_,             &
+                                                   STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'OutputNumberGrid - ModuleLitter - ERR10'
+                
+                    if (HaveDomain) then
+
+                        call GetXYCellZ(HorizontalGridID = Me%OutputGrids%Individual(nGrid)%ObjHorizontalGrid,&
+                                        XPoint           = PointX,                      &
+                                        YPoint           = PointY,                      &
+                                        I                = I,                           &
+                                        J                = J,                           &
+                                        Referential      = GridCoord_,                  &
+                                        STAT             = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'OutputNumberGrid - ModuleLitter - ERR20'
+
+                        Me%OutputGrids%Individual(nGrid)%AuxInt2D(I,J) = Me%OutputGrids%Individual(nGrid)%AuxInt2D(I,J) + 1
+
+                    endif                
+
+                    CurrentPartic => CurrentPartic%Next
+                    
+                enddo   d2
+                
+                Aux = Me%OutputGrids%Individual(nGrid)%OutTime(iOut)
+                
+                !Writes the Instant - HDF 5
+                call ExtractDate   (Aux, AuxTime(1), AuxTime(2), AuxTime(3),          &
+                                    AuxTime(4), AuxTime(5), AuxTime(6))
+                TimePtr => AuxTime
+
+                call HDF5SetLimits(HDF5ID   = Me%OutputGrids%Individual(nGrid)%ObjHDF5, &
+                                   ILB      = 1,                                        &
+                                   IUB      = 6,                                        &
+                                   STAT     = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutputNumberGrid - ModuleLitter - ERR30'
+
+                call HDF5WriteData(HDF5ID       = Me%OutputGrids%Individual(nGrid)%ObjHDF5, &
+                                   GroupName    = "/Time",                              &
+                                   Name         = "Time",                               &
+                                   Units        =  "YYYY/MM/DD HH:MM:SS",               &                           
+                                   Array1D      = TimePtr,                              &
+                                   OutPutNumber = iOut,                                 &
+                                   STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutputNumberGrid - ModuleLitter - ERR40'                
+                
+                call HDF5SetLimits(HDF5ID   = Me%OutputGrids%Individual(nGrid)%ObjHDF5,     &
+                                   ILB      = Me%OutputGrids%Individual(nGrid)%WorkSize%ILB,&
+                                   IUB      = Me%OutputGrids%Individual(nGrid)%WorkSize%IUB,&
+                                   JLB      = Me%OutputGrids%Individual(nGrid)%WorkSize%JLB,&
+                                   JUB      = Me%OutputGrids%Individual(nGrid)%WorkSize%JUB,&
+                                   STAT     = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutputNumberGrid - ModuleLitter - ERR50'
+
+                call HDF5WriteData(HDF5ID       = Me%OutputGrids%Individual(nGrid)%ObjHDF5, &
+                                   GroupName    = "/Results/Number",                        &
+                                   Name         = "Number",                                 &
+                                   Units        = "-",                                      &                           
+                                   Array2D      = Me%OutputGrids%Individual(nGrid)%AuxInt2D,&
+                                   OutPutNumber = iOut,                                     &
+                                   STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'OutputNumberGrid - ModuleLitter - ERR60'
+                
+                Me%OutputGrids%Individual(nGrid)%NextOutput = iOut + 1                
+                
+                
+            endif i1                
+        enddo   d1
+        
+    end subroutine OutputNumberGrid
 
 
     !--------------------------------------------------------------------------
@@ -965,6 +1405,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         integer     , dimension(:),   pointer   :: Origin      
         integer     , dimension(:),   pointer   :: BeachAreaID 
         integer     , dimension(:),   pointer   :: CoastType   
+        real(8)     , dimension(:),   pointer   :: BeachPeriod
         type (T_Particle), pointer              :: CurrentPartic
         integer                                 :: STAT_CALL, nP, nPtotal
         character (len = StringLength)          :: GroupName, PropertyName, UnitsName
@@ -981,6 +1422,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         allocate(Origin     (1:nPtotal))
         allocate(BeachAreaID(1:nPtotal))
         allocate(CoastType  (1:nPtotal))         
+        allocate(BeachPeriod(1:nPtotal))                 
          
         !Output matrixes
         CurrentPartic   => Me%ParticleList%First
@@ -995,6 +1437,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             Origin      (nP)= CurrentPartic%Origin
             BeachAreaID (nP)= CurrentPartic%BeachAreaID
             CoastType   (nP)= CurrentPartic%CoastType
+            BeachPeriod (nP)= CurrentPartic%BeachPeriod
             
             call ExtractDate   (Time1   = CurrentPartic%BeachTime,                      &
                                 Year    = BeachTime(nP, 1),                             &
@@ -1094,6 +1537,17 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                             Array1D     = CoastType,                                    &
                             STAT        = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR80'
+
+        PropertyName = "Beach_Period"    
+        UnitsName    = "seconds"           
+        
+        call HDF5WriteData (HDF5ID      = Me%ObjHDF5,                                   &
+                            GroupName   = trim(GroupName)//trim(PropertyName),          &
+                            Name        = trim(PropertyName),                           & 
+                            Units       = trim(UnitsName),                              & 
+                            Array1D     = BeachPeriod,                                  &
+                            STAT        = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR80'        
         
         !Output matrixes 1D - HDF5       
         call HDF5SetLimits (HDF5ID  = Me%ObjHDF5,                                       &
@@ -1123,6 +1577,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         deallocate(Origin     )
         deallocate(BeachAreaID)
         deallocate(CoastType  )   
+        deallocate(BeachPeriod)           
         
 
     end subroutine WriteAllParticlesBeach
@@ -1170,13 +1625,40 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        
+        integer                         :: STAT_CALL, iG
         !Begin-----------------------------------------------------------------        
 
         !Deallocates variables
-        deallocate(Me%BeachAreas%Individual)            
-        nullify   (Me%BeachAreas%Individual)                    
+        if (associated(Me%BeachAreas%Individual)) then
+            deallocate(Me%BeachAreas%Individual)            
+            nullify   (Me%BeachAreas%Individual)                    
+        endif            
+        
+        do iG = 1, Me%OutputGrids%Number
 
+            call KillHorizontalGrid (HorizontalGridID = Me%OutputGrids%Individual(iG)%ObjHorizontalGrid, &
+                                        STAT             = STAT_CALL)      
+
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'DeallocateVariables - ModuleLitter - ERR10'
+            endif                                               
+            
+            call KillHDF5 (HDF5ID =  Me%OutputGrids%Individual(iG)%ObjHDF5,             &
+                            STAT   = STAT_CALL)
+                                         
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'DeallocateVariables - ModuleLitter - ERR20'
+            endif              
+
+            deallocate(Me%OutputGrids%Individual(iG)%AuxInt2D)
+            
+        enddo            
+        
+        if (associated(Me%OutputGrids%Individual)) then            
+            deallocate(Me%OutputGrids%Individual)            
+            nullify   (Me%OutputGrids%Individual)                    
+        endif                    
+        
             
     end subroutine DeallocateVariables
     
