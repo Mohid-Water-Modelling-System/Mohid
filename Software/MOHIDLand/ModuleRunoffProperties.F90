@@ -7535,7 +7535,7 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 !                    !!BOUNDARY FLUXES IN RUNOFF (NOT YET DONE)
 !                    
 !                    !!FLUXES IN X AND Y DIRECTION                        
-!                    if (Me%ComputeOptions%AdvDiff_SpatialMethod==AdvDif_CentralDif_) then ! diferen�as centrais
+!                    if (Me%ComputeOptions%AdvDiff_SpatialMethod==AdvDif_CentralDif_) then ! diferencas centrais
 !
 !                        
 !                        AdvTermA_U        = (aux * FluxU(i,j  ) / 2.) 
@@ -10228,4 +10228,4 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 end module ModuleRunoffProperties
 
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2006. MARETEC, Instituto Superior T�cnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2006. MARETEC, Instituto Superior Técnico, Technical University of Lisbon. 

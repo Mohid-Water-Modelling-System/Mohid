@@ -4564,7 +4564,7 @@ cd4:        if (WaterPoints2D(i, j) == WaterPoint .and. &
                 !Frank
                 ! The test below is now done in the hydrodynamic module. It can't be done here,
                 ! due to the Volumebalance of the cell.
-                ! Paulo Chambel Leit�o
+                ! Paulo Chambel Leitao
                 !OLD WAY - is correct because in this way the volume is never zero.
                 !if the volume is zero all the operations that devided the volume will have a overflow
 !                if (DomainThickness <= Me%WaterColumn%ZMin) then
@@ -4572,7 +4572,7 @@ cd4:        if (WaterPoints2D(i, j) == WaterPoint .and. &
 !                    DomainThickness = Me%WaterColumn%ZMin
 !                endif
 
-                ! Paulo Chambel Leit�o
+                ! Paulo Chambel Leitao
                 !NEW WAY - is wrong
                 ! NOTE: If the Waterlevel in a certain cell is lower then the WaterColumn%ZMin, water
                 ! can just enter to the cell. So it will be no "danger" (I hope) to calculate the
@@ -7156,5 +7156,5 @@ end module ModuleGeometry
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior T�cnico, Technical University of Lisbon.
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon.
 !----------------------------------------------------------------------------------------------------------

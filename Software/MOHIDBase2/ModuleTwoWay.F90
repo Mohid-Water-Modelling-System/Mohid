@@ -222,9 +222,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                        WorkSize         = Me%WorkSize2D,        &
                                        STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ConstructTwoWay - ERR02'
-            
-            allocate (Me%IgnoreOBCells(Me%WorkSize2D%ILB:Me%WorkSize2D%IUB, Me%WorkSize2D%JLB:Me%WorkSize2D%JUB))
-            call SetMatrixValue (GetPointer(Me%IgnoreOBCells), Me%WorkSize2D, 1)
 
             STAT_ = SUCCESS_
 
@@ -338,10 +335,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Locals ---------------------------------------------------------------
         integer                                     :: ILB, IUB, JLB, JUB, i, j
         !Begin ----------------------------------------------------------------
-        ILB = Me%WorkSize%ILB 
-        IUB = Me%WorkSize%IUB 
-        JLB = Me%WorkSize%JLB 
-        JUB = Me%WorkSize%JUB
+        ILB = Me%WorkSize2D%ILB 
+        IUB = Me%WorkSize2D%IUB 
+        JLB = Me%WorkSize2D%JLB 
+        JUB = Me%WorkSize2D%JUB
+        
+        allocate (Me%IgnoreOBCells(ILB:IUB, JLB:JUB))
+        call SetMatrixValue (GetPointer(Me%IgnoreOBCells), Me%WorkSize2D, 1)
         
         !compute south border
         do j = JLB, JUB
