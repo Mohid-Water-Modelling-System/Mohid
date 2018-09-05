@@ -3557,16 +3557,16 @@ do4 :       DO II = KLB+1, KUB+1
 
     !Saturation Oxygen concentration [mol/lw]
     !
-    !With the values of temperature (�C), this function calculates the
+    !With the values of temperature (ºC), this function calculates the
     !saturation Oxygen concentration.
     !
-    !Based in Henry's law (Metcalf & Eddy) Pedro Galv�o 2002
+    !Based in Henry's law (Metcalf & Eddy) Pedro Galvao 2002
 
     real function OxygenSaturationHenry (Temperature)
 
         !Arguments-------------------------------------------------------------
 
-        real, intent(IN) :: Temperature     !�C
+        real, intent(IN) :: Temperature     !ºC
         !Local-----------------------------------------------------------------
 
         real :: Henry
@@ -4380,12 +4380,12 @@ end function
         !Local-----------------------------------------------------------------
 
 
-        !Nautical referential 0� is coming from N, 90�N from E, 180� from S, 270� from W
+        !Nautical referential 0º is coming from N, 90ºN from E, 180º from S, 270º from W
         if (Referential == NauticalReferential_) then
 
             AngleOutGrid = 270. - AngleInReferential - GridAngle
 
-        !Current referential 0� is going to N, 90�N to E, 180� to S, 270� to W
+        !Current referential 0º is going to N, 90ºN to E, 180º to S, 270º to W
         else if (Referential == CurrentsReferential_) then
 
             AngleOutGrid = 90. - AngleInReferential - GridAngle
@@ -4410,12 +4410,12 @@ end function
 
         !Local-----------------------------------------------------------------
 
-        !Nautical referential 0� is coming from N, 90�N from E, 180� from S, 270� from W
+        !Nautical referential 0º is coming from N, 90ºN from E, 180º from S, 270º from W
         if (Referential == NauticalReferential_) then
 
             AngleOutReferential = AngleInGrid - 270. + GridAngle
 
-        !Current referential 0� is going to N, 90�N to E, 180� to S, 270� to W
+        !Current referential 0º is going to N, 90ºN to E, 180º to S, 270º to W
         else if (Referential == CurrentsReferential_) then
 
             AngleOutReferential = AngleInGrid - 90. + GridAngle
@@ -7496,7 +7496,7 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
         !Local-----------------------------------------------------------------
         real                                        :: a = 6.108   ![mb]
         real                                        :: b = 17.27
-        real                                        :: c = 237.2   ![�C] corrected! (from 273.2)
+        real                                        :: c = 237.2   ![ºC] corrected! (from 273.2)
 
         SaturatedVaporPressure = a * exp(b * Temperature / (Temperature + c))
 
@@ -8290,13 +8290,13 @@ d1:     do i=1,n ! Here we find the index ns of the closest table entry,
                 ns=i
                 dif=dift
             endif
-            c(i)=ya(i) !and initialize the tableau of c�s and d�s.
+            c(i)=ya(i) !and initialize the tableau of c's and d's.
             d(i)=ya(i)
         enddo d1
         y=ya(ns) !This is the initial approximation to y.
         ns=ns-1
 d3:     do m=1,n-1 !For each column of the tableau,
-d2:         do i=1,n-m ! we loop over the current c�s and d�s and update them.
+d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
                 ho=xa(i)-x
                 hp=xa(i+m)-x
                 w=c(i+1)-d(i)
@@ -8310,9 +8310,9 @@ d2:         do i=1,n-m ! we loop over the current c�s and d�s and update the
                     endif
 
                 endif
-                !This error can occur only if two input xa�s are (to within roundoff) identical.
+                !This error can occur only if two input xa's are (to within roundoff) identical.
                 den=w/den
-                d(i)=hp*den ! Here the c�s and d�s are updated.
+                d(i)=hp*den ! Here the c's and d's are updated.
                 c(i)=ho*den
             enddo d2
 
@@ -8323,8 +8323,8 @@ d2:         do i=1,n-m ! we loop over the current c�s and d�s and update the
             if (2*ns.lt.n-m)then !After each column in the tableau is completed, we decide
                                  !which correction, c or d, we want to add to our accumulating
                                  !value of y, i.e., which path to take through
-                                 !the tableau�forking up or down. We do this in such a
-                                 !way as to take the most �straight line� route through the
+                                 !the tableau'forking up or down. We do this in such a
+                                 !way as to take the most "straight line" route through the
                                  !tableau to its apex, updating ns accordingly to keep track
                                  !of where we are. This route keeps the partial approximations
                                  !centered (insofar as possible) on the target x. T he
@@ -10532,7 +10532,7 @@ d2:         do i=1,n-m ! we loop over the current c�s and d�s and update the
         !Begin-----------------------------------------------------
 
 
-        !Parameters - Hindering settling - PhD Thesis Tak�cs (2008)
+        !Parameters - Hindering settling - PhD Thesis Takacs (2008)
         ![m/day]
         if (present(v0max_i)) then
             v0max   = v0max_i
@@ -10634,7 +10634,7 @@ d2:         do i=1,n-m ! we loop over the current c�s and d�s and update the
             ![l/g]
             Rf      = Rf * 1000
         else
-            !Parameters - Hindering settling - PhD Thesis Tak�cs (2008)
+            !Parameters - Hindering settling - PhD Thesis Takacs (2008)
             ![m/day]
             v0max   = 360
             ! 120 - 370
@@ -12085,7 +12085,7 @@ D2:     do I=imax-1,2,-1
 
     end function WaveBeaufortScale
 
-    !Convert amplitude and phase (degrees / 360�) in complex number (Sreal+ i * Simag)
+    !Convert amplitude and phase (degrees / 360º) in complex number (Sreal+ i * Simag)
 
     subroutine AmpPhase_To_Complex (Amplitude, Phase, Sreal, Simag)
 
@@ -12099,7 +12099,7 @@ D2:     do I=imax-1,2,-1
     end Subroutine AmpPhase_To_Complex
 
 
-    !Convert complex number (Sreal+ i * Simag) in amplitude and phase (degrees / 360�)
+    !Convert complex number (Sreal+ i * Simag) in amplitude and phase (degrees / 360º)
     subroutine Complex_to_AmpPhase (Sreal,Simag,Amplitude,Phase)
 
         !Arguments-------------------------------------------------------------
@@ -12465,5 +12465,5 @@ D2:     do I=imax-1,2,-1
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior T�cnico, Technical University of Lisbon.
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon.
 !----------------------------------------------------------------------------------------------------------

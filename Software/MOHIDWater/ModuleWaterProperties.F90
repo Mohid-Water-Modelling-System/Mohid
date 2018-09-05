@@ -34,7 +34,7 @@
 !   PRESSURE_CORRECTION         : 0/1               0           !Check if density is computed with (1) or
 !   DENSITY_COHESIVE_SED        : real           [2600 kg/m3]   !Cohesive sediments density
 !
-!   REFERENCE_SPECIFICHEAT      : real           [4200 J/kg/�C] !Reference Water Specific Heat
+!   REFERENCE_SPECIFICHEAT      : real           [4200 J/kg/ºC] !Reference Water Specific Heat
 !   SPECIFICHEAT_METHOD         : int               3           !Specific Heat computation default method
 !
 !   SMALLDEPTH_LIMIT            : real            null_real     !Water column thickness below which homogeneous
@@ -19820,7 +19820,7 @@ do3:            do k = kbottom, KUB
                                 SpecifHeat                         /                    &
                                 Me%ExternalVar%DWZ(i, j, k)
 
-                    !The water temperature can not be below 0�C
+                    !The water temperature can not be below 0ºC
                     !unless the ADDOFFSET option is activated
                     !so that the water temperature can take negative values
                     if (AuxT < - Temperature%Concentration(i, j, k))then
@@ -20102,7 +20102,7 @@ dn:         do n=1, nCells
                                         if  ((PropertyX%ID%IDNumber == Temperature_) .and. (.not. Me%TempFirstTimeWarning)) then
 
                                             call SetError(WARNING_, INTERNAL_, &
-                                   "Positive discharge without user defined concentration - discharge temperature = 0�C", ON)
+                                   "Positive discharge without user defined concentration - discharge temperature = 0ºC", ON)
                                             Me%TempFirstTimeWarning = .true.
 
                                         endif
@@ -21091,7 +21091,7 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
 
                             if (WriteNumber > WriteNumberMax) then
                                 write(*,*) 'Too much temperature and/or salinity anomalous values >', WriteNumberMax
-                                !call CloseAllAndStop (' ModifyDensity - ModuleWaterProperties - ERR60')
+                                call CloseAllAndStop (' ModifyDensity - ModuleWaterProperties - ERR60')
                             endif
 
                             Me%Density%Sigma(i, j, k) = SigmaUNESCO     (T(i, j, k), S(i, j, k))
@@ -24336,7 +24336,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
                 end if
 
-                !no CeQual o fluxo de CO2 � actualizado no ICarbon. O CO2 nao � variavel de estado
+                !no CeQual o fluxo de CO2 é actualizado no ICarbon. O CO2 nao é variavel de estado
                 if (PropertyX%ID%IDNumber == ICarbon_        )then
 
                     if(PropertyX%Evolution%SurfaceFluxes    )CarbonDioxideFluxYes   = .true.
@@ -27058,5 +27058,5 @@ end Module ModuleWaterProperties
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior T�cnico, Technical University of Lisbon.
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon.
 !----------------------------------------------------------------------------------------------------------

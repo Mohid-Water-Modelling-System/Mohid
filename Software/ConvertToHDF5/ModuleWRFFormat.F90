@@ -4037,12 +4037,12 @@ do2:        do while(associated(Field))
 
             case('air temperature')
 
-                Field%Units     = '�C'
+                Field%Units     = 'ºC'
                 Field%Values2D  = Field%Values2D - AbsoluteZero
 
             case('air temperature_3D')
 
-                Field%Units     = '�C'
+                Field%Units     = 'ºC'
                 Field%Values3D  = Field%Values3D - AbsoluteZero
             
             case('wind velocity X')
@@ -4394,7 +4394,7 @@ end module ModuleWRFFormat
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior T�cnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
 !----------------------------------------------------------------------------------------------------------
 
 
