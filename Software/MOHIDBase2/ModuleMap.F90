@@ -1950,7 +1950,7 @@ dok2:           do k = KLB, KUB
 if3:                if(Me%ComputeFaces3D%U(i, j, k)  == 1) then 
 
                         if  (BoundaryPoints2D (i, j) == BoundaryPoints2D (i, j-1)) then
-
+                            write(*,*) 'i,j,k',i,j,k
                             !$OMP CRITICAL (UIV1_ModuleMap_ERR05)
                             call SetError (FATAL_, INTERNAL_, "UpdateImposedValues - ModuleMap - ERR05")        
                             !$OMP END CRITICAL (UIV1_ModuleMap_ERR05)
@@ -2023,6 +2023,7 @@ if5 :                if(Me%ComputeFaces3D%V(i, j, k)  == 1) then
                         if  (BoundaryPoints2D (i, j) == BoundaryPoints2D (i-1, j)) then
                             !ErrorOcurred1 = .true.
                             !exit do3
+                            write(*,*) 'i,j,k',i,j,k
                             !$OMP CRITICAL (UIV2_ModuleMap_ERR06)
                             call SetError (FATAL_, INTERNAL_, "UpdateImposedValues - ModuleMap - ERR06")        
                             !$OMP END CRITICAL (UIV2_ModuleMap_ERR06)
@@ -2056,7 +2057,7 @@ do7 :   do i = ILB, IUB + 1
                 Me%ComputeFaces3D%V        (i, j, k) == 1) then
                 !ErrorOcurred1 = .true.
                 !exit do6
-                
+                write(*,*) 'i,j,k',i,j,k
                 !$OMP CRITICAL (UIV3_ModuleMap_ERR07)
                 call SetError (FATAL_, INTERNAL_, "UpdateImposedValues - ModuleMap - ERR07")        
                 !$OMP END CRITICAL (UIV3_ModuleMap_ERR07)
@@ -2066,7 +2067,7 @@ do7 :   do i = ILB, IUB + 1
                 Me%ComputeFaces3D%V    (i, j, k) == 1) then
                 !ErrorOcurred2 = .true.
                 !exit do6
-                
+                write(*,*) 'i,j,k',i,j,k
                 !$OMP CRITICAL (UIV4_ModuleMap_ERR08)
                 call SetError (FATAL_, INTERNAL_, "UpdateImposedValues - ModuleMap - ERR08")        
                 !$OMP END CRITICAL (UIV4_ModuleMap_ERR08)
@@ -2095,7 +2096,7 @@ do10:   do i = ILB, IUB
                 Me%ComputeFaces3D%U        (i, j, k) == 1) then
                 !ErrorOcurred1 = .true.
                 !exit do9
-                
+                write(*,*) 'i,j,k',i,j,k
                 !$OMP CRITICAL (UIV5_ModuleMap_ERR09)
                 call SetError (FATAL_, INTERNAL_, "UpdateImposedValues - ModuleMap - ERR09")        
                 !$OMP END CRITICAL (UIV5_ModuleMap_ERR09)
@@ -2105,7 +2106,7 @@ do10:   do i = ILB, IUB
                 Me%ComputeFaces3D%U    (i, j, k) == 1) then
                 !ErrorOcurred1 = .true.
                 !exit do9
-
+                write(*,*) 'i,j,k',i,j,k
                 !$OMP CRITICAL (UIV6_ModuleMap_ERR10)
                 call SetError (FATAL_, INTERNAL_, "UpdateImposedValues - ModuleMap - ERR10")        
                 !$OMP END CRITICAL (UIV6_ModuleMap_ERR10)

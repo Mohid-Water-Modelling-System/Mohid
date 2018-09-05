@@ -516,7 +516,7 @@ if2 :           if (BlockFound) then
         !Arguments-------------------------------------------------------------    
     
         !Local-----------------------------------------------------------------
-        integer                                     :: i, j, STAT_CALL, nItems
+        integer                                     :: i, j, STAT_CALL, nItems, PrevInTimeFile
         type (T_Time)                               :: DateAux
 
 
@@ -528,6 +528,7 @@ if2 :           if (BlockFound) then
         allocate(Me%TimeMap%FirstDateBest   (1:Me%FileNameInNumber))        
         allocate(Me%TimeMap%LastDateBest    (1:Me%FileNameInNumber))     
         
+        PrevInTimeFile = Me%FileNameInNumber
         
         do i = Me%FileNameInNumber, 1, -1
         
@@ -553,7 +554,7 @@ if2 :           if (BlockFound) then
                     
                     DateAux = HDF5TimeInstant(HDF5ID = Me%TimeMap%ObjHDF5_ID(i), Instant = j)
                     
-                    if (DateAux < Me%TimeMap%FirstDateBest   (i+1)) then
+                    if (DateAux < Me%TimeMap%FirstDateBest   (PrevInTimeFile)) then
                                             
                         Me%TimeMap%FirstInstantBest(i) = 1
                         Me%TimeMap%LastInstantBest (i) = j  
@@ -561,9 +562,12 @@ if2 :           if (BlockFound) then
                         Me%TimeMap%FirstDateBest   (i) = HDF5TimeInstant(HDF5ID = Me%TimeMap%ObjHDF5_ID(i), Instant = 1)
                         Me%TimeMap%LastDateBest    (i) = DateAux
                         
-                        exit
+                        PrevInTimeFile = i
                         
+                        exit
+
                     endif
+                    
                 enddo                    
             endif
         
@@ -1450,9 +1454,16 @@ if2 :           if (BlockFound) then
         do idx = Me%TimeMap%FirstInstantBest(i), Me%TimeMap%LastInstantBest(i)
 
             !Gets information about the group
+        
+            if (idx == 0) cycle
 
             call h5gget_obj_info_idx_f(IDIn, GroupNameIn, idx-1, obj_nameIn, obj_type,  STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'GlueInTimeBest - ModuleGlueHDF5Files - ERR30'
+            if (STAT_CALL /= SUCCESS_) then
+                write(*,*) "FileName =", Me%FileNameIn(i)            
+                write(*,*) "GroupNameIn =", GroupNameIn                         
+                write(*,*) "obj_nameIn =", obj_nameIn                
+                stop 'GlueInTimeBest - ModuleGlueHDF5Files - ERR30'
+            endif                
 
             !Opens the Group
             call h5gopen_f (IDIn, GroupNameIn, gr_id, STAT_CALL)
@@ -1568,7 +1579,11 @@ if2 :           if (BlockFound) then
 
             call h5gget_obj_info_idx_f(IDIn, GroupName, idx-1, obj_name, obj_type,  STAT_CALL)
 
-            if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR30'
+            if (STAT_CALL /= 0) then
+                write(*,*) "Groupname =", GroupName
+                write(*,*) "obj_name =", obj_name
+                stop 'GlueInResults - ModuleHDF5Files - ERR30'
+            endif                
 
             if (obj_type == H5G_DATASET_F) then
             
@@ -1713,7 +1728,7 @@ if2 :           if (BlockFound) then
                         call HDF5SetLimits  (ObjHDF5_Out, 1, dims_int(1), 1, dims_int(2), STAT = STAT_CALL)
                         if (STAT_CALL /= 0) stop 'GlueInResults - ModuleHDF5Files - ERR220'
                     
-                        if (data_is_integer == .true.) then
+                        if (data_is_integer) then
                         
                             call HDF5WriteData(ObjHDF5_Out, GroupName, trim(adjustl(obj_name(1:ia-1))), & 
                                                Units, Array2D = DataInt2D, OutputNumber = nmembersOut + k, STAT = STAT_CALL)
