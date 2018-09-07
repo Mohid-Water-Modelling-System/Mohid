@@ -7497,7 +7497,6 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
         real                                        :: a = 6.108   ![mb]
         real                                        :: b = 17.27
         real                                        :: c = 237.2   ![ºC] corrected! (from 273.2)
-
         SaturatedVaporPressure = a * exp(b * Temperature / (Temperature + c))
 
     end function SaturatedVaporPressure

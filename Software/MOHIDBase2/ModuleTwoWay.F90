@@ -640,14 +640,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         call ComputeAuxMatrixes (Volume_3D        = Me%External_Var%VolumeU,         &
                                                  InterpolMethod   = InterpolMethod,    &
                                                  Ilink            = Me%External_Var%IU, &
-                                                 Jlink            = Me%External_Var%JU)
+                                                 Jlink            = Me%External_Var%JU, &
+                                                 VelocityID       = VelocityID)
                         
                     else
                         !Type_V
                         call ComputeAuxMatrixes (Volume_3D        = Me%External_Var%VolumeV,         &
                                                  InterpolMethod   = InterpolMethod,    &
                                                  Ilink            = Me%External_Var%IV, &
-                                                 Jlink            = Me%External_Var%JV)
+                                                 Jlink            = Me%External_Var%JV, &
+                                                 VelocityID       = VelocityID)
                     endif
                 else
                     !Type Z
@@ -786,13 +788,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Computes auxiliar matrixes for the feedback
-    !>@param[in] SonMatrix, SonMatrix2D, InterpolMethod    
-    subroutine ComputeAuxMatrixes(Volume_3D, Volume_2D, InterpolMethod, Ilink, Jlink)
+    !>@param[in] Volume_3D, Volume_2D, VelocityID, InterpolMethod   
+    subroutine ComputeAuxMatrixes(Volume_3D, Volume_2D, VelocityID, InterpolMethod, Ilink, Jlink)
         !Arguments-------------------------------------------------------------
         integer, intent(IN)                         :: interpolMethod
         real, dimension(:, :, :), pointer, optional :: Volume_3D
         real, dimension(:, :),    pointer, optional :: Volume_2D
         integer, dimension(:, :), pointer           :: Ilink, Jlink
+        integer, optional                           :: VelocityID
         !Local-----------------------------------------------------------------
 
         !----------------------------------------------------------------------    
@@ -803,9 +806,26 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call SetMatrixValue (GetPointer(Me%Father%TotSonVolIn), Me%Father%WorkSize, 0.001)
                 call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%Father%WorkSize, 0.0)                  
                 ! Volume Weighted average
-                call ComputeSonVolInFather   (Volume_3D      = Volume_3D,      &
-                                              Ilink          = Ilink,          &
-                                              Jlink          = Jlink)
+                if (present(VelocityID))then
+                    if (VelocityID == VelocityU_)then
+                        call ComputeSonVolInFather(Volume_3D      = Volume_3D,                     &
+                                                   Ilink          = Ilink,                         &
+                                                   Jlink          = Jlink,                         &
+                                                   SonComputeFaces= Me%External_Var%ComputeFaces3D_U)
+                    else
+                        call ComputeSonVolInFather(Volume_3D      = Volume_3D,                     &
+                                                   Ilink          = Ilink,                         &
+                                                   Jlink          = Jlink,                         &
+                                                   SonComputeFaces= Me%External_Var%ComputeFaces3D_V)
+                    endif
+                    
+                else
+                    
+                    call ComputeSonVolInFather   (Volume_3D      = Volume_3D,      &
+                                                  Ilink          = Ilink,          &
+                                                  Jlink          = Jlink)
+                endif
+                
             else
                 call SetMatrixValue (GetPointer(Me%Father%IWDNom), Me%Father%WorkSize, 0.0)
                 call SetMatrixValue (GetPointer(Me%Father%IWDDenom), Me%Father%WorkSize, 0.0)
@@ -833,27 +853,40 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Computes Son cells volume inside each father cell
-    !>@param[in] SonMatrix, SonMatrix2D, Ilink, Jlink
-    subroutine ComputeSonVolInFather (Volume_3D, Volume_2D, Ilink, Jlink)
+    !>@param[in] SonMatrix, SonMatrix2D, Ilink, Jlink, SonComputeFaces
+    subroutine ComputeSonVolInFather (Volume_3D, Volume_2D, Ilink, Jlink, SonComputeFaces)
     
         !Arguments--------------------------------------------------------------------------------
-        real, dimension(:, :, :), pointer, optional :: Volume_3D
-        real, dimension(:, :),    pointer, optional :: Volume_2D
-        integer, dimension(:, :), pointer           :: Ilink, Jlink
+        real, dimension(:, :, :), pointer, optional    :: Volume_3D
+        real, dimension(:, :),    pointer, optional    :: Volume_2D
+        integer, dimension(:, :), pointer              :: Ilink, Jlink
+        integer, dimension(:, :, :), pointer, optional :: SonComputeFaces
         !Local variables--------------------------------------------------------------------------
         integer                                 :: i, j, k
         !Begin------------------------------------------------------------------------------------
         if (present(Volume_3D)) then
+            if (present(SonComputeFaces))then
             
-            do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                    Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) =                      &
-                    Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) * &
-                    Me%External_Var%Open3D(i, j, k) * Me%IgnoreOBCells(i, j)
-            enddo        
-            enddo
-            enddo
+                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) =                             &
+                        Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) *        &
+                        Me%External_Var%Open3D(i, j, k) * Me%IgnoreOBCells(i, j) * SonComputeFaces(i, j, k)
+                enddo        
+                enddo
+                enddo
+            else
+                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) =                      &
+                        Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) * &
+                        Me%External_Var%Open3D(i, j, k) * Me%IgnoreOBCells(i, j)
+                enddo        
+                enddo
+                enddo
+            endif
             
         else
             
