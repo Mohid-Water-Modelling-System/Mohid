@@ -297,12 +297,14 @@ Module ModuleFillMatrix
     end type T_EnteringCell
 
     type T_AnalyticWave
-        logical                                     :: ON            = .false. 
-        real                                        :: Amplitude     = null_real
-        real                                        :: Direction     = null_real
-        real                                        :: Period        = null_real
-        real                                        :: AverageValue  = null_real
-        real                                        :: DepthValue    = null_real
+        logical                                     :: ON               = .false. 
+        real                                        :: Amplitude        = null_real
+        real                                        :: Direction        = null_real
+        real                                        :: Period           = null_real
+        real                                        :: AverageValue     = null_real
+        real                                        :: DepthValue       = null_real
+        real                                        :: CoefValue        = null_real 
+        logical                                     :: SlowStartON      = .false. 
        ! WaveType = 1 (Sine), WaveType = 2 (Cnoidal), WaveType = 3 (solitary)
         integer                                     :: WaveType      = null_int
         real,    dimension(:,:), pointer            :: X2D           => null()
@@ -4529,7 +4531,28 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
                      default      = null_real,                                          &
                      ClientModule = 'ModuleFillMatrix',                                 &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR120'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR123'
+
+        !Gets the coef value to adjust the wave celerity to be imposed in the boundary
+        call GetData(Me%AnalyticWave%CoefValue,                                         &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'COEF_VALUE',                                       &
+                     default      = 1.,                                                 &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR125' 
+        
+        
+        !Gets if the wave is to imposed gradually or not along the wave period.
+        call GetData(Me%AnalyticWave%SlowStartON,                                       &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'SLOWSTART',                                        &
+                     default      = .true.,                                             &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR126'        
         
         
         !Gets the file name of the Bathymetry
@@ -4594,7 +4617,7 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
                 k     = 2. * Pi / L
                 
                 
-                Me%AnalyticWave%Celerity(i,j) = L / T
+                Me%AnalyticWave%Celerity(i,j) = Me%AnalyticWave%CoefValue * L / T
                 
                 !write(*,*) 'Wave celerity - ', Me%AnalyticWave%Celerity(i, j)
                 
@@ -9813,9 +9836,11 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer                                         :: STAT_CALL
         integer                                         :: ilb, iub, jlb, jub, klb, kub
         integer                                         :: i, j, k  
-        type (T_Time)                                   :: Now
+        type (T_Time)                                   :: Now, RefDate
         real(8)                                         :: Amplitude, Period, AverageValue
         real(8)                                         :: TimeSeconds, T1, T2, T3, Dir, A
+        real(8)                                         :: StartPeriod, T4
+        logical                                         :: SlowStartON
         integer                                         :: WaveType, n     
         
         !----------------------------------------------------------------------
@@ -9824,10 +9849,18 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         call GetComputeCurrentTime(Me%ObjTime, Now, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModifyAnalyticWave - ModuleFillMatrix - ERR010'
         
-        Period        = Me%AnalyticWave%Period
-        WaveType      = Me%AnalyticWave%WaveType
-        AverageValue  = Me%AnalyticWave%AverageValue
-        TimeSeconds   = Now - Me%BeginTime
+        Period          = Me%AnalyticWave%Period
+        WaveType        = Me%AnalyticWave%WaveType
+        AverageValue    = Me%AnalyticWave%AverageValue
+        SlowStartON     = Me%AnalyticWave%SlowStartON
+        
+        call SetDate(RefDate, Year = 2018, Month = 1, Day = 1, Hour = 0, Minute = 0, Second = 0)        
+        
+        TimeSeconds   = Now - RefDate
+        StartPeriod   = Now - Me%BeginTime 
+        
+        
+        !TimeSeconds   = Now - Me%BeginTime
 
         if (Me%Dim == Dim2D) then
             
@@ -9868,17 +9901,29 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 !T2 = X / WaveCelerity
                 T2 = Me%AnalyticWave%EnteringCell%TimeLag(n)
                 T3 = T1 - T2
+                T4 = StartPeriod - T2
                 A  = Amplitude
+                Dir = Me%AnalyticWave%Direction  
+            
+                
+                if (SlowStartON) then
 
-                if (T3 >= - Period) then
+                    if (T4 >= - Period) then
 
-                    Dir = Me%AnalyticWave%Direction
-                    if (T1 < Period) then
-                        A = A * T1 / Period
-                    endif
-                    Me%Matrix2D(i,j) = AverageValue + ComputeWaveAnalytic1D (A, Period, T3, WaveType, Dir)
+                        if (T4 < Period) then
+                            A = A * StartPeriod / Period
+                        endif
 
-                endif                        
+                    else
+                    
+                        A = 0.
+
+                    endif                        
+
+                endif
+                
+                Me%Matrix2D(i,j) =  AverageValue + ComputeWaveAnalytic1D (A, Period, T3, WaveType, Dir)
+
             enddo
 
          else

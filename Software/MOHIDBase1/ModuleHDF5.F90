@@ -249,7 +249,7 @@ Module ModuleHDF5
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructHDF5 (HDF5ID, FileName, Access, STAT)
+    subroutine ConstructHDF5 (HDF5ID, FileName, Access, HDF5Stop, STAT)
 #ifdef _GUI_
         !DEC$ IF DEFINED(_X86_)
         !DEC$ ATTRIBUTES STDCALL, REFERENCE, ALIAS : '_ConstructHDF5@16' :: ConstructHDF5
@@ -262,11 +262,13 @@ Module ModuleHDF5
         integer                                     :: HDF5ID
         character(len=*)                            :: FileName
         integer                                     :: Access
+        logical, intent(OUT), optional              :: HDF5Stop
         integer(4), optional                        :: STAT
 
         !Local-----------------------------------------------------------------
         integer(4)                                  :: STAT_CALL
         integer                                     :: STAT_, ready_
+        logical                                     :: HDF5Stop_
         
         !Begin-----------------------------------------------------------------
 
@@ -282,32 +284,69 @@ Module ModuleHDF5
         call Ready (HDF5ID, ready_)
 
         if (ready_ .EQ. OFF_ERR_) then
+        
+            if (present(HDF5Stop)) then
+                HDF5Stop_ = .false.
+                HDF5Stop  = .false. 
+            else
+                HDF5Stop_ = .true.
+            endif
 
             !Allocates a new Instance
             call AllocateInstance
 
             !Initializes predefined datatypes
             call h5open_f (STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5 - ModuleHDF5 - ERR00'
+            if (STAT_CALL /= SUCCESS_) then
+                if (HDF5Stop_) then
+                    stop 'ConstructHDF5 - ModuleHDF5 - ERR00'
+                else
+                   HDF5Stop = .true. 
+                endif
+            endif                
 
             !Open the file
             if      (Access == HDF5_CREATE_) then
                 call h5fcreate_f(trim(FileName), ACCESS_FLAGS = H5F_ACC_TRUNC_F,               &
                                  FILE_ID = Me%FileID, HDFERR = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5 - ModuleHDF5 - ERR01'
+                if (STAT_CALL /= SUCCESS_)  then
+                    if (HDF5Stop_) then
+                        stop 'ConstructHDF5 - ModuleHDF5 - ERR01'
+                    else
+                        HDF5Stop = .true. 
+                    endif                                
+                endif
+                
             elseif  (Access == HDF5_READ_) then
                 call h5fopen_f (trim(FileName), ACCESS_FLAGS = H5F_ACC_RDONLY_F,               &
                                 FILE_ID = Me%FileID, HDFERR = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) then
-                    write(*,*) trim(FileName)
-                    stop 'ConstructHDF5 - ModuleHDF5 - ERR02'
+                    if (HDF5Stop_) then
+                        write(*,*) trim(FileName)
+                        stop 'ConstructHDF5 - ModuleHDF5 - ERR02'
+                    else
+                        HDF5Stop = .true.                         
+                    endif                        
                 endif
             elseif  (Access == HDF5_READWRITE_) then
                 call h5fopen_f (trim(FileName), ACCESS_FLAGS = H5F_ACC_RDWR_F,                &
                                 FILE_ID = Me%FileID, HDFERR = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5 - ModuleHDF5 - ERR03'
+                if (STAT_CALL /= SUCCESS_) then
+                    if (HDF5Stop_) then
+                        stop 'ConstructHDF5 - ModuleHDF5 - ERR03'
+                    else
+                        HDF5Stop = .true. 
+                    endif                        
+                endif
+                
             else
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5 - ModuleHDF5 - ERR04'
+                if (STAT_CALL /= SUCCESS_) then
+                    if (HDF5Stop_) then
+                        stop 'ConstructHDF5 - ModuleHDF5 - ERR04'
+                    else
+                        HDF5Stop = .true.                         
+                    endif                                                        
+                endif                    
             endif
 
             nullify(Me%AuxMatrixes%DataR4_1D, Me%AuxMatrixes%DataR4_2D, Me%AuxMatrixes%DataR4_3D, &
@@ -7528,7 +7567,7 @@ if11 :              if (size == 8) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine KillHDF5 (HDF5ID, STAT)
+    subroutine KillHDF5 (HDF5ID, DoNotStop, STAT)
 #ifdef _GUI_
         !DEC$ IF DEFINED(_X86_)
         !DEC$ ATTRIBUTES STDCALL, REFERENCE, ALIAS : '_KillHDF5@8'   :: KillHDF5
@@ -7539,12 +7578,15 @@ if11 :              if (size == 8) then
 
         !Arguments-------------------------------------------------------------
         integer                                     :: HDF5ID
+        logical, optional, intent(IN)               :: DoNotStop
         integer, optional                           :: STAT
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_    
         integer(4)                                  :: STAT_CALL
         integer                                     :: nUsers
+        logical                                     :: DoStop_
+        
 
         !----------------------------------------------------------------------
 
@@ -7557,9 +7599,21 @@ if11 :              if (size == 8) then
             nUsers = DeassociateInstance(mHDF5_,  Me%InstanceID)
 
             if (nUsers == 0) then
+            
+                DoStop_ = .true.
+            
+                if (present(DoNotStop)) then
+                    if (DoNotStop) then
+                        DoStop_ = .false.
+                    endif                        
+                endif                    
                 
                 call h5fclose_f(Me%FileID, HDFERR = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'KillHDF5 - ModuleHDF5 - ERR01'
+                if (STAT_CALL /= SUCCESS_) then
+                    if (DoStop_) then
+                        stop 'KillHDF5 - ModuleHDF5 - ERR01'
+                    endif
+                endif                    
                 
                 call DeallocateAuxMatrixes
 
