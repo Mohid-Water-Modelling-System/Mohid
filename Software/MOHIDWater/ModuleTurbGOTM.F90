@@ -214,8 +214,6 @@ Module ModuleTurbGOTM
                              HorizontalGridID,                                  &
                              GeometryID,                                        &
                              Continuous_Compute,                                &
-                             ReadContinuousFormat,                              &
-                             WriteContinuousFormat,                             &
                              STAT)
 
         !Arguments---------------------------------------------------------------
@@ -227,8 +225,6 @@ Module ModuleTurbGOTM
         integer                                         :: HorizontalGridID
         integer                                         :: GeometryID
         logical                                         :: Continuous_Compute
-        integer                                         :: ReadContinuousFormat
-        integer                                         :: WriteContinuousFormat
         integer, optional, intent(OUT)                  :: STAT
 
         !External----------------------------------------------------------------
@@ -318,7 +314,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call AllocateVariables
 
             if (Continuous_Compute) then
-                call Read_Final_Turbulence_File(ReadContinuousFormat, WriteContinuousFormat)
+                call Read_Final_Turbulence_File
             end if
 
             !Returns ID
@@ -878,17 +874,16 @@ dok4 :              do k=Kbottom,KUB+1
     ! results file of a previous run. By default this      
     ! file is in HDF format                                
 
-    subroutine Read_Final_Turbulence_File(ReadContinuousFormat, WriteContinuousFormat)
+    subroutine Read_Final_Turbulence_File
     
         !Arguments-------------------------------------------------------------
-        integer                 :: ReadContinuousFormat
-        integer                 :: WriteContinuousFormat
+
 
         !Local-----------------------------------------------------------------
         logical                 :: exists
 
         !Local-----------------------------------------------------------------
-        logical                             :: BinaryFormatOK
+        logical                             :: BinaryFormatOK, HDF5FormatOK
         !Begin-----------------------------------------------------------------
 
         inquire (FILE=Me%Files%InitialTurbulence, EXIST = exists) 
@@ -897,13 +892,18 @@ dok4 :              do k=Kbottom,KUB+1
             stop 'Read_Final_Turbulence_File - ModuleTurbGOTM - ERR10'
         endif            
 
+        call Read_Final_Turbulence_HDF(HDF5FormatOK)
 
-        call Read_Final_Turbulence_Bin(BinaryFormatOK)
+        if (.not. HDF5FormatOK) then
         
-        if (.not. BinaryFormatOK) then 
-            call Read_Final_Turbulence_HDF            
-        endif                
+            call Read_Final_Turbulence_Bin(BinaryFormatOK)
             
+            if (.not. BinaryFormatOK) then                
+                stop 'Read_Final_Turbulence_File - ModuleTurbGOTM - ERR20'
+            endif
+            
+        endif        
+
 
     end subroutine Read_Final_Turbulence_File            
     
@@ -1008,10 +1008,10 @@ i1:     if (STAT_CALL /= SUCCESS_) then
     
 
     !Final turbulent properties in hdf5 format
-    subroutine Read_Final_Turbulence_HDF
+    subroutine Read_Final_Turbulence_HDF(HDF5FormatOK)
 
         !Arguments-------------------------------------------------------------
-         
+        logical                             :: HDF5FormatOK
 
         !External--------------------------------------------------------------
 
@@ -1029,6 +1029,7 @@ i1:     if (STAT_CALL /= SUCCESS_) then
         type (T_Size2D)                    :: WindowLimitsJI
         integer                            :: Imax, Jmax, Kmax
         real,    dimension(:,:,:), pointer :: Aux3DReal
+        logical                            :: HDF5Stop
 
         !----------------------------------------------------------------------
         
@@ -1038,160 +1039,184 @@ i1:     if (STAT_CALL /= SUCCESS_) then
         ObjHDF5 = 0
 
         !Opens HDF File
-        call ConstructHDF5      (ObjHDF5,                                               &
-                                 trim(Me%Files%InitialTurbulence),                      &
-                                 HDF5_READ, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR10'
+        call ConstructHDF5      (HDF5ID     = ObjHDF5,                                  &
+                                 FileName   = trim(Me%Files%InitialTurbulence),         &
+                                 Access     = HDF5_READ,                                &
+                                 HDF5Stop   = HDF5Stop,                                 &
+                                 STAT       = STAT_CALL)
+                                
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleHydrodynamic - ERR10'
         
-        call GetHDF5ArrayDimensions (HDF5ID = ObjHDF5, GroupName = "/Grid",     &
-                                    ItemName = "WaterPoints3D",                    &
-                                    Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR20'
-                                    
-        ILB = Me%WorkSize%ILB 
-        IUB = Me%WorkSize%IUB
-        
-        JLB = Me%WorkSize%JLB 
-        JUB = Me%WorkSize%JUB 
-        
-        KLB = Me%WorkSize%KLB 
-        KUB = Me%WorkSize%KUB 
-    
-        call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,  &
-                                  MasterOrSlave    = MasterOrSlave,         &
-                                  STAT             = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR30'
-        
-        
-ifMS:   if (MasterOrSlave) then
-                
-            call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &
-                                      WorkSize         = WindowLimitsJI,       &
-                                      STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR40'
-            
-            ILW = WindowLimitsJI%ILB
-            IUW = WindowLimitsJI%IUB
 
-            JLW = WindowLimitsJI%JLB
-            JUW = WindowLimitsJI%JUB
-                                                  
-        else ifMS
-
-            ILW = ILB 
-            IUW = IUB
-
-            JLW = JLB 
-            JUW = JUB 
-
-        endif ifMS                                            
+        if (HDF5Stop) then
         
-        
-        if (ILW < 1   ) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR50'
-        if (IUW > Imax) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR60'
-        
-        if (JLW < 1   ) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR70'
-        if (JUW > Jmax) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR80'
+            HDF5FormatOK = .false.
 
-        if (KLB < 1   ) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR90'
-        if (KUB > Kmax) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR100'
+            call KillHDF5      (HDF5ID      = ObjHDF5,                                  &
+                                DoNotStop   = .true.,                                   &
+                                STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleHydrodynamic - ERR15'     
         
-        allocate(Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB))
+        else
         
-        call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR110'
-
-        allocate(TimeVector(6))
+            HDF5FormatOK = .true.        
         
-        call HDF5ReadData   (HDF5ID         = ObjHDF5,                                  &
-                             GroupName      = "/Time",                                  &
-                             Name           = "Time",                                   &
-                             Array1D        = TimeVector,                               &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR120'
-        
-        
-        call SetDate(EndTimeFile,     Year     = TimeVector(1), Month  = TimeVector(2), &
-                                      Day      = TimeVector(3), Hour   = TimeVector(4), &
-                                      Minute   = TimeVector(5), Second = TimeVector(6))
-
-        call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, &
-                                  EndTime = EndTime, STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR130'
-        
-        DT_error = EndTimeFile - BeginTime
-
-        if (abs(DT_error) >= 0.01) then
-            
-            write(*,*) 'The end time of the previous run is different from the start time of this run'
-            write(*,*) 'Date in the file'
-            write(*,*) int(TimeVector(1:5)), TimeVector(6)
-            write(*,*) 'DT_error', DT_error
-            stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR140'
-
         endif
+        
+i1:     if (HDF5FormatOK) then
+        
+        
+            call GetHDF5ArrayDimensions (HDF5ID = ObjHDF5, GroupName = "/Grid",     &
+                                        ItemName = "WaterPoints3D",                    &
+                                        Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR20'
+                                    
+            ILB = Me%WorkSize%ILB 
+            IUB = Me%WorkSize%IUB
+        
+            JLB = Me%WorkSize%JLB 
+            JUB = Me%WorkSize%JUB 
+        
+            KLB = Me%WorkSize%KLB 
+            KUB = Me%WorkSize%KUB 
+    
+            call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,  &
+                                      MasterOrSlave    = MasterOrSlave,         &
+                                      STAT             = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR30'
+        
+        
+    ifMS:   if (MasterOrSlave) then
+                
+                call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &
+                                          WorkSize         = WindowLimitsJI,       &
+                                          STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR40'
+            
+                ILW = WindowLimitsJI%ILB
+                IUW = WindowLimitsJI%IUB
 
-        deallocate(TimeVector)        
+                JLW = WindowLimitsJI%JLB
+                JUW = WindowLimitsJI%JUB
+                                                  
+            else ifMS
+
+                ILW = ILB 
+                IUW = IUB
+
+                JLW = JLB 
+                JUW = JUB 
+
+            endif ifMS                                            
+        
+        
+            if (ILW < 1   ) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR50'
+            if (IUW > Imax) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR60'
+        
+            if (JLW < 1   ) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR70'
+            if (JUW > Jmax) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR80'
+
+            if (KLB < 1   ) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR90'
+            if (KUB > Kmax) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR100'
+        
+            allocate(Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB))
+        
+            call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR110'
+
+            allocate(TimeVector(6))
+        
+            call HDF5ReadData   (HDF5ID         = ObjHDF5,                                  &
+                                 GroupName      = "/Time",                                  &
+                                 Name           = "Time",                                   &
+                                 Array1D        = TimeVector,                               &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR120'
+        
+        
+            call SetDate(EndTimeFile,     Year     = TimeVector(1), Month  = TimeVector(2), &
+                                          Day      = TimeVector(3), Hour   = TimeVector(4), &
+                                          Minute   = TimeVector(5), Second = TimeVector(6))
+
+            call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, &
+                                      EndTime = EndTime, STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR130'
+        
+            DT_error = EndTimeFile - BeginTime
+
+            if (abs(DT_error) >= 0.01) then
+            
+                write(*,*) 'The end time of the previous run is different from the start time of this run'
+                write(*,*) 'Date in the file'
+                write(*,*) int(TimeVector(1:5)), TimeVector(6)
+                write(*,*) 'DT_error', DT_error
+                stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR140'
+
+            endif
+
+            deallocate(TimeVector)        
         
 
-        call HDF5SetLimits   (ObjHDF5, ILW, IUW, JLW, JUW, KLB, KUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR150'
+            call HDF5SetLimits   (ObjHDF5, ILW, IUW, JLW, JUW, KLB, KUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR150'
         
-        !Eddy viscosities and diffusivities
-        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                             GroupName      = "/Results",                           &
-                             Name           = "NUM",                                &
-                             Array3D        = Aux3DReal,                            &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR160'        
+            !Eddy viscosities and diffusivities
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "NUM",                                &
+                                 Array3D        = Aux3DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR160'        
         
-        Me%NUM(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+            Me%NUM(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
 
-        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                             GroupName      = "/Results",                           &
-                             Name           = "NUH",                                &
-                             Array3D        = Aux3DReal,                            &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR170'        
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "NUH",                                &
+                                 Array3D        = Aux3DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR170'        
         
-        Me%NUH(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+            Me%NUH(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
 
-        !TKE
-        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                             GroupName      = "/Results",                           &
-                             Name           = "TKE",                                &
-                             Array3D        = Aux3DReal,                            &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR180'
+            !TKE
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "TKE",                                &
+                                 Array3D        = Aux3DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR180'
         
-        Me%TKE(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+            Me%TKE(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
 
 
-        !L
-        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                             GroupName      = "/Results",                           &
-                             Name           = "L",                                  &
-                             Array3D        = Aux3DReal,                            &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR190'
+            !L
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "L",                                  &
+                                 Array3D        = Aux3DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR190'
         
-        Me%L(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+            Me%L(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
         
-        !eps
-        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                             GroupName      = "/Results",                           &
-                             Name           = "EPS",                                &
-                             Array3D        = Aux3DReal,                            &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR200'
+            !eps
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "EPS",                                &
+                                 Array3D        = Aux3DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR200'
         
-        Me%eps(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)        
+            Me%eps(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)        
 
-        call KillHDF5(ObjHDF5, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR210'
+            call KillHDF5(ObjHDF5, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_Turbulence_HDF - ModuleTurbGOTM - ERR210'
         
-        deallocate(Aux3DReal)
+            deallocate(Aux3DReal)
+            
+        endif i1            
 
     end subroutine Read_Final_Turbulence_HDF
 

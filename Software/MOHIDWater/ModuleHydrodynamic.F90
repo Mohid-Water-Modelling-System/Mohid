@@ -8,7 +8,7 @@
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
 ! DATE          : Fev 2010
-! REVISION      : Paulo Leit�o - v4.0
+! REVISION      : Paulo Leitao - v4.0
 ! DESCRIPTION   : Module responsbile for computing non-turbulent hydrodynamic processes
 !
 !------------------------------------------------------------------------------
@@ -3847,7 +3847,7 @@ i3:         if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
                     stop 'ConstructTsunami - ModuleHydrodynamic - ERR140'
                 endif
 
-                ! (=THETA) STRIKE DIRECTION [�]
+                ! (=THETA) STRIKE DIRECTION [º]
                 call GetData(Me%Tsunami%Fault%TH,                                       &
                              Me%ObjEnterData, iflag,                                    &
                              Keyword        = 'FAULT_STRIKE_DIRECTION',                 &
@@ -3860,7 +3860,7 @@ i3:         if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
                     stop 'ConstructTsunami - ModuleHydrodynamic - ERR160'
                 endif
 
-                ! (=DELTA) DIP ANGLE [�]
+                ! (=DELTA) DIP ANGLE [º]
                 call GetData(Me%Tsunami%Fault%DL,                                       &
                              Me%ObjEnterData, iflag,                                    &
                              Keyword        = 'FAULT_DIP_ANGLE',                        &
@@ -3873,7 +3873,7 @@ i3:         if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
                     stop 'ConstructTsunami - ModuleHydrodynamic - ERR180'
                 endif
 
-                !  (=LAMDA) SLIP ANGLE [�]
+                !  (=LAMDA) SLIP ANGLE [º]
                 call GetData(Me%Tsunami%Fault%RD,                                       &
                              Me%ObjEnterData, iflag,                                    &
                              Keyword        = 'FAULT_SLIP_ANGLE',                       &
@@ -3886,7 +3886,7 @@ i3:         if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
                     stop 'ConstructTsunami - ModuleHydrodynamic - ERR200'
                 endif
 
-                !  EPICENTER (LATITUDE)[�]
+                !  EPICENTER (LATITUDE)[º]
                 call GetData(Me%Tsunami%Fault%Y0,                                       &
                              Me%ObjEnterData, iflag,                                    &
                              Keyword        = 'FAULT_EPICENTER_Y',                      &
@@ -3899,7 +3899,7 @@ i3:         if      (Me%Tsunami%Fault%InputMethod == FaultFile_     ) then
                     stop 'ConstructTsunami - ModuleHydrodynamic - ERR220'
                 endif
 
-                !  EPICENTER (LONGITUDE)[�]
+                !  EPICENTER (LONGITUDE)[º]
                 call GetData(Me%Tsunami%Fault%X0,                                       &
                              Me%ObjEnterData, iflag,                                    &
                              Keyword        = 'FAULT_EPICENTER_X',                      &
@@ -4550,7 +4550,7 @@ ifRadia: if (BarotropicRadia == FlatherWindWave_) then
                 call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR60.')
 
 
-            Me%ComputeOptions%EnteringWaveDirection = EnteringWaveDirection * Pi / 180.
+            Me%ComputeOptions%EnteringWaveDirection =  (270 - EnteringWaveDirection) * Pi / 180.
 
 
         endif IfRadia
@@ -11699,7 +11699,7 @@ i1:         if (CoordON) then
         PropertyList(2,2) = "m/s"
         PropertyList(3,2) = "m/s"
         PropertyList(4,2) = "m/s"
-        PropertyList(5,2) = "�"
+        PropertyList(5,2) = "º"
 
         call StartProfile  (ProfileID       = Me%ObjProfile,                            &
                             ObjTime         = Me%ObjTime,                               &
@@ -22623,7 +22623,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
     !
     ! ----------------------------
     !
-    ! author : Hern�ni Theias
+    ! author : Hernani Theias
     ! last modified  : 06/2004
     ! e-mail : hernanitheias@netcabo.pt
     !
@@ -22886,7 +22886,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
     !
     ! ----------------------------
     !
-    ! author : Hern�ni Theias
+    ! author : Hernani Theias
     ! last modified  : 06/2004
     ! e-mail : hernanitheias@netcabo.pt
     !
@@ -22957,7 +22957,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
     !
     ! ----------------------------
     !
-    ! author : Paulo Leit�o
+    ! author : Paulo Leitao
     ! last modified  : 03/2014
     ! e-mail : paulo.chambel@hidromod.com
     !
@@ -23184,7 +23184,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
     !
     ! ----------------------------
     !
-    ! author : Hern�ni Theias
+    ! author : Hernani Theias
     ! last modified  : 06/2004
     ! e-mail : hernanitheias@netcabo.pt
     !
@@ -23231,7 +23231,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         real,    dimension (:,:,:), pointer  :: PressureCorrect
         real,    dimension (:,:  ), pointer  :: VerticalSurfLayerOld
 
-        
+
         real                                 :: SZZaux, pcf
 
         !Begin----------------------------------------------------------------------
@@ -23302,13 +23302,13 @@ cd2:        if      (Num_Discretization == Abbott    ) then
                                       STAT            = status)
 
             if (status /= SUCCESS_)                                                         &
-                call SetError (FATAL_, INTERNAL_, "NonHydroStaticCorrection - Hydrodynamic - ERR10")        
+                call SetError (FATAL_, INTERNAL_, "NonHydroStaticCorrection - Hydrodynamic - ERR10")
 
         endif
 
 
 
-        
+
         !----Initialize coefficient matrices
 
         call SetMatrixValue(n, Me%WorkSize,      0.0 )
@@ -23504,7 +23504,7 @@ i1:             if (OpenPoints3D(i, j, k) == OpenPoint) then !cell must not be c
                 if(OpenPoints3D  (i, j, KUB) == OpenPoint) then
                     ![m]= [m^2/s^2]     / [m/s^2]
                     pcl = pc(i, j, KUB) / Gravity
-                    ![m]                   = [m]´+ [m]
+                    ![m]                   = [m]'+ [m]
                     WaterLevel_New(i,j) = WaterLevel_New(i,j) + pcl
                 end if
             enddo !do i
@@ -23941,7 +23941,7 @@ if1:    if (Me%DDecomp%MasterOrSlave) then
     !
     ! ----------------------------
     !
-    ! author : Hernâni Theias
+    ! author : Hernani Theias
     ! last modified  : 06/2004
     ! e-mail : hernanitheias@netcabo.pt                                                       !
     !                                                                                      !
@@ -23987,9 +23987,9 @@ if1:    if (Me%DDecomp%MasterOrSlave) then
 !Y1:         if (Me%External_Var%BoundaryFacesV(i, j) == Boundary) then
 
 Y1:         if  (Me%External_Var%BoundaryFacesV  (i, j     )  == Boundary     .and.                     &
-                 Me%External_Var%ComputeFaces3D_V(i, j, KUB)  == Covered      .and.                     & 
+                 Me%External_Var%ComputeFaces3D_V(i, j, KUB)  == Covered      .and.                     &
                 (Me%External_Var%BoundaryPoints  (i,  j)      == Not_Boundary .or.                      &
-                 Me%External_Var%BoundaryPoints  (i-1,j)      == Not_Boundary)) then        
+                 Me%External_Var%BoundaryPoints  (i-1,j)      == Not_Boundary)) then
 
                 ! !! $OMP MASTER
                 ! CHUNK = CHUNK_K(Me%External_Var%KFloor_V(i, j), KUB)
@@ -24001,12 +24001,12 @@ Y1:         if  (Me%External_Var%BoundaryFacesV  (i, j     )  == Boundary     .a
 
                     if      (Me%External_Var%BoundaryPoints(i-1, j) == Boundary) then
 
-                        if ((Me%External_Var%ComputeFaces3D_U(i-1, j  , KUB)  == Covered    .or.    &  
+                        if ((Me%External_Var%ComputeFaces3D_U(i-1, j  , KUB)  == Covered    .or.    &
                              Me%External_Var%ComputeFaces3D_U(i-1, j+1, KUB)  == Covered)   .and.   &
                              Me%Direction%XY == DirectionX_) then
                              cycle
-                        endif                            
-                    
+                        endif
+
                         if (InTime == Implicit_) then
 
                             if      (Me%Direction%XY == DirectionY_) then
@@ -24017,7 +24017,7 @@ Y1:         if  (Me%External_Var%BoundaryFacesV  (i, j     )  == Boundary     .a
                                 n(i-1, j, k) = -1.
                                 q(i-1, j, k) =  0.
                             elseif  (Me%Direction%XY == DirectionX_) then
-                            
+
                                 e(i-1, j, k) = 0.
                                 w(i-1, j, k) = 0.
                                 p(i-1, j, k) = 1.
@@ -24036,13 +24036,13 @@ Y1:         if  (Me%External_Var%BoundaryFacesV  (i, j     )  == Boundary     .a
 
                     else if (Me%External_Var%BoundaryPoints(i, j) == Boundary) then
 
-                    
-                        if ((Me%External_Var%ComputeFaces3D_U(i  , j  , KUB)  == Covered    .or.    &  
+
+                        if ((Me%External_Var%ComputeFaces3D_U(i  , j  , KUB)  == Covered    .or.    &
                              Me%External_Var%ComputeFaces3D_U(i  , j+1, KUB)  == Covered)   .and.   &
                              Me%Direction%XY == DirectionX_) then
                              cycle
-                        endif                      
-                             
+                        endif
+
                         if (InTime == Implicit_) then
 
                             if      (Me%Direction%XY == DirectionY_) then
@@ -24053,7 +24053,7 @@ Y1:         if  (Me%External_Var%BoundaryFacesV  (i, j     )  == Boundary     .a
                                 n(i, j, k) =  0.
                                 q(i, j, k) =  0.
                             elseif  (Me%Direction%XY == DirectionX_) then
-                            
+
                                 e(i, j, k) = 0.
                                 w(i, j, k) = 0.
                                 p(i, j, k) = 1
@@ -24078,13 +24078,13 @@ Y1:         if  (Me%External_Var%BoundaryFacesV  (i, j     )  == Boundary     .a
 
             !X boundary faces
 !X1:         if (Me%External_Var%BoundaryFacesU(i, j) == Boundary) then
-            
-X1:         if  (Me%External_Var%BoundaryFacesU  (i, j     )  == Boundary     .and.                     &
-                 Me%External_Var%ComputeFaces3D_U(i, j, KUB)  == Covered      .and.                     & 
-                (Me%External_Var%BoundaryPoints  (i,  j  )    == Not_Boundary .or.                      &
-                 Me%External_Var%BoundaryPoints  (i,  j-1)    == Not_Boundary)) then        
 
-            
+X1:         if  (Me%External_Var%BoundaryFacesU  (i, j     )  == Boundary     .and.                     &
+                 Me%External_Var%ComputeFaces3D_U(i, j, KUB)  == Covered      .and.                     &
+                (Me%External_Var%BoundaryPoints  (i,  j  )    == Not_Boundary .or.                      &
+                 Me%External_Var%BoundaryPoints  (i,  j-1)    == Not_Boundary)) then
+
+
                 ! !! $OMP MASTER
                 ! CHUNK = CHUNK_K(Me%External_Var%KFloor_U(i, j), KUB)
                 ! !! $OMP END MASTER
@@ -24095,12 +24095,12 @@ X1:         if  (Me%External_Var%BoundaryFacesU  (i, j     )  == Boundary     .a
 
                     if      (Me%External_Var%BoundaryPoints(i, j - 1) == Boundary) then
 
-                        if ((Me%External_Var%ComputeFaces3D_V(i  , j-1, KUB)  == Covered    .or.    &  
+                        if ((Me%External_Var%ComputeFaces3D_V(i  , j-1, KUB)  == Covered    .or.    &
                              Me%External_Var%ComputeFaces3D_V(i+1, j-1, KUB)  == Covered)   .and.   &
                              Me%Direction%XY == DirectionY_) then
                              cycle
-                        endif      
-                    
+                        endif
+
                         if (InTime == Implicit_) then
 
                             if      (Me%Direction%XY == DirectionX_) then
@@ -24111,7 +24111,7 @@ X1:         if  (Me%External_Var%BoundaryFacesU  (i, j     )  == Boundary     .a
                                 n(i, j-1, k) = -1.
                                 q(i, j-1, k) =  0.
                             elseif  (Me%Direction%XY == DirectionY_) then
-                            
+
                                 e(i, j-1, k) = 0.
                                 w(i, j-1, k) = 0.
                                 p(i, j-1, k) = 1.
@@ -24130,13 +24130,13 @@ X1:         if  (Me%External_Var%BoundaryFacesU  (i, j     )  == Boundary     .a
 
                     else if (Me%External_Var%BoundaryPoints(i, j) == Boundary) then
 
-                   
-                        if ((Me%External_Var%ComputeFaces3D_V(i  , j  , KUB)  == Covered    .or.    &  
+
+                        if ((Me%External_Var%ComputeFaces3D_V(i  , j  , KUB)  == Covered    .or.    &
                              Me%External_Var%ComputeFaces3D_V(i+1, j  , KUB)  == Covered)   .and.   &
                              Me%Direction%XY == DirectionY_) then
                              cycle
-                        endif                                                              
-                             
+                        endif
+
                         if (InTime == Implicit_) then
 
                             if      (Me%Direction%XY == DirectionX_) then
@@ -24192,7 +24192,7 @@ X1:         if  (Me%External_Var%BoundaryFacesU  (i, j     )  == Boundary     .a
     !
     ! ----------------------------
     !
-    ! author : Paulo Leit�o
+    ! author : Paulo Leitao
     ! last modified  : 04/2012
     ! e-mail : paulo.chambel@hidromod.com
     !                                                                                      !
@@ -24294,7 +24294,7 @@ X1:         if (Me%External_Var%OpenPoints3D(i, j,KUB) == OpenPoint) then
     !
     ! ----------------------------
     !
-    ! author : Hern�ni Theias
+    ! author : Hernani Theias
     ! last modified  : 06/2004
     ! e-mail : hernanitheias@netcabo.pt
     !                                                                                      !
@@ -24509,7 +24509,7 @@ X1:         if (Me%External_Var%OpenPoints3D(i, j,KUB) == OpenPoint) then
         !Begin----------------------------------------------------------------
 
         WaterPoints3D    => Me%External_Var%WaterPoints3D
-        
+
         OpenPoints3D       => Me%External_Var%OpenPoints3D !Joao Sobrinho
 
         SurfaceElevation => Me%WaterLevel%New
@@ -25828,7 +25828,7 @@ cd2D:   if (KUB == 1) then !If the model is 2D then the implicit direction is in
     !                                                                                      !
     ! Input : Flow, Geometry                                                               !
     ! OutPut: BarotropicUc, BarotropicVc                                                   !
-    ! Author: Paulo Leit�o (02/2018)                                                       !
+    ! Author: Paulo Leitao (02/2018)                                                       !
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     subroutine ComputeBarotropicVelocity
@@ -29414,10 +29414,10 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
             deallocate(ImposedVelocity)
         endif
 
-            
+
         if (associated(BoundaryReferenceLevel)) then
             deallocate(BoundaryReferenceLevel)
-        endif            
+        endif
 
         !----------------------------------------------------------------------
 
@@ -30175,10 +30175,10 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
             deallocate(ImposedVelocity)
         endif
 
-            
+
         if (associated(BoundaryReferenceLevel)) then
             deallocate(BoundaryReferenceLevel)
-        endif            
+        endif
 
         !----------------------------------------------------------------------
 
@@ -30341,10 +30341,10 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
         !Gets Bathymetry
         call GetGridData(Me%ObjGridData, Bathymetry, STAT = status)
-        
+
         if (status /= SUCCESS_)                                                         &
-            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR005")        
-        
+            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR005")
+
 cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
 
@@ -30646,9 +30646,6 @@ cd5:            if (ComputeFaces3D_VU(i4, j4, KUB) == Covered) then
                     WaveEntering = ImposedElevation(ib, jb) - ReferenceLevel
                 endif
 
-                if (Bathymetry(ib-di,jb-dj) < -55. .or. Bathymetry(ib+di,jb+dj) < -55.) then
-                    WaveEntering = 0.
-                endif
 
                 !The wave Celerity compute in the boundary face
                 ![m/s] = [m/s^2*m]^.5 = [m/s]
@@ -30740,6 +30737,22 @@ cd15:           if (Me%ComputeOptions%ComputeEnteringWave) then
                     FluxYX_E  = 0.
 
                 endif cd15
+                
+
+                if ((Bathymetry(ib-di,jb-dj) < -55.)     .or.                           &
+                    (Bathymetry(ib+di,jb+dj) < -55.)     .or.                           &
+                    (Bathymetry(ib-dj,jb-di) < -55.)     .or.                           &
+                    (Bathymetry(ib+dj,jb+di) < -55.))   then
+                
+                    XY_Component_Cart_E  = 0.
+
+                    WaveEntering         = 0.
+                    OldWaveEntering      = 0.
+
+                    FluxXY_E  = 0.
+                    FluxYX_E  = 0.
+                    
+                endif                
 
                 !The leaving wave direction is compute in the center of the
                 !first interior cell
@@ -30829,17 +30842,31 @@ cd15:           if (Me%ComputeOptions%ComputeEnteringWave) then
                 ! -70   60%
                 ! -75   50%
                 ! -80   40%
-                ! -85   10%                   
-                if      (Bathymetry(ib-di,jb-dj) == -65. .or. Bathymetry(ib+di,jb+dj) == -65.) then
-                    XY_Component_L = 0.8 * XY_Component_L
-                elseif  (Bathymetry(ib-di,jb-dj) == -70. .or. Bathymetry(ib+di,jb+dj) == -70.) then
-                    XY_Component_L = 0.6 * XY_Component_L                    
-                elseif  (Bathymetry(ib-di,jb-dj) == -75. .or. Bathymetry(ib+di,jb+dj) == -75.) then
-                    XY_Component_L = 0.5 * XY_Component_L  
-                elseif  (Bathymetry(ib-di,jb-dj) == -80. .or. Bathymetry(ib+di,jb+dj) == -80.) then
-                    XY_Component_L = 0.4 * XY_Component_L  
-                elseif  (Bathymetry(ib-di,jb-dj) == -85. .or. Bathymetry(ib+di,jb+dj) == -85.) then
-                    XY_Component_L = 0.1 * XY_Component_L                      
+                ! -85   10%      
+                if (db == 1) then
+                    if      (Bathymetry(ib+di,jb+dj) == -65. ) then
+                        XY_Component_L = 0.8 * XY_Component_L
+                    elseif  (Bathymetry(ib+di,jb+dj) == -70. ) then
+                        XY_Component_L = 0.6 * XY_Component_L
+                    elseif  (Bathymetry(ib+di,jb+dj) == -75. ) then
+                        XY_Component_L = 0.5 * XY_Component_L
+                    elseif  (Bathymetry(ib+di,jb+dj) == -80. ) then
+                        XY_Component_L = 0.4 * XY_Component_L
+                    elseif  (Bathymetry(ib+di,jb+dj) == -85. ) then
+                        XY_Component_L = 0.1 * XY_Component_L                      
+                    endif  
+                else
+                    if      (Bathymetry(ib-di,jb-dj) == -65. ) then
+                        XY_Component_L = 0.8 * XY_Component_L
+                    elseif  (Bathymetry(ib-di,jb-dj) == -70. ) then
+                        XY_Component_L = 0.6 * XY_Component_L
+                    elseif  (Bathymetry(ib-di,jb-dj) == -75. ) then
+                        XY_Component_L = 0.5 * XY_Component_L
+                    elseif  (Bathymetry(ib-di,jb-dj) == -80. ) then
+                        XY_Component_L = 0.4 * XY_Component_L
+                    elseif  (Bathymetry(ib-di,jb-dj) == -85. ) then
+                        XY_Component_L = 0.1 * XY_Component_L                      
+                    endif                
                 endif
 
                 if (ImplicitFaces) then
@@ -30989,10 +31016,10 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
         endif
 
         call UnGetGridData(Me%ObjGridData, Bathymetry, STAT = status)
-        
+
         if (status /= SUCCESS_)                                                         &
-            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR180")           
-        
+            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR180")
+
         !Nullify auxiliar variables
 
         !Linear system equation
@@ -31012,10 +31039,10 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
             deallocate(ImposedVelocity)
         endif
 
-            
+
         if (associated(BoundaryReferenceLevel)) then
             deallocate(BoundaryReferenceLevel)
-        endif        
+        endif
 
         !----------------------------------------------------------------------
 
@@ -32330,13 +32357,13 @@ cd1:        if (BoundaryPoints(i, j) == Boundary) then
         do  i = ILB, IUB
 
             ! Land boundary condition (next to a non waterpoint cell)
-            ! Nul normal component of total velocity i.e. � = -Us
+            ! Nul normal component of total velocity i.e. û = -Us
             Velocity_UV_New (i, j, k) = Velocity_UV_New (i, j, k) * (1. - LandBoundaryFacesUV(i, j, k))   &
                                       - StokesVel_UV_New (i, j, k) * LandBoundaryFacesUV(i, j, k)
 
 
             ! UnCovered faces condition (next to a cell that is a waterpoint but uncovered at this time step)
-            ! Nul normal component of total velocity i.e. � = -Us
+            ! Nul normal component of total velocity i.e. û = -Us
             Coef = OpenPoints3D(i, j, k) + OpenPoints3D(i-di, j-dj, k)
             ! Coef = WaterPoints3D(i, j, k) + WaterPoints3D(i-di, j-dj, k)
 
@@ -40545,7 +40572,7 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
 
                     else
 
-                        Write(*,*) 'You can�t compute Geostrophic Velocity without Coriolis aceleration'
+                        Write(*,*) 'You cannot compute Geostrophic Velocity without Coriolis aceleration'
 
                         Stop 'ComputeGeostrophicVelocity - ModuleHydrodynamic - ERR01'
 
@@ -41168,7 +41195,7 @@ do3:            do K=kbottom, KUB
                 BathyFace = WaterColumnUV(I,J) - WlevFace    ! (positive downward)
 
                 ! SUZ computation = equivalent of SZZ for the U,V-cell
-                ! (Attention! Contrairement � SZZ, SUZ est compt� positif vers le haut!)
+                ! (Attention! Contralily to SZZ, SUZ is positive updwards!)
                 do k = Kbottom-1, KUB-1
                     SUZ_VZ(k) = WlevFace - SUM( DUZ_VZ(i,j,k+1:KUB) )
                 enddo
@@ -41317,21 +41344,21 @@ do3:            do K=kbottom, KUB
 
                     Kbottom = KFloor_UV(i, j)
 
-                    ! Analogie avec la pression barotrope et barocline: la somme des flux de J � travers les 6 faces
-                    ! de la cellule, i.e. 4 faces lat�rales + face inf et faces sup (inclin�es en sigma, donc le flux
-                    ! a une comp horiz), est �quivalent � (Jij - Jij-1) * Area o� Area = VolumeUV / DZX_ZY.
-                    ! D'o� l'expression ci-dessous en syst�me de coordonn�es quelconque :
+                    ! Analogie avec la pression barotrope et barocline: la somme des flux de J à travers les 6 faces
+                    ! de la cellule, i.e. 4 faces laterales + face inf et faces sup (inclines en sigma, donc le flux
+                    ! a une comp horiz), est equivalent à (Jij - Jij-1) * Area où Area = VolumeUV / DZX_ZY.
+                    ! D'où l'expression ci-dessous en système de coordonnées quelconque :
                     ! flux de J = Area * DeltaJ
                     ! flux de QDM = Density * flux de J
                     ! Acceleration = flux de QDM / (Density*Volume) = Area*DeltaJ/Volume = DeltaJ/DZX_ZY
 
                     do k = Kbottom, KUB
 
-                        ! [m/s^2] = [m�/s�] / [m]
+                        ! [m/s^2] = [m^2/s^2] / [m]
                         Wave3DExplicit_FPressureAccelUV(i,j,k) = - ( JWaves(i, j) - JWaves(iSouth, jWest) )  &
                                                                  / DZX_ZY(iSouth, jWest)
 
-                        ! [m/s^2] = [m/s^2] + [m/s�]
+                        ! [m/s^2] = [m/s^2] + [m/s^2]
                         Wave3DExplicit_Acceleration(i,j,k)  = Wave3DExplicit_Acceleration(i,j,k)             &
                                                             + Wave3DExplicit_FPressureAccelUV(i,j,k)
 
@@ -41363,12 +41390,12 @@ do3:            do K=kbottom, KUB
 Subroutine Compute_WaveToOceanMomentum_Walstra
 
 
-        ! Cette routine est construite en partie par analogie � Velocity_WaveStress (for�age par
-        ! un champ de stress 2D dont on param�tre un profil vertical...).
-        ! Le for�age d�pend cependant ici de z mais sa forme relativement simple permet
-        ! le calcul de l'int�grale verticale de la force : lorsqu'on int�gre la force sur
-        ! le volume, on consid�re qu'elle est constante horizontalement mais pas
-        ! verticalement (diff�rent de ce que fait MOHID pour la pression barotrope
+        ! Cette routine est construite en partie par analogie à Velocity_WaveStress (forcage par
+        ! un champ de stress 2D dont on parametre un profil vertical...).
+        ! Le forcage depend cependant ici de z mais sa forme relativement simple permet
+        ! le calcul de l'integrale verticale de la force : lorsqu'on integre la force sur
+        ! le volume, on considere qu'elle est constante horizontalement mais pas
+        ! verticalement (different de ce que fait MOHID pour la pression barotrope
         ! par exemple...)
 
 
@@ -41462,7 +41489,7 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
 
 
                 ! SUZ computation = equivalent of SZZ for the U,V-cell
-                ! (Attention! Contrairement � SZZ, SUZ est compt� positif vers le haut!)
+                ! (Attention! Contrairement a SZZ, SUZ est compte positif vers le haut!)
                 do k = Kbottom-1, KUB-1
                     SUZ_VZ(k) = WlevFace - SUM( DUZ_VZ(i,j,k+1:KUB) )
                 enddo
@@ -41683,14 +41710,14 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
                         endif
 
 
-                        ! [m/s�] = [m/s] * [m/s] / [m]
+                        ! [m/s^2] = [m/s] * [m/s] / [m]
                         FVortexAcceleration_1 = StokesVel_UV(i,j,k)    &
                                               * (Vel_UV_EastNorth - Vel_UV_WestSouth) / DZX_ZY(I3,J3)
 
                         FVortexAcceleration_2 = StokesVel_VU_center    &
                                               * (Vel_VU_EastNorth - Vel_VU_WestSouth) / DZX_ZY(I3,J3)
 
-                        ! Test pour codage du terme appel� ici WaveVortexForce
+                        ! Test pour codage du terme appele ici WaveVortexForce
                         !if (Me%Direction%dj==1) then
                         !    FVortexAcceleration_1 = 0.
                         !    FVortexAcceleration_2 = 0.
@@ -41884,7 +41911,7 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
                         endif
 
 
-                        ! [m/s�] = [m^3/s] * [m/s] / [m^3]
+                        ! [m/s^] = [m^3/s] * [m/s] / [m^3]
                         FVortexAcceleration_1 = StokesWaterFlux_XY(i,j,k)                               &
                                               * (Vel_UV_EastNorth - Vel_UV_WestSouth) / Volume_UV(i,j,k)
                         ! FVortexAcceleration_1 = 0.
@@ -41892,7 +41919,7 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
                         FVortexAcceleration_2 = StokesVel_VU_center    &
                                               * (Vel_VU_EastNorth - Vel_VU_WestSouth) / DZX_ZY(I3,J3)
 
-                        ! Test pour codage du terme appel� ici WaveVortexForce
+                        ! Test pour codage du terme appele ici WaveVortexForce
                         !if (Me%Direction%dj==1) then
                         !    FVortexAcceleration_1 = 0.
                         !    FVortexAcceleration_2 = 0.
@@ -42017,7 +42044,7 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
             !tc = TimeSeconds / 86400. / 36525.
             tc = (27392.500528+1.0000000356*real(D))/36525
 
-            !Lunar and solar ephemerides in degrees - Kantha e Clayson, 2000 (p�g. 435)
+            !Lunar and solar ephemerides in degrees - Kantha e Clayson, 2000 (pag. 435)
 
             h0 = 279.69668    + 36000.768925485*tc + 3.03e-4 *tc*tc
             s0 = 270.434358   + 481267.88314137*tc - 0.001133*tc*tc   + 1.9e-6*tc*tc*tc
@@ -42051,20 +42078,20 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
 
             tc = TimeSeconds / 86400. / 36525.
 
-            !Lef�vre, 2001 (4.19) chapter 4 page 55 (phD Thesis).
+            !Lefevre, 2001 (4.19) chapter 4 page 55 (phD Thesis).
             h0 = 280.18950    +  36000.76892*tc + 3.00e-4 *tc*tc
             s0 = 277.02480    + 481267.89060*tc + 2.00e-3 *tc*tc
             p0 = 334.38530    +   4069.03400*tc + 1.03e-2 *tc*tc
             !ns = 100.84320    +   1934.14200*tc + 2.10e-3 *tc*tc
             !ps = 281.22086    +      1.71920*tc + 5.00e-4 *tc*tc
 
-            !Astronomical Arguments (Table 5 Lef�vre, 2001)
+            !Astronomical Arguments (Table 5 Lefevre, 2001)
             ! + 0
             AstroArg(Ssa) =  2*h0
             AstroArg(Mm ) =  s0 - p0
             AstroArg(Mf ) =  2*s0
 
-            !Lef�vre, 2001 do not make reference to the phase corrections (+- 90�)
+            !Lefevre, 2001 do not make reference to the phase corrections (+- 90degrees)
             !However this corrections are made in the ModuleToga (Foreman Tidal Analysis package)
             !and are also maed by Kantha e Clayson, 2000.
             ! + Tau
@@ -44328,7 +44355,7 @@ cd1:        if (Me%ComputeOptions%BaroclinicRadia == Horizontal_) then
 
 ! Modified by Matthias DELPEY - 13/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-            if (Me%ComputeOptions%WaveForcing3D /= GLM) then  !(inchang�)
+            if (Me%ComputeOptions%WaveForcing3D /= GLM) then  !(inchange)
 
                 !Across Velocity           = (cartesian = barotropic + baroclinic) - Grid velocity
                 Velocity_Z(ib, jb, k)      = Vel_Z_BoundBarot + Vel_Z_B_BarocUp - Vel_Z_Cartesian(ib, jb, k)
@@ -45195,7 +45222,7 @@ dok:            do k = kbottom + 1, KUB
 
         if (Me%ComputeOptions%Turbine) then
             call GetTurbineAcceleration(Me%ObjTurbine, Me%Forces%Turbine_Acceleration)
-            !Falta gesti�n de STAT
+            !Falta gestao de STAT
         endif
 
         if (Me%TidePotential%Compute) then
@@ -46680,7 +46707,7 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
                         ! The surface momentum flux from wave to ocean due to breaking is added to the total momentum flux
                         ! at the surface
 
-                        ![m/s]                    = [m/s]   + [s*m^-3*m�] * [m�*s^-2]
+                        ![m/s]                    = [m/s]   + [s*m^-3*m^2] * [m^2*s^-2]
                         CellFace_TopFace = CellFace_TopFace +  DT_Z * Two_Face
 
                     endif
@@ -47851,7 +47878,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                                                    Me%External_Var%DUX_VY(iSouth, jWest))
 
 
-                    ![m^3/s]     = [m^3/s]     + [m�*s^-2] * [m] * [s]
+                    ![m^3/s]     = [m^3/s]     + [m^2*s^-2] * [m] * [s]
                     ! AuxExplicit  = AuxExplicit + Two_Face * Me%External_Var%DYY_XX(I, J) * Me%Velocity%DT / SurfaceFaceDensity
                     AuxExplicit  = AuxExplicit + Two_Face * Me%External_Var%DYY_XX(I, J) * Me%Velocity%DT
                 endif
@@ -50982,7 +51009,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
                 kbottom = Me%External_Var%KFloor_Z(i, j)
 
                 !By default the vertical velocity in the faces that are not compute is zero
-                !Do not apply it to surface points (correction by Hern�ni Theias)
+                !Do not apply it to surface points (correction by Hernani Theias)
                 !Me%Velocity%Vertical%Cartesian (i, j, kbottom : KUB) = &
                 !Me%Velocity%Vertical%Cartesian (i, j, kbottom : KUB) * &
                 !Me%External_Var%ComputeFaces3D_W(i, j, kbottom : KUB)
@@ -51023,7 +51050,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
             if (Me%External_Var%WaterPoints3D (i  ,j  ,KUB) == WaterPoint) then
                 kbottom = Me%External_Var%KFloor_Z(i, j)
                 !By default the vertical velocity in the faces that are not compute is zero
-                !Do not apply it to surface points (correction by Hern�ni Theias)
+                !Do not apply it to surface points (correction by Hernani Theias)
                 !Me%Velocity%Vertical%Cartesian (i, j, kbottom : KUB) = &
                 !Me%Velocity%Vertical%Cartesian (i, j, kbottom : KUB) * &
                 !Me%External_Var%ComputeFaces3D_W(i, j, kbottom : KUB)
@@ -52708,13 +52735,19 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        logical                             :: BinaryFormatOK
+        logical                             :: BinaryFormatOK, HDF5FormatOK
         !Begin-----------------------------------------------------------------
 
-            call Read_Final_Bin(BinaryFormatOK)
+        call Read_Final_HDF5(HDF5FormatOK)
 
-            if (.not. BinaryFormatOK) then
-            call Read_Final_HDF5
+        if (.not. HDF5FormatOK) then
+        
+            call Read_Final_Bin(BinaryFormatOK)
+            
+            if (.not. BinaryFormatOK) then                
+                stop 'Read_Final_Hydrodynamic_File - ModuleHydrodynamic - ERR10'
+            endif
+            
         endif
 
     end subroutine Read_Final_Hydrodynamic_File
@@ -53181,9 +53214,11 @@ i1:     if (STAT_CALL /= SUCCESS_) then
 
 
     !Final hydrodynamic properties in hdf5 format
-    subroutine Read_Final_HDF5
+    subroutine Read_Final_HDF5(HDF5FormatOK)
 
         !Arguments-------------------------------------------------------------
+
+        logical                             :: HDF5FormatOK
 
 
         !External--------------------------------------------------------------
@@ -53210,7 +53245,7 @@ i1:     if (STAT_CALL /= SUCCESS_) then
         real,    dimension(:,:),   pointer :: Aux2DReal
         real,    dimension(:,:,:), pointer :: Aux3DReal
         real(8), dimension(:,:,:), pointer :: Aux3DR8
-        logical                            :: Exist
+        logical                            :: Exist, HDF5Stop
 
         !----------------------------------------------------------------------
 
@@ -53229,662 +53264,686 @@ i1:     if (STAT_CALL /= SUCCESS_) then
         ObjHDF5 = 0
 
         !Opens HDF File
-        call ConstructHDF5      (ObjHDF5,                                               &
-                                 trim(Me%Files%InitialHydrodynamic),                    &
-                                 HDF5_READ, STAT = STAT_CALL)
+        call ConstructHDF5      (HDF5ID     = ObjHDF5,                                  &
+                                 FileName   = trim(Me%Files%InitialHydrodynamic),       &
+                                 Access     = HDF5_READ,                                &
+                                 HDF5Stop   = HDF5Stop,                                 &
+                                 STAT       = STAT_CALL)
+                                
         if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR20'
+        
 
-        call GetHDF5ArrayDimensions (HDF5ID = ObjHDF5, GroupName = "/Grid",     &
-                                    ItemName = "WaterPoints3D",                    &
-                                    Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR30'
+        if (HDF5Stop) then
+        
+            HDF5FormatOK = .false.
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB + 1
-
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB + 1
-
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB + 1
-
-
-ifMS:   if (Me%DDecomp%MasterOrSlave) then
-
-            call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &
-                                      WorkSize         = WindowLimitsJI,       &
-                                      STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR40'
-
-            ILW = WindowLimitsJI%ILB
-            IUW = WindowLimitsJI%IUB + 1
-
-            JLW = WindowLimitsJI%JLB
-            JUW = WindowLimitsJI%JUB + 1
-
-        else ifMS
-
-            ILW = ILB
-            IUW = IUB
-
-            JLW = JLB
-            JUW = JUB
-
-        endif ifMS
-
-
-        if (ILW < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR50'
-        if (IUW > Imax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR60'
-        if (JLW < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR70'
-        if (JUW > Jmax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR80'
-        if (KLB < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR90'
-        if (KUB > Kmax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR100'
-
-        allocate(Aux2DReal(ILW:IUW,JLW:JUW        ))
-        allocate(Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB))
-        allocate(Aux3DR8  (ILW:IUW,JLW:JUW,KLB:KUB))
-
-        !Start reading the end file of the previous run
-
-        !read(InitialFile) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
-        !call SetDate(EndTimeFile, Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File)
-
-        call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR110'
-
-        allocate(TimeVector(6))
-
-        call HDF5ReadData   (HDF5ID         = ObjHDF5,                                  &
-                             GroupName      = "/Time",                                  &
-                             Name           = "Time",                                   &
-                             Array1D        = TimeVector,                               &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR120'
-
-
-        call SetDate(EndTimeFile,     Year     = TimeVector(1), Month  = TimeVector(2), &
-                                      Day      = TimeVector(3), Hour   = TimeVector(4), &
-                                      Minute   = TimeVector(5), Second = TimeVector(6))
-
-        call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, &
-                                  EndTime = EndTime, STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR130'
-
-        DT_error = EndTimeFile - BeginTime
-
-        !Avoid rounding erros - Frank 08-2001
-        if (abs(DT_error) >= 0.01) then
-
-            write(*,*) 'The end time of the previous run is different from the start time of this run'
-            write(*,*) 'Date in the file'
-            write(*,*) int(TimeVector(1:5)), TimeVector(6)
-            write(*,*) 'DT_error', DT_error
-            call SetError (FATAL_, INTERNAL_,'Read_Final_HDF5; ModuleHydrodynamic. ERR140.')
-
-        endif
-
-        deallocate(TimeVector)
-
-        !Sets limits for next write operations
-        call HDF5SetLimits   (ObjHDF5, 1, 1, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR150'
-
-
-        !read(InitialFile) Previous_Discretization
-        call HDF5ReadData (HDF5ID        = ObjHDF5,                                     &
-                           GroupName     = "/Time",                                     &
-                           Name          = "discretization method",                     &
-                           Array1D       = AuxReal,                                     &
-                           STAT          = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR160'
-
-        Previous_Discretization = AuxReal(1)
-
-        if (Previous_Discretization /= Me%ComputeOptions%Num_Discretization) then
-
-            write(*,*) 'previous run time discretization is different from this one'
-
-            stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR170'
-
-        endif
-
-
-        !read(InitialFile) Residual
-
-        !Convert logical in int
-        call HDF5ReadData (HDF5ID        = ObjHDF5,                                     &
-                           GroupName     = "/Time",                                     &
-                           Name          = "residual ON",                               &
-                           Array1D       = AuxInt,                                      &
-                           STAT          = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR180'
-
-        if (AuxInt(1) == 1) then
-            Residual = .true.
+            call KillHDF5      (HDF5ID      = ObjHDF5,                                  &
+                                DoNotStop   = .true.,                                   &
+                                STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR25'     
+        
         else
-            Residual = .false.
+        
+            HDF5FormatOK = .true.        
+        
         endif
+        
+i1:     if (HDF5FormatOK) then
+                
 
-        !Read the last direction computed implicit by the model
-        !read(InitialFile) Me%Direction%XY
-        call HDF5ReadData (HDF5ID        = ObjHDF5,                                     &
-                           GroupName     = "/Time",                                     &
-                           Name          = "direction XY",                              &
-                           Array1D       = AuxInt,                                      &
-                           STAT          = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR190'
+            call GetHDF5ArrayDimensions (HDF5ID = ObjHDF5, GroupName = "/Grid",     &
+                                        ItemName = "WaterPoints3D",                    &
+                                        Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR30'
 
-        Me%Direction%XY = AuxInt(1)
+            ILB = Me%WorkSize%ILB
+            IUB = Me%WorkSize%IUB + 1
 
-        if (Residual .and. Me%ComputeOptions%Residual) then
+            JLB = Me%WorkSize%JLB
+            JUB = Me%WorkSize%JUB + 1
+
+            KLB = Me%WorkSize%KLB
+            KUB = Me%WorkSize%KUB + 1
 
 
-            !read(InitialFile) Me%Residual%ResidualTime
-            call HDF5ReadData (HDF5ID        = ObjHDF5,                                 &
-                               GroupName     = "/Time",                                 &
-                               Name          = "residual time",                         &
-                               Array1D       = AuxReal,                                 &
+    ifMS:   if (Me%DDecomp%MasterOrSlave) then
+
+                call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &
+                                          WorkSize         = WindowLimitsJI,       &
+                                          STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR40'
+
+                ILW = WindowLimitsJI%ILB
+                IUW = WindowLimitsJI%IUB + 1
+
+                JLW = WindowLimitsJI%JLB
+                JUW = WindowLimitsJI%JUB + 1
+
+            else ifMS
+
+                ILW = ILB
+                IUW = IUB
+
+                JLW = JLB
+                JUW = JUB
+
+            endif ifMS
+
+
+            if (ILW < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR50'
+            if (IUW > Imax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR60'
+            if (JLW < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR70'
+            if (JUW > Jmax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR80'
+            if (KLB < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR90'
+            if (KUB > Kmax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR100'
+
+            allocate(Aux2DReal(ILW:IUW,JLW:JUW        ))
+            allocate(Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB))
+            allocate(Aux3DR8  (ILW:IUW,JLW:JUW,KLB:KUB))
+
+            !Start reading the end file of the previous run
+
+            !read(InitialFile) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
+            !call SetDate(EndTimeFile, Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File)
+
+            call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR110'
+
+            allocate(TimeVector(6))
+
+            call HDF5ReadData   (HDF5ID         = ObjHDF5,                                  &
+                                 GroupName      = "/Time",                                  &
+                                 Name           = "Time",                                   &
+                                 Array1D        = TimeVector,                               &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR120'
+
+
+            call SetDate(EndTimeFile,     Year     = TimeVector(1), Month  = TimeVector(2), &
+                                          Day      = TimeVector(3), Hour   = TimeVector(4), &
+                                          Minute   = TimeVector(5), Second = TimeVector(6))
+
+            call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, &
+                                      EndTime = EndTime, STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR130'
+
+            DT_error = EndTimeFile - BeginTime
+
+            !Avoid rounding erros - Frank 08-2001
+            if (abs(DT_error) >= 0.01) then
+
+                write(*,*) 'The end time of the previous run is different from the start time of this run'
+                write(*,*) 'Date in the file'
+                write(*,*) int(TimeVector(1:5)), TimeVector(6)
+                write(*,*) 'DT_error', DT_error
+                call SetError (FATAL_, INTERNAL_,'Read_Final_HDF5; ModuleHydrodynamic. ERR140.')
+
+            endif
+
+            deallocate(TimeVector)
+
+            !Sets limits for next write operations
+            call HDF5SetLimits   (ObjHDF5, 1, 1, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR150'
+
+
+            !read(InitialFile) Previous_Discretization
+            call HDF5ReadData (HDF5ID        = ObjHDF5,                                     &
+                               GroupName     = "/Time",                                     &
+                               Name          = "discretization method",                     &
+                               Array1D       = AuxReal,                                     &
                                STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR290'
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR160'
 
-            Me%Residual%ResidualTime = AuxReal(1)
+            Previous_Discretization = AuxReal(1)
 
-        endif
+            if (Previous_Discretization /= Me%ComputeOptions%Num_Discretization) then
 
-        !read(InitialFile, END = 20) BaroclinicRadia
-        call HDF5ReadData (HDF5ID        = ObjHDF5,                          &
-                           GroupName     = "/Time",                          &
-                           Name          = "baroclinc radiation",            &
-                           Array1D       = AuxInt,                           &
-                           STAT          = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR410'
+                write(*,*) 'previous run time discretization is different from this one'
 
-        BaroclinicRadia = AuxInt(1)
+                stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR170'
 
-        !Sets limits for next ead operations (2D matrixes)
-        call HDF5SetLimits   (ObjHDF5, ILW, IUW, JLW, JUW, KLB, KUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR150'
-
-        !Water level
-
-        !read(InitialFile) ((Me%WaterLevel%New(i, j), &
-    !                   i = ILB, IUB), j = JLB, JUB)
-        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                                  &
-                             GroupName      = "/Results",                               &
-                             Name           = "Water Level New",                        &
-                             Array2D        = Aux2DReal,                                &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR200'
-
-        Me%WaterLevel%New (ILB:IUB,JLB:JUB) = Aux2DReal(ILW:IUW,JLW:JUW)
-
-        Me%WaterLevel%Old (:,:)             = Me%WaterLevel%New(:,:)
-
-        !Horizontal velocity Old
-        !read(InitialFile) (((Me%Velocity%Horizontal%U%Old(i, j, k), &
-        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                             GroupName      = "/Results",                           &
-                             Name           = "Velocity U Old",                     &
-                             Array3D        = Aux3DReal,                            &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR210'
-
-        Me%Velocity%Horizontal%U%Old(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
-
-        !read(InitialFile) (((Me%Velocity%Horizontal%V%Old(i, j, k), &
-        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                             GroupName      = "/Results",                           &
-                             Name           = "Velocity V Old",                     &
-                             Array3D        = Aux3DReal,                            &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR220'
-
-        Me%Velocity%Horizontal%V%Old(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
-
-        !Horizontal velocity New
-        !read(InitialFile) (((Me%Velocity%Horizontal%U%New(i, j, k), &
-        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                             GroupName      = "/Results",                           &
-                             Name           = "Velocity U New",                     &
-                             Array3D        = Aux3DReal,                            &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR230'
-
-        Me%Velocity%Horizontal%U%New(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
-
-        !read(InitialFile) (((Me%Velocity%Horizontal%V%New(i, j, k), &
-        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                             GroupName      = "/Results",                           &
-                             Name           = "Velocity V New",                     &
-                             Array3D        = Aux3DReal,                            &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR240'
-
-        Me%Velocity%Horizontal%V%New(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
-
-        !Water fluxes
-        !read(InitialFile) (((Me%WaterFluxes%X(i, j, k), &
-        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                             GroupName      = "/Results",                           &
-                             Name           = "Water Fluxes X",                     &
-                             Array3D        = Aux3DR8,                              &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR250'
-
-        Me%WaterFluxes%X(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
-
-        !read(InitialFile) (((Me%WaterFluxes%Y(i, j, k) , &
-        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                             GroupName      = "/Results",                           &
-                             Name           = "Water Fluxes Y",                     &
-                             Array3D        = Aux3DR8,                              &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR260'
-
-        Me%WaterFluxes%Y(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
-
-        !read(InitialFile) (((Me%WaterFluxes%Z(i, j, k), &
-        !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-        call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                             GroupName      = "/Results",                           &
-                             Name           = "Water Fluxes Z",                     &
-                             Array3D        = Aux3DR8,                              &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR270'
-
-        Me%WaterFluxes%Z(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
+            endif
 
 
-        Evolution = Me%ComputeOptions%Evolution
+            !read(InitialFile) Residual
+
+            !Convert logical in int
+            call HDF5ReadData (HDF5ID        = ObjHDF5,                                     &
+                               GroupName     = "/Time",                                     &
+                               Name          = "residual ON",                               &
+                               Array1D       = AuxInt,                                      &
+                               STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR180'
+
+            if (AuxInt(1) == 1) then
+                Residual = .true.
+            else
+                Residual = .false.
+            endif
+
+            !Read the last direction computed implicit by the model
+            !read(InitialFile) Me%Direction%XY
+            call HDF5ReadData (HDF5ID        = ObjHDF5,                                     &
+                               GroupName     = "/Time",                                     &
+                               Name          = "direction XY",                              &
+                               Array1D       = AuxInt,                                      &
+                               STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR190'
+
+            Me%Direction%XY = AuxInt(1)
+
+            if (Residual .and. Me%ComputeOptions%Residual) then
 
 
-        if (Evolution == Residual_hydrodynamic_ .and. .not. Residual) then
+                !read(InitialFile) Me%Residual%ResidualTime
+                call HDF5ReadData (HDF5ID        = ObjHDF5,                                 &
+                                   GroupName     = "/Time",                                 &
+                                   Name          = "residual time",                         &
+                                   Array1D       = AuxReal,                                 &
+                                   STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR290'
 
-            write(*,*) 'Can not have a residual evolution with out a initial file with residual values'
+                Me%Residual%ResidualTime = AuxReal(1)
 
-            stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR280'
+            endif
 
+            !read(InitialFile, END = 20) BaroclinicRadia
+            call HDF5ReadData (HDF5ID        = ObjHDF5,                          &
+                               GroupName     = "/Time",                          &
+                               Name          = "baroclinc radiation",            &
+                               Array1D       = AuxInt,                           &
+                               STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR410'
 
-        endif
+            BaroclinicRadia = AuxInt(1)
 
+            !Sets limits for next ead operations (2D matrixes)
+            call HDF5SetLimits   (ObjHDF5, ILW, IUW, JLW, JUW, KLB, KUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR150'
 
-cd1:    if (Residual .and. .not. Me%ComputeOptions%Residual) then
+            !Water level
 
-            write(*,*)
-            write(*,*)
-            write(*,*)
-            write(*,*) 'Warning: YOU HAVE STOPPED THE RESIDUAL CALCULATION, '
-            write(*,*) 'In the run before this one you have compute residual currents, '
-            write(*,*) 'In this run you dont want to compute residual currents ? '
-            write(*,*) '                        '
-            write(*,*) 'SUBROUTINE Read_Final_HDF5 - ModuleHydrodynamic. WRN01.'
-            write(*,*)
-            write(*,*)
-            write(*,*)
-
-
-        else if (Residual .and. Me%ComputeOptions%Residual) then cd1
-
-            !Average water level
-            !read(InitialFile) ((Me%Residual%WaterLevel(i, j),               &
-            !                   i = ILB, IUB), j = JLB, JUB)
-            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                                 GroupName      = "/Results",                           &
-                                 Name           = "Residual Water Level",               &
-                                 Array2D        = Aux2DReal,                            &
+            !read(InitialFile) ((Me%WaterLevel%New(i, j), &
+        !                   i = ILB, IUB), j = JLB, JUB)
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                                  &
+                                 GroupName      = "/Results",                               &
+                                 Name           = "Water Level New",                        &
+                                 Array2D        = Aux2DReal,                                &
                                  STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR300'
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR200'
 
-            Me%Residual%WaterLevel(ILB:IUB,JLB:JUB) = Aux2DReal(ILW:IUW,JLW:JUW)
+            Me%WaterLevel%New (ILB:IUB,JLB:JUB) = Aux2DReal(ILW:IUW,JLW:JUW)
 
-            !Residual horizontal velocities
-            !read(InitialFile) (((Me%Residual%Velocity_U(i, j, k),           &
+            Me%WaterLevel%Old (:,:)             = Me%WaterLevel%New(:,:)
+
+            !Horizontal velocity Old
+            !read(InitialFile) (((Me%Velocity%Horizontal%U%Old(i, j, k), &
             !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
             call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
                                  GroupName      = "/Results",                           &
-                                 Name           = "Residual Velocity U",                &
+                                 Name           = "Velocity U Old",                     &
                                  Array3D        = Aux3DReal,                            &
                                  STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR310'
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR210'
 
-            Me%Residual%Velocity_U(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+            Me%Velocity%Horizontal%U%Old(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
 
-            !read(InitialFile) (((Me%Residual%Velocity_V(i, j, k),           &
+            !read(InitialFile) (((Me%Velocity%Horizontal%V%Old(i, j, k), &
             !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
             call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
                                  GroupName      = "/Results",                           &
-                                 Name           = "Residual Velocity V",                &
+                                 Name           = "Velocity V Old",                     &
                                  Array3D        = Aux3DReal,                            &
                                  STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR320'
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR220'
 
-            Me%Residual%Velocity_V(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+            Me%Velocity%Horizontal%V%Old(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
 
-            !Residual vertical velocity
-            !read(InitialFile) (((Me%Residual%Vertical_Velocity(i, j, k),    &
+            !Horizontal velocity New
+            !read(InitialFile) (((Me%Velocity%Horizontal%U%New(i, j, k), &
             !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
             call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
                                  GroupName      = "/Results",                           &
-                                 Name           = "Residual Velocity W",                &
+                                 Name           = "Velocity U New",                     &
                                  Array3D        = Aux3DReal,                            &
                                  STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR330'
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR230'
 
-            Me%Residual%Vertical_Velocity(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+            Me%Velocity%Horizontal%U%New(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
 
-            !Residual Water specific fluxes
-            !read(InitialFile) (((Me%Residual%WaterFlux_X(i, j, k),          &
+            !read(InitialFile) (((Me%Velocity%Horizontal%V%New(i, j, k), &
             !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
             call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
                                  GroupName      = "/Results",                           &
-                                 Name           = "Residual Water Flux X",              &
+                                 Name           = "Velocity V New",                     &
+                                 Array3D        = Aux3DReal,                            &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR240'
+
+            Me%Velocity%Horizontal%V%New(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+
+            !Water fluxes
+            !read(InitialFile) (((Me%WaterFluxes%X(i, j, k), &
+            !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Water Fluxes X",                     &
                                  Array3D        = Aux3DR8,                              &
                                  STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR340'
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR250'
 
-            Me%Residual%WaterFlux_X(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
+            Me%WaterFluxes%X(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
 
-            !read(InitialFile) (((Me%Residual%WaterFlux_Y(i, j, k) ,         &
+            !read(InitialFile) (((Me%WaterFluxes%Y(i, j, k) , &
             !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
             call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
                                  GroupName      = "/Results",                           &
-                                 Name           = "Residual Water Flux Y",              &
+                                 Name           = "Water Fluxes Y",                     &
                                  Array3D        = Aux3DR8,                              &
                                  STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR350'
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR260'
 
-            Me%Residual%WaterFlux_Y(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
+            Me%WaterFluxes%Y(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
 
-cd2:        if (Evolution == Residual_hydrodynamic_) then
+            !read(InitialFile) (((Me%WaterFluxes%Z(i, j, k), &
+            !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Results",                           &
+                                 Name           = "Water Fluxes Z",                     &
+                                 Array3D        = Aux3DR8,                              &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR270'
 
-                Me%WaterLevel%Old(:,:) = Me%Residual%WaterLevel(:,:)
-
-                Me%WaterLevel%New(:,:) = Me%Residual%WaterLevel(:,:)
-
-
-                Me%Velocity%Horizontal%U%Old(:,:,:) = Me%Residual%Velocity_U(:,:,:)
-
-                Me%Velocity%Horizontal%U%New(:,:,:) = Me%Residual%Velocity_U(:,:,:)
-
-
-                Me%Velocity%Horizontal%V%Old(:,:,:) = Me%Residual%Velocity_V(:,:,:)
-
-                Me%Velocity%Horizontal%V%New(:,:,:) = Me%Residual%Velocity_V(:,:,:)
-
-                !Module - ModuleHorizontalGrid
-                !Horizontal Grid properties
-                call GetHorizontalGrid(Me%ObjHorizontalGrid,                            &
-                                       DXX  = Me%External_Var%DXX,                      &
-                                       DYY  = Me%External_Var%DYY,                      &
-                                       STAT = STAT_CALL)
-
-                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR360'
-
-                do k = KLB, KUB
-                do j = JLB, JUB
-                do i = ILB, IUB
-
-                    ![m3/s]                 = [m2/s] * [m]
-                    Me%WaterFluxes%X(i,j,k) = Me%Residual%WaterFlux_X(i,j,k) * Me%External_Var%DYY(i, J)
-                    Me%WaterFluxes%Y(i,j,k) = Me%Residual%WaterFlux_Y(i,j,k) * Me%External_Var%DXX(i, J)
-
-                enddo
-                enddo
-                enddo
-
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DXX,     &
-                                         STAT = STAT_CALL)
-
-                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR370'
+            Me%WaterFluxes%Z(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
 
 
-
-                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DYY,     &
-                                         STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR380'
+            Evolution = Me%ComputeOptions%Evolution
 
 
+            if (Evolution == Residual_hydrodynamic_ .and. .not. Residual) then
 
-            endif cd2
+                write(*,*) 'Can not have a residual evolution with out a initial file with residual values'
 
-
-        else if (.not. Residual .and. Me%ComputeOptions%Residual) then cd1
-
-                Me%Residual%ResidualTime    =  0
+                stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR280'
 
 
-                do  j = JLB, JUB
-                do  i = ILB, IUB
+            endif
 
-                    Me%Residual%WaterLevel(i, j)    =  0.
 
-                    do  k = KLB, KUB
+    cd1:    if (Residual .and. .not. Me%ComputeOptions%Residual) then
 
-                        !Residual horizontal velocity
-                        Me%Residual%Velocity_U(i, j, k) =  0.
-                        Me%Residual%Velocity_V(i, j, k) =  0.
+                write(*,*)
+                write(*,*)
+                write(*,*)
+                write(*,*) 'Warning: YOU HAVE STOPPED THE RESIDUAL CALCULATION, '
+                write(*,*) 'In the run before this one you have compute residual currents, '
+                write(*,*) 'In this run you dont want to compute residual currents ? '
+                write(*,*) '                        '
+                write(*,*) 'SUBROUTINE Read_Final_HDF5 - ModuleHydrodynamic. WRN01.'
+                write(*,*)
+                write(*,*)
+                write(*,*)
 
-                        !Residual vertical velocity
-                        Me%Residual%Vertical_Velocity(i, j, k) =  0.
 
-                        !Residual Water fluxes
-                        Me%Residual%WaterFlux_X(i, j, k) = 0.
-                        Me%Residual%WaterFlux_Y(i, j, k) = 0.
+            else if (Residual .and. Me%ComputeOptions%Residual) then cd1
 
-                        !Read residual layer thickness
-                        Me%Residual%DWZ(i, j, k) = 0
+                !Average water level
+                !read(InitialFile) ((Me%Residual%WaterLevel(i, j),               &
+                !                   i = ILB, IUB), j = JLB, JUB)
+                call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                     GroupName      = "/Results",                           &
+                                     Name           = "Residual Water Level",               &
+                                     Array2D        = Aux2DReal,                            &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR300'
+
+                Me%Residual%WaterLevel(ILB:IUB,JLB:JUB) = Aux2DReal(ILW:IUW,JLW:JUW)
+
+                !Residual horizontal velocities
+                !read(InitialFile) (((Me%Residual%Velocity_U(i, j, k),           &
+                !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                     GroupName      = "/Results",                           &
+                                     Name           = "Residual Velocity U",                &
+                                     Array3D        = Aux3DReal,                            &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR310'
+
+                Me%Residual%Velocity_U(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+
+                !read(InitialFile) (((Me%Residual%Velocity_V(i, j, k),           &
+                !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                     GroupName      = "/Results",                           &
+                                     Name           = "Residual Velocity V",                &
+                                     Array3D        = Aux3DReal,                            &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR320'
+
+                Me%Residual%Velocity_V(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+
+                !Residual vertical velocity
+                !read(InitialFile) (((Me%Residual%Vertical_Velocity(i, j, k),    &
+                !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                     GroupName      = "/Results",                           &
+                                     Name           = "Residual Velocity W",                &
+                                     Array3D        = Aux3DReal,                            &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR330'
+
+                Me%Residual%Vertical_Velocity(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+
+                !Residual Water specific fluxes
+                !read(InitialFile) (((Me%Residual%WaterFlux_X(i, j, k),          &
+                !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                     GroupName      = "/Results",                           &
+                                     Name           = "Residual Water Flux X",              &
+                                     Array3D        = Aux3DR8,                              &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR340'
+
+                Me%Residual%WaterFlux_X(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
+
+                !read(InitialFile) (((Me%Residual%WaterFlux_Y(i, j, k) ,         &
+                !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                     GroupName      = "/Results",                           &
+                                     Name           = "Residual Water Flux Y",              &
+                                     Array3D        = Aux3DR8,                              &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR350'
+
+                Me%Residual%WaterFlux_Y(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
+
+    cd2:        if (Evolution == Residual_hydrodynamic_) then
+
+                    Me%WaterLevel%Old(:,:) = Me%Residual%WaterLevel(:,:)
+
+                    Me%WaterLevel%New(:,:) = Me%Residual%WaterLevel(:,:)
+
+
+                    Me%Velocity%Horizontal%U%Old(:,:,:) = Me%Residual%Velocity_U(:,:,:)
+
+                    Me%Velocity%Horizontal%U%New(:,:,:) = Me%Residual%Velocity_U(:,:,:)
+
+
+                    Me%Velocity%Horizontal%V%Old(:,:,:) = Me%Residual%Velocity_V(:,:,:)
+
+                    Me%Velocity%Horizontal%V%New(:,:,:) = Me%Residual%Velocity_V(:,:,:)
+
+                    !Module - ModuleHorizontalGrid
+                    !Horizontal Grid properties
+                    call GetHorizontalGrid(Me%ObjHorizontalGrid,                            &
+                                           DXX  = Me%External_Var%DXX,                      &
+                                           DYY  = Me%External_Var%DYY,                      &
+                                           STAT = STAT_CALL)
+
+                    if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR360'
+
+                    do k = KLB, KUB
+                    do j = JLB, JUB
+                    do i = ILB, IUB
+
+                        ![m3/s]                 = [m2/s] * [m]
+                        Me%WaterFluxes%X(i,j,k) = Me%Residual%WaterFlux_X(i,j,k) * Me%External_Var%DYY(i, J)
+                        Me%WaterFluxes%Y(i,j,k) = Me%Residual%WaterFlux_Y(i,j,k) * Me%External_Var%DXX(i, J)
 
                     enddo
+                    enddo
+                    enddo
 
-                enddo
-                enddo
+                    call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DXX,     &
+                                             STAT = STAT_CALL)
 
-        endif cd1
-
-        call ReadGeometryHDF(GeometryID     = Me%ObjGeometry,                           &
-                             HDF5FileName   = Me%Files%InitialHydrodynamic,             &
-                             MasterOrSlave  = Me%DDecomp%MasterOrSlave,                 &
-                             AddFaces       = .true.,                                   &
-                             STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR390'
-
-        !Sets limits for next ead operations (3D matrixes)
-        call HDF5SetLimits   (ObjHDF5, ILW, IUW, JLW, JUW, KLB, KUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR150'
+                    if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR370'
 
 
-cd3:    if (Residual .and. Me%ComputeOptions%Residual) then
 
-            !Read residual layer thickness
-            !read(InitialFile, END = 10) (((Me%Residual%DWZ(i, j, k),        &
-            !                    i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                                 GroupName      = "/Results",                           &
-                                 Name           = "Residual DWZ",                       &
-                                 Array3D        = Aux3DReal,                            &
+                    call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DYY,     &
+                                             STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR380'
+
+
+
+                endif cd2
+
+
+            else if (.not. Residual .and. Me%ComputeOptions%Residual) then cd1
+
+                    Me%Residual%ResidualTime    =  0
+
+
+                    do  j = JLB, JUB
+                    do  i = ILB, IUB
+
+                        Me%Residual%WaterLevel(i, j)    =  0.
+
+                        do  k = KLB, KUB
+
+                            !Residual horizontal velocity
+                            Me%Residual%Velocity_U(i, j, k) =  0.
+                            Me%Residual%Velocity_V(i, j, k) =  0.
+
+                            !Residual vertical velocity
+                            Me%Residual%Vertical_Velocity(i, j, k) =  0.
+
+                            !Residual Water fluxes
+                            Me%Residual%WaterFlux_X(i, j, k) = 0.
+                            Me%Residual%WaterFlux_Y(i, j, k) = 0.
+
+                            !Read residual layer thickness
+                            Me%Residual%DWZ(i, j, k) = 0
+
+                        enddo
+
+                    enddo
+                    enddo
+
+            endif cd1
+
+            call ReadGeometryHDF(GeometryID     = Me%ObjGeometry,                           &
+                                 HDF5FileName   = Me%Files%InitialHydrodynamic,             &
+                                 MasterOrSlave  = Me%DDecomp%MasterOrSlave,                 &
+                                 AddFaces       = .true.,                                   &
                                  STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR400'
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR390'
 
-            Me%Residual%DWZ(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+            !Sets limits for next ead operations (3D matrixes)
+            call HDF5SetLimits   (ObjHDF5, ILW, IUW, JLW, JUW, KLB, KUB, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR150'
 
-        endif cd3
+
+    cd3:    if (Residual .and. Me%ComputeOptions%Residual) then
+
+                !Read residual layer thickness
+                !read(InitialFile, END = 10) (((Me%Residual%DWZ(i, j, k),        &
+                !                    i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                     GroupName      = "/Results",                           &
+                                     Name           = "Residual DWZ",                       &
+                                     Array3D        = Aux3DReal,                            &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR400'
+
+                Me%Residual%DWZ(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+
+            endif cd3
 
 
-cd4:    if (.not. BaroclinicRadia                                == NoRadiation_ .and.   &
-            .not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
+    cd4:    if (.not. BaroclinicRadia                                == NoRadiation_ .and.   &
+                .not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
 
-            !Horizontal baroclinic velocity Old
-            !read(InitialFile, END = 20) (((Me%VelBaroclinic%U%Old(i, j, k), &
-            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                                 GroupName      = "/Results",                           &
-                                 Name           = "Velocity Baroclinic U Old",          &
-                                 Array3D        = Aux3DReal,                            &
-                                 STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR420'
+                !Horizontal baroclinic velocity Old
+                !read(InitialFile, END = 20) (((Me%VelBaroclinic%U%Old(i, j, k), &
+                !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                     GroupName      = "/Results",                           &
+                                     Name           = "Velocity Baroclinic U Old",          &
+                                     Array3D        = Aux3DReal,                            &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR420'
 
-            Me%VelBaroclinic%U%Old(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+                Me%VelBaroclinic%U%Old(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
 
-            !read(InitialFile, END = 20) (((Me%VelBaroclinic%V%Old(i, j, k), &
-            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                                 GroupName      = "/Results",                           &
-                                 Name           = "Velocity Baroclinic V Old",          &
-                                 Array3D        = Aux3DReal,                            &
-                                 STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR430'
+                !read(InitialFile, END = 20) (((Me%VelBaroclinic%V%Old(i, j, k), &
+                !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                     GroupName      = "/Results",                           &
+                                     Name           = "Velocity Baroclinic V Old",          &
+                                     Array3D        = Aux3DReal,                            &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR430'
 
-            Me%VelBaroclinic%V%Old(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+                Me%VelBaroclinic%V%Old(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
 
-            !Horizontal baroclinic velocity New
-            !read(InitialFile, END = 20) (((Me%VelBaroclinic%U%New(i, j, k), &
-            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                                 GroupName      = "/Results",                           &
-                                 Name           = "Velocity Baroclinic U New",          &
-                                 Array3D        = Aux3DReal,                            &
-                                 STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR440'
+                !Horizontal baroclinic velocity New
+                !read(InitialFile, END = 20) (((Me%VelBaroclinic%U%New(i, j, k), &
+                !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                     GroupName      = "/Results",                           &
+                                     Name           = "Velocity Baroclinic U New",          &
+                                     Array3D        = Aux3DReal,                            &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR440'
 
-            Me%VelBaroclinic%U%New(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+                Me%VelBaroclinic%U%New(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
 
-            !read(InitialFile, END = 20) (((Me%VelBaroclinic%V%New(i, j, k), &
-            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                                 GroupName      = "/Results",                           &
-                                 Name           = "Velocity Baroclinic V New",          &
-                                 Array3D        = Aux3DReal,                            &
-                                 STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR450'
+                !read(InitialFile, END = 20) (((Me%VelBaroclinic%V%New(i, j, k), &
+                !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                     GroupName      = "/Results",                           &
+                                     Name           = "Velocity Baroclinic V New",          &
+                                     Array3D        = Aux3DReal,                            &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR450'
 
-            Me%VelBaroclinic%V%New(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+                Me%VelBaroclinic%V%New(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
 
-            !vertical baroclinic velocity
-            !read(InitialFile, END = 20) (((Me%VelBaroclinic%W_New(i, j, k), &
-            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                                 GroupName      = "/Results",                           &
-                                 Name           = "Velocity Baroclinic W New",          &
-                                 Array3D        = Aux3DReal,                            &
-                                 STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR460'
+                !vertical baroclinic velocity
+                !read(InitialFile, END = 20) (((Me%VelBaroclinic%W_New(i, j, k), &
+                !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                     GroupName      = "/Results",                           &
+                                     Name           = "Velocity Baroclinic W New",          &
+                                     Array3D        = Aux3DReal,                            &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR460'
 
-            Me%VelBaroclinic%W_New(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+                Me%VelBaroclinic%W_New(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
 
-            !read(InitialFile, END = 20) (((Me%VelBaroclinic%W_Old(i, j, k), &
-            !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                                 GroupName      = "/Results",                           &
-                                 Name           = "Velocity Baroclinic W Old",          &
-                                 Array3D        = Aux3DReal,                            &
-                                 STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR470'
+                !read(InitialFile, END = 20) (((Me%VelBaroclinic%W_Old(i, j, k), &
+                !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                     GroupName      = "/Results",                           &
+                                     Name           = "Velocity Baroclinic W Old",          &
+                                     Array3D        = Aux3DReal,                            &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR470'
 
-            Me%VelBaroclinic%W_Old(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+                Me%VelBaroclinic%W_Old(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
 
-        endif cd4
+            endif cd4
 
-20      continue
+    20      continue
 
-        !NonHydrostatic
-        if (Me%NonHydrostatic%ON) then
+            !NonHydrostatic
+            if (Me%NonHydrostatic%ON) then
 
-            !read(InitialFile, IOSTAT = STAT_CALL)                                       &
-            !    (((Me%Velocity%Vertical%CartesianOld(i, j, k),                          &
-            !       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-            !if (STAT_CALL /= SUCCESS_) then
-            !    call SetError (FATAL_, INTERNAL_,'Read_Final_HDF5; ModuleHydrodynamic. ERR80.')
-            !endif
+                !read(InitialFile, IOSTAT = STAT_CALL)                                       &
+                !    (((Me%Velocity%Vertical%CartesianOld(i, j, k),                          &
+                !       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                !if (STAT_CALL /= SUCCESS_) then
+                !    call SetError (FATAL_, INTERNAL_,'Read_Final_HDF5; ModuleHydrodynamic. ERR80.')
+                !endif
 
-            call GetHDF5DataSetExist (HDF5ID        = ObjHDF5,                          &
-                                      DataSetName   = "/Results/Velocity Vertical Cartesian Old",&
-                                      Exist         = Exist,                            &
-                                      STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR480'
+                call GetHDF5DataSetExist (HDF5ID        = ObjHDF5,                          &
+                                          DataSetName   = "/Results/Velocity Vertical Cartesian Old",&
+                                          Exist         = Exist,                            &
+                                          STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR480'
 
-            if (Exist) then
+                if (Exist) then
+
+                    call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                         GroupName      = "/Results",                           &
+                                         Name           = "Velocity Vertical Cartesian Old",    &
+                                         Array3D        = Aux3DReal,                            &
+                                         STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR490'
+
+                    Me%Velocity%Vertical%CartesianOld(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
+                else
+                    Me%Velocity%Vertical%CartesianOld(ILB:IUB,JLB:JUB,KLB:KUB) = 0.
+                endif
+
+            endif
+
+            !Submodel
+            if (Me%SubModel%ON) then
+
+                Me%SubModel%HotStartData = .false.
+
+                !read(InitialFile, END = 30, IOSTAT = STAT_CALL)                             &
+                !    (((Me%SubModel%qX(i, j, k),                                             &
+                !       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                !if (STAT_CALL /= SUCCESS_) then
+                !    call SetError (FATAL_, INTERNAL_,'Read_Final_HDF5; ModuleHydrodynamic. ERR90.')
+                !endif
 
                 call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
                                      GroupName      = "/Results",                           &
-                                     Name           = "Velocity Vertical Cartesian Old",    &
-                                     Array3D        = Aux3DReal,                            &
+                                     Name           = "Submodel qX",                        &
+                                     Array3D        = Aux3DR8,                              &
                                      STAT           = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR490'
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR500'
 
-                Me%Velocity%Vertical%CartesianOld(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
-            else
-                Me%Velocity%Vertical%CartesianOld(ILB:IUB,JLB:JUB,KLB:KUB) = 0.
+                Me%SubModel%qX(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
+
+                !read(InitialFile, END = 30, IOSTAT = STAT_CALL)                                       &
+                !    (((Me%SubModel%qY(i, j, k),                                             &
+                !       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                !if (STAT_CALL /= SUCCESS_) then
+                !    call SetError (FATAL_, INTERNAL_,'Read_Final_HDF5; ModuleHydrodynamic. ERR100.')
+                !endif
+
+                call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
+                                     GroupName      = "/Results",                           &
+                                     Name           = "Submodel qY",                        &
+                                     Array3D        = Aux3DR8,                              &
+                                     STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR510'
+
+                Me%SubModel%qY(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
+
+                Me%SubModel%HotStartData = .true.
+
+                if (.not. Me%SubModel%HotStartData) then
+                    write(*,*) 'you are doing a hot start based in a old version of MOHID'
+                    write(*,*) 'version before Nov 2010'
+                    write(*,*) 'in this case in the first iteration if the South/North boundaries are open'
+                    write(*,*) 'and the follow options are on (RADIATION : 2; LOCAL_SOLUTION : 2)'
+                    write(*,*) 'the mpodel will generate a perturbation that might take some type to dissipate'
+                    write(*,*) 'in less dissipative enviroments like the Ocean'
+                endif
+
             endif
 
-        endif
+            call KillHDF5(ObjHDF5, STAT = STAT_CALL)
 
-        !Submodel
-        if (Me%SubModel%ON) then
+            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR520'
 
-            Me%SubModel%HotStartData = .false.
-
-            !read(InitialFile, END = 30, IOSTAT = STAT_CALL)                             &
-            !    (((Me%SubModel%qX(i, j, k),                                             &
-            !       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            !if (STAT_CALL /= SUCCESS_) then
-            !    call SetError (FATAL_, INTERNAL_,'Read_Final_HDF5; ModuleHydrodynamic. ERR90.')
-            !endif
-
-            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                                 GroupName      = "/Results",                           &
-                                 Name           = "Submodel qX",                        &
-                                 Array3D        = Aux3DR8,                              &
-                                 STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR500'
-
-            Me%SubModel%qX(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
-
-            !read(InitialFile, END = 30, IOSTAT = STAT_CALL)                                       &
-            !    (((Me%SubModel%qY(i, j, k),                                             &
-            !       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-            !if (STAT_CALL /= SUCCESS_) then
-            !    call SetError (FATAL_, INTERNAL_,'Read_Final_HDF5; ModuleHydrodynamic. ERR100.')
-            !endif
-
-            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
-                                 GroupName      = "/Results",                           &
-                                 Name           = "Submodel qY",                        &
-                                 Array3D        = Aux3DR8,                              &
-                                 STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR510'
-
-            Me%SubModel%qY(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
-
-            Me%SubModel%HotStartData = .true.
-
-            if (.not. Me%SubModel%HotStartData) then
-                write(*,*) 'you are doing a hot start based in a old version of MOHID'
-                write(*,*) 'version before Nov 2010'
-                write(*,*) 'in this case in the first iteration if the South/North boundaries are open'
-                write(*,*) 'and the follow options are on (RADIATION : 2; LOCAL_SOLUTION : 2)'
-                write(*,*) 'the mpodel will generate a perturbation that might take some type to dissipate'
-                write(*,*) 'in less dissipative enviroments like the Ocean'
-            endif
-
-        endif
-
-        call KillHDF5(ObjHDF5, STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR520'
-
-        deallocate(AuxInt, AuxReal)
-        deallocate(Aux2DReal)
-        deallocate(Aux3DReal)
-        deallocate(Aux3DR8  )
+            deallocate(AuxInt, AuxReal)
+            deallocate(Aux2DReal)
+            deallocate(Aux3DReal)
+            deallocate(Aux3DR8  )
+        
+        endif i1
 
 
     end subroutine Read_Final_HDF5
@@ -55458,7 +55517,7 @@ ic1:    if (Me%CyclicBoundary%ON) then
             nullify(Me%StokesWaterFluxes%XY)
             nullify(Me%StokesWaterFluxes%YX)
 
-            ! Surface momentum fluxes (les autres champs sont nettoy�s dans UnGetWaves3D)
+            ! Surface momentum fluxes (les autres champs sont nettoyes dans UnGetWaves3D)
             nullify(Me%External_Var%AtmToWaveMomentum_UV)
             nullify(Me%External_Var%WaveToOceanMomentum_UV)
 
@@ -57547,6 +57606,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 if (STAT_CALL /= SUCCESS_) stop 'RecvHydrodynamicMPI - MohidWater - ERR17'
 
 
+
+
                 call ReadNextOrInitialField (UFather, VFather, DUZFather, DVZFather,     &
                                        FluxXFather, FluxYFather, ZFather, Open3DFather,  &
                                        Faces3D_UFather, Faces3D_VFather,                 &
@@ -57862,5 +57923,5 @@ End Module ModuleHydrodynamic
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior T�cnico, Technical University of Lisbon.
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon.
 !----------------------------------------------------------------------------------------------------------
