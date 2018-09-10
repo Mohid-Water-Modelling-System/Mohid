@@ -1261,8 +1261,6 @@ case1 : select case  (Me%TurbOptions%MODTURB)
                                     Me%ObjHorizontalGrid,                               &
                                     Me%ObjGeometry,                                     & 
                                     Me%TurbOptions%Continuous_Compute,                  &
-                                    Me%TurbOptions%ReadContinuousFormat,                &
-                                    Me%TurbOptions%WriteContinuousFormat,               &                                    
                                     STAT = STAT_CALL    )
                 
                 if (STAT_CALL .NE. SUCCESS_)                                            &
