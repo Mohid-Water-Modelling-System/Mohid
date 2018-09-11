@@ -161,15 +161,16 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleSequentialAssimilation.F90">
 			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug OpenMP|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release OpenMP|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug MPI|x64" ExcludedFromBuild="true"/></File>
+			<FileConfiguration Name="Debug MPI|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|Win32" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleToga.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleTurbGOTM.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleTurbine.f90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleTurbulence.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleTwoWay.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleWaterProperties.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleWaves.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>
