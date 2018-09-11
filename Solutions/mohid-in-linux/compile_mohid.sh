@@ -195,9 +195,9 @@ if [[ $FC == *"gfortran"* ]]; then
     OPT_FLAGS="-O2 -ffast-math -march=x86-64 -fconvert=little-endian -fPIC -fno-unsafe-math-optimizations -frounding-math -fsignaling-nans"
     MODOUT="-J"
 elif [[ $FC == *"ifort"* ]]; then
-    LANG_FLAGS="-cpp -real_size 64"
+    LANG_FLAGS="-cpp -real_size 64 -heap-arrays"
     if [ $IS_DEBUG == true ]; then
-        DEBUG_FLAGS="-g -traceback"
+        DEBUG_FLAGS="-g -traceback -heap-arrays "
     fi
     WARNINGS_FLAGS="-w"
     if [ $USE_OPENMP == true ]; then
@@ -566,7 +566,8 @@ MOHID_BASE_2(){
     ModuleField4D  \
     ModuleFillMatrix  \
     ModuleChainReactions  \
-    ModuleAtmosphere)
+    ModuleAtmosphere      \
+    ModuleTwoWay)
 
   COMPILE_MOHID_BASE modules_Mohid_Base_2 "mohidbase2"
 }
@@ -625,6 +626,7 @@ MOHID_WATER(){
     ModuleSediment  \
     ModuleInterfaceSedimentWater  \
     ModuleInterfaceWaterAir  \
+    
     #ModuleSequentialAssimilation  \
     ModuleModel)
 
