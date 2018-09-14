@@ -521,11 +521,11 @@ cd0 : if (ready_ .EQ. OFF_ERR_) then
       !Begin-----------------------------------------------------------------
       
 do1 : do      
-         call ExtractBlockFromBuffer (Me%ObjEnterData,                   &
-                                      ClientNumber    = ClientNumber,    &
-                                      block_begin     = "BeginProperty", &
-                                      block_end       = "EndProperty",   &
-                                      BlockFound      = BlockFound,      &
+         call ExtractBlockFromBuffer (Me%ObjEnterData,                      &
+                                      ClientNumber    = ClientNumber,       &
+                                      block_begin     = "<beginproperty>",  &
+                                      block_end       = "<endproperty>",    &
+                                      BlockFound      = BlockFound,         &
                                       STAT            = STAT_CALL)
 cd1 :    if (STAT_CALL .EQ. SUCCESS_) then    
 
@@ -681,7 +681,7 @@ cd2 :       if (BlockFound) then
       call GetData (NewProperty%Old,                          &
                     Me%ObjEnterData, iflag,                   &
                     keyword      = 'OLD',                     &
-                    Default      = (.not. Me%Continuous),     &                        
+                    Default      = .false.,                   &                        
                     SearchType   = FromBlock,                 &
                     ClientModule = 'ModuleSnow',              &
                     STAT         = STAT_CALL)              
@@ -1170,7 +1170,7 @@ i1:      if (CoordON) then
          
          call Read_Lock(mSnow_, Me%InstanceID) 
 
-         SnowMelted => Me%SnowPack%Value
+         SnowMelted => Me%SnowMelted
 
          STAT_ = SUCCESS_
       else
@@ -1286,6 +1286,8 @@ i1:      if (CoordON) then
          
          call GetComputeTimeStep (Me%ObjTime, Me%ExtVar%DT, STAT = STAT_CALL)
          if (STAT_CALL /= SUCCESS_) stop 'ModifySnow - ModuleSnow - ERR020'
+         
+         call ReadLockExternalVar()
 
          !Checks to see if it's time to compute a new SnowMeltingFlux
          if(Me%ExtVar%Now .GE. Me%SnowPack%Evolution%NextCompute) then
@@ -1347,7 +1349,9 @@ i1:      if (CoordON) then
                   Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
                endif
          endif
-
+         
+         call ReadUnLockExternalVar
+         
          STAT_ = SUCCESS_
          if (MonitorPerformance) call StopWatch ("ModuleSnow", "ModifySnow")
 
