@@ -1638,6 +1638,7 @@ cd2 :           if (BlockFound) then
                     !(for time dependent itens assumed that data type equal for all fields)
                     !Opens data set
                     call h5dopen_f(ID, trim(adjustl(obj_name)), dset_id, STAT_CALL)
+                    
                     !Gets datatype
                     call h5dget_type_f (dset_id, datatype_id,   STAT_CALL)
                     !call h5tget_size_f (datatype_id, size,      STAT_CALL)

@@ -47,9 +47,8 @@ Module ModuleModel
                                                
     use ModuleHydrodynamic,             only : StartHydrodynamic, GetWaterLevel,         &
                                                GetHorizontalVelocity, GetChezy,          &
-                                               GetVerticalVelocity,                      &
-                                               Modify_Hydrodynamic, UnGetHydrodynamic,   &
-                                               KillHydrodynamic
+                                               GetVerticalVelocity, Modify_Hydrodynamic, &
+                                               UnGetHydrodynamic, KillHydrodynamic
 
     use ModuleWaterProperties,          only : Construct_WaterProperties,                &
                                                GetDensity, GetSigmaNoPressure, GetSigma, &
@@ -114,13 +113,14 @@ Module ModuleModel
                                                KillSequentialAssimilation,               &
                                                GetSeqAssimilationOptions
 #endif _USE_SEQASSIMILATION
-    use ModuleStopWatch,            only: StartWatch, StopWatch
+    use ModuleStopWatch,                only: StartWatch, StopWatch
     
 #ifdef _ENABLE_CUDA
     ! JPW, CUDA support
     use ModuleCuda
 #endif
 
+    use ModuleTwoWay,                   only : ConstructTwoWay, KillTwoWay
     !$ use omp_lib
 
 
@@ -213,6 +213,7 @@ Module ModuleModel
         !character(StringLength), dimension(:), pointer :: ModelNames
 
         character(StringLength)                 :: ModelName    = null_str 
+        integer                                 :: ModelType    = MOHIDWATER_
 
         integer                                 :: NumberOfModels       = 0 
         integer                                 :: MPI_ID               = null_int
@@ -247,7 +248,6 @@ Module ModuleModel
         logical                                 :: RunWaves         = .false. 
         logical                                 :: NoIsolatedCells  = .false. 
         integer                                 :: OnLineType       = null_int 
-
         type (T_Size2D)                         :: SubModelWindow
         logical                                 :: SubModelWindowON = .false. 
         
@@ -289,6 +289,7 @@ Module ModuleModel
         integer                                 :: ObjSedimentProperties        = 0
         integer                                 :: ObjConsolidation             = 0
         integer                                 :: ObjFreeVerticalMovement      = 0
+        integer                                 :: ObjTwoWay                    = 0
        
 #ifdef _USE_SEQASSIMILATION
         integer                                 :: ObjSeqAssimilation           = 0
@@ -390,6 +391,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Stores name
             Me%ModelName        = trim(ModelNames(Me%InstanceID))
+            Me%ModelType        = MOHIDWATER_
 
 #ifndef _OUTPUT_OFF_
             write(*, *)"-------------------------- MODEL -------------------------"
@@ -811,6 +813,15 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          TimeID           = Me%ObjTime,                 &
                                          STAT             = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR240'
+            
+            call ConstructTwoWay        (ModelName        = trim(Me%ModelName),         &
+                                         TwoWayID         = Me%ObjTwoWay,               &
+                                         HorizontalGridID = Me%ObjHorizontalGrid,       &
+                                         GeometryID       = Me%Water%ObjGeometry,       &
+                                         HorizontalMapID  = Me%Water%ObjHorizontalMap,  &
+                                         MapID            = Me%Water%ObjMap,            &
+                                         STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - 250'             
 
             !Constructs hydrodynamic
             call StartHydrodynamic      (ModelName        = trim(Me%ModelName),         &  
@@ -825,6 +836,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          TurbulenceID     = Me%ObjTurbulence,           &
                                          DischargesID     = Me%ObjDischarges,           &
                                          WavesID          = Me%ObjWaves,                &
+                                         TwoWayID         = Me%ObjTwoWay,               &
 #ifdef _ENABLE_CUDA
                                          CudaID           = Me%ObjCuda,                 &
 #endif
@@ -859,6 +871,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                            DischargesID     = Me%ObjDischarges,         &
                                            FreeVerticalMovementID = Me%ObjFreeVerticalMovement, &
                                            TurbGOTMID       = Me%ObjTurbGOTM,           &
+                                           TwoWayID         = Me%ObjTwoWay,             &
 #ifdef _ENABLE_CUDA
                                            CudaID           = Me%ObjCuda,                 &
 #endif _ENABLE_CUDA
@@ -987,6 +1000,7 @@ il:         if (Me%RunLagrangian) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR440'
 
             call StartAtmosphere(ModelName          = trim(Me%ModelName),&
+                                 ModelType          = Me%ModelType,                     &
                                  AtmosphereID       = Me%ObjAtmosphere,                 &
                                  TimeID             = Me%ObjTime,                       &
                                  GridDataID         = Me%Water%ObjBathymetry,           &
@@ -1071,8 +1085,8 @@ il:         if (Me%RunLagrangian) then
                                             Me%SeqAssimilationTime, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR530'
             endif
-#endif _USE_SEQASSIMILATION
-
+#endif _USE_SEQASSIMILATION  
+   
             !nullify(Me%ModelNames )
             !nullify(Me%LagInstance)
             
@@ -1685,6 +1699,7 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
             call SetInitialModelTime (Me%ObjTime, InitialModelTime, STAT_)            
             call CPU_TIME(Me%LastCPUTime)
         endif
+  
         
 #ifdef _USE_SEQASSIMILATION
            if (Me%RunSeqAssimilation) then
@@ -2208,7 +2223,11 @@ if7 :               if     (DT_error > 0) then
                 !Kills hydrodynamic properties
                 call KillHydrodynamic(Me%ObjHydrodynamic,           STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR110'
-
+                 
+                !Kills TwoWay
+                call KillTwoWay     (Me%ObjTwoWay,          STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR111'
+    
                 !Kill Turbulence
                 call KillTurbulence     (Me%ObjTurbulence,          STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'KillModel - ModuleModel - ERR120'
