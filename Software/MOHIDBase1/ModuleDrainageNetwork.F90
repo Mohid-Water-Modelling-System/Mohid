@@ -19038,3 +19038,19055 @@ end module ModuleDrainageNetwork
 
 
 
+=======
+!------------------------------------------------------------------------------
+!        IST/MARETEC, Water Modelling Group, Mohid modelling system
+!------------------------------------------------------------------------------
+!
+! TITLE         : Mohid Model
+! PROJECT       : Mohid Base 1
+! MODULE        : DrainageNetwork
+! URL           : http://www.mohid.com
+! AFFILIATION   : IST/MARETEC, Marine Modelling Group
+! DATE          : May 2003
+! REVISION      : Frank Braunschweig / Rosa Trancoso
+! DESCRIPTION   : Module which simulates a 1D Drainage Network System
+!------------------------------------------------------------------------------
+!
+!This program is free software; you can redistribute it and/or
+!modify it under the terms of the GNU General Public License 
+!version 2, as published by the Free Software Foundation.
+!
+!This program is distributed in the hope that it will be useful,
+!but WITHOUT ANY WARRANTY; without even the implied warranty of
+!MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+!GNU General Public License for more details.
+!
+!You should have received a copy of the GNU General Public License
+!along with this program; if not, write to the Free Software
+!Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+!
+!------------------------------------------------------------------------------
+!
+! Keywords read in the Data File
+!
+! Keyword                   : Data Type         Default     !Comment
+!
+! NETWORK_FILE              : char              -           !Path to drainage network file
+! CHECK_NODES               : 0/1               [1]         !Ckeck nodes consistency
+! CHECK_REACHES             : 0/1               [1]         !Check reaches consistency
+
+! DISCHARGES                : 0/1               [0]         !Use module discharges (WWTP, etc)
+! HYDRODYNAMIC_APROX        : int               [1]         !1 - KinematicWave, 2 - DiffusionWave, 3 - DynamicWave
+! NUMERICAL_SCHEME          : int               [0]         !0 - ExplicitScheme, 1 - ImplicitScheme
+! If ImplicitScheme ------------------------------------------------------------
+! TIME_WEIGHT_FACTOR        : real              [0.7]       !Factor de ponderacao do peso dos termos explicitos e implicitos
+! RELAXATION_FACTOR
+
+! MASS_ERR                  : real(8)           [0.001]     !Max error in mass conservation
+! GLOBAL_MANNING            : real              -           !Rugosity in Channels
+! MIN_WATER_DEPTH           : real              [0.001]     !Min water depth in nodes (For h < MIN_WATER_DEPTH water stops flowing)
+! MIN_WATER_DEPTH_PROCESS   : real              [0.01]      !Water Quality Process / Surface Fluxes shutdown
+! INITIAL_WATER_DEPTH       : real              [0.0]       !Initial water depth
+! TRANSMISSION_LOSSES       : 0/1               [0]         !If user wants to use transmission losses
+! HYDRAULIC_CONDUCTIVITY    : real              -           !Hydraulic Conductivity to calculate transmission losses
+! REMOVE_OVERTOP            : 0/1               [0]         !Removes Water if channels are overtoped
+! STORM_WATER_MODEL_LINK    : 0/1               [0]         !If linked to a StormWaterModel
+! MINIMUM_SLOPE             : real              [0.0]       !Minimum Slope for Kinematic Wave
+! STABILIZE                 : 0/1               [0]         !Restart time iteration if high volume gradients
+! STABILIZE_FACTOR          : real              [0.1]       !max gradient in time steps as fraction of old volume
+! MAX_ITERATIONS            : int               [100]       !Max iterations for stabilized check
+! DT_FACTOR                 : real              [0.8]       !Factor for DT Prediction
+! MAX_DT_FLOOD              : real              [10.0]      !Max DT if channel water level exceeds full bank 
+! AERATION_METHOD           : int               [-]         !1 - PoolAndRifle, 2 - ChannelControled_
+! T90_DECAY_MODEL           : 0                 [1]         !0 - Constant, 1 - Canteras, 2 - Chapra
+! T90                       : real              [7200.]     !if T90_DECAY_MODEL = Constant
+! SHADING_FACTOR            : real              [1.]        !0-1 fraction of riparian shading
+! FRACTION_SEDIMENT         : 0/1               [0]
+! GLOBAL_TOXICITY           : char              ['SUM']     !Global Toxicity Computation Method : SUM,MAX,RISKRATIO
+! GEO_CONVERSATION_FACTOR   : real              [1.]        !Lat to Meters rough estimation
+! OUTPUT_TIME               : int int...        [-]
+! DOWNSTREAM_BOUNDARY       : int               [1]         !0 - Dam, 1 - ZDG, 2 - CD, 3 - ImposedWaterLevel, 4 - ImposedVelocity
+!   If ImposedWaterLevel--------------------------------------------------------
+!       FILE_IN_TIME        : char              [NONE]      !NONE, TIMESERIE
+!       DEFAULT_VALUE       : real              -           !Default value for water level at downstream boundary
+!       If FILE_IN_TIME = TIMESERIE---------------------------------------------
+!           FILENAME        : char              -           !Name of timeserie file for the downstream boundary
+!           DATA_COLUMN     : int               -           !Number of column with data
+!
+! TIME_SERIE_LOCATION       : char              -           !Path to time serie especification nodes
+! MAX_BUFFER_SIZE           : 1000
+! COMPUTE_RESIDUAL          : 1 
+! DT_OUTPUT_TIME            : 1200
+! TIME_SERIE_BY_NODES       : 0/1               [0]         !Keyword to see if the user wants the time series to be written by 
+                                                            !nodes, i.e.,
+                                                            !One file per node, with all variables in the headers list
+                                                            !if FALSE, its one file per variable with nodes in the headers.
+
+!<BeginNodeTimeSerie>  
+!NODE_ID                  : integer                         !Node ID to create TimeSeries
+!NAME                     : char                            !Node Name that will appear in TimeSeries
+! <EndNodeTimeSerie>
+
+
+!<beginproperty>
+!   NAME                    : cohesive sediment 
+!   UNITS                   : mg/L 
+!   DESCRIPTION             : cohesive sediment
+!   DEFAULTVALUE            : 100.00
+!   MIN_VALUE               : 0.0
+!   ADVECTION_DIFUSION      : 1
+!       ADVECTION_SCHEME    : 1       !Upwind
+!       DIFFUSION_SCHEME    : 5       !CentralDif
+!       DIFFUSIVITY         : 1E-8    !m2/s
+!       VIRTUAL_COEF        : 0.01
+!   WATER_QUALITY           : 0
+!   BENTHOS                 : 0
+!   MACROALGAE              : 0
+!   DECAY_T90               : 0       !uses T90 decay model for fecal coliforms
+!   DECAY_GENERIC           : 0       !uses generic decay (for now 1st order)
+!                                       [2] -                                   
+!   TIME_SERIE              : 1
+!<endproperty>
+
+!
+!Network file ##################################################################
+!
+!<BeginNode>
+!   ID                      : int               -           !Node ID number
+!   COORDINATES             : real real         -           !Node coordinates
+!   GRID_I                  : int               -           !I position of node, if grid
+!   GRID_J                  : int               -           !J position of node, if grid
+!   TERRAIN_LEVEL            : real              -           !Bottom level of cross section
+!   MANNING_CHANNEL         : real         GLOBAL_MANNING   !Node rugosity
+!   WATER_DEPTH             : real      INITIAL_WATER_DEPTH !Node initial water depth
+!   CROSS_SECTION_TYPE      : int               [1]         !1 - Trapezoidal, 2 - TrapezoidalFlood, 3 - Tabular
+!   1 - Trapezoidal, 2 - TrapezoidalFlood
+!       BOTTOM_WIDTH        : real              -           !Bottom width of cross section
+!       TOP_WIDTH           : real              -           !Top width of cross section
+!       HEIGHT              : real              -           !Max height of cross section
+!   2 - TrapezoidalFlood
+!       MIDDLE_WIDTH        : real              -           !Middle width of cross section
+!       MIDDLE_HEIGHT       : real              -           !Middle height of cross section
+!   3 - Tabular
+!       N_STATIONS          : integer           -           !number os stations that define the cross section
+!       STATION             : real real ...     -           !station values
+!       ELEVATION/LEVEL     : real real ...     -           !elevation values        
+!<EndNode>    
+!<BeginReach>
+!   ID                      : int               -           !Reach ID Number
+!   DOWNSTREAM_NODE         : int               -           !Downstream node ID
+!   UPSTREAM_NODE           : int               -           !Upstream node ID
+!   ACTIVE                  : boolean           -           !Active Reach. If Inactive, no flow is calculated
+!<EndReach>
+!
+! EcoToxicity model ################################################################
+! 
+! Every toxic property must be discharged.
+! Its concentration in the river network is set to 0.0.
+! Discharge concentration must be equal to 1, because we are measuring the dilution
+! D = 1 - C_new / C_ini
+! the variable property%toxicity%concentration represents C/c_ini so it starts by being 1.
+! This is not even close to a final version. 
+! For more details, or sugestions/corrections, contact Rosa.
+   
+
+Module ModuleDrainageNetwork
+
+    use ModuleGlobalData
+    use ModuleEnterData
+    use ModuleTime
+    use ModuleHDF5
+    use ModuleFunctions            , only: InterpolateValueInTime, ConstructPropertyID, ComputeT90_Chapra,  &
+                                           ComputeT90_Canteras, LongWaveDownward, LongWaveUpward,           &
+                                           LatentHeat, SensibleHeat, OxygenSaturation,                      &
+                                           OxygenSaturationHenry, OxygenSaturationCeQualW2, AerationFlux,   &
+                                           TimeToString, ChangeSuffix, DistanceBetweenTwoGPSPoints,         &
+                                           LinearInterpolation, SetMatrixValue
+    use ModuleTimeSerie            , only: StartTimeSerie, StartTimeSerieInput, WriteTimeSerieLine,         &
+                                           GetTimeSerieValue, KillTimeSerie, WriteTimeSerieLineNow
+    use ModuleStopWatch            , only: StartWatch, StopWatch
+    use ModuleDischarges           , only: Construct_Discharges, GetDischargesNumber, GetDischargesNodeID,  &
+                                           GetDischargeWaterFlow, GetDischargeConcentration, Kill_Discharges
+    use ModuleLightExtinction      , only: ConstructLightExtinction, GetLightExtinctionOptions,             &
+                                           GetRadiationPercentages, GetShortWaveExtinctionField,            &
+                                           ModifyLightExtinctionField, UnGetLightExtinction,                &
+                                           KillLightExtinction, GetLongWaveExtinctionCoef
+    use ModuleInterface            , only: ConstructInterface, Modify_Interface, KillInterface, GetWQRatio, &
+                                           GetRateFlux, SetSOD
+                                          
+    implicit none
+
+    private 
+
+    !Subroutines---------------------------------------------------------------
+
+    !Constructor
+    public  :: ConstructDrainageNetwork
+    private ::      AllocateInstance
+    private ::      ReadDataFile
+    private ::      ConstructDownstreamBoundary
+        
+    private ::      ConstructNetwork
+    private ::          ConstructNodeList
+    private ::              CountTotalNodes
+    private ::              ConstructNode 
+    private ::                  InitializeTabularCrossSection
+    private ::                      ComputeExtraArea
+    private ::                          TrapezoidGeometry
+    private ::              CheckNodesConsistency        
+    private ::          ConstructReachList
+    private ::              CountTotalReaches    
+    private ::              ConstructReach    
+    private ::              CheckReachesConsistency
+    private ::              CalculateReaches
+    private ::          ConnectNetwork
+    private ::          OrderNodes
+    private ::          WriteOrderedNodes
+    private ::          CountOutlets
+
+    private ::      ConstructPropertyList
+    private ::          ConstructProperty
+    private ::              ConstructPropertyValues
+    private ::              InitializeProperty
+    private ::          Add_Property
+    private ::      CheckSelectedProp
+    
+    private ::      InitializeVariables
+    !private ::          ReadInitialFile
+    private ::          InitializeNodes
+    private ::              ComputeXSFromWaterDepth
+    private ::              TabularGeometry
+    private ::          InitializeReaches
+
+    private ::      ConstructSubModules
+    private ::          CoupleLightExtinction
+    private ::          CoupleWaterQuality
+    private ::          CoupleCEQUALW2
+    private ::          CoupleBenthos
+    private ::          CoupleMacroAlgae
+
+    private ::      ConstructOutput
+    private ::          ReadTimeSerieNodeList
+    private ::          ConstructTimeSerieList
+    private ::          ConstructTimeSeries    
+    private ::              FillPropNameVector
+    private ::          ConstructHDF5Output
+    private ::      ConstructLog
+
+    private ::      FindNodePosition
+    private ::      FindReachPosition
+
+
+    !Selector
+    public  :: GetDrainageSize    
+    public  :: GetChannelsID
+    public  :: GetChannelsWaterLevel
+    public  :: GetChannelsVelocity
+    public  :: GetChannelsBottomLevel
+    public  :: GetChannelsSurfaceWidth
+    public  :: GetChannelsBottomWidth
+    public  :: GetChannelsBankSlope
+    public  :: GetChannelsNodeLength
+    public  :: GetChannelsVolume
+    public  :: GetChannelsMaxVolume
+    public  :: GetChannelsTopArea
+    public  :: GetChannelsOpenProcess
+    public  :: GetChannelsActiveState
+    public  :: GetHasProperties
+    public  :: GetDNnProperties
+    public  :: GetDNPropertiesIDByIdx   
+    public  :: GetHasToxicity
+    public  :: GetPropHasBottomFluxes
+    public  :: GetNeedsRadiation
+    public  :: GetNeedsAtmosphere
+    public  :: GetNextDrainageNetDT
+    public  :: GetVolumes
+    public  :: GetDNStoredVolume
+    public  :: GetDNConcentration
+    public  :: GetDNMassBalance             !To Basin get the property mass balance values
+    public  :: CheckDNProperty             
+    public  :: UnGetDrainageNetwork
+    public  :: SetAtmosphereDrainageNet     !To be called from MOHID Land
+    public  :: SetAtmosphereRiverNet        !To be called from River Network
+    public  :: SetPMPConcDN                 !DrainageNetwork gets the conc from Porous Media Properties
+    public  :: SetRPConcDN                  !DrainageNetwork gets the conc from Runoff Properties
+    public  :: SetGWFlowLayersToDN          !DrainageNetwork gets the Porous Media layers limits for GWFlow (faster process)
+    private :: SearchProperty
+    
+    public :: SetInflowFromReservoir       !DrainageNetwork gets inflow from Reservoirs (Reservoirs outflow)
+    public :: GetOutflowToReservoir        !Reservoirs gets outflow from DN (Reservoirs inflow)
+    public :: SetReservoirsConcDN          !Drainage Network gets the Reservoir concentrations
+    public :: GetNodeConcReservoirs        !Reservoirs get node conc before conc was zeroed
+    
+    !Modifier
+    public  :: FillOutPutMatrix
+    public  :: ModifyDrainageNetwork
+    private ::      ModifyDrainageNetLocal
+    private ::          StoreInitialValues
+    private ::          ModifyWaterDischarges
+    private ::          ModifyWaterExchange
+    private ::          ModifyTransmissionLosses
+    private ::          UpdateAreasAndMappings
+    private ::              UpdateCrossSections
+    private ::                  ComputeCrossSection
+    private ::                      TrapezoidWaterHeight
+    private ::                      TabularWaterLevel
+    private ::                      ModifyDownstreamTimeSerie       
+    private ::                  UpdateReachCrossSection
+    private ::              UpdateComputeFaces          
+    private ::              UpdateOpenPoints    
+
+    private ::          ModifyHydrodynamics
+    private ::              ModifyReach
+    private ::                  ComputeCriticalFlow
+    private ::                  ComputeKinematicWave
+    private ::                  ComputeStVenant  
+    private ::                      HydroAdvection
+    private ::              ModifyNode  
+    private ::                  ComputeNodeInFlow
+    private ::                  ComputeNodeOutFlow 
+    private ::              CheckStability
+!    private ::              Cascade    
+    private ::          ResetToInitialValues 
+    private ::          TransportProperties
+    private ::              Advection_Diffusion
+    private ::                  ComputeAdvection
+    private ::                  ComputeDiffusion
+    private ::              SetLimitsConcentration
+    private ::          ModifyTopRadiation
+    private ::          ComputeSurfaceFluxes
+    private ::          ColiformDecay
+    private ::          ModifyToxicity
+    private ::              ComputeToxicityForEachEffluent
+    private ::          ModifyWaterQuality
+    private ::          ModifyCEQUALW2
+    private ::          ModifyBenthos
+    private ::          ModifyMacroAlgae
+    private ::          ComputeBottomFluxes
+    private ::              ModifyShearStress
+    private ::              ComputeErosionFluxes
+    private ::              ComputeDepositionFluxes
+    private ::                  SettlingVelocity
+    private ::          UpdateChannelsDynamicMatrix
+    private ::          ComputeNextDT
+    private ::          WriteTimeSeries
+    private ::              WriteTimeSeriesByNodes
+    private ::              WriteTimeSeriesByProp
+    private ::          HDF5Output
+    private ::          MaxStationValues
+    private ::          CalculateLoad
+    private ::          CalculateTSS
+    private ::          CalculateVSS
+       
+    !Destructor
+    public  :: KillDrainageNetwork
+    private ::      MaxStationValuesOutput
+    !private ::      WriteFinalFile
+    private ::      Write_Errors_Messages                                                    
+    
+
+    !Management
+    private ::      Ready
+    private ::          LocateObjDrainageNetwork 
+    
+    !Interfaces----------------------------------------------------------------
+
+    interface ModifyDrainageNetwork
+        module procedure ModifyDrainageNetWithGrid
+        module procedure ModifyDrainageNetWithoutGrid
+    end interface
+
+    interface UnGetDrainageNetwork
+        module procedure UnGetDrainageNetworkR4
+        module procedure UnGetDrainageNetworkI4
+        module procedure UnGetDrainageNetworkA4
+        module procedure UnGetDrainageNetwork1DR4
+    end interface
+
+
+    !Parameters------------------------------------------------------------------------------------
+    character(StringLength), parameter              :: BeginNode            = '<BeginNode>'
+    character(StringLength), parameter              :: EndNode              = '<EndNode>'
+    character(StringLength), parameter              :: BeginReach           = '<BeginReach>'
+    character(StringLength), parameter              :: EndReach             = '<EndReach>'
+    character(StringLength), parameter              :: BeginNodeTimeSerie   = '<BeginNodeTimeSerie>'
+    character(StringLength), parameter              :: EndNodeTimeSerie     = '<EndNodeTimeSerie>'
+    character(StringLength), parameter              :: BeginReachTimeSerie  = '<BeginReachTimeSerie>'
+    character(StringLength), parameter              :: EndReachTimeSerie    = '<EndReachTimeSerie>'
+    
+    character(LEN = StringLength), parameter        :: block_begin          = '<beginproperty>'
+    character(LEN = StringLength), parameter        :: block_end            = '<endproperty>'
+
+    
+    !CrossSections
+    integer, parameter                              :: Trapezoidal          = 1
+    integer, parameter                              :: TrapezoidalFlood     = 2
+    integer, parameter                              :: Tabular              = 3
+    
+    !DownstreamBoundary
+    integer, parameter                              :: Dam                  = 0
+    integer, parameter                              :: ZeroDepthGradient    = 1
+    integer, parameter                              :: CriticalDepth        = 2
+    integer, parameter                              :: ImposedWaterLevel    = 3
+    integer, parameter                              :: ImposedVelocity      = 4
+    integer, parameter                              :: Flow_vs_WaterLevel   = 5
+    
+
+    !HydrodynamicApproximation
+    integer, parameter                              :: KinematicWave        = 1 !Manning com declive de fundo
+    integer, parameter                              :: DiffusionWave        = 2 !Manning com declive de superficie
+    integer, parameter                              :: DynamicWave          = 3 !Todos os termos de StVenant
+
+    !Toxicity Function types
+    integer, parameter                              :: Saturation           = 1
+    integer, parameter                              :: Linear               = 2
+    integer, parameter                              :: RiskRatio            = 3
+    
+    !Variable downstream boundary
+    integer, parameter                              :: None                 = 1
+    integer, parameter                              :: ReadTimeSerie        = 2
+    integer, parameter                              :: OpenMI               = 3
+
+    !TimeSerie hydrodynamic properties
+    integer, parameter                              :: pWaterDepth          = 1 
+    integer, parameter                              :: pWaterLevel          = 2 
+    integer, parameter                              :: pPercentageMaxVolume = 3 
+    integer, parameter                              :: pVerticalArea        = 4
+    integer, parameter                              :: pFlowToChannels      = 5 
+    integer, parameter                              :: pVolume              = 6    
+    integer, parameter                              :: pFlow                = 7 
+    integer, parameter                              :: pVelocity            = 8 
+    integer, parameter                              :: pGWFlowToChannels    = 9
+    integer, parameter                              :: pPoolDepth           = 10
+    integer, parameter                              :: pDT                  = 11
+    integer, parameter                              :: pDTLocal             = 12
+
+    integer, parameter                              :: BaseTimeSeries       = 12
+
+    !OutputHydro
+    integer, parameter                              :: pHydroTimeGradient   = 13
+    integer, parameter                              :: pHydroAdvection      = 14
+    integer, parameter                              :: pHydroPressure       = 15
+    integer, parameter                              :: pHydroGravity        = 16
+    integer, parameter                              :: pHydroFriction       = 17
+ 
+    !T90 Calc Method
+    integer, parameter                              :: Constant             = 0
+    integer, parameter                              :: Canteras             = 1
+    integer, parameter                              :: Chapra               = 2
+
+    !O2 Aeration Method
+    integer, parameter                              :: PoolAndRifle_        = 1
+    integer, parameter                              :: ChannelControled_    = 2
+    
+    !Restart fiels format
+    integer, parameter                              :: BIN_                 = 1
+    integer, parameter                              :: HDF_                 = 2
+    
+    !TimeSerie hydrodynamic properties
+    character(StringLength), parameter              :: Char_WaterDepth           = trim(adjustl('channel water depth'))
+    character(StringLength), parameter              :: Char_WaterLevel           = trim(adjustl('channel water level'))
+    character(StringLength), parameter              :: Char_PercentageMaxVolume  = trim(adjustl('percentage max volume'))
+    character(StringLength), parameter              :: Char_VerticalArea         = trim(adjustl('vertical area'))
+    character(StringLength), parameter              :: Char_FlowToChannels       = trim(adjustl('flow to channels'))
+    character(StringLength), parameter              :: Char_Volume               = trim(adjustl('volume'))
+    character(StringLength), parameter              :: Char_Flow                 = trim(adjustl('channel flow'))
+    character(StringLength), parameter              :: Char_Velocity             = trim(adjustl('velocity'))
+    character(StringLength), parameter              :: Char_GWFlowToChannels     = trim(adjustl('GW flow to channels'))
+    character(StringLength), parameter              :: Char_PoolDepth            = trim(adjustl('pool water depth'))
+    character(StringLength), parameter              :: Char_DT                   = trim(adjustl('DT'))
+    character(StringLength), parameter              :: Char_DTLocal              = trim(adjustl('Local DT'))
+
+    character(StringLength), parameter              :: Char_HydroTimeGradient    = trim(adjustl('hydro time gradient'))
+    character(StringLength), parameter              :: Char_HydroAdvection       = trim(adjustl('hydro advection'))
+    character(StringLength), parameter              :: Char_HydroPressure        = trim(adjustl('hydro pressure'))
+    character(StringLength), parameter              :: Char_HydroGravity         = trim(adjustl('hydro gravity'))
+    character(StringLength), parameter              :: Char_HydroFriction        = trim(adjustl('hydro friction'))
+
+    integer, parameter                              :: UnitMax              = 80
+
+    !water column computation in faces
+    integer, parameter                              :: WDMaxBottom_         = 1
+    integer, parameter                              :: WDAverageBottom_     = 2
+
+    !Types---------------------------------------------------------------------
+    type       T_ID
+        integer                                     :: ID          = null_int
+        integer                                     :: IDNumber    = null_int
+        character(LEN = StringLength)               :: Name        = null_str
+        character(LEN = StringLength)               :: Description = null_str
+        character(LEN = StringLength)               :: Units       = null_str
+    end type T_ID
+
+    type T_FlowFrequency
+        type (T_Time)                               :: StartDate 
+        type (T_Time)                               :: StopDate
+        real                                        :: MinimumFlow  = null_real
+    end type T_FlowFrequency
+
+    type T_IntFlow
+        real                                        :: IntFlowDTOutput = null_real
+        type (T_Time)                               :: IntFlowNextOutput
+    end type T_IntFlow
+
+    type T_OutPut
+        type (T_Time), dimension(:), pointer        :: OutTime              => null()
+        type (T_Time), dimension(:), pointer        :: RestartOutTime       => null()
+        integer                                     :: NextOutPut           = null_int
+        logical                                     :: Yes                  = .false.
+        logical                                     :: WriteRestartFile     = .false.
+        logical                                     :: RestartOverwrite     = .false.
+        integer                                     :: NextRestartOutput    = 1
+        logical                                     :: ComputeFlowFrequency = .false.
+        type (T_FlowFrequency)                      :: FlowFrequency  
+        logical                                     :: ComputeIntegratedFlow = .false.
+        logical                                     :: ComputeIntegratedMass = .false.
+        type (T_IntFlow      )                      :: IntFlow
+        logical                                     :: Rates                 = .false.    
+        integer                                     :: RestartFormat         = BIN_
+    end type T_OutPut
+    
+    !IN PROGRESS
+    type T_ReachIntegration
+        real                                        :: AccFlowVolume = 0.0,         &
+                                                       MaxFlow = 0.0,               &
+                                                       MinFlow = 0.0
+    end type T_ReachIntegration
+    
+    type T_NodeIntegration
+        real                                        :: AccWeightedVolume = 0.0,     &
+                                                       MaxVolume = 0.0,             &
+                                                       MinVolume = 0.0,             &
+                                                       AccWeightedDepth = 0.0,      &
+                                                       MaxDepth = 0.0,              &
+                                                       MinDepth = 0.0,              &
+                                                       AccWeightedLevel = 0.0,      &
+                                                       MaxLevel = 0.0,              &
+                                                       MinLevel = 0.0,              &
+                                                       OverlandFlowVolume = 0.0,    &
+                                                       GWFlowVolume = 0.0
+                                                       
+    end type T_NodeIntegration
+    
+    !IN PROGRESS
+    type T_IntegratedOutput
+        type (T_Time), dimension(:), pointer            :: OutTime          => null()
+        integer                                         :: NextOutPut       = null_int
+        logical                                         :: Yes              = .false.,  &
+                                                           Initialize       = .true.
+        real                                            :: AccTime          = 0.0,      &
+                                                           OldAccTime       = 0.0
+        type(T_ReachIntegration), dimension(:), pointer :: OldReachStatus   => null(),  &
+                                                           ReachStatus      => null() 
+        type(T_NodeIntegration), dimension(:), pointer  :: OldNodeStatus    => null(),  &
+                                                           NodeStatus       => null()
+    end type T_IntegratedOutput
+
+    type T_Files 
+        character(PathLength)                       :: InputData             = null_str
+        character(PathLength)                       :: FinalFile             = null_str
+        character(PathLength)                       :: HDFFile               = null_str
+        character(PathLength)                       :: IntegratedHDFFile     = null_str
+        character(PathLength)                       :: InitialFile           = null_str
+        character(PathLength)                       :: Network               = null_str
+        integer                                     :: ObjEnterDataNetwork   = 0
+        integer                                     :: ObjEnterDataInitial   = 0
+    end type T_Files
+
+    type T_CrossSection
+        integer                                     :: Form                     = null_int        
+        real                                        :: BottomWidth              = null_real        
+        real                                        :: TopWidth                 = null_real
+        real                                        :: Slope                    = null_real     
+        real                                        :: Height                   = null_real     !Total: from bottomlevel to surface       
+        real                                        :: TerrainLevel             = null_real     !dado input da net
+        real                                        :: BottomLevel              = null_real     !isto passa a ser calculado
+        real                                        :: ManningCH                = null_real
+        real                                        :: PoolDepth                = null_real    
+        real                                        :: MiddleWidth              = null_real             
+        real                                        :: MiddleHeight             = null_real
+        real                                        :: SlopeTop                 = null_real
+        logical                                     :: CorrectBanks             = .true. 
+        !Tabular
+        integer                                     :: IBottom                  = 0
+        integer                                     :: NStations                = 0
+        integer                                     :: NLevels                  = 0
+        real, dimension(:), pointer                 :: Station                  => null() !length NStations
+        real, dimension(:), pointer                 :: Elevation                => null() !length NStations
+        real, dimension(:), pointer                 :: BankSlope                => null() !length NStations
+
+        real, dimension(:), pointer                 :: Level                    => null() !length NLevels
+        real, dimension(:), pointer                 :: LevelSlopeLeft           => null() !length NLevels
+        real, dimension(:), pointer                 :: LevelSlopeRight          => null() !length NLevels
+        real, dimension(:), pointer                 :: LevelBottomWidth         => null() !length NLevels
+        real, dimension(:), pointer                 :: LevelVerticalArea        => null() !length NLevels
+        real, dimension(:), pointer                 :: LevelWetPerimeter        => null() !length NLevels       
+        real, dimension(:), pointer                 :: LevelSurfaceWidth        => null() !length NLevels       
+       
+    end type   T_CrossSection    
+
+    type T_MaxValues
+        real                                        :: Depth                 = null_real
+        real                                        :: Flow                  = null_real
+        real                                        :: Vel                   = null_real
+        character(len=StringLength)                 :: Time                  = null_str
+    end type
+
+    type T_Node
+        integer                                     :: ID                       = null_int
+        real                                        :: X                        = null_real
+        real                                        :: Y                        = null_real
+        real                                        :: VerticalArea             = null_real
+        real                                        :: WaterDepth               = null_real !cotas (inclui z bottom)
+        real                                        :: InitialWaterDepth        = null_real
+        real                                        :: WaterLevel               = null_real
+        real(8)                                     :: VolumeNew                = 0.0
+        real(8)                                     :: VolumeOld                = 0.0      
+        real(8)                                     :: InitialVolumeOld         = 0.0
+        real(8)                                     :: InitialVolumeNew         = 0.0
+        real                                        :: VolumeMax                = null_real
+        real                                        :: VolumeMaxTrapez1         = null_real
+        real                                        :: VolumeMin                = null_real
+        real                                        :: WetPerimeter             = null_real
+        real                                        :: Length                   = null_real        
+        real                                        :: SurfaceArea              = null_real
+        real                                        :: SurfaceWidth             = null_real
+        logical                                     :: HasGrid                  = .FALSE.
+        integer                                     :: GridI                    = null_int
+        integer                                     :: GridJ                    = null_int
+        integer                                     :: nUpstreamReaches         = 0
+        integer                                     :: nDownstreamReaches       = 0
+        integer                                     :: Order                    = null_int
+        integer, dimension (:), pointer             :: UpstreamReaches          => null()
+        integer, dimension (:), pointer             :: DownstreamReaches        => null()
+        logical                                     :: TimeSerie                = .FALSE.
+        character(LEN = StringLength)               :: TimeSerieName            = ''
+        logical                                     :: Discharges               = .FALSE.
+        type (T_CrossSection)                       :: CrossSection                             
+        character(len=StringLength)                 :: StationName              = ''
+        real                                        :: SingCoef                 = 1.0
+        type(T_MaxValues)                           :: Max
+        real                                        :: EVTP                     = null_real !m/s evapotranspiration in pools
+        real                                        :: MinimunToStabilize       = 0.0
+        real                                        :: SODRate                  = 0.0
+    end type  T_Node
+    
+    type T_Reach
+        private
+        integer                                     :: ID                       = null_int
+        logical                                     :: Active                   = .true.
+        integer                                     :: UpstreamNode             = null_int
+        integer                                     :: DownstreamNode           = null_int
+        real                                        :: Length                   = null_real    
+        real                                        :: Slope                    = null_real
+        real                                        :: FlowNew                  = 0.0        
+        real                                        :: FlowOld                  = 0.0
+        real                                        :: InitialFlowOld           = 0.0
+        real                                        :: InitialFlowNew           = 0.0
+        real                                        :: Velocity                 = 0.0        
+        real                                        :: VerticalArea             = 0.0
+        real                                        :: PoolVerticalArea         = 0.0
+        real                                        :: HydraulicRadius          = 0.0
+        real                                        :: Manning                  = 0.0
+        logical                                     :: TimeSerie                = .false.
+
+        real                                        :: HydroTimeGradient        = 0.0
+        real                                        :: HydroAdvection           = 0.0
+        real                                        :: HydroPressure            = 0.0
+        real                                        :: HydroGravity             = 0.0
+        real                                        :: HydroFriction            = 0.0
+        
+        !Flow accumulation analisys
+        real                                        :: InitialFlowAccTime       = 0.0
+        real                                        :: FlowAccTime              = 0.0
+        real                                        :: FlowAccPerc              = 0.0
+        
+        real                                        :: InitialOutputVolume      = 0.0
+        real                                        :: OutputVolume             = 0.0
+        real                                        :: InitialOutputTime        = 0.0
+        real                                        :: OutputTime               = 0.0
+
+    end type   T_Reach
+
+    type T_TimeSerie
+        integer                                                 :: ObjEnterData = 0
+        logical                                                 :: ByNodes      = .false.
+        character(PathLength)                                   :: Location     = null_str 
+        character(PathLength)                                   :: LocationInt  = null_str
+        integer                                                 :: nNodes       = 0
+        integer                                                 :: nProp        = 0
+        integer                 , dimension (:), pointer        :: ObjTimeSerie => null()
+        integer                 , dimension (:), pointer        :: ObjTimeSerieMass => null()      !for integrated mass
+        logical                 , dimension (:), pointer        :: ComputeMass  => null()          !for integrated mass        
+        character(StringLength) , dimension (:), pointer        :: Name         => null()
+        real                    , dimension (:), pointer        :: X            => null()
+        real                    , dimension (:), pointer        :: Y            => null()
+        real, dimension(:), pointer                             :: DataLine     => null()
+        real, dimension(:), pointer                             :: DataLine2    => null()          !for integrated volume
+        real, dimension(:), pointer                             :: DataLine3    => null()          !for integrated mass
+        integer                                                 :: ObjTimeSerieIntFlow = 0
+        
+    end type T_TimeSerie
+
+    type       T_ExtVar
+        real                                        :: DT         = null_real
+        logical                                     :: CoupledPMP = .false.
+        logical                                     :: CoupledRP  = .false.
+        real, dimension(:,:), pointer               :: Topography => null()
+    end type T_ExtVar
+
+    type T_Downstream
+        integer                                     :: Boundary    = null_int
+        integer                                     :: Evolution   = null_int
+        real                                        :: DefaultValue = null_real !WaterColumn in meters
+        character(PathLength)                       :: FileName    = null_str
+        integer                                     :: DataColumn  = null_int
+        integer                                     :: ObjTimeSerie = 0
+     end type T_Downstream
+
+    type T_Toxicity
+        integer                                     :: Evolution = null_int       
+        real                                        :: Slope     = null_real
+        real                                        :: EC50      = null_int !Concentration that causes 50% effect (Tox = 0.5)        
+        real, dimension (:), pointer                :: Field     => null()
+    end type    T_Toxicity
+
+    type       T_MacroAlgae
+        logical                                     :: VariableHeight = .false.
+        real,    pointer, dimension(:  )            :: Distribution     !kgC/m2
+        real                                        :: DefaultValue, HBRatio, HeightConstant
+        !real,    pointer, dimension(:)              :: ShearStress3D
+        !real,    pointer, dimension(:)              :: SPMDepFlux3D
+        real,    pointer, dimension(:)              :: Occupation
+        !real,    pointer, dimension(:,:,:)      :: DistFromTop
+        real,    pointer, dimension(:)              :: ShearStress, Height
+        real,    pointer, dimension(:)              :: SPMDepFlux
+    end type   T_MacroAlgae    
+    
+    type T_ComputeOptions
+        logical                                     :: TimeSerie                = .false.    
+        logical                                     :: Discharges               = .false.
+        logical                                     :: Toxicity                 = .false.
+        logical                                     :: T90_Decay                = .false.
+        logical                                     :: Generic_Decay            = .false.
+        logical                                     :: SurfaceFluxes            = .false.
+        logical                                     :: BottomFluxes             = .false.
+        logical                                     :: Erosion                  = .false.
+        logical                                     :: Deposition               = .false.
+        logical                                     :: AdvectionDiffusion       = .false.
+        logical                                     :: WaterQuality             = .false.
+        logical                                     :: Benthos                  = .false.
+        logical                                     :: CeQualW2                 = .false.
+        logical                                     :: Life                     = .false.
+        logical                                     :: MacroAlgae               = .false.
+        logical                                     :: MinConcentration         = .false.
+        logical                                     :: WarnOnNegativeValues     = .false.
+        logical                                     :: TopRadiation             = .false.
+        logical                                     :: LightExtinction          = .false.
+        logical                                     :: TransmissionLosses       = .false.
+        logical                                     :: RemoveOverTop            = .false.
+        logical                                     :: SumTotalConc             = .false.
+        logical                                     :: ComputeLoad              = .false.
+        logical                                     :: CalcFractionSediment     = .false.
+        logical                                     :: EVTPFromReach            = .false.
+        logical                                     :: StormWaterModelLink      = .false.
+        logical                                     :: ReservoirLink            = .false.
+        logical                                     :: LimitToCriticalFlow      = .true.
+        integer                                     :: FaceWaterColumn          = WDMaxBottom_  
+        logical                                     :: IntMassFlux              = .false.
+        logical                                     :: RadiationBottomNoFlux    = .true.
+        logical                                     :: MassFluxes               = .true.
+        logical                                     :: DTIntervalAssociated     = .false.
+    end type T_ComputeOptions
+
+    type       T_Coupling
+         type(T_Time)                               :: NextCompute
+         real                                       :: DT_Compute               = FillValueReal
+         logical                                    :: Yes                      = .false.
+         integer                                    :: NumberOfProperties       = 0
+    end type T_Coupling  
+
+    type       T_Coupled
+         type(T_Coupling)                           :: WQM
+         type(T_Coupling)                           :: CEQUALW2
+         type(T_Coupling)                           :: Life
+         type(T_Coupling)                           :: Benthos
+         type(T_Coupling)                           :: MacroAlgae
+    end type T_Coupled
+
+    type T_MassBalance
+        real(8)                                     :: TotalStoredMass       = 0.
+        real(8)                                     :: TotalDischargeMass    = 0.
+        real(8)                                     :: TotalOutFlowMass      = 0.
+    end type T_MassBalance
+
+    type        T_Property
+        type (T_PropertyID)                         :: ID
+        type (T_ComputeOptions)                     :: ComputeOptions
+
+        !Concentrations
+        real, dimension (:), pointer                :: Concentration            => null()
+        real, dimension (:), pointer                :: ConcentrationOld         => null()
+        real, dimension (:), pointer                :: InitialConcentration     => null()
+        real, dimension (:), pointer                :: InitialConcentrationOld  => null()
+        real, dimension (:), pointer                :: MassCreated              => null()   !kg
+        real, dimension (:), pointer                :: OverLandConc             => null()
+        real, dimension (:), pointer                :: GWaterConc               => null()
+        real, dimension (:, :, :), pointer          :: GWaterConcLayers         => null()   !for computation by layers
+        real, dimension (:), pointer                :: DWaterConc               => null()
+        real, dimension (:), pointer                :: BottomConc               => null()   !kg m-2
+        real, dimension (:), pointer                :: MassInKg                 => null()   !kg (run with Benthos)
+        real, dimension (:), pointer                :: Load                     => null()
+        real, dimension (:), pointer                :: TotalConc                => null()   !**WASSIM 16/11/2005 
+        real, dimension (:), pointer                :: ErosionRate              => null()   !kg m-2 s-1
+        real, dimension (:), pointer                :: DepositionRate           => null()   !kg m-3 s-1
+        real, dimension (:), pointer                :: Ws                       => null()   !m s-1 (vertical velocity)
+                                                                                            !positive direction is downswards  
+                                                                                            
+        real, dimension (:), pointer                :: OutputMass               => null()    !g
+        real, dimension (:), pointer                :: InitialOutputMass        => null()    !g
+        real, dimension (:), pointer                :: OutputTime               => null()    !s
+        real, dimension (:), pointer                :: InitialOutputTime        => null()    !s
+        
+        real                                        :: MinValue                 = null_real
+        logical                                     :: WarnOnNegativeValues     = .false.
+        real                                        :: InitialValue             = null_real
+        real                                        :: BottomMinConc            = null_real  !kg m-2
+        real                                        :: BoundaryConcentration    = null_real
+        
+        !Advection Diffusion
+        real                                        :: Diffusivity              = null_real
+        integer                                     :: Advection_Scheme         = null_int
+        integer                                     :: Diffusion_Scheme         = null_int
+
+        !Toxicity
+        type (T_Toxicity)                           :: Toxicity
+        
+        !Decay
+        real                                        :: DecayRate                = null_real
+
+        
+        type (T_MassBalance)                        :: MB
+
+        real                                        :: IScoefficient            = null_real
+        real                                        :: ExtinctionCoefficient    = null_real
+        real                                        :: ErosionCriticalShear     = null_real   
+        real                                        :: DepositionCriticalShear  = null_real
+        real                                        :: ErosionCoefficient       = null_real
+        real                                        :: CHS                      = null_real
+        integer                                     :: Ws_Type                  = null_int
+        real                                        :: Ws_Value                 = null_real
+        real                                        :: KL                       = null_real
+        real                                        :: KL1                      = null_real
+        real                                        :: ML                       = null_real
+        real                                        :: M                        = null_real
+        
+        !Mass integration output
+        real                                        :: IntMassFluxDT            = null_real
+        type (T_Time)                               :: IntMassFluxNextOutput
+
+        character(PathLength)                       :: OutputName               = null_str
+        type (T_Property), pointer                  :: Next                     => null()
+        type (T_Property), pointer                  :: Prev                     => null()
+        
+       !property dt in quality modules
+        real                                        :: DTInterval               = null_real
+        type(T_Time)                                :: LastCompute 
+        type(T_Time)                                :: NextCompute        
+    end type    T_Property
+
+    type       T_WQRate
+        type (T_ID)                             :: ID
+        type (T_ID)                             :: FirstProp, SecondProp
+        type (T_OutPut)                         :: OutPut
+        real, pointer, dimension(:)             :: Field                        => null()
+        character(len=StringLength)             :: Model                        = null_str
+        type(T_WQRate), pointer                 :: next                         => null()
+        type(T_WQRate), pointer                 :: prev                         => null()
+        integer                                 :: CeQualID                     = null_int
+    end type T_WQRate
+
+    type T_StormWaterModelLink
+        integer                                     :: nOutflowNodes        = 0  !Nº of nodes where water flows from here to SWMM
+        integer                                     :: nInflowNodes         = 0  !Nº of nodes where water flows from SWMM to here
+        integer, dimension(:), allocatable          :: OutflowIDs           
+        integer, dimension(:), allocatable          :: InflowIDs            
+        real, dimension(:), allocatable             :: Outflow              
+        real, dimension(:), allocatable             :: Inflow               
+    end type T_StormWaterModelLink
+    
+    type T_ReservoirLink
+        integer, dimension(:), pointer              :: ReservoirDNNodeID       => null()    !from reservoirs - the node ID location
+        integer, dimension (:), pointer             :: ReservoirsExchangeNodePos => null()  !reservoir node ID (after check outlet)
+        real, dimension (:,:), pointer              :: ReservoirsConc          => null()
+        real, dimension (:,:), pointer              :: NodeConc                => null()
+        integer                                     :: nReservoirs             = null_int
+        real, dimension (:), pointer                :: ReservoirsInflow        => null()
+        real, dimension (:), pointer                :: ReservoirsOutflow       => null()          
+    end type T_ReservoirLink
+        
+    type T_Converge
+        integer                                     :: MinIterations                = 1               
+        integer                                     :: MaxIterations                = 1024
+        logical                                     :: IgnoreMaxIterations          = .false.
+        logical                                     :: Stabilize                    = .false.
+        real                                        :: StabilizeFactor              = 0.01        
+        real                                        :: DTFactorUp                   = 1.25
+        real                                        :: DTFactorDown                 = 1.25
+        real                                        :: StabilizeHardCutLimit        = 128
+        real                                        :: DTSplitFactor                = 2.0               
+        real                                        :: CurrentDT                    = null_real  
+        real                                        :: NextDT                       = null_real
+        integer                                     :: LastGoodNiteration           = 1
+        integer                                     :: NextNiteration               = 1               
+        logical                                     :: LimitDTCourant               = .false.        
+        real                                        :: MaxCourant                   = 1.0  
+        integer                                     :: MinToRestart                 = 0  
+        real                                        :: MinimumValueToStabilize      = 0.001
+        logical                                     :: CheckDecreaseOnly            = .false.  
+        real                                        :: StabilizeCoefficient         = 0.0001
+    end type T_Converge
+
+    type T_DrainageNetwork
+        integer                                     :: InstanceID            = 0
+        character(len=StringLength)                 :: ModelName             = null_str
+        integer                                     :: ObjEnterData          = 0  
+        integer                                     :: ObjDischarges         = 0
+        integer                                     :: ObjTime               = 0 
+        integer                                     :: ObjInterface          = 0
+        integer                                     :: ObjBenthicInterface   = 0
+        integer                                     :: ObjInterfaceMacroAlgae = 0
+        integer                                     :: ObjLightExtinction    = 0
+        integer                                     :: ObjHDF5               = 0
+        integer                                     :: ObjIntegratedHDF5     = 0
+        type (T_Time)                               :: BeginTime
+        type (T_Time)                               :: EndTime
+        type (T_Time)                               :: CurrentTime
+        type (T_Node) , dimension(:), pointer       :: Nodes                 => null()
+        type (T_Reach), dimension(:), pointer       :: Reaches               => null()
+        integer       , dimension(:), pointer       :: ComputeFaces          => null()
+        integer       , dimension(:), pointer       :: OpenPointsFlow        => null()
+        integer       , dimension(:), pointer       :: OpenPointsProcess     => null()
+        integer       , dimension(:), pointer       :: RiverPoints           => null()        
+        integer                                     :: TotalNodes            = 0        
+        integer                                     :: TotalReaches          = 0
+        integer                                     :: TotalOutlets          = 0
+        integer, dimension(:), pointer              :: OutletReachID         => null()
+        integer, dimension(:), pointer              :: OutletNodeID          => null()
+        integer                                     :: HighestOrder          = 0
+        logical                                     :: CheckNodes            = .false.
+        logical                                     :: CheckReaches          = .false.
+        logical                                     :: CorrectBanks          = .false.
+        integer                                     :: XSCalc                = null_int
+        logical                                     :: HasGrid               = .true.
+        integer                                     :: CoordType             = null_int
+        type (T_OutPut)                             :: OutPut
+        type (T_IntegratedOutput)                   :: IntegratedOutput
+        type (T_ComputeOptions)                     :: ComputeOptions
+        type (T_TimeSerie)                          :: TimeSerie
+        type (T_Files )                             :: Files
+        type (T_Coupled  )                          :: Coupled
+        type (T_StormWaterModelLink)                :: StormWaterModelLink
+        type (T_ReservoirLink)                      :: Reservoirs
+        logical                                     :: Continuous            = .false.
+        logical                                     :: PropertyContinuous    = .false.
+        logical                                     :: StopOnWrongDate       = .false.
+        type (T_Property), pointer                  :: FirstProperty         => null()
+        type (T_Property), pointer                  :: LastProperty          => null()
+        real       , dimension(:), pointer          :: SODRate               => null() 
+        logical                                     :: UseSOD                   = .false.
+        integer                                     :: PropertiesNumber      = 0
+        integer                                     :: WQratesNumber         = 0
+        type(T_WqRate), pointer                     :: FirstWQrate           => null()
+        type(T_WqRate), pointer                     :: LastWQrate            => null()
+
+        type(T_MacroAlgae)                          :: MacroAlgae        
+        
+        logical                                     :: HasProperties         = .false.
+        
+        type(T_Converge)                            :: CV
+        
+        real                                        :: GlobalManning         = null_real
+        logical                                     :: AllowBackwardWater    = .false.
+        real                                        :: MinimumSlope          = null_real
+        real                                        :: InitialWaterDepth     = null_real
+        real                                        :: InitialWaterLevel     = null_real
+        logical                                     :: InitialWaterLevelON   = .false.
+        real                                        :: MinimumWaterDepth     = null_real
+        real                                        :: MinimumWaterDepthProcess = null_real
+        real                                        :: MinimumWaterDepthAdvection = null_real
+        real                                        :: HminChezy             = null_real
+        
+        integer                                     :: HydrodynamicApproximation = null_int
+        real                                        :: NumericalScheme      = null_real
+        real,    dimension(:)  , pointer            :: RunOffVector         => null()
+        real,    dimension(:)  , pointer            :: GroundVector         => null()
+        real,    dimension(:,:,:), pointer          :: GroundVectorLayers   => null()
+        real,    dimension(:)  , pointer            :: DiffuseVector        => null()
+        real,    dimension(:)  , pointer            :: TransmissionFlow     => null()
+        
+        logical                                     :: GWFlowByLayers       = .false.
+        integer, dimension(:), pointer              :: GWFlowBottomLayer    => null()
+        integer, dimension(:), pointer              :: GWFlowTopLayer       => null()
+
+        real,    dimension(:,:), pointer            :: ChannelsWaterLevel   => null()
+        real,    dimension(:,:), pointer            :: ChannelsBottomLevel  => null()
+        real,    dimension(:,:), pointer            :: ChannelsBottomWidth  => null()
+        real,    dimension(:,:), pointer            :: ChannelsSurfaceWidth => null()
+        real,    dimension(:,:), pointer            :: ChannelsBankSlope    => null()
+        real,    dimension(:,:), pointer            :: ChannelsNodeLength   => null()
+        real,    dimension(:,:), pointer            :: ChannelsVolume       => null()
+        real,    dimension(:,:), pointer            :: ChannelsTopArea      => null()
+        real,    dimension(:,:), pointer            :: ChannelsMaxVolume    => null()
+        real,    dimension(:,:), pointer            :: ChannelsVelocity     => null()
+        integer, dimension(:,:), pointer            :: ChannelsOpenProcess  => null()
+        integer, dimension(:,:), pointer            :: ChannelsActiveState  => null()
+        real,    dimension(:)  , pointer            :: ShortWaveExtinction  => null()
+        real,    dimension(:)  , pointer            :: ShortWaveField       => null()
+        real,    dimension(:)  , pointer            :: LongWaveField        => null()
+        real,    dimension(:)  , pointer            :: NodesDWZ             => null()
+        real,    dimension(:)  , pointer            :: TopRadiation         => null()
+        real,    dimension(:)  , pointer            :: AirTemperature       => null()
+        real,    dimension(:)  , pointer            :: CloudCover           => null()
+        real,    dimension(:)  , pointer            :: RelativeHumidity     => null()
+        real,    dimension(:)  , pointer            :: WindSpeed            => null()
+        real,    dimension(:)  , pointer            :: SedimentTemperature  => null()
+        integer, dimension(:)  , pointer            :: DischargesLink       => null()
+        real,    dimension(:)  , pointer            :: DischargesFlow       => null()
+        real,    dimension(:,:), pointer            :: DischargesConc       => null()
+        logical, dimension(:)  , pointer            :: DischargesActive     => null()
+        integer, dimension(:,:), pointer            :: ChannelsID          => null()   
+
+        logical                                     :: Discharges           = OFF   
+
+        type (T_Downstream)                         :: Downstream
+        type (T_Size2D)                             :: Size
+        type (T_ExtVar)                             :: ExtVar        
+!        real                                        :: NextDT               = null_real
+!        integer                                     :: LastGoodNiter        = 1
+!        integer                                     :: NextNiter            = 1
+!        real                                        :: InternalTimeStepSplit = 1.5
+        real, dimension (:), pointer                :: GlobalToxicity       => null()
+        integer                                     :: nToxicProp           = 0
+        character(len=StringLength)                 :: GlobalToxicityEvolution = null_str
+        
+        !MassBalance
+        logical                                     :: CheckMass                    = .false.
+        real(8)                                     :: TotalStoredVolume            = 0.0
+        real(8)                                     :: TotalOutputVolume            = 0.0
+        real(8)                                     :: TotalFlowVolume              = 0.0 !TotalOutput trough outlets
+        real(8)                                     :: TotalInputVolume             = 0.0 !by discharges
+        real(8)                                     :: TotalEvapFromSurfaceVolume   = 0.0 !by surface evaporation
+        real(8)                                     :: TotalOverTopVolume           = 0.0 !OverTopping
+        real(8)                                     :: TotalStormWaterOutput        = 0.0 !Total outflow to the Storm Water System
+        real(8)                                     :: TotalStormWaterInput         = 0.0
+        real(8)                                     :: TotalReservoirInput          = 0.0 !input from reservoirs
+        real(8)                                     :: TotalReservoirOutput         = 0.0 !exit to reservoirs
+        real(8)                                     :: InitalTotalEvapFromSurfaceVolume = 0.0
+        real(8)                                     :: InitialTotalOutputVolume     = 0.0
+        real(8)                                     :: InitialTotalFlowVolume       = 0.0
+        real(8)                                     :: InitialTotalInputVolume      = 0.0 !by discharges
+        real(8)                                     :: InitialTotalEvapFromSurfaceVolume = 0.0
+        
+        real(8)                                     :: OutletFlowVolume             = 0.0 !Acc. Outlet Flow Vol for the Input DT.
+        !type(T_Reach), pointer                      :: OutletReach                  => null()
+
+!        logical                                     :: Stabilize                    = .true.
+!        real                                        :: StabilizeFactor              = null_real
+!        real                                        :: StabilizeCoefficient         = null_real
+!        integer                                     :: MaxIterations                = null_int
+!        real                                        :: DTFactor                     = null_real
+!        real                                        :: DTFactorUp                   = null_real
+!        real                                        :: DTFactorDown                 = null_real
+!        logical                                     :: LimitDTCourant               = .false.
+!        logical                                     :: LimitDTVariation             = .true.
+!        real                                        :: MaxCourant                   = 1.0
+!        integer                                     :: MinNodesToRestart            = 0
+!        real                                        :: PercentToRestart             = 0.
+!        integer                                     :: MinIterations                = 1
+!        logical                                     :: CheckDecreaseOnly            = .false.
+        
+
+        integer                                     :: nPropWithDischarges          = 0   !Performance
+        !T90    
+        integer                                     :: T90Var_Method                = null_int
+        real                                        :: T90                          = null_real
+
+        !Ripirian Shading
+        real                                        :: ShadingFactor                = null_real
+        
+        logical                                     :: DTIntervalAssociated         = .false.
+        
+        !Transmission Losses
+        real                                        :: HydraulicConductivity        = null_real         
+
+        integer                                     :: AerationEquation             = null_int
+        
+      
+        real,    dimension(:)  , pointer            :: ShearStress                  => null()        
+
+        logical                                     :: WriteMaxStationValues        = .false.
+
+        logical                                     :: OutputHydro                  = .false.
+        
+        logical                                     :: ChangedNodes                 = .false.  !change nodes according to DTM
+        
+        !Evapotranspirate in reach pools
+        real                                        :: EVTPMaximumDepth             = null_real
+        real                                        :: EVTPCropCoefficient          = null_real
+        logical                                     :: DecreaseDT = .false.
+
+        type (T_DrainageNetwork), pointer           :: Next                         => null()
+    end type  T_DrainageNetwork
+
+
+    !Global Module Variables
+    type (T_DrainageNetwork), pointer               :: FirstDrainageNetwork => null()
+    type (T_DrainageNetwork), pointer               :: Me                   => null()
+
+    !--------------------------------------------------------------------------
+    
+    contains
+
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    !CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONS
+
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    !----------------------------------------------------------------------------
+
+    subroutine ConstructDrainageNetwork(ModelName, DrainageNetworkID, TimeID, Size2D,   &
+                                        CheckMass, CoupledPMP, CoupledRP, CoupledReservoirs, &
+                                         ReservoirDNNodeID, Topography, STAT)
+
+        !Arguments---------------------------------------------------------------
+        character(len=*)                                :: ModelName
+        integer                                         :: DrainageNetworkID  
+        integer                                         :: TimeID
+        type (T_Size2D), optional                       :: Size2D
+        logical, optional                               :: CheckMass
+        logical, optional                               :: CoupledPMP, CoupledRP, CoupledReservoirs
+        integer, dimension(:), pointer, optional        :: ReservoirDNNodeID
+        real, dimension(:,:), pointer, optional         :: Topography
+        integer, optional, intent(OUT)                  :: STAT     
+
+        !Local-------------------------------------------------------------------
+        integer                                         :: STAT_CALL
+        integer                                         :: ready_ 
+        integer                                         :: NodeID        
+        type (T_Node), pointer                          :: CurrNode
+        type(T_Property), pointer                       :: Property
+        real                                            :: BottomMass
+
+        !------------------------------------------------------------------------
+
+        STAT_CALL = UNKNOWN_
+
+        !Assures nullification of the global variable
+        if (.not. ModuleIsRegistered(mDRAINAGENETWORK_)) then
+            nullify (FirstDrainageNetwork)
+            call RegisterModule (mDrainageNetwork_) 
+        endif
+ 
+        call Ready(DrainageNetworkID, ready_)    
+
+cd0 :   if (ready_ .EQ. OFF_ERR_) then
+         
+            call AllocateInstance
+
+            Me%ModelName        = ModelName
+
+            !Associates module Time
+            Me%ObjTime = AssociateInstance   (mTIME_, TimeID)
+            
+            if (present(CoupledPMP)) then
+                Me%ExtVar%CoupledPMP = CoupledPMP
+            endif
+            if (present(CoupledRP)) then
+                Me%ExtVar%CoupledRP  = CoupledRP
+            endif
+            if (present(CoupledReservoirs)) then
+                Me%ComputeOptions%ReservoirLink  = CoupledReservoirs
+                Me%Reservoirs%ReservoirDNNodeID => ReservoirDNNodeID
+                Me%Reservoirs%nReservoirs = size(Me%Reservoirs%ReservoirDNNodeID)
+            endif
+            
+            !DN will be forced with Topography (to check nodes terrain level and heights)
+            !This is used when DN is forced over DTM (the latter without removed depressions)
+            nullify(Me%ExtVar%Topography)
+            if (present (Topography)) then
+                Me%ExtVar%Topography => Topography
+            endif
+                        
+            !Gets Current Compute Time
+            call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)
+            if (STAT_CALL/=SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR01'
+            
+            !Gets Compute Time Limits
+            call GetComputeTimeLimits (Me%ObjTime, BeginTime = Me%BeginTime,           &
+                                       EndTime = Me%EndTime, STAT = STAT_CALL)
+            if (STAT_CALL/=SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR01a'
+            
+
+            !Verifies if Drainage Network Runs coupled to a grid or not
+            if (present(Size2D)) then
+                Me%HasGrid = .true.
+                Me%Size    = Size2D
+            else
+                Me%HasGrid = .false.
+            endif
+
+            if (present(CheckMass)) then
+                Me%CheckMass = CheckMass
+            else
+                Me%CheckMass = .false.
+            end if
+                       
+            !Reads main user options
+            call ReadDataFile
+
+            call ConstructDownstreamBoundary
+
+            !Connects nodes / reaches
+            call ConstructNetwork
+                        
+            call ReadConvergenceParameters
+                        
+            !Finds wich reach is the outlet and associate it with Me%OutletReach
+            !call FindOutlet
+
+            !Set up properties to be transported
+            call ConstructPropertyList
+            
+            !Constructs the list of WQRates
+            call Construct_WQRateList
+
+            !Verifies Global consistence of properties
+            call CheckSelectedProp
+            
+            !Initial all variables
+            call InitializeVariables
+
+            if (Me%ComputeOptions%Discharges) then
+                call ConstructDischarges
+            endif        
+            
+            !Link to StormWaterModel
+            if (Me%ComputeOptions%StormWaterModelLink) then
+                call ConstructStormWaterModelLink
+            endif
+            
+           if (Me%ComputeOptions%ReservoirLink) then
+                call ConstructReservoirs
+            endif              
+            
+            !Couples other modules
+            call ConstructSubModules
+
+            !Opens Output files
+            call ConstructOutput
+            
+            !first TimeSeries Output
+            if (Me%TimeSerie%nNodes .GT.0) call WriteTimeSeries (0.)
+            
+            !First HDF Output
+            if (Me%Output%Yes) &
+                call HDF5Output
+
+            if (Me%IntegratedOutput%Yes) &
+                call IntegratedHDF5Output                
+                
+            !User Feed-Back
+            call ConstructLog
+            
+            if (Me%CheckMass) then
+                Me%TotalStoredVolume = 0.0
+                Property => Me%FirstProperty
+                do while (associated(Property))
+                    Property%MB%TotalStoredMass    = 0.0
+                    Property => Property%Next
+                enddo
+                
+                do NodeID = 1, Me%TotalNodes
+                    if (Me%Nodes(NodeID)%nDownStreamReaches /= 0) then
+                        Me%TotalStoredVolume = Me%TotalStoredVolume + Me%Nodes(NodeID)%VolumeNew
+                    endif
+                
+                    Property => Me%FirstProperty
+                    do while (associated(Property))
+                        
+                        CurrNode => Me%Nodes(NodeID)
+                        BottomMass = 0.0
+!~                         if (Check_Particulate_Property(Property%ID%IDNumber).and.(Property%ComputeOptions%BottomFluxes)) then
+                        if (Property%ID%IsParticulate .and. (Property%ComputeOptions%BottomFluxes)) then
+                            ![kg] = [kg/m2] * [m2]
+                            BottomMass = Property%BottomConc(NodeID) * CurrNode%CrossSection%BottomWidth * CurrNode%Length
+                        else
+                            BottomMass = 0.0
+                        endif
+                        
+                        ![kg] = [kg] + [kg] + [g/m3] * [m3] * [1e-3kg/g]
+                        Property%MB%TotalStoredMass = Property%MB%TotalStoredMass  +  BottomMass  &
+                                                      + Property%Concentration (NodeID)           &
+                                                      * Property%ISCoefficient                    &
+                                                      * Me%Nodes(NodeID)%VolumeNew
+                        
+                        Property => Property%Next
+                    enddo
+                enddo                
+                
+            end if
+            
+
+            !Close input data file
+            call KillEnterData (Me%ObjEnterData, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR03'
+
+            !Returns ID
+            DrainageNetworkID = Me%InstanceID
+
+            STAT_CALL = SUCCESS_
+            
+
+        else cd0
+            
+            stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR04'
+
+        end if cd0
+
+        if (present(STAT)) STAT = STAT_CALL
+
+        !-----------------------------------------------------------------------
+
+    end subroutine ConstructDrainageNetwork
+ 
+    !---------------------------------------------------------------------------
+    
+    subroutine ConstructDischarges
+
+        !Arguments--------------------------------------------------------------
+                                                    
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL
+        integer                                         :: nDischarges, iDis, NodePos, NodeID
+        logical                                         :: Found
+        type (T_Node), pointer                          :: CurrNode
+
+        call Construct_Discharges(Me%ObjDischarges,                              &
+                                  Me%ObjTime,                                    &
+                                  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR02'  
+        
+        !Build Discharge NodeID / NodePos link
+        !Gets the number of discharges
+        call GetDischargesNumber(Me%ObjDischarges, nDischarges, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR03'
+
+        allocate(Me%DischargesLink(nDischarges))
+        allocate(Me%DischargesFlow(nDischarges))
+        allocate(Me%DischargesConc(nDischarges, Me%nPropWithDischarges))
+        allocate(Me%DischargesActive(nDischarges))
+        
+        do iDis = 1, nDischarges
+                              
+            call GetDischargesNodeID  (Me%ObjDischarges, iDis, NodeID, STAT = STAT_CALL)
+            if (STAT_CALL/=SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR04'
+            
+            !ignore discharges from reservoir (that can cohesist)
+            if (NodeID > 0) then
+                
+                Me%DischargesActive(iDis) = .true.
+                
+                call FindNodePosition   (NodeID, NodePos, Found)
+
+                CurrNode => Me%Nodes(NodePos)
+                CurrNode%Discharges = .true.
+            
+                if (Found) then
+                    Me%DischargesLink(iDis) = NodePos
+                else
+                    write (*,*) 'Discharge Node not found'
+                    write (*,*) 'Node ID = ', NodeID            
+                    stop 'ModuleDrainageNetwork - ConstructDrainageNetwork - ERR05'
+                end if
+            else
+                Me%DischargesActive(iDis) = .false.
+            endif
+            
+        end do
+    
+    
+    endsubroutine ConstructDischarges            
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine AllocateInstance
+
+        !Arguments--------------------------------------------------------------
+                                                    
+        !Local------------------------------------------------------------------
+        type (T_DrainageNetwork), pointer           :: NewObjDrainageNetwork
+        type (T_DrainageNetwork), pointer           :: PreviousObjDrainageNetwork
+
+
+        !Allocates new instance
+        allocate (NewObjDrainageNetwork)
+        nullify  (NewObjDrainageNetwork%Next)
+
+        !Insert New Instance into list and makes Current point to it
+        if (.not. associated(FirstDrainageNetwork)) then
+            FirstDrainageNetwork            => NewObjDrainageNetwork
+            Me                              => NewObjDrainageNetwork
+        else
+            PreviousObjDrainageNetwork      => FirstDrainageNetwork
+            Me                              => FirstDrainageNetwork%Next
+            do while (associated(Me))
+                PreviousObjDrainageNetwork  => Me
+                Me                          => Me%Next
+            enddo
+            Me                              => NewObjDrainageNetwork
+            PreviousObjDrainageNetwork%Next => NewObjDrainageNetwork
+        endif
+
+        Me%InstanceID = RegisterNewInstance (mDrainageNetwork_)
+
+
+    end subroutine AllocateInstance
+
+    !---------------------------------------------------------------------------
+
+    subroutine ReadDataFile
+
+        !Local------------------------------------------------------------------
+        integer                                     :: flag, STAT_CALL
+        integer                                     :: GeoConversationFactor
+        character(len=StringLength)                 :: AuxString
+        
+        !begin------------------------------------------------------------------
+
+        !Reads name of the data file from nomfich.dat
+        call ReadFileName('DRAINAGE_NETWORK', Me%Files%InputData,               &
+                           Message = "Drainage Network Data File",              &
+                           STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR01' 
+
+        call ReadFileName('DRAINAGE_NETWORK_FIN', Me%Files%FinalFile,           &
+                           Message = "Drainage Network Final File",             &
+                           STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR02' 
+
+        call ReadFileName('DRAINAGE_NETWORK_HDF', Me%Files%HDFFile,             &
+                           Message = "Drainage Network HDF File",               &
+                           STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR03' 
+        
+        call ConstructEnterData (Me%ObjEnterData, Me%Files%InputData, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR04' 
+
+        call GetData(Me%Files%Network,                                          &
+                     Me%ObjEnterData, flag,                                     &  
+                     keyword      = 'NETWORK_FILE',                             &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromFile,                                   &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR05'        
+        
+        call GetData(Me%CheckNodes,                                             &
+                     Me%ObjEnterData, flag,                                     &  
+                     keyword      = 'CHECK_NODES',                              &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromFile,                                   &
+                     Default      = .true.,                                     &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR06'        
+        
+
+        call GetData(Me%CheckReaches,                                           &
+                     Me%ObjEnterData, flag,                                     &  
+                     keyword      = 'CHECK_REACHES',                            &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromFile,                                   &
+                     Default      = .true.,                                     &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR07'       
+        
+        call GetData(Me%CorrectBanks,                                           &
+                     Me%ObjEnterData, flag,                                     &  
+                     keyword      = 'CORRECT_BANKS',                            &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromFile,                                   &
+                     Default      = .true.,                                     &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR07a'  
+
+        call GetData(Me%ComputeOptions%Discharges,                              &
+                     Me%ObjEnterData, flag,                                     &
+                     keyword    = 'DISCHARGES',                                 & 
+                     default    = .false.,                                      &
+                     SearchType = FromFile,                                     &                     
+                     STAT       = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR08'        
+
+        call GetData(Me%HydrodynamicApproximation,                              &
+                      Me%ObjEnterData, flag,                                    &  
+                      keyword      = 'HYDRODYNAMIC_APROX',                      &
+                      ClientModule = 'DrainageNetwork',                         &
+                      SearchType   = FromFile,                                  &
+                      Default      = KinematicWave,                            &
+                      STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR09'        
+
+        call GetData(Me%NumericalScheme,                                        &
+                      Me%ObjEnterData, flag,                                    &  
+                      keyword      = 'NUMERICAL_SCHEME',                        &
+                      ClientModule = 'DrainageNetwork',                         &
+                      SearchType   = FromFile,                                  &
+                      Default      = ExplicitScheme,                            &
+                      STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR010'        
+
+        if (Me%NumericalScheme /= ExplicitScheme .and. Me%NumericalScheme /= ImplicitScheme) &
+        stop 'ModuleDrainageNetwork - ReadDataFile - ERR09b'        
+
+        call GetData(Me%GlobalManning,                                          &
+                     Me%ObjEnterData, flag,                                     &  
+                     keyword      = 'GLOBAL_MANNING',                           &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromFile,                                   &
+                     Default      = null_real,                                  &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR11'        
+
+        call GetData(Me%AllowBackwardWater,                                     &
+                     Me%ObjEnterData, flag,                                     &  
+                     keyword      = 'ALLOW_BACKWATER',                          &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromFile,                                   &
+                     Default      = .false.,                                    &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR11a'        
+            
+
+        call GetData(Me%MinimumSlope,                                           &
+                     Me%ObjEnterData, flag,                                     &  
+                     keyword      = 'MINIMUM_SLOPE',                            &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromFile,                                   &
+                     Default      = 0.0,                                        &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR12'        
+
+
+        call GetData(Me%MinimumWaterDepth,                                      &
+                     Me%ObjEnterData, flag,                                     &  
+                     keyword      = 'MIN_WATER_DEPTH',                          &   
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromFile,                                   &
+                     Default      = 0.001,                                      &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR13'        
+
+        if (Me%MinimumWaterDepth.LT.0.0) then
+            write (*,*)'Invalid Number of Minimum Water Level [MIN_WATER_DEPTH]'
+            stop 'ModuleDrainageNetwork - ReadDataFile - ERR14'
+        end if
+
+        call GetData(Me%MinimumWaterDepthProcess,                               &
+                     Me%ObjEnterData, flag,                                     &  
+                     keyword      = 'MIN_WATER_DEPTH_PROCESS',                  &   
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromFile,                                   &
+                     Default      = 0.01,                                       &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR15'        
+
+        if (Me%MinimumWaterDepthProcess.LT.0.0) then
+            write (*,*)'Invalid Number of Minimum Water Level [MIN_WATER_DEPTH_PROCESS]'
+            stop 'ModuleDrainageNetwork - ReadDataFile - ERR16'
+        end if
+
+
+        call GetData(Me%MinimumWaterDepthAdvection,                             &
+                     Me%ObjEnterData, flag,                                     &  
+                     keyword      = 'MIN_WATER_DEPTH_ADVECTION',                &   
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromFile,                                   &
+                     Default      = 0.0,                                        &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR16a'        
+
+        if (Me%MinimumWaterDepthAdvection.LT.0.0) then
+            write (*,*)'Invalid Number of Minimum Water Level for advection [MIN_WATER_DEPTH_ADVECTION]'
+            stop 'ModuleDrainageNetwork - ReadDataFile - ERR16b'
+        end if
+
+        !Min water column for chezy computation - used if erosion active
+        call GetData(Me%HminChezy,                                                  &
+                     Me%ObjEnterData, flag,                                         &
+                     SearchType   = FromFile,                                       &
+                     keyword      = 'HMIN_CHEZY',                                   &
+                     Default      =  AlmostZero,                                    & 
+                     ClientModule = 'ModuleDrainageNetwork',                        &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR16c' 
+        if (Me%HminChezy .lt. 0.0) then
+            write(*,*)'Minimum water column height for chezy computation HMIN_CHEZY can not be negative'
+            stop 'ModuleDrainageNetwork - ReadDataFile - ERR16cd'
+        endif
+
+        !check boundary condition for solar radiation - if all transformed in heat (zero flux)
+        !or what is not extincted goes to sediment (in this case it should heat sediment but it is not)
+        call GetData(Me%ComputeOptions%RadiationBottomNoFlux,                       &
+                     Me%ObjEnterData, flag,                                         &
+                     SearchType   = FromFile,                                       &
+                     keyword      = 'RADIATION_BOTTOM_NOFLUX',                      &
+                     Default      =  .true.,                                        & 
+                     ClientModule = 'ModuleDrainageNetwork',                        &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR16d'
+
+        !For now mass evaporation. Only used if ssurface fluxes ON
+        call GetData(Me%ComputeOptions%MassFluxes,                                  &
+                     Me%ObjEnterData, flag,                                         &
+                     SearchType   = FromFile,                                       &
+                     keyword      = 'MASS_FLUXES',                                  &
+                     Default      =  .true.,                                        & 
+                     ClientModule = 'ModuleDrainageNetwork',                        &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR16e'        
+
+!        !Method for computing water column in the face (1 - Using max height and max bottom; 2- using average of WC)
+!        call GetData(Me%ComputeOptions%FaceWaterColumn,                     &
+!                     ObjEnterData, iflag,                                   &  
+!                     keyword      = 'WATER_DEPTH_FACE',                     &
+!                     ClientModule = 'ModuleDraianageNetork',                &
+!                     SearchType   = FromFile,                               &
+!                     Default      = WDMaxBottom_,                           &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR16b'
+
+        call GetData(Me%Continuous,                                             &
+                     Me%ObjEnterData, flag,                                     &  
+                     keyword      = 'CONTINUOUS',                               &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromFile,                                   &
+                     Default      = OFF,                                        &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR17'        
+
+        if (Me%Continuous) then
+            call GetData(Me%PropertyContinuous,                                     &
+                         Me%ObjEnterData, flag,                                     &  
+                         keyword      = 'PROP_CONTINUOUS',                          &
+                         ClientModule = 'DrainageNetwork',                          &
+                         SearchType   = FromFile,                                   &
+                         Default      = ON,                                         &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR17a'
+
+            call ReadFileName('DRAINAGE_NETWORK_INI', Me%Files%InitialFile,         &
+                              Message = "Drainage Network Initial File",            &
+                              STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR18'
+
+            call GetData(Me%StopOnWrongDate,                                        &
+                         Me%ObjEnterData, flag,                                     &  
+                         keyword      = 'STOP_ON_WRONG_DATE',                       &
+                         ClientModule = 'DrainageNetwork',                          &
+                         SearchType   = FromFile,                                   &
+                         Default      = .true.,                                     &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR19'        
+
+
+        else        
+
+            call GetData(Me%InitialWaterDepth,                                      &
+                         Me%ObjEnterData, flag,                                     &  
+                         keyword      = 'INITIAL_WATER_DEPTH',                      &
+                         ClientModule = 'DrainageNetwork',                          &
+                         SearchType   = FromFile,                                   &
+                         Default      = 0.0,                                        &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR20'        
+
+            if (Me%InitialWaterDepth.LT.0.0) then
+                write (*,*)'Invalid Number of Initial Water Level [INITIAL_WATER_DEPTH]'
+                stop 'ModuleDrainageNetwork - ReadDataFile - ERR21'
+            end if
+            
+            call GetData(Me%InitialWaterLevel,                                      &
+                         Me%ObjEnterData, flag,                                     &  
+                         keyword      = 'INITIAL_WATER_LEVEL',                      &
+                         ClientModule = 'DrainageNetwork',                          &
+                         SearchType   = FromFile,                                   &
+                         Default      = 0.0,                                        &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR21'
+            
+            if(flag == 1)then
+                Me%InitialWaterLevelON = .true. 
+            endif
+
+        end if
+
+!        call GetData(Me%Stabilize,                                              &
+!                     Me%ObjEnterData, flag,                                     &  
+!                     keyword      = 'STABILIZE',                                &
+!                     ClientModule = 'DrainageNetwork',                          &
+!                     SearchType   = FromFile,                                   &
+!                     Default      = .true.,                                     &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR22'        
+!
+!        if (Me%Stabilize) then
+!
+!            call GetData(Me%StabilizeFactor,                                    &
+!                         Me%ObjEnterData, flag,                                 &  
+!                         keyword      = 'STABILIZE_FACTOR',                     &
+!                         ClientModule = 'DrainageNetwork',                      &
+!                         SearchType   = FromFile,                               &
+!                         Default      = 0.1,                                    &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR23'        
+!
+!            call GetData(Me%StabilizeCoefficient,                               &
+!                         Me%ObjEnterData, flag,                                 &  
+!                         keyword      = 'STABILIZE_COEFFICIENT',                &
+!                         ClientModule = 'DrainageNetwork',                      &
+!                         SearchType   = FromFile,                               &
+!                         Default      = 0.05,                                   &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR24'        
+!
+!            call GetData(Me%MaxIterations,                                      &
+!                         Me%ObjEnterData, flag,                                 &  
+!                         keyword      = 'MAX_ITERATIONS',                       &
+!                         ClientModule = 'DrainageNetwork',                      &
+!                         SearchType   = FromFile,                               &
+!                         Default      = 100,                                    &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR25'        
+!
+!            call GetData(Me%PercentToRestart,                                   &
+!                         Me%ObjEnterData, flag,                                 &  
+!                         keyword      = 'PERCENT_TO_RESTART',                   &
+!                         ClientModule = 'DrainageNetwork',                      &
+!                         SearchType   = FromFile,                               &
+!                         Default      = 0.,                                     &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR26'                
+!            if (Me%PercentToRestart <= 0.) then
+!                Me%PercentToRestart = 0
+!            endif              
+!            
+!            call GetData(Me%MinIterations,                                      &
+!                         Me%ObjEnterData, flag,                                 &  
+!                         keyword      = 'MIN_ITERATIONS',                       &
+!                         ClientModule = 'DrainageNetwork',                      &
+!                         SearchType   = FromFile,                               &
+!                         Default      = 1,                                      &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR27'
+!            if (Me%MinIterations < 1) then
+!                write (*,*) 'MIN_ITERATIONS must be greater or equal to 1'
+!                stop 'ReadDataFile - ModuleDrainageNetwork - ERR27a'
+!            endif                      
+!            
+!            call GetData(Me%CheckDecreaseOnly,                                  &
+!                         Me%ObjEnterData, flag,                                 &  
+!                         keyword      = 'CHECK_DEC_ONLY',                       &
+!                         ClientModule = 'DrainageNetwork',                      &
+!                         SearchType   = FromFile,                               &
+!                         Default      = .false.,                                &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR28'               
+!
+!            !Me%LastGoodNIter = Me%MinIterations
+!            !Me%NextNIter = Me%MinIterations
+!            
+!            
+!        end if
+!
+!        !Factor for DT Prediction
+!        call GetData(Me%DTFactor,                                           &
+!                     Me%ObjEnterData, flag,                                 &  
+!                     keyword      = 'DT_FACTOR',                            &
+!                     ClientModule = 'DrainageNetwork',                      &
+!                     SearchType   = FromFile,                               &
+!                     Default      = 1.05,                                   &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR29'        
+!
+!        if (Me%DTFactor <= 1.0) then
+!            write (*,*)'Invalid DT Factor [DT_FACTOR]'
+!            write (*,*)'Value must be greater then 1.0'
+!            stop 'ModuleDrainageNetwork - ReadDataFile - ERR29a'              
+!        endif
+!
+!        call GetData(Me%DTFactorUp,                                         &
+!                     Me%ObjEnterData, flag,                                 &  
+!                     keyword      = 'DT_FACTOR_UP',                         &
+!                     ClientModule = 'ModuleDrainageNetwork',                         &
+!                     SearchType   = FromFile,                               &
+!                     Default      = Me%DTFactor,                            &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleDrainageNetwork - ERR29b'
+!        if (flag /= 1) then
+!            write(*,*) 'Assumed a value of ', Me%DTFactor, ' for DrainageNetwork DT_FACTOR_UP' 
+!        endif
+!        if (Me%DTFactorUp <= 1.0) then
+!            write (*,*)'Invalid DT Factor Up [DT_FACTOR_UP]'
+!            write (*,*)'Value must be greater then 1.0'
+!            stop 'ReadDataFile - ModuleDrainageNetwork - ERR29c'              
+!        endif
+!                
+!        call GetData(Me%DTFactorDown,                                       &
+!                     Me%ObjEnterData, flag,                                 &  
+!                     keyword      = 'DT_FACTOR_DOWN',                       &
+!                     ClientModule = 'ModuleDrainageNetwork',                         &
+!                     SearchType   = FromFile,                               &
+!                     Default      = Me%DTFactor,                            &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleDrainageNetwork - ERR29d'
+!        if (flag /= 1) then
+!            write(*,*) 'Assumed a value of ', Me%DTFactor, ' for DrainageNetwork DT_FACTOR_DOWN'
+!        endif
+!        if (Me%DTFactorDown <= 1.0) then
+!            write (*,*)'Invalid DT Factor Down [DT_FACTOR_DOWN]'
+!            write (*,*)'Value must be greater then 1.0'
+!            stop 'ReadDataFile - ModuleDrainageNetwork - ERR29e'              
+!        endif   
+!        
+!        !Internal Time Step Split
+!        call GetData(Me%InternalTimeStepSplit,                              &
+!                     Me%ObjEnterData, flag,                                 &  
+!                     keyword      = 'DT_SPLIT_FACTOR',                      &
+!                     ClientModule = 'DrainageNetwork',                      &
+!                     SearchType   = FromFile,                               &
+!                     Default      = 1.5,                                    &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR30'        
+!        if (Me%InternalTimeStepSplit <= 1.0) then
+!            write (*,*)'Invalid DT Factor [DT_SPLIT_FACTOR]'
+!            write (*,*)'Value must be greater then 1.0'
+!            stop 'ModuleDrainageNetwork - ReadDataFile - ERR31'              
+!        endif
+!        
+!        
+!        !Gets flag of DT is limited by the courant number
+!        call GetData(Me%LimitDTCourant,                                     &
+!                     Me%ObjEnterData, flag,                                 &  
+!                     keyword      = 'LIMIT_DT_COURANT',                     &
+!                     ClientModule = 'DrainageNetwork',                      &
+!                     SearchType   = FromFile,                               &
+!                     Default      = .false.,                                &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR32'        
+!
+!        if (Me%LimitDTCourant) then
+!
+!            !Gets Maximum allowed Courant Number
+!            call GetData(Me%MaxCourant,                                         &
+!                         Me%ObjEnterData, flag,                                 &  
+!                         keyword      = 'MAX_COURANT',                          &
+!                         ClientModule = 'DrainageNetwork',                      &
+!                         SearchType   = FromFile,                               &
+!                         Default      = 1.0,                                    &
+!                         STAT         = STAT_CALL)                                  
+!            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR33'        
+!
+!        endif
+!
+!        !Gets flag of DT is limited by the volume variation
+!        call GetData(Me%LimitDTVariation,                                   &
+!                     Me%ObjEnterData, flag,                                 &  
+!                     keyword      = 'LIMIT_DT_VARIATION',                   &
+!                     ClientModule = 'DrainageNetwork',                      &
+!                     SearchType   = FromFile,                               &
+!                     Default      = .true.,                                 &
+!                     STAT         = STAT_CALL)                                  
+!        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR34'        
+!
+
+        call GetData(Me%AerationEquation,                                   &
+                     Me%ObjEnterData, flag,                                 &
+                     Keyword      ='AERATION_METHOD',                       &
+                     SearchType   = FromFile,                               &
+                     ClientModule = 'DrainageNetwork',                      &
+                     Default      = PoolAndRifle_,                          &
+                    STAT          = STAT_CALL)            
+        if (STAT_CALL  /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR35'  
+
+        if (Me%AerationEquation /= PoolAndRifle_ .and. Me%AerationEquation /= ChannelControled_) then
+            write (*,*)'Invalid O2 Aeration Method'
+            stop 'ModuleDrainageNetwork - ReadDataFile - ERR28'  
+        endif
+
+
+        call GetData(Me%T90Var_Method,                                      &   
+                     Me%ObjEnterData, flag,                                 &
+                     Keyword        = 'T90_DECAY_MODEL',                    &
+                     ClientModule   = 'ModuleDrainageNetwork',              &
+                     SearchType     = FromFile,                             &
+                     Default        = Canteras,                             &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR36' 
+
+        if (Me%T90Var_Method == Constant) then
+            call GetData(Me%T90,                                            &   
+                         Me%ObjEnterData, flag,                             &
+                         Keyword        = 'T90',                            &
+                         ClientModule   = 'ModuleDrainageNetwork',          &
+                         SearchType     = FromFile,                         &
+                         Default        = 7200.,                            &
+                         STAT           = STAT_CALL)              
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR37' 
+        endif
+
+        call GetData(Me%ShadingFactor,                                      &
+                    Me%ObjEnterData,                                        &
+                    flag,                                                   &
+                    SearchType   = FromFile,                                &
+                    keyword      = 'SHADING_FACTOR',                        &
+                    Default      = 1.0,                                     &
+                    ClientModule = 'DrainageNetwork',                       &
+                    STAT         = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR38' 
+
+
+        call GetData(Me%ComputeOptions%TransmissionLosses,                  &
+                     Me%ObjEnterData,                                       &
+                     flag,                                                  &
+                     SearchType   = FromFile,                               &
+                     keyword      = 'TRANSMISSION_LOSSES',                  &
+                     Default      = .false.,                                &
+                     ClientModule = 'DrainageNetwork',                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR39' 
+
+
+        call GetData(Me%ComputeOptions%RemoveOverTop,                       &
+                     Me%ObjEnterData,                                       &
+                     flag,                                                  &
+                     SearchType   = FromFile,                               &
+                     keyword      = 'REMOVE_OVERTOP',                       &
+                     Default      = .false.,                                &
+                     ClientModule = 'DrainageNetwork',                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR40' 
+
+        call GetData(Me%ComputeOptions%CalcFractionSediment,                &
+                     Me%ObjEnterData,                                       &
+                     flag,                                                  &
+                     SearchType   = FromFile,                               &
+                     keyword      = 'FRACTION_SEDIMENT',                    &
+                     Default      = .false.,                                &
+                     ClientModule = 'DrainageNetwork',                      &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR41' 
+
+
+
+        if (Me%ComputeOptions%TransmissionLosses) then
+
+            call GetData(Me%HydraulicConductivity,                          &
+                         Me%ObjEnterData,                                   &
+                         flag,                                              &
+                         SearchType   = FromFile,                           &
+                         keyword      = 'HYDRAULIC_CONDUCTIVITY',           &
+                         Default      = 1.e-5,                              &
+                         ClientModule = 'DrainageNetwork',                  &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR42' 
+
+        endif
+
+        !Reads Global Toxicity Computation Method
+        call GetData(AuxString, Me%ObjEnterData,  flag,                     &
+                     keyword        = 'GLOBAL_TOXICITY',                    &                         
+                     ClientModule   = 'DrainageNetwork',                    &
+                     SearchType     = FromFile,                             &
+                     Default        = 'SUM',                                &                         
+                     STAT           = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR43'
+
+        select case (trim(adjustl(AuxString)))
+            case ("Max",       "MAX", "max")
+                Me%GlobalToxicityEvolution = 'MAX'
+            case ("Sum",       "SUM", "sum")
+                Me%GlobalToxicityEvolution = 'SUM'            
+            case ("Riskratio", "RiskRatio", "RISKRATIO", "riskratio")
+                Me%GlobalToxicityEvolution = 'RISKRATIO'
+            case default
+                write(*,*)'Invalid option for keyword GLOBAL_TOXICITY'
+                stop 'ModuleDrainageNetwork - ReadDataFile - ERR44' 
+        end select
+
+
+        !Reads Global GeoConversation Factor (Lat/ to Meters) rough estimation
+        call GetData(GeoConversationFactor, Me%ObjEnterData,  flag,                      &
+                     keyword        = 'GEO_CONVERSATION_FACTOR',                            &                         
+                     ClientModule   = 'DrainageNetwork',                                    &
+                     SearchType     = FromFile,                                             &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR45'
+        
+        if (flag == 1) then
+            call SetError(WARNING_, INTERNAL_, 'The keyword GEO_CONVERSATION_FACTOR is obselete and not used any more', ON)
+        endif
+
+
+        !Output Hydrodynamic properties
+        call GetData(Me%OutputHydro, Me%ObjEnterData, flag,                             &
+                     keyword        = 'OUTPUT_HYDRO',                                   &                         
+                     ClientModule   = 'DrainageNetwork',                                &
+                     SearchType     = FromFile,                                         &
+                     Default        = .FALSE.,                                          &                         
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR46' 
+
+        !IN PROGRESS
+        !Sets Integrated Output Time 
+        call GetOutPutTime(Me%ObjEnterData,                                             &
+                           CurrentTime = Me%CurrentTime,                                &
+                           EndTime     = Me%EndTime,                                    &
+                           keyword     = 'INTEGRATION_TIME',                            &
+                           SearchType  = FromFile,                                      &
+                           OutPutsTime = Me%IntegratedOutput%OutTime,                   &
+                           OutPutsOn   = Me%IntegratedOutput%Yes,                       &
+                           STAT        = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR47.0' 
+        
+        if (Me%IntegratedOutput%Yes) then
+            call ReadFileName('DRAINAGE_NETWORK_INT_HDF', Me%Files%IntegratedHDFFile,   &
+                              Message = "Drainage Network Integration HDF File",        &
+                              STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR47.1'
+        endif
+        
+        !Sets Output Time 
+        call GetOutPutTime(Me%ObjEnterData,                                              &
+                           CurrentTime = Me%CurrentTime,                                 &
+                           EndTime     = Me%EndTime,                                     &
+                           keyword     = 'OUTPUT_TIME',                                  &
+                           SearchType  = FromFile,                                       &
+                           OutPutsTime = Me%OutPut%OutTime,                              &
+                           OutPutsOn   = Me%OutPut%Yes,                                  &
+                           STAT        = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR47' 
+
+        !Output for restart
+        call GetOutPutTime(Me%ObjEnterData,                                             &
+                           CurrentTime  = Me%CurrentTime,                               &
+                           EndTime      = Me%EndTime,                                   &
+                           keyword      = 'RESTART_FILE_OUTPUT_TIME',                   &
+                           SearchType   = FromFile,                                     &
+                           OutPutsTime  = Me%OutPut%RestartOutTime,                     &
+                           OutPutsOn    = Me%OutPut%WriteRestartFile,                   &
+                           STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleDrainageNetwork - ERR48'
+
+        call GetData(Me%OutPut%RestartFormat,                                           &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'RESTART_FILE_FORMAT',                              &
+                     Default      = HDF_,                                               &
+                     ClientModule = 'ModuleDrainageNetwork',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleDrainageNetwork - ERR48.5'        
+        if (Me%OutPut%RestartFormat /= BIN_ .and. Me%OutPut%RestartFormat /= HDF_) then
+            write (*,*)
+            write (*,*) 'RESTART_FILE_FORMAT options are: 1 - Binary or 2 - HDF'
+            stop 'ReadDataFile - ModuleDrainageNetwork - ERR48.7'            
+        endif
+        
+        
+        call GetData(Me%OutPut%RestartOverwrite,                                        &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'RESTART_FILE_OVERWRITE',                           &
+                     Default      = .true.,                                             &
+                     ClientModule = 'ModuleDrainageNetwork',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR49'
+
+        call GetData(Me%Output%ComputeFlowFrequency,                                    &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'OUTPUT_FLOW_FREQUENCY',                            &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleDrainageNetwork',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR50'
+        
+        if (Me%Output%ComputeFlowFrequency) then
+            !Reads Begin Time for frequency analisys
+            call GetData(Me%Output%FlowFrequency%StartDate,                                 &
+                         Me%ObjEnterData,                                                   &
+                         flag,                                                              &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'FLOW_FREQUENCY_STARTDATE',                         &
+                         Default      = Me%BeginTime,                                       &
+                         ClientModule = 'ModuleDrainageNetwork',                            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR55'            
+
+
+            call GetData(Me%Output%FlowFrequency%StopDate,                                  &
+                         Me%ObjEnterData,                                                   &
+                         flag,                                                              &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'FLOW_FREQUENCY_ENDDATE',                           &
+                         Default      = Me%EndTime,                                         &
+                         ClientModule = 'ModuleDrainageNetwork',                            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR60'            
+            
+            call GetData(Me%Output%FlowFrequency%MinimumFlow,                               &
+                         Me%ObjEnterData,                                                   &
+                         flag,                                                              &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'FLOW_FREQUENCY_MINIMUMFLOW',                       &
+                         Default      = 0.0,                                                &
+                         ClientModule = 'ModuleDrainageNetwork',                            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR65'            
+
+        
+        endif
+        
+        !to evapotrnaspirate from reach - in drying pools where vegetation accumulates and removes water
+        call GetData(Me%ComputeOptions%EVTPFromReach,                                   &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'EVTP_FROM_REACH',                                  &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleDrainageNetwork',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR70'                
+        
+        if (Me%ComputeOptions%EVTPFromReach) then
+            !The EVTP_FROM_REACH is disabled because it will not work since REACH%EVTP is never actualized?
+            write (*,*) 'EVTP_FROM_REACH is disabled'
+            stop 'ReadDataFile - ModuleDrainageNetwork - ERR71'
+            
+            !maximum depth to happen evtp (vegetation only installs in low flow conditions)
+            call GetData(Me%EVTPMaximumDepth,                                               &
+                         Me%ObjEnterData,                                                   &
+                         flag,                                                              &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'EVTP_MAXIMUM_DEPTH',                               &
+                         Default      = 0.1,                                                &
+                         ClientModule = 'ModuleDrainageNetwork',                            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR80'
+
+
+            !crop coefficient - multiply by potential evapotransp.
+            call GetData(Me%EVTPCropCoefficient,                                            &
+                         Me%ObjEnterData,                                                   &
+                         flag,                                                              &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'EVTP_CROP_COEF',                                   &
+                         Default      = 1.0,                                                &
+                         ClientModule = 'ModuleDrainageNetwork',                            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR90'
+            
+        endif
+
+        call GetData(Me%Output%ComputeIntegratedFlow,                                   &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'INTEGRATE_FLOW',                                   &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleDrainageNetwork',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR95'
+
+        if (Me%Output%ComputeIntegratedFlow) then
+
+            call GetData(Me%Output%IntFlow%IntFlowDTOutput,                                 &
+                         Me%ObjEnterData,                                                   &
+                         flag,                                                              &
+                         SearchType   = FromFile,                                           &
+                         keyword      = 'INTEGRATE_FLOW_DT',                                &
+                         Default      = 86400.,                                             &
+                         ClientModule = 'ModuleDrainageNetwork',                            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR95b'
+            
+            !first output date is current (beggining)
+            Me%Output%IntFlow%IntFlowNextOutput = Me%BeginTime + Me%Output%IntFlow%IntFlowDTOutput
+            
+        endif
+
+        !If linked to a StormWaterModel
+        call GetData(Me%ComputeOptions%StormWaterModelLink,                             &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'STORM_WATER_MODEL_LINK',                           &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleDrainageNetwork',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR100'
+
+        !If limit flow to criticl one
+        call GetData(Me%ComputeOptions%LimitToCriticalFlow,                             &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'LIMIT_TO_CRITICAL_FLOW',                           &
+                     Default      = .true.,                                             &
+                     ClientModule = 'ModuleDrainageNetwork',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'ReadDataFile - ModuleDrainageNetwork - ERR110'
+
+    end subroutine ReadDataFile
+    
+    !---------------------------------------------------------------------------
+    
+    subroutine ReadConvergenceParameters
+    
+        !Local-----------------------------------------------------------------        
+        integer                                     :: STAT_CALL,               &
+                                                       iflag,                   &
+                                                       STABILIZE_COEFFICIENT_flag    
+                                                            
+        real                                        :: dummy_real
+        
+        !----------------------------------------------------------------------    
+        
+        !----------------------------------------------------------------------
+        !Find deprecated keywords in data file
+        !----------------------------------------------------------------------
+        call GetData(dummy_real,                                                &
+                     Me%ObjEnterData, STABILIZE_COEFFICIENT_flag,               &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='STABILIZE_COEFFICIENT',                   &
+                     ClientModule   ='ModuleDrainageNetwork',                   &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR010")
+
+        if (STABILIZE_COEFFICIENT_flag > 0) then
+            
+            write (*,*) '======================================================================='
+            write (*,*) 'The following deprecated keywords were found in DrainageNetwork data file:'
+            write (*,*) ''
+            
+            if (STABILIZE_COEFFICIENT_flag > 0) &
+                write(*,*) 'STABILIZE_COEFFICIENT: Use STABILIZE_MIN_FACTOR instead.'
+                
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR070")
+        endif
+
+        !----------------------------------------------------------------------
+        !Read convergence options
+        !----------------------------------------------------------------------                
+        call GetData(Me%CV%Stabilize,                                           &
+                     Me%ObjEnterData, iflag,                                    &  
+                     keyword      = 'STABILIZE',                                &
+                     ClientModule = 'ModuleDrainageNetwork',                    &
+                     SearchType   = FromFile,                                   &                     
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) & 
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR080")        
+        if (iflag <= 0) then
+            write(*,*) 'WARNING: Missing STABILIZE keyword in Drainage Network input data file.'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR081")        
+        endif
+        if (Me%CV%Stabilize) then 
+            !Maximum change of water content (in %) allowed in one time step.
+            call GetData(Me%CV%StabilizeFactor,                                     &
+                         Me%ObjEnterData, iflag,                                    &  
+                         keyword      = 'STABILIZE_FACTOR',                         &
+                         ClientModule = 'ModuleDrainageNetwork',                    &
+                         SearchType   = FromFile,                                   &
+                         Default      = 0.1,                                        &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) & 
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR082")            
+            
+            if (Me%CV%StabilizeFactor < 0.0 .or. Me%CV%StabilizeFactor > 1.0) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR083")
+                
+            call GetData(Me%CV%MinimumValueToStabilize,                     &
+                         Me%ObjEnterData, iflag,                            &
+                         SearchType   = FromFile,                           &
+                         keyword      = 'STABILIZE_MIN_FACTOR',             &
+                         default      = 0.05,                               &
+                         ClientModule = 'ModuleDrainageNetwork',            &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR084")
+            if (Me%CV%MinimumValueToStabilize < 0.0) then
+                write (*,*)'Invalid Minimun Water Column to Stabilize value [STABILIZE_MIN]'
+                write (*,*)'Value must be greater than 0.0'            
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR085")
+            endif
+            
+            call GetData(dummy_real,                                            &
+                         Me%ObjEnterData, iflag,                                &  
+                         keyword      = 'STABILIZE_RESTART_FACTOR',             &
+                         ClientModule = 'ModuleDrainageNetwork',                &
+                         SearchType   = FromFile,                               &
+                         Default      = 0.,                                     &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR086")
+            if (dummy_real <= 0.) then
+                Me%CV%MinToRestart = 0
+            else
+                Me%CV%MinToRestart = max(int(dummy_real * Me%TotalNodes), 0)
+            endif    
+            
+            call GetData(Me%CV%CheckDecreaseOnly,                               &
+                         Me%ObjEnterData, iflag,                                &  
+                         keyword      = 'CHECK_DEC_ONLY',                       &
+                         ClientModule = 'ModuleDrainageNetwork',                &
+                         SearchType   = FromFile,                               &
+                         Default      = .false.,                                &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR087")             
+        endif        
+
+       !Number of iterations threshold for starting to ask for a lower DT 
+        call GetData(Me%CV%MinIterations,                                       &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='MIN_ITERATIONS',                          &
+                     Default        = 1,                                        &
+                     ClientModule   ='ModuleDrainageNetwork',                   &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_) &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR090")
+        if (Me%CV%MinIterations < 1) then
+            write (*,*)'Invalid Minimun Iterations value [MIN_ITERATIONS]'
+            write (*,*)'Value must be greater than 0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR091")
+        endif                                 
+
+        !Number of iterations threshold that causes the model to stop
+        call GetData(Me%CV%MaxIterations,                                       &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='MAX_ITERATIONS',                          &
+                     Default        = 1024,                                     &
+                     ClientModule   ='ModuleDrainageNetwork',                   &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR100")
+        if (Me%CV%MaxIterations < Me%CV%MinIterations) then
+            write (*,*)'Invalid Maximun Iterations value [MAX_ITERATIONS]'
+            write (*,*)'Value must be greater than the value of MIN_ITERATIONS'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR101")              
+        endif
+                            
+        call GetData(Me%CV%IgnoreMaxIterations,                                 &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='IGNORE_MAX_ITERATIONS',                   &
+                     Default        = .false.,                                  &
+                     ClientModule   ='ModuleDrainageNetwork',                   &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR102")        
+        
+        !% of the maximun iterations that causes the DT to be cut to the value of one internal time step
+        call GetData(dummy_real,                                        &
+                     Me%ObjEnterData, iflag,                            &
+                     SearchType   = FromFile,                           &
+                     keyword      = 'DT_CUT_FACTOR',                    &
+                     default      = 0.1,                                &
+                     ClientModule = 'ModuleDrainageNetwork',            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR110") 
+        if (dummy_real <= 0.0 .or. dummy_real > 1.0) then
+            write (*,*)'Invalid DT Cut Factor [DT_CUT_FACTOR]'
+            write (*,*)'Value must be >= 0.0 and < 1.0'        
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR111") 
+        endif
+        Me%CV%StabilizeHardCutLimit = dummy_real * Me%CV%MaxIterations
+        
+       !Internal Time Step Split
+        call GetData(Me%CV%DTSplitFactor,                                   &
+                     Me%ObjEnterData, iflag,                                &
+                     keyword      = 'DT_SPLIT_FACTOR',                      &
+                     ClientModule = 'ModuleDrainageNetwork',                &
+                     SearchType   = FromFile,                               &
+                     Default      = 2.0,                                    &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadConvergenceParameters - ModuleDrainageNetwork - ERR120'        
+        if (Me%CV%DTSplitFactor <= 1.0) then
+            write (*,*)'Invalid DT Split Factor [DT_SPLIT_FACTOR]'
+            write (*,*)'Value must be greater then 1.0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR121")              
+        endif            
+
+        call GetData(dummy_real,                                                &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='DT_FACTOR',                               &
+                     Default        = 1.25,                                     &
+                     ClientModule   ='ModuleDrainageNetwork',                   &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR130")             
+        if (dummy_real <= 1.0) then
+            write (*,*)'Invalid DT Factor [DT_FACTOR]'
+            write (*,*)'Value must be greater then 1.0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR131")              
+        endif            
+        
+        call GetData(Me%CV%DTFactorUp,                                          &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='DT_FACTOR_UP',                            &
+                     Default        = dummy_real,                               &
+                     ClientModule   ='ModuleDrainageNetwork',                   &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR140")  
+        if (Me%CV%DTFactorUp <= 1.0) then
+            write (*,*)'Invalid DT Factor Up [DT_FACTOR_UP]'
+            write (*,*)'Value must be greater then 1.0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR141")              
+        endif                  
+                
+        call GetData(Me%CV%DTFactorDown,                                        &
+                     Me%ObjEnterData, iflag,                                    &
+                     SearchType     = FromFile,                                 &
+                     keyword        ='DT_FACTOR_DOWN',                          &
+                     Default        = dummy_real,                               &
+                     ClientModule   ='ModuleDrainageNetwork',                   &
+                     STAT           = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_)                                              &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR150")  
+        if (Me%CV%DTFactorDown <= 1.0) then
+            write (*,*)'Invalid DT Factor Down [DT_FACTOR_DOWN]'
+            write (*,*)'Value must be greater then 1.0'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR151")
+        endif                                           
+        
+        call GetData(Me%CV%LimitDTCourant,                                    &
+                     Me%ObjEnterData, iflag,                                    &    
+                     keyword      = 'LIMIT_DT_COURANT',                         &
+                     ClientModule = 'ModuleDrainageNetwork',                    &
+                     SearchType   = FromFile,                                   &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) &
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR180") 
+        if (iflag <= 0) then
+            write(*,*) 'WARNING: Missing LIMIT_DT_COURANT keyword in Drainage Network input data file.'
+            call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR181")         
+        endif
+        if (Me%CV%LimitDTCourant) then
+            !Gets Maximum allowed Courant Number
+            call GetData(Me%CV%MaxCourant,                                      &
+                         Me%ObjEnterData, iflag,                                &  
+                         keyword      = 'MAX_COURANT',                          &
+                         ClientModule = 'ModuleDrainageNetwork',                &
+                         SearchType   = FromFile,                               &
+                         Default      = 1.0,                                    &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleDrainageNetwork - ERR182")        
+        endif
+        
+        !----------------------------------------------------------------------
+    
+    end subroutine ReadConvergenceParameters
+    
+    !--------------------------------------------------------------------------        
+
+    subroutine ConstructDownstreamBoundary
+        
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                         :: flag, STAT_CALL
+        character(len=StringLength)                     :: AuxString
+
+        call GetData(Me%Downstream%Boundary,                                    &
+                     Me%ObjEnterData, flag,                                     &  
+                     keyword      = 'DOWNSTREAM_BOUNDARY',                      &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromFile,                                   &
+                     Default      = ZeroDepthGradient,                          &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDownstreamBoundary - ERR01'
+
+if1:    if (Me%Downstream%Boundary == ImposedWaterLevel .or. Me%Downstream%Boundary == ImposedVelocity) then
+
+            !Reads Time Evolution
+            call GetData(AuxString, Me%ObjEnterData,  flag,                     &
+                         keyword        = 'FILE_IN_TIME',                       &                         
+                         ClientModule   = 'DrainageNetwork',                    &
+                         SearchType     = FromFile,                             &
+                         Default        = 'None',                               &                         
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDownstreamBoundary - ERR03'
+
+            select case (trim(adjustl(AuxString)))
+
+                case ("None",       "NONE", "none")
+                    
+                    Me%Downstream%Evolution    = None
+
+                case ("Timeserie",  "TIMESERIE",    "timeserie",    "TimeSerie")
+                    
+                    Me%Downstream%Evolution    = ReadTimeSerie
+                    
+                    if (Me%Downstream%Boundary == ImposedVelocity)    &
+                        stop 'not ready - ModuleDrainageNetwork - ConstructDownstreamBoundary - ERR04a'
+                        
+                case ("OpenMI", "OPENMI", "openmi", "OpenMi")
+                
+                    Me%Downstream%Evolution    = OpenMI
+
+                case default
+
+                    write(*,*)'Invalid option for keyword FILE_IN_TIME'
+                    stop 'ModuleDrainageNetwork - ConstructDownstreamBoundary - ERR04'
+
+            end select
+
+            call GetData(Me%Downstream%DefaultValue, Me%ObjEnterData,  flag,    &
+                         keyword        = 'DEFAULT_VALUE',                       &                         
+                         ClientModule   = 'DrainageNetwork',                    &
+                         SearchType     = FromFile,                             &
+                         Default        = FillValueReal,                        &                         
+                         STAT           = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDownstreamBoundary - ERR05'
+
+
+            if (flag == 0) then
+                write(*,*)'Please define default value for downstream boundary'
+                stop 'ModuleDrainageNetwork - ConstructDownstreamBoundary - ERR06'
+            end if
+           
+if2:        if (Me%Downstream%Evolution == ReadTimeSerie) then
+                            
+                call GetData(Me%Downstream%FileName,                            &
+                             Me%ObjEnterData , flag,                            &
+                             SearchType   = FromFile,                           &
+                             keyword      = 'FILENAME',                         &
+                             ClientModule = 'DrainageNetwork',                  &
+                             STAT         = STAT_CALL)                                      
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDownstreamBoundary - ERR07'
+
+                if (flag==0)then
+                    write(*,*)'Time Serie File Name not given'
+                    stop 'ModuleDrainageNetwork - ConstructDownstreamBoundary - ERR08'
+                endif
+
+                call GetData(Me%Downstream%DataColumn,                           &
+                             Me%ObjEnterData , flag,                            &
+                             SearchType   = FromFile,                           &
+                             keyword      = 'DATA_COLUMN',                      &
+                             ClientModule = 'DrainageNetwork',                  &
+                             STAT         = STAT_CALL)                                      
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDownstreamBoundary - ERR09'
+
+                if (flag==0)then
+                    write(*,*)'Data Column not given'
+                    stop 'ModuleDrainageNetwork - ConstructDownstreamBoundary - ERR10'
+                endif
+
+                !Starts Time Serie
+                call StartTimeSerieInput(Me%Downstream%ObjTimeSerie,            &
+                                         Me%Downstream%FileName,                &
+                                         Me%ObjTime,                            &
+                                         STAT = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructDownstreamBoundary - ERR11'
+                
+            end if if2
+        
+        elseif (Me%Downstream%Boundary == Flow_vs_WaterLevel)then if1
+            
+            !Me%Downstream%Evolution = Flow_vs_WaterLevelFile
+            stop 'ModuleDrainageNetwork - ConstructDownstreamBoundary - ERR12'
+
+
+        endif if1
+
+    end subroutine ConstructDownstreamBoundary
+    
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine ConstructNetwork
+
+
+        !Local------------------------------------------------------------------
+        integer                                     :: flag, STAT_CALL
+
+        call ConstructEnterData (Me%Files%ObjEnterDataNetwork, Me%Files%Network, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNetwork - ERR01'
+
+        !Checks for the COORD_TIP
+        call GetData(Me%CoordType,                                                       &
+                     Me%Files%ObjEnterDataNetwork, flag,                                 & 
+                     keyword      = 'COORDINATE_TYPE',                                   &
+                     ClientModule = 'DrainageNetwork',                                   &
+                     SearchType   = FromFile,                                            &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNetwork - ERR02'
+
+        if (flag == 0 .or. (Me%CoordType /= 1 .and. Me%CoordType /= 2)) then
+            write(*,*)'The Drainage Network does not contain a valid specification for the coordinate system.'
+            write(*,*)'Please set the keyword COORDINATE_TYPE to a valid option (file Drainage Network.dnt)'
+            write(*,*)'Allowed options are:'
+            write(*,*)'COORDINATE_TYPE      : 1 ! Geographic Coordinates'
+            write(*,*)'COORDINATE_TYPE      : 2 ! Projected Coordinates'
+            call SetError (FATAL_, INTERNAL_, "Invalid Coordinates")
+        endif
+        
+        !Rewinds buffer for subsequent readings
+        call RewindBuffer(Me%Files%ObjEnterDataNetwork, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNetwork - ERR03'
+
+        call ConstructNodeList
+
+        call ConstructReachList 
+
+        call ConnectNetwork
+        
+        !if nodes were changed for DTM consistency give the user feedback
+        if (Me%ChangedNodes) call WriteNewDrainageNetwork()        
+
+        if (Me%NumericalScheme == ImplicitScheme) then
+            call OrderNodes
+            call ReconnectNetwork
+            call WriteOrderedNodes
+        end if
+        
+        !Checks consistency and finds outlet Node / Reach Position
+        call CountOutlets ()
+
+    end subroutine ConstructNetwork
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine ConstructNodeList
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                     :: ClientNumber
+        logical                                     :: BlockFound
+        integer                                     :: FirstLine, LastLine            
+        integer                                     :: STAT_CALL, NodePos
+               
+        !-----------------------------------------------------------------------
+
+        call CountTotalNodes
+ 
+        nullify  (Me%Nodes)
+        allocate (Me%Nodes (1:Me%TotalNodes))
+        
+        NodePos = 0
+
+do1:    do 
+
+            call ExtractBlockFromBuffer(Me%Files%ObjEnterDataNetwork, ClientNumber,     &
+                                        BeginNode, EndNode, BlockFound,                  &
+                                        FirstLine, LastLine, STAT_CALL) 
+
+if1:        if (STAT_CALL .EQ. SUCCESS_) then    
+
+if2:              if (BlockFound) then                 
+                    
+                    NodePos = NodePos + 1
+
+                    call ConstructNode (NodePos)
+                                      
+                  else if2
+
+                    if (NodePos /= Me%TotalNodes) stop 'ModuleDrainageNetwork - ConstructNodeList - ERR01'
+
+                    call Block_Unlock(Me%Files%ObjEnterDataNetwork, ClientNumber, STAT = STAT_CALL) 
+                    if (STAT_CALL .NE. SUCCESS_)                                &
+                        stop 'ModuleDrainageNetwork - ConstructNodeList - ERR02'
+
+                    exit do1    !No more blocks
+
+                  end if if2
+
+            else if (STAT_CALL .EQ. BLOCK_END_ERR_) then if1
+
+                    stop 'ModuleDrainageNetwork - ConstructNodeList - ERR02.'
+
+            end if if1
+
+        end do do1
+
+        if (Me%CheckNodes) call CheckNodesConsistency
+
+    end subroutine ConstructNodeList 
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine CountTotalNodes
+
+        !This subroutine counts the total number of nodes and checks the
+        !existence of valid and repeated NodeIDs
+        !Local------------------------------------------------------------------
+        integer                                     :: ClientNumber
+        logical                                     :: BlockFound
+        integer                                     :: FirstLine, LastLine            
+        integer                                     :: STAT_CALL
+        integer                                     :: NodeID, OldNodeID
+        !integer                                     :: MaxNodeID, MinNodeID 
+        integer                                     :: flag
+
+        
+        Me%TotalNodes = 0
+        !MinNodeID = - null_int
+        !MaxNodeID = null_int
+        OldNodeID = null_int
+
+
+do1:    do 
+
+            call ExtractBlockFromBuffer(Me%Files%ObjEnterDataNetwork, ClientNumber,     &
+                                        BeginNode, EndNode, BlockFound,                 &
+                                        FirstLine, LastLine, STAT_CALL) 
+
+if1:        if (STAT_CALL .EQ. SUCCESS_) then    
+
+if2:            if (BlockFound) then                 
+                    
+                    !Gets ID
+                    call GetData(NodeID,                                        &
+                                 Me%Files%ObjEnterDataNetwork, flag,            & 
+                                 keyword      = 'ID',                           &
+                                 ClientModule = 'DrainageNetwork',              &
+                                 SearchType   = FromBlock,                      &
+                                 STAT         = STAT_CALL)                                  
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - CountTotalNodes - ERR01'
+
+                    if (flag /= 1) then
+                        write (*,*)'Invalid Node ID [ID]'
+                        stop 'ModuleDrainageNetwork - CountTotalNodes - ERR02'
+                    endif
+
+                    Me%TotalNodes = Me%TotalNodes + 1
+                                        
+                    !if (NodeID .LT. MinNodeID ) MinNodeID = NodeID
+                    !if (NodeID .GT. MaxNodeID ) MaxNodeID = NodeID
+                   
+                    if (NodeID .EQ. OldNodeID ) then
+                        write (*,*) 'Repeated Node ID = ', NodeID
+                        stop 'ModuleDrainageNetwork - CountTotalNodes - ERR03'
+                    else
+                        OldNodeID = NodeID
+                    end if
+
+                else if2
+                    
+                    !if (MinNodeID.NE. 1) then
+                    !    write (*,*) 'Inconsistency in Node IDs - Missing NodeID = 1'
+                    !    stop 'ModuleDrainageNetwork - CountTotalNodes - ERR04'
+                    !else if (MaxNodeID.NE. Me%TotalNodes) then
+                    !    write (*,*) 'Inconsistency in Node IDs - Missing NodeID =', Me%TotalNodes
+                    !    stop 'ModuleDrainageNetwork - CountTotalNodes - ERR05'
+                    !end if
+
+
+                    call Block_Unlock(Me%Files%ObjEnterDataNetwork, ClientNumber, STAT = STAT_CALL) 
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - CountTotalNodes - ERR01'
+
+                    call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - CountTotalNodes - ERR02'
+                    
+                    exit do1    !No more blocks
+
+                  end if if2
+
+            else if (STAT_CALL .EQ. BLOCK_END_ERR_) then if1
+
+                    stop 'ModuleDrainageNetwork - CountTotalNodes - ERR03.'
+
+            end if if1
+
+        end do do1
+        
+    end subroutine CountTotalNodes
+       
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine ConstructNode (NodePos)
+
+        !Arguments--------------------------------------------------------------
+        integer, intent(IN)                         :: NodePos
+        !External---------------------------------------------------------------
+        type (T_Node), pointer                      :: NewNode
+        integer                                     :: STAT_CALL
+        integer                                     :: flag, NStations
+        real, dimension (2)                         :: AuxCoord 
+        logical                                     :: ComputeElevation
+        real                                        :: heightDif
+        character (len = StringLength)              :: AuxString
+
+        !Local------------------------------------------------------------------
+     
+        nullify (NewNode)
+        NewNode => Me%Nodes (NodePos)
+
+        call GetData(NewNode%ID,                                                &
+                     Me%Files%ObjEnterDataNetwork, flag,                        & 
+                     keyword      = 'ID',                                       &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromBlock,                                  &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR01'
+
+        if (flag /= 1) then
+            write (*,*)'Invalid Node ID [ID]'
+            stop 'ModuleDrainageNetwork - ConstructNode - ERR02'
+        endif
+
+        call GetData(NewNode%StationName,                                       &
+                     Me%Files%ObjEnterDataNetwork, flag,                        & 
+                     keyword        = 'ASSOCIATEDSTATION_NAME',                 &
+                     default        = null_str,                                 &
+                     ClientModule   = 'DrainageNetwork',                        &
+                     SearchType     = FromBlock,                                &
+                     STAT           = STAT_CALL)                                  
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR01a'
+
+        if (NewNode%StationName /= null_str) Me%WriteMaxStationValues = .TRUE.
+        !Gets Location        
+        if (NewNode%X.EQ.null_real.AND. NewNode%Y.EQ.null_real) then
+            call GetData(AuxCoord,                                              &
+                         Me%Files%ObjEnterDataNetwork, flag,                    &
+                         keyword      = 'COORDINATES',                          &
+                         ClientModule = 'DrainageNetwork',                      &
+                         SearchType   = FromBlock,                              &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR03'
+                                                                                
+            if (flag .EQ. 2) then
+                NewNode%X = AuxCoord(1)
+                NewNode%Y = AuxCoord(2)                       
+            else
+                write(*,*) 'Invalid Node Coordenates [COORDINATES]'
+                stop 'ModuleDrainageNetwork - ConstructNode - ERR04'
+            end if 
+
+        else
+            write (*,*) 'Repeated Node = ', NewNode%ID
+            stop 'ModuleDrainageNetwork - ConstructNode - ERR05'
+        end if
+
+        !Gets associated Grid Point I
+        call GetData(NewNode%GridI,                                             &
+                     Me%Files%ObjEnterDataNetwork, flag,                        &
+                     keyword      = 'GRID_I',                                   &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromBlock,                                  &
+                     default      = null_int,                                   &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR06'
+                                                                                
+        !Gets associated Grid Point J
+        call GetData(NewNode%GridJ,                                             &
+                     Me%Files%ObjEnterDataNetwork, flag,                        &
+                     keyword      = 'GRID_J',                                   &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromBlock,                                  &
+                     default      = null_int,                                   &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR07'
+        
+        if(NewNode%GridI .ne. null_int .AND. NewNode%GridJ .ne. null_int)then
+            NewNode%HasGrid = .TRUE.    
+        endif
+        
+        if(.not. Me%HasGrid)then
+            NewNode%HasGrid = .FALSE. 
+        endif
+        
+
+        !TerrainLevel (before InitializeTabularCrossSection)
+        call GetData(NewNode%CrossSection%TerrainLevel,                         &
+                     Me%Files%ObjEnterDataNetwork, flag,                        &  
+                     keyword      = 'TERRAIN_LEVEL',                            &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromBlock,                                  &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR08'
+        if (flag /= 1) then
+            write (*,*)'Invalid Node Terrain Level [TERRAIN_LEVEL]'
+            stop 'ModuleDrainageNetwork - ConstructNode - ERR21'
+        endif
+        
+        !Singularity Coef - % available vertical area = 1 - % reduction Av by singularity
+        call GetData(NewNode%SingCoef,                                          &
+                     Me%Files%ObjEnterDataNetwork, flag,                        &  
+                     keyword      = 'SING_COEF',                                &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromBlock,                                  &
+                     default      = 1.0,                                        &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR08a'
+
+        if (NewNode%SingCoef <= AlmostZero) then 
+            write (*,*)'Invalid Singularity Coefficient [SING_COEF]'
+            stop 'ModuleDrainageNetwork - ConstructNode - ERR22'
+        endif
+
+        !Cross Section Type        
+        call GetData(NewNode%CrossSection%Form,                                 &
+                     Me%Files%ObjEnterDataNetwork, flag,                        &  
+                     keyword      = 'CROSS_SECTION_TYPE',                       &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromBlock,                                  &
+                     default      = Trapezoidal,                                &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR09'   
+
+
+ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       &
+            NewNode%CrossSection%Form == TrapezoidalFlood) then
+
+            !Bottom Width
+            call GetData(NewNode%CrossSection%BottomWidth,                      &
+                         Me%Files%ObjEnterDataNetwork, flag,                    &  
+                         keyword      = 'BOTTOM_WIDTH',                         &
+                         ClientModule = 'DrainageNetwork',                      &
+                         SearchType   = FromBlock,                              &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR10'
+            if (flag /= 1) then
+                write (*,*)'Invalid Node Bottom Width [BOTTOM_WIDTH]'
+                stop 'ModuleDrainageNetwork - ConstructNode - ERR10a'
+            endif
+
+            if ( NewNode%CrossSection%BottomWidth == 0.0) NewNode%CrossSection%BottomWidth = AllmostZero
+
+                 
+            !Top Width
+            call GetData(NewNode%CrossSection%TopWidth,                         &
+                         Me%Files%ObjEnterDataNetwork, flag,                    &  
+                         keyword      = 'TOP_WIDTH',                            &
+                         ClientModule = 'DrainageNetwork',                      &
+                         SearchType   = FromBlock,                              &
+                         Default      = null_real,                              &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR11'
+            if (flag /= 1 ) then
+                write (*,*)'Invalid Node Top Width [TOP_WIDTH]'
+                stop 'ModuleDrainageNetwork - ConstructNode - ERR11a'
+            endif
+
+
+            !Height
+            call GetData(NewNode%CrossSection%Height,                           &
+                         Me%Files%ObjEnterDataNetwork, flag,                    &  
+                         keyword      = 'HEIGHT',                               &
+                         ClientModule = 'DrainageNetwork',                      &
+                         SearchType   = FromBlock,                              &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR12'
+            if (flag /= 1) then
+                write (*,*)'Invalid Node Height [HEIGHT]'
+                stop 'ModuleDrainageNetwork - ConstructNode - ERR12a'
+            endif
+
+            !if DN was imposed over DTM (if associated(Me%ExtVar%Topography)) 
+            !meaning that drainage network may have been built from DTM different than currently used (e.g. with depressions removed), 
+            !need to check terrain level and height to be consistent with DTM used
+            if (associated(Me%ExtVar%Topography) .AND. NewNode%HasGrid) then
+                
+                if (Me%ExtVar%Topography(NewNode%GridI, NewNode%GridJ) /= NewNode%CrossSection%TerrainLevel) then
+                    
+                    heightDif = Me%ExtVar%Topography(NewNode%GridI, NewNode%GridJ) - NewNode%CrossSection%TerrainLevel
+                    
+                    NewNode%CrossSection%TerrainLevel = Me%ExtVar%Topography(NewNode%GridI, NewNode%GridJ)
+                    NewNode%CrossSection%Height = NewNode%CrossSection%Height + heightDif
+                    
+                    if (NewNode%CrossSection%Height < 0) then
+                        write(*,*)'Negative node cross section height after Topography check'
+                        write(*,*)'in node ', NewNode%ID
+                        stop 'ModuleDrainageNetwork - ConstructNode - ERR12b'
+                    endif
+                    
+                    Me%ChangedNodes = .true.
+                    write(AuxString,*) 'Forcing river points from DN, Node changed to fit DTM ', NewNode%ID
+                    call SetError (WARNING_, INTERNAL_, AuxString , OFF)
+                    
+                endif        
+            endif            
+            
+            NewNode%CrossSection%Slope = (( NewNode%CrossSection%TopWidth        &
+                                          - NewNode%CrossSection%BottomWidth )   &
+                                          / 2 ) / NewNode%CrossSection%Height
+
+            NewNode%CrossSection%BottomLevel = NewNode%CrossSection%TerrainLevel - NewNode%CrossSection%Height
+
+
+            if (NewNode%CrossSection%Form == TrapezoidalFlood) then
+
+                !MiddleWidth
+                call GetData(NewNode%CrossSection%MiddleWidth,                      &
+                             Me%Files%ObjEnterDataNetwork, flag,                    &  
+                             keyword      = 'MIDDLE_WIDTH',                         &
+                             ClientModule = 'DrainageNetwork',                      &
+                             SearchType   = FromBlock,                              &
+                             STAT         = STAT_CALL)                                      
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR13'
+                if (flag /= 1) then
+                    write (*,*)'Invalid Node Middle Width [MIDDLE_WIDTH]'
+                    stop 'ModuleDrainageNetwork - ConstructNode - ERR13a'
+                endif
+
+
+                !MiddleHeight
+                call GetData(NewNode%CrossSection%MiddleHeight,                     &
+                             Me%Files%ObjEnterDataNetwork, flag,                    &  
+                             keyword      = 'MIDDLE_HEIGHT',                        &
+                             ClientModule = 'DrainageNetwork',                      &
+                             SearchType   = FromBlock,                              &
+                             STAT         = STAT_CALL)                                      
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR14'
+                if (flag /= 1) then
+                    write (*,*)'Invalid Node Middle Height [MIDDLE_HEIGHT]'
+                    stop 'ModuleDrainageNetwork - ConstructNode - ERR14a'
+                endif
+
+                if (NewNode%CrossSection%MiddleHeight >= NewNode%CrossSection%Height) then
+                    write (*,*)'Node Middle Height must be <= than Height'
+                    stop 'ModuleDrainageNetwork - ConstructNode - ERR14b'
+
+                endif
+
+                NewNode%CrossSection%Slope = (( NewNode%CrossSection%MiddleWidth     &
+                                              - NewNode%CrossSection%BottomWidth )   &
+                                              / 2 ) / NewNode%CrossSection%MiddleHeight
+
+                NewNode%CrossSection%SlopeTop = (( NewNode%CrossSection%TopWidth     &
+                                              - NewNode%CrossSection%MiddleWidth )   &
+                                              / 2 )                                  &
+                                              / (NewNode%CrossSection%Height -       &
+                                                 NewNode%CrossSection%MiddleHeight)
+
+            endif
+
+
+        elseif (NewNode%CrossSection%Form == Tabular) then !ifXS
+
+
+            call GetData(NewNode%CrossSection%NStations,                            &
+                         Me%Files%ObjEnterDataNetwork, flag,                        &
+                         keyword      = 'N_STATIONS',                               &
+                         ClientModule = 'DrainageNetwork',                          &
+                         SearchType   = FromBlock,                                  &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR15'
+            if (flag /= 1 .or. NewNode%CrossSection%NStations <= 3) then
+                write (*,*)'Minimum mumber of station points for Tabular Cross Section is 3 [N_STATIONS].'
+                write (*,*)'in node ', NewNode%ID
+                stop 'ModuleDrainageNetwork - ConstructNode - ERR15a'
+            endif
+        
+            NStations = NewNode%CrossSection%NStations
+
+            allocate(NewNode%CrossSection%Station      (NStations))
+            allocate(NewNode%CrossSection%Elevation    (NStations))
+            allocate(NewNode%CrossSection%BankSlope    (NStations))
+
+            NewNode%CrossSection%Station      = null_real
+            NewNode%CrossSection%Elevation    = null_real
+            NewNode%CrossSection%BankSlope    = null_real
+
+            call GetData(NewNode%CrossSection%Station,                              &
+                         Me%Files%ObjEnterDataNetwork, flag,                        &
+                         keyword      = 'STATION',                                  &
+                         ClientModule = 'DrainageNetwork',                          &
+                         SearchType   = FromBlock,                                  &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR16'
+
+            if (flag /= NStations) then
+                write(*,*) 'Invalid Node Station data [STATION]'
+                stop 'ModuleDrainageNetwork - ConstructNode - ERR16a'
+            end if 
+
+            call GetData(NewNode%CrossSection%Elevation,                            &
+                         Me%Files%ObjEnterDataNetwork, flag,                        &
+                         keyword      = 'ELEVATION',                                &
+                         ClientModule = 'DrainageNetwork',                          &
+                         SearchType   = FromBlock,                                  &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR17'
+
+            if (flag == 0) then
+                
+                ComputeElevation = .true.
+
+                call GetData(NewNode%CrossSection%Elevation,                            &
+                             Me%Files%ObjEnterDataNetwork, flag,                        &
+                             keyword      = 'LEVEL',                                    &
+                             ClientModule = 'DrainageNetwork',                          &
+                             SearchType   = FromBlock,                                  &
+                             STAT         = STAT_CALL)                                  
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR17'
+
+                if (flag /= NStations) then
+                    write(*,*) 'Invalid Node LEVEL data [LEVEL]'
+                    stop 'ModuleDrainageNetwork - ConstructNode - ERR17a'
+                end if 
+
+            else
+            
+                ComputeElevation = .false.
+
+                if (flag /= NStations) then
+                    write(*,*) 'Invalid Node Elevation data [ELEVATION]'
+                    stop 'ModuleDrainageNetwork - ConstructNode - ERR17a'
+                end if 
+
+            endif
+            
+            call InitializeTabularCrossSection(NewNode, ComputeElevation)                                   
+
+        else !ifXS
+                    
+            write (*,*)'Invalid Cross Section Form in Node', NodePos
+            stop 'ModuleDrainageNetwork - ConstructNode - ERR60'
+
+        end if ifXS
+           
+        !Pool Depth
+        call GetData(NewNode%CrossSection%PoolDepth,                        &
+                     Me%Files%ObjEnterDataNetwork, flag,                    &  
+                     keyword      = 'POOL_DEPTH',                           &
+                     ClientModule = 'DrainageNetwork',                      &
+                     SearchType   = FromBlock,                              &
+                     Default      = 0.0,                                    &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR61'
+
+
+        !Variaveis para os calculos hidrodinamicos
+  
+        call GetData(NewNode%CrossSection%ManningCH,                            &
+                 Me%Files%ObjEnterDataNetwork, flag,                            &  
+                 keyword      = 'MANNING_CHANNEL',                              &
+                 ClientModule = 'DrainageNetwork',                              &
+                 SearchType   = FromBlock,                                      &
+                 Default      = Me%GlobalManning,                               &
+                 STAT         = STAT_CALL)                                      
+                                                                                
+        if (STAT_CALL .NE. SUCCESS_)                                            &
+            stop 'ModuleDrainageNetwork - ConstructNode - ERR62' 
+                
+        if (NewNode%CrossSection%ManningCH.LT.0.0) then
+            write (*,*)'Invalid Number of Manning Coeficient [MANNING_CHANNEL]'
+            stop 'ModuleDrainageNetwork - ConstructNode - ERR62a'
+        endif
+
+        !SOD
+        call GetData(NewNode%SODRate,                                          &
+                    Me%Files%ObjEnterDataNetwork, flag,                        &  
+                    keyword      = 'SOD_RATE',                                 &
+                    ClientModule = 'DrainageNetwork',                          &
+                    SearchType   = FromBlock,                                  &
+                    default      = 0.0,                                        &
+                    STAT         = STAT_CALL) 
+        if (STAT_CALL .NE. SUCCESS_)                                           &
+                stop 'ModuleDrainageNetwork - ConstructNode - ERR62b'           
+        
+        if (.not. Me%Continuous) then                            
+            call GetData(NewNode%WaterDepth,                                    &
+                     Me%Files%ObjEnterDataNetwork, flag,                        &  
+                     keyword      = 'WATER_DEPTH',                              &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromBlock,                                  &
+                     default      = Me%InitialWaterDepth,                       &
+                     STAT         = STAT_CALL)                                      
+                                                                                
+            if (STAT_CALL .NE. SUCCESS_)                                        &
+                    stop 'ModuleDrainageNetwork - ConstructNode - ERR63'   
+
+            if (NewNode%WaterDepth.LT.0.0) then
+                write (*,*)'Invalid Number of Water Level [WATER_DEPTH]'
+                stop 'ModuleDrainageNetwork - ConstructNode - ERR63a'
+            endif
+        end if
+                                                                                  
+    end subroutine ConstructNode
+ 
+     !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    
+    subroutine WriteNewDrainageNetwork()
+        
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                   :: Unit, LengthWithoutExt, NodePos, ReachPos, i
+        character(len=PathLength)                 :: filename
+        type(T_Node), pointer                     :: CurrNode
+        type(T_Reach), pointer                    :: CurrReach
+    
+        LengthWithoutExt= len_trim(Me%Files%Network) - 4
+        filename = Me%Files%Network(1:LengthWithoutExt)//"_v01.dnt"
+        
+        write(*,*)''
+        write(*,*)'Forced Drainage Network river points over DTM'
+        write(*,*)'Nodes changed to be consistent with DTM'
+        write(*,*)'Drainage Network corrected was written to ', filename
+        write(*,*)''
+        
+        call UnitsManager (Unit, OPEN_FILE)
+        open (unit = unit, file = trim(filename), status = 'unknown')        
+        
+        write (unit, *)"COORDINATE_TYPE   : ", Me%CoordType
+        
+        do NodePos = 1, Me%TotalNodes
+            
+            CurrNode => Me%Nodes (NodePos)     
+            
+            write (unit, *)"<BeginNode>"
+            write (unit, *)"ID                 : ", CurrNode%ID
+            write (unit, *)"COORDINATES        : ", CurrNode%X, CurrNode%Y
+            write (unit, *)"GRID_I             : ", CurrNode%GridI
+            write (unit, *)"GRID_J             : ", CurrNode%GridJ            
+            write (unit, *)"CROSS_SECTION_TYPE : ", CurrNode%CrossSection%Form 
+            write (unit, *)"TERRAIN_LEVEL      : ", CurrNode%CrossSection%TerrainLevel            
+            write (unit, *)"BOTTOM_LEVEL       : ", CurrNode%CrossSection%BottomLevel
+            
+            if (CurrNode%CrossSection%Form == Trapezoidal .or.                       &
+                CurrNode%CrossSection%Form == TrapezoidalFlood) then         
+                write (unit, *)"BOTTOM_WIDTH       : ", CurrNode%CrossSection%BottomWidth
+                write (unit, *)"TOP_WIDTH          : ", CurrNode%CrossSection%TopWidth
+                write (unit, *)"HEIGHT             : ", CurrNode%CrossSection%Height
+                
+                if (CurrNode%CrossSection%Form == TrapezoidalFlood) then
+                    write (unit, *)"MIDDLE_WIDTH       : ", CurrNode%CrossSection%MiddleWidth
+                    write (unit, *)"MIDDLE_HEIGHT      : ", CurrNode%CrossSection%MiddleHeight
+                endif
+            
+            elseif (CurrNode%CrossSection%Form == Tabular) then
+                write (unit, *)"N_STATIONS         : ", CurrNode%CrossSection%NStations
+                write (unit, *)"STATION            : ", (CurrNode%CrossSection%Station(i), i=1, CurrNode%CrossSection%NStations)
+                write (unit, *)"ELEVATION          : ", (CurrNode%CrossSection%Elevation(i), i=1, CurrNode%CrossSection%NStations)
+            endif
+            
+            if (CurrNode%CrossSection%PoolDepth > 0.0) then
+                write (unit, *)"POOL_DEPTH         : ", CurrNode%CrossSection%PoolDepth
+            endif
+            
+            if (CurrNode%CrossSection%ManningCH /= Me%GlobalManning) then
+                write (unit, *)"MANNING_CHANNEL    : ", CurrNode%CrossSection%ManningCH
+            endif 
+            
+            if (CurrNode%WaterDepth /= Me%InitialWaterDepth) then
+                write (unit, *)"WATER_DEPTH        : ", CurrNode%WaterDepth
+            endif             
+            
+            write (unit, *)"<EndNode>"                    
+            
+        enddo
+    
+        do ReachPos = 1, Me%TotalReaches
+            
+            CurrReach => Me%Reaches (ReachPos)  
+            
+            write (unit, *)"<BeginReach>"
+            write (unit, *)"ID              : ", CurrReach%ID
+            write (unit, *)"UPSTREAM_NODE   : ", CurrReach%UpstreamNode
+            write (unit, *)"DOWNSTREAM_NODE : ", CurrReach%DownstreamNode
+            write (unit, *)"ACTIVE          : ", CurrReach%Active
+            write (unit, *)"<EndReach>"            
+            
+            
+        enddo
+        
+        
+    end subroutine WriteNewDrainageNetwork
+
+    !---------------------------------------------------------------------------    
+    
+    subroutine InitializeTabularCrossSection (CurrNode, ComputeElevation)
+
+        !Arguments-----------------------------------------------------------------
+        type (T_Node), pointer                          :: CurrNode
+        logical                                         :: ComputeElevation
+
+        !Local---------------------------------------------------------------------
+        integer                                         :: N, i, IBL, NLevels, ilev, itab, itabZ
+        real                                            :: Z, ZLow, aux
+        real                                            :: dH, Av,Pw, Sw, Bw, Sl, Sr        
+        real, dimension(:), pointer                     :: Slope, Station, Elevation
+        real, dimension(:), allocatable                 :: Elev2
+        integer, dimension(1)                           :: k        
+        character(len=PathLength)                       :: AuxString
+        logical                                         :: mustStop = .false.
+
+        !Calcula area vertical para a seccao toda, com base nos trapezios
+        !Depois é so calcular o extra
+        !Slope = dx / dy
+        !Slope = 0 <=> talude vertical
+        !Slope = Inf <=> talude horizontal (nao ha problema porque dH=0)
+        
+        N = CurrNode%CrossSection%NStations
+
+        Slope     => CurrNode%CrossSection%BankSlope
+        Station   => CurrNode%CrossSection%Station
+        Elevation => CurrNode%CrossSection%Elevation
+
+        do i = 1,N-1
+            aux = Elevation(i+1) - Elevation(i)
+            if (abs(aux) > AllmostZero) Slope(i) = (Station(i+1) - Station(i)) / aux
+        enddo
+
+        k = minloc(Elevation)
+        IBL = k(1)
+        CurrNode%CrossSection%IBottom = IBL
+
+        !---------------------------------------------
+        !CHECKS
+        !---------------------------------------------
+
+        !Check that stations increase
+
+        do i = 1,N-1
+            if (Station(i+1)-Station(i) < 0) then
+                write(*,*) 'Stations must increase in Node ', CurrNode%ID
+                mustStop = .true.
+            endif
+        enddo    
+        if (mustStop) stop 'InitializeTabularCrossSection - ModuleDrainageNetwork - ERR02'
+
+        !Check that Elevations decrease up to bottom level and increase after
+
+        do i=1,IBL-1
+            if (Elevation(i+1)-Elevation(i) > 0) then
+                write(*,*) 'Left bank elevations must decrease in Node ', CurrNode%ID
+                if(Me%CorrectBanks)then
+                    write(*,*)"Elevation at station", i, " changed from ",  Elevation(i+1), " to ", Elevation(i)
+                    Elevation(i+1) = Elevation(i)
+                else
+                    stop 'InitializeTabularCrossSection - ModuleDrainageNetwork - ERR03'
+                endif
+            endif
+        enddo
+
+        do i=IBL,N-1
+            if (Elevation(i+1)-Elevation(i) < 0) then
+                write(*,*) 'Right bank elevations must increase in Node ', CurrNode%ID
+                if(Me%CorrectBanks)then
+                    write(*,*)"Elevation at station", i, " changed from ",  Elevation(i+1), " to ", Elevation(i)
+                    Elevation(i+1) = Elevation(i)
+                else
+                    stop 'InitializeTabularCrossSection - ModuleDrainageNetwork - ERR04'
+                endif
+            endif
+        enddo
+
+        !Check that Elevations start and end at the same value
+        !Change station value to do this
+
+        if (Elevation(1) /= Elevation(N)) then
+
+            Z = min(Elevation(1), Elevation(N))
+            if (Elevation(1) /= Z) then
+
+                aux = Station(1) + (Z - Elevation(1)) * Slope(1)
+
+                !write(*,*) 'Changed Station 1 in Node ', CurrNode%ID
+                !write(*,*) 'Old : ', Station(1), Elevation(1)
+                !write(*,*) 'New : ', aux, Z
+
+                write(AuxString,*) 'Changed station 1 in Node ', CurrNode%ID, ' to ', aux
+                call SetError(WARNING_, INTERNAL_, AuxString, ON)
+
+                Station(1) = aux
+                Elevation(1) = Z
+            
+             else
+
+                aux = Station(N-1) + (Z - Elevation(N-1)) * Slope(N-1)
+
+                !write(*,*) 'Changed Station N in Node ', CurrNode%ID
+                !write(*,*) 'Old : ', Station(N), Elevation(N)
+                !write(*,*) 'New : ', aux, Z
+
+                write(AuxString,*) 'Changed station N in Node ', CurrNode%ID, ' to ', aux
+                call SetError(WARNING_, INTERNAL_, AuxString, ON)
+
+                Station(N) = aux
+                Elevation(N) = Z 
+
+            endif
+
+        endif
+
+        !ComputeBottomLevel     
+        if (ComputeElevation) then
+
+            CurrNode%CrossSection%BottomLevel = CurrNode%CrossSection%TerrainLevel - maxval(Elevation)
+        
+            do i = 1, N
+                CurrNode%CrossSection%Elevation(i) = CurrNode%CrossSection%Elevation(i) + CurrNode%CrossSection%BottomLevel
+            enddo
+        
+        else
+            CurrNode%CrossSection%BottomLevel = minval(Elevation)
+        endif    
+
+        !Compute Number of Levels
+        allocate(Elev2(CurrNode%CrossSection%NStations))
+        Elev2   = Elevation       
+        NLevels = 1        
+        Z       = minval(Elev2)
+
+        do while(Z /= Elevation(1))
+
+            k = minloc(Elev2)   !Lower level
+            itab = k(1)
+            ZLow = Elev2(itab)
+
+            Elev2(itab) = - null_real
+            Z = minval(Elev2)
+            k = minloc(Elev2)
+            itabZ = k(1)
+               
+            dH = Z - ZLow
+
+            if (dH > AlmostZero) NLevels = NLevels + 1            
+
+        enddo
+    
+        CurrNode%CrossSection%NLevels = NLevels
+
+        allocate(CurrNode%CrossSection%Level             (NLevels))
+        allocate(CurrNode%CrossSection%LevelSlopeLeft    (NLevels))
+        allocate(CurrNode%CrossSection%LevelSlopeRight   (NLevels))
+        allocate(CurrNode%CrossSection%LevelBottomWidth  (NLevels))
+        allocate(CurrNode%CrossSection%LevelVerticalArea (NLevels))
+        allocate(CurrNode%CrossSection%LevelWetPerimeter (NLevels))
+        allocate(CurrNode%CrossSection%LevelSurfaceWidth (NLevels))
+       
+        CurrNode%CrossSection%Level             = null_real
+        CurrNode%CrossSection%LevelSlopeLeft    = null_real
+        CurrNode%CrossSection%LevelSlopeRight   = null_real
+        CurrNode%CrossSection%LevelBottomWidth  = null_real
+        CurrNode%CrossSection%LevelVerticalArea = null_real
+        CurrNode%CrossSection%LevelWetPerimeter = null_real
+        CurrNode%CrossSection%LevelSurfaceWidth = null_real
+
+        !--------------------------------------------------------------
+        ! COMPUTE LEVEL PROPERTIES 
+        !--------------------------------------------------------------
+
+        !Start at BottomLevel
+        CurrNode%CrossSection%Level(1)        = Elevation(IBL)
+        CurrNode%CrossSection%LevelVerticalArea(1) = 0.0   
+        CurrNode%CrossSection%LevelWetPerimeter(1) = 0.0 
+        CurrNode%CrossSection%LevelSurfaceWidth(1) = 0.0 
+
+        !allocate(Elev2(CurrNode%CrossSection%NStations))
+        Elev2 = Elevation       
+        ilev  = 2        
+        Z     = CurrNode%CrossSection%Level(1)
+
+        do while(Z /= Elevation(1))
+
+            k = minloc(Elev2)   !Lower level
+            itab = k(1)
+            ZLow = Elev2(itab)
+
+            Elev2(itab) = - null_real
+            Z = minval(Elev2)
+            k = minloc(Elev2)
+            itabZ = k(1)
+               
+            dH = Z - ZLow
+
+            if (dH > AlmostZero) then
+                call ComputeExtraArea (CurrNode%CrossSection,       &
+                                         itab, dH,      &
+                                         SlopeLeft    = Sl,         &
+                                         SlopeRight   = Sr,         &
+                                         BottomWidth  = Bw,         &
+                                         VerticalArea = Av,         &
+                                         WetPerimeter = Pw,         &
+                                         SurfaceWidth = Sw)
+
+
+                CurrNode%CrossSection%Level            (ilev)   = Z
+                CurrNode%CrossSection%LevelVerticalArea(ilev)   = CurrNode%CrossSection%LevelVerticalArea(ilev-1) + Av
+                CurrNode%CrossSection%LevelWetPerimeter(ilev)   = CurrNode%CrossSection%LevelWetPerimeter(ilev-1) + Pw
+                CurrNode%CrossSection%LevelSurfaceWidth(ilev)   = Sw
+                
+                CurrNode%CrossSection%LevelSlopeLeft   (ilev-1) = Sl
+                CurrNode%CrossSection%LevelSlopeRight  (ilev-1) = Sr            
+                CurrNode%CrossSection%LevelBottomWidth (ilev-1) = Bw
+
+                if (ilev > 2)      &
+                    CurrNode%CrossSection%LevelWetPerimeter(ilev) = CurrNode%CrossSection%LevelWetPerimeter(ilev) - Bw
+
+                ilev = ilev + 1
+            
+            endif
+
+        enddo
+
+        deallocate(Elev2)
+
+        ilev = ilev -1 
+        if (ilev /= NLevels) then
+            write(*,*) 'NLevels wrong in Node ', CurrNode%ID
+            stop 'InitializeTabularCrossSection - ModuleDrainageNetwork - ERR05'
+        endif
+
+        !write(*,*) 'Level, VerticalArea, WetPerimeter, SurfaceWidth, SlopeLeft, SlopeRight, BottomWidth'
+        !do i = 1,NLevels
+        !    write(*,*) CurrNode%CrossSection%Level(i),              &
+        !               CurrNode%CrossSection%LevelVerticalArea(i),  &
+        !               CurrNode%CrossSection%LevelWetPerimeter(i),  &
+        !               CurrNode%CrossSection%LevelSurfaceWidth(i),  &
+        !               CurrNode%CrossSection%LevelSlopeLeft   (i),  &
+        !               CurrNode%CrossSection%LevelSlopeRight  (i),  &
+        !               CurrNode%CrossSection%LevelBottomWidth (i)            
+        !enddo
+
+        CurrNode%CrossSection%BottomWidth = CurrNode%CrossSection%LevelBottomWidth(1)
+
+        !for when the vol > vol max (it happens but then restarts)
+        CurrNode%CrossSection%LevelSlopeLeft   (NLevels) = CurrNode%CrossSection%LevelSlopeLeft    (NLevels-1)
+        CurrNode%CrossSection%LevelSlopeRight  (NLevels) = CurrNode%CrossSection%LevelSlopeRight   (NLevels-1)         
+        CurrNode%CrossSection%LevelBottomWidth (NLevels) = CurrNode%CrossSection%LevelSurfaceWidth (NLevels)
+
+
+    end subroutine InitializeTabularCrossSection
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine ComputeExtraArea (CrossSection, ITab, dH, SlopeLeft, SlopeRight, &
+                                 BottomWidth, VerticalArea, WetPerimeter, SurfaceWidth)
+
+        !Arguments ------------------------------------------------------------
+        type(T_CrossSection)                :: CrossSection
+        integer , intent(in)                :: ITab
+        real    , intent(in)                :: dH        
+        real    , intent(out)               :: SlopeLeft, SlopeRight, BottomWidth
+        real    , intent(out)               :: VerticalArea, WetPerimeter, SurfaceWidth
+
+        !Locals----------------------------------------------------------------
+        integer                             :: N, I, IBL
+        real                                :: OtherSideStation, Z
+        real, dimension(:), pointer         :: Slope, Station, Elevation
+
+        N         = CrossSection%NStations
+        IBL       = CrossSection%IBottom
+        Slope     => CrossSection%BankSlope
+        Station   => CrossSection%Station
+        Elevation => CrossSection%Elevation
+
+        Z = Elevation(ITab)
+
+        do i = IBL,N
+            if (Elevation(i) <= Z) SlopeRight = Slope(i)
+        enddo
+        
+        do i = 1,IBL
+            if (Elevation(i) > Z) SlopeLeft = Slope(i)
+        enddo
+             
+        if (ITab <= IBL) then   ! pertence ao left bank
+        ! procurar a station no right bank
+        ! para calcular a bottom width deste trapezio
+
+            do i = IBL,N
+                if (Elevation(i) == Z) then
+                    OtherSideStation = Station(i)
+                    !exit - aqui nao porque quero a station mais a direita
+                elseif (Elevation(i) < Z) then
+                    OtherSideStation = Station(i) + Slope(i) * (Z - Elevation(i))
+                endif
+            enddo
+
+        else    !pertence ao right bank
+        ! procurar a station no left bank
+        ! para calcular a bottom width deste trapezio
+
+            do i = 1,IBL
+                if (Elevation(i) == Z) then
+                    OtherSideStation = Station(i)
+                    exit !aqui poe-se exit porque quero a station mais a esquerda
+                elseif (Elevation(i) > Z) then
+                    OtherSideStation = Station(i) + Slope(i) * (Z - Elevation(i))                    
+                endif
+            enddo
+
+        endif
+
+        BottomWidth  = abs(Station(ITab) - OtherSideStation)
+
+        call TrapezoidGeometry (b  = BottomWidth,   &
+                                mL = SlopeLeft,     &
+                                mR = SlopeRight,    &
+                                h  = dH,            &
+                                Av = VerticalArea,  &
+                                P  = WetPerimeter,  &
+                                Sw = SurfaceWidth) 
+
+
+        !VerticaArea  = BottomWidth * dH + abs(SlopeLeft) * dH * dH * 0.5 + SlopeRight * dH * dH * 0.5
+        !WetPerimeter = ( sqrt( 1. + SlopeLeft**2 ) + sqrt( 1. + SlopeRight**2 ) ) * dH
+        !SurfaceWidth = BottomWidth + SlopeLeft * dH + SlopeRight * dH
+
+!100 format(I2, 1x, 2F6.2,1x, F8.2, 1x, F8.2, 1x, 2F6.1,2F8.3)
+!        write(*,100) ITab, Z, dH, SlopeLeft, SlopeRight, Station(ITab), OtherSideStation, dH, VerticalArea
+
+        nullify(Slope, Station, Elevation)    
+
+    end subroutine ComputeExtraArea
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine CheckNodesConsistency
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        type (T_Node), pointer                          :: CurrNode, NextNode
+        integer                                         :: NodeID, NextNodeID
+
+        do NodeID = 1, Me%TotalNodes
+
+            CurrNode => Me%Nodes (NodeID)
+   
+            do NextNodeID = 1, Me%TotalNodes            
+
+                NextNode => Me%Nodes (NextNodeID)
+                
+                if (NextNodeID /= NodeID) then
+                    !Verifies if there are two nodes in the same location
+                    if (abs(NextNode%X - CurrNode%X) < AllmostZero) then
+                        if (abs(NextNode%Y - CurrNode%Y) < AllmostZero) then
+                            write (*,*)'Two nodes at the same location'
+                            write (*,*)'Node ID', NodeID
+                            stop 'CheckNodesConsistency - ModuleDrainageNetwork - ERR01'
+                        endif
+                    endif
+                endif
+
+            end do
+        end do
+
+    end subroutine CheckNodesConsistency
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    
+    subroutine ConstructReachList
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                     :: ClientNumber
+        logical                                     :: BlockFound
+        integer                                     :: FirstLine, LastLine            
+        integer                                     :: STAT_CALL, ReachPos
+
+
+        call CountTotalReaches
+
+        nullify  (Me%Reaches)
+        allocate (Me%Reaches (1:Me%TotalReaches)) 
+        
+        ReachPos = 0       
+
+do1:    do 
+
+            call ExtractBlockFromBuffer(Me%Files%ObjEnterDataNetwork, ClientNumber,      &
+                                        BeginReach, EndReach, BlockFound,                &
+                                        FirstLine, LastLine, STAT_CALL) 
+
+if1:        if (STAT_CALL .EQ. SUCCESS_) then    
+
+if2:              if (BlockFound) then                 
+
+                    ReachPos = ReachPos + 1   
+                                                                                          
+                    call ConstructReach (ReachPos)
+                                      
+                  else if2
+
+                    if (ReachPos /= Me%TotalReaches) stop 'ModuleDrainageNetwork - ConstructReachList - ERR01'
+
+                    call Block_Unlock(Me%Files%ObjEnterDataNetwork, ClientNumber, STAT = STAT_CALL) 
+                    if (STAT_CALL .NE. SUCCESS_)                                         &
+                        stop 'ModuleDrainageNetwork - ConstructReachList - ERR02'
+
+                    exit do1    !No more blocks
+
+                  end if if2
+
+            else if (STAT_CALL .EQ. BLOCK_END_ERR_) then if1
+
+                    stop 'ModuleDrainageNetwork - ConstructReachList - ERR03.'
+
+            end if if1
+
+        end do do1
+
+        !Checks Consistency
+        if (Me%CheckReaches) call CheckReachesConsistency
+        
+        !Calculates Length / Slope
+        call CalculateReaches
+
+    end subroutine ConstructReachList 
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine CountTotalReaches
+      
+        !Local------------------------------------------------------------------
+        integer                                     :: ClientNumber
+        logical                                     :: BlockFound
+        integer                                     :: FirstLine, LastLine            
+        integer                                     :: STAT_CALL
+        integer                                     :: ReachID, OldReachID
+        !integer                                     :: MaxReachID, MinReachID
+        integer                                     :: flag
+
+
+        Me%TotalReaches =  0
+        !MinReachID = - null_int
+        !MaxReachID = null_int
+        OldReachID = null_int
+
+
+do1:    do 
+
+            call ExtractBlockFromBuffer(Me%Files%ObjEnterDataNetwork, ClientNumber,      &
+                                        BeginReach, EndReach, BlockFound,                &
+                                        FirstLine, LastLine, STAT_CALL) 
+
+if1:        if (STAT_CALL .EQ. SUCCESS_) then    
+
+if2:              if (BlockFound) then                 
+
+                    !Gets ID
+                    call GetData(ReachID,                                       &
+                                 Me%Files%ObjEnterDataNetwork, flag,            & 
+                                 keyword      = 'ID',                           &
+                                 ClientModule = 'DrainageNetwork',              &
+                                 SearchType   = FromBlock,                      &
+                                 STAT         = STAT_CALL)                                  
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - CountTotalReaches - ERR01'
+
+                    if (flag /= 1) then
+                        write (*,*)'Invalid Reach ID [ID]'
+                        stop 'ModuleDrainageNetwork - CountTotalReaches - ERR02'
+                    endif
+
+                    Me%TotalReaches = Me%TotalReaches + 1
+                                        
+                    !if (ReachID .LT. MinReachID ) MinReachID = ReachID
+                    !if (ReachID .GT. MaxReachID ) MaxReachID = ReachID
+                   
+                    if (ReachID .EQ. OldReachID ) then
+                        write (*,*) 'Repeated Reach ID = ', ReachID
+                        stop 'ModuleDrainageNetwork - CountTotalReaches - ERR03'
+                    else
+                        OldReachID = ReachID
+                    end if
+                    
+                                      
+                  else if2
+
+                    !if (MinReachID.NE. 1) then
+                    !    write (*,*) 'Inconsistency in Reach IDs - Missing ReachID = 1'
+                    !    stop 'ModuleDrainageNetwork - CountTotalReaches - ERR04'
+                    !else if (MaxReachID.NE. Me%TotalReaches) then
+                    !    write (*,*) 'Inconsistency in Reach IDs - Missing ReachID =', Me%TotalReaches
+                    !    stop 'ModuleDrainageNetwork - CountTotalReaches - ERR05'
+                    !end if
+
+                    call Block_Unlock(Me%Files%ObjEnterDataNetwork, ClientNumber, STAT = STAT_CALL) 
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - CountTotalReaches - ERR06'
+
+                    call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - CountTotalReaches - ERR07'
+
+
+                    exit do1    !No more blocks
+
+                  end if if2
+
+            else if (STAT_CALL .EQ. BLOCK_END_ERR_) then if1
+
+                    stop 'ModuleDrainageNetwork - CountTotalReaches - ERR08.'
+
+            end if if1
+
+        end do do1
+        
+    end subroutine CountTotalReaches
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine ConstructReach (ReachPos)
+               
+        !Arguments--------------------------------------------------------------
+        integer, intent(IN)                         :: ReachPos
+        !Local------------------------------------------------------------------
+        integer                                     :: DownNodeID, UpNodeID
+        type (T_Reach), pointer                     :: NewReach
+        integer                                     :: flag, STAT_CALL
+        logical                                     :: Found
+
+        !------------------------------------------------------------------------
+
+        nullify (NewReach)
+        NewReach => Me%Reaches (ReachPos)
+
+        !Gets ID
+        call GetData(NewReach%ID,                                               &
+                     Me%Files%ObjEnterDataNetwork, flag,                        &
+                     keyword      = 'ID',                                       &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromBlock,                                  &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructReach - ERR01'
+        if (flag /= 1) then
+            write (*,*)'Invalid Reach ID [ID]'
+            stop 'ModuleDrainageNetwork - ConstructReach - ERR01'
+        endif
+
+        !Gets Active Flag
+        call GetData(NewReach%Active,                                           &
+                     Me%Files%ObjEnterDataNetwork, flag,                        &
+                     keyword      = 'ACTIVE',                                   &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromBlock,                                  &
+                     Default        = .TRUE.,                                   &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructReach - ERR01a'
+       
+
+        !Gets Downstream Node
+        call GetData(DownNodeID,                                                &
+                     Me%Files%ObjEnterDataNetwork, flag,                        &  
+                     keyword      = 'DOWNSTREAM_NODE',                          &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromBlock,                                  &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructReach - ERR02'
+        if (flag /= 1) then
+            write (*,*)'Invalid Downstream Node [DOWNSTREAM_NODE]'
+            stop 'ModuleDrainageNetwork - ConstructReach - ERR02'
+        endif
+
+        call FindNodePosition (DownNodeID, NewReach%DownstreamNode, Found)     
+
+        if (.NOT.Found) then
+            write (*,*) 'Downstream Node not found'
+            write (*,*) 'Node ID = ', DownNodeID
+            write (*,*) 'ReachID = ', NewReach%ID
+            stop 'ModuleDrainageNetwork - ConstructReach - ERR03'
+        end if
+
+
+        !Gets Upstream Node
+        call GetData(UpNodeID,                                                  &
+                     Me%Files%ObjEnterDataNetwork, flag,                        &  
+                     keyword      = 'UPSTREAM_NODE',                            &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromBlock,                                  &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructReach - ERR05'
+        if (flag /= 1) then
+            write (*,*)'Invalid Upstream Node [UPSTREAM_NODE]'
+            stop 'ModuleDrainageNetwork - ConstructReach - ERR04'
+        endif
+
+        call FindNodePosition (UpNodeID, NewReach%UpstreamNode, Found)
+
+         if (.NOT.Found) then
+            write (*,*) 'Upsream Node not found'
+            write (*,*) 'Node ID = ', UpNodeID
+            write (*,*) 'ReachID = ', NewReach%ID
+            stop 'ModuleDrainageNetwork - ConstructReach - ERR05'
+        end if
+        
+!        str_UpNode   =''
+!        str_DownNode =''
+!        write(str_UpNode  , '(i10)') UpNodeID
+!        write(str_DownNode, '(i10)') DownNodeID
+!
+!        NewReach%Name ='Reach_'//trim(adjustl(adjustr(str_UpNode)))//           &
+!                       '_'//trim(adjustl(adjustr(str_DownNode)))
+
+    end subroutine ConstructReach
+    
+    !---------------------------------------------------------------------------
+
+    function ReachName(CurrReach) result (Name)
+    
+        !Arguments-------------------------------------------------------------
+        type (T_Reach), intent(in)                  :: CurrReach
+        character(len=StringLength)                 :: Name
+        
+        
+        !Local-----------------------------------------------------------------
+        character(LEN = StringLength)               :: str_UpNode, str_DownNode, str_Length, TextFormat
+        
+        write (str_Length, '(i10)') StringLength
+        TextFormat   = '(a'//trim(adjustl(adjustr(str_Length)))//')'
+        str_UpNode   =''
+        str_DownNode =''
+        
+        write(str_UpNode, TextFormat) Me%Nodes(CurrReach%UpstreamNode)%TimeSerieName
+        
+        if (len(trim(adjustl(adjustr(Me%Nodes(CurrReach%DownstreamNode)%TimeSerieName)))) == 0) then
+            write(str_DownNode, '(i10)') CurrReach%DownstreamNode
+        else
+            write(str_DownNode, TextFormat) Me%Nodes(CurrReach%DownstreamNode)%TimeSerieName
+        endif
+        
+        Name = 'Reach_'//trim(adjustl(adjustr(str_UpNode)))//           &
+                    '_'//trim(adjustl(adjustr(str_DownNode)))        
+
+    end function ReachName
+
+    !---------------------------------------------------------------------------
+
+!    subroutine FindOutlet
+!    
+!        !Local------------------------------------------------------------------
+!        type (T_Reach), pointer                         :: CurrReach, NextReach
+!        integer                                         :: ReachID
+!        type (T_Node), pointer                          :: DownNode
+!    
+!        !Begin------------------------------------------------------------------
+!
+!do1:    do ReachID = 1, Me%TotalReaches
+!            CurrReach => Me%Reaches (ReachID)    
+!            DownNode => Me%Nodes (CurrReach%DownstreamNode)
+!            if (DownNode%nDownstreamReaches .EQ. 0) then
+!                Me%OutletReach => CurrReach
+!                exit do1
+!            endif
+!        enddo do1
+!    
+!    !-----------------------------------------------------------------------
+!    
+!    end subroutine FindOutlet
+    
+    !---------------------------------------------------------------------------
+    
+    subroutine CheckReachesConsistency      
+
+        !Local------------------------------------------------------------------
+        integer                                         :: ReachID, NodeID
+        integer                                         :: NextReachID
+        type (T_Reach), pointer                         :: CurrReach, NextReach
+        logical                                         :: DownstreamNodeExists
+        logical                                         :: UpstreamNodeExists
+        logical                                         :: NodeExists
+        integer                                         :: IsolatedNodes
+
+        do ReachID = 1, Me%TotalReaches
+
+        CurrReach => Me%Reaches (ReachID)
+
+            !Verifies if Reach DownStreamNode is not equal UpStreamNode
+            if (CurrReach%DownstreamNode ==  CurrReach%UpstreamNode) then
+                write (*,*)'Downstream Node must be different from Upstream Node'
+                write (*,*)'Reach ID', CurrReach%ID
+                write (*,*)'Reach Position', ReachID
+                stop 'CheckReachesConsistency - ModuleDrainageNetwork - ERR02'
+            endif
+
+            do NextReachID = 1, Me%TotalReaches
+    
+            NextReach => Me%Reaches (NextReachID)            
+                
+                if (NextReachID /= ReachID) then
+                    !Verifies if there are two reaches with the same end nodes
+                    if (CurrReach%UpstreamNode   == NextReach%UpstreamNode .and.               &
+                        CurrReach%DownstreamNode == NextReach%DownstreamNode) then
+                        write (*,*)'Two reaches with the same end nodes ID'
+                        write (*,*)'Reach ID', ReachID
+                        stop 'CheckReachesConsistency - ModuleDrainageNetwork - ERR04'
+                    endif
+                end if 
+                               
+            end do
+            
+        end do
+
+
+        do ReachID = 1, Me%TotalReaches
+        
+        CurrReach => Me%Reaches (ReachID)
+    
+            DownstreamNodeExists = .false.
+            UpStreamNodeExists   = .false.
+            
+            do NodeID = 1, Me%TotalNodes
+                       
+                if (NodeID == CurrReach%DownstreamNode) then
+                    DownstreamNodeExists = .true.
+                endif
+                if (NodeID == CurrReach%UpstreamNode) then
+                    UpStreamNodeExists   = .true.
+                endif
+                
+            enddo
+
+            if (.not. DownstreamNodeExists) then
+                write (*,*)'Downstream Node does not exists for Reach'
+                write (*,*)'Reach Pos', ReachID
+                stop 'CheckReachesConsistency - ModuleDrainageNetwork - ERR05'
+            endif
+            
+            if (.not. UpStreamNodeExists) then
+                write (*,*)'Upstream Node does not exists for Reach'
+                write (*,*)'Reach Pos', ReachID
+                stop 'CheckReachesConsistency - ModuleDrainageNetwork - ERR06'
+            endif
+
+        enddo    
+        
+        !check if there are more nodes than present in reach list.
+        !it happens in rivers with a single node in several outlets mode. 
+        !This nodes should be removed
+        IsolatedNodes = 0
+        do NodeID = 1, Me%TotalNodes
+        
+            NodeExists = .false.
+            
+            do ReachID = 1, Me%TotalReaches
+                
+                CurrReach => Me%Reaches (ReachID)
+                      
+                if (NodeID == CurrReach%DownstreamNode) then
+                    NodeExists = .true.
+                endif
+                if (NodeID == CurrReach%UpstreamNode) then
+                    NodeExists = .true.
+                endif
+                
+            enddo
+            
+            !if not found in reaches list warn user. for each found
+            if (.not. NodeExists) then
+                IsolatedNodes = IsolatedNodes + 1
+                write (*,*)'Isolated node without reach found'
+                write (*,*)'Node Pos:', NodeID
+                write (*,*)
+                !stop 'CheckReachesConsistency - ModuleDrainageNetwork - ERR07'
+            endif
+            
+        enddo
+        
+        if (IsolatedNodes .gt. 0) then
+            write (*,*) IsolatedNodes, 'Isolated nodes were found in Drainage Network File'
+            write (*,*)
+            write (*,*) 'If not delineating the watershed and using several outlets,'
+            write (*,*) 'it is suggested to use a fixed drainage network (DN) file.'
+            write (*,*) 'Add WRITE_REACHES : 1 and path for DN file in REACHES_FILE'
+            write (*,*) 'in Basin Geometry_X.dat, run the model again and process cross'
+            write (*,*) 'sections from the fixed file that will be written'
+            write (*,*) 
+            stop 'CheckReachesConsistency - ModuleDrainageNetwork - ERR08'
+        endif               
+    
+    end subroutine CheckReachesConsistency
+
+    !---------------------------------------------------------------------------
+
+    subroutine CalculateReaches
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                     :: ReachID
+        type (T_Reach), pointer                     :: CurrReach
+        type (T_Node), pointer                      :: DownstreamNode
+        type (T_Node), pointer                      :: UpstreamNode
+        character(len=256)                          :: AuxString
+
+        do ReachID = 1, Me%TotalReaches
+        
+            CurrReach => Me%Reaches (ReachID)
+        
+            nullify (DownstreamNode)
+            nullify (UpstreamNode  )
+
+            DownstreamNode => Me%Nodes (CurrReach%DownstreamNode)
+            UpstreamNode   => Me%Nodes (CurrReach%UpstreamNode  )
+
+            if (Me%CoordType == 1) then
+                CurrReach%Length = DistanceBetweenTwoGPSPoints(DownstreamNode%X, DownstreamNode%Y, UpstreamNode%X, UpstreamNode%Y)
+            else
+                CurrReach%Length = sqrt( (DownstreamNode%X - UpstreamNode%X) ** 2. +         &
+                                         (DownstreamNode%Y - UpstreamNode%Y) ** 2.)         
+            endif
+            
+            CurrReach%Slope  = (UpstreamNode%CrossSection%BottomLevel -                  &
+                                DownstreamNode%CrossSection%BottomLevel) /               &
+                                CurrReach%Length
+
+            !Nao sei se isto é boa ideia...                                
+            if (CurrReach%Slope <= - Me%MinimumSlope ) then
+
+                write(AuxString,*) 'Negative slope in reach',CurrReach%ID
+                call SetError(WARNING_, INTERNAL_, AuxString, ON)                            
+
+!                if (Me%HydrodynamicApproximation == KinematicWave) then
+!                    Me%HydrodynamicApproximation = DiffusionWave                
+!                    call SetError(WARNING_, INTERNAL_, 'Changing HydrodynamicApproximation to DiffusionWave', ON)            
+!                endif
+
+            endif 
+
+            !Sets minimum slope so water doesnt not stop in reaches with little drainage
+            !Handle with care...
+            !CurrReach%Slope = max(CurrReach%Slope, Me%MinimumSlope)
+            if (abs(CurrReach%Slope) < Me%MinimumSlope) then
+                CurrReach%Slope = sign(Me%MinimumSlope, CurrReach%Slope)
+            endif
+            
+        enddo    
+
+    end subroutine CalculateReaches
+
+        
+
+    !---------------------------------------------------------------------------
+
+    subroutine ConnectNetwork
+    
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                     :: ReachID, NodeID
+        type (T_Node), pointer                      :: CurrNode
+        type (T_Reach), pointer                     :: CurrReach
+        integer                                     :: iUp, iDown
+        
+        do NodeID = 1, Me%TotalNodes
+
+            CurrNode => Me%Nodes (NodeID)        
+
+            !Check Upstream /Downstream Reaches to Node
+            do ReachID = 1, Me%TotalReaches 
+            
+                CurrReach => Me%Reaches (ReachID)           
+
+                if (CurrReach%UpstreamNode == NodeID) then
+                    CurrNode%nDownstreamReaches = CurrNode%nDownstreamReaches + 1
+                endif
+
+                if (CurrReach%DownstreamNode == NodeID) then
+                    CurrNode%nUpstreamReaches = CurrNode%nUpstreamReaches     + 1
+                endif
+            
+            enddo
+
+            !Tests consistency
+            if (CurrNode%nDownstreamReaches > 1) then
+                write (*,*)'Node with more then one Downstream reaches [ID]', NodeID
+            endif
+
+            !Allocates DownstreamReaches / UpstreamReaches
+            if (CurrNode%nUpstreamReaches > 0) then
+                allocate (CurrNode%UpstreamReaches  (CurrNode%nUpstreamReaches))
+            endif
+
+            if (CurrNode%nDownstreamReaches > 0) then
+                allocate (CurrNode%DownstreamReaches(CurrNode%nDownstreamReaches))
+            
+            endif
+            
+            !Fills DownstreamReaches / UpstreamReaches to Node
+            iUp   = 0
+            iDown = 0
+
+            do ReachID = 1, Me%TotalReaches
+                
+                CurrReach => Me%Reaches (ReachID)           
+
+                if (CurrReach%UpstreamNode == NodeID) then
+                    iDown = iDown + 1
+                    CurrNode%DownstreamReaches(iDown) = ReachID
+                endif
+
+                if (CurrReach%DownstreamNode == NodeID) then
+                    iUp = iUp + 1
+                    CurrNode%UpstreamReaches  (iUp  ) = ReachID
+                endif
+
+            enddo
+
+       enddo
+
+
+    end subroutine ConnectNetwork
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    
+    subroutine OrderNodes
+    
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                     :: NodePos
+        type (T_Node), pointer                      :: CurrNode, UpNode
+        type (T_Reach), pointer                     :: UpReach
+        integer                                     :: iOrder, i
+        logical                                     :: Done
+
+        
+
+        do NodePos = 1, Me%TotalNodes
+            Me%Nodes(NodePos)%Order = null_int
+        end do
+
+        !Initialize Heads
+        do NodePos = 1, Me%TotalNodes            
+
+            if (Me%Nodes(NodePos)%nUpstreamReaches == 0)                          &
+                Me%Nodes(NodePos)%Order = 1
+        end do
+
+        Done = .false.
+do1:    do while (.not.Done)
+            
+            !Assign other nodes orders        
+            do NodePos = 1, Me%TotalNodes            
+            
+                CurrNode => Me%Nodes (NodePos)            
+                
+                iOrder = 0
+                do i = 1, CurrNode%nUpstreamReaches
+                
+                    UpReach => Me%Reaches (CurrNode%UpstreamReaches(i))
+                    UpNode  => Me%Nodes   (UpReach%UpstreamNode)
+                
+                    if (UpNode%Order .GT. 0) then
+                        iOrder = iOrder + UpNode%Order
+                    else
+                        iOrder = null_int
+                        exit
+                    end if
+
+                end do
+
+                CurrNode%Order = 1 + iOrder
+
+            end do
+
+            Done = .true.
+            do NodePos = 1, Me%TotalNodes
+                if (Me%Nodes(NodePos)%Order .LT. 0.0) then
+                    Done = .false.
+                    exit
+                end if        
+            end do
+
+        end do do1
+
+        !With this ordering method, the highest order is equal to the sum of all nodes
+        Me%HighestOrder = Me%TotalNodes
+
+    end subroutine OrderNodes
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine ReconnectNetwork
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                     :: NodePos, iPos, iOrder, i
+        type (T_Node) , dimension(:), pointer       :: NewNodes
+        type (T_Node) , pointer                     :: CurrNode
+        type (T_Reach), pointer                     :: CurrReach
+
+        nullify (NewNodes)       
+        allocate (NewNodes (1:Me%TotalNodes))        
+
+        iPos = 1
+        do iOrder  = 1, Me%HighestOrder
+        do NodePos = 1, Me%TotalNodes
+
+            CurrNode => Me%Nodes (NodePos)
+            
+            if (CurrNode%Order == iOrder) then
+                
+                NewNodes (iPos) = CurrNode
+                
+                if (CurrNode%nDownstreamReaches == 1) then
+                    CurrReach => Me%Reaches (CurrNode%DownstreamReaches (1))
+                    CurrReach%UpstreamNode = iPos
+                end if
+
+                do i = 1, CurrNode%nUpstreamReaches
+                    CurrReach => Me%Reaches (CurrNode%UpstreamReaches (i))
+                    CurrReach%DownstreamNode = iPos
+                end do
+                
+                iPos = iPos + 1
+
+            end if
+
+        end do        
+        end do
+
+        Me%Nodes = NewNodes
+        deallocate (NewNodes)
+
+        call CheckReachesConsistency
+
+
+    end subroutine ReconnectNetwork
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    
+    subroutine WriteOrderedNodes
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                     :: Unit, NodePos
+        type (T_Node), pointer                      :: CurrNode       
+
+        call UnitsManager (Unit, OPEN_FILE)
+        open (unit = unit, file = trim('nodes ordered.xyz'), status = 'unknown')
+
+        write (unit, *)"<begin_xyz>"
+
+        do NodePos = 1, Me%TotalNodes
+
+            CurrNode => Me%Nodes (NodePos)                        
+            write (unit, *) CurrNode%X, CurrNode%Y, CurrNode%Order
+
+        enddo
+
+        write (unit, *)"<end_xyz>"           
+
+        call UnitsManager (Unit, CLOSE_FILE)
+
+    end subroutine WriteOrderedNodes
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine CountOutlets ()
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                 :: NodePos, SaveNodeID, SaveReachID, OutletID
+        type (T_Node ), pointer                 :: CurrNode
+        type (T_Reach), pointer                 :: CurrReach
+
+        Me%TotalOutlets = 0
+
+        do NodePos = 1, Me%TotalNodes
+
+            CurrNode => Me%Nodes(NodePos)
+            if (CurrNode%nDownstreamReaches .EQ. 0) then
+                Me%TotalOutlets = Me%TotalOutlets + 1
+                if (CurrNode%nUpstreamReaches .NE. 1) then
+                    write (*,*)
+                    write (*,*) 'Outlet node must have a single upstream reach'
+                    write (*,*) 'Check Node ID = ', CurrNode%ID
+                    write (*,*)
+                    write (*,*) 'If not delineating the watershed and using several outlets,'
+                    write (*,*) 'it is suggested to use a fixed drainage network (DN) file.'
+                    write (*,*) 'Add WRITE_REACHES : 1 and path for DN file in REACHES_FILE'
+                    write (*,*) 'in Basin Geometry_X.dat, run the model again and process cross'
+                    write (*,*) 'sections from the fixed file that will be written'
+                    write (*,*)
+                    stop 'CountOutlets - ModuleDrainageNetwork - ERR01'
+                end if
+                
+                !if only one outlet, this info will be used
+                CurrReach => Me%Reaches(CurrNode%UpstreamReaches (1))
+                SaveReachID = CurrReach%ID                
+                SaveNodeID = CurrNode%ID
+
+            end if
+
+        end do
+        
+        !Allow more than one outlet
+        !if (Me%TotalOutlets /= 1) stop 'ModuleDrainageNetwork - CountOutlets - ERR01'
+        
+        allocate (Me%OutletReachID(Me%TotalOutlets))
+        allocate (Me%OutletNodeID(Me%TotalOutlets))
+        
+        if (Me%TotalOutlets /= 1) then
+            
+            !After knowing how many (to allocate) go again and save positions
+            !Outlets will not have a type for now since all they need is an ID and they are not read from file
+            !and Me%OutletReachID and Me%OutletNodeID have the node and reach info
+            OutletID = 1
+            do NodePos = 1, Me%TotalNodes
+
+                CurrNode => Me%Nodes(NodePos)
+                if (CurrNode%nDownstreamReaches .EQ. 0) then
+                    
+                    CurrReach => Me%Reaches(CurrNode%UpstreamReaches (1))
+                    Me%OutletReachID(OutletID) = CurrReach%ID
+                    Me%OutletNodeID(OutletID) = CurrNode%ID
+                    OutletID = OutletID + 1
+                    
+                end if
+
+            end do        
+        else
+            Me%OutletReachID(1) = SaveReachID
+            Me%OutletNodeID(1) = SaveNodeID
+        end if
+        
+    end subroutine CountOutlets
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+        
+    subroutine ConstructPropertyList
+
+        !Local------------------------------------------------------------------
+        type (T_Property), pointer                  :: NewProperty
+        integer                                     :: ClientNumber
+        integer                                     :: STAT_CALL
+        logical                                     :: BlockFound
+
+
+        ! Initialize the properties number   
+        Me%PropertiesNumber = 0
+
+        ! Initialize the properties list   
+        nullify (Me%FirstProperty)        
+
+do1 :   do
+            call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,          &
+                                        block_begin, block_end, BlockFound,     &
+                                        STAT = STAT_CALL)
+
+cd1 :       if      (STAT_CALL .EQ. SUCCESS_      ) then    
+cd2 :           if (BlockFound) then                                                  
+                                        
+                    call ConstructProperty(NewProperty)
+                    
+                    call Add_Property(NewProperty)
+
+                else
+                    
+                    call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+                    if (STAT_CALL /= SUCCESS_) &
+                        stop 'ConstructPropertyList - ModuleDrainageNetwork - ERR01'
+
+                    exit do1    !No more blocks
+
+                end if cd2
+
+            else if (STAT_CALL .EQ. BLOCK_END_ERR_) then cd1
+                write(*,*)  
+                write(*,*) 'Error calling ExtractBlockFromBuffer. '
+                stop 'ConstructPropertyList - ModuleDrainageNetwork - ERR02'
+            end if cd1
+        end do do1
+
+        if (Me%PropertiesNumber .GT. 0) then
+            Me%HasProperties = .true.
+        end if
+
+    end subroutine ConstructPropertyList
+
+    !---------------------------------------------------------------------------
+        
+    subroutine ConstructProperty(NewProperty)
+
+        !Arguments--------------------------------------------------------------
+        type(T_property), pointer       :: NewProperty
+
+        !External---------------------------------------------------------------
+        integer                         :: STAT_CALL
+
+        !-----------------------------------------------------------------------
+             
+
+        allocate (NewProperty, STAT = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructProperty - ModuleDrainageNetwork - ERR01'
+
+        allocate (NewProperty%Concentration            (1:Me%TotalNodes))
+        allocate (NewProperty%ConcentrationOld         (1:Me%TotalNodes))
+        allocate (NewProperty%InitialConcentration     (1:Me%TotalNodes))
+        allocate (NewProperty%InitialConcentrationOld  (1:Me%TotalNodes))
+        allocate (NewProperty%MassCreated              (1:Me%TotalNodes))
+        allocate (NewProperty%OverLandConc             (1:Me%TotalNodes))
+        allocate (NewProperty%GWaterConc               (1:Me%TotalNodes))
+        allocate (NewProperty%DWaterConc               (1:Me%TotalNodes))
+        allocate (NewProperty%TotalConc                (1:Me%TotalNodes))
+        allocate (NewProperty%Load                     (1:Me%TotalNodes))
+        allocate (NewProperty%MassInKg                 (1:Me%TotalNodes))
+        allocate (NewProperty%OutputMass               (1:Me%TotalNodes))
+        allocate (NewProperty%InitialOutputMass        (1:Me%TotalNodes))
+        allocate (NewProperty%OutputTime               (1:Me%TotalNodes))
+        allocate (NewProperty%InitialOutputTime        (1:Me%TotalNodes))            
+       
+        NewProperty%Concentration           = 0.0
+        NewProperty%ConcentrationOld        = 0.0
+        NewProperty%InitialConcentration    = 0.0
+        NewProperty%InitialConcentrationOld = 0.0
+        NewProperty%MassCreated             = 0.0
+        NewProperty%OverLandConc            = 0.0
+        NewProperty%GWaterConc              = 0.0
+        NewProperty%TotalConc               = 0.0
+        NewProperty%Load                    = 0.0
+        NewProperty%MassInKg                = 0.0
+        NewProperty%InitialOutputMass       = 0.0
+        NewProperty%OutputMass              = 0.0
+        NewProperty%InitialOutputTime       = 0.0
+        NewProperty%OutputTime              = 0.0
+
+        call ConstructPropertyID     (NewProperty%ID, Me%ObjEnterData, FromBlock)
+
+        call ConstructPropertyValues (NewProperty)
+        
+        if (NewProperty%ComputeOptions%Toxicity) then
+
+            nullify(NewProperty%Toxicity%Field)            
+            allocate (NewProperty%Toxicity%Field (1:Me%TotalNodes))
+            NewProperty%Toxicity%Field = 0.0
+
+        end if
+
+    end subroutine ConstructProperty
+
+    !--------------------------------------------------------------------------
+    
+    subroutine ConstructPropertyValues (NewProperty)
+
+        !Arguments-------------------------------------------------------------
+        type(T_property),   pointer                 :: NewProperty
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: iflag
+        real                                        :: OverLandConcentration
+        real                                        :: GWaterConcentration
+        real                                        :: DWaterConcentration
+        real                                        :: BottomInitialConc
+        logical                                     :: Aux
+        real                                        :: ModelDT, auxFactor, errorAux, DTaux
+        
+        !Begin-----------------------------------------------------------------
+
+        call GetData(NewProperty%ComputeOptions%ComputeLoad,                    &
+                     Me%ObjEnterData, iflag,                                    &
+                     Keyword        = 'COMPUTE_LOAD',                           &
+                     ClientModule   = 'ModuleDrainageNetwork',                  &
+                     SearchType     = FromBlock,                                &
+                     Default        = .FALSE.,                                  &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                            &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR01'
+            
+        if (NewProperty%ComputeOptions%ComputeLoad) then
+            Me%ComputeOptions%ComputeLoad = .true.
+        endif
+
+        call GetData(NewProperty%InitialValue,                                  &
+                     Me%ObjEnterData, iflag,                                    &
+                     Keyword        = 'DEFAULT_VALUE',                          &
+                     ClientModule   = 'ModuleDrainageNetwork',                  &
+                     SearchType     = FromBlock,                                &
+                     STAT           = STAT_CALL)              
+        if (iflag /= 0) then
+            write(*,*)'The keyword DEFAULT_VALUE in Drainage Network file'
+            write(*,*)'is obsolete. Use DEFAULTVALUE instead'
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR01.5'         
+        endif
+        
+        call GetData(NewProperty%InitialValue,                                  &
+                     Me%ObjEnterData, iflag,                                    &
+                     Keyword        = 'DEFAULTVALUE',                           &
+                     ClientModule   = 'ModuleDrainageNetwork',                  &
+                     SearchType     = FromBlock,                                &
+                     Default        = 0.0,                                      &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                            &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR02' 
+
+
+        call GetData(NewProperty%BoundaryConcentration,                         &
+                     Me%ObjEnterData, iflag,                                    &
+                     Keyword        = 'DEFAULTBOUNDARY',                        &
+                     ClientModule   = 'ModuleDrainageNetwork',                  &
+                     SearchType     = FromBlock,                                &
+                     Default        = NewProperty%InitialValue,                 &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                            &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR02aa' 
+
+
+        call GetData(OverLandConcentration,                                     &
+                     Me%ObjEnterData, iflag,                                    &
+                     Keyword        = 'OVERLAND_CONCENTRATION',                 &
+                     ClientModule   = 'ModuleDrainageNetwork',                  &
+                     SearchType     = FromBlock,                                &
+                     Default        = 0.0,                                      &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                            &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR02a' 
+        
+        if (Me%ExtVar%CoupledRP) then
+            if (iflag .ne. 0) then
+                write(*,*)'Using Module RunoffProperties for overland concentration'
+                write(*,*)'keyword OVERLAND_CONCENTRATION in each property is redundant'
+                write(*,*)'and not consistent, please remove it.'
+                stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR02b'
+            endif
+        else
+            NewProperty%OverLandConc = OverLandConcentration
+        endif
+        
+        call GetData(GWaterConcentration,                                       &
+                     Me%ObjEnterData, iflag,                                    &
+                     Keyword        = 'GROUNDWATER_CONCENTRATION',              &
+                     ClientModule   = 'ModuleDrainageNetwork',                  &
+                     SearchType     = FromBlock,                                &
+                     Default        = 0.0,                                      &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                            &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR02c' 
+        
+        if (Me%ExtVar%CoupledPMP) then
+            if (iflag .ne. 0) then
+                write(*,*)'Using Module PorousMediaProperties for groundwater concentration.'
+                write(*,*)'keyword GROUNDWATER_CONCENTRATION in each property is redundant'
+                write(*,*)'and not consistent, please remove it.'
+                stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR02d'
+            endif
+        else        
+            NewProperty%GWaterConc = GWaterConcentration
+        endif
+
+        call GetData(DWaterConcentration,                                       &
+                     Me%ObjEnterData, iflag,                                    &
+                     Keyword        = 'DIFFUSEWATER_CONCENTRATION',             &
+                     ClientModule   = 'ModuleDrainageNetwork',                  &
+                     SearchType     = FromBlock,                                &
+                     Default        = OverLandConcentration,                    &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                            &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR02e' 
+        NewProperty%DWaterConc = DWaterConcentration
+
+
+        call GetData(NewProperty%MinValue,                                      &
+                     Me%ObjEnterData, iflag,                                    &
+                     Keyword        = 'MIN_VALUE',                              &
+                     ClientModule   = 'ModuleDrainageNetwork',                  &
+                     SearchType     = FromBlock,                                &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                            &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR03'
+        
+        if (iflag==1)  then
+            NewProperty%ComputeOptions%MinConcentration = .true.
+            Me%ComputeOptions%MinConcentration          = .true.
+        else
+            NewProperty%ComputeOptions%MinConcentration = .false.
+        endif
+
+        call GetData(NewProperty%ComputeOptions%WarnOnNegativeValues,                    &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType     = FromBlock,                                         &
+                     keyword        = 'WARN_ON_NEGATIVE_VALUES',                         &
+                     ClientModule   = 'ModuleDrainageNetwork',                           &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR3.5' 
+        
+        if (NewProperty%ComputeOptions%WarnOnNegativeValues) Me%ComputeOptions%WarnOnNegativeValues = .true.
+        
+        call GetData(NewProperty%ComputeOptions%AdvectionDiffusion,                 &
+                     Me%ObjEnterData, iflag,                                        &
+                     Keyword        = 'ADVECTION_DIFUSION',                         &
+                     ClientModule   = 'ModuleDrainageNetwork',                      &
+                     SearchType     = FromBlock,                                    &
+                     Default        = ON,                                           &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                                &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR04'
+
+if1:    if (NewProperty%ComputeOptions%AdvectionDiffusion) then
+            
+            Me%ComputeOptions%AdvectionDiffusion = .true.
+                
+            !Numerical Discretization of Advection
+            call GetData(NewProperty%Advection_Scheme,                             &
+                         Me%ObjEnterData, iflag,                                   &
+                         Keyword        = 'ADVECTION_SCHEME',                      &
+                         ClientModule   = 'ModuleDrainageNetwork',                 &
+                         SearchType     = FromBlock,                               &
+                         Default        = UpwindOrder1,                            &
+                         STAT           = STAT_CALL)              
+            if (STAT_CALL .NE. SUCCESS_)                                           &
+                stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR05'
+
+            if (NewProperty%Advection_Scheme /= UpwindOrder1) then
+                write (*,*) 'Invalid option for keyword [ADVECTION_SCHEME]'
+                stop 'ConstructPropertyValues - ModuleDrainageNetwork - ERR06'
+            end if
+!            if (NewProperty%Advection_Scheme /= UpwindOrder1 .AND.                 &
+!                NewProperty%Advection_Scheme /= CentralDif) then
+!                write (*,*) 'Invalid keyword [ADVECTION_SCHEME]'
+!                stop 'ConstructPropertyValues - ModuleDrainageNetwork - ERR06'
+!            end if
+
+
+             call GetData(NewProperty%Diffusion_Scheme,                             &
+                          Me%ObjEnterData, iflag,                                   &
+                          Keyword        = 'DIFFUSION_SCHEME',                      &
+                          ClientModule   = 'ModuleDrainageNetwork',                 &
+                          SearchType     = FromBlock,                               &
+                          Default        = CentralDif,                              &
+                          STAT           = STAT_CALL)              
+            if (STAT_CALL .NE. SUCCESS_)                                            &
+                stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR07'
+ 
+             
+            if (NewProperty%Diffusion_Scheme /= CentralDif) then
+                write (*,*) 'Invalid keyword [DIFFUSION_SCHEME]'
+                stop 'ConstructPropertyValues - ModuleDrainageNetwork - ERR08'
+            end if
+ 
+            !Molecular diffusivity of property in m2/s
+            call GetData(NewProperty%Diffusivity,                                   &
+                         Me%ObjEnterData, iflag,                                    &
+                         Keyword        = 'DIFFUSIVITY',                            &
+                         ClientModule   = 'ModuleDrainageNetwork',                  &
+                         SearchType     = FromBlock,                                &
+                         Default        = 1e-8,                                     &
+                         STAT           = STAT_CALL)              
+            if (STAT_CALL .NE. SUCCESS_)                                            &
+                stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR09' 
+        
+        
+        end if if1
+
+        call GetData(NewProperty%ComputeOptions%Discharges,                         &
+                     Me%ObjEnterData, iflag,                                        &
+                     Keyword        = 'DISCHARGES',                                 &
+                     ClientModule   = 'ModuleDrainageNetwork',                      &
+                     SearchType     = FromBlock,                                    &
+                     Default        = OFF,                                          &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                                &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR10' 
+
+        if (NewProperty%ComputeOptions%Discharges .and. .not. Me%ComputeOptions%Discharges) then
+            call SetError(WARNING_, INTERNAL_, 'Missing keyword [DISCHARGES]', ON)            
+            Me%ComputeOptions%Discharges = ON
+        end if
+        
+        if (NewProperty%ComputeOptions%Discharges) Me%nPropWithDischarges = Me%nPropWithDischarges + 1
+
+        call GetData(NewProperty%ComputeOptions%Toxicity,                           &
+                     Me%ObjEnterData, iflag,                                        &
+                     Keyword        = 'TOXICITY',                                   &
+                     ClientModule   = 'ModuleDrainageNetwork',                      &
+                     SearchType     = FromBlock,                                    &
+                     Default        = OFF,                                          &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                                &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR11' 
+
+        if (NewProperty%ComputeOptions%Toxicity .and. .not. NewProperty%ComputeOptions%Discharges) then
+            write (*,*) 'Toxic property NOT discharged',                        &
+                         trim(adjustl(adjustr(NewProperty%ID%Name)))
+            !stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR12' 
+        end if
+         
+        if (NewProperty%ComputeOptions%Toxicity .and. .not. Me%ComputeOptions%Toxicity) then            
+
+            Me%ComputeOptions%Toxicity = ON
+            nullify     (Me%GlobalToxicity)                       
+            allocate    (Me%GlobalToxicity (1:Me%TotalNodes))
+            Me%GlobalToxicity = 0.0
+
+        end if
+
+        if (NewProperty%ComputeOptions%Toxicity) Me%nToxicProp = Me%nToxicProp + 1
+
+
+ifTox:  if (NewProperty%ComputeOptions%Toxicity) then
+
+            call GetData(NewProperty%Toxicity%Evolution,                            &   
+                         Me%ObjEnterData, iflag,                                    &
+                         Keyword        = 'TOX_EVOLUTION',                          &
+                         ClientModule   = 'ModuleDrainageNetwork',                  &
+                         SearchType     = FromBlock,                                &
+                         Default        = RiskRatio,                                &
+                         STAT           = STAT_CALL)              
+            if (STAT_CALL .NE. SUCCESS_)                                            &
+                stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR13' 
+
+            if (NewProperty%Toxicity%Evolution /= Saturation .and.                  &
+                NewProperty%Toxicity%Evolution /= Linear     .and.                  &
+                NewProperty%Toxicity%Evolution /= RiskRatio ) then
+                write (*,*) 'Toxicity Evolution badly defined',                     &
+                trim(adjustl(adjustr(NewProperty%ID%Name)))
+                stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR13a' 
+            end if
+
+
+if2:        if (NewProperty%Toxicity%Evolution == Saturation .OR.                   &
+                NewProperty%Toxicity%Evolution == RiskRatio        )  then
+
+                !WARNING - this is in fraction of initial concentration units [%]
+                !See header of this module for more information on toxic model
+                call GetData(NewProperty%Toxicity%EC50,                             &   
+                             Me%ObjEnterData, iflag,                                &
+                             Keyword        = 'EC50',                               &
+                             ClientModule   = 'ModuleDrainageNetwork',              &
+                             SearchType     = FromBlock,                            &
+                             Default        = 0.5,                                  &
+                             STAT           = STAT_CALL)              
+                if (STAT_CALL .NE. SUCCESS_)                                        &
+                    stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR13b'
+            else !if2
+            
+                call GetData(NewProperty%Toxicity%Slope,                            &   
+                             Me%ObjEnterData, iflag,                                &
+                             Keyword        = 'SLOPE',                              &
+                             ClientModule   = 'ModuleDrainageNetwork',              &
+                             SearchType     = FromBlock,                            &
+                             Default        = 1.0,                                  &
+                             STAT           = STAT_CALL)              
+                if (STAT_CALL .NE. SUCCESS_)                                        &
+                    stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR13c'
+           
+           end if if2
+
+
+        end if ifTox
+
+
+        call GetData(Aux,                                                                &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'DECAY',                                             &
+                     ClientModule = 'ModuleDrainageNetwork',                             &
+                     STAT         = STAT_CALL)
+        if (iflag == 1) then
+            write(*,*)
+            write(*,*) 'ERROR: '
+            write(*,*) 'DECAY keyword is now obsolete in drainage properties'
+            write(*,*) 'if want to simulate Coliform decay please use DECAY_T90'
+            write(*,*) 'if want to simulate generic decay please use DECAY_GENERIC'
+            stop 'ConstructPropertyValues - ModuleDrainageNetwork - ERR60'
+        endif
+        
+        !Dacay Time
+        call GetData(NewProperty%ComputeOptions%T90_Decay,                          &
+                     Me%ObjEnterData, iflag,                                        &
+                     Keyword        = 'DECAY_T90',                                  &
+                     ClientModule   = 'ModuleDrainageNetwork',                      &
+                     SearchType     = FromBlock,                                    &
+                     Default        = OFF,                                          &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_)                                                &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR11' 
+        
+        if (NewProperty%ComputeOptions%T90_Decay .and. .not. NewProperty%ComputeOptions%Discharges) then
+            write (*,*) 'Decaying properties must be discharged',                   &
+                         trim(adjustl(adjustr(NewProperty%ID%Name)))
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR12' 
+        end if
+         
+        if (NewProperty%ComputeOptions%T90_Decay ) then
+            Me%ComputeOptions%T90_Decay = ON
+        endif
+
+        !Generic decay
+        call GetData(NewProperty%ComputeOptions%Generic_Decay,                           &
+                     Me%ObjEnterData,iflag,                                              &
+                     SearchType   = FromBlock,                                           &
+                     keyword      = 'DECAY_GENERIC',                                     &
+                     ClientModule = 'ModuleDrainageNetwork',                             &
+                     default      = OFF,                                                 &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'ConstructPropertyValues - ModuleDrainageNetwork - ERR50'
+        if (NewProperty%ComputeOptions%Generic_Decay) then
+            Me%ComputeOptions%Generic_Decay       = .true.
+        endif
+
+        if (NewProperty%ComputeOptions%Generic_Decay) then
+            
+            !Decay rate k (s-1) in P = Po*exp(-kt)
+            call GetData(NewProperty%DecayRate,                                              &
+                         Me%ObjEnterData,iflag,                                              &
+                         SearchType   = FromBlock,                                           &
+                         keyword      = 'DECAY_RATE',                                        &
+                         ClientModule = 'ModuleDrainageNetwork',                             &
+                         default      = 0.,                                                  &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                     &
+                stop 'ConstructPropertyValues - ModuleDrainageNetwork - ERR70'            
+            
+        endif
+
+        !Checks for Surface Fluxes
+        call GetData(NewProperty%ComputeOptions%SurfaceFluxes,                      &
+                     Me%ObjEnterData, iflag,                                        &
+                     SearchType   = FromBlock,                                      &
+                     keyword      = 'SURFACE_FLUXES',                               &
+                     Default      = .false.,                                        & 
+                     ClientModule = 'ModuleDrainageNetwork',                        &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR80' 
+
+        if (NewProperty%ComputeOptions%SurfaceFluxes)                               &
+            Me%ComputeOptions%SurfaceFluxes = .true.
+
+        
+        !Checks for Bottom Fluxes
+        call GetData(NewProperty%ComputeOptions%BottomFluxes,                       &
+                     Me%ObjEnterData, iflag,                                        &
+                     SearchType   = FromBlock,                                      &
+                     keyword      = 'BOTTOM_FLUXES',                                &
+                     Default      = .false.,                                        & 
+                     ClientModule = 'ModuleDrainageNetwork',                        &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR90' 
+
+        if (NewProperty%ComputeOptions%BottomFluxes) then
+!~             if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+            if (.not. NewProperty%ID%IsParticulate) then
+                write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' is not'
+                write(*,*) 'recognised as PARTICULATE'
+                stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR100' 
+            end if            
+        endif
+
+       !in Drainage Network all properties recognized by the model as particulate need to
+       !have Bottom Fluxes because if all water exits node the mass needs to go somewhere
+       !and so needs the bottom concentration 
+!~         if(Check_Particulate_Property(NewProperty%ID%IDNumber) .and.  &
+        if (NewProperty%ID%IsParticulate .and. .not. NewProperty%ComputeOptions%BottomFluxes) then
+            write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' has not BOTTOM_FLUXES ON'
+            write(*,*) 'but is recognised by the model as particulate.'
+            write(*,*) 'Particulated recognized properties can accumulate in bottom and'
+            write(*,*) 'need BOTTOM_FLUXES to be active for the propery in Drainage Network'
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR110'
+        end if      
+
+ifB:    if (NewProperty%ComputeOptions%BottomFluxes) then
+            Me%ComputeOptions%BottomFluxes = .true.
+
+            allocate (NewProperty%BottomConc     (1:Me%TotalNodes))
+            allocate (NewProperty%ErosionRate    (1:Me%TotalNodes))
+            allocate (NewProperty%DepositionRate (1:Me%TotalNodes))
+            allocate (NewProperty%Ws             (1:Me%TotalNodes))
+
+            NewProperty%BottomConc              = 0.0
+            NewProperty%ErosionRate             = 0.0
+            NewProperty%DepositionRate          = 0.0
+            NewProperty%Ws                      = 0.0
+
+
+            !Bottom Initial Concentration
+            call GetData(BottomInitialConc,                                             &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromBlock,                                      &
+                         keyword      = 'BOTTOM_CONC',                                  &
+                         Default      =  0.0,                                           & 
+                         ClientModule = 'ModuleDrainageNetwork',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR120' 
+            
+            NewProperty%BottomConc = BottomInitialConc
+
+            !Bottom Initial Concentration
+            call GetData(NewProperty%BottomMinConc,                                     &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromBlock,                                      &
+                         keyword      = 'BOTTOM_MIN_CONC',                              &
+                         Default      =  0.0,                                           & 
+                         ClientModule = 'ModuleDrainageNetwork',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR130' 
+
+            !Compute erosion fluxes
+            call GetData(NewProperty%ComputeOptions%Erosion,                            &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromBlock,                                      &
+                         keyword      = 'EROSION',                                      &
+                         Default      =  .false.,                                       & 
+                         ClientModule = 'ModuleDrainageNetwork',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR140' 
+
+            if (NewProperty%ComputeOptions%Erosion) then
+                !Critial Erosion Shear Stress [Pa]
+                call GetData(NewProperty%ErosionCriticalShear,                              &
+                             Me%ObjEnterData, iflag,                                        &
+                             SearchType   = FromBlock,                                      &
+                             keyword      = 'CRIT_SS_EROSION',                              &
+                             Default      =  0.2,                                           & 
+                             ClientModule = 'ModuleDrainageNetwork',                        &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR150' 
+
+                !Erosion Coefficient [kg m-2 s-1]
+                call GetData(NewProperty%ErosionCoefficient,                                &
+                             Me%ObjEnterData, iflag,                                        &
+                             SearchType   = FromBlock,                                      &
+                             keyword      = 'EROSION_COEF',                                 &
+                             Default      =  5.0E-4,                                        & 
+                             ClientModule = 'ModuleDrainageNetwork',                        &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR160' 
+            
+            end if
+
+
+            !Compute deposition fluxes
+            call GetData(NewProperty%ComputeOptions%Deposition,                         &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType   = FromBlock,                                      &
+                         keyword      = 'DEPOSITION',                                   &
+                         Default      =  .false.,                                       & 
+                         ClientModule = 'ModuleDrainageNetwork',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR170' 
+
+            if (NewProperty%ComputeOptions%Deposition) then
+                !Critial Deposition Shear Stress [Pa]
+                call GetData(NewProperty%DepositionCriticalShear,                           &
+                             Me%ObjEnterData, iflag,                                        &
+                             SearchType   = FromBlock,                                      &
+                             keyword      = 'CRIT_SS_DEPOSITION',                           &
+                             Default      =  0.1,                                           & 
+                             ClientModule = 'ModuleDrainageNetwork',                        &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR180' 
+
+                if (NewProperty%ComputeOptions%Erosion .and. &
+                    NewProperty%DepositionCriticalShear >= NewProperty%ErosionCriticalShear) then
+                    write (*,*) '[CRIT_SS_EROSION] must be higher than [CRIT_SS_DEPOSITION]'
+                    stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR14' 
+                end if
+    
+
+                !See ModuleFreeVerticalMovement - Hindered settling  - CHS - kg m-3
+                call GetData(NewProperty%CHS,                                               &
+                             Me%ObjEnterData, iflag,                                        &
+                             SearchType   = FromBlock,                                      &
+                             keyword      = 'CHS',                                          &
+                             Default      =  4.0,                                           & 
+                             ClientModule = 'ModuleDrainageNetwork',                        &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR190' 
+
+                !See ModuleFreeVerticalMovement - Hindered settling  - CHS
+                !Settling type: WSConstant = 1, SPMFunction = 2
+                call GetData(NewProperty%Ws_Type,                                           &
+                             Me%ObjEnterData, iflag,                                        &
+                             SearchType   = FromBlock,                                      &
+                             keyword      = 'WS_TYPE',                                      &
+                             Default      =  WSConstant,                                    & 
+                             ClientModule = 'ModuleDrainageNetwork',                        &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR200' 
+
+                !See ModuleFreeVerticalMovement - Constant settling velocity [m s-1]
+                call GetData(NewProperty%Ws_Value,                                          &
+                             Me%ObjEnterData, iflag,                                        &
+                             SearchType   = FromBlock,                                      &
+                             keyword      = 'WS_VALUE',                                     &
+                             Default      =  0.0001,                                        & 
+                             ClientModule = 'ModuleDrainageNetwork',                        &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR210' 
+
+
+                !See ModuleFreeVerticalMovement
+                call GetData(NewProperty%KL,                                                &
+                             Me%ObjEnterData, iflag,                                        &
+                             SearchType   = FromBlock,                                      &
+                             keyword      = 'KL',                                           &
+                             Default      =  0.1,                                           & 
+                             ClientModule = 'ModuleDrainageNetwork',                        &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR220' 
+
+                !See ModuleFreeVerticalMovement
+                call GetData(NewProperty%KL1,                                               &
+                             Me%ObjEnterData, iflag,                                        &
+                             SearchType   = FromBlock,                                      &
+                             keyword      = 'KL1',                                          &
+                             Default      =  0.1,                                           & 
+                             ClientModule = 'ModuleDrainageNetwork',                        &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR230' 
+
+                !See ModuleFreeVerticalMovement
+                call GetData(NewProperty%ML,                                                &
+                             Me%ObjEnterData, iflag,                                        &
+                             SearchType   = FromBlock,                                      &
+                             keyword      = 'ML',                                           &
+                             Default      =  4.62,                                          & 
+                             ClientModule = 'ModuleDrainageNetwork',                        &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR240' 
+
+
+                !See ModuleFreeVerticalMovement
+                call GetData(NewProperty%M,                                                 &
+                             Me%ObjEnterData, iflag,                                        &
+                             SearchType   = FromBlock,                                      &
+                             keyword      = 'M',                                            &
+                             Default      =  1.0,                                           & 
+                             ClientModule = 'ModuleDrainageNetwork',                        &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR250' 
+
+            end if
+
+        end if ifB
+        
+        !Checks for Water Quality model
+        call GetData(NewProperty%ComputeOptions%WaterQuality,                       &
+                     Me%ObjEnterData, iflag,                                        &
+                     Keyword        = 'WATER_QUALITY',                              &
+                     ClientModule   = 'ModuleDrainageNetwork',                      &
+                     SearchType     = FromBlock,                                    &
+                     Default        = OFF,                                          &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR260' 
+        
+        if (NewProperty%ComputeOptions%WaterQuality) then
+            Me%ComputeOptions%WaterQuality = .true.
+        end if
+
+
+        !Checks for Benthos model
+        call GetData(NewProperty%ComputeOptions%Benthos,                            &
+                     Me%ObjEnterData, iflag,                                        &
+                     Keyword        = 'BENTHOS',                                    &
+                     ClientModule   = 'ModuleDrainageNetwork',                      &
+                     SearchType     = FromBlock,                                    &
+                     Default        = OFF,                                          &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR270' 
+        
+        if (NewProperty%ComputeOptions%Benthos) then
+            
+            Me%ComputeOptions%Benthos = .true.
+
+        end if
+
+
+        !Checks for CEQUAL_W2 model
+        call GetData(NewProperty%ComputeOptions%CeQualW2,                           &
+                     Me%ObjEnterData, iflag,                                        &
+                     Keyword        = 'CEQUALW2',                                   &
+                     ClientModule   = 'ModuleDrainageNetwork',                      &
+                     SearchType     = FromBlock,                                    &
+                     Default        = OFF,                                          &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR280' 
+        
+        if (NewProperty%ComputeOptions%CeQualW2) then
+            Me%ComputeOptions%CeQualW2 = .true.
+        end if
+
+        !Checks for Life model
+        call GetData(NewProperty%ComputeOptions%Life,                               &
+                     Me%ObjEnterData, iflag,                                        &
+                     Keyword        = 'LIFE',                                       &
+                     ClientModule   = 'ModuleDrainageNetwork',                      &
+                     SearchType     = FromBlock,                                    &
+                     Default        = OFF,                                          &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR290' 
+        
+        if (NewProperty%ComputeOptions%Life) then
+            Me%ComputeOptions%Life = .true.
+        end if
+
+        !Checks for Macro Algae
+        call GetData(NewProperty%ComputeOptions%MacroAlgae,                           &
+                     Me%ObjEnterData, iflag,                                        &
+                     Keyword        = 'MACROALGAE',                                 &
+                     ClientModule   = 'ModuleDrainageNetwork',                      &
+                     SearchType     = FromBlock,                                    &
+                     Default        = OFF,                                          &
+                     STAT           = STAT_CALL)              
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR295' 
+        
+        if (NewProperty%ComputeOptions%MacroAlgae) then
+            Me%ComputeOptions%MacroAlgae = .true.
+        end if        
+        
+        !Checks if user wants to calculate total Concentration (Column + Bottom)
+        call GetData(NewProperty%ComputeOptions%SumTotalConc,                       &
+                     Me%ObjEnterData, iflag,                                        &
+                     SearchType   = FromBlock,                                      &
+                     keyword      = 'SUMTOTALCONC',                                 &
+                     Default      =  .FALSE.,                                       & 
+                     ClientModule = 'ModuleDrainageNetwork',                        &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR300'
+
+        if (NewProperty%ComputeOptions%SumTotalConc) then
+!~             if(.not. Check_Particulate_Property(NewProperty%ID%IDNumber)) then 
+            if (.not. NewProperty%ID%IsParticulate) then
+                write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' is not'
+                write(*,*) 'recognised as PARTICULATE and does not have Bottom_ or total_Conc'
+                stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR16b' 
+            end if            
+            
+            Me%ComputeOptions%SumTotalConc = .true.
+        endif
+
+
+        !IS Coeficient
+        call GetData(NewProperty%IScoefficient,                                     &
+                     Me%ObjEnterData, iflag,                                        &
+                     KeyWord        = 'IS_COEF',                                    &
+                     Default        = 1.e-3,                                        &      
+                     SearchType     = FromBlock,                                    &
+                     ClientModule   = 'ModuleDrainageNetwork',                      &
+                     STAT           = STAT_CALL)            
+        if (STAT_CALL .NE. SUCCESS_)                                                &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR310' 
+
+        !IS ExtinctionCoef
+        call GetData(NewProperty%ExtinctionCoefficient,                             &
+                     Me%ObjEnterData, iflag,                                        &
+                     KeyWord        = 'EXTINCTION_PARAMETER',                       &
+                     Default        = 1.0,                                          &      
+                     SearchType     = FromBlock,                                    &
+                     ClientModule   = 'ModuleDrainageNetwork',                      &
+                     STAT           = STAT_CALL)            
+        if (STAT_CALL .NE. SUCCESS_)                                                &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR320' 
+
+        call GetData(NewProperty%ComputeOptions%TimeSerie,                          &
+             Me%ObjEnterData, iflag,                                                &
+             Keyword        = 'TIME_SERIE',                                         &
+             ClientModule   = 'ModuleDrainageNetwork',                              &
+             SearchType     = FromBlock,                                            &
+             Default        = .false.,                                              &
+             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                  &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR330'
+
+        call GetData(NewProperty%OutputName,                                        &
+             Me%ObjEnterData, iflag,                                                &
+             Keyword        = 'OUTPUT_NAME',                                        &
+             ClientModule   = 'ModuleDrainageNetwork',                              &
+             SearchType     = FromBlock,                                            &
+             Default        = 'NAME',                                               &
+             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                  &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR340'
+
+        if (NewProperty%OutputName /= 'NAME' .and. NewProperty%OutputName /= 'DESCRIPTION') &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR350'
+
+
+        call GetData(NewProperty%ComputeOptions%IntMassFlux,                        &
+             Me%ObjEnterData, iflag,                                                &
+             Keyword        = 'INTEGRATE_MASS_FLUX',                                &
+             ClientModule   = 'ModuleDrainageNetwork',                              &
+             SearchType     = FromBlock,                                            &
+             Default        = .false.,                                              &
+             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                  &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR360'
+        
+        if (NewProperty%ComputeOptions%IntMassFlux) then
+            Me%Output%ComputeIntegratedMass = .true.
+        endif
+        
+        if (NewProperty%ComputeOptions%IntMassFlux) then
+
+            call GetData(NewProperty%IntMassFluxDT,                                     &
+                 Me%ObjEnterData, iflag,                                                &
+                 Keyword        = 'INTEGRATE_MASS_FLUX_DT',                             &
+                 ClientModule   = 'ModuleDrainageNetwork',                              &
+                 SearchType     = FromBlock,                                            &
+                 Default        = 86400.,                                               &
+                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR370'    
+                
+            NewProperty%IntMassFluxNextOutput = Me%CurrentTime
+        endif
+
+        call GetComputeTimeStep     (Me%ObjTime, Me%ExtVar%DT, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR380' 
+
+        ModelDT = Me%ExtVar%DT
+
+        call GetData(NewProperty%DTInterval,                                         &
+                     Me%ObjEnterData, iflag,                                         &
+                     SearchType   = FromBlock,                                       &
+                     keyword      = 'DTINTERVAL',                                    &
+                     Default      = ModelDT,                                         &
+                     ClientModule = 'ModuleDrainageNetwork',                         &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                 &
+            stop 'ModuleDrainageNetwork - ConstructPropertyValues - ERR390'
+        
+        if (iflag == 1) then
+            NewProperty%ComputeOptions%DTIntervalAssociated = .true.
+            Me%DTIntervalAssociated                         = .true.                           
+        
+            if (NewProperty%DTInterval < ModelDT) then
+                write(*,*) 
+                write(*,*) 'Property time step is smaller then model time step'
+                stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR400'
+
+            elseif (NewProperty%DTInterval > ModelDT) then 
+
+                !Property time step must be a multiple of the model time step
+                auxFactor = NewProperty%DTInterval  / ModelDT
+
+                Erroraux = auxFactor - int(auxFactor)
+                if (Erroraux /= 0) then
+                    write(*,*) 
+                    write(*,*) 'Property time step must be a multiple of model time step.'
+                    write(*,*) 'Please review your input data.'
+                    stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR410'
+                endif
+
+                !Run period in seconds
+                DTaux = Me%EndTime - Me%CurrentTime
+
+                !The run period   must be a multiple of the Property DT
+                auxFactor = DTaux / NewProperty%DTInterval
+
+                ErrorAux = auxFactor - int(auxFactor)
+                if (ErrorAux /= 0) then
+
+                    write(*,*) 
+                    write(*,*) 'Property time step is not a multiple of model time step.'
+                    stop 'Construct_PropertyEvolution - ModulePorousMediaProperties - ERR420'
+                end if
+            endif
+
+            NewProperty%NextCompute = Me%CurrentTime + NewProperty%DTInterval
+        endif
+        
+    end subroutine ConstructPropertyValues    
+    
+    !---------------------------------------------------------------------------
+
+    subroutine Construct_WQRateList
+
+        !External----------------------------------------------------------------
+        integer                                     :: ClientNumber
+        integer                                     :: STAT_CALL
+        logical                                     :: BlockFound
+
+        !Local-------------------------------------------------------------------
+        type (T_WqRate), pointer                    :: NewWqRate
+         
+        !------------------------------------------------------------------------
+        
+        Me%Output%Rates = .false.        
+        
+do1 :   do
+            call ExtractBlockFromBuffer(Me%ObjEnterData,                        &
+                                        ClientNumber    = ClientNumber,         &
+                                        block_begin     = '<beginwqrate>',      &
+                                        block_end       = '<endwqrate>',        &
+                                        BlockFound      = BlockFound,           &
+                                        STAT            = STAT_CALL)
+cd1 :       if      (STAT_CALL .EQ. SUCCESS_     ) then    
+         
+cd2 :           if (BlockFound) then                                                  
+
+                    Me%Output%Rates = .true.        
+
+                    ! Construct a New WQRate
+                    call Construct_WQRate(NewWqRate)
+
+                    ! Adds the new WQRate to the list of WQRates
+                    call Add_WqRate      (NewWQRate)
+
+                else cd2
+
+                    call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+                    if (STAT_CALL .NE. SUCCESS_)                                &
+                        stop 'Construct_WqRatesList - ModuleDrainageNetwork - ERR01'
+
+                    exit do1    !No more blocks
+
+                end if cd2
+
+            else if (STAT_CALL .EQ. BLOCK_END_ERR_) then cd1
+                write(*,*)  
+                write(*,*) 'Error calling ExtractBlockFromBuffer.'
+                stop       'Construct_WqRatesList - ModuleDrainageNetwork - ERR02'
+
+            else cd1
+                stop       'Construct_WqRatesList - ModuleDrainageNetwork - ERR03'
+            end if cd1
+        end do do1
+
+    end subroutine Construct_WQRateList
+
+    !--------------------------------------------------------------------------
+   !This subroutine reads all the information needed to construct a new property.           
+
+    subroutine Construct_WQRate(NewWQRate)
+
+        !Arguments-------------------------------------------------------------
+        type(T_WqRate), pointer                     :: NewWqRate
+
+        !External--------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+        !----------------------------------------------------------------------
+
+        allocate (NewWqRate, STAT = STAT_CALL)            
+        if (STAT_CALL .NE. SUCCESS_)                                          &
+            stop 'Construct_WqRate - ModuleDrainageNetwork - ERR01' 
+
+        nullify(NewWQRate%Field, NewWQRate%Prev, NewWQRate%Next)
+
+        !Construct property ID
+        call Construct_WQRateID     (NewWQRate)
+
+        !Construct property values
+        call Construct_WQRateValues (NewWQRate)
+
+
+    end subroutine Construct_WQRate
+
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    !This subroutine reads all the information needed to construct the property ID          
+    subroutine Construct_WQRateID(NewWQRate)
+
+        !Arguments-------------------------------------------------------------
+        type(T_WQRate),        pointer      :: NewWQRate
+
+        !External--------------------------------------------------------------
+        integer                             :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        integer                             :: iflag, PropNumber
+        logical                             :: CheckName, firstprop, secondprop
+      
+        !----------------------------------------------------------------------
+         
+        call GetData(NewWQRate%FirstProp%Name,                                           &
+                     Me%ObjEnterData, iflag,                                             &
+                     KeyWord    = 'FIRSTPROP',                                           &
+                     SearchType = FromBlock,                                             &
+                     ClientModule = 'ModuleDrainageNetwork',                             &
+                     STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Construct_WqRateID - ModuleDrainageNetwork - ERR01' 
+        
+      
+        if (iflag.eq.1) then
+  
+            firstprop=.true.
+
+            ! Check if the property name is valid OR not
+            CheckName = CheckPropertyName(NewWQRate%FirstProp%Name, number = PropNumber)
+            if (CheckName) then
+                NewWQRate%FirstProp%IDnumber = PropNumber
+            else     
+                write(*,*)
+                write(*,*) 'The first property name is not recognised by the model.'
+                write(*,*) trim (adjustl(NewWQRate%FirstProp%Name))                
+                stop       'Construct_WqRateID - ModuleDrainageNetwork - ERR03' 
+            end if   
+        else
+           
+            firstprop= .false.
+
+        endif
+            
+        call GetData(NewWQRate%SecondProp%Name,                                          &
+                     Me%ObjEnterData, iflag,                                             &
+                     KeyWord    = 'SECONDPROP',                                          &
+                     SearchType = FromBlock,                                             &
+                     ClientModule = 'ModuleDrainageNetwork',                             &
+                     STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Construct_WqRateID - ModuleDrainageNetwork - ERR04' 
+        
+       
+        if (iflag.eq.1) then
+  
+             secondprop=.true.
+
+            ! Check if the property name is valid OR not
+            CheckName = CheckPropertyName(NewWQRate%SecondProp%Name, number = PropNumber)
+            if (CheckName) then
+                NewWQRate%SecondProp%IDnumber = PropNumber
+            else     
+                write(*,*)
+                write(*,*) 'The Second property name is not recognised by the model.'
+                write(*,*) trim (adjustl(NewWQRate%SecondProp%Name))
+                stop       'Construct_WqRateID - ModuleDrainageNetwork - ERR06' 
+            end if   
+        else
+
+            secondprop=.false.
+
+        endif
+
+        call GetData(NewWQRate%ID%Description,                                           &
+                     Me%ObjEnterData, iflag,                                             &
+                     KeyWord      = 'DESCRIPTION',                                       &
+                     SearchType   = FromBlock,                                           &
+                     ClientModule = 'ModuleDrainageNetwork',                             &
+                     Default      = 'No description was given',                          &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Construct_WqRateID - ModuleDrainageNetwork - ERR07' 
+          
+  
+        call GetData(NewWQRate%ID%Name,                                                  &
+                     Me%ObjEnterData, iflag,                                             &
+                     KeyWord      = 'NAME',                                              &
+                     SearchType   = FromBlock,                                           &
+                     Default      = 'No WqRateName was given',                           &
+                     ClientModule = 'ModuleDrainageNetwork',                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Construct_WqRateID - ModuleDrainageNetwork - ERR08' 
+        
+  
+        if (.not.secondprop.and..not.firstprop) then  !Cequal rates
+          
+           CheckName = CheckPropertyName(NewWQRate%ID%Name, number = PropNumber)
+             if (CheckName) then
+                NewWQRate%CeQualID = PropNumber
+             else     
+               write(*,*)
+               write(*,*) 'The rate name is not recognised by the model'
+               write(*,*) trim (adjustl(NewWQRate%ID%Name))
+               stop       'Construct_WqRateID - ModuleDrainageNetwork - ERR09' 
+             end if  
+         endif
+
+        call GetData(NewWQRate%Model,                                                    &
+                     Me%ObjEnterData, iflag,                                             &
+                     KeyWord      = 'MODEL',                                             &
+                     SearchType   = FromBlock,                                           &
+                     Default      = WaterQualityModel,                                   &
+                     ClientModule = 'ModuleDrainageNetwork',                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'Construct_WqRateID - ModuleDrainageNetwork - ERR10' 
+ 
+
+    end subroutine Construct_WQrateID
+
+
+    !--------------------------------------------------------------------------
+
+    subroutine Construct_WQRateValues(NewWQRate)
+
+        !Arguments-------------------------------------------------------------
+        type(T_WQrate), pointer         :: NewWQRate
+
+        !External--------------------------------------------------------------
+        integer                         :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        
+
+        allocate(NewWQRate%Field(1:Me%TotalNodes), STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)stop 'Construct_WqRateValues - ModuleDrainageNetwork - ERR01'
+        
+        !first value is outputed in construct - make zero and not fillvaluereal
+        !NewWQRate%Field(:) = FillValueReal
+        NewWQRate%Field(:) = 0.0
+
+
+    end subroutine Construct_WQRateValues
+    
+    !--------------------------------------------------------------------------
+
+    subroutine Add_WQRate(NewWQRate)
+
+        !Arguments-------------------------------------------------------------
+        type(T_WQRate),             pointer     :: NewWQRate
+
+        !----------------------------------------------------------------------
+
+        ! Add to the WaterProperty List a new property
+        if (.not.associated(Me%FirstWQRate)) then
+            Me%WQRatesNumber = 1
+            Me%FirstWQRate    => NewWQRate
+            Me%LastWQRate     => NewWQRate
+        else
+            NewWQRate%Prev                     => Me%LastWQRate
+            Me%LastWQRate%Next => NewWQRate
+            Me%LastWQRate      => NewWQRate
+            Me%WQRatesNumber   = Me%WQRatesNumber + 1
+        end if 
+
+        NewWQRate%ID%IDNumber = Me%WQRatesNumber
+
+    end subroutine Add_WQRate 
+
+    !--------------------------------------------------------------------------
+
+    subroutine InitializeProperty
+    
+        !Arguments--------------------------------------------------------------
+        
+        !Local------------------------------------------------------------------
+        type(T_Property), pointer                   :: Property
+        integer                                     :: OutletID
+
+        Property => Me%FirstProperty
+        do while (associated(Property))
+               
+            if ((.not. Me%Continuous) .or. (.not. Me%PropertyContinuous)) then
+                Property%Concentration = Property%InitialValue
+                
+                do OutletID = 1, Me%TotalOutlets 
+                    Property%Concentration(Me%OutletNodeID(OutletID)) = Property%BoundaryConcentration
+                end do
+            endif
+                
+                
+            call ComputeToxicityForEachEffluent
+                       
+            Property => Property%Next
+        end do
+       
+    end subroutine InitializeProperty
+    
+    !--------------------------------------------------------------------------- 
+    
+    subroutine Add_Property(NewProperty)
+
+        !Arguments--------------------------------------------------------------
+        type(T_Property),           pointer     :: NewProperty
+
+
+        if (.not.associated(Me%FirstProperty)) then
+            Me%PropertiesNumber  = 1
+            Me%FirstProperty     => NewProperty
+            Me%LastProperty      => NewProperty
+        else
+            NewProperty%Prev     => Me%LastProperty
+            Me%LastProperty%Next => NewProperty
+            Me%LastProperty      => NewProperty
+            Me%PropertiesNumber  = Me%PropertiesNumber + 1
+        end if 
+
+    end subroutine Add_Property 
+
+    !---------------------------------------------------------------------------   
+
+  
+    subroutine CheckSelectedProp  ()  
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+
+        !When Fecal_Coliforms are simulated, Temperature and sal are neeed,  too
+        if (PropertyExists(Fecal_Coliforms_)) then            
+
+            if (.not. PropertyExists(Temperature_) .or. .not. PropertyExists(Salinity_))  then 
+                write (*,*) 'For coliform decay Temperature and salinity are needed'
+                stop 'CheckSelectedProp - ModuleDrainageNetwork - ERR01' 
+            endif
+        
+        endif
+        
+
+    end subroutine CheckSelectedProp    
+
+    !---------------------------------------------------------------------------   
+
+    subroutine InitializeVariables
+
+        !Local------------------------------------------------------------------
+        type (T_Node), pointer                      :: CurrNode        
+        integer                                     :: NodeID, iUp, iDown, NLevels
+        type (T_Reach), pointer                     :: UpReach, DownReach
+        real                                        :: Av, P, Sw, m, TopH
+
+        allocate (Me%RunOffVector       (Me%TotalNodes))
+        allocate (Me%GroundVector       (Me%TotalNodes))
+        allocate (Me%GWFlowBottomLayer  (Me%TotalNodes))
+        allocate (Me%GWFlowTopLayer     (Me%TotalNodes))
+        allocate (Me%DiffuseVector      (Me%TotalNodes))
+        allocate (Me%ComputeFaces       (Me%TotalNodes))
+        allocate (Me%OpenPointsFlow     (Me%TotalNodes))
+        allocate (Me%OpenPointsProcess  (Me%TotalNodes))
+        allocate (Me%RiverPoints        (Me%TotalNodes))
+        
+        if (Me%ComputeOptions%TransmissionLosses) then
+            allocate (Me%TransmissionFlow (Me%TotalNodes))
+            Me%TransmissionFlow = 0.0
+        endif
+
+        if  (Me%ComputeOptions%SurfaceFluxes .or. Me%ComputeOptions%WaterQuality .or. &
+             Me%ComputeOptions%CeQualW2 .or. Me%ComputeOptions%Life .or. Me%ComputeOptions%MacroAlgae)  then
+            Me%ComputeOptions%TopRadiation = .true.
+        endif
+
+        Me%RunOffVector     = 0.0  
+        Me%GroundVector     = 0.0
+        Me%GWFlowBottomLayer = null_int
+        Me%GWFlowTopLayer    = null_int
+        Me%DiffuseVector    = 0.0
+        Me%ComputeFaces     = 0  
+        Me%OpenPointsFlow   = 0  
+        Me%OpenPointsProcess= 0  
+        Me%RiverPoints      = 1
+
+        nullify (CurrNode)
+
+        do NodeID = 1, Me%TotalNodes
+        
+            CurrNode => Me%Nodes (NodeID)               
+
+            !Length of reaches in a node control volume
+            CurrNode%Length = 0.0
+        
+            do iUp=1, CurrNode%nUpstreamReaches
+                nullify (UpReach)
+                UpReach => Me%Reaches (CurrNode%UpstreamReaches (iUp))
+                CurrNode%Length = CurrNode%Length + UpReach%Length / 2.0
+            end do
+
+            do iDown=1, CurrNode%nDownstreamReaches
+                nullify (DownReach) 
+                DownReach => Me%Reaches (CurrNode%DownstreamReaches  (iDown))
+                CurrNode%Length = CurrNode%Length + DownReach%Length / 2.0
+            end do
+            
+            !if (CurrNode%nUpstreamReaches == 0 .or. CurrNode%nDownstreamReaches == 0) then
+            !    CurrNode%Length = 2.* CurrNode%Length
+            !endif
+
+        end do            
+                            
+        !if continuous, read water depth from Initial File
+        !if not continuous, water depth initialized in subroutine ReadDataFile            
+        
+        if (Me%Continuous) then
+            if (Me%OutPut%RestartFormat == BIN_) then
+                call ReadInitialFile_Bin
+            else if (Me%OutPut%RestartFormat == HDF_) then
+                call ReadInitialFile_Hdf
+            endif
+        endif
+            
+        call InitializeNodes
+        call InitializeReaches
+        call InitializeProperty
+        
+        if (Me%IntegratedOutput%Yes) then
+            allocate(Me%IntegratedOutput%OldReachStatus (1:Me%TotalReaches))
+            allocate(Me%IntegratedOutput%ReachStatus (1:Me%TotalReaches))
+            allocate(Me%IntegratedOutput%OldNodeStatus (1:Me%TotalReaches))
+            allocate(Me%IntegratedOutput%NodeStatus (1:Me%TotalReaches))
+        endif
+
+if1:    if (Me%HasGrid) then
+
+            !Channels WaterLevel
+            allocate(Me%ChannelsWaterLevel    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%ChannelsVolume        (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%ChannelsMaxVolume     (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))                        
+            allocate(Me%ChannelsTopArea       (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%ChannelsBottomLevel   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%ChannelsBottomWidth   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%ChannelsSurfaceWidth  (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))            
+            allocate(Me%ChannelsBankSlope     (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%ChannelsNodeLength    (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%ChannelsVelocity      (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%ChannelsOpenProcess   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%ChannelsActiveState   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(Me%ChannelsID            (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            
+            Me%ChannelsWaterLevel   = 0.0
+            Me%ChannelsTopArea      = null_real
+            Me%ChannelsBottomLevel  = null_real
+            Me%ChannelsBottomWidth  = null_real
+            Me%ChannelsSurfaceWidth = null_real
+            Me%ChannelsBankSlope    = null_real
+            Me%ChannelsNodeLength   = null_real
+            Me%ChannelsOpenProcess  = null_int
+            Me%ChannelsActiveState  = null_int
+            Me%ChannelsID           = null_int
+            Me%ChannelsVolume       = null_real
+            Me%ChannelsMaxVolume    = null_real
+            Me%ChannelsVelocity     = 0.0
+
+            call UpdateChannelsDynamicMatrix
+            
+            do NodeID = 1, Me%TotalNodes
+
+                CurrNode => Me%Nodes (NodeID)      
+                
+                if(CurrNode%HasGrid)then
+
+                    Me%ChannelsID          (CurrNode%GridI, CurrNode%GridJ) = CurrNode%ID
+                       
+                    Me%ChannelsBottomLevel  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%BottomLevel
+                    Me%ChannelsNodeLength   (CurrNode%GridI, CurrNode%GridJ) = CurrNode%Length
+                    Me%ChannelsTopArea      (CurrNode%GridI, CurrNode%GridJ) = CurrNode%Length * CurrNode%CrossSection%TopWidth
+
+                    Me%ChannelsActiveState  (CurrNode%GridI, CurrNode%GridJ) = 0
+                    do iUp = 1, CurrNode%nUpStreamReaches
+                        if (Me%Reaches (CurrNode%UpstreamReaches(iUp))%Active) then
+                            Me%ChannelsActiveState  (CurrNode%GridI, CurrNode%GridJ) = 1
+                        endif
+                    enddo
+                
+                    do iDown = 1, CurrNode%nDownStreamReaches
+                        if (Me%Reaches (CurrNode%DownStreamReaches(iDown))%Active) then
+                            Me%ChannelsActiveState  (CurrNode%GridI, CurrNode%GridJ) = 1
+                        endif
+                    enddo
+
+
+                    if (CurrNode%CrossSection%Form == Trapezoidal) then
+
+                        call TrapezoidGeometry (b  = CurrNode%CrossSection%BottomWidth, &
+                                                mR = CurrNode%CrossSection%Slope,       &
+                                                mL = CurrNode%CrossSection%Slope,       &
+                                                h  = CurrNode%CrossSection%Height,      &
+                                                Av = Av,                                &
+                                                P  = P,                                 &
+                                                Sw = Sw)
+
+                        Me%ChannelsBottomWidth  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%BottomWidth
+                        Me%ChannelsSurfaceWidth (CurrNode%GridI, CurrNode%GridJ) = Sw
+                        Me%ChannelsBankSlope    (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%Slope
+
+                    elseif (CurrNode%CrossSection%Form == TrapezoidalFlood) then
+
+                        TopH = CurrNode%CrossSection%Height - CurrNode%CrossSection%MiddleHeight
+
+                        call TrapezoidGeometry (b  = CurrNode%CrossSection%MiddleWidth, &
+                                                mR = CurrNode%CrossSection%SlopeTop,    &
+                                                mL = CurrNode%CrossSection%SlopeTop,    &
+                                                h  = TopH,                              &
+                                                Av = Av,                                &
+                                                P  = P,                                 &
+                                                Sw = Sw)
+
+                        Me%ChannelsBottomWidth  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%BottomWidth
+                        Me%ChannelsSurfaceWidth (CurrNode%GridI, CurrNode%GridJ) = Sw
+                        Me%ChannelsBankSlope    (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%SlopeTop
+
+                    elseif (CurrNode%CrossSection%Form == Tabular) then
+                    
+                        NLevels = CurrNode%CrossSection%NLevels    
+
+                        m = 0.5 * ( abs(CurrNode%CrossSection%LevelSlopeLeft(NLevels))  &
+                                +  CurrNode%CrossSection%LevelSlopeRight(NLevels) )
+
+                        Me%ChannelsBottomWidth  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%LevelWetPerimeter(NLevels)
+                        Me%ChannelsSurfaceWidth (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%LevelSurfaceWidth(NLevels)
+                        Me%ChannelsBankSlope    (CurrNode%GridI, CurrNode%GridJ) = m
+        
+                    endif
+                    
+                endif
+
+            enddo
+
+        endif if1
+                            
+    end subroutine InitializeVariables
+
+    !---------------------------------------------------------------------------
+
+    subroutine ReadInitialFile_Bin
+
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        real                                        :: Year_File, Month_File, Day_File
+        real                                        :: Hour_File, Minute_File, Second_File
+        integer                                     :: InitialFile
+        type (T_Time)                               :: EndTimeFile
+        real                                        :: DT_error
+        integer                                     :: STAT_CALL
+        type(T_Property), pointer                   :: Property        
+
+        !-----------------------------------------------------------------------
+
+        call UnitsManager(InitialFile, OPEN_FILE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadInitialFileOld - ERR01'
+
+        open(Unit = InitialFile, File = Me%Files%InitialFile, Form = 'UNFORMATTED',     &
+             status = 'OLD', IOSTAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadInitialFileOld - ERR02'
+
+        !Reads Date
+        read(InitialFile) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
+        call SetDate(EndTimeFile, Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File)
+
+       
+        DT_error = EndTimeFile - Me%BeginTime
+
+        !Avoid rounding errors - Frank 08-2001
+        if (abs(DT_error) >= 0.01) then
+            
+            write(*,*) 'The end time of the previous run is different from the start time of this run'
+            write(*,*) 'Date in the file'
+            write(*,*) Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File
+            write(*,*) 'DT_error', DT_error
+            if (Me%StopOnWrongDate) stop 'ModuleDrainageNetwork - ReadInitialFileOld - ERR04'   
+
+        endif
+
+        read(InitialFile)Me%Nodes%WaterLevel
+        read(InitialFile)Me%Reaches%FlowNew
+
+        if (Me%PropertyContinuous) then
+            Property => Me%FirstProperty
+            do while (associated(Property))
+                read (InitialFile) Property%Concentration
+                Property => Property%Next
+            end do
+        endif
+
+        read(InitialFile)Me%CV%LastGoodNiteration
+
+        if (Me%PropertyContinuous) then
+            Property => Me%FirstProperty
+            do while (associated(Property))
+                if (Property%ComputeOptions%BottomFluxes) then
+                    read (InitialFile, err=10) Property%BottomConc
+                endif
+                Property => Property%Next
+            end do
+        endif
+
+    10  continue
+
+        call UnitsManager(InitialFile, CLOSE_FILE, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadInitialFileOld - ERR04'
+
+    end subroutine ReadInitialFile_Bin
+
+    !---------------------------------------------------------------------------
+    
+    subroutine ReadInitialFile_Hdf()
+
+
+        !External--------------------------------------------------------------
+        integer                                     :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        logical                                     :: EXIST
+        integer                                     :: ObjHDF5
+        integer                                     :: HDF5_READ
+        type(T_Property), pointer                   :: Property     
+        real, dimension(:), pointer                 :: WaterLevel, Flow
+        integer, dimension(:), pointer              :: LastNIterations
+        integer                                     :: iNode, ReachID
+        type (T_Time)                               :: BeginTime, EndTimeFile, EndTime
+        real, dimension(:), pointer                 :: TimePointer
+        real                                        :: DT_error          
+        !----------------------------------------------------------------------
+
+
+        inquire (FILE=trim(Me%Files%InitialFile), EXIST = Exist)
+
+cd0:    if (Exist) then
+
+            !Gets File Access Code
+            call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+
+            ObjHDF5 = 0
+
+            !Opens HDF5 File
+            call ConstructHDF5 (ObjHDF5,                                                 &
+                                trim(Me%Files%InitialFile),                              &
+                                HDF5_READ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModuleDrainageNetwork - ERR01'
+
+            
+            !Get Time
+            call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModuleDrainageNetwork - ERR010'             
+            
+            allocate(TimePointer(1:6))
+            call HDF5ReadData   (ObjHDF5, "/Time",                                       &
+                                    "Time",                                              &
+                                    Array1D = TimePointer,                               &
+                                    STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModuleDrainageNetwork - ERR020'             
+            
+            
+            call SetDate(EndTimeFile, TimePointer(1), TimePointer(2),    &
+                                      TimePointer(3), TimePointer(4),    &
+                                      TimePointer(5), TimePointer(6))
+            
+            
+            call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, EndTime = EndTime, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadInitialFile - ModuleDrainageNetwork - ERR030'
+        
+            DT_error = EndTimeFile - BeginTime
+
+            !Avoid rounding erros - Frank 08-2001
+            !All runs are limited to second definition - David 10-2015
+            !if (abs(DT_error) >= 0.01) then
+            if (abs(DT_error) >= 1) then
+            
+                write(*,*) 'The end time of the previous run is different from the start time of this run'
+                write(*,*) 'Date in the file'
+                write(*,*) TimePointer(1), TimePointer(2), TimePointer(3), TimePointer(4), TimePointer(5), TimePointer(6)
+                write(*,*) 'DT_error', DT_error
+                if (Me%StopOnWrongDate) stop 'ReadInitialFile - ModuleDrainageNetwork - ERR040'   
+
+            endif               
+            deallocate(TimePointer)
+            
+            
+
+            ! Reads from HDF file the Property concentration and open boundary values
+            call HDF5SetLimits  (ObjHDF5, 1, Me%TotalNodes, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModuleDrainageNetwork - ERR050'
+
+            allocate(WaterLevel(1:Me%TotalNodes))
+            call HDF5ReadData   (ObjHDF5, "/Results/water level",                        &
+                                 "water level",                                          &
+                                 Array1D = WaterLevel,                                   &
+                                 STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModuleDrainageNetwork - ERR060'
+            
+            do iNode = 1, Me%TotalNodes
+               Me%Nodes(iNode)%WaterLevel =  WaterLevel(iNode)
+            enddo
+            deallocate(WaterLevel)
+        
+
+
+            call HDF5SetLimits  (ObjHDF5, 1, Me%TotalReaches, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModuleDrainageNetwork - ERR040'
+            
+            allocate(Flow(1:Me%TotalReaches))
+            call HDF5ReadData   (ObjHDF5, "/Results/flow",                               &
+                                 "flow",                                                 &
+                                 Array1D = Flow,                                         &
+                                 STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModuleDrainageNetwork - ERR070'            
+
+            
+            do ReachID = 1, Me%TotalReaches
+                Me%Reaches(ReachID)%FlowNew = Flow(ReachID)
+            enddo             
+            deallocate(Flow)
+            
+            call HDF5SetLimits  (ObjHDF5, 1, Me%TotalNodes, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModuleDrainageNetwork - ERR080'            
+            
+            
+            if (Me%PropertyContinuous) then
+                Property => Me%FirstProperty
+                do while (associated(Property))
+                    call HDF5ReadData   (ObjHDF5, "/Results/"//trim(Property%ID%Name),   &
+                                         trim(Property%ID%Name),                         &
+                                         Array1D = Property%Concentration,               &
+                                         STAT    = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                           &
+                        stop 'ReadInitialFile - ModuleDrainageNetwork - ERR090'
+                    
+                    if (Property%ComputeOptions%BottomFluxes) then
+                    call HDF5ReadData   (ObjHDF5, "/Results/Bottom_"//trim(Property%ID%Name),   &
+                                         "Bottom_"//trim(Property%ID%Name),                     &
+                                         Array1D = Property%BottomConc,                         &
+                                         STAT    = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)                                                  &
+                        stop 'ReadInitialFile - ModuleDrainageNetwork - ERR0100'
+                    endif                    
+                    
+                    Property => Property%Next
+                end do
+            endif            
+            
+            
+            call HDF5SetLimits  (ObjHDF5, 1, 1, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModuleDrainageNetwork - ERR0110'               
+            
+            allocate(LastNIterations(1:1))
+            call HDF5ReadData   (ObjHDF5, "/Results/last good iteration",                &
+                                    "last good iteration",                               &
+                                    Array1D = LastNIterations,                           &
+                                    STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModuleDrainageNetwork - ERR0120'
+             
+            Me%CV%LastGoodNiteration = LastNIterations(1)
+            deallocate(LastNIterations)
+            
+            call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                   &
+                stop 'ReadInitialFile - ModuleDrainageNetwork - ERR0130'
+            
+             
+            
+
+        else
+            
+            write(*,*)
+            stop 'ReadInitialFile - ModuleDrainageNetwork - ERR0140'
+
+        end if cd0
+
+    end subroutine ReadInitialFile_Hdf
+
+    !--------------------------------------------------------------------------      
+
+    subroutine InitializeNodes
+        
+        !Local------------------------------------------------------------------
+        type (T_Node), pointer                          :: CurrNode
+        integer                                         :: NodeID
+        real                                            :: TopH, AvTrapez1, AvTrapez2
+        real                                            :: Av, Pw, Sw
+        real                                            :: DownStreamLevel
+                    
+        if (Me%Continuous) then
+            
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes(NodeID)
+                CurrNode%WaterDepth = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
+            end do
+
+        else
+
+            if(Me%InitialWaterLevelON)then
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes(NodeID)
+                    CurrNode%WaterLevel = Me%InitialWaterLevel 
+                end do
+            else
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes(NodeID)
+                    CurrNode%WaterLevel = CurrNode%WaterDepth + CurrNode%CrossSection%BottomLevel
+                end do
+            endif
+
+        end if
+
+        
+        do NodeID = 1, Me%TotalNodes    
+            
+            CurrNode => Me%Nodes(NodeID)
+
+            call ComputeXSFromWaterDepth (CurrNode)
+                                           
+if1:        if (CurrNode%nDownstreamReaches /= 0) then
+            
+                if (CurrNode%CrossSection%Form .EQ. Trapezoidal) then            
+                               
+                    CurrNode%VolumeMax = (( CurrNode%CrossSection%BottomWidth   &
+                                         + CurrNode%CrossSection%Slope          &
+                                         * CurrNode%CrossSection%Height )       &
+                                         * CurrNode%CrossSection%Height )       &
+                                         * CurrNode%Length
+
+                    CurrNode%VolumeMin = (( CurrNode%CrossSection%BottomWidth   &
+                                         + CurrNode%CrossSection%Slope          &
+                                         * Me%MinimumWaterDepth)                &
+                                         * Me%MinimumWaterDepth)                &
+                                         * CurrNode%Length
+                                         
+                else if (CurrNode%CrossSection%Form .EQ. TrapezoidalFlood) then
+
+                    AvTrapez1 = ( CurrNode%CrossSection%BottomWidth             &
+                                 + CurrNode%CrossSection%Slope                  &
+                                 * CurrNode%CrossSection%MiddleHeight )         &
+                                 * CurrNode%CrossSection%MiddleHeight
+
+                    TopH      = CurrNode%CrossSection%Height - CurrNode%CrossSection%MiddleHeight
+
+                    AvTrapez2 = ( CurrNode%CrossSection%MiddleWidth             &
+                                 + CurrNode%CrossSection%SlopeTop               &
+                                 * TopH ) * TopH
+
+                    CurrNode%VolumeMaxTrapez1 = AvTrapez1 * CurrNode%Length
+                    CurrNode%VolumeMax        = (AvTrapez1 + AvTrapez2) * CurrNode%Length
+
+                    if (Me%MinimumWaterDepth > CurrNode%CrossSection%MiddleHeight) then
+
+                        TopH = Me%MinimumWaterDepth - CurrNode%CrossSection%MiddleHeight
+
+                        AvTrapez2 = ( CurrNode%CrossSection%MiddleWidth         &
+                                     + CurrNode%CrossSection%SlopeTop           &
+                                     * TopH ) * TopH
+                    else 
+
+                        AvTrapez1 = ( CurrNode%CrossSection%BottomWidth         &
+                                     + CurrNode%CrossSection%Slope              &
+                                     * Me%MinimumWaterDepth )                   &
+                                     * Me%MinimumWaterDepth
+
+                        AvTrapez2 = 0.0
+
+                    endif
+
+                    CurrNode%VolumeMin = (AvTrapez1 + AvTrapez2) * CurrNode%Length
+
+                elseif (CurrNode%CrossSection%Form .EQ. Tabular) then
+
+                    Av = CurrNode%CrossSection%LevelVerticalArea (CurrNode%CrossSection%NLevels)
+                    CurrNode%VolumeMax = Av * CurrNode%Length
+
+                    TopH = CurrNode%CrossSection%BottomLevel + Me%MinimumWaterDepth
+                    call TabularGeometry (CurrNode%CrossSection, TopH, Av, Pw, Sw)                    
+                    CurrNode%VolumeMin = Av * CurrNode%Length
+
+                else                 
+                    stop 'Invalid cross section form - InitializeNodes - ModuleDrainageNetwork - ERR01'
+                end if
+                                
+                CurrNode%VolumeOld = CurrNode%VolumeNew     
+                    
+                CurrNode%VolumeMax = CurrNode%SingCoef * CurrNode%VolumeMax
+            
+            else 
+            
+                if (Me%Downstream%Boundary == ImposedWaterLevel) then !if1
+                
+                    if (Me%Downstream%Evolution  == None .or. Me%DownStream%Evolution == OpenMI) then
+                       CurrNode%WaterLevel = Me%Downstream%DefaultValue
+                    else if (Me%Downstream%Evolution == ReadTimeSerie) then
+                       call ModifyDownstreamTimeSerie (CurrNode%WaterLevel)
+                    end if
+
+                    CurrNode%WaterDepth = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
+                          
+                    DownStreamLevel = CurrNode%WaterLevel
+                    
+                else
+
+                    DownStreamLevel = CurrNode%WaterLevel
+                    
+                endif
+            
+            end if if1
+
+                CurrNode%MinimunToStabilize = Me%CV%MinimumValueToStabilize * CurrNode%VolumeMax
+
+        end do
+
+        !Downstream level, so inicial water level makes sense
+         if (.not. Me%Continuous) then
+         
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes(NodeID)
+                
+                if (CurrNode%WaterLevel < DownStreamLevel) then
+                
+                    CurrNode%WaterLevel = DownStreamLevel
+                    
+                    CurrNode%WaterDepth = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
+                
+                    call ComputeXSFromWaterDepth (CurrNode)
+                    
+                endif
+                
+            enddo         
+         endif
+
+
+        !if (Me%CheckMass) then
+        !    Me%TotalStoredVolume = 0.0
+        !    do NodeID = 1, Me%TotalNodes
+        !        if (Me%Nodes(NodeID)%nDownStreamReaches /= 0) then
+        !            Me%TotalStoredVolume = Me%TotalStoredVolume + Me%Nodes(NodeID)%VolumeNew
+        !        endif
+        !    end do
+        !end if
+
+
+    end subroutine InitializeNodes
+    
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine ComputeXSFromWaterDepth (CurrNode)
+
+        !Arguments--------------------------------------------------------------
+        type (T_Node), pointer                          :: CurrNode
+        
+        !Local------------------------------------------------------------------        
+        real(8)                                         :: PoolVolume
+        real                                            :: TopH, AvTrapez1, AvTrapez2
+        real                                            :: PTrapez1, aux
+
+
+!        if (CurrNode%nDownstreamReaches /= 0) then
+
+            if (CurrNode%CrossSection%Form == Trapezoidal)  then
+
+                if (CurrNode%WaterDepth <= CurrNode%CrossSection%Height) then
+            
+                    call TrapezoidGeometry (b  = CurrNode%CrossSection%BottomWidth, &
+                                            mR = CurrNode%CrossSection%Slope,       &
+                                            mL = CurrNode%CrossSection%Slope,       &
+                                            h  = CurrNode%WaterDepth,               &
+                                            Av = CurrNode%VerticalArea,             &
+                                            P  = CurrNode%WetPerimeter,             &
+                                            Sw = CurrNode%SurfaceWidth)
+                else
+                
+                    call TrapezoidGeometry (b  = CurrNode%CrossSection%BottomWidth, &
+                                            mR = CurrNode%CrossSection%Slope,       &
+                                            mL = CurrNode%CrossSection%Slope,       &
+                                            h  = CurrNode%CrossSection%Height,      &
+                                            Av = CurrNode%VerticalArea,             &
+                                            P  = CurrNode%WetPerimeter,             &
+                                            Sw = CurrNode%SurfaceWidth)                
+                
+                    CurrNode%VerticalArea = CurrNode%VerticalArea + &
+                                            (CurrNode%CrossSection%TopWidth * &
+                                            (CurrNode%WaterDepth - CurrNode%CrossSection%Height))
+                    
+                    CurrNode%WetPerimeter = CurrNode%WetPerimeter + 2 * (CurrNode%WaterDepth - CurrNode%CrossSection%Height)
+                    
+                endif
+
+            elseif (CurrNode%CrossSection%Form == TrapezoidalFlood) then
+                
+                if (CurrNode%WaterDepth <= CurrNode%CrossSection%MiddleHeight) then
+            
+                    call TrapezoidGeometry (b  = CurrNode%CrossSection%BottomWidth, &
+                                            mR = CurrNode%CrossSection%Slope,       &
+                                            mL = CurrNode%CrossSection%Slope,       &
+                                            h  = CurrNode%WaterDepth,               &
+                                            Av = CurrNode%VerticalArea,             &
+                                            P  = CurrNode%WetPerimeter,             &
+                                            Sw = CurrNode%SurfaceWidth)                
+                else
+                    ! from the previous if
+                    ! we already know that CurrNode%WaterDepth > CurrNode%CrossSection%MiddleHeigh
+
+                    call TrapezoidGeometry (b  = CurrNode%CrossSection%BottomWidth, &
+                                            mR = CurrNode%CrossSection%Slope,       &
+                                            mL = CurrNode%CrossSection%Slope,       &
+                                            h  = CurrNode%CrossSection%MiddleHeight,&
+                                            Av = AvTrapez1,                         &
+                                            P  = PTrapez1,                          &
+                                            Sw = aux)
+
+                    TopH = CurrNode%WaterDepth - CurrNode%CrossSection%MiddleHeight
+
+                    call TrapezoidGeometry (b  = CurrNode%CrossSection%MiddleWidth, &
+                                            mR = CurrNode%CrossSection%SlopeTop,    &
+                                            mL = CurrNode%CrossSection%SlopeTop,    &
+                                            h  = TopH,                              &
+                                            Av = AvTrapez2,                         &
+                                            P  = aux,                               &
+                                            Sw = CurrNode%SurfaceWidth)
+
+                    CurrNode%VerticalArea = AvTrapez1 + AvTrapez2
+                    CurrNode%WetPerimeter = PTrapez1 + 2. * TopH * sqrt (1. + CurrNode%CrossSection%SlopeTop**2.)
+
+                endif
+                
+            elseif (CurrNode%CrossSection%Form == Tabular) then
+                
+                call TabularGeometry (CurrNode%CrossSection,   &
+                                      CurrNode%WaterLevel,     &
+                                      CurrNode%VerticalArea,   & 
+                                      CurrNode%WetPerimeter,   &
+                                      CurrNode%SurfaceWidth)
+
+            else                 
+                stop 'Invalid cross section form - ComputeXSFromWaterDepth - ModuleDrainageNetwork - ERR01'
+            end if
+
+
+            CurrNode%SurfaceArea  = CurrNode%SurfaceWidth * CurrNode%Length
+
+            !Correction of Surface Area for low water depth - invented by Frank
+            if (CurrNode%CrossSection%PoolDepth < AllmostZero) then
+                if     (CurrNode%WaterDepth < 0.01) then
+                    CurrNode%SurfaceArea = CurrNode%SurfaceArea  * 0.1
+                    CurrNode%SurfaceWidth= CurrNode%SurfaceWidth * 0.1
+                elseif (CurrNode%WaterDepth < 0.05) then
+                    CurrNode%SurfaceArea = CurrNode%SurfaceArea  * 0.5
+                    CurrNode%SurfaceWidth= CurrNode%SurfaceWidth * 0.5
+                endif
+            endif    
+
+            if (CurrNode%VerticalArea .LT. AllmostZero) then
+                !Pools are always half in the beginning
+                PoolVolume          = 0.5 * CurrNode%CrossSection%PoolDepth * CurrNode%CrossSection%BottomWidth * CurrNode%Length
+                CurrNode%VolumeNew  = 0.0 + PoolVolume
+            else
+                !Pools are always full in the beginning
+                PoolVolume            = 1.0 * CurrNode%CrossSection%PoolDepth * CurrNode%CrossSection%BottomWidth * CurrNode%Length 
+                CurrNode%VerticalArea = CurrNode%SingCoef * CurrNode%VerticalArea
+                !CurrNode%WetPerimeter = CurrNode%SingCoef * CurrNode%WetPerimeter
+                CurrNode%VolumeNew    = CurrNode%VerticalArea * CurrNode%Length + PoolVolume
+            endif
+
+                
+!        end if
+
+    end subroutine ComputeXSFromWaterDepth
+    
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine TrapezoidGeometry (b, mL, mR, h, Av, P, Sw) 
+
+
+        !Arguments--------------------------------------------------------------
+        real, intent(in)                        :: b, mL, mR, h
+        real, intent(out)                       :: Av, P, Sw
+        real                                    :: m
+        
+        m = 0.5 * ( abs(mL) + mR )
+        Av = (b + m  * h) * h
+        P  =  b + h  * ( sqrt(1. + mL**2.) + sqrt(1. + mR**2.) )
+        Sw =  b + 2  * m * h
+
+    end subroutine TrapezoidGeometry
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine TabularGeometry (CrossSection, WaterLevel, Av, P, Sw)
+
+        !Arguments--------------------------------------------------------------
+        type(T_CrossSection)                :: CrossSection
+        real, intent(in)                    :: WaterLevel
+        real, intent(out)                   :: Av, P, Sw
+
+        !Locals----------------------------------------------------------------
+        integer                             :: i, ilev
+        real                                :: dH, b, m
+
+        if (WaterLevel < CrossSection%BottomLevel) then
+            write(*,*)'WaterLevel lower than bottom level'
+            stop 'TabularGeometry - ModuleDrainageNetwork - ERR01'
+        end if
+        !if (WaterLevel > CrossSection%Elevation(1)) write(*,*) 'WaterLevel higher than max elevation'
+        
+        Av = 0.
+        P  = 0.
+        Sw = 0.
+        dH = null_real
+
+        do i=  1, CrossSection%NLevels
+            if (CrossSection%Level(i) <= WaterLevel) then
+                dH = WaterLevel - CrossSection%Level(i)
+                ilev = i                
+                !exit nao porque quero o lowest level mais aproximado
+            endif
+        enddo   
+
+        if (dH <= 1e-6) then
+            Av = CrossSection%LevelVerticalArea(ilev)
+            P  = CrossSection%LevelWetPerimeter(ilev)
+            Sw = CrossSection%LevelSurfaceWidth(ilev)
+        else        
+
+            b = CrossSection%LevelBottomWidth(ilev)
+            m = 0.5 * ( abs(CrossSection%LevelSlopeLeft(ilev)) + CrossSection%LevelSlopeRight(ilev) )
+        
+            call TrapezoidGeometry (b  = CrossSection%LevelBottomWidth(ilev),   &
+                                    mL = CrossSection%LevelSlopeLeft(ilev),     &
+                                    mR = CrossSection%LevelSlopeRight(ilev),    &
+                                    h  = dH,                                    &
+                                    Av = Av,                                    &
+                                    P  = P,                                     &
+                                    Sw = Sw)
+            Av = Av + CrossSection%LevelVerticalArea(ilev)
+
+            if (ilev >= 2) &
+                    P  = P + CrossSection%LevelWetPerimeter(ilev) - CrossSection%LevelBottomWidth(ilev)
+            
+        endif
+
+    end subroutine TabularGeometry
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine InitializeReaches
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        type (T_Reach), pointer                 :: CurrReach      
+        integer                                 :: ReachID
+
+        do ReachID = 1, Me%TotalReaches
+            CurrReach => Me%Reaches(ReachID)                
+            call UpdateReachCrossSection (CurrReach)
+        end do
+        
+        if (.not. Me%Continuous) then
+    
+!            if (Me%HydrodynamicApproximation == DiffusionWave) then
+
+!                do ReachID = 1, Me%TotalReaches
+!                    CurrReach => Me%Reaches(ReachID)                
+!
+!                    !Update Slope based on water level
+!                    CurrReach%Slope = (Me%Nodes(CurrReach%UpstreamNode)%Waterlevel -            &
+!                                       Me%Nodes(CurrReach%DownstreamNode)%Waterlevel) /         &
+!                                       CurrReach%Length
+!                                       
+!                    !Don't allow negative slopes and impose a minimum slope..
+!                    if (.not. Me%AllowBackwardWater) then
+!                        CurrReach%Slope = max(CurrReach%Slope, Me%MinimumSlope)
+!                    endif
+!
+!                    call ComputeKinematicWave (CurrReach) 
+!                end do
+!
+!            else
+
+                do ReachID = 1, Me%TotalReaches
+                    Me%Reaches(ReachID)%FlowNew = 0.0                
+                end do
+        
+!            end if
+
+        end if
+
+    end subroutine InitializeReaches
+
+    !---------------------------------------------------------------------------
+
+    subroutine ConstructStormWaterModelLink
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                     :: NodeID, iout, iin, iUp
+        type (T_Reach), pointer                     :: DownStreamReach
+        type (T_Node), pointer                      :: CurrNode
+        logical                                     :: upStreamActive 
+
+        !Counts nodes
+        Me%StormWaterModelLink%nOutflowNodes = 0
+        Me%StormWaterModelLink%nInflowNodes  = 0
+        
+
+        do NodeID = 1, Me%TotalNodes
+            CurrNode => Me%Nodes (NodeID)
+            if (CurrNode%nDownStreamReaches == 1) then
+                DownStreamReach => Me%Reaches (CurrNode%DownstreamReaches (1))
+                
+                upStreamActive = .false.
+                do iUp = 1, CurrNode%nUpStreamReaches
+                    if (Me%Reaches (CurrNode%UpstreamReaches(iUp))%Active) then
+                        upStreamActive = .true.
+                    endif
+                enddo
+
+                !Flow to Storm Water System -> In nodes where downstream node is inactive and upstream nodes active
+                if (.not. DownStreamReach%Active .and. upStreamActive) then
+                    Me%StormWaterModelLink%nOutflowNodes = Me%StormWaterModelLink%nOutflowNodes + 1
+                endif
+                
+                !Flow from Storm Water System -> In nodes where upstream nodes are inactive and downstream nodes are active
+                if (DownStreamReach%Active .and. .not. upStreamActive .and. CurrNode%nUpStreamReaches > 0) then
+                    Me%StormWaterModelLink%nInflowNodes = Me%StormWaterModelLink%nInflowNodes + 1
+                endif
+               
+            endif
+        enddo
+        
+        !Allocates Matrixes
+        if (Me%StormWaterModelLink%nOutflowNodes > 0) then
+            allocate (Me%StormWaterModelLink%OutflowIDs (Me%StormWaterModelLink%nOutflowNodes))
+            allocate (Me%StormWaterModelLink%Outflow    (Me%StormWaterModelLink%nOutflowNodes))
+            Me%StormWaterModelLink%Outflow = 0.0
+        endif
+        
+        if (Me%StormWaterModelLink%nInflowNodes > 0) then
+            allocate (Me%StormWaterModelLink%InflowIDs  (Me%StormWaterModelLink%nInflowNodes))
+            allocate (Me%StormWaterModelLink%Inflow     (Me%StormWaterModelLink%nInflowNodes))
+            Me%StormWaterModelLink%Inflow = 0.0
+        endif
+        
+        !Fills Matrixes
+        iout = 1
+        iin  = 1
+        do NodeID = 1, Me%TotalNodes
+            CurrNode => Me%Nodes (NodeID)
+            if (CurrNode%nDownStreamReaches == 1) then
+                DownStreamReach => Me%Reaches (CurrNode%DownstreamReaches (1))
+                
+                upStreamActive = .false.
+                do iUp = 1, CurrNode%nUpStreamReaches
+                    if (Me%Reaches (CurrNode%UpstreamReaches(iUp))%Active) then
+                        upStreamActive = .true.
+                    endif
+                enddo
+
+                !Flow to Storm Water System -> In nodes where downstream node is inactive and upstream nodes active
+                if (.not. DownStreamReach%Active .and. upStreamActive) then
+                    Me%StormWaterModelLink%OutflowIDs(iout) = NodeID
+                    iout = iout + 1
+                endif
+                
+                !Flow from Storm Water System -> In nodes where upstream nodes are inactive and downstream nodes are active
+                if (DownStreamReach%Active .and. .not. upStreamActive .and. CurrNode%nUpStreamReaches > 0) then
+                    Me%StormWaterModelLink%InflowIDs(iout) = NodeID
+                    iin = iin + 1
+                endif
+               
+            endif
+        enddo
+
+    end subroutine ConstructStormWaterModelLink
+
+    !---------------------------------------------------------------------------
+
+    subroutine ConstructSubModules
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                     :: nWaterQualityModels
+        type(T_Property), pointer                   :: PropertyX
+        integer                                     :: STAT_CALL
+
+        !Begin------------------------------------------------------------------
+
+        allocate (Me%NodesDWZ(Me%TotalNodes))
+        Me%NodesDWZ = null_real
+        
+        
+        !If needed allocate TopRadiation
+        if (Me%ComputeOptions%TopRadiation .or. Me%ComputeOptions%T90_Decay)  then
+            allocate (Me%TopRadiation       (Me%TotalNodes))
+            Me%TopRadiation         = null_real
+        endif
+
+        !If Needed allocate AirTemperature and SedimentTemperture
+        call SearchProperty (PropertyX, PropertyXIDNumber = Temperature_, STAT = STAT_CALL)
+        if (STAT_CALL == SUCCESS_) then
+            allocate (Me%AirTemperature     (Me%TotalNodes))
+            allocate (Me%SedimentTemperature(Me%TotalNodes))
+            Me%AirTemperature      = PropertyX%Concentration !null_real -> leave this here, otherwise simulation crashes...
+            Me%SedimentTemperature = PropertyX%Concentration
+        else
+            if (Me%ComputeOptions%TopRadiation .or. Me%ComputeOptions%T90_Decay) then
+                write (*,*)'Drainage Network needs Property Temperature'
+                stop 'ConstructSubModules - ModuleDrainageNetwork - ERR00'
+            endif
+        endif
+
+        
+        PropertyX => Me%FirstProperty
+
+do1 :   do while (associated(PropertyX))
+
+            if (PropertyX%ComputeOptions%MacroAlgae) then
+                Me%Coupled%MacroAlgae%NumberOfProperties                = &
+                Me%Coupled%MacroAlgae%NumberOfProperties                + 1
+                Me%Coupled%MacroAlgae%Yes                               = ON
+            endif
+            
+
+            PropertyX=>PropertyX%Next
+
+        end do do1        
+        
+
+        !If neeed constructs Light Extinctions
+        if  (Me%ComputeOptions%TopRadiation)  then
+            call CoupleLightExtinction
+        endif
+
+      
+        !Verifies number of water quality models
+        nWaterQualityModels = 0
+        if(Me%ComputeOptions%WaterQuality) nWaterQualityModels = nWaterQualityModels + 1
+        if(Me%ComputeOptions%CeQualW2    ) nWaterQualityModels = nWaterQualityModels + 1
+        if(Me%ComputeOptions%Life        ) nWaterQualityModels = nWaterQualityModels + 1
+        !if(Me%ComputeOptions%MacroAlgae  ) nWaterQualityModels = nWaterQualityModels + 1
+
+        if (nWaterQualityModels > 1) then
+            write(*,*)'Cannot run more then one Water Quality model in the same simulation'
+            stop      'ConstructSubModules - ModuleDrainageNetwork - ERR01'
+        end if
+
+        if (Me%ComputeOptions%WaterQuality) then
+            call CoupleWaterQuality
+        endif
+        
+        if (Me%ComputeOptions%CeQualW2) then
+            call CoupleCEQUALW2
+        endif
+
+        if (Me%ComputeOptions%Benthos) then
+            call CoupleBenthos
+        endif     
+        
+        if (Me%ComputeOptions%Macroalgae) then
+            call CoupleMacroAlgae
+        endif
+        
+        if (Me%ComputeOptions%BottomFluxes) then
+            call SearchProperty(PropertyX, PropertyXIDNumber = TSS_, STAT = STAT_CALL)
+            !give a warning, if TSS is not chosen as property
+            !cohesive sediment concentration must be taken in this case instead!!!
+            if (STAT_CALL /= SUCCESS_) then
+              write(*,*) 'Bottom Fluxes are activated, but TSS is not chosen as property'
+              write(*,*) 'Cohesive sediment will be taken to calculate erosion rates!'
+            endif             
+            if (Me%ComputeOptions%CalcFractionSediment)then
+                call SearchProperty(PropertyX, PropertyXIDNumber = COHSED_FINE_, STAT = STAT_CALL)
+                if (STAT_CALL == SUCCESS_) then
+                    allocate (Me%ShearStress (Me%TotalReaches))            
+                    Me%ShearStress = 0.0
+                else
+                    call SearchProperty(PropertyX, PropertyXIDNumber = COHSED_MEDIUM_, STAT = STAT_CALL)
+                    if (STAT_CALL == SUCCESS_) then
+                        allocate (Me%ShearStress (Me%TotalReaches))            
+                        Me%ShearStress = 0.0
+                    else
+                        call SearchProperty(PropertyX, PropertyXIDNumber = COHSED_COARSE_, STAT = STAT_CALL)
+                        if (STAT_CALL == SUCCESS_) then
+                            allocate (Me%ShearStress (Me%TotalReaches))            
+                            Me%ShearStress = 0.0
+                        else
+                            write (*,*)
+                            write (*,*) 'Bottom Fluxes needs at least one Cohesive Sediment Fraction'
+                            stop        'ConstructSubModules - ModuleDrainageNetwork - ERR02_Wassim'
+                        end if
+                    end if
+                end if
+            else
+                call SearchProperty(PropertyX, PropertyXIDNumber = Cohesive_Sediment_, STAT = STAT_CALL)
+                if (STAT_CALL == SUCCESS_) then
+                    allocate (Me%ShearStress (Me%TotalReaches))            
+                    Me%ShearStress = 0.0
+                else
+                    write (*,*)
+                    write (*,*) 'Bottom Fluxes needs Cohesive_Sediment_'
+                    stop        'ConstructSubModules - ModuleDrainageNetwork - ERR02'
+                end if
+            end if  
+        end if
+
+               
+
+    end subroutine ConstructSubModules
+
+    !---------------------------------------------------------------------------
+    
+    subroutine CoupleLightExtinction
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        type (T_Size1D)                             :: Size1D
+        logical                                     :: NeedsPhyto      = .false.
+        logical                                     :: NeedsSPM        = .false.
+        type(T_Property), pointer                   :: PropertyX
+        integer                                     :: STAT_CALL
+
+        Size1D%ILB = 1
+        !Size1D%IUB = Me%TotalReaches
+        Size1D%IUB = Me%TotalNodes
+        call ConstructLightExtinction(LightExtinctionID = Me%ObjLightExtinction,        &
+                                      TimeID            = Me%ObjTime,                   &
+                                      EnterDataID       = Me%ObjEnterData,              &
+                                      Size1D            = Size1D,                       &
+                                      STAT              = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CoupleLightExtinction - ModuleDrainageNetwork - ERR01'
+
+
+        !Allocates Variables - Local Var
+        allocate (Me%ShortWaveExtinction(Me%TotalNodes))
+        allocate (Me%ShortWaveField     (Me%TotalNodes))
+        allocate (Me%LongWaveField      (Me%TotalNodes))
+        
+
+        !Allocates Variables - External 
+        allocate (Me%CloudCover         (Me%TotalNodes))
+        allocate (Me%RelativeHumidity   (Me%TotalNodes))
+        allocate (Me%WindSpeed          (Me%TotalNodes))
+
+        Me%ShortWaveExtinction  = null_real
+        Me%ShortWaveField       = null_real
+        Me%LongWaveField        = null_real
+
+        Me%CloudCover           = null_real
+        Me%RelativeHumidity     = null_real
+        Me%WindSpeed            = null_real
+
+        !
+        call GetLightExtinctionOptions(LightExtinctionID = Me%ObjLightExtinction,       &
+                                       NeedsPhyto        = NeedsPhyto,                  &
+                                       NeedsSPM          = NeedsSPM,                    &
+                                       STAT              = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'CoupleLightExtinction - ModuleDrainageNetwork - ERR02'
+
+        if (NeedsPhyto) then
+
+            call SearchProperty(PropertyX, PropertyXIDNumber = Phytoplankton_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CoupleLightExtinction - ModuleDrainageNetwork - ERR03'
+        
+            PropertyX%ComputeOptions%LightExtinction = .true.
+
+        end if
+
+        if (NeedsSPM) then
+
+            call SearchProperty(PropertyX, PropertyXIDNumber = Cohesive_Sediment_, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CoupleLightExtinction - ModuleDrainageNetwork - ERR04'
+        
+            PropertyX%ComputeOptions%LightExtinction = .true.
+
+        end if
+
+     
+    end subroutine CoupleLightExtinction
+
+    !---------------------------------------------------------------------------
+
+    subroutine CoupleWaterQuality
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        type(T_Property), pointer                           :: PropertyX
+        integer, pointer, dimension(:)                      :: WaterQualityPropertyList
+        integer                                             :: STAT_CALL
+        real                                                :: WaterQualityDT
+        integer                                             :: nProp = 0 
+        type (T_Size1D)                                     :: Size1D
+
+        !Begin------------------------------------------------------------------
+
+        !Counts the number of Properties which has WaterQuality option set to true
+        PropertyX => Me%FirstProperty
+        do while (associated(PropertyX))
+            if (PropertyX%ComputeOptions%WaterQuality) then
+                nProp = nProp + 1
+            endif
+            PropertyX => PropertyX%Next
+        enddo
+
+        !Allocates Array wto hold IDs
+        allocate (WaterQualityPropertyList(1:nProp))
+
+        !Fills Array
+        PropertyX => Me%FirstProperty
+        nProp = 0
+        do while (associated(PropertyX))
+            if (PropertyX%ComputeOptions%WaterQuality) then
+                nProp = nProp + 1
+                WaterQualityPropertyList(nProp) = PropertyX%ID%IDNumber
+            endif
+            PropertyX => PropertyX%Next
+        enddo
+
+        !Start Interface
+        Size1D%ILB = 1
+        !Size1D%IUB = Me%TotalReaches
+        Size1D%IUB = Me%TotalNodes
+        call ConstructInterface(InterfaceID         = Me%ObjInterface,               &
+                                TimeID              = Me%ObjTime,                    &
+                                SinksSourcesModel   = WaterQualityModel,             &
+                                DT                  = WaterQualityDT,                &
+                                PropertiesList      = WaterQualityPropertyList,      &
+                                RiverPoints1D       = Me%RiverPoints,                &
+                                Size1D              = Size1D,                        &
+                                STAT = STAT_CALL)
+
+        deallocate (WaterQualityPropertyList)
+
+        Me%Coupled%WQM%DT_Compute  = WaterQualityDT 
+        Me%Coupled%WQM%NextCompute = Me%CurrentTime
+
+    end subroutine CoupleWaterQuality
+    
+    !---------------------------------------------------------------------------
+    
+    subroutine CoupleCEQUALW2
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        type(T_Property), pointer                           :: PropertyX
+        integer, pointer, dimension(:)                      :: CEQUALW2PropertyList
+        integer                                             :: STAT_CALL
+        real                                                :: CEQUALW2DT
+        integer                                             :: nProp = 0 
+        type (T_Size1D)                                     :: Size1D
+
+        !Begin------------------------------------------------------------------
+
+        !Counts the number of Properties which has CEQUALW2 option set to true
+        PropertyX => Me%FirstProperty
+        do while (associated(PropertyX))
+            if (PropertyX%ComputeOptions%CeQualW2) then
+                nProp = nProp + 1
+            endif
+            PropertyX => PropertyX%Next
+        enddo
+
+        !Allocates Array wto hold IDs
+        allocate (CEQUALW2PropertyList(1:nProp))
+
+        !Fills Array
+        PropertyX => Me%FirstProperty
+        nProp = 0
+        do while (associated(PropertyX))
+            if (PropertyX%ComputeOptions%CeQualW2) then
+                nProp = nProp + 1
+                CEQUALW2PropertyList(nProp) = PropertyX%ID%IDNumber
+            endif
+            PropertyX => PropertyX%Next
+        enddo
+
+        !Start Interface
+        Size1D%ILB = 1
+        !Size1D%IUB = Me%TotalReaches
+        Size1D%IUB = Me%TotalNodes
+        call ConstructInterface(InterfaceID         = Me%ObjInterface,               &
+                                TimeID              = Me%ObjTime,                    &
+                                SinksSourcesModel   = CEQUALW2Model,                 &
+                                DT                  = CEQUALW2DT,                    &
+                                PropertiesList      = CEQUALW2PropertyList,          &
+                                RiverPoints1D       = Me%RiverPoints,                &
+                                Size1D              = Size1D,                        &
+                                STAT = STAT_CALL)
+
+        deallocate (CEQUALW2PropertyList)
+
+        Me%Coupled%CEQUALW2%DT_Compute  = CEQUALW2DT 
+        Me%Coupled%CEQUALW2%NextCompute = Me%CurrentTime
+
+    end subroutine CoupleCEQUALW2
+    
+    !---------------------------------------------------------------------------    
+    
+    subroutine CoupleBenthos
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        type(T_Property), pointer                           :: PropertyX
+        integer, pointer, dimension(:)                      :: BenthosPropertyList
+        integer                                             :: STAT_CALL
+        real                                                :: BenthosDT
+        integer                                             :: nProp = 0 
+        type (T_Size1D)                                     :: Size1D
+
+        !Begin------------------------------------------------------------------
+
+        !SOD from file
+        call ReadSOD
+        
+        
+        !Counts the number of Properties which has WaterQuality option set to true
+        PropertyX => Me%FirstProperty
+        do while (associated(PropertyX))
+            if (PropertyX%ComputeOptions%Benthos) then
+                nProp = nProp + 1
+            endif
+            PropertyX => PropertyX%Next
+        enddo
+
+        !Allocates Array wto hold IDs
+        allocate (BenthosPropertyList(1:nProp))
+
+        !Fills Array
+        PropertyX => Me%FirstProperty
+        nProp = 0
+        do while (associated(PropertyX))
+            if (PropertyX%ComputeOptions%Benthos) then
+                nProp = nProp + 1
+                BenthosPropertyList(nProp) = PropertyX%ID%IDNumber
+            endif
+            PropertyX => PropertyX%Next
+        enddo
+
+        !Start Interface
+        Size1D%ILB = 1
+        !Size1D%IUB = Me%TotalReaches
+        Size1D%IUB = Me%TotalNodes
+        
+        call ConstructInterface(InterfaceID         = Me%ObjBenthicInterface,           &
+                                TimeID              = Me%ObjTime,                       &
+                                SinksSourcesModel   = BenthosModel,                     &
+                                DT                  = BenthosDT,                        &
+                                PropertiesList      = BenthosPropertyList,              &
+                                RiverPoints1D       = Me%RiverPoints,                   &
+                                Size1D              = Size1D,                           &
+                                STAT = STAT_CALL)
+
+        deallocate (BenthosPropertyList)
+
+        Me%Coupled%Benthos%DT_Compute  = BenthosDT 
+        Me%Coupled%Benthos%NextCompute = Me%CurrentTime
+        
+        !Set SOD in Interface in kg.m-2.day-1
+        !After construct so that matrixes are allocated for benthos
+        if (Me%UseSOD) call SetSOD(Me%SODRate, Me%OpenPointsProcess, Me%RiverPoints)        
+
+    end subroutine CoupleBenthos
+        
+    !---------------------------------------------------------------------------
+    
+    subroutine ReadSOD
+
+        !External--------------------------------------------------------------
+        integer                             :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+
+        integer                             :: NodePos, iflag
+        real                                :: SODRate
+
+        !Begin-----------------------------------------------------------------
+        
+        
+        call GetData(Me%UseSOD,                                                          &
+                     Me%ObjEnterData, iflag,                                             &
+                     KeyWord    = 'USE_SOD',                                             &
+                     SearchType = FromFile,                                              &
+                     Default    = .false.,                                               &
+                     ClientModule = 'ModuleDrainageNetwork',                             &
+                     STAT       = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            stop 'ReadSOD - ModuleDrainageNetwork - ERR01'         
+ 
+    
+        if (Me%UseSOD)then
+            
+            nullify(Me%SODRate)
+            allocate(Me%SODRate(1 : Me%TotalNodes))            
+       
+            !One SOD (kg.m-2.day-1) for all
+            call GetData(SODRate,                                                            &
+                         Me%ObjEnterData, iflag,                                             &
+                         KeyWord    = 'SOD_RATE',                                            &
+                         SearchType = FromFile,                                              &
+                         Default    = 0.0,                                                   &
+                         ClientModule = 'ModuleDrainageNetwork',                             &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                                     &
+                stop 'ReadSOD - ModuleDrainageNetwork - ERR02' 
+            
+            !Found - one for all
+            if(iflag /= 0)then
+            
+                !kg.m-2.day-1
+                 do NodePos = 1, Me%TotalNodes
+                    Me%SODRate(NodePos) = SODRate    
+                enddo               
+      
+            else
+            
+                !each node has it read from nodes
+                !kg.m-2.day-1
+                do NodePos = 1, Me%TotalNodes
+                    Me%SODRate(NodePos) = Me%Nodes(NodePos)%SODRate 
+                enddo    
+            
+            endif            
+            
+            
+        end if            
+        
+        
+    end subroutine ReadSOD
+    
+    !--------------------------------------------------------------------------    
+    
+    subroutine CoupleMacroAlgae
+        
+        !Local-----------------------------------------------------------------
+        type(T_Property), pointer                           :: PropertyX
+        integer, pointer, dimension(:)                      :: MacroAlgaePropertyList
+        integer                                             :: STAT_CALL, iflag
+        real                                                :: MacroAlgaeDT
+        integer                                             :: Index = 0
+        type (T_Size1D)                                     :: Size1D
+
+        !----------------------------------------------------------------------
+
+        !gC/m2
+        call GetData(Me%MacroAlgae%DefaultValue,                                        &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'MACROALGAE_MASS',                                &
+                     Default        = 0.001,                                            &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleDrainageNetwork',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CoupleMacroAlgae - ModuleDrainageNetwork - ERR02'
+        if (iflag == 0)            stop 'CoupleMacroAlgae - ModuleDrainageNetwork - ERR03'
+        
+        call GetData(Me%MacroAlgae%VariableHeight,                                              &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'VARIABLE_MACR_HEIGHT',                              &
+                     Default        = .false.,                                             &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleDrainageNetwork',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CoupleMacroAlgae - ModuleDrainageNetwork - ERR04'
+        
+        if ((iflag == 0) .or. (.not.Me%MacroAlgae%VariableHeight))  then
+            !m
+            call GetData(Me%MacroAlgae%HeightConstant,                                      &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword        = 'MACROALGAE_HEIGHT',                              &
+                         Default        = 0.25,                                             &
+                         SearchType     = FromFile,                                         &
+                         ClientModule   = 'ModuleDrainageNetwork',                          &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CoupleMacroAlgae - ModuleDrainageNetwork - ERR05'
+            if (iflag == 0)            stop 'CoupleMacroAlgae - ModuleDrainageNetwork - ERR06' 
+        endif
+        
+        allocate(Me%MacroAlgae%Height  (1: Me%TotalNodes)) !m
+        
+        
+        if (Me%MacroAlgae%VariableHeight) then 
+        
+               
+            call GetData(Me%MacroAlgae%HBRatio,                           &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword        = 'MACR_HEIGHT_BIOMASS_RATIO',                           &
+                         Default        = 0.002,                                            &
+                         SearchType     = FromFile,                                         &
+                         ClientModule   = 'ModuleDrainageNetwork',                          &
+                         STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CoupleMacroAlgae - ModuleDrainageNetwork - ERR08'
+            if (iflag == 0)            stop 'CoupleMacroAlgae - ModuleDrainageNetwork - ERR09'
+        
+    
+            Me%MacroAlgae%Height   (:) = Me%MacroAlgae%DefaultValue * &
+                                                            Me%MacroAlgae%HBRatio
+        else
+        
+            Me%MacroAlgae%Height   (:) = Me%MacroAlgae%HeightConstant
+        
+        endif
+        
+        allocate(Me%MacroAlgae%Distribution  (1: Me%TotalNodes)) !gC/m2
+        Me%MacroAlgae%Distribution   (:) = Me%MacroAlgae%DefaultValue
+        !
+        !allocate(Me%MacroAlgae%ShearStress3D (ILB:IUB, JLB:JUB, KLB:KUB)) 
+        !Me%MacroAlgae%ShearStress3D  (:,:,:) = FillValueReal
+        !
+        !allocate(Me%MacroAlgae%SPMDepFlux3D  (ILB:IUB, JLB:JUB, KLB:KUB)) 
+        !Me%MacroAlgae%SPMDepFlux3D   (:,:,:) = FillValueReal
+
+        allocate(Me%MacroAlgae%Occupation    (1: Me%TotalNodes)) 
+        Me%MacroAlgae%Occupation     (:) = 0.
+        
+        !allocate(Me%MacroAlgae%DistFromTop    (ILB:IUB, JLB:JUB, KLB:KUB)) 
+        !Me%MacroAlgae%DistFromTop     (:,:,:) = 0.
+
+        allocate(Me%MacroAlgae%ShearStress(1: Me%TotalNodes)) 
+        Me%MacroAlgae%ShearStress (:  ) = 0.
+
+        allocate(Me%MacroAlgae%SPMDepFlux (1: Me%TotalNodes)) 
+        Me%MacroAlgae%SPMDepFlux  (:  ) = 0.
+
+        Index = 0
+
+        nullify (MacroAlgaePropertyList)
+        allocate(MacroAlgaePropertyList(1:Me%Coupled%MacroAlgae%NumberOfProperties))
+
+        PropertyX => Me%FirstProperty
+            
+        do while(associated(PropertyX))
+
+            if(PropertyX%ComputeOptions%MacroAlgae)then
+
+                Index = Index + 1
+                MacroAlgaePropertyList(Index) = PropertyX%ID%IDNumber
+
+            end if
+
+            if(PropertyX%ID%IDNumber == MacroAlgae_)then
+                
+                !needed for subsequent steps
+                call UpdateNodesDWZ
+
+                if(Me%PropertyContinuous)then
+                    call IntegrateMacroAlgae(PropertyX)
+                else                    
+                    call ComputeMacroAlgaeOccupation
+                    !call DistributeMacroAlgae
+                end if
+
+                if(PropertyX%ComputeOptions%AdvectionDiffusion)then
+                    
+                    write(*,*)
+                    write(*,*)'Macroalgae can not have ADVECTION_DIFFUSION'
+                    write(*,*)'ADVECTION_DIFFUSION will be switched off'
+                    
+                    PropertyX%ComputeOptions%AdvectionDiffusion = OFF
+
+                end if
+
+            end if
+
+            PropertyX => PropertyX%Next
+        enddo
+        
+        nullify(PropertyX)
+
+        !Start Interface
+        Size1D%ILB = 1
+        !Size1D%IUB = Me%TotalReaches
+        Size1D%IUB = Me%TotalNodes        
+        call ConstructInterface(InterfaceID         = Me%ObjInterfaceMacroAlgae,     &
+                                TimeID              = Me%ObjTime,                    &
+                                SinksSourcesModel   = MacroAlgaeModel,               &
+                                DT                  = MacroAlgaeDT,                  &
+                                PropertiesList      = MacroAlgaePropertyList,        &
+                                RiverPoints1D       = Me%RiverPoints,                &
+                                Size1D              = Size1D,                        &
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                   &
+            stop 'CoupleMacroAlgae - ModuleDrainageNetwork - ERR01'
+        
+        Me%Coupled%MacroAlgae%DT_Compute   = MacroAlgaeDT 
+        Me%Coupled%MacroAlgae%NextCompute  = Me%CurrentTime
+        
+        deallocate(MacroAlgaePropertyList)
+        nullify   (MacroAlgaePropertyList)
+
+
+    end subroutine CoupleMacroAlgae
+    
+    !--------------------------------------------------------------------------    
+
+    subroutine UpdateNodesDWZ
+    
+        !Local------------------------------------------------------------------
+        integer                                     :: NodePos
+        real(8)                                     :: PoolVolume, PoolDepth
+        !Begin------------------------------------------------------------------
+        
+        !Updates Me%NodesDWZ, Shear Stress 
+        do NodePos = 1, Me%TotalNodes
+
+            PoolVolume = Me%Nodes(NodePos)%CrossSection%PoolDepth * Me%Nodes(NodePos)%Length * &
+                         Me%Nodes(NodePos)%CrossSection%BottomWidth
+            if (Me%Nodes(NodePos)%VolumeNew > PoolVolume) then
+                PoolDepth = Me%Nodes(NodePos)%CrossSection%PoolDepth
+            else
+                PoolDepth = Me%Nodes(NodePos)%VolumeNew / (Me%Nodes(NodePos)%Length * Me%Nodes(NodePos)%CrossSection%BottomWidth)
+            endif
+
+            Me%NodesDWZ(NodePos) = Me%Nodes(NodePos)%WaterDepth + PoolDepth
+            
+        enddo       
+    
+    end subroutine UpdateNodesDWZ
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine UpdateNodesShearStress
+    
+        !Local------------------------------------------------------------------
+        integer                                     :: NodePos, ReachID 
+        type (T_Size1D)                             :: Size1D
+        !Begin------------------------------------------------------------------
+        
+        Size1D%ILB = 1
+        !Size1D%IUB = Me%TotalReaches
+        Size1D%IUB = Me%TotalNodes         
+        
+        call SetMatrixValue(Me%MacroAlgae%ShearStress, Size1D, 0.0)
+        
+        do NodePos = 1, Me%TotalNodes
+            
+            !shear stress in first reach
+            if (Me%Nodes(NodePos)%nDownstreamReaches /= 0) then
+                ReachID = Me%Nodes(NodePos)%DownstreamReaches(1)
+                Me%MacroAlgae%ShearStress(NodePos) = Me%ShearStress(ReachID)
+            endif
+        enddo     
+    
+    end subroutine UpdateNodesShearStress
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine ConstructReservoirs
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        type (T_Size1D)                             :: Size1D
+        type (T_Size2D)                             :: Size2D
+        integer                                     :: ReservoirPos, NodePos, i
+        integer                                     :: DownReachPos, UpReachPos, UpNode
+        logical                                     :: Found
+        type(T_Node), pointer                       :: CurrNodeExchange, CurrNode
+        type(T_Reach), pointer                      :: CurrReach
+        
+        
+        !inactivate the nodes where reservoirs are
+        
+        !Reservoirs
+        Size1D%ILB = 1
+        Size2D%ILB = 1
+        Size1D%IUB = Me%Reservoirs%nReservoirs
+        Size2D%IUB = Me%Reservoirs%nReservoirs
+        
+        !props
+        Size2D%JLB = 1
+        Size2D%JUB = Me%PropertiesNumber
+        
+        allocate (Me%Reservoirs%ReservoirsInflow           (Me%Reservoirs%nReservoirs))
+        allocate (Me%Reservoirs%ReservoirsOutflow          (Me%Reservoirs%nReservoirs))
+        allocate (Me%Reservoirs%ReservoirsConc             (Me%Reservoirs%nReservoirs, Me%PropertiesNumber))
+        allocate (Me%Reservoirs%NodeConc                   (Me%Reservoirs%nReservoirs, Me%PropertiesNumber))
+        allocate (Me%Reservoirs%ReservoirsExchangeNodePos  (Me%Reservoirs%nReservoirs))        
+
+        call SetMatrixValue(Me%Reservoirs%ReservoirsInflow          , Size1D, 0.0)
+        call SetMatrixValue(Me%Reservoirs%ReservoirsOutflow         , Size1D, 0.0)
+        call SetMatrixValue(Me%Reservoirs%ReservoirsConc            , Size2D, 0.0)
+        call SetMatrixValue(Me%Reservoirs%NodeConc                  , Size2D, 0.0)        
+        call SetMatrixValue(Me%Reservoirs%ReservoirsExchangeNodePos , Size1D, 0)      
+        
+        
+        nullify (CurrNode)
+        do ReservoirPos = 1, Me%Reservoirs%nReservoirs
+            
+            call FindNodePosition(Me%Reservoirs%ReservoirDNNodeID(ReservoirPos), NodePos, Found)
+            
+            !inactivate reach(es) downstream resevoir node
+            !node to remove flow to reservoir (node water volume /dt) is only one (upstream inactive reach(es))
+            !node to insert flow from reservoir can be several (downstream of inactive reaches)
+            if (Found) then
+                
+                !Reservoir Node
+                CurrNodeExchange => Me%Nodes(NodePos)
+                
+                !Inactivate all downstream reaches
+                if (CurrNodeExchange%nDownstreamReaches /= 0) then
+                    
+                    do i = 1, CurrNodeExchange%nDownstreamReaches
+                        DownReachPos = CurrNodeExchange%DownstreamReaches(i)
+                        CurrReach => Me%Reaches(DownReachPos)
+                        CurrReach%Active = .false.
+                    enddo                    
+                                        
+                else !outlet - it can have only one upstream reach so inactivate that one
+                    UpReachPos = CurrNode%UpstreamReaches(1)
+                    CurrReach => Me%Reaches(UpReachPos)
+                    CurrReach%Active = .false.
+                    
+                    UpNode = CurrReach%UpstreamNode
+                    CurrNode => Me%Nodes(UpNode)
+                    !update Node (cant be the original because it was an outlet)
+                    call FindNodePosition(CurrNode%ID, NodePos, Found)
+                    
+                    if (.not. Found) then
+                        write (*,*) 'Node not found'
+                        write (*,*) 'Node ID = ', CurrNode%ID                          
+                        stop 'CoupleReservoirs - ModuleDrainageNetwork - ERR01'                
+                    endif                         
+                endif                            
+                
+                Me%Reservoirs%ReservoirsExchangeNodePos(ReservoirPos) = NodePos
+                
+            else
+                write (*,*) 'Node not found from Reservoir list'
+                write (*,*) 'Node ID = ', Me%Reservoirs%ReservoirDNNodeID(ReservoirPos)                           
+                stop 'CoupleReservoirs - ModuleDrainageNetwork - ERR010'                
+            endif        
+        enddo
+        
+        
+
+        
+    end subroutine ConstructReservoirs
+
+    !---------------------------------------------------------------------------    
+    
+    subroutine ConstructOutput
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+
+        !Verifies in whichs nodes to write time series 
+        call ReadTimeSerieNodeList
+       
+        !Basic Time Series Data (Hydrodynamic Properties) & Transported Properties
+        call ConstructTimeSerieList
+
+        !Opens all Time Series Data Files
+        call ConstructTimeSeries
+                    
+        !Opens HDF5 File
+        if (Me%Output%Yes) then
+            call ConstructHDF5Output 
+        endif
+        
+        if (Me%IntegratedOutput%Yes) then
+            call ConstructIntegratedHDF5Output
+        endif
+        
+       
+    end subroutine ConstructOutput
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine ReadTimeSerieNodeList
+
+        !This subroutine reads selected NodeID and selects also the downstream reach.
+        !Local------------------------------------------------------------------
+        integer                                     :: ClientNumber
+        logical                                     :: BlockFound, Found
+        integer                                     :: FirstLine, LastLine            
+        integer                                     :: STAT_CALL, flag
+        integer                                     :: NodeID
+        integer                                     :: NodePos, DownReachPos
+        type (T_Node), pointer                      :: CurrNode
+        character (Len = StringLength)              :: aux1, aux2               
+        
+ 
+        !-----------------------------------------------------------------------
+
+        !Keyword to see if the user wants the time series to be written by nodes, i.e.,
+        !One file per node, with all variables in the headers list
+        !if FALSE, its one file per variable with nodes in the headers.
+        call GetData(Me%TimeSerie%ByNodes,                                  &
+                     Me%ObjEnterData, flag,                                 &
+                     SearchType   = FromFile,                               &
+                     keyword      = 'TIME_SERIE_BY_NODES',                  &
+                     default      = .false.,                                &
+                     ClientModule = 'ModuleDrainageNetwork',                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                        &
+            stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR01'
+        
+        !Integrated mass is by prop
+        if (Me%TimeSerie%ByNodes .and. Me%Output%ComputeIntegratedMass) then
+            write(*,*)'Integrated Mass needs that time series are made by nodes'
+            stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR01a'
+        endif
+        
+        call GetData(Me%TimeSerie%Location,                                 &
+                     Me%ObjEnterData, flag,                                 &
+                     SearchType   = FromFile,                               &
+                     keyword      = 'TIME_SERIE_LOCATION',                  &
+                     ClientModule = 'ModuleDrainageNetwork',                &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                        &
+            stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR02'
+            
+if1:    if (flag==1) then   
+     
+            call GetData(Me%TimeSerie%LocationInt,                              &
+                         Me%ObjEnterData, flag,                                 &
+                         SearchType   = FromFile,                               &
+                         keyword      = 'TIME_SERIE_LOCATION_INT',              &
+                         default      = Me%TimeSerie%Location,                  &
+                         ClientModule = 'ModuleDrainageNetwork',                &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)                                        &
+                stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR02.1'
+    
+    
+            Me%TimeSerie%nNodes =  0
+
+            call ConstructEnterData (Me%TimeSerie%ObjEnterData,             &
+                                     Me%TimeSerie%Location, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                      &
+                stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR03'
+            
+do1:        do
+            
+                !Nodes--------------------------------------------------------------
+                call ExtractBlockFromBuffer(Me%TimeSerie%ObjEnterData, ClientNumber,    &
+                                            BeginNodeTimeSerie, EndNodeTimeSerie,       &
+                                            BlockFound, FirstLine, LastLine, STAT_CALL) 
+
+                if (STAT_CALL .EQ. SUCCESS_) then    
+
+                    if (BlockFound) then                 
+                        
+                        call GetData(NodeID, Me%TimeSerie%ObjEnterData,             &
+                                     flag,                                          &
+                                     keyword      = 'NODE_ID',                      &
+                                     ClientModule = 'DrainageNetwork',              &
+                                     SearchType   = FromBlock,                      &
+                                     STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                  &
+                            stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR04'
+                        if (flag == 0) then
+                            write (*,*) 'Node time series are now defined by NODE_ID and NAME'
+                            write (*,*) 'inside block <BeginNodeTimeSerie> / <EndNodeTimeSerie>'                           
+                            write (*,*) 'One block for each node'
+                            stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR05'
+                        endif
+                        
+                        call FindNodePosition (NodeID, NodePos, Found)
+
+                        if (.NOT.Found) then
+                            write (*,*) 'Node not found'
+                            write (*,*) 'Node ID = ', NodeID                           
+                            stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR06'
+                        end if
+
+                        
+                        CurrNode => Me%Nodes(NodePos)
+                        
+                        if (CurrNode%TimeSerie) then
+                            write (*,*) 'Repeated node in time series: ', CurrNode%ID
+                            stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR07'
+                        end if
+                            
+                        CurrNode%TimeSerie = .TRUE.
+                        Me%TimeSerie%nNodes = Me%TimeSerie%nNodes + 1
+
+                        if (CurrNode%nDownstreamReaches /= 0) then
+                            DownReachPos = CurrNode%DownstreamReaches (1)
+                            Me%Reaches(DownReachPos)%TimeSerie = .TRUE.
+                        else
+                            write(aux1,*) NodeID
+                            aux2 = 'Requested Node Time Series of Ghost Node ID = '// trim(adjustl(adjustr(aux1)))
+                            call SetError(FATAL_, KEYWORD_, aux2, ON)
+                        end if
+
+                        call GetData(Me%Nodes(NodePos)%TimeSerieName,               &
+                                     Me%TimeSerie%ObjEnterData,                     &
+                                     flag,                                          &
+                                     keyword      = 'NAME',                         &
+                                     ClientModule = 'DrainageNetwork',              &
+                                     SearchType   = FromBlock,                      &
+                                     STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                  &
+                            stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR08'
+                        if (flag == 0) then
+                            write (*,*) 'Node time series are now defined by NODE_ID and NAME'
+                            write (*,*) 'inside block <BeginNodeTimeSerie> / <EndNodeTimeSerie>'                           
+                            write (*,*) 'One block for each node'
+                            stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR09'
+                        endif
+                                                                                          
+                    else 
+
+                        call Block_Unlock(Me%TimeSerie%ObjEnterData, ClientNumber)
+                        exit do1
+                        
+                    end if
+
+                else if (STAT_CALL .EQ. BLOCK_END_ERR_) then 
+
+                    stop 'ReadTimeSerieNodeList - ModuleDrainageNetwork - ERR11'
+
+                end if
+            enddo do1
+        end if if1
+
+
+    end subroutine ReadTimeSerieNodeList
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine ConstructTimeSerieList
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        type (T_Property), pointer                          :: Property
+        integer                                             :: i, NodePos
+        character(LEN = StringLength)                       :: aux, str_Length, TextFormat
+        type(T_WQRate  ), pointer                           :: WQRateX     
+
+             
+        Me%TimeSerie%nProp = BaseTimeSeries
+
+        if (Me%HasProperties) then
+            Property => Me%FirstProperty
+            do while (associated (Property))            
+                if (Property%ComputeOptions%TimeSerie   ) then
+                    Me%TimeSerie%nProp = Me%TimeSerie%nProp + 1
+                    if (Property%ComputeOptions%Toxicity    ) Me%TimeSerie%nProp = Me%TimeSerie%nProp + 1
+                    !deposited
+                    !Rosa - erosion_rate + deposition_rate are not yet implemented because they have to be integrated 
+                    !over de time serie DT interval
+                    if (Property%ComputeOptions%BottomFluxes) Me%TimeSerie%nProp = Me%TimeSerie%nProp + 1
+                    if (Property%ComputeOptions%SumTotalConc) Me%TimeSerie%nProp = Me%TimeSerie%nProp + 1
+                    if (Property%ComputeOptions%ComputeLoad) Me%TimeSerie%nProp = Me%TimeSerie%nProp + 1
+                end if
+                Property => Property%Next    
+            end do
+            
+            !WQ rates
+            if (Me%Output%Rates) then
+                WQRateX => Me%FirstWQRate
+                do while(associated(WQRateX))
+                    Me%TimeSerie%nProp = Me%TimeSerie%nProp + 1
+                    WQRateX => WQRateX%Next
+                end do
+            endif            
+            
+        end if
+        
+        !MacroAlgae distribution gC/m2
+        if (Me%ComputeOptions%MacroAlgae) then
+            Me%TimeSerie%nProp = Me%TimeSerie%nProp + 1
+        endif
+
+        !Shear Stress
+        if (Me%ComputeOptions%BottomFluxes  ) Me%TimeSerie%nProp = Me%TimeSerie%nProp + 1
+
+        !Global toxicity
+        if (Me%ComputeOptions%Toxicity      ) Me%TimeSerie%nProp = Me%TimeSerie%nProp + 1
+
+        !Output hydrodynamic properties
+        if (Me%OutputHydro                  ) Me%TimeSerie%nProp = Me%TimeSerie%nProp + 5
+                
+
+if0:    if (Me%TimeSerie%ByNodes) then
+
+
+            allocate (Me%TimeSerie%ObjTimeSerie (1:Me%TimeSerie%nNodes))
+            allocate (Me%TimeSerie%Name         (1:Me%TimeSerie%nNodes))
+            allocate (Me%TimeSerie%X            (1:Me%TimeSerie%nNodes))
+            allocate (Me%TimeSerie%Y            (1:Me%TimeSerie%nNodes))
+
+            Me%TimeSerie%ObjTimeSerie = 0
+            i = 0
+
+            do NodePos = 1, Me%TotalNodes
+                                
+                if (Me%Nodes(NodePos)%TimeSerie) then
+                    
+                    i = i + 1                    
+                    aux = ''
+                    write (str_Length, '(i10)') StringLength
+                    TextFormat   = '(a'//trim(adjustl(adjustr(str_Length)))//')'
+                    
+                    write(aux,TextFormat) Me%Nodes(NodePos)%TimeSerieName                    
+                    Me%TimeSerie%Name(i)  = 'Node_'//trim(adjustl(adjustr(aux)))
+                    Me%TimeSerie%X(i)     = Me%Nodes(NodePos)%X
+                    Me%TimeSerie%Y(i)     = Me%Nodes(NodePos)%Y
+                end if
+
+            end do
+
+
+        else if0
+
+            
+            allocate (Me%TimeSerie%ObjTimeSerie (1:Me%TimeSerie%nProp))
+            allocate (Me%TimeSerie%Name         (1:Me%TimeSerie%nProp))
+            
+            !integrated mass and flow are separated from the other timeseries because do not have  
+            !the frequency defined in timeseries file  but from user definition
+            !and can not accumulate in buffer that sometimes is not written
+            if (Me%Output%ComputeIntegratedMass) then
+                allocate (Me%TimeSerie%ObjTimeSerieMass (1:Me%TimeSerie%nProp))
+                Me%TimeSerie%ObjTimeSerieMass = 0
+                allocate (Me%TimeSerie%ComputeMass   (1:Me%TimeSerie%nProp))
+                Me%TimeSerie%ComputeMass = .false.
+                
+                !which timeseries to create
+                if (Me%HasProperties) then
+
+                    Property => Me%FirstProperty
+                    i = BaseTimeSeries
+                    do while (associated (Property))
+                        
+                        i = i + 1
+                        if (Property%ComputeOptions%TimeSerie .and. Property%ComputeOptions%IntMassFlux) then 
+                            Me%TimeSerie%ComputeMass(i) = .true.
+                        end if                        
+                            
+                        Property => Property%Next
+                    end do
+                endif
+            endif
+
+            Me%TimeSerie%ObjTimeSerie = 0
+
+            call FillPropNameVector (Me%TimeSerie%Name)
+
+        end if if0
+
+    end subroutine ConstructTimeSerieList
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine ConstructTimeSeries
+
+        !Local------------------------------------------------------------------
+        integer                                              :: STAT_CALL
+        integer                                              :: NodePos, ReachPos        
+        integer                                              :: nNodes, nReaches, i
+        character(LEN = StringLength)                        :: aux, str_Length, TextFormat
+        character(LEN = StringLength), dimension(:), pointer :: NodeHeaderList 
+        character(LEN = StringLength), dimension(:), pointer :: ReachHeaderList 
+        character(LEN = StringLength), dimension(:), pointer :: PropHeaderList 
+       
+        
+if1:    if (Me%TimeSerie%nNodes > 0) then
+
+if2:        if (Me%TimeSerie%ByNodes) then
+            
+            
+                allocate (PropHeaderList           (1:Me%TimeSerie%nProp ))
+                allocate (Me%TimeSerie%DataLine    (1:Me%TimeSerie%nProp ))            
+
+                call FillPropNameVector (PropHeaderList)
+
+                do i = 1, Me%TimeSerie%nNodes
+
+                    call StartTimeSerie(Me%TimeSerie%ObjTimeSerie(i), Me%ObjTime,       &
+                                        TimeSerieDataFile = trim(Me%TimeSerie%Location),&
+                                        PropertyList      = PropHeaderList,             &
+                                        Extension         = "srn",                      &
+                                        ResultFileName    = Me%TimeSerie%Name (i),      &
+                                        ModelName         = Me%ModelName,               &
+                                        CoordX            = Me%TimeSerie%X    (i),      &
+                                        CoordY            = Me%TimeSerie%Y    (i),      &
+                                        STAT              = STAT_CALL)
+                    if (STAT_CALL /= 0) stop 'ConstructTimeSeries - ModuleDrainageNetwork - ERR01'
+                
+                end do
+
+                deallocate (PropHeaderList)
+            
+            else !if2
+                        
+                allocate (NodeHeaderList         (1:Me%TimeSerie%nNodes ))
+                allocate (ReachHeaderList        (1:Me%TimeSerie%nNodes ))            
+                allocate (Me%TimeSerie%DataLine  (1:Me%TimeSerie%nNodes ))            
+
+                !NodeHeaderList-------------------------------------------------
+                nNodes = 1
+                do NodePos = 1, Me%TotalNodes
+                
+                    if (Me%Nodes(NodePos)%TimeSerie) then
+                        aux = ''
+                        write (str_Length, '(i10)') StringLength
+                        TextFormat   = '(a'//trim(adjustl(adjustr(str_Length)))//')'
+                        
+                        write(aux,TextFormat) Me%Nodes(NodePos)%TimeSerieName                    
+                        NodeHeaderList(nNodes) = 'Node_'//trim(adjustl(adjustr(aux)))
+                        nNodes = nNodes + 1 
+                    endif                
+                enddo
+            
+                !ReachHeaderList------------------------------------------------
+                nReaches = 1
+                do ReachPos = 1, Me%TotalReaches
+                
+                    if (Me%Reaches(ReachPos)%TimeSerie) then
+                        ReachHeaderList(nReaches) = ReachName(Me%Reaches(ReachPos))
+                        nReaches = nReaches + 1 
+                    endif                
+
+                enddo
+
+                !BaseTimeSeries + PropertiesTimeSeries--------------------------
+                do i = 1, Me%TimeSerie%nProp
+
+
+                    if (Me%TimeSerie%Name (i) == Char_Flow              .or. &
+                        Me%TimeSerie%Name (i) == Char_Velocity          .or. &
+                        Me%TimeSerie%Name (i) == Char_HydroTimeGradient .or. &
+                        Me%TimeSerie%Name (i) == Char_HydroAdvection    .or. &
+                        Me%TimeSerie%Name (i) == Char_HydroPressure     .or. &
+                        Me%TimeSerie%Name (i) == Char_HydroGravity      .or. &
+                        Me%TimeSerie%Name (i) == Char_HydroFriction ) then
+
+
+                        call StartTimeSerie(Me%TimeSerie%ObjTimeSerie(i), Me%ObjTime,           &
+                                            TimeSerieDataFile = trim(Me%TimeSerie%Location),    &
+                                            PropertyList      = ReachHeaderList,                &
+                                            Extension         = "srn",                          &
+                                            ResultFileName    = Me%TimeSerie%Name (i),          &
+                                            ModelName         = Me%ModelName,                   &                
+                                            STAT              = STAT_CALL)
+                        if (STAT_CALL /= 0) stop 'ConstructTimeSeries - ModuleDrainageNetwork - ERR02'
+
+                    else
+
+                        call StartTimeSerie(Me%TimeSerie%ObjTimeSerie(i), Me%ObjTime,           &
+                                            TimeSerieDataFile = trim(Me%TimeSerie%Location),    &
+                                            PropertyList      = NodeHeaderList,                 &
+                                            Extension         = "srn",                          &
+                                            ResultFileName    = Me%TimeSerie%Name (i),          &
+                                            ModelName         = Me%ModelName,                   &                
+                                            STAT              = STAT_CALL)
+                        if (STAT_CALL /= 0) stop 'ConstructTimeSeries - ModuleDrainageNetwork - ERR03'
+                        
+                        !for properties marked to integrate mass create a new file
+                        !integrated mass and flow are separated from the other timeseries because do not have  
+                        !the frequency defined in timeseries file  but from user definition
+                        !and can not accumulate in buffer that sometimes is not written                        
+                        if (Me%Output%ComputeIntegratedMass) then
+                            if (Me%TimeSerie%ComputeMass(i)) then                            
+                                allocate (Me%TimeSerie%DataLine3  (1:Me%TimeSerie%nNodes ))
+                            
+                                call StartTimeSerie(Me%TimeSerie%ObjTimeSerieMass(i), Me%ObjTime,       &
+                                                    TimeSerieDataFile = trim(Me%TimeSerie%Location),    &
+                                                    PropertyList      = NodeHeaderList,                 &
+                                                    Extension         = "srn",                          &
+                                                    ResultFileName    = trim(adjustl(Me%TimeSerie%Name (i)))//'_Integrated_Mass', &
+                                                    ModelName         = Me%ModelName,                   &                
+                                                    STAT              = STAT_CALL)
+                                if (STAT_CALL /= 0) stop 'ConstructTimeSeries - ModuleDrainageNetwork - ERR04'
+                            endif
+                        endif
+
+                    end if
+
+                end do    
+                                
+                deallocate (NodeHeaderList  )
+                deallocate (ReachHeaderList )
+
+            end if if2
+
+            !integrated mass and flow are separated from the other timeseries because do not have  
+            !the frequency defined in timeseries file  but from user definition
+            !and can not accumulate in buffer that sometimes is not written            
+            if (Me%Output%ComputeIntegratedFlow) then
+                
+                allocate (ReachHeaderList         (1:Me%TimeSerie%nNodes )) 
+                allocate (Me%TimeSerie%DataLine2  (1:Me%TimeSerie%nNodes ))            
+                
+                !by reaches
+                nReaches = 1
+                do ReachPos = 1, Me%TotalReaches
+                
+                    if (Me%Reaches(ReachPos)%TimeSerie) then
+                        ReachHeaderList(nReaches) = ReachName(Me%Reaches(ReachPos))
+                        nReaches = nReaches + 1 
+                    endif                
+
+                enddo
+            
+                call StartTimeSerie(Me%TimeSerie%ObjTimeSerieIntFlow, Me%ObjTime,       &
+                                    TimeSerieDataFile = trim(Me%TimeSerie%LocationInt), &
+                                    PropertyList      = ReachHeaderList,                &
+                                    Extension         = "srn",                          &
+                                    ResultFileName    = 'Integrated_Flow',              &
+                                    ModelName         = Me%ModelName,                   &                
+                                    STAT              = STAT_CALL)
+                if (STAT_CALL /= 0) stop 'ConstructTimeSeries - ModuleDrainageNetwork - ERR05'            
+            
+            endif
+            
+        end if if1
+
+
+    end subroutine ConstructTimeSeries
+    
+    !---------------------------------------------------------------------------
+   
+    subroutine FillPropNameVector (PropVector)
+
+        !Arguments--------------------------------------------------------------
+        character(StringLength) , dimension (:), pointer    :: PropVector  
+
+        !Local------------------------------------------------------------------
+        type (T_Property), pointer                          :: Property
+        integer                                             :: i
+        type(T_WQRate  ), pointer                           :: WQRateX     
+
+
+        PropVector (pWaterDepth         ) = Char_WaterDepth
+        PropVector (pWaterLevel         ) = Char_WaterLevel
+        PropVector (pVolume             ) = Char_Volume
+        PropVector (pPercentageMaxVolume) = Char_PercentageMaxVolume
+        PropVector (pFlow               ) = Char_Flow
+        PropVector (pVelocity           ) = Char_Velocity
+        PropVector (pVerticalArea       ) = Char_VerticalArea
+        PropVector (pFlowToChannels     ) = Char_FlowToChannels
+        PropVector (pGWFlowToChannels   ) = Char_GWFlowToChannels
+        PropVector (pPoolDepth          ) = Char_PoolDepth
+        PropVector (pDT                 ) = Char_DT
+        PropVector (pDTLocal            ) = Char_DTLocal
+        i = BaseTimeSeries
+
+        if (Me%OutputHydro) then
+
+            PropVector (pHydroTimeGradient  ) = Char_HydroTimeGradient
+            PropVector (pHydroAdvection     ) = Char_HydroAdvection
+            PropVector (pHydroPressure      ) = Char_HydroPressure
+            PropVector (pHydroGravity       ) = Char_HydroGravity
+            PropVector (pHydroFriction      ) = Char_HydroFriction
+            i = i + 5
+
+        end if
+
+if0:    if (Me%HasProperties) then
+
+            Property => Me%FirstProperty
+            i = i + 1
+            
+            do while (associated (Property))
+
+                if (Property%ComputeOptions%TimeSerie) then                                    
+                    
+                    if (Property%OutputName == 'NAME') then
+                        PropVector (i) = trim(adjustl(adjustr(Property%ID%Name)))
+                    else if (Property%OutputName == 'DESCRIPTION') then !if2
+                        PropVector (i) = trim(adjustl(adjustr(Property%ID%Description)))
+                    end if
+                    i = i + 1              
+
+                    if (Property%ComputeOptions%BottomFluxes) then
+                        if (Property%OutputName == 'NAME') then
+                            PropVector (i) = 'Bottom_'//trim(adjustl(adjustr(Property%ID%Name)))
+                        else if (Property%OutputName == 'DESCRIPTION') then
+                            PropVector (i) = 'Bottom_'//trim(adjustl(adjustr(Property%ID%Description)))
+                        end if
+                        i = i + 1
+                        
+                        if (Property%ComputeOptions%SumTotalConc) then
+                            if (Property%OutputName == 'NAME') then
+                                PropVector (i) = 'Total_'//trim(adjustl(adjustr(Property%ID%Name)))
+                            else if (Property%OutputName == 'DESCRIPTION') then
+                                PropVector (i) = 'Total_'//trim(adjustl(adjustr(Property%ID%Description)))
+                            end if
+                            i = i + 1
+                        end if
+                        
+                    end if
+
+                    if (Property%ComputeOptions%Toxicity) then
+                        if (Property%OutputName == 'NAME') then
+                            PropVector (i) = trim(adjustl(adjustr(Property%ID%Name)))//'_toxicity'
+                        else if (Property%OutputName == 'DESCRIPTION') then
+                            PropVector (i) = trim(adjustl(adjustr(Property%ID%Description)))//'_toxicity'
+                        end if
+                        i = i + 1              
+                    end if
+
+                    if (Property%ComputeOptions%ComputeLoad) then
+                        if (Property%OutputName == 'NAME') then
+                            PropVector (i) = 'Load_'//trim(adjustl(adjustr(Property%ID%Name)))
+                        else if (Property%OutputName == 'DESCRIPTION') then
+                            PropVector (i) = 'Load_'//trim(adjustl(adjustr(Property%ID%Description)))
+                        end if
+                        i = i + 1              
+                    end if
+                    
+                end if                        
+                    
+                Property => Property%Next
+            end do
+
+            if (Me%Output%Rates) then
+                WQRateX => Me%FirstWQRate
+                do while(associated(WQRateX))
+                    PropVector(i) = trim(WQRateX%ID%Name)
+                    i = i + 1
+                    WQRateX => WQRateX%Next
+                end do
+            endif
+            
+            if (Me%ComputeOptions%MacroAlgae) then
+                PropVector (i) = 'macroalgae occupation'   
+                i = i + 1                
+            endif
+
+            if (Me%ComputeOptions%BottomFluxes) then
+                PropVector (i) = 'shear_stress'   
+                i = i + 1
+            end if
+             
+            if (Me%ComputeOptions%Toxicity    ) then
+                PropVector (i) = 'global_toxicity'    
+                i = i + 1
+            end if
+
+        end if if0    
+        
+        nullify (Property) 
+        nullify (WQRateX)
+        
+
+    end subroutine FillPropNameVector
+
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructIntegratedHDF5Output
+    
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                             :: HDF5_CREATE, STAT_CALL
+        integer                                             :: iNode, ReachID
+        real, dimension(:), pointer                         :: NodeX, NodeY, ReachSize
+        integer, dimension(:), pointer                      :: NodeID, ReachIDs
+        integer, dimension(:), pointer                      :: UpNode, DownNode, ReachActive
+        
+        
+        Me%IntegratedOutPut%NextOutPut = 1  
+        
+        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+
+        !Opens HDF File
+        call ConstructHDF5      (Me%ObjIntegratedHDF5, trim(Me%Files%IntegratedHDFFile)//"5", HDF5_CREATE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR01'
+        
+        !Writes information about the Nodes / Reaches
+        !Writes the Nodes X / Y
+        allocate(NodeID(1: Me%TotalNodes))
+        allocate(NodeX (1: Me%TotalNodes))
+        allocate(NodeY (1: Me%TotalNodes))
+        
+        do iNode = 1, Me%TotalNodes
+            NodeID(iNode) = Me%Nodes(iNode)%ID
+            NodeX(iNode)  = Me%Nodes(iNode)%X
+            NodeY(iNode)  = Me%Nodes(iNode)%Y
+        enddo
+
+        allocate(UpNode     (1: Me%TotalReaches))
+        allocate(DownNode   (1: Me%TotalReaches))
+        allocate(ReachIDs   (1: Me%TotalReaches))
+        allocate(ReachSize  (1: Me%TotalReaches))
+        allocate(ReachActive(1: Me%TotalReaches))
+        
+        do ReachID = 1, Me%TotalReaches
+            ReachIDs    (ReachID) = ReachID
+            UpNode      (ReachID) = Me%Nodes(Me%Reaches(ReachID)%UpstreamNode)%ID
+            DownNode    (ReachID) = Me%Nodes(Me%Reaches(ReachID)%DownstreamNode)%ID
+            ReachSize   (ReachID) = Me%Nodes(Me%Reaches(ReachID)%UpstreamNode)%CrossSection%TopWidth
+            if (Me%Reaches(ReachID)%Active) then 
+                ReachActive (ReachID) = 1
+            else
+                ReachActive (ReachID) = 0
+            endif
+        enddo
+
+        !Nodes
+        call HDF5SetLimits  (Me%ObjIntegratedHDF5, 1, Me%TotalNodes, STAT = STAT_CALL)
+
+        call HDF5WriteData   (Me%ObjIntegratedHDF5, "/Nodes", "ID", "m",                          &
+                              Array1D = NodeID, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR02'
+        
+        call HDF5WriteData   (Me%ObjIntegratedHDF5, "/Nodes", "X", "m",                           &
+                              Array1D = NodeX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR02'
+
+        call HDF5WriteData   (Me%ObjIntegratedHDF5, "/Nodes", "Y", "m",                           &
+                              Array1D = NodeY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR03'
+
+        !Reaches
+        call HDF5SetLimits  (Me%ObjIntegratedHDF5, 1, Me%TotalReaches, STAT = STAT_CALL)
+        
+        !Reach - ID
+        call HDF5WriteData   (Me%ObjIntegratedHDF5, "/Reaches", "ID", "-",                         &
+                              Array1D = ReachIDs, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR04'
+
+        !Reach - Up Node
+        call HDF5WriteData   (Me%ObjIntegratedHDF5, "/Reaches", "Up", "-",                         &
+                              Array1D = UpNode, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR04'
+
+        !Reach - Down Node
+        call HDF5WriteData   (Me%ObjIntegratedHDF5, "/Reaches", "Down", "-",                       &
+                              Array1D = DownNode, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR05'
+
+        !Reach - Size
+        call HDF5WriteData   (Me%ObjIntegratedHDF5, "/Reaches", "Size", "-",                       &
+                              Array1D = ReachSize, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR06'
+
+        !Reach - Active
+        call HDF5WriteData   (Me%ObjIntegratedHDF5, "/Reaches", "Active", "-",                       &
+                              Array1D = ReachActive, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructIntegratedHDF5Output - ModuleDrainageNetwork - ERR07'
+
+        deallocate(NodeID, NodeX, NodeY)
+        deallocate(DownNode, UpNode, ReachIDs, ReachSize, ReachActive)    
+    
+    end subroutine ConstructIntegratedHDF5Output
+
+    !--------------------------------------------------------------------------
+    
+    subroutine ConstructHDF5Output
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                             :: HDF5_CREATE, STAT_CALL
+        integer                                             :: iNode, ReachID
+        real, dimension(:), pointer                         :: NodeX, NodeY, ReachSize
+        integer, dimension(:), pointer                      :: NodeID, ReachIDs
+        integer, dimension(:), pointer                      :: UpNode, DownNode, ReachActive
+        
+        
+        Me%OutPut%NextOutPut = 1  
+        
+        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+
+        !Opens HDF File
+        call ConstructHDF5      (Me%ObjHDF5, trim(Me%Files%HDFFile)//"5", HDF5_CREATE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR01'
+        
+        !Writes information about the Nodes / Reaches
+        !Writes the Nodes X / Y
+        allocate(NodeID(1: Me%TotalNodes))
+        allocate(NodeX (1: Me%TotalNodes))
+        allocate(NodeY (1: Me%TotalNodes))
+        
+        do iNode = 1, Me%TotalNodes
+            NodeID(iNode) = Me%Nodes(iNode)%ID
+            NodeX(iNode)  = Me%Nodes(iNode)%X
+            NodeY(iNode)  = Me%Nodes(iNode)%Y
+        enddo
+
+        allocate(UpNode     (1: Me%TotalReaches))
+        allocate(DownNode   (1: Me%TotalReaches))
+        allocate(ReachIDs   (1: Me%TotalReaches))
+        allocate(ReachSize  (1: Me%TotalReaches))
+        allocate(ReachActive(1: Me%TotalReaches))
+        
+        do ReachID = 1, Me%TotalReaches
+            ReachIDs    (ReachID) = ReachID
+            UpNode      (ReachID) = Me%Nodes(Me%Reaches(ReachID)%UpstreamNode)%ID
+            DownNode    (ReachID) = Me%Nodes(Me%Reaches(ReachID)%DownstreamNode)%ID
+            ReachSize   (ReachID) = Me%Nodes(Me%Reaches(ReachID)%UpstreamNode)%CrossSection%TopWidth
+            if (Me%Reaches(ReachID)%Active) then 
+                ReachActive (ReachID) = 1
+            else
+                ReachActive (ReachID) = 0
+            endif
+        enddo
+
+        !Nodes
+        call HDF5SetLimits  (Me%ObjHDF5, 1, Me%TotalNodes, STAT = STAT_CALL)
+
+        call HDF5WriteData   (Me%ObjHDF5, "/Nodes", "ID", "m",                          &
+                              Array1D = NodeID, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR02'
+        
+        call HDF5WriteData   (Me%ObjHDF5, "/Nodes", "X", "m",                           &
+                              Array1D = NodeX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR02'
+
+        call HDF5WriteData   (Me%ObjHDF5, "/Nodes", "Y", "m",                           &
+                              Array1D = NodeY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR03'
+
+        !Reaches
+        call HDF5SetLimits  (Me%ObjHDF5, 1, Me%TotalReaches, STAT = STAT_CALL)
+        
+        !Reach - ID
+        call HDF5WriteData   (Me%ObjHDF5, "/Reaches", "ID", "-",                         &
+                              Array1D = ReachIDs, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR04'
+
+        !Reach - Up Node
+        call HDF5WriteData   (Me%ObjHDF5, "/Reaches", "Up", "-",                         &
+                              Array1D = UpNode, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR04'
+
+        !Reach - Down Node
+        call HDF5WriteData   (Me%ObjHDF5, "/Reaches", "Down", "-",                       &
+                              Array1D = DownNode, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR05'
+
+        !Reach - Size
+        call HDF5WriteData   (Me%ObjHDF5, "/Reaches", "Size", "-",                       &
+                              Array1D = ReachSize, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR06'
+
+        !Reach - Active
+        call HDF5WriteData   (Me%ObjHDF5, "/Reaches", "Active", "-",                       &
+                              Array1D = ReachActive, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR07'
+
+        deallocate(NodeID, NodeX, NodeY)
+        deallocate(DownNode, UpNode, ReachIDs, ReachSize, ReachActive)
+        
+    end subroutine ConstructHDF5Output
+
+    !---------------------------------------------------------------------------
+
+    subroutine ConstructLog
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        type (T_Property), pointer                  :: Property
+        integer                                     :: iNode        
+
+
+#ifndef _OUTPUT_OFF_
+
+        write(*, *)
+        write(*, *)"-------------------- DRAINAGE NETWORK --------------------"         
+        write(*, *)
+
+        !Writes General Stats
+        write(*, *)"Number of Nodes      : ", Me%TotalNodes
+        write(*, *)"Number of Reaches    : ", Me%TotalReaches
+        write(*, *)"Number of Outlets    : ", Me%TotalOutlets
+
+        !Writes Hydrodynamic Approximation
+        select case (Me%HydrodynamicApproximation)
+            case (KinematicWave)
+                write(*,*) 'Hydrodynamic Approx. : Kinematic wave'
+            case (DiffusionWave)
+                write(*,*) 'Hydrodynamic Approx. : Diffuse wave'
+            case (DynamicWave)
+                write(*,*) 'Hydrodynamic Approx. : Dynamic Wave'
+            case default 
+                write(*,*)'Hydrodynamic Approx. : INVALID'
+                stop 'ModuleDrainageNetwork - ConstructLog - ERR01'
+        end select
+
+        !Writes NumericalScheme
+        if (Me%NumericalScheme == ExplicitScheme) then
+            write(*,*) 'Numerical Scheme     : ExplicitScheme'
+        else 
+            write(*,*) 'Numerical Scheme     : ImplicitScheme'
+        endif 
+
+        
+        !Writes Downstream Boundary
+        select case (Me%Downstream%Boundary)
+            case (Dam)
+                write(*,*) 'Downstream Boundary  : Dam'
+            case(ZeroDepthGradient)
+                write(*,*) 'Downstream Boundary  : Zero depth gradient'
+            case(CriticalDepth)
+                write(*,*) 'Downstream Boundary  : Critical depth'
+            case(ImposedWaterLevel)
+                write(*,*) 'Downstream Boundary  : Imposed water level'
+            case(ImposedVelocity)
+                write(*,*) 'Downstream Boundary  : Imposed velocity'
+            case default
+                write(*, *)"Downstream Boundary  : INVALID"
+                stop 'ModuleDrainageNetwork - ConstructLog - ERR02'
+        end select
+
+        write(*, *)
+
+        if (Me%HasProperties) then
+
+            write(*, *)"--------------- DRAINAGE NETWORK PROPERTIES --------------"      
+            write(*, *)
+            write(*, *)"Num of Properties : ", Me%PropertiesNumber
+            write(*, *)
+
+            Property => Me%FirstProperty
+            do while (associated(Property))
+                
+                if (Property%OutputName == 'NAME') then
+                    write(*, *)"Property                : ", trim(Property%ID%Name)                
+                else if (Property%OutputName == 'DESCRIPTION') then
+                    write(*, *)"Property                : ", trim(Property%ID%Description)                                
+                end if
+
+                    write(*, *)"---Advection Diffusion  : ", Property%ComputeOptions%AdvectionDiffusion
+                    write(*, *)"---Discharges           : ", Property%ComputeOptions%Discharges
+                    write(*, *)"---Toxicity             : ", Property%ComputeOptions%Toxicity
+                    write(*, *)"---SurfaceFluxes        : ", Property%ComputeOptions%SurfaceFluxes
+                    write(*, *)"---BottomFluxes         : ", Property%ComputeOptions%BottomFluxes
+                    write(*, *)"---WaterQuality         : ", Property%ComputeOptions%WaterQuality                    
+                    write(*, *)"---Benthos              : ", Property%ComputeOptions%Benthos  
+                    write(*, *)"---MacroAlage           : ", Property%ComputeOptions%MacroAlgae   
+                    write(*, *)"---GenericDecay         : ", Property%ComputeOptions%Generic_Decay                 
+                    write(*, *)"---T90Decay             : ", Property%ComputeOptions%T90_Decay
+                    write(*, *)
+                
+                                
+                Property=>Property%Next
+            enddo
+        end if
+        
+        if (Me%ComputeOptions%StormWaterModelLink) then
+        
+            write(*, *)"--------------- DRAINAGE NETWORK SWMM LINKS --------------"      
+            write(*, *)
+            write(*, *)"Num of Inflow  Nodes: ", Me%StormWaterModelLink%nInflowNodes
+            do iNode = 1, Me%StormWaterModelLink%nInflowNodes
+                write(*, *)"       Inflow  Node : ", Me%StormWaterModelLink%InflowIDs(iNode)
+            enddo
+            write(*, *)"Num of Outflow Nodes: ", Me%StormWaterModelLink%nOutflowNodes
+            do iNode = 1, Me%StormWaterModelLink%nOutflowNodes
+                write(*, *)"      Outflow  Node : ", Me%StormWaterModelLink%OutflowIDs(iNode)
+            enddo
+            write(*, *)
+            
+        endif
+        
+        if (Me%ComputeOptions%ReservoirLink) then
+        
+            write(*, *)"--------------- DRAINAGE NETWORK RESERVOIR LINKS --------------"      
+            write(*, *)
+            write(*, *)"Num of Reservoir  Nodes: ", Me%Reservoirs%nReservoirs
+            do iNode = 1, Me%Reservoirs%nReservoirs
+                write(*, *)"       Reservoir  Node : ", Me%Reservoirs%ReservoirDNNodeID(iNode)
+            enddo
+            write(*, *)
+            
+        endif        
+        
+#endif  
+
+    end subroutine ConstructLog
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine FindNodePosition (NodeID, NodePos, Found)
+
+        !Arguments--------------------------------------------------------------
+        integer, intent(IN)                             :: NodeID
+        integer, intent(OUT)                            :: NodePos
+        logical, intent(OUT)                            :: Found
+        !Local------------------------------------------------------------------
+        type (T_Node), pointer                          :: CurrNode
+
+        Found = .FALSE.
+
+        do NodePos = 1, Me%TotalNodes
+        
+            nullify(CurrNode)
+            CurrNode => Me%Nodes (NodePos)
+            if (CurrNode%ID == NodeID) then
+                Found = .TRUE.
+                exit
+            end if
+
+        end do
+
+    end subroutine FindNodePosition
+
+    !---------------------------------------------------------------------------
+
+    subroutine FindReachPosition (ReachID, ReachPos, Found)
+
+        !Arguments--------------------------------------------------------------
+        integer, intent(IN)                             :: ReachID
+        integer, intent(OUT)                            :: ReachPos
+        logical, intent(OUT)                            :: Found
+        !Local------------------------------------------------------------------
+        type (T_Reach), pointer                         :: CurrReach
+        
+        Found = .FALSE.
+
+        do ReachPos = 1, Me%TotalReaches
+        
+            nullify(CurrReach)
+            CurrReach => Me%Reaches (ReachPos)
+            if (CurrReach%ID == ReachID) then
+                Found = .TRUE.
+                exit
+            end if
+
+        end do
+
+    end subroutine FindReachPosition
+
+    !---------------------------------------------------------------------------
+    
+    subroutine Search_Property(PropertyX, PropertyXID, STAT)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Property),           pointer             :: PropertyX
+        integer,                    intent (IN)         :: PropertyXID
+        integer         , optional, intent (OUT)        :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_ 
+        
+        !----------------------------------------------------------------------
+
+        STAT_  = UNKNOWN_
+
+        PropertyX => Me%FirstProperty
+
+        do while (associated(PropertyX)) 
+            if (PropertyX%ID%IDNumber==PropertyXID) then
+                exit        
+            else
+                PropertyX => PropertyX%Next                 
+            end if    
+        end do    
+
+       if (associated(PropertyX)) then
+
+            STAT_ = SUCCESS_  
+
+        else
+            STAT_ = NOT_FOUND_ERR_  
+        end if 
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine Search_Property
+
+    !--------------------------------------------------------------------------    
+    
+    !---------------------------------------------------------------------------
+
+    !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    !SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SEL
+
+    !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    !---------------------------------------------------------------------------
+
+    subroutine GetDrainageSize (DrainageNetworkID, nNodes, nReaches, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        integer, intent(OUT), optional                  :: nNodes
+        integer, intent(OUT), optional                  :: nReaches
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            if (present (nNodes   )) nNodes    = Me%TotalNodes
+            if (present (nReaches )) nReaches  = Me%TotalReaches
+
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetDrainageSize
+
+    !---------------------------------------------------------------------------        
+
+    subroutine GetChannelsID (DrainageNetworkID, ChannelsID, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        integer, dimension (:,:), pointer               :: ChannelsID
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsID => Me%ChannelsID                             
+
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsID
+
+    !---------------------------------------------------------------------------
+
+    subroutine GetChannelsWaterLevel (DrainageNetworkID, ChannelsWaterLevel, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension (:,:), pointer                  :: ChannelsWaterLevel
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsWaterLevel => Me%ChannelsWaterLevel
+                    
+          
+
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsWaterLevel
+
+    !---------------------------------------------------------------------------
+
+        subroutine GetChannelsVelocity (DrainageNetworkID, ChannelsVelocity, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension (:,:), pointer                  :: ChannelsVelocity
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsVelocity => Me%ChannelsVelocity                              
+
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsVelocity
+    
+    
+    !---------------------------------------------------------------------------
+
+    subroutine GetChannelsBottomLevel (DrainageNetworkID, ChannelsBottomLevel, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension (:,:), pointer                  :: ChannelsBottomLevel
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsBottomLevel => Me%ChannelsBottomLevel
+                    
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsBottomLevel
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine GetChannelsBankSlope(DrainageNetworkID, ChannelsBankSlope, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension (:,:), pointer                  :: ChannelsBankSlope
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsBankSlope => Me%ChannelsBankSlope
+                    
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsBankSlope
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine GetChannelsSurfaceWidth (DrainageNetworkID, ChannelsSurfaceWidth, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension (:,:), pointer                  :: ChannelsSurfaceWidth
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsSurfaceWidth => Me%ChannelsSurfaceWidth
+                    
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsSurfaceWidth
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine GetChannelsBottomWidth (DrainageNetworkID, ChannelsBottomWidth, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension (:,:), pointer                  :: ChannelsBottomWidth
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsBottomWidth => Me%ChannelsBottomWidth
+                    
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsBottomWidth
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine GetChannelsNodeLength (DrainageNetworkID, ChannelsNodeLength, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension (:,:), pointer                  :: ChannelsNodeLength
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsNodeLength => Me%ChannelsNodeLength
+                    
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsNodeLength
+
+    !---------------------------------------------------------------------------
+
+    subroutine GetChannelsVolume (DrainageNetworkID, ChannelsVolume, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension (:,:), pointer                  :: ChannelsVolume
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsVolume => Me%ChannelsVolume
+                    
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsVolume
+    
+    !---------------------------------------------------------------------------
+
+    subroutine GetChannelsTopArea (DrainageNetworkID, ChannelsTopArea, STAT)
+    
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension (:,:), pointer                  :: ChannelsTopArea
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsTopArea => Me%ChannelsTopArea
+                    
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsTopArea
+        
+    !---------------------------------------------------------------------------
+    
+    subroutine GetChannelsMaxVolume (DrainageNetworkID, ChannelsMaxVolume, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension (:,:), pointer                  :: ChannelsMaxVolume
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsMaxVolume => Me%ChannelsMaxVolume
+                    
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsMaxVolume
+        
+    !---------------------------------------------------------------------------
+
+    subroutine GetChannelsOpenProcess (DrainageNetworkID, ChannelsOpenProcess, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        integer, dimension (:,:), pointer               :: ChannelsOpenProcess
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsOpenProcess => Me%ChannelsOpenProcess
+                    
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsOpenProcess
+
+    !--------------------------------------------------------------------------
+
+    subroutine GetChannelsActiveState (DrainageNetworkID, ChannelsActiveState, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        integer, dimension (:,:), pointer               :: ChannelsActiveState
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+           
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID)
+            ChannelsActiveState => Me%ChannelsActiveState
+                    
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetChannelsActiveState
+    
+    !---------------------------------------------------------------------------
+
+    subroutine GetHasProperties (DrainageNetworkID, HasProperties, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        logical                                         :: HasProperties
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            HasProperties       = Me%HasProperties
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetHasProperties
+
+    !---------------------------------------------------------------------------
+
+    subroutine GetDNConcentration(DrainageNetworkID, ConcentrationX, PropertyXIDNumber, &
+                                PropertyXUnits, STAT)
+
+        !Arguments---------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        real, pointer, dimension(:)                 :: ConcentrationX
+        character(LEN = *), optional, intent(OUT)   :: PropertyXUnits
+        integer,                      intent(IN )   :: PropertyXIDNumber
+        integer,            optional, intent(OUT)   :: STAT
+
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_          
+        integer                                     :: STAT_CALL              
+        type(T_Property), pointer                   :: PropertyX
+        integer                                     :: UnitsSize
+        integer                                     :: STAT_    
+
+        !------------------------------------------------------------------------
+
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_) 
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID) 
+
+            nullify(PropertyX)
+
+            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyXIDNumber, STAT = STAT_CALL)
+
+            if (STAT_CALL == SUCCESS_) then
+                ConcentrationX => PropertyX%concentration
+
+                if (present(PropertyXUnits)) then 
+                   UnitsSize      = LEN (PropertyXUnits)
+                   PropertyXUnits = PropertyX%ID%Units(1:UnitsSize)
+                end if
+
+                STAT_ = SUCCESS_
+            else
+                write(*,*) 'Looking for Property in Drainage Network', GetPropertyName(PropertyXIDNumber)
+                write(*,*) 'but not found. Link between WQ in modules can not be done.'
+                stop 'GetDNConcentration - ModuleDrainageNetwork - ERR010'
+                STAT_ = STAT_CALL
+            end if
+        else
+            STAT_ = ready_
+        end if
+
+
+        if (present(STAT))STAT = STAT_
+            
+    end subroutine GetDNConcentration
+
+    !--------------------------------------------------------------------------------
+
+    subroutine GetDNnProperties (DrainageNetworkID, nProperties, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        integer                                         :: nProperties
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            nProperties       = Me%PropertiesNumber
+            STAT_CALL = SUCCESS_
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetDNnProperties
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine GetDNPropertiesIDByIdx (DrainageNetworkID, Idx, ID,PropAdvDiff, Particulate, OutputName, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        integer, intent(IN)                             :: Idx
+        integer, intent(OUT)                            :: ID
+        logical, intent(OUT)                            :: PropAdvDiff
+        logical, intent(OUT), optional                  :: Particulate
+        integer, intent(OUT), optional                  :: STAT
+        character (Len = StringLength), optional        :: OutputName
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_, i
+        type (T_Property), pointer                      :: CurrProp
+
+        !-----------------------------------------------------------------------
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            CurrProp => Me%FirstProperty
+            do i = 1, idx - 1
+                CurrProp => CurrProp%Next
+            enddo
+
+            ID          = CurrProp%ID%IDNumber
+            PropAdvDiff = CurrProp%ComputeOptions%AdvectionDiffusion
+            
+            if (present (Particulate)) then
+!~                 Particulate = Check_Particulate_Property(CurrProp%ID%IDNumber)
+                Particulate = CurrProp%ID%IsParticulate
+            endif
+            
+            if (present (OutputName)) then
+                if (CurrProp%OutputName == 'NAME') then
+                    OutputName = CurrProp%ID%Name
+                else if (CurrProp%OutputName == 'DESCRIPTION') then
+                    OutputName = CurrProp%ID%Description
+                end if
+            end if
+
+            STAT_CALL = SUCCESS_
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetDNPropertiesIDByIdx
+
+    !---------------------------------------------------------------------------
+ 
+     subroutine CheckDNProperty (DrainangeNetworkID,                        &
+                                  PropertyID,                               &
+                                  STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainangeNetworkID
+        integer                                         :: PropertyID
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_, STAT_
+        type (T_Property), pointer                      :: PropertyX
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainangeNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyID, STAT = STAT_)
+            if (STAT_ == SUCCESS_) then 
+                if (.not. PropertyX%ComputeOptions%AdvectionDiffusion) then
+                    write(*,*)
+                    write(*,*)'Property', GetPropertyName(PropertyID)
+                    write(*,*)'has advection diffusion inactive in Drainage Network Module'
+                    write(*,*)'and it is unconsistent with activation in other Modules'
+                    stop 'CheckDNProperty - ModuleDraianageNetwork - ERR01' 
+                else               
+                    STAT_CALL = SUCCESS_
+                endif
+            else
+                write(*,*)
+                write(*,*)'Could not find property', GetPropertyName(PropertyID)
+                write(*,*)'in DraianageNetwork Module'
+                stop 'CheckDNProperty - ModuleDraianageNetwork - ERR010'
+            endif
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine CheckDNProperty
+
+    !---------------------------------------------------------------------------
+ 
+    subroutine GetHasToxicity (DrainageNetworkID, HasToxicity, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        logical                                         :: HasToxicity
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            HasToxicity       = Me%ComputeOptions%Toxicity
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetHasToxicity
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine GetPropHasBottomFluxes (ObjDrainageNetworkID, PropIDNumber, HasBottomFluxes, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: ObjDrainageNetworkID        
+        integer, intent (IN )                           :: PropIDNumber
+        logical, intent (OUT)                           :: HasBottomFluxes
+        integer, intent (OUT), optional                 :: STAT        
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        type (T_Property), pointer                      :: Property
+
+        !-----------------------------------------------------------------------
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(ObjDrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            call SearchProperty (Property, PropIDNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - GetPropHasBottomFluxes - ERR01'
+
+            HasBottomFluxes = Property%ComputeOptions%BottomFluxes
+
+            STAT_CALL = SUCCESS_
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetPropHasBottomFluxes
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    
+    subroutine GetNeedsRadiation (DrainageNetworkID, NeedRadiation, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        logical                                         :: NeedRadiation
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_CALL = UNKNOWN_
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            NeedRadiation       = Me%ComputeOptions%SurfaceFluxes .or. Me%ComputeOptions%WaterQuality .or. &
+                                  Me%ComputeOptions%CeQualW2      .or. Me%ComputeOptions%Life         .or. &
+                                  Me%ComputeOptions%MacroAlgae    .or. &
+                                  Me%ComputeOptions%T90_Decay
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetNeedsRadiation
+    
+    !---------------------------------------------------------------------------
+
+    subroutine GetNeedsAtmosphere (DrainageNetworkID, NeedAtmosphere, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        logical                                         :: NeedAtmosphere
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_CALL = UNKNOWN_
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            NeedAtmosphere = Me%ComputeOptions%SurfaceFluxes
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetNeedsAtmosphere
+
+    !---------------------------------------------------------------------------
+
+    subroutine GetNextDrainageNetDT (DrainageNetworkID, DT, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, intent(OUT)                               :: DT
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            DT        = Me%CV%NextDT
+
+            STAT_CALL = SUCCESS_
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetNextDrainageNetDT
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine GetVolumes(DrainageNetworkID, TotalInputVolume,                           &
+                          TotalOutputVolume, TotalStoredVolume, TotalFlowVolume,         &
+                          TotalOvertopVolume, TotalStormWaterOutput,                     &
+                          TotalStormWaterInput, OutletFlowVolume,                        &
+                          TotalEvapFromSurfaceVolume, TotalReservoirOutput,              &
+                          TotalReservoirInput, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real(8), intent(OUT), optional                  :: TotalInputVolume
+        real(8), intent(OUT), optional                  :: TotalOutputVolume
+        real(8), intent(OUT), optional                  :: TotalStoredVolume
+        real(8), intent(OUT), optional                  :: TotalFlowVolume
+        real(8), intent(OUT), optional                  :: TotalOvertopVolume
+        real(8), intent(OUT), optional                  :: TotalStormWaterOutput
+        real(8), intent(OUT), optional                  :: TotalStormWaterInput
+        real(8), intent(OUT), optional                  :: TotalReservoirInput
+        real(8), intent(OUT), optional                  :: TotalReservoirOutput
+        real(8), intent(OUT), optional                  :: OutletFlowVolume
+        real(8), intent(OUT), optional                  :: TotalEvapFromSurfaceVolume
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            if (present (TotalInputVolume      )) TotalInputVolume      = Me%TotalInputVolume
+            if (present (TotalOutputVolume     )) TotalOutputVolume     = Me%TotalOutputVolume
+            if (present (TotalStoredVolume     )) TotalStoredVolume     = Me%TotalStoredVolume
+            if (present (TotalFlowVolume       )) TotalFlowVolume       = Me%TotalFlowVolume
+            if (present (TotalOvertopVolume    )) TotalOvertopVolume    = Me%TotalOvertopVolume
+            if (present (TotalStormWaterOutput )) TotalStormWaterOutput = Me%TotalStormWaterOutput
+            if (present (TotalStormWaterInput  )) TotalStormWaterInput  = Me%TotalStormWaterInput
+            if (present (TotalReservoirOutput )) TotalReservoirOutput = Me%TotalReservoirOutput
+            if (present (TotalReservoirInput  )) TotalReservoirInput  = Me%TotalReservoirInput            
+            if (present (OutletFlowVolume      )) OutletFlowVolume      = Me%OutletFlowVolume
+            if (present (TotalEvapFromSurfaceVolume)) TotalEvapFromSurfaceVolume = Me%TotalEvapFromSurfaceVolume
+            STAT_CALL = SUCCESS_
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+    
+    end subroutine GetVolumes
+
+    !---------------------------------------------------------------------------
+    
+    subroutine GetDNStoredVolume (ID, StoredVolume, STAT)
+            
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ID
+        real(8), intent(OUT)                            :: StoredVolume        
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+        integer                                         :: NodeID
+        
+        !Begin-----------------------------------------------------------------
+        call Ready(ID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            StoredVolume = 0.0
+            
+            do NodeID = 1, Me%TotalNodes
+                if (Me%Nodes(NodeID)%nDownStreamReaches /= 0) then
+                    StoredVolume = StoredVolume + Me%Nodes(NodeID)%VolumeNew
+                endif             
+            enddo
+
+            STAT_ = SUCCESS_
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_            
+        !----------------------------------------------------------------------
+   
+    end subroutine GetDNStoredVolume
+    
+    !---------------------------------------------------------------------------
+    
+    subroutine GetDNMassBalance(DrainageNetworkID, PropertyID, TotalDischargeMass,       &
+                          TotalOutFlowMass, TotalStoredMass, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        integer                                         :: PropertyID
+        real(8), intent(OUT), optional                  :: TotalDischargeMass
+        real(8), intent(OUT), optional                  :: TotalOutFlowMass
+        real(8), intent(OUT), optional                  :: TotalStoredMass
+!        real(8), intent(OUT), optional                  :: TotalOverTopMass
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, STAT_, ready_
+        type (T_Property), pointer                      :: PropertyX
+        !-----------------------------------------------------------------------
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyID, STAT = STAT_)
+            if (STAT_ == SUCCESS_) then 
+                if (present (TotalDischargeMass   )) TotalDischargeMass   = PropertyX%MB%TotalDischargeMass
+                if (present (TotalOutFlowMass     )) TotalOutFlowMass     = PropertyX%MB%TotalOutFlowMass
+                if (present (TotalStoredMass      )) TotalStoredMass      = PropertyX%MB%TotalStoredMass
+!                if (present (TotalOverTopMass     )) TotalOverTopMass     = Property%MB%TotalOverTopMass
+                STAT_CALL = SUCCESS_
+            else
+                print *, "The property with id '", PropertyID, "' was not found" 
+                print *, 'GetDNMassBalance - ModuleDrainageNetworkProperties - WRN 010'  
+                STAT_CALL = STAT_
+            endif
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+    
+    end subroutine GetDNMassBalance
+
+    !---------------------------------------------------------------------------
+
+    subroutine UnGetDrainageNetworkR4 (ObjDrainageNetworkID, Array, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: ObjDrainageNetworkID
+        real, dimension(:, :), pointer                  :: Array
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjDrainageNetworkID, ready_)
+
+        if (ready_ .EQ. READ_LOCK_ERR_) then
+
+            nullify(Array)
+            call Read_Unlock(mDRAINAGENETWORK_, Me%InstanceID, "UnGetDrainageNetwork")
+
+            STAT_ = SUCCESS_
+        else               
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine UnGetDrainageNetworkR4
+
+    !---------------------------------------------------------------------------
+
+    subroutine UnGetDrainageNetwork1DR4 (ObjDrainageNetworkID, Array, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: ObjDrainageNetworkID
+        real, dimension(:), pointer                     :: Array
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjDrainageNetworkID, ready_)
+
+        if (ready_ .EQ. READ_LOCK_ERR_) then
+
+            nullify(Array)
+            call Read_Unlock(mDRAINAGENETWORK_, Me%InstanceID, "UnGetDrainageNetwork")
+
+            STAT_ = SUCCESS_
+        else               
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine UnGetDrainageNetwork1DR4
+
+    !---------------------------------------------------------------------------    
+
+    subroutine UnGetDrainageNetworkI4 (ObjDrainageNetworkID, Array, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: ObjDrainageNetworkID
+        integer, dimension(:, :), pointer               :: Array
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjDrainageNetworkID, ready_)
+
+        if (ready_ .EQ. READ_LOCK_ERR_) then
+
+            nullify(Array)
+            call Read_Unlock(mDRAINAGENETWORK_, Me%InstanceID, "UnGetDrainageNetwork")
+
+            STAT_ = SUCCESS_
+        else               
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine UnGetDrainageNetworkI4
+    !---------------------------------------------------------------------------
+
+    subroutine UnGetDrainageNetworkA4 (ObjDrainageNetworkID, Array, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                                 :: ObjDrainageNetworkID
+        character(len=StringLength), dimension(:, :), pointer   :: Array
+        integer, intent(OUT), optional                          :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjDrainageNetworkID, ready_)
+
+        if (ready_ .EQ. READ_LOCK_ERR_) then
+
+            nullify(Array)
+            call Read_Unlock(mDRAINAGENETWORK_, Me%InstanceID, "UnGetDrainageNetwork")
+
+            STAT_ = SUCCESS_
+        else               
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine UnGetDrainageNetworkA4
+
+    !---------------------------------------------------------------------------
+
+    subroutine SetAtmosphereRiverNet  (ObjDrainageNetworkID, TopRadiation, AirTemperature,      &
+                                           CloudCover, RelativeHumidity, WindSpeed, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: ObjDrainageNetworkID
+        real, optional                                  :: TopRadiation
+        real, optional                                  :: AirTemperature
+        real, optional                                  :: CloudCover
+        real, optional                                  :: RelativeHumidity
+        real, optional                                  :: WindSpeed
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: NodeID
+        type (T_Node), pointer                          :: CurrNode
+        integer                                         :: STAT_, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjDrainageNetworkID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes(NodeID)
+                
+                if (present(TopRadiation))      Me%TopRadiation     (NodeID) = TopRadiation     
+                if (present(AirTemperature))    Me%AirTemperature   (NodeID) = AirTemperature   
+                if (present(CloudCover))        Me%CloudCover       (NodeID) = CloudCover           
+                if (present(RelativeHumidity))  Me%RelativeHumidity (NodeID) = RelativeHumidity 
+                if (present(WindSpeed))         Me%WindSpeed        (NodeID) = WindSpeed        
+            enddo
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if
+
+        if (present(STAT))STAT = STAT_
+
+    end subroutine SetAtmosphereRiverNet
+
+    !---------------------------------------------------------------------------
+
+    subroutine SetAtmosphereDrainageNet   (ObjDrainageNetworkID, TopRadiation, AirTemperature,      &
+                                           CloudCover, RelativeHumidity, WindSpeed, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: ObjDrainageNetworkID
+        real, dimension(:, :), pointer, optional        :: TopRadiation
+        real, dimension(:, :), pointer, optional        :: AirTemperature
+        real, dimension(:, :), pointer, optional        :: CloudCover
+        real, dimension(:, :), pointer, optional        :: RelativeHumidity
+        real, dimension(:, :), pointer, optional        :: WindSpeed
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: NodeID
+        type (T_Node), pointer                          :: CurrNode
+        integer                                         :: STAT_, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(ObjDrainageNetworkID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes(NodeID)
+                
+                if(CurrNode%HasGrid)then
+                
+                    if (present(TopRadiation))      Me%TopRadiation     (NodeID) = TopRadiation     (CurrNode%GridI, CurrNode%GridJ)
+                    if (present(AirTemperature))    Me%AirTemperature   (NodeID) = AirTemperature   (CurrNode%GridI, CurrNode%GridJ)
+                    if (present(CloudCover))        Me%CloudCover       (NodeID) = CloudCover       (CurrNode%GridI, CurrNode%GridJ)
+                    if (present(RelativeHumidity))  Me%RelativeHumidity (NodeID) = RelativeHumidity (CurrNode%GridI, CurrNode%GridJ)
+                    if (present(WindSpeed))         Me%WindSpeed        (NodeID) = WindSpeed        (CurrNode%GridI, CurrNode%GridJ)
+                    
+                end if
+            enddo
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if
+
+        if (present(STAT))STAT = STAT_
+
+    end subroutine SetAtmosphereDrainageNet 
+
+    !---------------------------------------------------------------------------
+    
+    subroutine SetPMPConcDN   (DrainageNetworkID, ConcentrationX2D, ConcentrationX3D, &
+                                                PropertyXIDNumber, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension(:, :), pointer, optional        :: ConcentrationX2D
+        real, dimension(:, :, :), pointer, optional     :: ConcentrationX3D
+        integer                                         :: PropertyXIDNumber
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: NodeID
+        type (T_Node), pointer                          :: CurrNode
+        integer                                         :: STAT_, ready_
+        type(T_Property), pointer                       :: PropertyX
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+            
+          
+            nullify(PropertyX)
+
+            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyXIDNumber, STAT = STAT_)
+
+            if (STAT_ == SUCCESS_) then
+                
+                if (present(ConcentrationX2D)) then
+                    do NodeID = 1, Me%TotalNodes
+                        CurrNode => Me%Nodes(NodeID)
+                        
+                        if(CurrNode%HasGrid)then
+                            PropertyX%GWaterConc (NodeID) = ConcentrationX2D     (CurrNode%GridI, CurrNode%GridJ)
+                        endif
+
+                    enddo
+                elseif (present(ConcentrationX3D)) then
+                    PropertyX%GWaterConcLayers => ConcentrationX3D
+                endif               
+
+            else
+                write(*,*) 'Looking for Porous Media Property in Drainage Network', GetPropertyName(PropertyXIDNumber)
+                write(*,*) 'but not found. Link between WQ in modules can not be done.'
+                stop 'SetPMPConcDN - ModuleDrainageNetwork - ERR010'
+            end if
+
+        else
+            STAT_ = ready_
+        end if
+
+        STAT = STAT_
+
+    end subroutine SetPMPConcDN
+
+    !---------------------------------------------------------------------------
+
+    subroutine SetRPConcDN   (DrainageNetworkID, ConcentrationX,      &
+                                                PropertyXIDNumber, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension(:, :), pointer                  :: ConcentrationX
+        integer                                         :: PropertyXIDNumber
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: NodeID
+        type (T_Node), pointer                          :: CurrNode
+        integer                                         :: STAT_, ready_
+        type(T_Property), pointer                       :: PropertyX
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+            
+           
+            nullify(PropertyX)
+
+            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyXIDNumber, STAT = STAT_)
+
+            if (STAT_ == SUCCESS_) then
+            
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes(NodeID)
+                    
+                    if(CurrNode%HasGrid)then
+ !                      PropertyX%ConcentrationRP (NodeID) = ConcentrationX     (CurrNode%GridI, CurrNode%GridJ)
+                        PropertyX%OverLandConc (NodeID) = ConcentrationX     (CurrNode%GridI, CurrNode%GridJ)
+                    endif
+
+                enddo                
+
+            else
+                write(*,*) 'Looking for Runoff Property in Drainage Network', GetPropertyName(PropertyXIDNumber)
+                write(*,*) 'but not found. Link between WQ in modules can not be done.'
+                stop 'SetPMPConcDN - ModuleDrainageNetwork - ERR010'
+            end if
+
+        else
+            STAT_ = ready_
+        end if
+
+        STAT = STAT_
+
+    end subroutine SetRPConcDN
+
+    !---------------------------------------------------------------------------
+
+    subroutine SetInflowFromReservoir   (DrainageNetworkID, ReservoirInflow, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension(:), pointer                     :: ReservoirInflow
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_, ready_, ReservoirPos
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+            
+                
+            do ReservoirPos = 1, Me%Reservoirs%nReservoirs            
+            
+                Me%Reservoirs%ReservoirsInflow(ReservoirPos) = ReservoirInflow(ReservoirPos)
+
+            enddo
+            
+            
+            STAT_ = SUCCESS_ 
+        else
+            STAT_ = ready_
+        end if
+
+        STAT = STAT_
+
+    end subroutine SetInflowFromReservoir
+
+    !---------------------------------------------------------------------------  
+    
+   subroutine GetOutflowToReservoir   (DrainageNetworkID, ReservoirOutflow, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension(:), pointer                     :: ReservoirOutflow
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+            
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID) 
+                         
+            
+            ReservoirOutflow => Me%Reservoirs%ReservoirsOutflow
+            
+            
+            STAT_ = SUCCESS_ 
+        else
+            STAT_ = ready_
+        end if
+
+        STAT = STAT_
+
+    end subroutine GetOutflowToReservoir   
+
+    !---------------------------------------------------------------------------
+
+    subroutine SetReservoirsConcDN   (DrainageNetworkID, ConcentrationX,      &
+                                                PropertyXIDNumber, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension(:), pointer                     :: ConcentrationX
+        integer                                         :: PropertyXIDNumber
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: IProp, ReservoirPos
+        integer                                         :: STAT_, ready_
+        type(T_Property), pointer                       :: PropertyX
+        logical                                         :: FoundProperty
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+                       
+            nullify(PropertyX)
+            
+            FoundProperty = .false.
+            iProp = 0
+            PropertyX => Me%FirstProperty
+do1:        do while (associated (PropertyX))    
+    
+                iProp = iProp + 1    
+                
+                if (PropertyX%ID%IDNumber == PropertyXIDNumber) then
+                          
+                    do ReservoirPos = 1, Me%Reservoirs%nReservoirs            
+            
+                        Me%Reservoirs%ReservoirsConc(ReservoirPos, iProp) = ConcentrationX(ReservoirPos)
+
+                    enddo 
+                    
+                    FoundProperty = .true.
+                    exit do1
+                endif
+            enddo do1
+            
+            if (.not. FoundProperty) then
+                write(*,*) 'Looking for Reservoir Property in Drainage Network', GetPropertyName(PropertyXIDNumber)
+                write(*,*) 'but not found. Link between WQ in modules can not be done.'
+                stop 'SetReservoirsConcDN - ModuleDrainageNetwork - ERR010'
+            end if
+
+        else
+            STAT_ = ready_
+        end if
+
+        STAT = STAT_
+
+    end subroutine SetReservoirsConcDN
+
+    !---------------------------------------------------------------------------   
+                                                
+    subroutine GetNodeConcReservoirs   (DrainageNetworkID, ConcentrationX,      &
+                                                PropertyXIDNumber, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        real, dimension(:), pointer                     :: ConcentrationX
+        integer                                         :: PropertyXIDNumber
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: IProp, ReservoirPos
+        integer                                         :: STAT_, ready_
+        type(T_Property), pointer                       :: PropertyX
+        logical                                         :: FoundProperty
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+                       
+            nullify(PropertyX)
+            
+            FoundProperty = .false.
+            iProp = 0
+            PropertyX => Me%FirstProperty
+do1:        do while (associated (PropertyX))    
+                
+                iProp = iProp + 1   
+    
+                if (PropertyX%ID%IDNumber == PropertyXIDNumber) then
+                         
+                    do ReservoirPos = 1, Me%Reservoirs%nReservoirs            
+            
+                        ConcentrationX(ReservoirPos) = Me%Reservoirs%NodeConc(ReservoirPos, iProp)
+
+                    enddo 
+                    
+                    FoundProperty = .true.
+                    exit do1
+                endif
+            enddo do1
+            
+            if (.not. FoundProperty) then
+                write(*,*) 'Looking for Reservoir Property in Drainage Network', GetPropertyName(PropertyXIDNumber)
+                write(*,*) 'but not found. Link between WQ in modules can not be done.'
+                stop 'GetNodeConcReservoir - ModuleDrainageNetwork - ERR010'
+            end if
+
+        else
+            STAT_ = ready_
+        end if
+
+        STAT = STAT_
+
+    end subroutine GetNodeConcReservoirs
+
+    !---------------------------------------------------------------------------                                                  
+                                                
+   
+    subroutine SetGWFlowLayersToDN   (DrainageNetworkID, GWFlowBottomLayer,        &
+                                      GWFlowTopLayer, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        integer, dimension(:, :), pointer               :: GWFlowBottomLayer
+        integer, dimension(:, :), pointer               :: GWFlowTopLayer
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: NodeID
+        type (T_Node), pointer                          :: CurrNode
+        integer                                         :: STAT_, ready_
+
+        !-----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_)then
+            
+                
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes(NodeID)
+                if(CurrNode%HasGrid)then
+                    Me%GWFlowTopLayer (NodeID)    = GWFlowTopLayer     (CurrNode%GridI, CurrNode%GridJ)
+                    Me%GWFlowBottomLayer (NodeID) = GWFlowBottomLayer  (CurrNode%GridI, CurrNode%GridJ)
+                endif
+
+            enddo
+            STAT_ = SUCCESS_ 
+        else
+            STAT_ = ready_
+        end if
+
+        STAT = STAT_
+
+    end subroutine SetGWFlowLayersToDN
+
+    !---------------------------------------------------------------------------    
+
+    subroutine SearchProperty(PropertyX, PropertyXIDNumber, PrintWarning, STAT)
+
+        !Arguments--------------------------------------------------------------
+        type(T_Property), optional, pointer         :: PropertyX
+        integer         , optional, intent (IN)     :: PropertyXIDNumber
+        logical,          optional, intent (IN)     :: PrintWarning
+        integer         , optional, intent (OUT)    :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                     :: STAT_ 
+        
+        !-----------------------------------------------------------------------
+
+        STAT_  = UNKNOWN_
+
+        PropertyX => Me%FirstProperty
+
+do2 :   do while (associated(PropertyX)) 
+if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
+                exit do2 
+            else
+                PropertyX => PropertyX%Next                 
+            end if if5
+        end do do2
+
+        !A PropertyX was found
+        if (associated(PropertyX)) then
+            STAT_ = SUCCESS_  
+        else
+            if (present(PrintWarning)) then
+                if (PrintWarning) write (*,*)'Property Not Found in Module DrainageNetwork ', &
+                                              trim(GetPropertyName(PropertyXIDNumber))
+            endif
+            STAT_  = NOT_FOUND_ERR_  
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+        !-----------------------------------------------------------------------
+
+    end subroutine SearchProperty
+
+   !----------------------------------------------------------------------------
+
+    logical function PropertyExists (PropertyXIDNumber)
+
+        !Arguments--------------------------------------------------------------
+        integer, intent (IN)    :: PropertyXIDNumber
+
+        !Local------------------------------------------------------------------
+        type(T_Property), pointer         :: PropertyX
+
+
+        PropertyX => Me%FirstProperty
+
+do2 :   do while (associated(PropertyX)) 
+            if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
+                PropertyExists = .true.
+                return
+            else
+                PropertyX => PropertyX%Next                 
+            end if
+        end do do2
+
+        PropertyExists = .false.
+        return
+
+        !-----------------------------------------------------------------------
+
+    end function PropertyExists
+    
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    !MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODI
+
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    
+    !---------------------------------------------------------------------------
+
+    subroutine ModifyDrainageNetWithGrid(DrainageNetworkID, OLFlowToChannels,            & 
+                                         GWFlowToChannels, GWFlowToChannelsLayer, DiffuseFlow, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                     :: DrainageNetworkID          
+        real, dimension(:, :), pointer              :: OLFlowToChannels
+        real, dimension(:, :), pointer              :: GWFlowToChannels
+        real, dimension(:, :, :), pointer, optional :: GWFlowToChannelsLayer
+        real, dimension(:, :), pointer              :: DiffuseFlow
+        integer, intent(OUT)          , optional    :: STAT
+
+        !Local------------------------------------------------------------------
+        type (T_Node), pointer                      :: CurrNode
+        integer                                     :: STAT_CALL, ready_
+        integer                                     :: NodeID
+        
+        !-----------------------------------------------------------------------
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+        
+        if (ready_ .EQ. IDLE_ERR_) then
+            
+            !Update RunOff and GW Fluxes
+            do NodeID = 1, Me%TotalNodes            
+                CurrNode => Me%Nodes (NodeID)
+                if(CurrNode%HasGrid)then
+                     
+                    Me%RunOffVector(NodeID) = OLFlowToChannels(CurrNode%GridI, CurrNode%GridJ)
+                
+                    if (associated(GWFlowToChannels)) then             
+                        Me%GroundVector(NodeID) = GWFlowToChannels(CurrNode%GridI, CurrNode%GridJ)
+                    endif
+                
+                    if (present(GWFlowToChannelsLayer)) then 
+                        Me%GWFlowByLayers     = .true.            
+                        Me%GroundVectorLayers => GWFlowToChannelsLayer
+                    endif 
+                
+                    if (associated(DiffuseFlow)) then
+                        Me%DiffuseVector(NodeID) = DiffuseFlow(CurrNode%GridI, CurrNode%GridJ)
+                    endif
+                endif
+            enddo
+            
+            
+            call ModifyDrainageNetLocal
+            
+                     
+            STAT_CALL = SUCCESS_
+        else               
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine ModifyDrainageNetWithGrid
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+            
+    subroutine ModifyDrainageNetWithoutGrid(DrainageNetworkID, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                     :: DrainageNetworkID  
+        integer, intent(OUT)        , optional      :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                     :: STAT_CALL, ready_                
+        !-----------------------------------------------------------------------
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+        
+        if (ready_ .EQ. IDLE_ERR_) then
+       
+            Me%HasGrid = .false.
+
+!            !UpdateRunOffFluxes - use this in the future????
+!            do NodeID = 1, Me%TotalNodes
+!                Me%RunOffVector (NodeID) = 0.0
+!            end do 
+
+            call ModifyDrainageNetLocal
+
+            STAT_CALL = SUCCESS_
+        else               
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine ModifyDrainageNetWithoutGrid
+
+    !---------------------------------------------------------------------------
+
+    subroutine ModifyDrainageNetLocal
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        real                                        :: SumDT, gA
+        integer                                     :: iter, Niter, NodeID, ReachID
+        integer                                     :: STAT_CALL
+        logical                                     :: Restart       
+        type (T_Property), pointer                  :: Property
+        type(T_Reach), pointer                      :: CurrReach
+        type(T_Node), pointer                       :: UpNode, DownNode, CurrNode
+        real                                        :: BottomMass
+        integer                                     :: OutletPos
+        logical                                     :: IsFinalFile
+        !Begin-------------------------------------------------------------------
+       
+        if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ModifyDrainageNet")
+
+        !Mass Balance
+        Me%TotalOutputVolume            = 0.0
+        Me%TotalFlowVolume              = 0.0
+        Me%TotalInputVolume             = 0.0
+        Me%TotalOverTopVolume           = 0.0
+        Me%TotalStormWaterOutput        = 0.0
+        Me%TotalEvapFromSurfaceVolume   = 0.0
+        Me%TotalReservoirOutput         = 0.0
+        Me%TotalReservoirInput          = 0.0       
+        
+        
+        if (Me%CheckMass) then
+            Property => Me%FirstProperty
+            do while (associated(Property))
+                Property%MB%TotalStoredMass    = 0.0
+                Property%MB%TotalDischargeMass = 0.0
+                Property%MB%TotalOutFlowMass   = 0.0
+!                Property%MB%TotalOverTopMass   = 0.0
+                
+                Property => Property%Next
+            enddo
+        endif
+                
+        !Stores Initial Value for the case that a Volume gets negative,
+        !So Drainage Network can start all over
+        call StoreInitialValues
+
+        !Gets Current Time
+        call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyDrainageNetLocal - ModuleDrainageNetwork - ERR01'
+        
+        call GetComputeTimeStep (Me%ObjTime, Me%ExtVar%DT, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyDrainageNetLocal - ModuleDrainageNetwork - ERR02'
+
+        if (Me%OutputHydro) then
+            !Compute St. Venant terms - except time gradient
+            do ReachID = 1, Me%TotalReaches
+                CurrReach => Me%Reaches(ReachID)
+                UpNode    => Me%Nodes(CurrReach%UpstreamNode)
+                DownNode  => Me%Nodes(CurrReach%DownstreamNode)
+                gA = Gravity * UpNode%VerticalArea
+                        
+                CurrReach%HydroPressure = gA * (UpNode%WaterLevel - DownNode%WaterLevel) / CurrReach%Length
+                CurrReach%HydroGravity  = - gA * CurrReach%Slope
+                if (CurrReach%VerticalArea .LE. AlmostZero) then
+                    CurrReach%HydroFriction = 0.0
+                else                        
+                    CurrReach%HydroFriction = CurrReach%Manning * CurrReach%FlowNew / (CurrReach%VerticalArea        &
+                                              * CurrReach%HydraulicRadius**(2./3.) )
+                    CurrReach%HydroFriction = gA * CurrReach%HydroFriction**2
+                endif
+                                        
+            enddo
+        endif
+
+        if (Me%CV%NextNiteration > 1 .and. Me%ExtVar%DT < (Me%CV%CurrentDT * Me%CV%NextNiteration)) then
+            Me%CV%NextNiteration = max(aint(Me%ExtVar%DT / Me%CV%CurrentDT), 1.0)
+        endif
+         
+        SumDT       = 0.0
+        Restart     = .false.
+        Niter       = Me%CV%NextNiteration
+        Me%CV%CurrentDT = Me%ExtVar%DT / Niter
+        iter        = 1
+        
+        Me%OutletFlowVolume = 0.0
+        
+        !Water From OverLandFlow / GW Exchange
+        !Warning ModifyWaterExchange has to be the first exchange in order to use ConcOld
+        !(the same conc that RP and PMP used to compute the mass flux between runoff and river)
+        if (Me%HasGrid) then
+            call ModifyWaterExchange    (Me%ExtVar%DT)
+        endif
+
+        call UpdateAreasAndMappings
+        call StoreInitialValues
+
+        do while (iter <= Niter)
+            
+            !!Water From OverLandFlow / GW Exchange
+            !!Warning ModifyWaterExchange has to be the first exchange in order to use ConcOld
+            !!(the same conc that RP and PMP used to compute the mass flux between runoff and river)
+            !if (Me%HasGrid) then
+            !    call ModifyWaterExchange    (Me%CV%CurrentDT)
+            !endif
+
+            !Transmission Losses - Should be used when running MOHID River Network only
+            if (.not. Me%HasGrid .and. Me%ComputeOptions%TransmissionLosses) then
+                call ModifyTransmissionLosses   (Me%CV%CurrentDT)
+            endif
+
+            !Inputs Water from discharges
+            if (Me%ComputeOptions%Discharges) then
+                call ModifyWaterDischarges  (Me%CV%CurrentDT, iter)                
+            endif
+            
+            !Inputs Water from StormWaterModel
+            if (Me%ComputeOptions%StormWaterModelLink) then
+                call FlowFromStormWater     (Me%CV%CurrentDT)
+            endif
+            
+            !Inputs from Reservoirs
+            if (Me%ComputeOptions%ReservoirLink) then
+                call FlowFromReservoirs     (Me%CV%CurrentDT)
+            endif
+            
+            call UpdateAreasAndMappings
+         
+            !Runs Hydrodynamic
+            call ModifyHydrodynamics        (Me%CV%CurrentDT)
+            
+            call CheckStability (Restart)
+                               
+            !If Hydrodynamic return Restart as true, Restart with initial Solution
+            if (Restart) then
+                
+                Niter = Me%CV%NextNiteration                
+                Me%CV%CurrentDT = Me%ExtVar%DT / Niter                
+                
+                call WriteDTLog_ML ('ModuleDrainageNetwork', Niter, Me%CV%CurrentDT)
+                
+                call ResetToInitialValues ()
+                !call UpdateCrossSections                  
+                call UpdateAreasAndMappings
+                
+                SumDT   = 0.0
+                Restart = .false.
+                iter    = 1
+                
+                Me%OutletFlowVolume = 0.0
+            else
+                
+                !Runs Advection / Diffusion
+                if (Me%ComputeOptions%AdvectionDiffusion) call TransportProperties      (Me%CV%CurrentDT)
+
+                SumDT = SumDT + Me%CV%CurrentDT
+                iter  = iter  + 1
+
+                if (Me%Output%ComputeFlowFrequency) then
+                    call ComputeFlowFrequency (Me%CV%CurrentDT, SumDT)
+                endif                
+
+                if (Me%IntegratedOutput%Yes) then
+                    call ComputeIntegration (Me%CV%currentDT)
+                endif
+                
+                if (Me%Output%ComputeIntegratedFlow) then
+                    call OutputIntFlow (Me%CV%CurrentDT)
+                endif  
+
+                if (Me%Output%ComputeIntegratedMass) then
+                    call OutputIntMass (Me%CV%CurrentDT)
+                endif
+
+                do OutletPos = 1, Me%TotalOutlets 
+                    CurrReach => Me%Reaches (Me%OutletReachID(OutletPos))
+                    !       m3            =          m3         +          m3/s     *    s
+                    Me%OutletFlowVolume   = Me%OutletFlowVolume + CurrReach%FlowNew * Me%CV%CurrentDT
+                end do
+                !Me%OutletFlowVolume = Me%OutletFlowVolume + Me%OutletReach%FlowNew * LocalDT
+            endif
+
+        enddo
+        
+        !needs update after all computation (so that modules get the last level)
+        !call UpdateCrossSections                   
+        call UpdateAreasAndMappings
+        
+        !So far, total removed volume is the flow volume
+        Me%TotalOutputVolume = Me%TotalFlowVolume
+
+        !Removes OverTop - 
+        if (.not. Me%HasGrid .and. Me%ComputeOptions%RemoveOverTop) then
+            call ModifyOverToped
+        endif
+        
+        !Storm Water Inflow
+        if (Me%ComputeOptions%StormWaterModelLink) then
+            call FlowToStormWater
+        endif
+
+        if (Me%ComputeOptions%ReservoirLink) then
+            call FlowToReservoirs
+        endif
+        
+        !Top Radiation
+        if (Me%ComputeOptions%TopRadiation)       call ModifyTopRadiation       ()   
+            
+        !Exchages heat with surface
+        if (Me%ComputeOptions%SurfaceFluxes     ) call ComputeSurfaceFluxes     ()      
+
+        !Transpiration by vegetation inside river - in drying pools
+        if (Me%ComputeOptions%EVTPFromReach     ) call ComputeEVTPFromReach     ()   
+        
+        !Exponential decay
+        if (Me%ComputeOptions%Generic_Decay     ) call GenericDecay             ()
+
+        !Coliform decay
+        if (Me%ComputeOptions%T90_Decay         ) call ColiformDecay            ()
+
+        !Toxicity processes
+        if (Me%ComputeOptions%Toxicity          ) call ModifyToxicity           ()
+
+        !WaterQuality
+        if (Me%ComputeOptions%WaterQuality      ) call ModifyWaterQuality       ()
+
+        !CEQUALW2
+        if (Me%ComputeOptions%CeQualW2          ) call ModifyCEQUALW2           ()        
+        
+        !Benthos
+        if (Me%ComputeOptions%Benthos           ) call ModifyBenthos            ()
+
+        !Macoralgae
+        if (Me%ComputeOptions%MacroAlgae        ) call ModifyMacroAlgae         ()
+        
+        !Bottom fluxes
+        if (Me%ComputeOptions%BottomFluxes      ) call ComputeBottomFluxes      ()
+        
+        !Load Integration
+        if (Me%ComputeOptions%ComputeLoad       ) call CalculateLoad            ()
+        
+        !actualize property dt for quality models (Water Quality and Benthos)
+        !if DTInterval does not exist, it will be computed always
+        if (Me%DTIntervalAssociated) then
+            call Actualize_Time_Evolution
+        endif
+        
+        if (Me%HasGrid) then
+            call UpdateChannelsDynamicMatrix
+        endif
+
+        if (Me%CheckMass) then
+            Me%TotalStoredVolume = 0.0
+            do NodeID = 1, Me%TotalNodes
+                if (Me%Nodes(NodeID)%nDownStreamReaches /= 0) then
+                    Me%TotalStoredVolume = Me%TotalStoredVolume + Me%Nodes(NodeID)%VolumeNew
+                !endif
+                    Property => Me%FirstProperty
+                    do while (associated(Property))
+                        
+                        CurrNode => Me%Nodes(NodeID)
+                        BottomMass = 0.0
+!~                         if (Check_Particulate_Property(Property%ID%IDNumber).and.(Property%ComputeOptions%BottomFluxes)) then
+                        if (Property%ID%IsParticulate .and. Property%ComputeOptions%BottomFluxes) then
+                            ![kg] = [kg/m2] * [m2]
+                            BottomMass = Property%BottomConc(NodeID) * CurrNode%CrossSection%BottomWidth * CurrNode%Length
+                        else
+                            BottomMass = 0.0
+                        endif                
+                        
+                        ![kg] = [kg] + [g/m3] * [m3] * [1e-3kg/g]
+                        Property%MB%TotalStoredMass = Property%MB%TotalStoredMass + BottomMass &
+                                                      + Property%Concentration (NodeID)        &
+                                                      * Property%ISCoefficient                 &
+                                                      * Me%Nodes(NodeID)%VolumeNew
+                        Property => Property%Next
+                    enddo                                    
+                endif
+            end do
+        end if
+
+        if (Me%OutputHydro) then
+            !Compute St. Venant terms - time gradient + advection
+            !advection here because HydroAdvection function uses FlowOld
+            do ReachID = 1, Me%TotalReaches
+                CurrReach => Me%Reaches(ReachID)
+                CurrReach%HydroTimeGradient = (CurrReach%FlowNew - CurrReach%FlowOld) / Me%ExtVar%DT
+                CurrReach%HydroAdvection    = HydroAdvection(CurrReach, Me%ExtVar%DT)
+            enddo
+        endif                
+        
+        Property => Me%FirstProperty
+        do while (associated (Property))
+            if (Property%ID%IDNumber == VSS_) then
+                call CalculateVSS(Property)
+            end if
+            if (Property%ID%IDNumber == TSS_) then
+                call CalculateTSS(Property)
+
+            end if
+            Property => Property%Next    
+        end do
+
+        if (Me%TimeSerie%nNodes .GT.0) call WriteTimeSeries (Me%CV%CurrentDT)
+        
+        if (Me%Output%Yes) call HDF5Output
+        
+        !IN PROGRESS
+        if (Me%IntegratedOutput%Yes) call IntegratedHDF5Output        
+        
+        if (Me%WriteMaxStationValues) call MaxStationValues 
+
+        !Restart Output
+        if (Me%Output%WriteRestartFile .and. .not. (Me%CurrentTime == Me%EndTime)) then
+            if(Me%CurrentTime >= Me%OutPut%RestartOutTime(Me%OutPut%NextRestartOutput))then
+                IsFinalFile = .false.
+                if (Me%OutPut%RestartFormat == BIN_) then
+                    call WriteFinalFile_Bin(IsFinalFile)
+                else if (Me%OutPut%RestartFormat == HDF_) then
+                    call WriteFinalFile_Hdf(IsFinalFile)
+                endif
+                Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
+            endif
+        endif
+
+        !Computes next DT
+        call ComputeNextDT (NIter)
+        
+        if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "ModifyDrainageNet")
+
+
+    end subroutine ModifyDrainageNetLocal
+
+    !---------------------------------------------------------------------------
+
+    !-----------------------------------------------------------------------------
+    ! This subroutine is responsable for defining       
+    ! the next time to actualize the value of each      
+    ! property                                          
+    subroutine Actualize_Time_Evolution
+
+        !Local--------------------------------------------------------------
+        type (T_Property), pointer :: Property
+        type (T_Time    )          :: Actual
+
+        !----------------------------------------------------------------------
+
+        Property => Me%FirstProperty  
+
+        Actual = Me%CurrentTime
+
+do1 :   do while (associated(Property))
+cd1 :       if (Property%ComputeOptions%DTIntervalAssociated) then
+cd2 :           if (Actual .GE. Property%NextCompute) then
+                    Property%LastCompute = Property%NextCompute
+                    Property%NextCompute = Property%NextCompute &
+                                         + Property%DTInterval
+                end if cd2
+            end if cd1
+
+            Property => Property%Next
+        end do do1   
+
+        nullify(Property)
+
+
+    end subroutine Actualize_Time_Evolution
+
+    
+    !--------------------------------------------------------------------------
+
+    subroutine MaxStationValues
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: NodeID
+        type(T_Node) , pointer                  :: CurrNode
+        type(T_Reach), pointer                  :: CurrReach
+        character(len=StringLength)             :: AuxString
+        real                                    :: Year, Month, Day, Hour, Minute, Second
+        character(len=4)                        :: CYear
+        character(len=2)                        :: CMonth, CDay, CHour, CMinute, CSecond
+
+
+        do NodeID = 1, Me%TotalNodes
+
+            CurrNode => Me%Nodes(NodeID)
+
+            
+
+            if (CurrNode%StationName /= null_str .and. CurrNode%nDownstreamReaches /= 0) then
+
+                CurrReach => Me%Reaches(CurrNode%DownstreamReaches(1))
+
+                if (CurrReach%FlowNew > CurrNode%Max%Flow) then
+
+                    CurrNode%Max%Flow  = CurrReach%FlowNew                  
+                    CurrNode%Max%Vel   = CurrReach%Velocity
+                    CurrNode%Max%Depth = CurrNode%WaterDepth
+
+                    call ExtractDate(Me%CurrentTime, Year = Year, Month = Month,   &
+                                 Day = Day, Hour = Hour, Minute = Minute, Second = Second)
+
+
+                    write(CYear  , '(I4)') int(Year)
+                    write(CMonth , '(I2)') int(Month)   ; if (Month < 10)   CMonth (1:1) = '0' 
+                    write(CDay   , '(I2)') int(Day)     ; if (Day < 10)     CDay   (1:1) = '0'
+                    write(CHour  , '(I2)') int(Hour)    ; if (Hour < 10)    CHour  (1:1) = '0'    
+                    write(CMinute, '(I2)') int(Minute)  ; if (Minute < 10)  CMinute(1:1) = '0'
+                    write(CSecond, '(I2)') int(Second)  ; if (Second < 10)  CSecond(1:1) = '0'
+
+                    write(AuxString,*) CYear, '-', CMonth, '-', CDay, ' ', CHour, ':', CMinute, ':', CSecond
+
+                    CurrNode%Max%Time = AuxString
+
+                endif
+
+                nullify(CurrReach)
+
+            endif
+
+        enddo
+
+        nullify(CurrNode)
+
+    end subroutine MaxStationValues
+
+    !---------------------------------------------------------------------------
+
+    subroutine ComputeFlowFrequency(LocalDT, SumDT)
+        
+        !Argument--------------------------------------------------------------
+        real                                    :: LocalDT, SumDT
+        !Local-----------------------------------------------------------------
+        integer                                 :: ReachID
+        type(T_Reach), pointer                  :: CurrReach
+        real                                    :: TimeWindow
+        !Begin-----------------------------------------------------------------
+        
+        if (Me%CurrentTime .gt. Me%Output%FlowFrequency%StartDate .and. Me%CurrentTime .lt. Me%Output%FlowFrequency%StopDate) then
+            
+            !Accumulate time with local DT because it converged and result was approved
+            do ReachID = 1, Me%TotalReaches
+
+                CurrReach => Me%Reaches(ReachID)
+
+                if (CurrReach%FlowNew > Me%Output%FlowFrequency%MinimumFlow) then
+                    
+                    !s
+                    CurrReach%FlowAccTime = CurrReach%FlowAccTime + LocalDT
+
+
+                endif
+
+
+            enddo
+            
+            nullify(CurrReach)
+            
+            !End of time step - update flow percentage
+            if (Abs(Me%ExtVar%DT - SumDT) .lt. AllmostZero) then
+
+                do ReachID = 1, Me%TotalReaches
+
+                    CurrReach => Me%Reaches(ReachID)
+
+                    !s
+                    TimeWindow            = Me%CurrentTime - Me%Output%FlowFrequency%StartDate
+                    CurrReach%FlowAccPerc = CurrReach%FlowAccTime / TimeWindow
+                
+                    
+                enddo
+                
+                nullify(CurrReach)
+               
+            endif
+            
+            
+        endif
+        
+    end subroutine ComputeFlowFrequency
+
+    !---------------------------------------------------------------------------
+
+    subroutine ComputeIntegration(LocalDT)
+        
+        !Argument--------------------------------------------------------------
+        real                                    :: LocalDT
+        
+        !Local-----------------------------------------------------------------
+        integer                                 :: id, nNodes
+        type(T_Reach), pointer                  :: CurrReach
+        type(T_Node), pointer                   :: CurrNode
+        type(T_ReachIntegration), pointer       :: ReachInt
+        type(T_NodeIntegration), pointer        :: NodeInt
+        real                                    :: AvgValue, Depth, Level
+        
+        !Begin-----------------------------------------------------------------
+        
+        Me%IntegratedOutput%AccTime = Me%IntegratedOutput%AccTime + LocalDT
+        
+        nNodes = 1
+        do id = 1, Me%TotalReaches
+
+            CurrReach => Me%Reaches(id)
+            ReachInt => Me%IntegratedOutput%ReachStatus(id)
+           
+            if (Me%ComputeFaces(id) == OpenPoint) then
+                !Negative flows are removed so the same volume is not accounted twice
+                !if water comes back
+                !m3 = m3 + m3/s * s
+                ReachInt%AccFlowVolume = ReachInt%AccFlowVolume + (CurrReach%FlowNew * LocalDT)
+                
+                if (Me%IntegratedOutput%Initialize) then
+                    ReachInt%MaxFlow = CurrReach%FlowNew
+                    ReachInt%MinFlow = CurrReach%FlowNew
+                else
+                    !How to interpret this if flow is negative (backwards)?
+                    !The "abs" was used to try to avoid this "backwards" flow problem
+                    if (abs(CurrReach%FlowNew) > abs(ReachInt%MaxFlow)) &
+                        ReachInt%MaxFlow = CurrReach%FlowNew                
+                    if (abs(CurrReach%FlowNew) < abs(ReachInt%MinFlow)) &
+                        ReachInt%MinFlow = CurrReach%FlowNew
+                endif
+            endif
+            
+        enddo
+        
+        
+        do id = 1, Me%TotalNodes - 1
+
+            CurrNode => Me%Nodes(id)
+            NodeInt => Me%IntegratedOutput%NodeStatus(id)
+
+            !Volumes
+            AvgValue = (CurrNode%VolumeNew + CurrNode%VolumeOld)/2
+            NodeInt%AccWeightedVolume = NodeInt%AccWeightedVolume + (AvgValue * LocalDT)
+            
+            call ComputeCrossSectionForIntegration(CurrNode, AvgValue, Depth, Level)
+            
+            if (Me%IntegratedOutput%Initialize) then
+                NodeInt%MaxVolume = AvgValue
+                NodeInt%MaxDepth = Depth
+                NodeInt%MaxLevel = Level
+                NodeInt%MinVolume = AvgValue
+                NodeInt%MinDepth = Depth
+                NodeInt%MinLevel = Level                     
+            else
+                if (AvgValue > NodeInt%MaxVolume) then
+                    NodeInt%MaxVolume = AvgValue
+                    NodeInt%MaxDepth = Depth
+                    NodeInt%MaxLevel = Level
+                endif
+            
+                if (AvgValue < NodeInt%MinVolume) then
+                    NodeInt%MinVolume = AvgValue
+                    NodeInt%MinDepth = Depth
+                    NodeInt%MinLevel = Level                
+                endif  
+            endif
+        enddo
+        
+        Me%IntegratedOutput%Initialize = .false.
+        
+    end subroutine ComputeIntegration    
+    
+    !---------------------------------------------------------------------------
+
+    subroutine ComputeCrossSectionForIntegration (CurrNode, Volume, Depth, Level)
+
+        !Arguments--------------------------------------------------------------
+        type (T_Node), pointer                      :: CurrNode
+        real, intent(in)                            :: Volume
+        real, intent(out)                           :: Depth
+        real, intent(out)                           :: Level
+
+        !Local------------------------------------------------------------------
+        real                                        :: Av_New, AvTrapez2, TopH
+        real(8)                                     :: PoolVolume, VolNewAux
+        type(T_Reach), pointer                      :: UpReach
+        type(T_Node), pointer                       :: UpNode
+        real                                        :: LevelOut
+
+        !-----------------------------------------------------------------------
+        !(Jauch) Observations:
+        !For CurrNode%nDownstreamReaches /= 0 is ok, but for the outlet, 
+        !the computation of Level and Depth are dependent of the data for the up node and reach, 
+        !which is the "final" data for the iteration, not the "averaged" data (considering the start and end condition).
+        !Even if small, probably this will have an "error" associated, for this point, when talking about "maximun" and "minimun" 
+        !for Depth and Level, because they will be always the same (related to the final value of the up node/reach)
+        !To make this "right", the info required from the up ndoe/reach must be provided and the correct values passed to this function
+        
+if1:    if (CurrNode%nDownstreamReaches /= 0) then
+            
+            PoolVolume = CurrNode%CrossSection%PoolDepth * CurrNode%Length * CurrNode%CrossSection%BottomWidth
+
+if2:        if (Volume > PoolVolume) then
+               
+                VolNewAux = Volume / CurrNode%SingCoef
+                Av_New    = (VolNewAux - PoolVolume) / CurrNode%Length
+                
+                if (CurrNode%CrossSection%Form == Trapezoidal) then
+                
+                    if (VolNewAux <= CurrNode%VolumeMax) then
+                        Depth = TrapezoidWaterHeight (b  = CurrNode%CrossSection%BottomWidth,  &
+                                                      m  = CurrNode%CrossSection%Slope,        &
+                                                      Av = Av_New)
+                    else
+                        Depth = CurrNode%CrossSection%Height + (VolNewAux - CurrNode%VolumeMax) / &
+                                (CurrNode%CrossSection%TopWidth * CurrNode%Length)
+                    endif   
+                    
+                elseif (CurrNode%CrossSection%Form == TrapezoidalFlood) then
+                   
+                    if (VolNewAux <= CurrNode%VolumeMaxTrapez1) then
+
+                        Depth = TrapezoidWaterHeight (b  = CurrNode%CrossSection%BottomWidth,  &
+                                                      m  = CurrNode%CrossSection%Slope,        &
+                                                      Av = Av_New)                    
+                    else
+                        ! from the previous if
+                        ! we already know that CurrNode%WaterDepth > CurrNode%CrossSection%MiddleHeigh
+
+                        AvTrapez2 = (VolNewAux - CurrNode%VolumeMaxTrapez1) / CurrNode%Length
+
+                        TopH =  TrapezoidWaterHeight (b  = CurrNode%CrossSection%MiddleWidth,  &
+                                                      m  = CurrNode%CrossSection%SlopeTop,     &
+                                                      Av = AvTrapez2)
+                    
+                        Depth = CurrNode%CrossSection%MiddleHeight + TopH
+                    
+                    endif
+                    
+                elseif (CurrNode%CrossSection%Form == Tabular) then
+
+                    call TabularWaterLevel (CurrNode%CrossSection, Av_New, Level)
+                    Depth = Level - CurrNode%CrossSection%BottomLevel
+
+                else
+                    
+                    stop 'Invalid cross section form - ComputeCrossSection - ModuleDrainageNetwork - ERR01'
+                    
+                end if                
+
+            else !if2
+
+                Depth = 0.0
+                
+            endif if2
+            
+            !Level has significance only if Depth is different than zero
+            Level = Depth + CurrNode%CrossSection%BottomLevel
+
+        else !if1 -> Outlet
+        
+            if (Me%Downstream%Boundary == ImposedWaterLevel) then
+
+                    !Sets Level so it "tends" to the imposed level. Using Radiation with exterior velocity = 0
+                    !(v - v_ext)*h = (n-n_ext ) sqrt(gh) with v_ext = 0 =>
+                    !n = v*h / sqrt(gh) + n_ext
+
+                    UpReach             => Me%Reaches (CurrNode%UpstreamReaches (1))
+                    UpNode              => Me%Nodes   (UpReach%UpstreamNode) 
+
+                    if (Me%Downstream%Evolution  == None) then
+                        LevelOut = Me%Downstream%DefaultValue
+                    else if (Me%Downstream%Evolution == OpenMI) then
+                        LevelOut = Me%Downstream%DefaultValue
+                    else if (Me%Downstream%Evolution == ReadTimeSerie) then
+                        call ModifyDownstreamTimeSerie (LevelOut)
+                    end if
+                    
+                    if (UpNode%WaterDepth .gt. 0.0) then
+                        Level = UpReach%Velocity*UpNode%WaterDepth / sqrt(Gravity*UpNode%WaterDepth) + LevelOut
+                    else
+                        Level = CurrNode%CrossSection%BottomLevel
+                    endif
+                    Depth = Level - CurrNode%CrossSection%BottomLevel
+               
+            else
+            
+                !Assumes constant slope in the last reach
+                UpReach => Me%Reaches (CurrNode%UpstreamReaches (1))
+                UpNode  => Me%Nodes   (UpReach%UpstreamNode)
+                
+                Level = UpNode%WaterLevel - UpReach%Slope * UpReach%Length
+                Depth = max(Level - CurrNode%CrossSection%BottomLevel, 0.0)
+                
+            endif
+                  
+        end if if1        
+                                                               
+    end subroutine ComputeCrossSectionForIntegration    
+    
+    !---------------------------------------------------------------------------            
+    
+    subroutine OutputIntFlow(LocalDT)
+        
+        !Argument--------------------------------------------------------------
+        real                                    :: LocalDT
+        !Local-----------------------------------------------------------------
+        integer                                 :: ReachID, nNodes, STAT_CALL
+        type(T_Reach), pointer                  :: CurrReach
+        !Begin-----------------------------------------------------------------
+        
+        nNodes = 1
+        do ReachID = 1, Me%TotalReaches
+
+            CurrReach => Me%Reaches(ReachID)
+
+            !Select only reaches whit time serie active
+            if (Me%Reaches(ReachID)%TimeSerie) then
+            
+                if (Me%ComputeFaces(ReachID) == OpenPoint) then
+                    !Negative flows are removed so the same volume is not accounted twice
+                    !if water comes back
+                    !m3 = m3 + m3/s * s
+                    CurrReach%OutputVolume = CurrReach%OutputVolume + (CurrReach%FlowNew * LocalDT)
+                endif
+                CurrReach%OutputTime   = CurrReach%OutputTime + LocalDT
+            
+                !Check if time to write
+                if (Me%CurrentTime .ge. Me%Output%IntFlow%IntFlowNextOutput) then
+                    
+                    !m3/s
+                    Me%TimeSerie%DataLine2(nNodes) = CurrReach%OutputVolume / CurrReach%OutputTime
+                    nNodes = nNodes + 1
+                    
+                    CurrReach%OutputVolume = 0.0
+                    CurrReach%OutputTime   = 0.0
+                    
+                endif
+            endif  
+        enddo        
+        
+
+        !check if time to write all the line
+        !and it cant be linked to timeserie file dt because it may overpass
+        !lines if times do not check (WriteTimeSerieLine)
+        if (Me%CurrentTime .ge. Me%Output%IntFlow%IntFlowNextOutput) then
+        
+            call WriteTimeSerieLineNow(Me%TimeSerie%ObjTimeSerieIntFlow,    &
+                                       DataLine = Me%TimeSerie%DataLine2,     &
+                                       STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - OutputIntFlow - ERR01'                              
+
+            
+            Me%Output%IntFlow%IntFlowNextOutput = Me%Output%IntFlow%IntFlowNextOutput   &
+                                                  + Me%Output%IntFlow%IntFlowDTOutput
+        
+        endif        
+        
+        
+    end subroutine OutputIntFlow
+
+    !---------------------------------------------------------------------------
+
+    subroutine OutputIntMass(LocalDT)
+        
+        !Argument--------------------------------------------------------------
+        real                                    :: LocalDT
+        !Local-----------------------------------------------------------------
+        integer                                 :: NodeID, nNodes, STAT_CALL, i, j
+        type(T_Node), pointer                   :: CurrNode
+        type (T_Property), pointer              :: Property
+        real(8)                                 :: Flow
+        type (T_Reach), pointer                 :: DownReach
+        !Begin-----------------------------------------------------------------
+
+        nullify (Property)
+        Property => Me%FirstProperty
+        
+        j = BaseTimeSeries
+        do while (associated (Property))
+            
+            j = j + 1
+            
+            if (Property%ComputeOptions%IntMassFlux) then 
+                
+                nNodes = 1
+                do NodeID = 1, Me%TotalNodes
+
+                    !Select only nodes whit time serie active
+                    if (Me%Nodes(NodeID)%TimeSerie) then
+                
+                        CurrNode  => Me%Nodes (NodeID)
+
+                        Flow = 0.0
+
+                        !Adds Inflow due to channel flow
+                        do i = 1, CurrNode%nDownStreamReaches
+                            DownReach => Me%Reaches (CurrNode%DownStreamReaches (i))
+                            
+                            if (Me%ComputeFaces(DownReach%ID) == OpenPoint) then
+                                Flow = Flow +  dble(DownReach%FlowNew)
+                            endif
+                            
+                        enddo
+                        
+                        !g = g + m3/s * s * g/m3 
+                        Property%OutputMass(NodeID) = Property%OutputMass(NodeID) +        &
+                                                    (Flow * LocalDT * Property%ConcentrationOld(NodeID))
+                        
+                        Property%OutputTime(NodeID) = Property%OutputTime(NodeID) + LocalDT
+                        
+                        !Check if time to write
+                        if (Me%CurrentTime .ge. Property%IntMassFluxNextOutput) then
+                            
+                            !g/s
+                            Me%TimeSerie%DataLine3(nNodes) = Property%OutputMass(NodeID) / Property%OutputTime(NodeID)
+                            nNodes = nNodes + 1
+                            
+                            Property%OutputMass(NodeID) = 0.0
+                            Property%OutputTime(NodeID) = 0.0
+                            
+                        endif
+                       
+                    endif
+                    
+                enddo
+                
+                !check if time to write all the line
+                !and it cant be linked to timeserie file dt because it may overpass
+                !lines if times do not check (WriteTimeSerieLine)
+                if (Me%CurrentTime .ge. Property%IntMassFluxNextOutput) then
+                
+                    call WriteTimeSerieLineNow(Me%TimeSerie%ObjTimeSerieMass(j), &
+                                               DataLine = Me%TimeSerie%DataLine3,     &
+                                               STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - OutputIntMass - ERR01'                              
+
+                    
+                    Property%IntMassFluxNextOutput = Property%IntMassFluxNextOutput   &
+                                                          + Property%IntMassFluxDT
+                
+                endif                        
+                
+
+            end if
+        
+            Property => Property%Next
+
+        enddo
+        
+
+    end subroutine OutputIntMass
+
+    !---------------------------------------------------------------------------
+    
+    subroutine CalculateLoad()
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        type (T_Property), pointer              :: Property
+        integer                                 :: NodeID, i       
+        type (T_Node), pointer                  :: CurrNode
+        type (T_Reach), pointer                 :: DownReach
+        real(8)                                 :: Flow
+
+        nullify (Property)
+        Property => Me%FirstProperty
+
+        do while (associated (Property))
+
+            if (Property%ComputeOptions%ComputeLoad) then 
+            
+                do NodeID = 1, Me%TotalNodes
+                
+                    !if (Me%OpenpointsFlow(NodeID) == OpenPoint) then
+
+                        CurrNode  => Me%Nodes (NodeID)
+
+                        Flow = 0.0
+
+                        !Adds Inflow due to channel flow
+                        do i = 1, CurrNode%nDownStreamReaches
+                            DownReach => Me%Reaches (CurrNode%DownStreamReaches (i))
+                            
+                            if (Me%ComputeFaces(DownReach%ID) == OpenPoint) then
+                                Flow = Flow +  dble(DownReach%FlowNew)
+                            endif
+                            
+                        enddo
+                
+                        Property%Load(NodeID) = Property%Concentration(NodeID) * Flow
+                        
+                    !endif
+                    
+                enddo
+
+            end if
+        
+            Property => Property%Next
+
+        enddo
+
+    end subroutine CalculateLoad
+
+    !---------------------------------------------------------------------------
+
+    subroutine CalculateTSS(TSSProperty)
+
+        !Arguments--------------------------------------------------------------
+        type (T_Property), pointer              :: TSSProperty
+
+        !Local------------------------------------------------------------------
+        type (T_Property), pointer              :: Property
+        type (T_Property) , pointer             :: PropertySedF !Cohesive Sediment Fine
+        type (T_Property) , pointer             :: PropertySedM !Cohesive Sediment Medium
+        type (T_Property) , pointer             :: PropertySedC !Cohesive Sediment Coarse
+        type (T_Property) , pointer             :: PropertyVSS  
+
+        integer                                 :: NodeID      
+        !-----------------------------------------------------------------------
+
+        !Sum Porperties in TSS
+
+        if(Me%ComputeOptions%CalcFractionSediment)then
+            call SearchProperty(PropertySedF, PropertyXIDNumber = COHSED_FINE_)
+            call SearchProperty(PropertySedM, PropertyXIDNumber = COHSED_MEDIUM_)
+            call SearchProperty(PropertySedC, PropertyXIDNumber = COHSED_COARSE_)
+            call SearchProperty(PropertyVSS,  PropertyXIDNumber = VSS_)
+            do NodeID = 1, Me%TotalNodes               
+               !TSS in mgTS/l
+               TSSProperty%Concentration(NodeID) = PropertySedF%Concentration(NodeID)                   &
+                                                 + PropertySedM%Concentration(NodeID)                   &  
+                                                 + PropertySedC%Concentration(NodeID)                   &  
+                                                 + PropertyVSS%Concentration(NodeID) 
+
+               TSSProperty%BottomConc(NodeID)    = PropertySedF%BottomConc(NodeID)                   &
+                                                 + PropertySedM%BottomConc(NodeID)                   &  
+                                                 + PropertySedC%BottomConc(NodeID)                   &  
+                                                 + PropertyVSS%BottomConc(NodeID)                    
+            enddo
+        else
+            call SearchProperty(Property,     PropertyXIDNumber = Cohesive_Sediment_)
+            call SearchProperty(PropertyVSS,  PropertyXIDNumber = VSS_)
+            do NodeID = 1, Me%TotalNodes               
+               !TSS in mgTS/l
+               TSSProperty%Concentration(NodeID) = Property%Concentration(NodeID)                       &
+                                                 + PropertyVSS%Concentration(NodeID)                   
+
+               TSSProperty%BottomConc(NodeID)    = Property%BottomConc(NodeID)                       &
+                                                 + PropertyVSS%BottomConc(NodeID)                   
+            enddo
+        end if
+        
+        !-----------------------------------------------------------------------
+
+    end subroutine CalculateTSS
+
+    !To sum up the concetrations of all VSSproperties in VSS property
+
+    subroutine CalculateVSS(VSSProperty)
+
+        !Arguments--------------------------------------------------------------
+        type (T_Property), pointer              :: VSSProperty
+
+        !External--------------------------------------------------------------
+        integer                                 :: STAT_CALL
+
+        !Local------------------------------------------------------------------
+        type (T_Node    ), pointer              :: CurrNode
+        type (T_Property), pointer              :: Property
+        integer                                 :: NodeID
+        real                                    :: Ratio
+
+        !-----------------------------------------------------------------------
+
+        !Sum Porperties in VSS
+                
+                nullify (CurrNode)
+                do NodeID = 1, Me%TotalNodes
+
+            VSSProperty%Concentration(NodeID) = 0.0
+            VSSProperty%BottomConc(NodeID)    = 0.0
+                    
+                    Property => Me%FirstProperty
+                    do while (associated (Property))
+
+                if (isVSS(Property%ID%IDNumber)) then
+
+                    call GetWQRatio(InterfaceID = Me%ObjInterface,          &
+                                    PropertyID  = Property%ID%IDNumber,     &
+                                    Ratio       = Ratio,                    &
+                                    STAT        = STAT_CALL)
+                   
+                   !VSS in mgTS/l
+                   VSSProperty%Concentration(NodeID) = VSSProperty%Concentration(NodeID) + Ratio * Property%Concentration(NodeID)
+                   if(Property%ComputeOptions%BottomFluxes) then
+                      !VSS in kgTS/m2
+                      VSSProperty%BottomConc(NodeID)    = VSSProperty%BottomConc(NodeID) + Ratio * Property%BottomConc(NodeID)
+                   endif
+                        end if
+                        Property => Property%Next    
+                    end do
+                enddo
+
+        !-----------------------------------------------------------------------
+
+    end subroutine CalculateVSS
+
+    !--------------------------------------------------------------------------
+
+    subroutine ComputeNextDT (Niter)
+
+        !Arguments--------------------------------------------------------------
+        integer                                     :: Niter
+
+        !Local------------------------------------------------------------------
+        integer                                     :: NodeID
+        type (T_Node), pointer                      :: CurrNode
+        integer                                     :: STAT_CALL
+        logical                                     :: VariableDT
+        real                                        :: nextDTCourant, aux
+        real                                        :: nextDTVariation, MaxDT
+        logical                                     :: DTHasDecreased
+
+        !-----------------------------------------------------------------------
+        
+        call GetVariableDT(Me%ObjTime, VariableDT, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleDrainageNetwork -  ERR00'
+        
+        call GetMaxComputeTimeStep(Me%ObjTime, MaxDT, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ComputeNextDT - ModuleDrainageNetwork -  ERR01'
+        
+        nextDTCourant   = -null_real
+        nextDTVariation = -null_real        
+        
+        DTHasDecreased = .false.
+        
+        if (VariableDT) then
+           
+            if (Me%CV%LimitDTCourant) then
+            
+                do NodeID = 1, Me%TotalNodes
+
+                    CurrNode => Me%Nodes (NodeID)
+
+                    if (CurrNode%WaterDepth > Me%MinimumWaterDepth) then
+
+                        aux = CurrNode%Length / sqrt(Gravity * CurrNode%WaterDepth) * Me%CV%MaxCourant
+                        
+                        nextDTCourant = min(nextDTCourant, aux)
+                        
+                    endif
+                    
+                enddo
+
+            endif
+                       
+            if (Niter == 1) then
+            
+                nextDTVariation = Me%ExtVar%DT * Me%CV%DTFactorUp
+                Me%CV%NextNiteration = Niter
+                
+            elseif (Niter <= Me%CV%MinIterations) then                            
+            
+                if (Niter > Me%CV%LastGoodNiteration) then
+
+                    nextDTVariation = Me%ExtVar%DT
+                    Me%CV%NextNiteration = Niter
+
+                else
+                
+                    nextDTVariation = Me%ExtVar%DT * Me%CV%DTFactorUp
+                    Me%CV%NextNiteration = Niter
+
+                endif
+                
+            else
+            
+                DTHasDecreased = .true.
+                
+                if (Niter >= Me%CV%StabilizeHardCutLimit) then
+                
+                    nextDTVariation      = (Me%ExtVar%DT / Niter) !* Me%CV%MinIterations
+                    Me%CV%NextNiteration = 1 !Me%CV%MinIterations
+                    
+                else
+                
+                    nextDTVariation = Me%ExtVar%DT / Me%CV%DTFactorDown
+                    
+                    if (Niter > Me%CV%LastGoodNiteration) then
+                
+                        Me%CV%NextNiteration = NIter
+                    
+                else
+                
+                        Me%CV%NextNIteration = max(int(nextDTVariation / Me%CV%CurrentDT), 1)                        
+                    
+                    endif
+                    
+                endif 
+                               
+            endif
+            
+            Me%CV%NextDT = min(nextDTVariation, nextDTCourant)
+
+            if (Me%CV%NextDT < nextDTVariation) then                
+                Me%CV%CurrentDT = nextDTVariation / Me%CV%NextNiteration                                     
+                Me%CV%NextNiteration = max(int(Me%CV%NextDT/Me%CV%CurrentDT), 1)
+            endif            
+                      
+            if (Me%DecreaseDT .and. (.not. DTHasDecreased)) then
+                Me%CV%NextDT = Me%CV%NextDT * 0.7
+                Me%CV%NextNIteration = max(int(Me%CV%NextNIteration * 0.7), 1)
+                Me%CV%CurrentDT = Me%CV%NextDT / Me%CV%NextNiteration 
+            endif
+            
+            if (MaxDT < Me%CV%NextDT) then 
+                Me%CV%NextDT         = MaxDT
+                Me%CV%NextNiteration = max(int(Me%CV%NextDT/Me%CV%CurrentDT), 1)
+            endif
+                       
+        else
+        
+            Me%CV%NextDT = Me%ExtVar%DT
+            Me%CV%NextNiteration = Niter            
+        
+        endif
+        
+        Me%CV%LastGoodNiteration = Niter
+        Me%CV%CurrentDT          = Me%CV%NextDT / Me%CV%NextNiteration
+                           
+                       
+!            if (Niter == 1) then
+!                nextDTVariation = Me%ExtVar%DT * Me%DTFactorUp
+!            elseif (Me%NextNIter <= Me%MinIterations) then
+!                if (Me%NextNiter <= Me%LastGoodNiter) then
+!                    nextDTVariation = Me%ExtVar%DT * &
+!                                      LinearInterpolation(1.0, 1.0, real(Me%MinIterations), Me%DTFactorUp, real(Me%NextNIter))
+!                else
+!                    nextDTVariation = Me%ExtVar%DT
+!                endif
+!            else
+!                if (Me%NextNiter <= Me%LastGoodNiter) then
+!                    nextDTVariation = Me%ExtVar%DT
+!                else
+!                    nextDTVariation = Me%ExtVar%DT / Me%DTFactorDown
+!                endif                
+!            endif
+!            
+!            Me%NextDT = min(min(nextDTVariation, nextDTCourant), MaxDT)            
+!
+!        else
+!        
+!            Me%NextDT = Me%ExtVar%DT
+!        
+!        endif
+!        
+!        Me%LastGoodNiter = iter
+
+    end subroutine ComputeNextDT
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine ModifyWaterDischarges (LocalDT, iter)
+
+        !Arguments--------------------------------------------------------------
+        real                                    :: LocalDT
+        integer                                 :: iter
+
+        !Local------------------------------------------------------------------
+        type (T_Property), pointer              :: Property
+        type (T_Node), pointer                  :: CurrNode
+        integer                                 :: iDis, nDischarges, NodeID, NodePos        
+        real(8)                                 :: VolumeNew    
+        integer                                 :: STAT_CALL
+        integer                                 :: iProp
+
+        if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ModifyWaterDischarges")
+
+        !Actualize Volumes
+        do NodeID = 1, Me%TotalNodes
+            Me%Nodes(NodeID)%VolumeOld = Me%Nodes(NodeID)%VolumeNew
+        end do
+
+        !Gets the number of discharges
+        call GetDischargesNumber(Me%ObjDischarges, nDischarges, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_) stop 'ModuleDrainageNetwork - ModifyWaterDischarges - ERR01'
+
+        do iDis = 1, nDischarges
+
+            if (Me%DischargesActive(iDis)) then
+            
+                NodePos = Me%DischargesLink(iDis)
+
+                CurrNode => Me%Nodes(NodePos)
+
+                if (iter == 1) then
+                    call GetDischargeWaterFlow(Me%ObjDischarges,                                &
+                                            Me%CurrentTime, iDis,                               &
+                                            Me%Nodes(NodePos)%WaterDepth,                       &
+                                            Me%DischargesFlow(iDis), STAT = STAT_CALL)
+                    if (STAT_CALL/=SUCCESS_) stop 'ModuleDrainageNetwork - ModifyWaterDischarges - ERR04'
+                endif
+            
+                VolumeNew = CurrNode%VolumeNew + Me%DischargesFlow(iDis) * LocalDT
+            
+                !only remove what is available
+                if (Me%DischargesFlow(iDis).lt. 0.0 .and. VolumeNew .lt. 0.0) then
+                    !       m3/s            =       m3    /    s
+                    Me%DischargesFlow(iDis) = - CurrNode%VolumeNew / LocalDT
+                    VolumeNew = 0.0
+                endif
+            
+                !if (Me%CheckMass) Me%TotalInputVolume = Me%TotalInputVolume + Me%DischargesFlow(iDis) * LocalDT
+                Me%TotalInputVolume = Me%TotalInputVolume + Me%DischargesFlow(iDis) * LocalDT
+
+                nullify (Property)
+                Property => Me%FirstProperty
+                iProp = 0
+                do while (associated (Property))
+                
+                    if (Property%ComputeOptions%Discharges) then 
+                    
+                        iProp = iProp + 1
+
+                        !Gets Discharge Concentration for this cycle of iter
+                        if (iter == 1) then
+                            call GetDischargeConcentration (Me%ObjDischarges,                           &
+                                                            Me%CurrentTime,                             &
+                                                            iDis, Me%DischargesConc(iDis, iProp),       &
+                                                            Property%ID%IDNumber,                       &
+                                                            STAT = STAT_CALL)
+                            if (STAT_CALL/=SUCCESS_) then
+                                if (STAT_CALL == NOT_FOUND_ERR_) then 
+                                    !When a property is not found associated to a discharge
+                                    !by default is consider that the concentration is zero
+                                    Me%DischargesConc(iDis, iProp) = 0.
+                                else
+                                    stop 'ModuleDrainageNetwork - ModifyWaterDischarges - ERR05'
+                                endif
+                            endif
+                        endif
+
+                        !In case of negative discharge flux for mass balance is done using old concentration in river
+                        !and before concentration is updated in routine DischargeProperty
+                        !Do not move this computation to after DischargeProperty
+                        !In case of positive use dicharge concentration
+                        if (Me%CheckMass) then
+                            if (Me%DischargesFlow(iDis) .lt. 0.0) then                        
+                                !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
+                                Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (Me%DischargesFlow(iDis) &
+                                                                 * LocalDT * Property%Concentration(NodePos) * &
+                                                                 Property%IScoefficient)
+                            else
+                                !kg = kg + m3/s * s * g/m3 * 1e-3kg/g
+                                Property%MB%TotalDischargeMass = Property%MB%TotalDischargeMass + (Me%DischargesFlow(iDis) &
+                                                                 * LocalDT * Me%DischargesConc(iDis, iProp) * &
+                                                                 Property%IScoefficient)
+                        
+                            endif
+                        endif
+                
+                        call DischargeProperty (Me%DischargesFlow(iDis), Me%DischargesConc(iDis, iProp),        &
+                                                NodePos, CurrNode%VolumeNew,   Property,                        &
+                                                Property%IScoefficient, LocalDT, .false.)
+                    
+                    end if
+                                
+                    Property => Property%Next
+
+                enddo
+        
+                CurrNode%VolumeNew = VolumeNew
+                
+            endif
+
+        enddo
+
+        if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "ModifyWaterDischarges")
+
+    end subroutine ModifyWaterDischarges
+    
+    !---------------------------------------------------------------------------
+
+    subroutine ModifyWaterExchange (LocalDT)
+
+        !Arguments--------------------------------------------------------------
+        real                                        :: LocalDT
+
+        !Local------------------------------------------------------------------
+        integer                                     :: NodeID, K
+        type (T_Node), pointer                      :: CurrNode
+        type (T_Property), pointer                  :: Property
+        real                                        :: GWConc
+        type (T_NodeIntegration), pointer           :: NodeInt
+
+        !-----------------------------------------------------------------------
+
+        !Actualize Volumes
+        do NodeID = 1, Me%TotalNodes
+            Me%Nodes(NodeID)%VolumeOld = Me%Nodes(NodeID)%VolumeNew
+        end do
+
+
+        !Actualizes Concentrations
+        nullify (Property)
+        Property => Me%FirstProperty
+        do while (associated (Property))
+
+            !Temperature
+            if (Property%ID%IDNumber == Temperature_) then
+                Property%OverLandConc(:) = Me%AirTemperature        (:)
+                Property%GWaterConc  (:) = Me%SedimentTemperature   (:)
+                Property%DWaterConc  (:) = Me%AirTemperature        (:)
+            endif
+
+            !All other properties are given in the data file
+
+            Property => Property%Next
+        enddo
+
+        !Discharges OverLandFlow
+        nullify (Property)
+        Property => Me%FirstProperty
+        do while (associated (Property))
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                call DischargeProperty (Me%RunOffVector (NodeID), Property%OverLandConc(NodeID), &
+                                        NodeID, CurrNode%VolumeNew,   Property,                  &
+                                        Property%IScoefficient, LocalDT, .false.)
+            enddo
+            Property => Property%Next
+        enddo
+
+        !Actualize VolumeNew
+        do NodeID = 1, Me%TotalNodes
+            CurrNode => Me%Nodes (NodeID)
+            CurrNode%VolumeNew = CurrNode%VolumeNew + (Me%RunOffVector (NodeID) * LocalDT)
+        enddo        
+
+        !DEBUG Jauch
+        !if (CurrNode%VolumeNew < 0.0) then
+        !    write (*,*) "===================================="
+        !    write (*,*) "Negative volume after exchange with runoff"
+        !    write (*,*) "Node ID: ", NodeID
+        !    write (*,*) "CurrNode%InitialVolumeOld : ", CurrNode%InitialVolumeOld
+        !    write (*,*) "CurrNode%VolumeOld : ", CurrNode%VolumeOld
+        !    write (*,*) "CurrNode%VolumeNew : ", CurrNode%VolumeNew
+        !    write (*,*) "===================================="
+        !endif
+        
+        !Discharges GroundWaterFlow - Particulate property will not exit
+        nullify (Property)
+        Property => Me%FirstProperty
+        do while (associated (Property))
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                !not compute for phantom node - it has not flow associated in porous media
+                !and no limits for K defined
+                if (CurrNode%nDownstreamReaches .gt. 0) then
+                    if (.not. Me%GWFlowByLayers) then
+                        
+                        !if property particulate and flow going to river, conc matrix value is zero (not changed
+                        !since the allocation because PMP particulate properties are not linked to DN)
+                        call DischargeProperty (Me%GroundVector (NodeID), Property%GWaterConc(NodeID),  &
+                                                NodeID, CurrNode%VolumeNew,   Property,                 &
+                                                Property%IScoefficient, LocalDT,                        &
+                                                Property%ID%IsParticulate)
+!~                                                 Check_Particulate_Property(Property%ID%IDNumber))
+                        
+                    else
+                        if(CurrNode%HasGrid)then
+
+                            do K = Me%GWFlowBottomLayer(NodeID), Me%GWFlowTopLayer(NodeID)
+                            
+                                !if property particulate and flow going to river, conc matrix value should be zero 
+                                !but this matrix is not allocated in DN because is 3D (only a pointer and exists for dissolved).
+    !~                             if (Check_Particulate_Property(Property%ID%IDNumber)) then
+    !                            if ((Check_Particulate_Property(Property%ID%IDNumber)) .and.                         &
+    !                                (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k) .gt. 0.0)) then
+                                if (Property%ID%IsParticulate) then
+                                    GWConc = 0.0
+                                else
+                                    GWConc = Property%GWaterConcLayers(CurrNode%GridI, CurrNode%GridJ, k)
+                                endif
+                            
+                                call DischargeProperty (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k),    &
+                                                        GWConc,                                                       &
+                                                        NodeID, CurrNode%VolumeNew,   Property,                       &
+                                                        Property%IScoefficient, LocalDT,                              &
+                                                        Property%ID%IsParticulate)
+    !~                                                     Check_Particulate_Property(Property%ID%IDNumber)) 
+                                                    
+                            enddo
+                        endif
+                    endif
+                endif
+            enddo
+            Property => Property%Next
+        enddo
+
+        !Actualize VolumeNew
+        do NodeID = 1, Me%TotalNodes
+            CurrNode => Me%Nodes (NodeID)
+            
+            if (.not. Me%GWFlowByLayers) then
+                CurrNode%VolumeNew = CurrNode%VolumeNew + (Me%GroundVector (NodeID) * LocalDT)
+            else
+                if(CurrNode%HasGrid)then
+                    do K = Me%GWFlowBottomLayer(NodeID), Me%GWFlowTopLayer(NodeID)
+                
+                        CurrNode%VolumeNew = CurrNode%VolumeNew                                               &
+                                                + (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k)     &
+                                                * LocalDT)             
+                    enddo
+                endif
+            endif
+            
+            
+            !DEBUG Jauch
+            !if (CurrNode%VolumeNew < 0.0) then
+            !    write (*,*) "===================================="
+            !    write (*,*) "Negative volume after exchange with Soil"
+            !    write (*,*) "Node ID: ", NodeID
+            !    write (*,*) "CurrNode%InitialVolumeOld : ", CurrNode%InitialVolumeOld
+            !    write (*,*) "CurrNode%VolumeOld : ", CurrNode%VolumeOld
+            !    write (*,*) "CurrNode%VolumeNew : ", CurrNode%VolumeNew
+            !    write (*,*) "===================================="
+            !endif
+            
+        enddo        
+    
+        !Discharges DiffuseFlow
+        nullify (Property)
+        Property => Me%FirstProperty
+        do while (associated (Property))
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                call DischargeProperty (Me%DiffuseVector (NodeID), Property%DWaterConc(NodeID), &
+                                        NodeID, CurrNode%VolumeNew,   Property,                 &
+                                        Property%IScoefficient, LocalDT, .false.)
+            enddo
+            Property => Property%Next
+        enddo
+
+        !Actualize VolumeNew
+        do NodeID = 1, Me%TotalNodes
+            CurrNode => Me%Nodes (NodeID)
+            CurrNode%VolumeNew = CurrNode%VolumeNew + (Me%DiffuseVector (NodeID) * LocalDT)
+        enddo
+        
+        if (Me%IntegratedOutput%Yes) then
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                if (CurrNode%nDownstreamReaches /= 0) then
+                    NodeInt => Me%IntegratedOutput%NodeStatus(NodeID)
+                
+                    NodeInt%OverlandFlowVolume = NodeInt%OverlandFlowVolume + Me%RunOffVector (NodeID) * LocalDT
+                
+                    if (.not. Me%GWFlowByLayers) then
+                        NodeInt%GWFlowVolume = NodeInt%GWFlowVolume + Me%GroundVector (NodeID) * LocalDT
+                    else
+                        if(CurrNode%HasGrid)then
+                            NodeInt%GWFlowVolume = 0.0
+                            do K = Me%GWFlowBottomLayer(NodeID), Me%GWFlowTopLayer(NodeID)
+    
+                                NodeInt%GWFlowVolume = NodeInt%GWFlowVolume + &
+                                                       (Me%GroundVectorLayers (CurrNode%GridI, CurrNode%GridJ, k) * &
+                                                        LocalDT)             
+                            enddo
+                        endif
+                    endif
+                endif
+            enddo            
+        endif
+               
+    end subroutine ModifyWaterExchange 
+
+    !---------------------------------------------------------------------------
+
+    subroutine ModifyOverToped 
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                     :: NodeID
+        type (T_Node), pointer                      :: CurrNode 
+
+        !Actualize VolumeNew
+        do NodeID = 1, Me%TotalNodes
+            CurrNode => Me%Nodes (NodeID)
+            if (CurrNode%WaterDepth > CurrNode%CrossSection%Height) then
+                
+                Me%TotalOverTopVolume   = Me%TotalOverTopVolume + (CurrNode%VolumeNew - CurrNode%VolumeMax)
+                
+!                Property => Me%FirstProperty
+!                do while (associated(Property))
+!                    !kg = kg + (m3 * g/m3 * 1e-3 kg/g)
+!                    Property%MB%TotalOverTopMass = Property%MB%TotalOverTopMass + ((CurrNode%VolumeNew - CurrNode%VolumeMax)  &
+!                                                   * Property%Concentration(CurrNode) * Property%ISCoefficient)
+!                    Property => Property%Next
+!                enddo
+
+                CurrNode%WaterDepth     = CurrNode%CrossSection%Height
+                CurrNode%VolumeNew      = CurrNode%VolumeMax
+
+                call ComputeXSFromWaterDepth (CurrNode)
+
+!                CurrNode%WetPerimeter   = CurrNode%CrossSection%BottomWidth         &
+!                                        + 2. * CurrNode%WaterDepth                  &
+!                                        * sqrt (1. + CurrNode%CrossSection%Slope**2.)
+
+!                CurrNode%SurfaceWidth = (CurrNode%CrossSection%BottomWidth  & 
+!                                      + 2. * CurrNode%CrossSection%Slope *  &
+!                                        CurrNode%WaterDepth)
+
+!                CurrNode%SurfaceArea  = CurrNode%SurfaceWidth *              &
+!                                        CurrNode%Length
+            
+            endif
+        enddo        
+
+
+    end subroutine ModifyOverToped
+
+    !---------------------------------------------------------------------------
+
+    subroutine ModifyTransmissionLosses (LocalDT)
+
+        !Arguments--------------------------------------------------------------
+        real                                        :: LocalDT
+
+        !Local------------------------------------------------------------------
+        integer                                     :: NodeID
+        type (T_Node), pointer                      :: CurrNode
+        type (T_Property), pointer                  :: Property
+
+        !Actualize Volumes
+        do NodeID = 1, Me%TotalNodes
+            Me%Nodes(NodeID)%VolumeOld = Me%Nodes(NodeID)%VolumeNew
+        end do
+
+        !Calculates Transmission Losses
+        do NodeID = 1, Me%TotalNodes 
+            CurrNode => Me%Nodes (NodeID)      
+
+            if (Me%OpenPointsProcess (NodeID) == OpenPoint) then
+            !if (CurrNode%WaterDepth > Me%MinimumWaterDepth) then
+                ![m3/s]                      =       [m/s]                    * [m]                               *    [m]
+                Me%TransmissionFlow (NodeID) = -1.0* Me%HydraulicConductivity * CurrNode%CrossSection%BottomWidth *  &
+                                               CurrNode%Length
+
+                !Don't permite the volume to get negative
+!                DeadVolume                   = CurrNode%CrossSection%BottomWidth * CurrNode%Length * Me%MinimumWaterDepth
+!                Me%TransmissionFlow (NodeID) = min(Me%TransmissionFlow (NodeID), (CurrNode%VolumeNew - DeadVolume) / LocalDT)
+            else
+                Me%TransmissionFlow (NodeID) = 0.0
+            endif                
+        enddo
+
+        !Discharge Properties
+        nullify (Property)
+        Property => Me%FirstProperty
+        do while (associated (Property))
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                if (Me%OpenPointsProcess (NodeID) == OpenPoint) then
+                !if (CurrNode%WaterDepth > Me%MinimumWaterDepth) then
+                    call DischargeProperty (Me%TransmissionFlow (NodeID), Property%Concentration(NodeID),   &
+                                            NodeID, CurrNode%VolumeNew,   Property,                         &
+                                            Property%IScoefficient, LocalDT,                                &  
+                                            Property%ID%IsParticulate)
+!~                                             Check_Particulate_Property(Property%ID%IDNumber))
+                endif
+            enddo
+            Property => Property%Next
+        enddo
+
+        !Actualize VolumeNew
+        do NodeID = 1, Me%TotalNodes
+            CurrNode => Me%Nodes (NodeID)
+            CurrNode%VolumeNew = CurrNode%VolumeNew + (Me%TransmissionFlow (NodeID) * LocalDT)
+        enddo        
+
+
+    end subroutine ModifyTransmissionLosses
+
+    !---------------------------------------------------------------------------
+
+    subroutine DischargeProperty (DischargeFlow, DischargeConc, NodeID, Volume,         &
+                                   Property, ISCoef, LocalDT, Accumulate)
+        !Arguments--------------------------------------------------------------
+        real                                        :: DischargeFlow, DischargeConc
+        real(8)                                     :: Volume
+        type (T_Property), pointer                  :: Property
+        integer                                     :: NodeID
+        real                                        :: ISCoef !, Concentration
+        real                                        :: LocalDT
+        logical                                     :: Accumulate
+
+        !Local------------------------------------------------------------------
+        real(8)                                     :: DischargeVolume
+        real(8)                                     :: OldMass, NewMass
+        real                                        :: ISDischargeConc, ISConcentration
+        type (T_Node ), pointer                     :: CurrNode
+        
+        ISDischargeConc = DischargeConc * ISCoef
+        ISConcentration = Property%Concentration(NodeID) * ISCoef
+
+        if (abs(DischargeFlow) > AllmostZero) then
+            
+            ![m3] = [s] * [m3/s]
+            DischargeVolume  = dble(LocalDT)*dble(DischargeFlow)
+            
+            ![g] = [g/m3] * [m3]
+            OldMass          = dble(ISConcentration) * Volume            
+        
+            if      (DischargeFlow > 0.0) then
+
+                !Explicit discharges input 
+                NewMass          = OldMass + DischargeVolume * dble(ISDischargeConc)                                       
+
+                ISConcentration = NewMass / (Volume + DischargeFlow * LocalDT)
+
+            elseif (DischargeFlow < 0.0 .and. Volume > 0.0) then
+                    
+                !If the discharge flow is negative (Output) then the concentration
+                !to consider is the concentration of the NOD ID where the discharge
+                !is located
+
+                !If the property acculumlates in the water column 
+                !(e.g particulate properties during infiltration) then the concentration will increase
+
+                if (Accumulate) then
+                    NewMass          = OldMass
+                else
+                    NewMass          = OldMass * (1.0 + DischargeVolume / Volume)
+                endif
+                
+                !if water remains
+                if (abs(DischargeVolume) < Volume) then
+                   
+                    ISConcentration    = NewMass / (Volume + DischargeVolume)
+                
+                else   !if all water exits node than accumulated mass needs to be accounted in bottom!
+                    
+                    ISConcentration  = 0.0
+                    
+                    if (Accumulate) then
+                        CurrNode => Me%Nodes(NodeID)
+                        ![kg/m2] = [kg/m2] + [g] * 1e-3 [kg/g] / m2
+                        Property%BottomConc(NodeID) = Property%BottomConc(NodeID) +            &
+                                                      (NewMass * 1e-3 /                        &
+                                                       (CurrNode%CrossSection%BottomWidth *    &
+                                                             CurrNode%Length))
+                    endif
+                endif
+            endif
+
+        else
+            
+            !Do Nothing            
+
+        endif
+                    
+        
+        Property%Concentration(NodeID) = ISConcentration / ISCoef
+
+
+    end subroutine DischargeProperty
+
+    !---------------------------------------------------------------------------
+
+    subroutine FlowFromStormWater(LocalDT)
+
+        !Arguments--------------------------------------------------------------
+        real                                        :: LocalDT
+
+        !Local------------------------------------------------------------------
+        integer                                     :: NodeID
+        type (T_Node), pointer                      :: CurrNode
+
+        !Actualize VolumeNew
+        do NodeID = 1, Me%StormWaterModelLink%nInflowNodes
+            CurrNode                                => Me%Nodes (Me%StormWaterModelLink%InflowIDs(NodeID))
+            Me%TotalStormWaterInput                 = Me%TotalStormWaterInput + Me%StormWaterModelLink%Inflow(NodeID)
+            CurrNode%VolumeNew                      = CurrNode%VolumeNew + Me%StormWaterModelLink%Inflow(NodeID) * LocalDT
+        enddo        
+
+    end subroutine FlowFromStormWater
+
+    !---------------------------------------------------------------------------
+
+    subroutine FlowToStormWater
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                     :: NodeID
+        type (T_Node), pointer                      :: CurrNode
+
+        !Actualize VolumeNew
+        do NodeID = 1, Me%StormWaterModelLink%nOutflowNodes
+            CurrNode                                => Me%Nodes (Me%StormWaterModelLink%OutflowIDs(NodeID))
+            Me%TotalStormWaterOutput                = Me%TotalStormWaterOutput + CurrNode%VolumeNew
+            Me%StormWaterModelLink%Outflow(NodeID)  = CurrNode%VolumeNew / Me%ExtVar%DT
+            CurrNode%VolumeNew                      = 0.0
+        enddo        
+
+
+    end subroutine FlowToStormWater
+    
+    !---------------------------------------------------------------------------
+
+    subroutine FlowFromReservoirs(LocalDT)
+
+        !Arguments--------------------------------------------------------------
+        real                                        :: LocalDT
+
+        !Local------------------------------------------------------------------
+        integer                                     :: ReservoirPos, iProp, NodePos, i
+        integer                                     :: DownReachPos
+        type (T_Node), pointer                      :: CurrNodeExchange, CurrNode
+        type (T_Reach), pointer                     :: CurrReach
+        real                                        :: Flow, TotalVerticalArea
+        logical                                     :: Found
+        type(T_Property), pointer                   :: Property    
+        
+        
+        !Actualize VolumeNew
+        !input from reservoirs goes to nodes donstream inactive reaches
+        do ReservoirPos = 1, Me%Reservoirs%nReservoirs
+            
+            TotalVerticalArea = 0.0
+            
+            !Reservoir Node
+            CurrNodeExchange                        => Me%Nodes (Me%Reservoirs%ReservoirsExchangeNodePos(ReservoirPos))
+            
+
+            !Sum Vertical Area to distribute flow over several nodes (if exist). Water goes to where it exists
+            !Do not this by MaxVolume or the water can go to unreachble (e.g. higher bottom level) big nodes
+            do i = 1, CurrNodeExchange%nDownstreamReaches
+                DownReachPos = CurrNodeExchange%DownstreamReaches(i)
+                CurrReach => Me%Reaches(DownReachPos)
+                CurrNode => Me%Nodes(CurrReach%DownstreamNode)
+                TotalVerticalArea = TotalVerticalArea + CurrNode%VerticalArea
+            enddo
+            
+            !Downstream reaches that are inactive. Divide flow per number of reaches and upate nodes volume
+            do i = 1, CurrNodeExchange%nDownstreamReaches
+                DownReachPos = CurrNodeExchange%DownstreamReaches(i)
+                CurrReach => Me%Reaches(DownReachPos)
+                CurrNode => Me%Nodes(CurrReach%DownstreamNode)
+                
+                if (TotalVerticalArea > AlmostZero) then
+                    Flow = Me%Reservoirs%ReservoirsInflow(ReservoirPos) * CurrNode%VerticalArea / TotalVerticalArea
+                else
+                    Flow = Me%Reservoirs%ReservoirsInflow(ReservoirPos) / CurrNodeExchange%nDownstreamReaches
+                endif
+                
+                call FindNodePosition(CurrNode%ID, NodePos, Found)
+                
+                !Property discharge
+                iProp = 0
+                Property => Me%FirstProperty
+                do while (associated (Property))     
+                    if (Property%ComputeOptions%AdvectionDiffusion) then
+                        iProp = iProp + 1
+                        call DischargeProperty (Flow, Me%Reservoirs%ReservoirsConc(ReservoirPos, iProp),   &
+                                                NodePos, CurrNode%VolumeNew,   Property,                  &
+                                                Property%IScoefficient, Me%ExtVar%DT, .false.)
+                    endif
+                    Property => Property%Next
+                enddo  
+                
+                CurrNode%VolumeNew                 = CurrNode%VolumeNew + Flow * LocalDT
+                                
+            enddo
+            
+            Me%TotalReservoirInput                 = Me%TotalReservoirInput + Me%Reservoirs%ReservoirsInflow(ReservoirPos)
+        
+            
+        enddo        
+
+    end subroutine FlowFromReservoirs
+
+    !---------------------------------------------------------------------------    
+    
+    subroutine FlowToReservoirs
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                     :: ReservoirPos, iProp
+        type (T_Node), pointer                      :: CurrNodeExchange
+        type(T_Property), pointer                   :: Property
+        type(T_Size2D)                              :: Size2D
+        type(T_Size1D)                              :: Size1D           
+        
+        !Reservoirs
+        Size1D%ILB = 1
+        Size2D%ILB = 1
+        Size1D%IUB = Me%Reservoirs%nReservoirs
+        Size2D%IUB = Me%Reservoirs%nReservoirs
+        
+        !props
+        Size2D%JLB = 1
+        Size2D%JUB = Me%PropertiesNumber            
+
+        call SetMatrixValue(Me%Reservoirs%ReservoirsOutflow         , Size1D, 0.0)
+        call SetMatrixValue(Me%Reservoirs%NodeConc                  , Size2D, 0.0)        
+                  
+        
+        !Actualize VolumeNew
+        !input to reservoirs goes from reservoir node (upstream inactive reaches)
+        do ReservoirPos = 1, Me%Reservoirs%nReservoirs
+            
+            
+            !Reservoir Node
+            CurrNodeExchange                              => Me%Nodes (Me%Reservoirs%ReservoirsExchangeNodePos(ReservoirPos))
+            
+
+            Me%TotalReservoirOutput                        = Me%TotalReservoirOutput + CurrNodeExchange%VolumeNew
+            
+            Me%Reservoirs%ReservoirsOutflow(ReservoirPos)  = CurrNodeExchange%VolumeNew / Me%ExtVar%DT
+                
+            CurrNodeExchange%VolumeNew = 0.0
+                
+                
+            iProp = 0
+            Property => Me%FirstProperty
+            do while (associated (Property))     
+                    
+                iProp = iProp + 1
+                    
+                if (Property%ComputeOptions%AdvectionDiffusion) then
+                        
+                    !Save conc before zeroing
+                    Me%Reservoirs%NodeConc(ReservoirPos, iProp) = &
+                        Property%Concentration(Me%Reservoirs%ReservoirsExchangeNodePos(ReservoirPos))
+                    !No water no conc
+                    Property%Concentration(Me%Reservoirs%ReservoirsExchangeNodePos(ReservoirPos)) = 0.0
+                        
+                endif
+                Property => Property%Next
+            enddo                   
+                                                                       
+            
+        enddo        
+
+
+    end subroutine FlowToReservoirs
+    
+    !---------------------------------------------------------------------------    
+    
+    !---------------------------------------------------------------------------
+
+    subroutine ModifyHydrodynamics (LocalDT)
+
+        !Arguments--------------------------------------------------------------
+        real                                        :: LocalDT
+
+        !Local------------------------------------------------------------------
+        integer                                     :: NodeID, ReachID, OutletPos
+        type (T_Reach), pointer                     :: CurrReach
+        integer                                     :: CHUNK
+
+
+        CHUNK = Me%TotalNodes / 8 !8 Cores ?
+
+        if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ModifyHydrodynamics")
+
+        !$OMP PARALLEL PRIVATE(NodeID,ReachID)
+
+        !Actualize Volumes
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do NodeID = 1, Me%TotalNodes
+            Me%Nodes(NodeID)%VolumeOld = Me%Nodes(NodeID)%VolumeNew
+        end do
+        !$OMP END DO
+
+        !Actualize Reaches
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do ReachID = 1, Me%TotalReaches
+            Me%Reaches(ReachID)%FlowOld = Me%Reaches(ReachID)%FlowNew
+        end do
+        !$OMP END DO
+
+        !$OMP END PARALLEL
+
+        if (Me%NumericalScheme == ExplicitScheme) then
+
+            !Calculates Flow and Velocities
+            do ReachID = 1, Me%TotalReaches                        
+                call ModifyReach (ReachID, LocalDT)
+            end do
+
+            !Updates Volumes
+            do NodeID = 1, Me%TotalNodes
+                call ModifyNode (NodeID, LocalDT)
+            end do
+                  
+            if (Me%CheckMass) then               
+                do OutletPos = 1, Me%TotalOutlets 
+                    CurrReach => Me%Reaches (Me%OutletReachID(OutletPos))
+                    Me%TotalFlowVolume   = Me%TotalFlowVolume + CurrReach%FlowNew * LocalDT
+                end do
+            end if
+
+        else if (Me%NumericalScheme == ImplicitScheme) then
+
+!            call Cascade (LocalDT, Restart, Niter)
+!
+!            if (Me%CheckMass .and. .not. Restart) then    
+!                do OutletPos = 1, Me%TotalOutlets            
+!                    CurrReach => Me%Reaches (Me%OutletReachPos(OutletPos))                    
+!                    Me%TotalFlowVolume = Me%TotalFlowVolume + (CurrReach%FlowNew + CurrReach%FlowOld) / 2. * LocalDT
+!                end do
+!            end if
+               
+        end if
+               
+        if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "ModifyHydrodynamics")
+
+    end subroutine ModifyHydrodynamics            
+
+    !---------------------------------------------------------------------------            
+    !---------------------------------------------------------------------------            
+
+    subroutine ModifyReach (ReachID, DT)
+
+        !Arguments-------------------------------------------------------------
+        integer, intent(in)                             :: ReachID
+        real, intent(in)                                :: DT
+
+        !Local-----------------------------------------------------------------          
+        type(T_Reach), pointer                          :: CurrReach !, UpReach
+        type (T_Node), pointer                          :: DownNode  !, UpNode
+        !integer                                         :: iReach     
+        !----------------------------------------------------------------------        
+         
+
+        CurrReach => Me%Reaches (ReachID)                 
+
+if0:    if (Me%ComputeFaces (ReachID) == Compute) then
+            
+            DownNode => Me%Nodes (CurrReach%DownstreamNode)
+
+if1:        if (DownNode%nDownstreamReaches .EQ. 0) then
+            
+                !Outlet
+                select case(Me%Downstream%Boundary)
+                                
+                    case (Dam)
+        
+                        CurrReach%FlowNew   = 0.0
+                        CurrReach%Velocity  = 0.0
+        
+                    case (ZeroDepthGradient)
+
+                        call ComputeKinematicWave (CurrReach) 
+
+                    case (CriticalDepth)
+
+                        call ComputeCriticalFlow (CurrReach)
+
+                    case(ImposedWaterLevel)
+
+!                        CurrReach%Slope = (Me%Nodes(CurrReach%UpstreamNode)%Waterlevel -            &
+!                                           Me%Nodes(CurrReach%DownstreamNode)%Waterlevel) /         &
+!                                           CurrReach%Length
+!                        call ComputeKinematicWave (CurrReach) 
+
+                        call ComputeStVenant (CurrReach, DT)
+                                        
+                    case (ImposedVelocity)
+
+                        CurrReach%Velocity = Me%Downstream%DefaultValue
+                        CurrReach%FlowNew  = CurrReach%Velocity * CurrReach%VerticalArea
+
+                    case default
+
+                        write(*,*) 'Invalid downstream boundary'
+                        stop 'ModifyReach - ModuleDrainageNetwork - ERR02'
+
+                end select
+
+            else
+            
+                if (Me%HydrodynamicApproximation == KinematicWave) then !if1                      
+                    
+                    call ComputeKinematicWave (CurrReach)
+                
+                else if (Me%HydrodynamicApproximation == DiffusionWave) then
+            
+                    !Update Slope based on water level
+                    CurrReach%Slope = (Me%Nodes(CurrReach%UpstreamNode)%Waterlevel -            &
+                                       Me%Nodes(CurrReach%DownstreamNode)%Waterlevel) /         &
+                                       CurrReach%Length
+                
+                    call ComputeKinematicWave (CurrReach)
+
+                else
+
+                    call ComputeStVenant (CurrReach, DT)
+                    
+                endif
+        
+            end if if1
+                        
+        else !if0
+
+            CurrReach%FlowNew   = 0.0
+            CurrReach%Velocity  = 0.0
+
+        end if if0
+
+    end subroutine ModifyReach
+
+    !---------------------------------------------------------------------------            
+
+    subroutine ComputeCrossSection (CurrNode)
+
+        !Arguments--------------------------------------------------------------
+        type (T_Node), pointer                      :: CurrNode
+
+        !Local------------------------------------------------------------------
+        real                                        :: Av_New, h_New, AvTrapez2, TopH
+        real(8)                                     :: PoolVolume, VolNewAux
+        type(T_Reach), pointer                      :: UpReach
+        type(T_Node), pointer                       :: UpNode
+        real                                        :: LevelOut
+
+if1:    if (CurrNode%nDownstreamReaches /= 0) then
+            
+            PoolVolume = CurrNode%CrossSection%PoolDepth * CurrNode%Length * CurrNode%CrossSection%BottomWidth
+
+            !Volume greater then volume in pools
+if2:        if (CurrNode%VolumeNew > PoolVolume) then
+            
+                !--------------------------------------------------------------
+                !COMPUTE VerticalArea AND WaterDepth --------------------------
+                !--------------------------------------------------------------
+    
+                VolNewAux = CurrNode%VolumeNew / CurrNode%SingCoef
+                Av_New    = (VolNewAux - PoolVolume) / CurrNode%Length
+                
+                if (CurrNode%CrossSection%Form == Trapezoidal) then
+                
+                    if (VolNewAux <= CurrNode%VolumeMax) then
+                        h_New = TrapezoidWaterHeight (b  = CurrNode%CrossSection%BottomWidth,  &
+                                                      m  = CurrNode%CrossSection%Slope,        &
+                                                      Av = Av_New)
+                    else
+                        h_new = CurrNode%CrossSection%Height + (VolNewAux - CurrNode%VolumeMax) / &
+                                (CurrNode%CrossSection%TopWidth * CurrNode%Length)
+                    endif   
+                    
+                elseif (CurrNode%CrossSection%Form == TrapezoidalFlood) then
+                   
+                    if (VolNewAux <= CurrNode%VolumeMaxTrapez1) then
+
+                        h_New = TrapezoidWaterHeight (b  = CurrNode%CrossSection%BottomWidth,  &
+                                                        m  = CurrNode%CrossSection%Slope,        &
+                                                        Av = Av_New)                    
+                    else
+                        ! from the previous if
+                        ! we already know that CurrNode%WaterDepth > CurrNode%CrossSection%MiddleHeigh
+
+                        AvTrapez2 = (VolNewAux - CurrNode%VolumeMaxTrapez1) / CurrNode%Length
+
+                        TopH =  TrapezoidWaterHeight (b  = CurrNode%CrossSection%MiddleWidth,  &
+                                                      m  = CurrNode%CrossSection%SlopeTop,     &
+                                                      Av = AvTrapez2)
+                    
+                        h_New = CurrNode%CrossSection%MiddleHeight + TopH
+                    
+                    endif
+                    
+                elseif (CurrNode%CrossSection%Form == Tabular) then
+
+                    call TabularWaterLevel (CurrNode%CrossSection, Av_New, CurrNode%WaterLevel)
+                    h_New = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
+
+                else
+                    
+                    stop 'Invalid cross section form - ComputeCrossSection - ModuleDrainageNetwork - ERR01'
+                end if
+
+                !If Height exceeds channel height, just consider volume of full
+                !bank width
+                !if (h_New > CurrNode%CrossSection%Height) then
+                !    h_New  = CurrNode%CrossSection%Height + (CurrNode%VolumeNew - PoolVolume - CurrNode%VolumeMax) &
+                !             / CurrNode%Length / CurrNode%CrossSection%TopWidth
+                !endif
+  
+                CurrNode%WaterDepth     = h_New
+
+                !--------------------------------------------------------------
+                !COMPUTE OTHER CROSS SECTION PROPERTIES -----------------------
+                !--------------------------------------------------------------
+
+                call ComputeXSFromWaterDepth (CurrNode)
+
+                !Substarcts minumum area (Stability resons)                                                                 
+                !CurrNode%VerticalArea   = max(CurrNode%VerticalArea - Me%MinimumWaterDepth * CurrNode%CrossSection%BottomWidth, 0.0)
+
+            else !if2
+
+                CurrNode%VerticalArea   = 0.0
+                CurrNode%WaterDepth     = 0.0
+                CurrNode%WetPerimeter   = 0.0
+
+                if (CurrNode%CrossSection%PoolDepth < AllmostZero) then
+                    CurrNode%SurfaceWidth   = 0.0
+                    CurrNode%SurfaceArea    = 0.0
+                else
+                    CurrNode%SurfaceWidth   = CurrNode%CrossSection%BottomWidth
+                    CurrNode%SurfaceArea    = CurrNode%SurfaceWidth * CurrNode%Length
+                endif
+                
+            endif if2
+
+        else !if1 -> Outlet
+        
+            if (Me%Downstream%Boundary == ImposedWaterLevel) then
+
+                    !Sets Level so it "tends" to the imposed level. Using Radiation with exterior velocity = 0
+                    !(v - v_ext)*h = (n-n_ext ) sqrt(gh) with v_ext = 0 =>
+                    !n = v*h / sqrt(gh) + n_ext
+
+                    UpReach             => Me%Reaches (CurrNode%UpstreamReaches (1))
+                    UpNode              => Me%Nodes   (UpReach%UpstreamNode) 
+
+                    if (Me%Downstream%Evolution  == None) then
+                        LevelOut = Me%Downstream%DefaultValue
+                    else if (Me%Downstream%Evolution == OpenMI) then
+                        LevelOut = Me%Downstream%DefaultValue
+                    else if (Me%Downstream%Evolution == ReadTimeSerie) then
+                        call ModifyDownstreamTimeSerie (LevelOut)
+                    end if
+                    
+                    if (UpNode%WaterDepth .gt. 0.0) then
+                        CurrNode%WaterLevel = UpReach%Velocity*UpNode%WaterDepth / sqrt(Gravity*UpNode%WaterDepth) + LevelOut
+                    else
+                        CurrNode%WaterLevel = CurrNode%CrossSection%BottomLevel
+                    endif
+                    CurrNode%WaterDepth = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
+
+               
+            else
+            
+                !Assumes constant slope in the last reach
+                UpReach             => Me%Reaches (CurrNode%UpstreamReaches (1))
+                UpNode              => Me%Nodes   (UpReach%UpstreamNode) 
+                CurrNode%WaterLevel = UpNode%WaterLevel - UpReach%Slope * UpReach%Length
+                CurrNode%WaterDepth = max(CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel, 0.0)
+                
+            endif
+            
+            call ComputeXSFromWaterDepth (CurrNode)
+                  
+        end if if1
+
+        CurrNode%WaterLevel = CurrNode%WaterDepth + CurrNode%CrossSection%BottomLevel
+                                                               
+    end subroutine ComputeCrossSection
+
+    !---------------------------------------------------------------------------            
+    !---------------------------------------------------------------------------            
+
+    subroutine TabularWaterLevel (CrossSection, Av, WaterLevel)
+
+        !Arguments--------------------------------------------------------------
+        type(T_CrossSection)                :: CrossSection
+        real, intent(in)                    :: Av
+        real, intent(out)                   :: WaterLevel
+
+        !Locals----------------------------------------------------------------
+        integer                             :: i, ilev
+        real                                :: dAv, b, m, dH
+
+        
+        !if (Av > CrossSection%LevelVerticalArea(CrossSection%NLevels)) write(*,*) 'Av higher than total vertical area'
+
+        dAv = 0.0
+
+        do i=  1, CrossSection%NLevels
+            if (CrossSection%LevelVerticalArea(i) <= Av) then
+                dAv  = Av - CrossSection%LevelVerticalArea(i)
+                ilev = i            
+                !exit nao porque quero o lowest level mais aproximado
+            endif
+        enddo   
+
+        if (dAv <= 1e-6) then
+            WaterLevel = CrossSection%Level(ilev)
+        else        
+            
+            b = CrossSection%LevelBottomWidth(ilev)
+            m = 0.5 * ( abs(CrossSection%LevelSlopeLeft(ilev)) + CrossSection%LevelSlopeRight(ilev) )
+
+            dH = TrapezoidWaterHeight (b, m, dAv)
+
+            WaterLevel = CrossSection%Level(ilev) + dH
+            
+        endif
+
+    end subroutine TabularWaterLevel
+
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    real function TrapezoidWaterHeight (b, m, Av)
+    
+        !Arguments-------------------------------------------------------------
+        real                                :: b,m, Av
+
+        !Locals----------------------------------------------------------------
+        real                                :: binomio, sqrt_binomio
+        real                                :: h
+
+        if (m .LE. AllmostZero) then                   
+            !Rectangular
+            h  = Av  / b
+        else
+            binomio = b*b + 4. * m * Av
+            if (binomio .LT. 0.0) then
+                stop 'TrapezoidWaterHeight - ModuleDrainageNetwork - ERR01'
+            else if (binomio .LE. AllmostZero) then
+                sqrt_binomio = 0.
+            else
+                sqrt_binomio = sqrt (binomio)
+            endif
+
+            h = (- b + sqrt_binomio) / (2. * m)
+
+        endif
+        
+        TrapezoidWaterHeight = h
+
+    end function TrapezoidWaterHeight
+
+    !---------------------------------------------------------------------------            
+    !---------------------------------------------------------------------------
+        
+    subroutine UpdateReachCrossSection (CurrReach)
+    
+        !Arguments--------------------------------------------------------------
+        !Local------------------------------------------------------------------
+        type (T_Reach), pointer                 :: CurrReach
+        type (T_Node ), pointer                 :: UpNode, DownNode    
+        real                                    :: PoolDepth, PoolVolume
+        real                                    :: WetPerimiter, MaxBottom
+        real                                    :: WaterDepth, WaterLevel, SurfaceWidth
+        real                                    :: AvTrapez1, AvTrapez2, PTrapez1
+        real                                    :: aux, aux2, TopH   
+
+        UpNode    => Me%Nodes(CurrReach%UpstreamNode)
+        DownNode  => Me%Nodes(CurrReach%DownstreamNode)
+
+        !Volume greater then volume in pools
+        PoolVolume = UpNode%CrossSection%PoolDepth * UpNode%Length * UpNode%CrossSection%BottomWidth
+        if (UpNode%VolumeNew > PoolVolume) then
+            PoolDepth = UpNode%CrossSection%PoolDepth
+        else
+            PoolDepth = UpNode%VolumeNew / (UpNode%Length * UpNode%CrossSection%BottomWidth)
+        endif
+
+
+!        if (Me%AllowBackwardWater .and. UpNode%WaterLevel < DownNode%WaterLevel .and. DownNode%ID /= Me%OutletNodePos) then
+!            CurrReach%VerticalArea    = (UpNode%VerticalArea + DownNode%VerticalArea) / 2.0
+!            CurrReach%HydraulicRadius = CurrReach%VerticalArea / ((UpNode%WetPerimeter + DownNode%WetPerimeter) / 2.0)
+!        else
+!            CurrReach%VerticalArea    = UpNode%VerticalArea
+!            if (UpNode%WetPerimeter > 0.0) then
+!                CurrReach%HydraulicRadius = UpNode%VerticalArea / UpNode%WetPerimeter
+!            else            
+!                CurrReach%HydraulicRadius = 0.0
+!            end if
+!        endif
+
+        !New approach for calculating channel geometries. The above appraoch does not working for backwater effects. 
+        !When water was flowing into an empty channel (backwards), the upstream area is zero. This makes later
+        !the Manning equation crash.
+        !Another approach, not implemented (commented below), would be to recalculate the area based on the waterlevel.
+        !I tested it but works worths
+        !Frank - 29-08-2011
+        
+!        CurrReach%VerticalArea    = 0.9 * UpNode%VerticalArea + 0.1 * DownNode%VerticalArea
+!        WetPerimiter              = ( 0.9 * UpNode%WetPerimeter + 0.1* DownNode%WetPerimeter)
+
+!        if (UpNode%WaterLevel > DownNode%WaterLevel) then
+!            WaterDepth = UpNode%WaterDepth
+!        else
+!            WaterDepth = max(DownNode%WaterLevel - UpNode%CrossSection%BottomLevel, 0.0)
+!        endif
+        
+        !2 ways of computing water depth, the 2nd may create problems in backwater in big section changes
+        !because the reach has the upstream node section
+!        if (Me%ComputeOptions%FaceWaterColumn == WDMaxBottom_) then
+            MaxBottom  = max(UpNode%CrossSection%BottomLevel, DownNode%CrossSection%BottomLevel)
+            !WaterDepth = (max(UpNode%WaterLevel - MaxBottom, 0.0) + max(DownNode%WaterLevel - MaxBottom, 0.0)) / 2.0
+            WaterDepth = max(UpNode%WaterLevel - MaxBottom, DownNode%WaterLevel - MaxBottom)
+!        elseif (Me%ComputeOptions%FaceWaterColumn == WDAverageBottom_) then
+!            AverageBottom = (UpNode%CrossSection%BottomLevel + DownNode%CrossSection%BottomLevel) / 2.0
+!            WaterDepth = max(UpNode%WaterLevel - AverageBottom, DownNode%WaterDepth - AverageBottom)
+!        endif
+        
+        if (UpNode%CrossSection%Form == Trapezoidal .OR.            &
+           (UpNode%CrossSection%Form == TrapezoidalFlood .AND.      &
+            UpNode%WaterDepth <= UpNode%CrossSection%MiddleHeight))  then
+
+            call TrapezoidGeometry (b  = UpNode%CrossSection%BottomWidth,   &
+                                    mR = UpNode%CrossSection%Slope,         &
+                                    mL = UpNode%CrossSection%Slope,         &
+                                    h  = WaterDepth,                        &
+                                    Av = CurrReach%VerticalArea,            &
+                                    P  = WetPerimiter,                      &
+                                    Sw = SurfaceWidth)
+
+        elseif (UpNode%CrossSection%Form == TrapezoidalFlood) then
+
+            !NOT TESTED CODE
+
+            call TrapezoidGeometry (b  = UpNode%CrossSection%BottomWidth, &
+                                    mR = UpNode%CrossSection%Slope,       &
+                                    mL = UpNode%CrossSection%Slope,       &
+                                    h  = UpNode%CrossSection%MiddleHeight,&
+                                    Av = AvTrapez1,                         &
+                                    P  = PTrapez1,                          &
+                                    Sw = aux)
+
+            TopH = WaterDepth - UpNode%CrossSection%MiddleHeight
+
+            call TrapezoidGeometry (b  = UpNode%CrossSection%MiddleWidth, &
+                                    mR = UpNode%CrossSection%SlopeTop,    &
+                                    mL = UpNode%CrossSection%SlopeTop,    &
+                                    h  = TopH,                            &
+                                    Av = AvTrapez2,                         &
+                                    P  = aux,                               &
+                                    Sw = aux2)
+
+            CurrReach%VerticalArea = AvTrapez1 + AvTrapez2
+            WetPerimiter           = PTrapez1 + 2. * TopH * sqrt (1. + UpNode%CrossSection%SlopeTop**2.)
+
+
+        elseif (UpNode%CrossSection%Form == Tabular) then
+                
+            !NOT TESTED CODE
+                WaterLevel = UpNode%CrossSection%BottomLevel + WaterDepth
+                
+                call TabularGeometry (UpNode%CrossSection,      &
+!                                      WaterDepth,               &
+                                      WaterLevel,               &
+                                      CurrReach%VerticalArea,   & 
+                                      WetPerimiter,             &
+                                      aux2)
+
+        else                 
+            stop 'Invalid cross section form - UpdateReachCrossSection - ModuleDrainageNetwork - ERR01'
+        end if
+        
+        
+        
+        if (WetPerimiter > AllmostZero) then
+            CurrReach%HydraulicRadius = CurrReach%VerticalArea / WetPerimiter
+        else
+            CurrReach%HydraulicRadius = 0.0
+        endif
+        
+        
+        CurrReach%PoolVerticalArea= PoolDepth * UpNode%CrossSection%BottomWidth
+        CurrReach%Manning         = UpNode%CrossSection%ManningCH
+
+
+        
+    end subroutine UpdateReachCrossSection
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine ComputeKinematicWave (CurrReach)
+
+        !Arguments--------------------------------------------------------------        
+        type (T_Reach), pointer                 :: CurrReach
+        real                                    :: sign
+        real                                    :: WaterDepth, CriticalFlow
+        type (T_Node ), pointer                 :: UpNode, DownNode 
+
+
+        if (abs(CurrReach%Slope) >  AllmostZero) then
+        
+            if (CurrReach%Slope > 0.0) then
+                sign = 1.0
+            else
+                sign = -1.0
+            endif
+            
+            !m3/s = (m2 * m^(2/3) ) / (s.m^(-1/3)) = (m^(6/3) * m^(2/3) * m^(1/3))/s = m3/s
+            CurrReach%FlowNew  = sign * CurrReach%VerticalArea * CurrReach%HydraulicRadius **(2.0/3.0) &
+                                 * sqrt(abs(CurrReach%Slope))  / CurrReach%Manning
+
+            
+            !limit to critical flow if a free drop exists
+            if (Me%HydrodynamicApproximation == DiffusionWave .and. Me%ComputeOptions%LimitToCriticalFlow) then
+            
+                UpNode   => Me%Nodes (CurrReach%UpstreamNode  )
+                DownNode => Me%Nodes (CurrReach%DownstreamNode)
+                    
+                if ((UpNode%WaterLevel .lt. DownNode%CrossSection%BottomLevel) .or.                &
+                     (DownNode%WaterLevel .lt. UpNode%CrossSection%BottomLevel)) then
+
+                    !Waterdepth is the upper water column (maximum of level - maximum of bottom)
+                    WaterDepth  = max(UpNode%WaterLevel, DownNode%WaterLevel) -                    &
+                                  max(UpNode%CrossSection%BottomLevel,                             &
+                                      DownNode%CrossSection%BottomLevel)
+
+                    !Critical Flow - reach vertical area already takes into account water depths
+                    !above maximum bottom
+                    CriticalFlow = CurrReach%VerticalArea * sqrt(Gravity * WaterDepth)
+                    
+                    if (abs(CurrReach%FlowNew) > CriticalFlow) then
+                        if (CurrReach%FlowNew > 0) then
+                            CurrReach%FlowNew = CriticalFlow
+                        else
+                            CurrReach%FlowNew = -1.0 * CriticalFlow
+                        endif
+                    endif
+                    
+                endif
+            endif
+            
+            CurrReach%Velocity = CurrReach%FlowNew / (CurrReach%VerticalArea + CurrReach%PoolVerticalArea)
+
+        else
+        
+            CurrReach%FlowNew  = 0.0
+            CurrReach%Velocity = 0.0
+
+        endif
+    
+    end subroutine ComputeKinematicWave
+
+    !---------------------------------------------------------------------------
+
+    subroutine ComputeStVenant (CurrReach, DT) 
+     
+
+        !Arguments--------------------------------------------------------------        
+        type (T_Reach), pointer                 :: CurrReach        
+        real, intent (in)                       :: DT
+        
+        !Internal---------------------------------------------------------------
+        type (T_Node ), pointer                 :: UpNode, DownNode 
+        real                                    :: LevelSlope, Pressure
+        real                                    :: Friction, Advection !, AdvectionUp, AdvectionDown
+        real                                    :: CriticalFlow, FlowNew
+        real                                    :: MaxBottom, WaterDepth
+
+        UpNode   => Me%Nodes (CurrReach%UpstreamNode  )
+        DownNode => Me%Nodes (CurrReach%DownstreamNode)
+                            
+        !PRESSURE - explicit ----------------------------------------------------
+        
+        !m/m              =   m                                       / m      
+        LevelSlope        = (UpNode%WaterLevel - DownNode%WaterLevel) / CurrReach%Length 
+
+        !m3/s             = s  * m/s2    * m2                     * m/m
+        Pressure          = DT * Gravity * CurrReach%VerticalArea * LevelSlope
+
+        !FRICTION - semi-implicit -----------------------------------------------
+        !   -    =  (s * m.s-2  * m3.s-1 * s.m(-1/3)) / (m2 * m(4/3)) = m(10/3) / m(10/3)
+        Friction = DT * Gravity * abs(CurrReach%FlowOld) * CurrReach%Manning ** 2. &
+                 / ( CurrReach%VerticalArea * CurrReach%HydraulicRadius ** (4./3.) ) 
+
+        !ADVECTION - upwind (in - out)-------------------------------------------
+        !positive direction is downstream
+        if (UpNode%WaterDepth .gt. Me%MinimumWaterDepthAdvection     &
+            .and. DownNode%WaterDepth .gt. Me%MinimumWaterDepthAdvection) then
+            Advection = HydroAdvection(CurrReach, DT)
+        else
+            Advection = 0.0
+        endif
+
+        !FLOW---------------------------------------------------------------
+        FlowNew = ( CurrReach%FlowOld + Advection + Pressure )    &
+                          / ( 1. + Friction )
+        
+        if (Me%ComputeOptions%LimitToCriticalFlow) then
+            !Limit to critical flow. Using the critical flow limitation in all cells assumes "slow" flow or
+            !subcritical that is consistent with the formulation used (flow depends on downstream height)
+            !because in supercritical flow it is only dependent on upstream and descritization to describe it would have
+            !to change. Supercritical flow usually exists on hydraulic infraestructures (high drops) and a 
+            !hydraulic jump exists between fast flow and slow flow.
+            
+            !Test critical only if free drop exists
+!            if ((UpNode%WaterLevel .lt. DownNode%CrossSection%BottomLevel) .or.                &
+!                 (DownNode%WaterLevel .lt. UpNode%CrossSection%BottomLevel)) then            
+                
+                !Waterdepth at the center of the reach - depending on flow direction since flow
+                !can be in opposite direction of height gradient
+!                if (Me%ComputeOptions%FaceWaterColumn == WDMaxBottom_) then
+                    MaxBottom  = max(UpNode%CrossSection%BottomLevel, DownNode%CrossSection%BottomLevel)
+                    if (FlowNew .gt. 0.0) then
+                        WaterDepth = max(UpNode%WaterLevel - MaxBottom, 0.0)
+                    else
+                        WaterDepth = max(DownNode%WaterLevel - MaxBottom, 0.0)
+                    endif
+!                elseif(Me%ComputeOptions%FaceWaterColumn == WDAverageBottom_) then
+!                    if (FlowNew .gt. 0.0) then
+!                        WaterDepth = UpNode%WaterDepth
+!                    else
+!                        WaterDepth = DownNode%WaterDepth
+!                    endif
+!                endif
+                
+                !Critical Flow - reach vertical area already takes into account water depths
+                !above maximum bottom
+                CriticalFlow = CurrReach%VerticalArea * sqrt(Gravity * WaterDepth)
+        
+                if (abs(FlowNew) < CriticalFlow) then
+                    CurrReach%FlowNew = FlowNew
+                else
+                    if (FlowNew > 0) then
+                        CurrReach%FlowNew = CriticalFlow
+                    else
+                        CurrReach%FlowNew = -1.0 * CriticalFlow
+                    endif
+                endif
+!            endif
+        else
+            CurrReach%FlowNew = FlowNew !THIS IS MEGA IMPORTANT - FB
+        endif
+       
+        !Velocity
+        CurrReach%Velocity = CurrReach%FlowNew / (CurrReach%VerticalArea + CurrReach%PoolVerticalArea)
+
+    
+    end subroutine ComputeStVenant
+
+    !---------------------------------------------------------------------------
+
+    real function HydroAdvection (CurrReach, DT)
+    
+        !Arguments--------------------------------------------------------------        
+        type (T_Reach), pointer                 :: CurrReach        
+        real, intent (in)                       :: DT
+        
+        !Internal---------------------------------------------------------------
+        type (T_Node ), pointer                 :: UpNode, DownNode 
+        type (T_Reach), pointer                 :: UpReach, DownReach       
+        real                                    :: AdvectionUp, AdvectionDown
+        real                                    :: DownFlux, UpFlux
+        real                                    :: DownProp, UpProp
+        integer                                 :: i 
+
+        !ADVECTION - upwind (in - out)-------------------------------------------
+        !positive direction is downstream
+
+        UpNode   => Me%Nodes (CurrReach%UpstreamNode  )
+        DownNode => Me%Nodes (CurrReach%DownstreamNode)
+
+
+        HydroAdvection = 0.0
+
+        !Down Flux
+        AdvectionDown = 0.0
+        do i = 1, DownNode%nDownstreamReaches
+            DownReach => Me%Reaches (DownNode%DownstreamReaches (i))
+            
+            !This old formulation had a problem when flows in adjacent reaches
+            !had opposite directions. Flux was the average and velocity would be
+            !in opposite  direction of average flow. 
+!            DownFlux = (CurrReach%FlowOld + DownReach%FlowOld) / 2.
+!
+!           if (DownFlux.GE.0.0) then
+!               DownProp = CurrReach%Velocity
+!           else
+!               DownProp = DownReach%Velocity 
+!           end if
+!                                                                       
+!           AdvectionDown = AdvectionDown + DownFlux * DownProp
+ 
+            if ((DownNode%WaterDepth .GE. Me%MinimumWaterDepth)) then
+                
+                !The new formulation in case of opposite directions in adjacent reaches does not compute
+                !advection. In case of same direction is hard-upwind meaning that it will use flow and 
+                !velocity from the upwind reach. This option may be more stable than soft-upwind 
+                !(average flow and velocity from upwind reach) or central differences (average flow 
+                !and velocity).
+                
+                !if flows in same direction
+                if ((CurrReach%FlowOld * DownReach%FlowOld) .gt. 0.0) then
+                
+                    DownFlux  = (CurrReach%FlowOld + DownReach%FlowOld) / 2.
+                    
+                    if (DownFlux .gt. 0.0) then
+                        DownFlux  = CurrReach%FlowOld
+                        DownProp  = CurrReach%Velocity
+                    else
+                        DownFlux  = DownReach%FlowOld
+                        DownProp  = DownReach%Velocity                   
+                    endif
+                    
+                    !m4/s2        = m4/s2           m3/s     * m/s
+                    AdvectionDown = AdvectionDown + DownFlux * DownProp
+                else
+                    !No advection added if flows in oposite directions
+                    !AdvectionDown = AdvectionDown
+                endif                                                           
+                
+            endif
+        end do
+       
+        !UpFlux
+        AdvectionUp = 0.0
+        do i = 1, UpNode%nUpstreamReaches                    
+            UpReach => Me%Reaches (UpNode%UpstreamReaches (i))
+
+!            UpFlux = ( CurrReach%FlowOld + UpReach%FlowOld) / 2.
+!
+!            if (UpFlux.GE.0.0) then
+!               UpProp = UpReach%Velocity
+!            else
+!               UpProp = CurrReach%Velocity
+!            end if
+
+            if ((UpNode%WaterDepth .GE. Me%MinimumWaterDepth)) then
+
+                !if flows in same direction
+                if ((CurrReach%FlowOld * UpReach%FlowOld) .gt. 0.0) then
+                
+                    UpFlux  = (CurrReach%FlowOld + UpReach%FlowOld) / 2.
+                    
+                    if (UpFlux .gt. 0.0) then
+                        UpFlux  = UpReach%FlowOld
+                        UpProp  = UpReach%Velocity
+                    else
+                        UpFlux  = CurrReach%FlowOld
+                        UpProp  = CurrReach%Velocity                   
+                    endif
+                    
+                    !m4/s2        = m4/s2           m3/s     * m/s
+                    AdvectionUp = AdvectionUp + UpFlux * UpProp
+                else
+                    !No advection added if flows in oposite directions
+                    !AdvectionUp = AdvectionUp
+                endif                                                       
+            endif
+        end do
+   
+        !m3/s          =  m4/s2                        *  s / m
+        HydroAdvection = (AdvectionUp - AdvectionDown) * DT / CurrReach%Length
+
+
+        nullify(UpNode)
+        nullify(DownNode)
+                       
+    end function HydroAdvection
+
+    !---------------------------------------------------------------------------
+
+   
+    subroutine ComputeCriticalFlow (CurrReach)
+    
+        !Arguments--------------------------------------------------------------        
+        type (T_Reach), pointer                 :: CurrReach        
+        !Local------------------------------------------------------------------
+        type (T_Node), pointer                  :: CurrNode
+        real                                    :: h      !hydraulic mean depth
+
+
+            nullify(CurrNode)
+            CurrNode => Me%Nodes(CurrReach%UpstreamNode)
+
+            if (CurrNode%VerticalArea .LE. AlmostZero) then
+                CurrReach%FlowNew  = 0.0
+                CurrReach%Velocity = 0.0
+            else
+                h = CurrNode%VerticalArea / CurrNode%SurfaceWidth
+                !h = CurrNode%WaterDepth
+                CurrReach%FlowNew = CurrNode%VerticalArea * sqrt(Gravity*h)
+                CurrReach%Velocity = CurrReach%FlowNew / CurrNode%VerticalArea
+            endif
+
+    end subroutine ComputeCriticalFlow
+
+    !---------------------------------------------------------------------------
+                
+    subroutine ModifyNode (NodeID, DT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: NodeID
+        real                                        :: DT
+         
+        !Local-----------------------------------------------------------------          
+        type (T_Node ), pointer                     :: CurrNode
+        type (T_Reach), pointer                     :: DownReach       
+        real(8)                                     :: InFlow, OutFlow
+        integer                                     :: i
+                                       
+        CurrNode => Me%Nodes(NodeID)                                    
+
+        call ComputeNodeInFlow  (CurrNode, InFlow)
+        call ComputeNodeOutFlow (CurrNode, OutFlow)
+     
+        !In same special ocasions, namely when water enters from downstream into a dry reach, 
+        !you may have and positive outflow, but zero volume. Even so, the node is open
+        !e.g. Up Down (flat bottom)
+        !WaterColumn at nodes: 0.0  0.2 0.1 
+        if (CurrNode%VolumeOld < AllmostZero .and. Inflow < AllmostZero .and. OutFlow > 0.0) then
+
+            do i = 1, CurrNode%nDownstreamReaches
+                DownReach => Me%Reaches (CurrNode%DownstreamReaches (i))
+                DownReach%FlowNew   = 0.0
+                DownReach%Velocity  = 0.0
+                Outflow             = 0.0
+            end do
+        endif
+     
+        CurrNode%VolumeNew = CurrNode%VolumeOld + ( InFlow - OutFlow ) * DT
+        
+        !If Volume is negative with less then 1/10. of a ml set it to zero
+        if ((CurrNode%VolumeNew < 0.0) .and. (abs(CurrNode%VolumeNew) < AllmostZero)) then
+            CurrNode%VolumeNew = 0.0
+        endif
+
+    end subroutine ModifyNode
+
+    !---------------------------------------------------------------------------            
+
+    subroutine CheckStability (Restart)
+
+        !Arguments--------------------------------------------------------------
+        logical                                     :: Restart
+
+        !Local------------------------------------------------------------------
+        type (T_Node), pointer                      :: CurrNode
+        real                                        :: variation, thresholdToDecreaseDT
+        integer                                     :: n_restart, NodeID
+        logical                                     :: negativeVolume
+
+        !-----------------------------------------------------------------------
+
+        n_restart = 0
+        Restart   = .false.     
+        negativeVolume = .false.
+       
+do1:     do NodeID = 1, Me%TotalNodes
+            CurrNode => Me%Nodes (NodeID)
+            
+            if (CurrNode%nDownstreamReaches /= 0) then
+                if (CurrNode%VolumeNew < -1.0 * AllmostZero) then
+                    !print *, NodeID, CurrNode%VolumeNew
+                    negativeVolume = .true.
+                    exit do1
+                elseif (CurrNode%VolumeNew < 0.0) then
+                    CurrNode%VolumeNew = 0.0                
+                endif
+            endif
+        enddo do1
+       
+        if ((.not. Restart) .and. Me%CV%Stabilize) then
+            Me%DecreaseDT = .false.
+            thresholdToDecreaseDT = Me%CV%StabilizeFactor * 0.7
+            
+do2:        do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+
+                if (CurrNode%nDownstreamReaches /= 0) then
+
+                    if ((.not. Me%CV%CheckDecreaseOnly) .or. (CurrNode%VolumeNew < CurrNode%VolumeOld)) then            
+                        if ((CurrNode%VolumeOld > CurrNode%MinimunToStabilize) .and. &
+                            (CurrNode%VolumeNew > CurrNode%MinimunToStabilize)) then                        
+                        
+                            variation = abs(CurrNode%VolumeNew - CurrNode%VolumeOld) / CurrNode%VolumeOld
+                        
+                            if (variation > Me%CV%StabilizeFactor) then
+                                !Debug routine - may be usefull for using in debug situation
+                                !call DebugStability(CurrNode, Niter)
+                                
+                                n_restart = n_restart + 1
+                                !print *, NodeID, CurrNode%VolumeNew, CurrNode%VolumeOld, variation
+                             
+                                !print *, "Restart at ", NodeID, " with variation = ", variation
+                                !print *, "Old volume: ", CurrNode%VolumeOld, " New volume: ", CurrNode%VolumeNew
+                            endif
+                            
+                            if (variation > thresholdToDecreaseDT) then
+                                
+                                Me%DecreaseDT = .true.
+                                
+                            endif
+                            
+                            if (n_restart > Me%CV%MinToRestart) then
+                                Restart = .true.
+                                exit do2
+                            endif
+                        endif
+                    endif
+                endif
+            enddo do2
+
+        end if
+
+        if (Restart) then        
+            Me%CV%NextNiteration = max(int(Me%CV%NextNiteration * Me%CV%DTSplitFactor), Me%CV%NextNiteration + 1)
+                 
+            if (Me%CV%NextNiteration >= Me%CV%MaxIterations) then
+                if ((.not. negativeVolume) .and. Me%CV%IgnoreMaxIterations) then
+                    write(*,*)'[DN] Ignoring number of iterations above maximum: ', Me%CV%NextNiteration
+                    Restart = .false.
+                else
+                    write(*,*)'[DN] Number of iterations above maximum: ', Me%CV%NextNiteration                     
+                 stop 'CheckStability - ModuleDrainageNetwork - ERR010'
+            endif                          
+        endif   
+        endif   
+
+        !-----------------------------------------------------------------------
+
+    end subroutine CheckStability
+
+    !---------------------------------------------------------------------------            
+
+    subroutine DebugStability(CurrNode, Niter)
+        
+        !Arguments-------------------------------------------------------------
+        integer                                     :: Niter
+        type (T_Node), pointer                      :: CurrNode
+        !Local-----------------------------------------------------------------
+        type (T_Node), pointer                      :: UpNode, DownNode
+        type (T_Reach), pointer                     :: CurrReach
+        character(len=6)                            :: char_i
+        character(len=15)                           :: char_1, char_2, char_3, char_4, char_5, char_6       
+        character (len = StringLength)              :: StrWarning
+
+        write(char_i, '(i6)') CurrNode%ID
+        write(char_1, '(i10)') Niter
+        write(char_2, '(ES10.3)') CurrNode%VolumeNew
+        write(char_3, '(ES10.3)') CurrNode%VolumeOld
+        write(char_4, '(ES10.3)') CurrNode%WaterLevel
+        write(char_5, '(ES10.3)') CurrNode%WaterDepth
+        write(char_6, '(ES10.3)') Me%RunoffVector(CurrNode%ID)
+        
+        StrWarning = ' Node Info'//char_i//','//char_1//','//char_2//' '//char_3//' '//char_4//' '//char_5//' '//char_6
+
+        call SetError(WARNING_, INTERNAL_, StrWarning, OFF) 
+                                   
+        if (CurrNode%nUpstreamReaches /= 0) then                                                                               
+            CurrReach => Me%Reaches (CurrNode%UpstreamReaches (1))
+            write(char_1, '(ES10.3)') CurrReach%FlowNew
+
+            UpNode => Me%Nodes(CurrReach%UpstreamNode)
+            write(char_i, '(i6)') UpNode%ID
+            write(char_2, '(ES10.3)') UpNode%VolumeNew
+            write(char_3, '(ES10.3)') UpNode%VolumeOld
+            write(char_4, '(ES10.3)') UpNode%WaterLevel
+            write(char_5, '(ES10.3)') UpNode%WaterDepth
+            write(char_6, '(ES10.3)') Me%RunoffVector(UpNode%ID)
+            
+            StrWarning = ' UpNode Info'//char_i//','//char_1//','//char_2//' '//char_3//' '//char_4//' '//char_5//' '//char_6
+
+            call SetError(WARNING_, INTERNAL_, StrWarning, OFF)                            
+
+        endif
+        
+        if (CurrNode%nDownstreamReaches /= 0) then
+            CurrReach => Me%Reaches (CurrNode%DownstreamReaches (1))
+            write(char_1, '(ES10.3)') CurrReach%FlowNew
+           
+            DownNode => Me%Nodes(CurrReach%DownstreamNode)
+            write(char_i, '(i6)') DownNode%ID
+            write(char_2, '(ES10.3)') DownNode%VolumeNew
+            write(char_3, '(ES10.3)') DownNode%VolumeOld
+            write(char_4, '(ES10.3)') DownNode%WaterLevel
+            write(char_5, '(ES10.3)') DownNode%WaterDepth
+            write(char_6, '(ES10.3)') Me%RunoffVector(DownNode%ID)
+            
+            StrWarning = ' DownNode Info'//char_i//','//char_1//','//char_2//' '//char_3//' '//char_4//' '//char_5//' '//char_6
+
+            call SetError(WARNING_, INTERNAL_, StrWarning, OFF)                              
+            
+        endif
+
+        if (DownNode%nDownstreamReaches /= 0) then
+            CurrReach => Me%Reaches (DownNode%DownstreamReaches (1))
+            write(char_1, '(ES10.3)') CurrReach%FlowNew
+           
+            DownNode => Me%Nodes(CurrReach%DownstreamNode)
+            write(char_i, '(i6)') DownNode%ID
+            write(char_2, '(ES10.3)') DownNode%VolumeNew
+            write(char_3, '(ES10.3)') DownNode%VolumeOld
+            write(char_4, '(ES10.3)') DownNode%WaterLevel
+            write(char_5, '(ES10.3)') DownNode%WaterDepth
+            write(char_6, '(ES10.3)') Me%RunoffVector(DownNode%ID)
+            
+            StrWarning = ' DownDownNode Info'//char_i//','//char_1//','//char_2//' '//char_3//' '//char_4//' '//char_5//' '//char_6
+
+            call SetError(WARNING_, INTERNAL_, StrWarning, OFF)                              
+            
+        endif                            
+    
+    
+    end subroutine DebugStability
+    
+    !--------------------------------------------------------------------------
+
+!    subroutine Cascade (DT, Restart, Niter)
+!
+!        !Arguments--------------------------------------------------------------
+!        real                                        :: DT
+!        logical                                     :: Restart
+!        integer                                     :: Niter
+!
+!        !Local-----------------------------------------------------------------
+!        integer                                     :: NodeID, ReachID
+!        type (T_Node ), pointer                     :: CurrNode !, DownNode
+!        type (T_Reach), pointer                     :: CurrReach
+!        real(8)                                     :: InFlow, OutFlow
+!        real(8)                                     :: OutFlowNew, OutFlowOld, Vol
+!        integer                                     :: iter, MaxIter
+!        logical                                     :: Iterate, ForceRestart
+!        real                                        :: Error, Tolerance        
+!
+!        Tolerance = 0.001
+!        MaxIter   = 100
+!
+!        
+!do1:    do NodeID = 1, Me%TotalNodes
+!            CurrNode => Me%Nodes (NodeID)
+!        
+!if1:        if (Me%OpenPointsFlow (NodeID) == OpenPoint) then
+!
+!                ReachID = CurrNode%DownstreamReaches (1)
+!                CurrReach => Me%Reaches (ReachID)
+!                             
+!                call ComputeNodeInFlow  (CurrNode, InFlow)                                    
+!                call ComputeNodeOutFlow (CurrNode, OutFlowOld)
+!               
+!                Iterate = .true.
+!                iter = 0            
+!do2:            do while (Iterate)
+!
+!                    iter = iter + 1 
+!                    
+!                    call ComputeCrossSection     (CurrNode)
+!                    call UpdateReachCrossSection (CurrReach)
+!                    call ModifyReach             (ReachID, DT)
+!
+!                    call ComputeNodeOutFlow (CurrNode, OutFlowNew)
+!
+!                    OutFlow = (OutFlowOld + OutFlowNew) / 2.
+!                    
+!                    Vol = CurrNode%VolumeOld + DT * (InFlow - OutFlow)
+!
+!                    Error = abs(Vol - CurrNode%VolumeNew)
+!                    
+!                    CurrNode%VolumeNew = Vol
+!                    
+!                    if (Error > Tolerance) then
+!                    
+!                        Iterate = .true.
+!                        CurrNode%VolumeNew = Vol    
+!
+!                        if (iter >= MaxIter) then
+!                            write(*,*) 'Max number of iterations exceeded in Cascade'
+!                            stop 'ModuleDrainageNetwrok - Cascade - ERR01'
+!                        end if
+!                
+!                    else
+!
+!                        Iterate = .false.      
+!                        call VerifyMinimumVolume (NodeID, Restart, ForceRestart, Niter)
+!                        if (restart) exit                    
+!
+!                    end if
+!
+!                end do do2
+!                
+!                if (Restart) exit
+!
+!            else !if1
+!
+!                
+!
+!                if (CurrNode%nDownstreamReaches /= 0) then
+!                    
+!                    CurrNode%VolumeNew = CurrNode%VolumeOld
+!                    ReachID = CurrNode%DownstreamReaches (1)
+!                    CurrReach => Me%Reaches (ReachID)
+!                    CurrReach%FlowNew  = 0.0
+!                    CurrReach%Velocity = 0.0
+!
+!                 end if
+!
+!                    
+!            end if if1             
+!
+!        end do do1
+!
+!    end subroutine Cascade
+
+    !---------------------------------------------------------------------------            
+
+    subroutine UpdateAreasAndMappings
+
+        !Arguments--------------------------------------------------------------
+
+
+        !Local------------------------------------------------------------------
+
+        !Update Cross Sections 
+        call UpdateCrossSections
+
+        !Actualizes Mapping
+        call UpdateComputeFaces
+        call UpdateOpenPoints
+
+    end subroutine UpdateAreasAndMappings
+
+    !---------------------------------------------------------------------------            
+
+    subroutine UpdateCrossSections ()
+
+        !Arguments--------------------------------------------------------------
+
+
+        !Local------------------------------------------------------------------
+        type (T_Node) , pointer                     :: CurrNode
+        type (T_Reach), pointer                     :: CurrReach
+        integer                                     :: NodeID, ReachID
+        
+        if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "UpdateCrossSections")
+
+        do NodeID = 1, Me%TotalNodes
+            CurrNode => Me%Nodes (NodeID)
+            call ComputeCrossSection (CurrNode)
+        end do
+
+        do ReachID = 1, Me%TotalReaches
+            CurrReach => Me%Reaches (ReachID)
+            call UpdateReachCrossSection (CurrReach)
+        end do
+
+        if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "UpdateCrossSections")
+
+    end subroutine UpdateCrossSections
+    
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine UpdateComputeFaces
+
+        !Local------------------------------------------------------------------
+        type (T_Reach), pointer                     :: CurrReach
+        type (T_Node) , pointer                     :: UpNode, DownNode
+        integer                                     :: ReachID
+        integer                                     :: ComputeFaceUpDown, ComputeFaceDownUp
+        real                                        :: Min_Level_Up, Min_Level_Down
+        real                                        :: Level_Up, Level_Down
+        
+        !-----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "UpdateComputeFaces")
+       
+        !Based on ModuleHorizontalMap
+        !Me%ComputeFaces = 0
+
+        do ReachID = 1, Me%TotalReaches
+
+            ComputeFaceUpDown = 0
+            ComputeFaceDownUp = 0
+                      
+            CurrReach => Me%Reaches (ReachID)
+
+            if (CurrReach%Active) then
+
+                UpNode    => Me%Nodes (CurrReach%UpstreamNode)
+                DownNode  => Me%Nodes (CurrReach%DownstreamNode)
+
+                Min_Level_Up   = UpNode%CrossSection%BottomLevel   + Me%MinimumWaterDepth
+                Min_Level_Down = DownNode%CrossSection%BottomLevel + Me%MinimumWaterDepth
+
+                Level_Up   = UpNode%WaterLevel
+                Level_Down = DownNode%WaterLevel
+
+                !V1----------------------
+                !Alterar tambem ComputeKinematic
+                if (Level_Up > Min_Level_Up .and. Level_Up > Min_Level_Down)        &
+                    ComputeFaceUpDown = 1
+
+                !V2------------------------
+                !Alterar tambem ComputeKinematic
+                !if (Level_Up > Min_Level_Up .and. Level_Up > Level_Down)                &
+                !    ComputeFaceUpDown = 1
+
+                !Open the face in Down Up Direction if Hydrodynamic aprox. allows backwater
+                if (Me%AllowBackwardWater) then
+                    if (Level_Down > Min_Level_Down .and. Level_Down > Min_Level_Up)    &
+                        ComputeFaceDownUp = 1
+                endif
+
+                if (ComputeFaceUpDown + ComputeFaceDownUp > 0) then
+                    Me%ComputeFaces (ReachID) = 1
+                else
+                    Me%ComputeFaces (ReachID) = 0
+                endif
+                
+            else
+            
+                !In active Reach
+                Me%ComputeFaces (ReachID) = 0 
+            
+            endif
+
+        end do
+
+        if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "UpdateComputeFaces")
+
+    end subroutine UpdateComputeFaces
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine UpdateOpenPoints
+
+        !Local-----------------------------------------------------------------        
+        type (T_Node) , pointer                     :: CurrNode
+        integer                                     :: NodeID, i
+        integer                                     :: UpReachID, DownReachID
+        integer                                     :: Sum
+        real                                        :: hInPool
+
+        Me%OpenPointsFlow    = 0
+        Me%OpenPointsProcess = 0
+
+        if (Me%HasGrid) then
+            Me%ChannelsOpenProcess = 0
+        endif
+
+        do NodeID = 1, Me%TotalNodes
+
+            Sum = 0.0
+            CurrNode => Me%Nodes (NodeID)
+
+            if (CurrNode%nDownstreamReaches /= 0) then
+
+                do i = 1, CurrNode%nUpstreamReaches
+                    UpReachID = CurrNode%UpstreamReaches (i)
+                    Sum = Sum + Me%ComputeFaces (UpReachID)
+                end do
+
+                do i = 1, CurrNode%nDownstreamReaches
+                    DownReachID = CurrNode%DownstreamReaches (i)
+                    Sum = Sum + Me%ComputeFaces (DownReachID)
+                end do
+
+                if (Sum > 0) Me%OpenPointsFlow (NodeID) = OpenPoint
+
+                if (CurrNode%CrossSection%PoolDepth > 0.0) then
+                    hInPool = CurrNode%VolumeNew / (CurrNode%CrossSection%BottomWidth * CurrNode%Length)
+                    if (hInPool > Me%MinimumWaterDepthProcess) then
+                        Me%OpenPointsProcess(NodeID) = OpenPoint
+                        if (Me%HasGrid .and. CurrNode%HasGrid) then
+                            Me%ChannelsOpenProcess(CurrNode%GridI, CurrNode%GridJ) = OpenPoint
+                        endif
+                    endif
+                else
+                    if (CurrNode%WaterDepth > Me%MinimumWaterDepthProcess) then
+                        Me%OpenPointsProcess(NodeID) = OpenPoint
+                        if (Me%HasGrid .and. CurrNode%HasGrid) then
+                            Me%ChannelsOpenProcess(CurrNode%GridI, CurrNode%GridJ) = OpenPoint
+                        endif
+                    endif
+                endif
+            
+            end if
+
+        end do
+
+
+    end subroutine UpdateOpenPoints
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine UpdateChannelsDynamicMatrix
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: NodeID, i
+        type (T_Node), pointer                      :: CurrNode
+        type (T_Reach), pointer                     :: UpReach, DownReach
+        real(8)                                     :: AvrgVelocity, sumVerticalArea
+
+        !----------------------------------------------------------------------
+       
+        do NodeID = 1, Me%TotalNodes
+            
+            CurrNode => Me%Nodes (NodeID)    
+            
+            if(CurrNode%HasGrid)then
+                
+                Me%ChannelsWaterLevel       (CurrNode%GridI, CurrNode%GridJ) = CurrNode%WaterLevel
+                Me%ChannelsVolume           (CurrNode%GridI, CurrNode%GridJ) = CurrNode%VolumeNew
+                Me%ChannelsMaxVolume        (CurrNode%GridI, CurrNode%GridJ) = CurrNode%VolumeMax
+            
+                !compute average velocity
+                AvrgVelocity = 0.
+                sumVerticalArea = 0.
+                !go to upstream reaches
+                do i = 1, CurrNode%nUpstreamReaches
+                    nullify (UpReach)
+                    UpReach => Me%Reaches (CurrNode%UpstreamReaches (i))            
+                    if (Me%ComputeFaces(UpReach%ID) == OpenPoint) then
+                        sumVerticalArea = sumVerticalArea + UpReach%VerticalArea
+                        AvrgVelocity = (AvrgVelocity + (UpReach%Velocity * UpReach%VerticalArea))/sumVerticalArea  
+                    endif
+                end do
+                !go to downstream reaches
+                do i = 1, CurrNode%nDownstreamReaches
+                    nullify (DownReach)
+                    DownReach => Me%Reaches (CurrNode%DownstreamReaches (i))            
+                    if (Me%ComputeFaces(DownReach%ID) == OpenPoint) then
+                        sumVerticalArea = sumVerticalArea + DownReach%VerticalArea
+                        AvrgVelocity = (AvrgVelocity + (DownReach%Velocity * DownReach%VerticalArea))/sumVerticalArea
+                    endif
+                end do
+            
+                Me%ChannelsVelocity        (CurrNode%GridI, CurrNode%GridJ) = AvrgVelocity
+            
+            endif
+            
+        enddo
+
+    end subroutine UpdateChannelsDynamicMatrix 
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    
+    subroutine ModifyDownstreamTimeSerie (NewValue)
+
+        !Local----------------------------------------------------------------
+        integer                                         :: STAT_CALL
+        type (T_Time)                                   :: Time1, Time2
+        real                                            :: Value1, Value2, NewValue
+        logical                                         :: TimeCycle
+        
+        !Begin----------------------------------------------------------------
+        
+        !Gets Value for current Time
+        call GetTimeSerieValue (Me%Downstream%ObjTimeSerie, Me%CurrentTime,             &
+                                Me%Downstream%DataColumn,                               &
+                                Time1, Value1, Time2, Value2, TimeCycle,                &
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            stop 'ModifyDownstreamTimeSerie - ModuleDrainageNetwork - ERR02'
+
+        
+            if (TimeCycle) then
+                NewValue = Value1
+            else
+                !Interpolates Value for current instant
+                call InterpolateValueInTime(Me%CurrentTime,                             &
+                                            Time1, Value1,                              &
+                                            Time2, Value2, NewValue)
+            endif
+
+    end subroutine ModifyDownstreamTimeSerie
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine ComputeNodeInFlow (CurrNode, InFlow)
+
+        !Arguments---------------------------------------------------------------
+        type (T_Node), pointer                      :: CurrNode 
+        real(8), intent(OUT)                        :: InFlow
+        
+        !Local-------------------------------------------------------------------
+        integer                                     :: i
+        type (T_Reach), pointer                     :: UpReach
+        !------------------------------------------------------------------------
+        
+        InFlow = 0.0        
+        do i = 1, CurrNode%nUpstreamReaches
+
+            nullify (UpReach)
+            UpReach => Me%Reaches (CurrNode%UpstreamReaches (i))            
+
+            if (Me%ComputeFaces(UpReach%ID) == OpenPoint) then
+
+                if (Me%NumericalScheme == ExplicitScheme) then
+                    InFlow = InFlow + UpReach%FlowNew
+                else 
+                    InFlow = InFlow + (UpReach%FlowNew + UpReach%FlowOld) / 2. 
+                end if
+            
+            endif
+
+            !InFlow = InFlow + (1. - Me%NumericalScheme) * UpReach%FlowOld &
+            !       + Me%NumericalScheme * UpReach%FlowNew            
+
+        end do
+
+    end subroutine ComputeNodeInFlow
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine ComputeNodeOutFlow (CurrNode, OutFlow)
+
+        !Arguments---------------------------------------------------------------
+        type (T_Node), pointer                      :: CurrNode 
+        !integer                                     :: NodeID
+        real(8), intent(OUT)                        :: OutFlow
+        
+        !Local-------------------------------------------------------------------
+        integer                                     :: i
+        type (T_Reach), pointer                     :: DownReach       
+        !------------------------------------------------------------------------
+        
+        OutFlow = 0.0       
+     
+        do i = 1, CurrNode%nDownstreamReaches
+
+            nullify (DownReach)
+            DownReach => Me%Reaches (CurrNode%DownstreamReaches (i))
+            
+            if (Me%ComputeFaces(DownReach%ID) == OpenPoint) then
+                OutFlow = OutFlow + dble(DownReach%FlowNew)
+            endif
+        end do
+
+    end subroutine ComputeNodeOutFlow
+
+    !---------------------------------------------------------------------------
+    
+    subroutine TransportProperties (LocalDT)
+
+        !Arguments-------------------------------------------------------------
+        real                                        :: LocalDT
+
+        !Local------------------------------------------------------------------
+        type (T_Property), pointer                  :: Property
+!        type (T_Reach), pointer                     :: CurrReach
+!        integer                                     :: CurrNode
+        !Begin------------------------------------------------------------------
+        
+        if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "TransportProperties")
+
+       
+        !OLD NEW Stuff
+        nullify (Property)
+        Property => Me%FirstProperty                                                    
+        do while (associated (Property))
+            Property%ConcentrationOld = Property%Concentration
+            Property => Property%Next
+        enddo
+        
+        !Transports Properties
+        call Advection_Diffusion      (LocalDT)
+        
+        !Set MinimumConcentration of Properties - This will create Mass
+        if (Me%ComputeOptions%MinConcentration)     call SetLimitsConcentration 
+        if (Me%ComputeOptions%WarnOnNegativeValues) call WarnOnNegativeValues   ('After Advection Diffusion')
+        
+        if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "TransportProperties")
+               
+                
+    end subroutine TransportProperties 
+    
+    !---------------------------------------------------------------------------
+    
+    subroutine Advection_Diffusion (LocalDT) 
+
+        !Arguments--------------------------------------------------------------
+        real                                    :: LocalDT
+
+        !Local------------------------------------------------------------------
+        type (T_Property), pointer              :: Property
+        type (T_Node    ), pointer              :: CurrNode
+        real                                    :: Advection, Diffusion
+        real                                    :: AdvOutFlow, DifOutFlow
+        integer                                 :: NodeID, OutletPos
+        type (T_Reach   ), pointer              :: OutletReach
+
+        if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "Advection_Diffusion")
+
+
+        nullify (Property)
+        Property => Me%FirstProperty                                                    
+
+        do while (associated (Property))
+
+            if (Me%CheckMass) then
+                !Mass Outflow
+                AdvOutFlow = 0.0
+                DifOutFlow = 0.0
+            endif
+            
+            !FB - 12/08/2011
+            !1. I check a changed some signs, which during backwater efects, where wrong.
+            !2. This routine should be optimized. Allocate one diffusion matrix / advection matrix in the beginning of
+            !   the simulation. Then calculate first the fluxes (ones for each reach)
+            !3. Then update the concenctration in all points based on the vector
+            !4. Mass checking routines should be placed in the end into one single if block
+            !
+            if (Property%ComputeOptions%AdvectionDiffusion) then
+                
+do1:            do NodeID = 1, Me%TotalNodes
+
+                    if (Me%OpenPointsFlow (NodeID) == OpenPoint) then
+                       
+                        CurrNode => Me%Nodes (NodeID)
+                        
+                        if (CurrNode%VolumeNew .gt. 0.0) then
+                            !Sai - Entra
+                            call ComputeAdvection  (Advection, Property, NodeID)  !gX/s
+                            call ComputeDiffusion  (Diffusion, Property, NodeID)  !gX/s               
+
+                            
+                            !New Concentration 
+                            !g/m3 = (g/m3 * m3  + s * g/s) / m3   
+                            Property%Concentration (NodeID) = (Property%ConcentrationOld (NodeID) * CurrNode%VolumeOld + &
+                                                               LocalDT * (Advection + Diffusion )) / CurrNode%VolumeNew
+!                        else
+!                            !if all water exited then do not compute (no mass) and to avoid division by zero
+!                            Property%Concentration (NodeID) = 0.0
+                        endif                                   
+                   end if
+                   
+                   !This has to be here so that mapping does not eliminate downstream reach.
+                   !Only advection is needed to be computed since diffusion is not computed at the end (no exiting of diffusion)
+                    if (Me%CheckMass) then
+do2:                    do OutletPos = 1, Me%TotalOutlets 
+                            OutletReach => Me%Reaches (Me%OutletReachID(OutletPos))               
+                            if (NodeID == OutletReach%UpstreamNode) then
+                                !Flow exiting
+                                if (OutletReach%FlowNew.GE.0.0) then
+                                    !g/s
+                                    AdvOutflow = Property%ConcentrationOld(NodeID) * OutletReach%FlowNew
+                                endif
+                                exit do2 !found the outlet. the node may only be in one outlet
+                            endif
+                        end do do2
+                    endif                   
+
+                end do do1
+                
+            endif
+
+            if (Me%CheckMass) then
+                !kg = g/s * s * 1-3kg/g
+                Property%MB%TotalOutFlowMass = Property%MB%TotalOutFlowMass + (AdvOutFlow + DifOutFlow) * LocalDT * 1e-3
+            endif
+            
+            Property => Property%Next
+        
+        end do
+
+        if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "Advection_Diffusion")
+
+
+    end subroutine Advection_Diffusion
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine ComputeAdvection  (AdvectionFlux, Property, NodePos)  
+
+        !Arguments--------------------------------------------------------------
+        real                                    :: AdvectionFlux  !kg/s     
+        type (T_Property), pointer              :: Property
+        integer                                 :: NodePos
+        !real                                    :: AdvOutflow
+        !Local------------------------------------------------------------------
+        type (T_Node    ), pointer              :: CurrNode              
+        type (T_Reach   ), pointer              :: DownReach, UpReach !, OutletReach
+        integer                                 :: i
+        real                                    :: DownProp, UpProp
+        real                                    :: DownFlux, UpFlux
+        !Begin------------------------------------------------------------------
+
+!        !AdvectionFlux = (Conc.Q)_Sai - (Conc.Q)_Entra 
+        !AdvectionFlux = (Conc.Q)_Down - (Conc.Q)_Up !Revision 6/4/2010 David
+        
+        CurrNode => Me%Nodes(NodePos)
+
+
+        !Down Flux - Positive if flow is downstream. Reduces mass in nodes
+        DownFlux = 0.0
+        do i = 1, CurrNode%nDownstreamReaches
+            DownReach   => Me%Reaches (CurrNode%DownstreamReaches (i))
+
+            if (Me%ComputeFaces(DownReach%ID) == OpenPoint) then
+
+                if (DownReach%FlowNew.GE.0.0) then
+                    DownProp = Property%ConcentrationOld (NodePos    )
+                else
+                    DownProp = Property%ConcentrationOld (DownReach%DownstreamNode)
+                end if
+                
+                !g/s = g/s + (m3/s * g/m3)
+                DownFlux    =  DownFlux + DownReach%FlowNew * DownProp
+
+            endif
+
+        end do
+        
+!        if (Me%CheckMass) then
+!            OutletReach => Me%Reaches (Me%OutletReachPos)               
+!            if (NodePos == OutletReach%UpstreamNode) then
+!                !Flow exiting
+!                if (DownFlux .gt. 0.0) then
+!                    !g/s
+!                    AdvOutflow = DownFlux
+!                endif
+!            endif
+!        endif
+           
+        !UpFlux
+        UpFlux = 0.0
+        do i = 1, CurrNode%nUpstreamReaches                    
+           UpReach   => Me%Reaches (CurrNode%UpstreamReaches (i))
+           
+            if (Me%ComputeFaces(UpReach%ID) == OpenPoint) then
+           
+                if (UpReach%FlowNew.GE.0.0) then
+                    UpProp = Property%ConcentrationOld (UpReach%UpstreamNode)
+                else
+                    UpProp = Property%ConcentrationOld (NodePos  )
+                end if
+                
+                !g/s = g/s + (m3/s * g/m3)
+                UpFlux    =  UpFlux + UpReach%FlowNew * UpProp
+            
+            endif
+            
+        end do
+        
+        !advection fluxes have the direction (signal) of flow
+        !if downflux positive will reduce node concentration (negative sign in AdvectionFlux)
+        !if UpFlux positive will increase node concentration (positive sign in AdvectionFlux)
+        AdvectionFlux = -1.0 *(DownFlux - UpFlux)
+        
+
+    end subroutine ComputeAdvection
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    
+    subroutine  ComputeDiffusion  (DiffusionFlux, Property, NodePos)
+
+        !Arguments--------------------------------------------------------------
+        real                                    :: DiffusionFlux  ![]/s     
+        type (T_Property), pointer              :: Property
+        integer                                 :: NodePos
+        !real                                    :: DifOutFlow
+        !Local------------------------------------------------------------------
+        type (T_Node    ), pointer              :: CurrNode, DownNode, UpNode              
+        type (T_Reach   ), pointer              :: DownReach, UpReach !, OutletReach
+        integer                                 :: DownNodePos, UpNodePos, i
+        real                                    :: DownFlux, UpFlux
+        real                                    :: GradProp
+
+
+       
+        CurrNode => Me%Nodes(NodePos)
+
+if1:    if (Property%Diffusion_Scheme == CentralDif) then
+
+            DownFlux = 0.0
+            do i = 1, CurrNode%nDownstreamReaches
+                DownReach   => Me%Reaches (CurrNode%DownstreamReaches (i))
+                DownNodePos =  DownReach%DownstreamNode
+                DownNode    => Me%Nodes (DownNodePos)
+
+                if (Me%OpenPointsFlow(DownNodePos) == OpenPoint) then
+                    
+                    !g/m4 = g/m3 /m
+                    GradProp    = (Property%ConcentrationOld (DownNodePos) - Property%ConcentrationOld (NodePos)) &
+                                / DownReach%Length
+                    
+                    !g/s = g/s + (m2/s * g/m4 * m2)
+                    DownFlux    =  DownFlux + Property%Diffusivity * GradProp * DownReach%VerticalArea
+
+                endif
+
+            end do
+ 
+!             if (Me%CheckMass) then
+!                OutletReach => Me%Reaches (Me%OutletReachPos)               
+!                if (NodePos == OutletReach%UpstreamNode) then
+!                    !Diffusion exiting (prop gradient negative)
+!                    if (DownFlux .lt. 0.0) then
+!                        !g/s
+!                        DifOutflow = - DownFlux
+!                    endif
+!                endif
+!            endif
+ 
+            UpFlux = 0.0
+            do i = 1, CurrNode%nUpstreamReaches
+                UpReach   => Me%Reaches (CurrNode%UpstreamReaches (i))
+                UpNodePos =  UpReach%UpstreamNode
+                UpNode    => Me%Nodes (UpNodePos)
+
+                if (Me%OpenPointsFlow(UpNodePos) == OpenPoint) then
+
+                    GradProp  = (Property%ConcentrationOld (NodePos) - Property%ConcentrationOld (UpNodePos)) &
+                                 / UpReach%Length
+                    
+                    !g/s = g/s + (m2/s * g/m4 * m2)
+                    UpFlux    =  UpFlux + Property%Diffusivity * GradProp * UpReach%VerticalArea
+
+                endif
+            end do
+
+        else if (Property%Diffusion_Scheme == UpwindOrder1) then
+
+            write (*,*) 'Upwind discretization for diffusion of properties'
+            write (*,*) 'Not yet implemented'
+            stop 'ComputeDiffusion - ModuleDrainageNetwork - ERR01'
+                
+        end if if1        
+
+        !diffusion fluxes have the direction (signal) of property gradient (evaluated in down - up)
+        !if downflux positive (downstream conc higher) will increase node concentration (positive sign in AdvectionFlux)
+        !if upFlux positive (node conc higher) will decrease node concentration (negative sign in AdvectionFlux)        
+        DiffusionFlux = DownFlux - UpFlux
+
+    end subroutine  ComputeDiffusion
+    
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+    
+    subroutine SetLimitsConcentration
+!    subroutine SetLimitsConcentration (Message)
+
+        !Arguments--------------------------------------------------------------
+!        character(len=*)                        :: Message
+        !Local------------------------------------------------------------------
+        type (T_Property), pointer              :: Property
+        type (T_Node), pointer                  :: CurrNode
+        integer                                 :: NodeID
+!        character(len=5)                        :: char_node
+!        character (len = StringLength)          :: StrWarning
+!        character(len=20)                       :: char_conc 
+        
+        
+        if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "SetLimitsConcentration")
+
+
+        nullify (Property)
+        Property => Me%FirstProperty                                                    
+
+        do while (associated (Property))
+
+            if (Property%ComputeOptions%MinConcentration) then
+
+                do NodeID = 1, Me%TotalNodes
+
+                    CurrNode => Me%Nodes (NodeID)
+
+                    if (Property%Concentration (NodeID) .LT. Property%MinValue) then
+                        
+!                        if (CurrNode%VolumeNew .GT. AllMostZero) then
+
+                            Property%MassCreated (NodeID) = Property%MassCreated (NodeID)       &
+                                                          + (Property%MinValue                  &
+                                                          -  Property%Concentration (NodeID)    &
+                                                          *  Property%ISCoefficient)            &
+                                                          * CurrNode%VolumeNew 
+                
+                            Property%Concentration (NodeID) = Property%MinValue
+
+!                            write(char_node, '(i4)') NodeID
+!                            write(char_conc, '(f20.8)') Property%Concentration(NodeID)
+!
+!                            StrWarning = trim(Property%ID%Name)//' was modified to its MinValue in Node '// &
+!                                                               char_node//' '//char_conc
+!
+!                            call SetError(WARNING_, INTERNAL_, StrWarning, OFF)
+                    
+!                        endif
+
+                    endif
+
+                enddo
+                
+            endif
+
+            Property => Property%Next
+        
+        end do
+
+        if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "SetLimitsConcentration")
+
+     
+    end subroutine SetLimitsConcentration
+    
+    !---------------------------------------------------------------------------
+
+    subroutine WarnOnNegativeValues(Message)
+
+        !Arguments--------------------------------------------------------------
+        character(len=*)                        :: Message
+        !Local------------------------------------------------------------------
+        type (T_Property), pointer              :: Property
+        type (T_Node), pointer                  :: CurrNode
+        integer                                 :: NodeID
+        character(len=5)                        :: char_node
+        character (len = StringLength)          :: StrWarning
+        character(len=15)                       :: char_conc        
+
+        if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "WarnOnNegativeValues")
+
+
+        nullify (Property)
+        Property => Me%FirstProperty                                                    
+
+        do while (associated (Property))
+
+            if (Property%WarnOnNegativeValues) then
+
+                do NodeID = 1, Me%TotalNodes
+
+                    CurrNode => Me%Nodes (NodeID)
+
+                    if (Property%Concentration (NodeID) .LT. 0.0) then
+                        
+!                        if (CurrNode%VolumeNew .GT. AllMostZero) then
+
+                        write(char_node, '(i4)') NodeID
+                        write(char_conc, '(ES10.3)') Property%Concentration(NodeID)
+
+                        StrWarning = trim(Property%ID%Name)//' has a negative concentration in Node '// &
+                                                           char_node//' '//char_conc//' '//Message
+
+                        call SetError(WARNING_, INTERNAL_, StrWarning, OFF)
+                    
+!                        endif
+
+                    endif
+
+                enddo
+                
+            endif
+
+            Property => Property%Next
+        
+        end do
+
+        if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "WarnOnNegativeValues")
+
+     
+    end subroutine WarnOnNegativeValues
+    
+    !---------------------------------------------------------------------------
+
+    subroutine ModifyTopRadiation
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: i
+        real                                        :: SWPercentage, LWPercentage
+        logical                                     :: NeedsParameters      = .false.
+        logical                                     :: NeedsConcentrations  = .false.
+        type(T_Property), pointer                   :: PropertyX
+
+        !----------------------------------------------------------------------
+
+        call GetRadiationPercentages(Me%ObjLightExtinction, SWPercentage, LWPercentage, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyTopRadiation - ModuleDrainageNetwork - ERR01'
+
+        do i = 1, Me%TotalNodes
+            Me%ShortWaveField(i) = SWPercentage * Me%TopRadiation(i)
+            Me%LongWaveField (i) = LWPercentage * Me%TopRadiation(i)
+        enddo
+        
+        !Updates Light Extinction Coefs
+        call GetLightExtinctionOptions(LightExtinctionID    = Me%ObjLightExtinction,        & 
+                                       NeedsParameters      = NeedsParameters,              &
+                                       NeedsConcentrations  = NeedsConcentrations,          &
+                                       STAT                 = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'Compute_SWExtCoefField - ModuleDrainageNetwork - ERR02'
+        
+        if (NeedsConcentrations) then
+
+            PropertyX => Me%FirstProperty
+            do while (associated(PropertyX))
+
+                if (PropertyX%ComputeOptions%LightExtinction) then
+
+                    if(NeedsParameters)then
+
+                        call ModifyLightExtinctionField(LightExtinctionID   = Me%ObjLightExtinction,          &
+                                                        RiverPoints1D       = Me%RiverPoints,                 &
+                                                        CurrentTime         = Me%CurrentTime,                 &
+                                                        PropertyID          = PropertyX%ID%IDNumber,          &
+                                                        Concentration       = PropertyX%Concentration,        &
+                                                        UnitsCoef           = PropertyX%IScoefficient,        &
+                                                        ExtinctionParameter = PropertyX%ExtinctionCoefficient,&
+                                                        STAT                = STAT_CALL)
+                        if (STAT_CALL/= SUCCESS_) stop 'Compute_SWExtCoefField - ModuleDrainageNetwork - ERR03'
+
+                    else
+
+                        call ModifyLightExtinctionField(LightExtinctionID   = Me%ObjLightExtinction,          &
+                                                        RiverPoints1D       = Me%RiverPoints,                 &
+                                                        CurrentTime         = Me%CurrentTime,                 &
+                                                        PropertyID          = PropertyX%ID%IDNumber,          &
+                                                        Concentration       = PropertyX%Concentration,        &
+                                                        UnitsCoef           = PropertyX%IScoefficient,        &
+                                                        STAT                = STAT_CALL)
+                        if (STAT_CALL/= SUCCESS_) stop 'Compute_SWExtCoefField - ModuleDrainageNetwork - ERR04'
+
+                    end if
+
+
+                endif
+
+                PropertyX=>PropertyX%Next
+
+            enddo
+
+            nullify(PropertyX)
+
+        else
+
+            call ModifyLightExtinctionField(LightExtinctionID   = Me%ObjLightExtinction,          &
+                                            RiverPoints1D       = Me%RiverPoints,                 &
+                                            CurrentTime         = Me%CurrentTime,                 &
+                                            STAT                = STAT_CALL)
+            if (STAT_CALL/= SUCCESS_) stop 'Compute_SWExtCoefField - ModuleDrainageNetwork - ERR05'
+
+        end if
+                
+    end subroutine ModifyTopRadiation
+
+    !---------------------------------------------------------------------------
+
+    subroutine ComputeSurfaceFluxes ()
+            
+        !Arguments--------------------------------------------------------------
+        
+        !Local------------------------------------------------------------------
+        type (T_Property), pointer                  :: Temperature, Oxygen
+        type(T_Property), pointer                   :: Property
+        type (T_Node    ) , pointer                 :: CurrNode
+        integer                                     :: NodeID, STAT_CALL
+        real                                        :: TotalHeatFlux
+        real                                        :: InfraRed_, LatentHeat_
+        real                                        :: SensibleHeat_, GroundHeatFlux_
+        real                                        :: DOSAT, Palt, BottomSolarFlux
+        real                                        :: SurfaceSolarFlux
+        real,    parameter                          :: LatentHeatOfVaporization = 2.5e6         ![J/kg]
+        real,    parameter                          :: ReferenceDensity         = 1000.         ![kg/m3]
+        real                                        :: Evaporation, Ka, Kl
+        real                                        :: Flow, Vel, Slope
+        real,    dimension(:), pointer              :: ShortWaveExtinctionField
+        real                                        :: LongWaveExtinctionCoef
+        real                                        :: VelSlopeAux
+        
+
+        if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ComputeSurfaceFluxes")
+        
+        if (.not. Me%ComputeOptions%RadiationBottomNoFlux) then
+            call GetShortWaveExtinctionField(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeSurfaceFluxes - ModuleDrainageNetwork - ERR01' 
+
+            call GetLongWaveExtinctionCoef(Me%ObjLightExtinction, LongWaveExtinctionCoef, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeSurfaceFluxes - ModuleDrainageNetwork - ERR02' 
+        endif
+        
+        !Surface Heat Fluxes             
+        call SearchProperty (Temperature, Temperature_, .true., STAT_CALL)
+
+        if (STAT_CALL == SUCCESS_ .and. Temperature%ComputeOptions%SurfaceFluxes) then
+
+            do NodeID = 1, Me%TotalNodes
+
+                if (Me%OpenPointsProcess(NodeID) == OpenPoint) then
+            
+           
+                    !Downwelling Longwave Radiation (Wunderlich et. al. 1968)
+                    InfraRed_       = LongWaveDownward (Me%CloudCover    (NodeID),              &
+                                                        Me%AirTemperature(NodeID)) +            &
+                                      LongWaveUpward   (Temperature%Concentration(NodeID))
+
+                    !Latent Heat
+                    LatentHeat_     = LatentHeat (ReferenceDensity,                             &
+                                                  Temperature%Concentration(NodeID),            &
+                                                  Me%AirTemperature  (NodeID),                  &
+                                                  Me%RelativeHumidity(NodeID),                  &
+                                                  Me%WindSpeed       (NodeID))
+
+                    !SensibleHeat
+                    SensibleHeat_   = SensibleHeat(ReferenceDensity,                            &
+                                                   Temperature%Concentration(NodeID),           &
+                                                   Me%AirTemperature  (NodeID),                 &
+                                                   Me%WindSpeed       (NodeID))
+
+
+                    !Exchange With Ground - CE-QUAL-W2 manual, pag. 231. Temperture for sediment = 1 day
+                    Me%SedimentTemperature(NodeID) = (Temperature%Concentration(NodeID)     *   &
+                                                      Me%ExtVar%DT                          +   &
+                                                      Me%SedimentTemperature   (NodeID)     *   &
+                                                      (86400.0 - Me%ExtVar%DT))             /   &
+                                                      86400.0
+
+                    GroundHeatFlux_ = - 2.2 * (Temperature%Concentration(NodeID) - Me%SedimentTemperature(NodeID))
+                
+                    if (Me%ComputeOptions%RadiationBottomNoFlux) then
+                        !Boundary condition - all the radiation is converted in heat
+                        BottomSolarFlux = 0.0
+                    else
+                        !Boundary condition - only extincted radiation remains, what gets to bottom is lost to sediment.
+                        !This was changed because i) extinction was too low and hard-coded and ii) sediment was
+                        !not heated with this flux so that GroundHeatFlux could be updated (this was not fixed only point i)).
+                        !The old formulation created too low temperatures since extinction was too low and radiation was not 
+                        !able to heat water since most of the other fluxes are usually negative
+!                        BottomSolarFlux = Me%ShadingFactor * Me%TopRadiation (NodeID) * exp(-1./20. *  &
+!                                          Me%Nodes(NodeID)%WaterDepth)
+                        BottomSolarFlux = Me%ShadingFactor * Me%ShortWaveField (NodeID) *     &
+                                          exp(-ShortWaveExtinctionField(NodeID) *             &
+                                          Me%Nodes(NodeID)%WaterDepth)
+                        BottomSolarFlux = BottomSolarFlux +                                   &
+                                          Me%ShadingFactor * Me%LongWaveField (NodeID) *      &
+                                          exp(-LongWaveExtinctionCoef *                       &
+                                          Me%Nodes(NodeID)%WaterDepth)                        
+                    endif
+                    
+                    SurfaceSolarFlux = Me%ShadingFactor * Me%TopRadiation (NodeID)
+                    
+                    !Sum all
+                    TotalHeatFlux   = SurfaceSolarFlux - BottomSolarFlux +                         &
+                                      LatentHeat_ + SensibleHeat_ +  InfraRed_ + GroundHeatFlux_
+
+                    ![Celsius]      =  [Celsius]  + [Joules / m^2 / s] * [s] / [kg/m^3] / [Joules/kg/Celsius] / [m]
+                    Temperature%Concentration(NodeID) = Temperature%Concentration(NodeID)   +   &
+                                                        TotalHeatFlux * Me%ExtVar%DT        *   &
+                                                        Me%Nodes(NodeID)%SurfaceArea        /   &
+                                                        ReferenceDensity                    /   &
+                                                        SpecificHeatDefault                 /   & 
+                                                        Me%Nodes(NodeID)%VolumeNew
+                     
+                    if (Me%ComputeOptions%MassFluxes) then
+
+                        !Calculates Evaporation mass flux (heat flux was already accounted)
+                        ![m3/s]                    = [J/m2/s] / [J/kg] / [kg/m3] * [m] * [m]
+                        Evaporation     = LatentHeat_                                           /   &
+                                          LatentHeatOfVaporization                              /   &
+                                          ReferenceDensity                                      *   &
+                                          Me%Nodes(NodeID)%SurfaceArea
+                    
+                        !Just considers loss of water
+                        if (Evaporation < 0.0) then
+                        
+                            !Discharge Properties
+                            nullify (Property)
+                            Property => Me%FirstProperty
+                            do while (associated (Property))
+                                CurrNode => Me%Nodes (NodeID)                            
+                                call DischargeProperty (Evaporation, Property%Concentration(NodeID),            &
+                                                        NodeID, CurrNode%VolumeNew,   Property,                 &
+                                                        Property%IScoefficient, Me%ExtVar%DT, ON)
+                                Evaporation = Evaporation
+                                Property => Property%Next
+                            enddo
+                            
+                        
+                        
+                            !Update volume
+                            Me%Nodes(NodeID)%VolumeNew = Me%Nodes(NodeID)%VolumeNew + Evaporation * Me%ExtVar%DT
+
+                            !if (Me%CheckMass) then
+                            !    Me%TotalOutputVolume = Me%TotalOutputVolume - Evaporation * Me%ExtVar%DT
+                            !endif
+                            Me%TotalOutputVolume = Me%TotalOutputVolume - Evaporation * Me%ExtVar%DT
+                        
+                            Me%TotalEvapFromSurfaceVolume = Me%TotalEvapFromSurfaceVolume + (-Evaporation * Me%ExtVar%DT)
+                        endif
+                    endif
+                endif
+
+            end do
+
+            call UpdateAreasAndMappings
+
+        endif
+        
+        if (.not. Me%ComputeOptions%RadiationBottomNoFlux) then
+            call UnGetLightExtinction(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ComputeSurfaceFluxes - ModuleDrainageNetwork - ERR03'        
+        endif
+        
+        !Oxygen Surface Flux
+        call SearchProperty (Oxygen, Oxygen_, .false., STAT_CALL)
+
+        if (STAT_CALL == SUCCESS_) then
+            if (Oxygen%ComputeOptions%SurfaceFluxes) then
+
+                call SearchProperty (Temperature, Temperature_, .true., STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ComputeSurfaceFluxes - ModuleDrainageNetwork - ERR10' 
+
+                !
+                ! Eq. taken from CE-QUAL-W2 user manual (Version 3.1)
+                ! p. 275
+                ! Referencia Melching and Flores (1999)
+                !  
+                !
+
+                do NodeID = 1, Me%TotalNodes
+
+                    if (Me%OpenPointsProcess(NodeID) == OpenPoint) then
+                    
+                        !Points to Node
+                        CurrNode => Me%Nodes (NodeID)
+
+                        !Mortimer Altitude Correction
+                        Palt  = (1.0 - CurrNode%CrossSection%BottomLevel / 1000.0 / 44.3) ** 5.25
+                        DOSAT = Palt * exp(7.7117 - 1.31403*(log(Temperature%Concentration(NodeID) + 45.93)))
+                
+
+                        if (CurrNode%nDownstreamReaches .NE. 0) then
+
+                            Flow  = Me%Reaches(CurrNode%DownstreamReaches(1))%FlowNew
+                            Vel   = Me%Reaches(CurrNode%DownstreamReaches(1))%Velocity
+                            Slope = Me%Reaches(CurrNode%DownstreamReaches(1))%Slope
+
+                            !upslope conditions or different sign also dissipate energy and rearate
+                            !and can not be negative in power
+                            VelSlopeAux = abs(Vel * Slope)
+                            
+                            select case (Me%AerationEquation)
+
+                            case (PoolAndRifle_)
+
+                                !Ka [1/day]
+                                if (Flow > AllmostZero) then
+                                    if (Flow <= 0.556) then
+                                        Ka = 517. * (VelSlopeAux) ** 0.524 * Flow ** (-0.242)
+                                    else
+                                        Ka = 596. * (VelSlopeAux) ** 0.528 * Flow ** (-0.136)
+                                    endif
+                                else
+                                    Ka = 0.0  !So it will be set to the minimum value
+                                endif
+
+                            case (ChannelControled_)
+
+                                !Ka [1/day]
+                                if (Flow > AllmostZero) then
+                                    if (Flow <= 0.556) then
+                                        Ka = 88.0 * (VelSlopeAux) ** 0.313 * CurrNode%WaterDepth ** (-0.353)
+                                    else
+                                        Ka = 142. * (VelSlopeAux) ** 0.333 * CurrNode%WaterDepth ** (-0.660) * &
+                                             CurrNode%SurfaceArea ** (-0.243)
+                                    endif
+                                else
+                                    Ka = 0.0  !So it will be set to the minimum value
+                                endif
+                        
+                            end select                            
+                        
+                            !Kl [m/day]
+                            Kl = Ka * CurrNode%WaterDepth
+
+                            !minimum value of KL in m/day
+                            if (KL <= 0.6) KL = 0.6
+
+                            !temperature correction
+                            KL = KL * 1.024**(Temperature%Concentration(NodeID) - 20.0)
+
+                            !convert from m/d to m/s
+                            KL = KL / 86400.             
+
+
+                            !New Concentration
+                            Oxygen%Concentration(NodeID) = Oxygen%Concentration(NodeID)                     +   &
+                                                           KL                                               *   &
+                                                           CurrNode%SurfaceArea                             *   &
+                                                           (DOSAT - Oxygen%Concentration(NodeID))           *   &
+                                                           Me%ExtVar%DT                                     /   &
+                                                           CurrNode%VolumeNew        
+
+
+                        endif
+
+                    endif
+
+                enddo
+
+
+            endif
+
+        endif
+
+        if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "ComputeSurfaceFluxes")
+
+
+    end subroutine ComputeSurfaceFluxes
+
+    !---------------------------------------------------------------------------
+
+
+    subroutine ComputeEVTPFromReach ()
+        
+        !if this process connected it may be removing water from evapotranspiration and from
+        !evaporation by latent heat in routine surface fluxes - check this
+            
+        !Arguments--------------------------------------------------------------
+        
+        !Local------------------------------------------------------------------
+        type(T_Property), pointer                   :: Property
+        type (T_Node    ) , pointer                 :: CurrNode
+        integer                                     :: NodeID
+        real                                        :: EVTPFlux
+
+        if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ComputeEVTPFromReach")
+
+
+        do NodeID = 1, Me%TotalNodes
+            
+            CurrNode => Me%Nodes (NodeID)
+            
+            !Evaporate in pools with water depth lower than maximum
+            if ((Me%OpenPointsProcess(NodeID) == OpenPoint)                                       &
+                 .and. (CurrNode%CrossSection%PoolDepth .gt. 0.0)                                 &
+                 .and. (CurrNode%WaterDepth .gt. 0.0)                                             &
+                 .and. (CurrNode%WaterDepth .le. Me%EVTPMaximumDepth)) then
+        
+                !m3/s = m/s * m2 * -
+                EVTPFlux = CurrNode%EVTP * CurrNode%Length * CurrNode%CrossSection%BottomWidth * Me%EVTPCropCoefficient
+                    
+                !Discharge Properties
+                nullify (Property)
+                Property => Me%FirstProperty
+                do while (associated (Property))
+                    CurrNode => Me%Nodes (NodeID)                            
+                    call DischargeProperty (EVTPFlux, Property%Concentration(NodeID),             &
+                                            NodeID, CurrNode%VolumeNew,   Property,               &
+                                            Property%IScoefficient, Me%ExtVar%DT, ON)
+                    Property => Property%Next
+                enddo
+                        
+                    
+                !Update volume
+                Me%Nodes(NodeID)%VolumeNew = Me%Nodes(NodeID)%VolumeNew + EVTPFlux * Me%ExtVar%DT
+
+                !if (Me%CheckMass) then
+                !    Me%TotalOutputVolume = Me%TotalOutputVolume - EVTPFlux * Me%ExtVar%DT
+                !endif
+                Me%TotalOutputVolume = Me%TotalOutputVolume - EVTPFlux * Me%ExtVar%DT
+
+            endif
+
+        end do
+
+        call UpdateAreasAndMappings
+
+        if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "ComputeEVTPFromReach")
+
+
+    end subroutine ComputeEVTPFromReach
+
+    !---------------------------------------------------------------------------
+
+    subroutine GenericDecay ()
+        
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------       
+        type (T_Property), pointer                  :: Property
+        integer                                     :: NodeID
+        type (T_node), pointer                      :: CurrNode
+        real                                        :: OldMass, MassSink, NewMass, DT
+        !Begin------------------------------------------------------------------
+        
+        
+        nullify (Property)
+        Property => Me%FirstProperty
+        
+        do while (associated (Property))
+        
+            if (Property%ComputeOptions%Generic_Decay) then
+                
+                !days
+                DT = Me%ExtVar%DT / 86400.
+                
+                do NodeID = 1, Me%TotalNodes
+
+                    if (Me%OpenPointsProcess (NodeID) == OpenPoint) then                    
+                        
+                        CurrNode => Me%Nodes (NodeID)
+                        
+                        !Decay occurs as WQ process without volume change
+                        !g = g/m3 * m3
+                        OldMass = Property%Concentration (NodeID) * CurrNode%VolumeNew
+                        
+                        !P = P0*exp(-kt)  
+                        MassSink = min (OldMass - OldMass * exp(-Property%DecayRate * DT),  OldMass)
+                        
+                        NewMass = OldMass - MassSink
+                        
+                        Property%Concentration (NodeID) =  NewMass / CurrNode%VolumeNew
+                                                           
+                    endif
+                                                                      
+                end do
+                
+            endif
+            
+            Property => Property%Next
+            
+        enddo
+
+    end subroutine GenericDecay
+
+    !---------------------------------------------------------------------------
+
+    subroutine ColiformDecay ()
+        
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------       
+        type (T_Property), pointer                  :: Sal, Temp, Coliforms
+        integer                                     :: NodeID, STAT
+        real                                        :: T90
+
+        !Get salinity, temperature and FecalColiforms       
+        call SearchProperty (Sal, Salinity_     , .true., STAT)
+        call SearchProperty (Temp, Temperature_ , .true., STAT)
+        call SearchProperty (Coliforms, Fecal_Coliforms_, .true., STAT)
+
+        do NodeID = 1, Me%TotalNodes
+
+            if (Me%OpenPointsProcess (NodeID) == OpenPoint) then                    
+
+                T90 = ComputeT90( Sal%Concentration(NodeID), Temp%Concentration(NodeID),    &  
+                                  Me%ShadingFactor * Me%TopRadiation (NodeID),              &
+                                  Me%T90Var_Method )
+                                        
+                Coliforms%Concentration (NodeID) =  Coliforms%Concentration (NodeID) /      &
+                                                    (1.0 + Me%ExtVar%DT * (log(10.) / T90))
+            endif
+                                                              
+        end do
+
+
+    end subroutine ColiformDecay
+
+    !---------------------------------------------------------------------------
+
+    real function ComputeT90 (Sal, Temp, TopRadiation, T90Var_Method)
+
+        !Arguments--------------------------------------------------------------
+        real                                        :: Sal, Temp, TopRadiation
+        integer                                     :: T90Var_Method  
+          
+        !Local------------------------------------------------------------------
+        real                                        :: Light
+
+        !Begin------------------------------------------------------------------
+
+        select case (T90Var_Method)
+
+        case (Constant)
+
+            ComputeT90 = Me%T90
+
+        case (Canteras)
+
+            ComputeT90 = ComputeT90_Canteras (Temp, Sal, TopRadiation)
+
+        case (Chapra  )
+
+            !Converts W in ly/hr
+            Light      = 0.086325 * TopRadiation
+            ComputeT90 = ComputeT90_Chapra (Temp, Sal, Light)  
+
+        case default
+
+            write (*,*) 'T90 calculation method unknown'
+            stop 'ComputeT90 - ModuleDrainageNetwork - ERR1'
+
+        end select
+
+    end function ComputeT90
+
+    !---------------------------------------------------------------------------
+
+    subroutine ModifyToxicity
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        type (T_Property), pointer                  :: Property
+        integer                                     :: NodeID
+        real                                        :: maxFraction, minEC50
+
+        Me%GlobalToxicity = 0.0
+        
+
+        call ComputeToxicityForEachEffluent
+
+        !ComputeGlobalToxicity
+
+do1:    do NodeID = 1, Me%TotalNodes
+
+            maxFraction = null_real
+            minEC50     = - null_real
+
+            nullify (Property)
+            Property => Me%FirstProperty                                                    
+
+do2:        do while (associated (Property))
+
+if1:            if (Property%ComputeOptions%Toxicity) then
+            
+
+if2:                if (Me%GlobalToxicityEvolution == 'MAX') then
+
+                        if (Property%Toxicity%Field (NodeID) .GT. Me%GlobalToxicity (NodeID)) then
+                            Me%GlobalToxicity (NodeID) = Property%Toxicity%Field (NodeID)
+                        end if
+
+                    else if (Me%GlobalToxicityEvolution == 'SUM') then !if2
+
+                        Me%GlobalToxicity (NodeID) = Me%GlobalToxicity (NodeID)             &
+                                                   + Property%Toxicity%Field (NodeID)
+
+                    else if (Me%GlobalToxicityEvolution == 'RISKRATIO') then !if2
+                               
+                        if (maxFraction .LT. Property%Concentration (NodeID)) then
+                            maxFraction = Property%Concentration (NodeID)
+                        end if
+                    
+                        if (minEC50 .GT. Property%Toxicity%EC50) then
+                            minEC50 = Property%Toxicity%EC50
+                        end if
+
+                    end if if2
+                                                     
+                end if if1
+
+                Property => Property%Next
+
+            end do do2
+
+            if (Me%GlobalToxicityEvolution == 'RISKRATIO') then
+                Me%GlobalToxicity(NodeID) = maxFraction / minEC50
+            end if
+            
+        end do do1
+
+    end subroutine ModifyToxicity
+    
+    !---------------------------------------------------------------------------
+    
+    subroutine ComputeToxicityForEachEffluent
+    
+        !Local--------------------------------------------------------------
+        type (T_Property), pointer                  :: Property
+        integer                                     :: NodeID
+
+        nullify (Property)
+        Property => Me%FirstProperty                                                    
+
+        do while (associated (Property))
+
+if1:        if (Property%ComputeOptions%Toxicity) then
+        
+if2:            if (Property%Toxicity%Evolution == Saturation) then
+
+                    do NodeID = 1, Me%TotalNodes
+            
+                        Property%Toxicity%Field (NodeID) = Property%Concentration (NodeID)      &
+                                                         / (Property%Toxicity%EC50              &
+                                                         +  Property%Concentration (NodeID))
+                    end do
+
+                else if (Property%Toxicity%Evolution == RiskRatio) then !if2
+
+                    do NodeID = 1, Me%TotalNodes
+            
+                        Property%Toxicity%Field (NodeID) = Property%Concentration (NodeID)      &
+                                                         / Property%Toxicity%EC50                                                 
+                    end do
+
+                else !if2
+
+                    do NodeID = 1, Me%TotalNodes
+            
+                        Property%Toxicity%Field (NodeID) = Property%Toxicity%Slope &
+                                                         * Property%Concentration (NodeID)
+
+                    end do
+
+                end if if2
+
+            end if if1
+
+            Property => Property%Next
+        end do
+
+
+    end subroutine ComputeToxicityForEachEffluent
+
+    !---------------------------------------------------------------------------
+
+    subroutine ModifyWaterQuality
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX
+        real, dimension(:), pointer                 :: ShortWaveExtinctionField
+        integer                                     :: STAT_CALL, NodePos
+        real                                        :: DT
+        type(T_WQRate  ), pointer                   :: WQRateX  
+        real(8),dimension(:), pointer               :: WaterVolume     
+        type (T_Node), pointer                      :: CurrNode
+        !Begin-----------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ModifyWaterQuality")
+
+        call GetShortWaveExtinctionField(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterQuality - ModuleDrainageNetwork - ERR01'
+
+        !Updates Me%NodesDWZ
+        call UpdateNodesDWZ
+        
+        !cycle to call water quality models to compute new rates (every WQDT) in openpoints
+        if (Me%CurrentTime .GE. Me%Coupled%WQM%NextCompute) then
+
+            PropertyX => Me%FirstProperty
+            do while(associated(PropertyX))
+
+                call Modify_Interface(InterfaceID       = Me%ObjInterface,              &
+                                      PropertyID        = PropertyX%ID%IDNumber,        &
+                                      Concentration     = PropertyX%Concentration,      &
+                                      RiverPoints1D     = Me%RiverPoints,               &
+                                      OpenPoints1D      = Me%OpenPointsProcess,         &
+                                      ShortWaveTop      = Me%ShortWaveField,            &
+                                      LightExtCoefField = ShortWaveExtinctionField,     &
+                                      DWZ               = Me%NodesDWZ,                  &
+                                      STAT              = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    stop 'ModifyWaterQuality - ModuleDrainageNetwork - ERR02'
+
+                PropertyX => PropertyX%Next
+
+            end do            
+            
+            Me%Coupled%WQM%NextCompute = Me%Coupled%WQM%NextCompute + Me%Coupled%WQM%DT_Compute
+            
+        end if 
+
+        PropertyX => Me%FirstProperty
+        
+        !cycle to update properties (using the rates above computed) in openpoints
+        do while (associated(PropertyX))
+
+            if (PropertyX%ComputeOptions%WaterQuality) then
+                
+                !if DTInterval, only update at given time
+                if (PropertyX%ComputeOptions%DTIntervalAssociated) then
+                    DT = PropertyX%DTInterval
+                else !update every time
+                    PropertyX%NextCompute = Me%CurrentTime
+                    DT = Me%ExtVar%DT
+                endif
+                    
+                if (Me%CurrentTime .GE. PropertyX%NextCompute) then
+
+                   call Modify_Interface(InterfaceID   = Me%ObjInterface,               &
+                                         PropertyID    = PropertyX%ID%IDNumber,         &
+                                         Concentration = PropertyX%Concentration,       &
+                                         DTProp        = DT,                            &
+                                         RiverPoints1D = Me%RiverPoints,                &
+                                         OpenPoints1D  = Me%OpenPointsProcess,          &
+                                         STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                        &
+                        stop 'ModifyWaterQuality - ModuleDrainageNetwork - ERR03'
+                endif
+                
+            endif
+            
+            PropertyX=>PropertyX%Next
+
+        enddo
+
+        nullify(PropertyX)
+    
+        !to compute rates. ModuleWaterQuality rates do not change in between computations but since
+        !some need volume to be multiplied, internally they can change in between computations
+        if (Me%Output%Rates) then
+
+            allocate(WaterVolume(1:Me%TotalNodes))
+            do NodePos = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodePos)
+                WaterVolume(NodePos) = CurrNode%VolumeNew
+            enddo
+                       
+            !Get rate fluxes
+            WqRateX => Me%FirstWQRate
+
+            do while (associated(WQRateX))
+
+                if(WQRateX%Model == WaterQualityModel)then
+                    
+                    call GetRateFlux(InterfaceID    = Me%ObjInterface,                          &
+                                     FirstProp      = WQRateX%FirstProp%IDNumber,               &
+                                     SecondProp     = WQRateX%SecondProp%IDNumber,              &
+                                     RateFlux1D     = WQRateX%Field,                            &
+                                     RiverPoints1D  = Me%RiverPoints,                           &
+                                     STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                                &
+                        stop 'ComputeRates - ModuleDrainageNetwork - ERR04'
+
+                    
+                    !gross production units in ModuleWaterQuality [g.s/m3.day] ??
+                    !property rates units in ModuleWaterQuality [g/m3]
+                    !limiting factors units in ModuleWaterQuality [0-1]*[s]
+                    !gross production and property rates are transformed in [g/s]
+                    !and limiting factor in [0-1]
+                    if (WQRateX%FirstProp%name == 'temperaturelim'     .or.   &
+                        WQRateX%FirstProp%name == 'nutrientlim'        .or.   &
+                        WQRateX%FirstProp%name == 'nitrogenlim'        .or.   &
+                        WQRateX%FirstProp%name == 'phosphoruslim'      .or.   &
+                        WQRateX%FirstProp%name == 'lightlim') then
+                        
+                        ![0-1] = [0-1] * [s] / [s]
+                        !WQRateX%Field(NodePos) = WQRateX%Field(NodePos) / Me%Coupled%WQM%DT_Compute
+                        !Needs to be evaluated in water points because a node can go out of open point
+                        !in between rates calculation and the value would not be updated divided by DT
+                        !if openpoints was used
+                        where (Me%RiverPoints == WaterPoint) &
+                                WQRateX%Field = WQRateX%Field / Me%Coupled%WQM%DT_Compute
+
+                    elseif (WQRateX%FirstProp%name == 'grossprod') then
+                        
+                        ![g/s] = [g.s/m3.day] * [m3] / [s] * 1/86400 [day/s]
+                        !WQRateX%Field(NodePos) = WQRateXTempField(NodePos) * CurrNode%VolumeNew     &
+                        !                         / Me%Coupled%WQM%DT_Compute * 1./86400.
+                         where (Me%RiverPoints == WaterPoint)                 &
+                                WQRateX%Field = WQRateX%Field * WaterVolume   &
+                                 / Me%Coupled%WQM%DT_Compute  * 1./86400.
+
+                    else
+                        
+                        ![g/s] = [g/m3] * [m3] / [s]
+                        !WQRateX%Field(NodePos) = WQRateXTempField(NodePos) * CurrNode%VolumeNew      &
+                        !                         / Me%Coupled%WQM%DT_Compute
+                         where (Me%RiverPoints == WaterPoint)                 &
+                                WQRateX%Field = WQRateX%Field * WaterVolume   &
+                                 / Me%Coupled%WQM%DT_Compute                                                           
+                    endif
+                                       
+    !                    where (Me%RiverPoints == WaterPoint) &
+    !                            WQRateX%Field = WQRateX%Field * WaterVolume / Me%Coupled%WQM%DT_Compute
+                    
+                   
+                end if
+
+                WQRateX=>WQRateX%Next
+
+            enddo   
+            
+            deallocate(WaterVolume)
+            nullify(WQRateX)
+        
+        endif
+
+        !Set MinimumConcentration of Properties - This will create Mass
+        if (Me%ComputeOptions%MinConcentration)     call SetLimitsConcentration 
+        if (Me%ComputeOptions%WarnOnNegativeValues) call WarnOnNegativeValues   ('After Water Quality')
+
+
+        call UnGetLightExtinction(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WaterQuality_Processes - ModuleDrainageNetwork - ERR06'
+        
+        if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "ModifyWaterQuality")
+
+
+    end subroutine ModifyWaterQuality
+
+    !---------------------------------------------------------------------------
+    
+    subroutine ModifyCEQUALW2
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX
+        real, dimension(:), pointer                 :: ShortWaveExtinctionField
+        integer                                     :: STAT_CALL
+        real                                        :: DT
+        type(T_WQRate  ), pointer                   :: WQRateX  
+
+        !Begin-----------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ModifyCEQUALW2")
+
+        call GetShortWaveExtinctionField(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyCEQUALW2 - ModuleDrainageNetwork - ERR01'
+
+        !Updates Me%NodesDWZ
+        call UpdateNodesDWZ
+        
+        !cycle to call water quality models to compute new rates (every WQDT) in openpoints
+        if (Me%CurrentTime .GE. Me%Coupled%CEQUALW2%NextCompute) then
+
+            PropertyX => Me%FirstProperty
+            do while(associated(PropertyX))
+
+                call Modify_Interface(InterfaceID       = Me%ObjInterface,              &
+                                      PropertyID        = PropertyX%ID%IDNumber,        &
+                                      Concentration     = PropertyX%Concentration,      &
+                                      RiverPoints1D     = Me%RiverPoints,               &
+                                      OpenPoints1D      = Me%OpenPointsProcess,         &
+                                      ShortWaveTop      = Me%ShortWaveField,            &
+                                      LightExtCoefField = ShortWaveExtinctionField,     &
+                                      DWZ               = Me%NodesDWZ,                  &
+                                      STAT              = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    stop 'ModifyCEQUALW2 - ModuleDrainageNetwork - ERR02'
+
+                PropertyX => PropertyX%Next
+
+            end do            
+            
+            Me%Coupled%CEQUALW2%NextCompute = Me%Coupled%CEQUALW2%NextCompute + Me%Coupled%CEQUALW2%DT_Compute
+            
+        end if 
+
+        PropertyX => Me%FirstProperty
+        
+        !cycle to update properties (using the rates above computed) in openpoints
+        do while (associated(PropertyX))
+
+            if (PropertyX%ComputeOptions%CeQualW2) then
+                
+                !if DTInterval, only update at given time
+                if (PropertyX%ComputeOptions%DTIntervalAssociated) then
+                    DT = PropertyX%DTInterval
+                else !update every time
+                    PropertyX%NextCompute = Me%CurrentTime
+                    DT = Me%ExtVar%DT
+                endif
+                    
+                if (Me%CurrentTime .GE. PropertyX%NextCompute) then
+
+                   call Modify_Interface(InterfaceID   = Me%ObjInterface,               &
+                                         PropertyID    = PropertyX%ID%IDNumber,         &
+                                         Concentration = PropertyX%Concentration,       &
+                                         DTProp        = DT,                            &
+                                         RiverPoints1D = Me%RiverPoints,                &
+                                         OpenPoints1D  = Me%OpenPointsProcess,          &
+                                         STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                        &
+                        stop 'ModifyCEQUALW2 - ModuleDrainageNetwork - ERR03'
+                endif
+                
+            endif
+            
+            PropertyX=>PropertyX%Next
+
+        enddo
+
+        nullify(PropertyX)
+    
+        !to compute rates. ModuleWaterQuality rates do not change in between computations but since
+        !some need volume to be multiplied, internally they can change in between computations
+        if (Me%Output%Rates) then
+
+            !allocate(WaterVolume(1:Me%TotalNodes))
+            !do NodePos = 1, Me%TotalNodes
+            !    CurrNode => Me%Nodes (NodePos)
+            !    WaterVolume(NodePos) = CurrNode%VolumeNew
+            !enddo
+                       
+            !Get rate fluxes
+            WqRateX => Me%FirstWQRate
+
+            do while (associated(WQRateX))
+
+                if(WQRateX%Model == CeQualW2Model)then
+                    
+                    call GetRateFlux(InterfaceID    = Me%ObjInterface,                          &
+                                     RateIndex      = WQRateX%CeQualID,                         &
+                                     RateFlux1D     = WQRateX%Field,                            &
+                                     RiverPoints1D  = Me%RiverPoints,                           &
+                                     STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                                &
+                        stop 'ModifyCEQUALW2 - ModuleDrainageNetwork - ERR04'                
+                  
+                   
+                end if
+
+                WQRateX=>WQRateX%Next
+
+            enddo   
+            
+            !deallocate(WaterVolume)
+            nullify(WQRateX)
+        
+        endif
+
+        !Set MinimumConcentration of Properties - This will create Mass
+        if (Me%ComputeOptions%MinConcentration)     call SetLimitsConcentration 
+        if (Me%ComputeOptions%WarnOnNegativeValues) call WarnOnNegativeValues   ('After CEQUALW2')
+
+
+        call UnGetLightExtinction(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyCEQUALW2 - ModuleDrainageNetwork - ERR06'
+        
+        if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "ModifyCEQUALW2")
+
+
+    end subroutine ModifyCEQUALW2
+
+    !---------------------------------------------------------------------------    
+
+    subroutine ModifyBenthos
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX
+        integer                                     :: NodeID, STAT_CALL
+        type (T_Node), pointer                      :: CurrNode        
+        real(8),dimension(:),pointer                :: WaterVolume
+        real   ,dimension(:),pointer                :: CellArea
+        real                                        :: DT
+        type(T_WQRate  ), pointer                   :: WQRateX  
+
+        !Begin-----------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ModifyBenthos")
+
+        allocate (WaterVolume (1:Me%TotalNodes))
+        allocate (CellArea (1:Me%TotalNodes))
+        do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                WaterVolume(NodeID) = CurrNode%VolumeNew
+                CellArea(NodeID) = CurrNode%Length * CurrNode%CrossSection%BottomWidth
+        enddo        
+        
+        
+        if (Me%CurrentTime .GE. Me%Coupled%Benthos%NextCompute) then
+            
+           PropertyX => Me%FirstProperty
+            do while(associated(PropertyX))
+
+                if(PropertyX%ComputeOptions%Benthos)then
+
+                    if(PropertyX%ComputeOptions%BottomFluxes)then
+                        do NodeID = 1, Me%TotalNodes
+                            CurrNode => Me%Nodes (NodeID)
+                            if (Me%OpenPointsProcess (NodeID) == OpenPoint) then
+                                !kg = kg/m2 * m * m
+                                PropertyX%MassInKg(NodeID) = PropertyX%BottomConc(NodeID)      * &
+                                                             CurrNode%CrossSection%BottomWidth * &
+                                                             CurrNode%Length
+                                                             
+                            end if
+                        enddo
+                    else
+                        do NodeID = 1, Me%TotalNodes
+                            CurrNode => Me%Nodes (NodeID)
+                            if (Me%OpenPointsProcess (NodeID) == OpenPoint) then
+                                !kg = g/m3 * m3 * 1e-3 kg/g
+                                PropertyX%MassInKg(NodeID) = PropertyX%Concentration(NodeID) * &
+                                                             CurrNode%VolumeNew              * &
+                                                             PropertyX%IScoefficient        
+                            end if
+
+                        enddo
+                    end if
+
+                endif
+
+                select case(PropertyX%ID%IDNumber)
+                
+                    case(Temperature_)
+                        
+                        call Modify_Interface(InterfaceID       = Me%ObjBenthicInterface,       &
+                                              PropertyID        = PropertyX%ID%IDNumber,        &
+                                              Concentration     = PropertyX%Concentration,      &
+                                              RiverPoints1D     = Me%RiverPoints,               &
+                                              OpenPoints1D      = Me%OpenPointsProcess,         &
+                                              STAT              = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                            &
+                            stop 'ModifyBenthos - ModuleDrainageNetwork - ERR01'
+
+                    case(Oxygen_)
+                        
+                        call Modify_Interface(InterfaceID       = Me%ObjBenthicInterface,       &
+                                              PropertyID        = PropertyX%ID%IDNumber,        &
+                                              Concentration     = PropertyX%MassInKg,           &
+                                              RiverPoints1D     = Me%RiverPoints,               &
+                                              OpenPoints1D      = Me%OpenPointsProcess,         &
+                                              Oxygen1D          = PropertyX%Concentration,      &
+                                              STAT              = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                            &
+                            stop 'ModifyBenthos - ModuleDrainageNetwork - ERR01'
+
+                    case default
+
+                        call Modify_Interface(InterfaceID       = Me%ObjBenthicInterface,       &
+                                              PropertyID        = PropertyX%ID%IDNumber,        &
+                                              Concentration     = PropertyX%MassInKg,           &
+                                              RiverPoints1D     = Me%RiverPoints,               &
+                                              OpenPoints1D      = Me%OpenPointsProcess,         &
+                                              WaterVolume       = WaterVolume,                  &
+                                              CellArea          = CellArea,                     &
+                                              STAT              = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_)                                            &
+                            stop 'ModifyBenthos - ModuleDrainageNetwork - ERR01'
+                end select 
+                  
+                PropertyX => PropertyX%Next
+
+            end do
+
+            Me%Coupled%Benthos%NextCompute = Me%Coupled%Benthos%NextCompute + Me%Coupled%Benthos%DT_Compute
+
+            
+        end if
+
+            
+        PropertyX => Me%FirstProperty
+
+        do while (associated(PropertyX))
+
+            if (PropertyX%ComputeOptions%Benthos) then
+                
+                                
+
+                !do NodeID = 1, Me%TotalNodes
+                !        CurrNode => Me%Nodes (NodeID)
+                !        WaterVolume(NodeID) = CurrNode%VolumeNew
+                !        CellArea(NodeID) = CurrNode%Length * CurrNode%CrossSection%BottomWidth
+                !enddo                
+
+                if(PropertyX%ComputeOptions%BottomFluxes)then
+                    do NodeID = 1, Me%TotalNodes
+                        CurrNode => Me%Nodes (NodeID)
+                        if (Me%OpenPointsProcess (NodeID) == OpenPoint) then
+                            !kg = kg/m2 * m * m
+                            PropertyX%MassInKg(NodeID) = PropertyX%BottomConc(NodeID)      * &
+                                                         CurrNode%CrossSection%BottomWidth * &
+                                                         CurrNode%Length
+                                                         
+                        end if
+                    enddo
+                else
+                    do NodeID = 1, Me%TotalNodes
+                        CurrNode => Me%Nodes (NodeID)
+                        if (Me%OpenPointsProcess (NodeID) == OpenPoint) then
+                            !kg = g/m3 * m3 * 1e-3 kg/g
+                            PropertyX%MassInKg(NodeID) = PropertyX%Concentration(NodeID) * &
+                                                         CurrNode%VolumeNew              * &
+                                                         PropertyX%IScoefficient        
+                        end if
+
+                    enddo
+                end if
+
+                !if DTInterval, only update at given time
+                if (PropertyX%ComputeOptions%DTIntervalAssociated) then
+                    DT = PropertyX%DTInterval
+                else !update every time
+                    PropertyX%NextCompute = Me%CurrentTime
+                    DT = Me%ExtVar%DT
+                endif
+                                    
+                if (Me%CurrentTime .GE. PropertyX%NextCompute) then
+
+                    call Modify_Interface(InterfaceID  = Me%ObjBenthicInterface,        &
+                                         PropertyID    = PropertyX%ID%IDNumber,         &
+                                         Concentration = PropertyX%MassInKg,            &
+                                         DTProp        = DT,                            &
+                                         RiverPoints1D = Me%RiverPoints,                &
+                                         OpenPoints1D  = Me%OpenPointsProcess,          &
+                                         WaterVolume   = WaterVolume,                   &
+                                         STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                        &
+                        stop 'ModifyBenthos - ModuleDrainageNetwork - ERR02'
+                        !nullify  (WaterVolume)
+                
+                endif
+                    
+                if(PropertyX%ComputeOptions%BottomFluxes)then
+                    do NodeID = 1, Me%TotalNodes
+                        CurrNode => Me%Nodes (NodeID)
+                        if (Me%OpenPointsProcess (NodeID) == OpenPoint) then
+                            !kg/m2 = kg / m2
+                            PropertyX%BottomConc(NodeID) = PropertyX%MassInKg(NodeID)         / &
+                                                           (CurrNode%CrossSection%BottomWidth * &
+                                                            CurrNode%Length)  
+                        end if
+                    enddo
+                else
+                    do NodeID = 1, Me%TotalNodes
+                        CurrNode => Me%Nodes (NodeID)
+                        if (Me%OpenPointsProcess (NodeID) == OpenPoint) then
+                            !g/m3 = kg / m3 / 1e-3 kg/g
+                            PropertyX%Concentration(NodeID) = PropertyX%MassInKg(NodeID) / &
+                                                              CurrNode%VolumeNew         / &
+                                                              PropertyX%IScoefficient
+                        end if
+
+                    enddo
+                end if
+                
+                
+            endif
+
+            PropertyX=>PropertyX%Next
+
+        enddo
+
+            
+        deallocate(WaterVolume)
+        deallocate(CellArea)        
+        
+        
+        !to compute rates. ModuleWaterQuality rates do not change in between computations but since
+        !some need volume to be multiplied, internally they can change in between computations
+        if (Me%Output%Rates) then
+
+            !allocate(WaterVolume(1:Me%TotalNodes))
+            !do NodePos = 1, Me%TotalNodes
+            !    CurrNode => Me%Nodes (NodePos)
+            !    WaterVolume(NodePos) = CurrNode%VolumeNew
+            !enddo
+                       
+            !Get rate fluxes
+            WqRateX => Me%FirstWQRate
+
+            do while (associated(WQRateX))
+
+                if(WQRateX%Model == BenthosModel)then
+                    
+                    call GetRateFlux(InterfaceID    = Me%ObjBenthicInterface,                   &
+                                     FirstProp      = WQRateX%FirstProp%IDNumber,               &
+                                     SecondProp     = WQRateX%SecondProp%IDNumber,              &
+                                     RateFlux1D     = WQRateX%Field,                            &
+                                     RiverPoints1D  = Me%RiverPoints,                           &
+                                     STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                                &
+                        stop 'ModifyBenthos - ModuleDrainageNetwork - ERR04'
+
+                    
+                    !Rates in Benthos are kg just as the result mass
+  
+                    ![g/s] = [kg]  / [s] / 1e-3 kg/g
+                        where (Me%RiverPoints == WaterPoint)                 &
+                            WQRateX%Field = WQRateX%Field                    &
+                                / Me%Coupled%Benthos%DT_Compute              &
+                             / 1E-3
+                 
+                   
+                end if
+
+                WQRateX=>WQRateX%Next
+
+            enddo   
+            
+            !deallocate(WaterVolume)
+            nullify(WQRateX)
+        
+        endif        
+        
+        
+        !Set MinimumConcentration of Properties - This will create Mass
+        if (Me%ComputeOptions%MinConcentration)     call SetLimitsConcentration 
+        if (Me%ComputeOptions%WarnOnNegativeValues) call WarnOnNegativeValues   ('After Benthos')
+        
+        
+        if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "ModifyBenthos")
+
+    end subroutine ModifyBenthos
+
+    !---------------------------------------------------------------------------
+    
+    subroutine ModifyMacroAlgae
+
+        !Local----------------------------------------------------------------- 
+        type (T_Property),      pointer         :: PropertyX
+        type (T_WQRate  ),      pointer         :: WqRateX
+        real, dimension(:), pointer             :: ShortWaveExtinctionField
+        integer                                 :: STAT_CALL
+        integer                                 :: NodePos
+        type (T_Size1D)                         :: Size1D
+        real(8),dimension(:), pointer           :: WaterVolume    
+        real                                    :: DT
+        type (T_Node    ) , pointer             :: CurrNode
+!        real   ,dimension(:),pointer            :: CellArea
+!        integer                                 :: NodeID  
+        !Begin----------------------------------------------------------------- 
+
+        Size1D%ILB = 1
+        !Size1D%IUB = Me%TotalReaches
+        Size1D%IUB = Me%TotalNodes        
+        
+        
+        !allocate (CellArea (1:Me%TotalNodes))
+        !do NodeID = 1, Me%TotalNodes
+        !        CurrNode => Me%Nodes (NodeID)
+        !        CellArea(NodeID) = CurrNode%Length * CurrNode%CrossSection%BottomWidth
+        !enddo           
+        
+        !Short wave light extinction coefficient
+        call GetShortWaveExtinctionField(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyMacroAlgae - ModuleDrainageNetwork - ERR01'
+
+       
+        !Updates Me%NodesDWZ, Shear Stress 
+        call UpdateNodesDWZ
+        call UpdateNodesShearStress  
+        
+        !compute distribution based on macroalgae height and dwz (water colum)
+        !and Convert macroalgae distribution in the water column into gC/m3
+        call ComputeMacroAlgaeOccupation
+        
+        !Convert macroalgae distribution in the water column into gC/m3
+        !call DistributeMacroAlgae
+
+        PropertyX => Me%FirstProperty
+
+        if (Me%CurrentTime .GE. Me%Coupled%MacroAlgae%NextCompute) then          
+
+            do while(associated(PropertyX))
+
+                call SetMatrixValue(Me%MacroAlgae%SPMDepFlux, Size1D, 0.0)
+                if (PropertyX%ComputeOptions%BottomFluxes) then
+                    call SetMatrixValue(Me%MacroAlgae%SPMDepFlux, Size1D, PropertyX%DepositionRate)
+                endif
+                
+                call Modify_Interface(InterfaceID       = Me%ObjInterfaceMacroAlgae,    &
+                                      PropertyID        = PropertyX%ID%IDNumber,        &
+                                      Concentration     = PropertyX%Concentration,      &
+                                      RiverPoints1D     = Me%RiverPoints,               &
+                                      OpenPoints1D      = Me%OpenPointsProcess,         &
+                                      ShortWaveTop      = Me%ShortWaveField,            &
+                                      LightExtCoefField = ShortWaveExtinctionField,     &
+                                      DWZ               = Me%NodesDWZ,                  &
+                                      ShearStress       = Me%MacroAlgae%ShearStress,    &
+                                      SPMFlux           = Me%MacroAlgae%SPMDepFlux,     &
+                                      MacrOccupation    = Me%Macroalgae%Occupation,     &
+                                      !CellArea          = CellArea,                     &
+                                      STAT              = STAT_CALL)
+                if (STAT_CALL .NE. SUCCESS_)                                            &
+                    stop 'ModifyMacroAlgae - ModuleDrainageNetwork - ERR02'
+
+                PropertyX => PropertyX%Next
+
+            end do
+
+            Me%Coupled%MacroAlgae%NextCompute = Me%Coupled%MacroAlgae%NextCompute + &
+                                                Me%Coupled%MacroAlgae%DT_Compute
+            
+        end if 
+
+        PropertyX => Me%FirstProperty
+
+        do while (associated(PropertyX))
+
+            if (PropertyX%ComputeOptions%MacroAlgae) then
+                
+                !if DTInterval, only update at given time
+                if (PropertyX%ComputeOptions%DTIntervalAssociated) then
+                    DT = PropertyX%DTInterval
+                else !update every time
+                    PropertyX%NextCompute = Me%CurrentTime
+                    DT = Me%ExtVar%DT
+                endif
+                                        
+    
+                if (Me%CurrentTime .GE.PropertyX%NextCompute) then
+
+                    call Modify_Interface(InterfaceID   = Me%ObjInterfaceMacroAlgae,        &
+                                          PropertyID    = PropertyX%ID%IDNumber,            &
+                                          Concentration = PropertyX%Concentration,          &
+                                          DTProp        = DT,                               &
+                                          RiverPoints1D = Me%RiverPoints,                   &
+                                          OpenPoints1D  = Me%OpenPointsProcess,             &
+                                          STAT          = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                            &
+                        stop 'ModifyMacroAlgae - ModuleDrainageNetwork - ERR03'
+
+                    if(PropertyX%ID%IDNumber == MacroAlgae_)then
+                        
+                        !Integrate macroalgae distribution in the water column in to kgC/m2
+                        call IntegrateMacroAlgae(PropertyX)
+
+                    end if
+                endif
+
+            endif
+            
+            PropertyX=>PropertyX%Next
+
+        enddo
+
+        !deallocate(CellArea)           
+
+        !to compute rates. ModuleWaterQuality rates do not change in between computations but since
+        !some need volume to be multiplied, internally they can change in between computations
+        if (Me%Output%Rates) then        
+            WqRateX => Me%FirstWqRate
+        
+            allocate(WaterVolume(1:Me%TotalNodes))
+            do NodePos = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodePos)
+                WaterVolume(NodePos) = CurrNode%VolumeNew
+            enddo        
+        
+            do while (associated(WqRateX))
+
+                if(WqRateX%Model == MacroAlgaeModel)then
+
+                    call GetRateFlux(InterfaceID    = Me%ObjInterfaceMacroAlgae,                &
+                                     FirstProp      = WqRateX%FirstProp%IDNumber,               &
+                                     SecondProp     = WqRateX%SecondProp%IDNumber,              &
+                                     RateFlux1D     = WQRateX%Field,                            &
+                                     RiverPoints1D  = Me%RiverPoints,                           &
+                                     STAT           = STAT_CALL)
+                    if (STAT_CALL .NE. SUCCESS_)                                                &
+                        stop 'ModifyMacroAlgae - ModuleDrainageNetwork - ERR04'
+
+                
+                        !gross production units in ModuleMacroAlgae [g.s/m3.day] ??
+                        !property rate units in ModuleMacroAlgae [g/m3]
+                        !limiting factors units in ModuleMacroAlgae [0-1]*[s]
+                        !gross production and property rate are transformed in [g/s]
+                        !and limiting factor in [0-1]
+                        if (WQRateX%FirstProp%name == 'temperaturelim'     .or.   &
+                            WQRateX%FirstProp%name == 'nutrientlim'        .or.   &
+                            WQRateX%FirstProp%name == 'nitrogenlim'        .or.   &
+                            WQRateX%FirstProp%name == 'phosphoruslim'      .or.   &
+                            WQRateX%FirstProp%name == 'salinitylim'        .or.   &
+                            WQRateX%FirstProp%name == 'lightlim'           .or.   &
+                            WQRateX%FirstProp%name == 'carrcaplim') then
+                        
+                            ![0-1] = [0-1] * [s] / [s]
+                            !WQRateX%Field(NodePos) = WQRateX%Field(NodePos) / Me%Coupled%MacroAlgae%DT_Compute
+                            !Needs to be evaluated in water points because a node can go out of open point
+                            !in between rates calculation and the value would not be updated divided by DT
+                            !if openpoints was used
+                            where (Me%RiverPoints == WaterPoint) &
+                                    WQRateX%Field = WQRateX%Field / Me%Coupled%MacroAlgae%DT_Compute
+
+                        elseif (WQRateX%FirstProp%name == 'grossprod'     .or.     &
+                                WQRateX%FirstProp%name == 'excretion'     .or.     &
+                                WQRateX%FirstProp%name == 'respiration'   .or.     &
+                                WQRateX%FirstProp%name == 'naturalmort'   .or.     &
+                                WQRateX%FirstProp%name == 'grazing') then
+                        
+                            ![g/s] = [g.s/m3.day] * [m3] / [s] * 1/86400 [day/s]
+                            !WQRateX%Field(NodePos) = WQRateXTempField(NodePos) * CurrNode%VolumeNew     &
+                            !                         / Me%Coupled%MacroAlgae%DT_Compute * 1./86400.
+                             where (Me%RiverPoints == WaterPoint)                 &
+                                    WQRateX%Field = WQRateX%Field * WaterVolume   &
+                                     / Me%Coupled%MacroAlgae%DT_Compute  * 1./86400.
+
+
+                        elseif (WQRateX%FirstProp%name == 'macondition') then                             
+                            !DO NOTHING     
+                                    
+                        else
+                        
+                            ![g/s] = [g/m3] * [m3] / [s]
+                            !WQRateX%Field(NodePos) = WQRateXTempField(NodePos) * CurrNode%VolumeNew      &
+                            !                         / Me%Coupled%WQM%DT_Compute
+                             where (Me%RiverPoints == WaterPoint)                 &
+                                    WQRateX%Field = WQRateX%Field * WaterVolume   &
+                                     / Me%Coupled%MacroAlgae%DT_Compute                               
+                             
+                        endif                
+                
+                
+                    !
+                    !where (Me%ExternalVar%OpenPoints3D == WaterPoint) &
+                    !    WqRateX%Field = WqRateX%Field * Me%ExternalVar%VolumeZ / &
+                    !                    Me%Coupled%MacroAlgae%DT_Compute
+
+                end if  
+              
+                WqRateX=>WqRateX%Next
+
+            enddo
+        
+            deallocate(WaterVolume)
+            nullify(WqRateX)
+            
+        endif
+        
+        nullify(PropertyX)
+        
+        !Set MinimumConcentration of Properties - This will create Mass
+        if (Me%ComputeOptions%MinConcentration)     call SetLimitsConcentration 
+        if (Me%ComputeOptions%WarnOnNegativeValues) call WarnOnNegativeValues   ('After Macroalgae')        
+         
+        call UnGetLightExtinction(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModifyMacroAlgae - ModuleDrainageNetwork - ERR06'
+
+    end subroutine ModifyMacroAlgae
+    
+    !-------------------------------------------------------------------------- 
+    
+    subroutine ComputeMacroAlgaeOccupation
+        
+        !Arguments------------------------------------------------------------- 
+   
+        !Local----------------------------------------------------------------- 
+        type (T_Property),      pointer         :: MacroAlgae 
+        integer                                 :: NodePos
+        type (T_Size1D)                         :: Size1D
+        
+        !Begin----------------------------------------------------------------- 
+
+        Size1D%ILB = 1
+        !Size1D%IUB = Me%TotalReaches
+        Size1D%IUB = Me%TotalNodes              
+
+        call SetMatrixValue(Me%MacroAlgae%Occupation, Size1D, 0.)
+        
+        !Macroalgae
+        !call Search_Property(MacroAlgae, PropertyXID = MacroAlgae_, STAT = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_) stop 'ComputeMacroAlgaeOccupationAndDistribution - ModuleDrainageNetwork - ERR02'
+        !
+        !call SetMatrixValue(MacroAlgae%Concentration, Size1D, 0.)              
+
+
+        do NodePos = 1, Me%TotalNodes
+
+  
+            if (Me%OpenPointsProcess (NodePos) == OpenPoint  .and. Me%NodesDWZ(NodePos) .gt. 0.0) then
+                
+                if(Me%MacroAlgae%Height(NodePos) .ge. Me%NodesDWZ(NodePos)) then
+
+                    Me%MacroAlgae%Occupation(NodePos) = 1
+
+                else
+
+                    Me%MacroAlgae%Occupation(NodePos) = Me%MacroAlgae%Height(NodePos) / &
+                                                                Me%NodesDWZ(NodePos)
+                                                            
+                end if
+                
+                !!m2 =  m3 / m
+                !AvrageArea = Me%Nodes(NodePos)%VolumeNew / Me%NodesDWZ(NodePos)                
+                !
+                !!gC/m3 = gC/m2 * m2 / m3 * m / m
+                !MacroAlgae%Concentration(NodePos) = Me%MacroAlgae%Distribution(NodePos) * &
+                !                                    AvrageArea / &
+                !                                    Me%Nodes(NodePos)%VolumeNew
+                
+            endif
+
+        enddo
+    
+        nullify(MacroAlgae)
+
+
+    !end subroutine ComputeMacroAlgaeOccupationAndDistribution
+    end subroutine ComputeMacroAlgaeOccupation
+    
+    !--------------------------------------------------------------------------
+
+
+    subroutine IntegrateMacroAlgae(MacroAlgae)
+    
+        !Arguments------------------------------------------------------------- 
+        type (T_Property),      pointer         :: MacroAlgae
+    
+        !Local----------------------------------------------------------------- 
+        integer                                 :: NodePos
+        real                                    :: MacroAlgaeMass, AvrageArea
+        type (T_Size1D)                         :: Size1D
+        !Begin----------------------------------------------------------------- 
+    
+        Size1D%ILB = 1
+        !Size1D%IUB = Me%TotalReaches
+        Size1D%IUB = Me%TotalNodes              
+    
+        call SetMatrixValue(Me%MacroAlgae%Distribution, Size1D, 0.)        
+    
+        do NodePos = 1, Me%TotalNodes
+            
+            if (Me%OpenPointsProcess (NodePos) == OpenPoint .and. Me%NodesDWZ(NodePos) .gt. 0.0) then
+    
+                !gC = gC/m3 * m3
+                MacroAlgaeMass = Me%Nodes(NodePos)%VolumeNew * &
+                                max(MacroAlgae%MinValue, MacroAlgae%Concentration(NodePos))
+                
+                !m2 =  m3 / m
+                AvrageArea = Me%Nodes(NodePos)%VolumeNew / Me%NodesDWZ(NodePos)
+                !AvrageArea = Me%Nodes(NodePos)%CrossSection%BottomWidth * Me%Nodes(NodePos)%Length
+                
+                !gC/m2 = g / m2
+                Me%MacroAlgae%Distribution(NodePos) = MacroAlgaeMass / AvrageArea
+                                                  
+    
+            endif
+    
+        enddo
+    
+    end subroutine IntegrateMacroAlgae
+    
+    !--------------------------------------------------------------------------    
+
+    subroutine ComputeBottomFluxes
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleDrainageNetwork", "ComputeBottomFluxes")
+
+        call ModifyShearStress
+
+        call ComputeErosionFluxes
+
+        call ComputeDepositionFluxes
+
+        if (MonitorPerformance) call StopWatch ("ModuleDrainageNetwork", "ComputeBottomFluxes")
+
+    
+    end subroutine ComputeBottomFluxes
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine ModifyShearStress
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ReachID
+        type (T_Reach), pointer                     :: CurrReach
+        real                                        :: Chezy
+        type (T_Node), pointer                      :: DownstreamNode
+        type (T_Node), pointer                      :: UpstreamNode
+        real                                        :: MaxBottom, WaterDepth
+ 
+        do ReachID = 1, Me%TotalReaches
+            
+            CurrReach => Me%Reaches (ReachID)
+
+            DownstreamNode => Me%Nodes (CurrReach%DownstreamNode)
+            UpstreamNode   => Me%Nodes (CurrReach%UpstreamNode  )
+            
+            !verify if minimum level is met because low water levels may create unreal erosion
+            MaxBottom  = max(UpstreamNode%CrossSection%BottomLevel, DownstreamNode%CrossSection%BottomLevel)
+            if (CurrReach%FlowNew .gt. 0.0) then
+                WaterDepth = max(UpstreamNode%WaterLevel - MaxBottom, 0.0)
+            else
+                WaterDepth = max(DownstreamNode%WaterLevel - MaxBottom, 0.0)
+            endif
+
+            if ((Me%ComputeFaces(ReachID) == Compute) .and. (WaterDepth .gt. Me%HminChezy)) then
+                
+                !CurrReach => Me%Reaches (ReachID)
+
+                if (CurrReach%HydraulicRadius > AllmostZero) then
+                    Chezy = Gravity * CurrReach%Manning**2.0   &
+                          / CurrReach%HydraulicRadius** (1./3.)
+                else 
+                    Chezy = 0.0
+                end if
+
+                Me%ShearStress (ReachID) = SigmaDensityReference * Chezy * CurrReach%Velocity**2.0
+
+            else
+            
+                Me%ShearStress (ReachID) = 0.0
+                            
+            end if
+
+        end do
+
+    end subroutine ModifyShearStress
+
+    !---------------------------------------------------------------------------
+    
+    subroutine ComputeErosionFluxes
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: NodeID, ReachID
+        type (T_Node    ) , pointer                 :: CurrNode
+        type (T_Property) , pointer                 :: Property
+        real, dimension(:), pointer                 :: SedimentConc
+        real                                        :: ErosionRate
+        real                                        :: ErodedConc, ErodedMass        
+        real                                        :: BottomArea
+        real                                        :: aux
+        integer                                     :: STAT_CALL
+        
+        call SearchProperty(Property, PropertyXIDNumber = TSS_, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+         call SearchProperty(Property, PropertyXIDNumber = Cohesive_Sediment_)
+        endif
+        
+        SedimentConc => Property%BottomConc
+
+        nullify (Property)
+        Property => Me%FirstProperty                                                    
+        do while (associated (Property))
+
+if1:        if (Property%ComputeOptions%BottomFluxes  .and. Property%ComputeOptions%Erosion  &
+                .AND. Property%ID%IDNumber /= VSS_ .AND. Property%ID%IDNumber /= TSS_) then
+
+                Property%ErosionRate = 0.0
+
+                do NodeID = 1, Me%TotalNodes
+
+                    ErodedConc  = 0.0        
+                    ErosionRate = 0.0
+
+
+if2:                if (Me%OpenPointsProcess (NodeID) == OpenPoint) then
+
+                        CurrNode => Me%Nodes (NodeID)
+                        ReachID  = CurrNode%DownstreamReaches (1)
+                    
+if3:                    if (Me%ShearStress (ReachID) > Property%ErosionCriticalShear .and.  &
+                            CurrNode%VolumeNew > AllmostZero .and.                          &
+                            SedimentConc (NodeID) > AllmostZero) then
+
+                            aux = Me%ShearStress (ReachID) / Property%ErosionCriticalShear - 1.0
+
+
+                            !kg m-2 s-1 = kg m-2 s-1 * m2
+                            ErosionRate = Property%ErosionCoefficient                       &
+                                        * Property%BottomConc (NodeID)                      &
+                                        / SedimentConc (NodeID)                             &
+                                        * aux 
+                            
+                            !kg m-2 = kg m-2 s-1 * s
+                            ErodedConc = ErosionRate * Me%ExtVar%DT                   
+                                                  
+                            if (ErodedConc < Property%BottomConc (NodeID) ) then
+
+                                Property%BottomConc (NodeID) = Property%BottomConc (NodeID) &
+                                                             - ErodedConc                             
+                                
+                            else
+
+                                ErodedConc = Property%BottomConc (NodeID) - Property%BottomMinConc 
+                                Property%BottomConc (NodeID) = Property%BottomMinConc
+                                
+                                !kg m-2 s-1 = kg m-2 / s
+                                ErosionRate = ErodedConc / Me%ExtVar%DT
+                            
+                            end if
+
+                        
+                            !m2 = m * m
+                            BottomArea = CurrNode%CrossSection%BottomWidth * CurrNode%Length
+                            !kg = kg m-2 * m2
+                            ErodedMass = ErodedConc * BottomArea
+                            
+                            !g m-3 = g m-3 + kg / m3 / 1E-3 g kg-1
+                            Property%Concentration (NodeID) = Property%Concentration (NodeID) &
+                                                            + ErodedMass / CurrNode%VolumeNew &
+                                                            / Property%IScoefficient
+
+
+                            Property%ErosionRate (NodeID) = ErosionRate
+                                                              
+                        end if if3
+                    end if if2
+
+                    if (Property%ComputeOptions%BottomFluxes) then
+                        CurrNode => Me%Nodes (NodeID)
+                        Property%TotalConc (NodeID) = Property%ConcentrationOld (NodeID) * 10E-3 *CurrNode%WaterDepth &
+                                                    + Property%BottomConc (NodeID)                          
+                        nullify (CurrNode)
+                    end if
+                end do
+            
+            end if if1
+
+            Property => Property%Next
+        enddo
+
+    end subroutine ComputeErosionFluxes
+
+
+    !---------------------------------------------------------------------------
+    
+    subroutine ComputeDepositionFluxes
+    
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: NodeID, ReachID
+        type (T_Node    ) , pointer                 :: CurrNode
+        type (T_Property) , pointer                 :: Property
+        real                                        :: DepositedMass, Mass, DepositionRate        
+        real                                        :: BottomArea, MinimumMass, aux, SPMConc
+
+
+        nullify (Property)
+        Property => Me%FirstProperty                                                    
+        do while (associated (Property))
+
+if1:        if (Property%ComputeOptions%BottomFluxes .and. Property%ComputeOptions%Deposition  &
+                .AND. Property%ID%IDNumber /= VSS_ .AND. Property%ID%IDNumber /= TSS_) then
+
+                Property%DepositionRate = 0.0
+
+                do NodeID = 1, Me%TotalNodes
+
+                    DepositedMass  = 0.0
+                    DepositionRate = 0.0
+
+if2:                if (Me%OpenPointsProcess (NodeID) == OpenPoint) then                                
+
+                        CurrNode => Me%Nodes (NodeID)
+                        ReachID  = CurrNode%DownstreamReaches (1)
+                    
+if3:                    if (Me%ShearStress (ReachID) < Property%DepositionCriticalShear .and.               &
+                            CurrNode%VolumeNew > AllmostZero) then
+                        
+                            !ModifySettlingVelocity - [m s-1]
+                            if (Property%Ws_Type == SPMFunction) then
+
+                                SPMConc = Property%Concentration (NodeID) * Property%ISCoefficient
+                                Property%Ws (NodeID) = SettlingVelocity (SPMConc,                           &
+                                                                         Property%CHS, Property%KL,         &
+                                                                         Property%KL1, Property%M,          &
+                                                                         Property%ML, NodeID)
+    
+                            else
+
+                                Property%Ws (NodeID) = Property%Ws_Value
+                            end if
+                    
+
+                            !m2 = m * m
+                            BottomArea = CurrNode%CrossSection%BottomWidth * CurrNode%Length
+
+                            aux = 1.0 - Me%ShearStress (ReachID) / Property%DepositionCriticalShear 
+
+                            !kg m-2 s-1 = kg m-3 * m s-1
+                            DepositionRate = Property%Concentration (NodeID) * Property%IScoefficient       &
+                                           * Property%Ws (NodeID) * aux
+                            
+                            !kg = kg m-2 s-1 * s
+                            DepositedMass = DepositionRate * BottomArea * Me%ExtVar%DT
+                            !kg = g m-3 * 1E-3 kg g-1 * m3
+                            Mass = Property%Concentration (NodeID) * Property%IScoefficient * CurrNode%VolumeNew 
+
+                            if (DepositedMass < Mass ) then
+                                
+                                !g m-3 = g m-3 - kg / m3 / 1E-3 kg g-1
+                                Property%Concentration (NodeID) = Property%Concentration (NodeID)           &
+                                                                - DepositedMass / CurrNode%VolumeNew        &
+                                                                / Property%IScoefficient
+
+                            else
+                                if (Me%ComputeOptions%MinConcentration) then
+                                    !kg = g m-3 * 1E-3 kg g-1 * m3
+                                    MinimumMass   = Property%MinValue * Property%IScoefficient * CurrNode%VolumeNew
+                                    DepositedMass = Mass - MinimumMass
+                                    Property%Concentration (NodeID) = Property%MinValue                                
+                                else
+                                    DepositedMass = Mass
+                                    Property%Concentration (NodeID) = 0.0
+                                endif
+
+                                !kg m-2 s-1 = kg / (m2 * s)
+                                DepositionRate = DepositedMass / (BottomArea * Me%ExtVar%DT)
+
+                            
+                            end if
+        
+                            !kg m-2 = kg m-2 + kg / m2
+                            Property%BottomConc (NodeID) = Property%BottomConc (NodeID)                     &
+                                                         + DepositedMass / BottomArea
+                         
+                            
+                            Property%DepositionRate (NodeID) = DepositionRate
+
+                        end if if3
+                    end if if2
+
+                    if (Property%ComputeOptions%BottomFluxes) then
+                        CurrNode => Me%Nodes (NodeID)
+                        Property%TotalConc (NodeID) = Property%Concentration (NodeID) * 10E-3 *CurrNode%WaterDepth &
+                                                    + Property%BottomConc (NodeID)                          
+                        nullify (CurrNode)
+                    end if
+                    
+                end do            
+
+            end if if1
+
+            Property => Property%Next
+        end do
+
+    end subroutine ComputeDepositionFluxes
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------   
+
+    !Copied from ModuleFreeVerticalMovement
+    !Settling velocity computed as function of a hindered settling concentration
+    !Used only for cohesive sediments. Units in this formulation in kg/m3
+    real function SettlingVelocity (Concentration, CHS, KL, KL1, M, ML, NodeID)
+        
+        !Arguments-------------------------------------------------
+        real,       intent(IN) :: Concentration  !kg/m3
+        real,       intent(IN) :: CHS              !Hindered settling concentration
+        real,       intent(IN) :: KL, KL1, M, ML
+        integer,    intent(IN) :: NodeID
+
+        !Local-----------------------------------------------------
+        real                    :: Aux
+        
+        !Begin-----------------------------------------------------
+
+        !kg/m3
+        
+        Aux = KL1 * (Concentration - CHS)
+
+        if (Concentration < CHS .and. Concentration >= 0.) then 
+
+            SettlingVelocity = KL*(Concentration)**M
+
+        elseif(Aux < 1. .and. Aux >= 0.) then
+
+            SettlingVelocity = KL*(CHS)**M*(1.0-Aux)**ML 
+
+        elseif(Aux > 1. .and. Concentration < 100000.) then
+
+            SettlingVelocity = 0. !if concentration is to high settling velocity is null
+
+        else
+
+            write(*,*)'Concentration (g/l)          = ', Concentration
+            write(*,*)'KL1 * (Concentration - CHS)  = ', Aux
+            write(*,*)'NodeID                       = ', NodeID
+            stop 'Error computing the settling velocity - SettlingVelocity - ModuleDrainageNetwork'
+
+        endif
+
+    end function SettlingVelocity
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine StoreInitialValues
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: NodeID, ReachID
+        type (T_Property), pointer                  :: Property
+        type (T_ReachIntegration), pointer          :: OldReachStatus, ReachStatus
+        type (T_NodeIntegration), pointer           :: OldNodeStatus, NodeStatus
+        
+        !----------------------------------------------------------------------
+        
+        !Initial Volumes
+        do NodeID = 1, Me%TotalNodes
+            Me%Nodes(NodeID)%InitialVolumeNew       = Me%Nodes(NodeID)%VolumeNew
+            Me%Nodes(NodeID)%InitialVolumeOld       = Me%Nodes(NodeID)%VolumeOld
+            Me%Nodes(NodeID)%InitialWaterDepth      = Me%Nodes(NodeID)%WaterDepth
+        end do
+
+        !Initial Flows
+        do ReachID = 1, Me%TotalReaches
+             Me%Reaches(ReachID)%InitialFlowNew = Me%Reaches(ReachID)%FlowNew
+             Me%Reaches(ReachID)%InitialFlowOld = Me%Reaches(ReachID)%FlowOld
+             
+            if (Me%IntegratedOutput%Yes) then
+                Me%IntegratedOutput%OldAccTime = Me%IntegratedOutput%AccTime
+            
+                OldReachStatus => Me%IntegratedOutput%OldReachStatus(ReachID)
+                ReachStatus    => Me%IntegratedOutput%ReachStatus(ReachID)
+                OldNodeStatus  => Me%IntegratedOutput%OldNodeStatus(ReachID)
+                NodeStatus     => Me%IntegratedOutput%NodeStatus(ReachID)                
+             
+                OldReachStatus%AccFlowVolume = ReachStatus%AccFlowVolume
+                OldReachStatus%MaxFlow = ReachStatus%MaxFlow
+                OldReachStatus%MinFlow = ReachStatus%MinFlow
+                OldNodeStatus%AccWeightedVolume = NodeStatus%AccWeightedVolume
+                OldNodeStatus%MaxVolume = NodeStatus%MaxVolume
+                OldNodeStatus%MinVolume = NodeStatus%MinVolume
+                OldNodeStatus%AccWeightedDepth = NodeStatus%AccWeightedDepth
+                OldNodeStatus%MaxDepth = NodeStatus%MaxDepth
+                OldNodeStatus%MinDepth = NodeStatus%MinDepth
+                OldNodeStatus%AccWeightedLevel = NodeStatus%AccWeightedLevel
+                OldNodeStatus%MaxLevel = NodeStatus%MaxLevel
+                OldNodeStatus%MinLevel = NodeStatus%MinLevel
+            endif
+        end do
+        
+        !Initial Concentration
+        nullify (Property)
+        Property => Me%FirstProperty                                                    
+        do while (associated (Property))
+            Property%InitialConcentration    = Property%Concentration
+            Property%InitialConcentrationOld = Property%ConcentrationOld
+            Property => Property%Next
+        enddo
+
+        if (Me%CheckMass) then
+            Me%InitialTotalEvapFromSurfaceVolume = Me%TotalEvapFromSurfaceVolume
+            Me%InitialTotalOutputVolume = Me%TotalOutputVolume
+            Me%InitialTotalFlowVolume   = Me%TotalFlowVolume
+            Me%InitialTotalInputVolume  = Me%TotalInputVolume
+        end if
+
+        if (Me%Output%ComputeFlowFrequency) then
+            do ReachID = 1, Me%TotalReaches
+                 Me%Reaches(ReachID)%InitialFlowAccTime = Me%Reaches(ReachID)%FlowAccTime
+            end do        
+        endif
+
+        if (Me%Output%ComputeIntegratedFlow) then
+            do ReachID = 1, Me%TotalReaches
+                 Me%Reaches(ReachID)%InitialOutputVolume = Me%Reaches(ReachID)%OutputVolume
+                 Me%Reaches(ReachID)%InitialOutputTime   = Me%Reaches(ReachID)%OutputTime
+            end do        
+        endif
+
+        if (Me%Output%ComputeIntegratedMass) then
+            nullify (Property)
+            Property => Me%FirstProperty                                                    
+            do while (associated (Property))
+                Property%InitialOutputMass    = Property%OutputMass
+                Property%InitialOutputTime    = Property%OutputTime
+                Property => Property%Next
+            enddo
+        endif
+        
+    end subroutine StoreInitialValues
+
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine ResetToInitialValues
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        integer                                     :: NodeID, ReachID
+        type (T_Property), pointer                  :: Property
+        type (T_ReachIntegration), pointer          :: OldReachStatus, ReachStatus
+        type (T_NodeIntegration), pointer           :: OldNodeStatus, NodeStatus    
+        
+        !----------------------------------------------------------------------        
+
+        !Initial Volumes
+        do NodeID = 1, Me%TotalNodes
+            Me%Nodes(NodeID)%VolumeNew      = Me%Nodes(NodeID)%InitialVolumeNew
+            Me%Nodes(NodeID)%VolumeOld      = Me%Nodes(NodeID)%InitialVolumeOld
+            Me%Nodes(NodeID)%WaterDepth     = Me%Nodes(NodeID)%InitialWaterDepth
+        end do
+
+        !Initial Flows
+        do ReachID = 1, Me%TotalReaches
+            Me%Reaches(ReachID)%FlowNew = Me%Reaches(ReachID)%InitialFlowNew
+            Me%Reaches(ReachID)%FlowOld = Me%Reaches(ReachID)%InitialFlowOld
+            
+            if (Me%IntegratedOutput%Yes) then
+                Me%IntegratedOutput%AccTime = Me%IntegratedOutput%OldAccTime                
+            
+                OldReachStatus => Me%IntegratedOutput%OldReachStatus(ReachID)
+                ReachStatus    => Me%IntegratedOutput%ReachStatus(ReachID)
+                OldNodeStatus  => Me%IntegratedOutput%OldNodeStatus(ReachID)
+                NodeStatus     => Me%IntegratedOutput%NodeStatus(ReachID)   
+                
+                ReachStatus%AccFlowVolume = OldReachStatus%AccFlowVolume
+                ReachStatus%MaxFlow = OldReachStatus%MaxFlow
+                ReachStatus%MinFlow = OldReachStatus%MinFlow
+                NodeStatus%AccWeightedVolume = OldNodeStatus%AccWeightedVolume
+                NodeStatus%MaxVolume = OldNodeStatus%MaxVolume
+                NodeStatus%MinVolume = OldNodeStatus%MinVolume
+                NodeStatus%AccWeightedDepth = OldNodeStatus%AccWeightedDepth
+                NodeStatus%MaxDepth = OldNodeStatus%MaxDepth
+                NodeStatus%MinDepth = OldNodeStatus%MinDepth
+                NodeStatus%AccWeightedLevel = OldNodeStatus%AccWeightedLevel
+                NodeStatus%MaxLevel = OldNodeStatus%MaxLevel
+                NodeStatus%MinLevel = OldNodeStatus%MinLevel
+            endif            
+        end do
+      
+        !Initial Concentration
+        nullify (Property)
+        Property => Me%FirstProperty                                                    
+        do while (associated (Property))
+            Property%Concentration    = Property%InitialConcentration
+            Property%ConcentrationOld = Property%InitialConcentrationOld
+            Property => Property%Next
+        enddo
+
+        if (Me%CheckMass) then
+            Me%TotalEvapFromSurfaceVolume = Me%InitialTotalEvapFromSurfaceVolume
+            Me%TotalOutputVolume = Me%InitialTotalOutputVolume
+            Me%TotalFlowVolume   = Me%InitialTotalFlowVolume
+            Me%TotalInputVolume  = Me%InitialTotalInputVolume
+        end if
+
+        if (Me%Output%ComputeFlowFrequency) then
+            do ReachID = 1, Me%TotalReaches
+                 Me%Reaches(ReachID)%FlowAccTime = Me%Reaches(ReachID)%InitialFlowAccTime
+            end do        
+        endif
+
+        if (Me%Output%ComputeIntegratedFlow) then
+            do ReachID = 1, Me%TotalReaches
+                 Me%Reaches(ReachID)%OutputVolume = Me%Reaches(ReachID)%InitialOutputVolume
+                 Me%Reaches(ReachID)%OutputTime   = Me%Reaches(ReachID)%InitialOutputTime
+            end do        
+        endif
+
+        if (Me%Output%ComputeIntegratedMass) then
+            nullify (Property)
+            Property => Me%FirstProperty                                                    
+            do while (associated (Property))
+                Property%OutputMass    = Property%InitialOutputMass
+                Property%OutputTime    = Property%InitialOutputTime
+                Property => Property%Next
+            enddo
+        endif
+
+    end subroutine ResetToInitialValues
+
+    !---------------------------------------------------------------------------    
+
+    subroutine WriteTimeSeries(LocalDT)
+    
+        !Arguments--------------------------------------------------------------
+        real                                    :: LocalDT
+    
+        if (Me%TimeSerie%ByNodes) then
+            call WriteTimeSeriesByNodes(LocalDT)
+        else
+            call WriteTimeSeriesByProp(LocalDT)
+        end if
+
+    end subroutine WriteTimeSeries
+    
+    !---------------------------------------------------------------------------    
+    !---------------------------------------------------------------------------    
+
+    subroutine WriteTimeSeriesByNodes (LocalDT)
+
+        !Arguments--------------------------------------------------------------
+        real                                    :: LocalDT
+
+        !Local------------------------------------------------------------------
+        type (T_Node    ), pointer                          :: CurrNode
+        type (T_Reach   ), pointer                          :: CurrReach 
+        type (T_Property), pointer                          :: Property
+        integer                                             :: NodePos, i, j        
+        real                                                :: PercentageMaxVolume
+        real                                                :: PoolDepth, PoolVolume
+        integer                                             :: STAT_CALL
+        type(T_WQRate  ), pointer                           :: WQRateX     
+        
+
+        i = 0
+do1:    do NodePos = 1, Me%TotalNodes    
+            
+if1:        if (Me%Nodes(NodePos)%TimeSerie) then
+                
+                i = i + 1
+                CurrNode   => Me%Nodes (NodePos)    
+                CurrReach  => Me%Reaches (CurrNode%DownstreamReaches(1))            
+
+                PercentageMaxVolume = CurrNode%VolumeNew / CurrNode%VolumeMax * 100.0
+
+                PoolVolume          = CurrNode%CrossSection%PoolDepth * CurrNode%Length * CurrNode%CrossSection%BottomWidth
+
+                !Volume greater then volume in pools
+                if (CurrNode%VolumeNew > PoolVolume) then
+                    PoolDepth = CurrNode%CrossSection%PoolDepth
+                else
+                    PoolDepth = CurrNode%VolumeNew / (CurrNode%Length * CurrNode%CrossSection%BottomWidth)
+                endif
+            
+                
+                Me%TimeSerie%DataLine (pWaterDepth         ) = CurrNode%WaterDepth
+                Me%TimeSerie%DataLine (pWaterLevel         ) = CurrNode%WaterLevel
+                Me%TimeSerie%DataLine (pVolume             ) = CurrNode%VolumeNew
+                Me%TimeSerie%DataLine (pPercentageMaxVolume) = PercentageMaxVolume
+                Me%TimeSerie%DataLine (pFlow               ) = CurrReach%FlowNew
+                Me%TimeSerie%DataLine (pVelocity           ) = CurrReach%Velocity
+                Me%TimeSerie%DataLine (pVerticalArea       ) = CurrNode%VerticalArea
+                Me%TimeSerie%DataLine (pFlowToChannels     ) = Me%RunOffVector (NodePos)
+                Me%TimeSerie%DataLine (pGWFlowToChannels   ) = Me%GroundVector (NodePos)
+                Me%TimeSerie%DataLine (pPoolDepth          ) = PoolDepth
+                Me%TimeSerie%DataLine (pDT                 ) = Me%ExtVar%DT
+                Me%TimeSerie%DataLine (pDTLocal            ) = LocalDT
+
+                j = BaseTimeSeries
+
+                if (Me%OutputHydro) then
+                    Me%TimeSerie%DataLine (pHydroTimeGradient   ) = CurrReach%HydroTimeGradient
+                    Me%TimeSerie%DataLine (pHydroAdvection      ) = CurrReach%HydroAdvection
+                    Me%TimeSerie%DataLine (pHydroPressure       ) = CurrReach%HydroPressure
+                    Me%TimeSerie%DataLine (pHydroGravity        ) = CurrReach%HydroGravity
+                    Me%TimeSerie%DataLine (pHydroFriction       ) = CurrReach%HydroFriction
+
+                    j = j + 5
+
+                endif
+
+if2:            if (Me%HasProperties) then
+
+                    Property => Me%FirstProperty
+                    j = j + 1
+                                        
+                    do while (associated (Property))                
+
+                        if (Property%ComputeOptions%TimeSerie) then
+                            Me%TimeSerie%DataLine (j) = Property%Concentration      (NodePos)                            
+                            j = j + 1
+
+                            if (Property%ComputeOptions%BottomFluxes) then
+                                Me%TimeSerie%DataLine (j) = Property%BottomConc     (NodePos)                            
+                                j = j + 1
+                            end if
+
+                            if (Property%ComputeOptions%Toxicity) then
+                                Me%TimeSerie%DataLine (j) = Property%Toxicity%Field (NodePos)                            
+                                j = j + 1
+                            end if
+
+
+                        end if
+                
+                        Property => Property%Next
+
+                    end do
+
+                    !WQ rates
+                    if (Me%Output%Rates) then
+                        WQRateX => Me%FirstWQRate
+                        do while(associated(WQRateX))
+                            Me%TimeSerie%DataLine (j) = WQRateX%Field (NodePos)
+                            j = j + 1
+                            WQRateX => WQRateX%Next
+                        end do
+                    endif  
+                    
+                    !macroalgae distribution gC/m2
+                    if (Me%ComputeOptions%Macroalgae) then
+                            Me%TimeSerie%DataLine (j) = Me%MacroAlgae%Distribution (NodePos)                    
+                            j = j + 1                    
+                    endif                    
+
+                   if (Me%ComputeOptions%BottomFluxes) then                       
+                       Me%TimeSerie%DataLine (j) = Me%ShearStress (CurrNode%DownstreamReaches(1))                    
+                       j = j + 1
+                   end if
+
+                   if (Me%ComputeOptions%Toxicity) then
+                       Me%TimeSerie%DataLine (j) = Me%GlobalToxicity (NodePos)                    
+                       j = j + 1
+                   end if
+
+                end if if2
+                                
+                call WriteTimeSerieLine(Me%TimeSerie%ObjTimeSerie(i),           &
+                                        DataLine  = Me%TimeSerie%DataLine,      &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteTimeSeriesByNodes - ERR01'
+            
+            end if if1        
+        
+        end do do1
+    
+    end subroutine WriteTimeSeriesByNodes
+    
+    !---------------------------------------------------------------------------    
+    !---------------------------------------------------------------------------    
+
+    subroutine WriteTimeSeriesByProp (LocalDT)
+
+        !Arguments--------------------------------------------------------------
+        real                                    :: LocalDT
+
+        !Local------------------------------------------------------------------
+        integer                                 :: STAT_CALL
+        type (T_Node    ), pointer              :: CurrNode
+        type (T_Reach   ), pointer              :: CurrReach 
+        type (T_Property), pointer              :: Property
+        integer                                 :: nNodes, NodeID, i,j
+        integer                                 :: nReaches, ReachID
+        real                                    :: PercentageMaxVolume
+        real                                    :: PoolDepth, PoolVolume        
+        type(T_WQRate  ), pointer               :: WQRateX     
+
+
+do1:    do i = 1, BaseTimeSeries
+
+            select case (Me%TimeSerie%Name (i))            
+                case (Char_WaterDepth)
+
+                    nNodes = 1
+                    nullify (CurrNode)
+
+                    do NodeID = 1, Me%TotalNodes                            
+                        CurrNode   => Me%Nodes (NodeID)                
+                        if (CurrNode%TimeSerie) then
+                            Me%TimeSerie%DataLine  (nNodes) = CurrNode%WaterDepth            
+                            nNodes = nNodes + 1
+                        end if
+                    enddo
+
+                case (Char_WaterLevel)
+           
+                    nNodes = 1
+                    nullify (CurrNode)
+
+                    do NodeID = 1, Me%TotalNodes                            
+                        CurrNode   => Me%Nodes (NodeID)                            
+                        if (CurrNode%TimeSerie) then
+                            Me%TimeSerie%DataLine  (nNodes) = CurrNode%WaterLevel         
+                            nNodes = nNodes + 1
+                        end if
+                    enddo    
+
+                case (Char_PercentageMaxVolume)
+        
+                    nNodes = 1
+                    nullify (CurrNode)
+
+                    do NodeID = 1, Me%TotalNodes           
+                       CurrNode   => Me%Nodes (NodeID)                            
+                        if (CurrNode%TimeSerie) then
+                            PercentageMaxVolume = CurrNode%VolumeNew / CurrNode%VolumeMax * 100.0
+                            Me%TimeSerie%DataLine (nNodes) = PercentageMaxVolume
+                            nNodes = nNodes + 1                
+                        endif
+                    enddo
+  
+                case (Char_VerticalArea)
+      
+                    nNodes = 1      
+                    nullify (CurrNode)
+
+                    do NodeID = 1, Me%TotalNodes                
+                        CurrNode   => Me%Nodes (NodeID)               
+                        if (CurrNode%TimeSerie) then
+                            Me%TimeSerie%DataLine  (nNodes) = CurrNode%VerticalArea
+                            nNodes = nNodes + 1                
+                        endif
+                    enddo
+  
+                case (Char_FlowToChannels)
+        
+                    nNodes = 1      
+                    nullify (CurrNode)
+                
+                    do NodeID = 1, Me%TotalNodes                
+                        if (Me%Nodes(NodeID)%TimeSerie) then
+                            Me%TimeSerie%DataLine  (nNodes) = Me%RunOffVector (NodeID)
+                            nNodes = nNodes + 1                
+                        endif
+                    enddo
+  
+                case (Char_Volume)
+
+                    nNodes = 1      
+                    nullify (CurrNode)
+
+                    do NodeID = 1, Me%TotalNodes                
+                        CurrNode   => Me%Nodes (NodeID)                
+                        if (CurrNode%TimeSerie) then
+                            Me%TimeSerie%DataLine  (nNodes) = CurrNode%VolumeNew
+                            nNodes = nNodes + 1                
+                        endif
+                    enddo
+
+
+                case (Char_Flow)
+        
+                    nReaches = 1      
+                    nullify (CurrReach)
+      
+                    do ReachID = 1, Me%TotalReaches
+                        CurrReach  => Me%Reaches (ReachID)
+                        if (CurrReach%TimeSerie) then                 
+                            Me%TimeSerie%DataLine (nReaches) = CurrReach%FlowNew
+                            nReaches = nReaches + 1                
+                        endif
+                    enddo
+              
+                 case (Char_Velocity) 
+        
+                    nReaches = 1      
+                    nullify (CurrReach)
+
+                    do ReachID = 1, Me%TotalReaches
+                        CurrReach  => Me%Reaches (ReachID)        
+                        if (CurrReach%TimeSerie) then                 
+                            Me%TimeSerie%DataLine (nReaches) = CurrReach%Velocity
+                            nReaches = nReaches + 1                            
+                        endif
+                    enddo
+
+                case (Char_GWFlowToChannels)
+
+                    nNodes = 1      
+                    nullify (CurrNode)
+                
+                    do NodeID = 1, Me%TotalNodes                      
+                        if (Me%Nodes(NodeID)%TimeSerie) then
+                            Me%TimeSerie%DataLine  (nNodes) = Me%GroundVector (NodeID)
+                            nNodes = nNodes + 1                
+                        endif
+                    enddo
+  
+                case (Char_PoolDepth) 
+
+
+                    nNodes = 1      
+                    nullify (CurrNode)
+                
+                    do NodeID = 1, Me%TotalNodes                
+                        if (Me%Nodes(NodeID)%TimeSerie) then
+                           CurrNode   => Me%Nodes (NodeID)                
+                            !Volume greater then volume in pools
+                            PoolVolume = CurrNode%CrossSection%PoolDepth * CurrNode%Length * CurrNode%CrossSection%BottomWidth
+                            if (CurrNode%VolumeNew > PoolVolume) then
+                                PoolDepth = CurrNode%CrossSection%PoolDepth
+                            else
+                                PoolDepth = CurrNode%VolumeNew / (CurrNode%Length * CurrNode%CrossSection%BottomWidth)
+                            endif
+                            Me%TimeSerie%DataLine  (nNodes) = PoolDepth
+                            nNodes = nNodes + 1                
+                        endif
+                    enddo
+
+                case (Char_DT)
+
+                    nNodes = 1      
+                    nullify (CurrNode)
+                
+                    do NodeID = 1, Me%TotalNodes                
+                        if (Me%Nodes(NodeID)%TimeSerie) then
+                            Me%TimeSerie%DataLine  (nNodes) = Me%ExtVar%DT
+                            nNodes = nNodes + 1                
+                        endif
+                    enddo
+
+                case (Char_DTLocal)
+
+                    nNodes = 1      
+                    nullify (CurrNode)                
+                    do NodeID = 1, Me%TotalNodes                
+               
+                        if (Me%Nodes(NodeID)%TimeSerie) then
+                            Me%TimeSerie%DataLine  (nNodes) = LocalDT
+                            nNodes = nNodes + 1                
+                        endif
+                    enddo
+
+                case default
+            
+                    stop 'ModuleDrainageNetwork - WriteTimeSeriesByProp - ERR01'  
+        
+            end select
+        
+            call WriteTimeSerieLine(Me%TimeSerie%ObjTimeSerie(i),          &
+                                    DataLine = Me%TimeSerie%DataLine,      &
+                                    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteTimeSeriesByProp - ERR01'       
+
+        end do do1
+
+        i = BaseTimeSeries
+
+        !OutputHydro ----------------------------------------------------------
+
+if2:    if (Me%OutputHydro) then
+
+do2:        do j = i+1, i+5
+
+                select case (Me%TimeSerie%Name (j))
+
+                    case (Char_HydroTimeGradient) 
+        
+                        nReaches = 1      
+                        nullify (CurrReach)
+
+                        do ReachID = 1, Me%TotalReaches            
+                            CurrReach  => Me%Reaches (ReachID)              
+                            if (CurrReach%TimeSerie) then                 
+                                Me%TimeSerie%DataLine (nReaches) = CurrReach%HydroTimeGradient
+                                nReaches = nReaches + 1                            
+                            endif        
+                        enddo
+      
+                    case (Char_HydroAdvection) 
+        
+                        nReaches = 1      
+                        nullify (CurrReach)
+
+                        do ReachID = 1, Me%TotalReaches
+                            CurrReach  => Me%Reaches (ReachID)        
+                            if (CurrReach%TimeSerie) then                 
+                                Me%TimeSerie%DataLine (nReaches) = CurrReach%HydroAdvection
+                                nReaches = nReaches + 1                            
+                            endif
+                        enddo
+
+                    case (Char_HydroPressure) 
+        
+                        nReaches = 1      
+                        nullify (CurrReach)
+
+                        do ReachID = 1, Me%TotalReaches
+                            CurrReach  => Me%Reaches (ReachID)        
+                            if (CurrReach%TimeSerie) then                 
+                                Me%TimeSerie%DataLine (nReaches) = CurrReach%HydroPressure
+                                nReaches = nReaches + 1                            
+                            endif
+                        enddo
+
+                    case (Char_HydroGravity) 
+        
+                        nReaches = 1      
+                        nullify (CurrReach)
+
+                        do ReachID = 1, Me%TotalReaches
+                            CurrReach  => Me%Reaches (ReachID)        
+                            if (CurrReach%TimeSerie) then                 
+                                Me%TimeSerie%DataLine (nReaches) = CurrReach%HydroGravity
+                                nReaches = nReaches + 1                            
+                            endif
+                        enddo
+
+                    case (Char_HydroFriction) 
+        
+                        nReaches = 1      
+                        nullify (CurrReach)
+
+                        do ReachID = 1, Me%TotalReaches
+                            CurrReach  => Me%Reaches (ReachID)        
+                            if (CurrReach%TimeSerie) then                 
+                                Me%TimeSerie%DataLine (nReaches) = CurrReach%HydroFriction
+                                nReaches = nReaches + 1                            
+                            endif
+                        enddo
+
+                    case default
+            
+                        write(*,*) trim(Me%TimeSerie%Name(j)),'is not OutputHydro'
+                        stop 'ModuleDrainageNetwork - WriteTimeSeriesByProp - ERR02'  
+
+                end select                            
+
+                call WriteTimeSerieLine(Me%TimeSerie%ObjTimeSerie(j),          &
+                                        DataLine = Me%TimeSerie%DataLine,      &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteTimeSeriesByProp - ERR02'       
+
+            enddo do2
+            
+            i=i+5
+
+        endif if2
+
+
+        !Properties-------------------------------------------------------------
+if3:    if (Me%TimeSerie%nProp .GT.BaseTimeSeries) then
+
+            Property => Me%FirstProperty
+            i = i  + 1
+            do while (associated (Property))
+                
+                if (Property%ComputeOptions%TimeSerie) then
+                    
+                    nNodes = 1      
+                    nullify (CurrNode)
+                    
+                    do NodeID = 1, Me%TotalNodes                
+               
+                        if (Me%Nodes(NodeID)%TimeSerie) then
+                            Me%TimeSerie%DataLine  (nNodes) = Property%Concentration (NodeID)
+                            nNodes = nNodes + 1                
+                        endif
+                    enddo
+                   
+                    call WriteTimeSerieLine(Me%TimeSerie%ObjTimeSerie(i),                   &
+                                            DataLine = Me%TimeSerie%DataLine,              &
+                                            STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteTimeSeriesByProp - ERR03'  
+                    
+                    i = i + 1 
+
+ifB:                if (Property%ComputeOptions%BottomFluxes) then
+                        
+                        nNodes = 1      
+                        nullify (CurrNode)
+                    
+                        do NodeID = 1, Me%TotalNodes                
+               
+                            if (Me%Nodes(NodeID)%TimeSerie) then
+                                Me%TimeSerie%DataLine  (nNodes) = Property%BottomConc (NodeID)
+                                nNodes = nNodes + 1                
+                            endif
+                        enddo                    
+
+                        call WriteTimeSerieLine(Me%TimeSerie%ObjTimeSerie(i),               &
+                                                DataLine = Me%TimeSerie%DataLine,          &
+                                                STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteTimeSeriesByProp - ERR04'  
+
+                        i = i + 1
+
+                    end if ifB
+
+ifTo:               if (Property%ComputeOptions%SumTotalConc) then
+                        
+                        nNodes = 1      
+                        nullify (CurrNode)
+                    
+                        do NodeID = 1, Me%TotalNodes                
+
+                            if (Me%Nodes(NodeID)%TimeSerie) then
+                                Me%TimeSerie%DataLine  (nNodes) = Property%TotalConc (NodeID)
+                                nNodes = nNodes + 1                
+                            endif
+                        enddo                    
+
+                        call WriteTimeSerieLine(Me%TimeSerie%ObjTimeSerie(i),               &
+                                                DataLine = Me%TimeSerie%DataLine,          &
+                                                STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteTimeSeriesByProp - ERR05'  
+
+                        i = i + 1
+
+                    end if ifTo
+                    
+ifLoad:             if (Property%ComputeOptions%ComputeLoad) then
+                        
+                        nNodes = 1      
+                        nullify (CurrNode)
+                    
+                        do NodeID = 1, Me%TotalNodes                
+               
+                            if (Me%Nodes(NodeID)%TimeSerie) then
+                                Me%TimeSerie%DataLine  (nNodes) = Property%Load (NodeID)
+                                nNodes = nNodes + 1                
+                            endif
+                        enddo                    
+
+                        call WriteTimeSerieLine(Me%TimeSerie%ObjTimeSerie(i),           &
+                                                DataLine = Me%TimeSerie%DataLine,          &
+                                                STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteTimeSeriesByProp - ERR06'  
+
+                        i = i + 1
+
+                    end if ifLoad
+                    
+                                        
+ifTox:              if (Property%ComputeOptions%Toxicity) then
+                        
+                        nNodes = 1      
+                        nullify (CurrNode)
+                    
+                        do NodeID = 1, Me%TotalNodes                
+               
+                            if (Me%Nodes(NodeID)%TimeSerie) then
+                                Me%TimeSerie%DataLine  (nNodes) = Property%Toxicity%Field (NodeID)
+                                nNodes = nNodes + 1                
+                            endif
+                        enddo                    
+
+                        call WriteTimeSerieLine(Me%TimeSerie%ObjTimeSerie(i + 1),           &
+                                                DataLine = Me%TimeSerie%DataLine,          &
+                                                STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteTimeSeriesByProp - ERR06.1'  
+
+                        i = i + 1
+
+                    end if ifTox
+
+                end if
+                                
+                Property => Property%Next
+            
+            end do
+
+            !WQ rates
+            if (Me%Output%Rates) then
+                WQRateX => Me%FirstWQRate
+                do while(associated(WQRateX))
+                
+                    nNodes = 1      
+                    nullify (CurrNode)
+                
+                    do NodeID = 1, Me%TotalNodes                
+           
+                        if (Me%Nodes(NodeID)%TimeSerie) then
+                            Me%TimeSerie%DataLine  (nNodes) = WQRateX%Field (NodeID)
+                            nNodes = nNodes + 1                
+                        endif
+                    enddo                    
+
+                    call WriteTimeSerieLine(Me%TimeSerie%ObjTimeSerie(i),                      &
+                                            DataLine = Me%TimeSerie%DataLine,                  &
+                                            STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteTimeSeriesByProp - ERR06.5'  
+
+                    i = i + 1
+                    WQRateX => WQRateX%Next
+                end do
+            endif 
+
+            
+            !macroalgae distribution gC/m2
+            if (Me%ComputeOptions%Macroalgae) then 
+                    
+                nNodes = 1      
+                nullify (CurrNode)
+            
+                do NodeID = 1, Me%TotalNodes                
+       
+                    if (Me%Nodes(NodeID)%TimeSerie) then
+                        Me%TimeSerie%DataLine  (nNodes) = Me%MacroAlgae%Distribution (NodeID)
+                        nNodes = nNodes + 1                
+                    endif
+                enddo                            
+                 
+                call WriteTimeSerieLine(Me%TimeSerie%ObjTimeSerie(i),                      &
+                                        DataLine = Me%TimeSerie%DataLine,                  &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteTimeSeriesByProp - ERR010'  
+                
+                i = i + 1                    
+            endif            
+            
+            
+            
+ifB2:     if (Me%ComputeOptions%BottomFluxes) then
+
+                nNodes = 1      
+                nullify (CurrNode)
+            
+                do NodeID = 1, Me%TotalNodes                
+       
+                    if (Me%Nodes(NodeID)%TimeSerie) then
+                        CurrNode => Me%Nodes (NodeID)
+                        ReachID = CurrNode%DownstreamReaches (1)
+                        Me%TimeSerie%DataLine  (nNodes) = Me%ShearStress (ReachID)
+                        nNodes = nNodes + 1                
+                    endif
+                enddo                    
+
+                call WriteTimeSerieLine(Me%TimeSerie%ObjTimeSerie(i),                       &
+                                        DataLine = Me%TimeSerie%DataLine,                 &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteTimeSeriesByProp - ERR07'  
+
+                i = i + 1
+            
+            end if ifB2
+
+        
+ifTox2:     if (Me%ComputeOptions%Toxicity) then
+
+                nNodes = 1      
+                nullify (CurrNode)
+            
+                do NodeID = 1, Me%TotalNodes                
+       
+                    if (Me%Nodes(NodeID)%TimeSerie) then
+                        Me%TimeSerie%DataLine  (nNodes) = Me%GlobalToxicity (NodeID)
+                        nNodes = nNodes + 1                
+                    endif
+                enddo                    
+
+                call WriteTimeSerieLine(Me%TimeSerie%ObjTimeSerie(i),                      &
+                                        DataLine = Me%TimeSerie%DataLine,                  &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteTimeSeriesByProp - ERR08'  
+
+                i = i + 1
+            
+            end if ifTox2
+                
+        end if if3
+
+        nullify (Property) 
+
+
+    end subroutine WriteTimeSeriesByProp
+    
+    !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine FillOutPutMatrix  (DrainageNetworkID, OutputMatrix,              &
+                                  OutPutResultsType, Deposited, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                                     :: DrainageNetworkID          
+        real   , dimension(:,:), pointer            :: OutputMatrix
+        integer                                     :: OutPutResultsType
+        logical, intent(IN ) , optional             :: Deposited
+        integer, intent(OUT) , optional             :: STAT
+
+        !Local------------------------------------------------------------------
+        type (T_Node    ), pointer                  :: CurrNode, OtherNode        
+        type (T_Property), pointer                  :: Property
+        integer                                     :: STAT_CALL, ready_
+        integer                                     :: NodeID, ReachID, OtherNodeID
+        real                                        :: Value
+        real                                        :: FlowValue, Velocity
+        real                                        :: dx, dy, angle
+        
+
+        !-----------------------------------------------------------------------
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+        
+if0:    if (ready_ .EQ. IDLE_ERR_) then
+
+            OutputMatrix = null_real
+
+            select case (OutPutResultsType)
+
+            case (WaterDepth_)
+
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes (NodeID)   
+                    if(CurrNode%HasGrid)then
+                        OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = CurrNode%WaterDepth
+                    endif
+                end do
+
+            case (WaterLevel_)
+                                            
+                    OutputMatrix = Me%ChannelsWaterLevel
+            
+            case (Volume_)
+
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes (NodeID) 
+                    if(CurrNode%HasGrid)then
+                        OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = CurrNode%VolumeNew
+                    endif
+                end do
+    
+            case (PercentageMaxVolume_)
+
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes (NodeID)
+                    if(CurrNode%HasGrid)then
+                        Value = CurrNode%VolumeNew / CurrNode%VolumeMax * 100.0
+                        OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Value     
+                    endif
+                end do
+
+            case (WaterFluxX_, WaterFluxY_, VelocityU_, VelocityV_)
+                  
+                !Flow in cell corresponds to the cell outflow
+                !Because flow is computed with upstream node properties               
+                do NodeID = 1, Me%TotalNodes
+                    
+                    CurrNode => Me%Nodes (NodeID)
+                    
+                    if(CurrNode%HasGrid)then
+                    
+                        Value = 0.0
+
+if2:                    if (CurrNode%nDownstreamReaches .NE. 0) then
+                    
+                            ReachID     = CurrNode%DownstreamReaches (1)
+                            OtherNodeID = Me%Reaches(ReachID)%DownstreamNode
+                            FlowValue   = Me%Reaches(ReachID)%FlowNew
+                            Velocity    = Me%Reaches(ReachID)%Velocity
+                                                                                                                    
+                            OtherNode => Me%Nodes(OtherNodeID)
+
+                            dx = OtherNode%X - CurrNode%X
+                            dy = OtherNode%Y - CurrNode%Y
+
+                            !if (CurrNode%nDownstreamReaches == 0) then                            
+                            !    dx = - dx
+                            !    dy = - dy
+                            !end if
+
+                            if (dx == 0.0) then
+                                angle = Pi / 2.0    
+                            else
+                                angle = atan(dy / dx)                                                                       
+                            end if
+
+                            if (dx <= 0.0 .AND. dy < 0.0) then
+                               angle = Pi + abs(angle)
+                            else if (dx < 0.0 .AND. dy >= 0.0) then
+                               angle = Pi - abs(angle)
+                            else if (dx > 0.0 .AND. dy < 0.0) then
+                               angle = 2.0 * Pi - abs(angle)
+                            end if
+
+                            if (OutPutResultsType == WaterFluxX_) then
+                                Value = FlowValue * cos (angle)                            
+                            else if (OutPutResultsType == WaterFluxY_) then
+                                Value = FlowValue * sin (angle)                            
+                            else if (OutPutResultsType == VelocityU_) then
+                                Value = Velocity * cos (angle)                           
+                            else if (OutPutResultsType == VelocityV_) then
+                                Value = Velocity * sin (angle)
+                            end if
+                                                
+                            OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Value
+
+                        end if if2
+                    endif
+
+                end do
+
+            case (FlowModulus_)
+
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes (NodeID)
+                    
+                    if(CurrNode%HasGrid)then
+
+                        if (CurrNode%nDownstreamReaches .NE. 0) then      
+                                      
+                            ReachID = CurrNode%DownstreamReaches (1)
+                            OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Me%Reaches(ReachID)%FlowNew
+                    
+                        end if
+                        
+                    endif
+                    
+                end do
+            
+            case (VelocityModulus_)
+
+                do NodeID = 1, Me%TotalNodes
+                    
+                    CurrNode => Me%Nodes (NodeID)
+                    if(CurrNode%HasGrid)then
+                        if (CurrNode%nDownstreamReaches .NE. 0) then                                            
+                            ReachID = CurrNode%DownstreamReaches (1)
+                            OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Me%Reaches(ReachID)%Velocity
+                        end if
+                    endif
+                    
+                end do
+            
+            case (GenericProperty_)
+
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes (NodeID) 
+                    if(CurrNode%HasGrid)then
+                        OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Me%GlobalToxicity (NodeID)
+                    endif
+                end do
+
+            case (ShearStress_)
+
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes (NodeID)
+                    if(CurrNode%HasGrid)then
+                        if (CurrNode%nDownstreamReaches .NE. 0) then                                            
+                            ReachID = CurrNode%DownstreamReaches (1)
+                            OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Me%ShearStress (ReachID)
+                        end if
+                    endif
+                end do
+
+
+            case default
+                
+                !Find Property with the given ID                
+                nullify (Property)
+                Property => Me%FirstProperty
+                do while (associated (Property))
+                    
+                    if (present (Deposited)) then
+
+                        if (Property%ID%IDNumber == OutPutResultsType) then
+                            !Fills Matrix
+                            do NodeID = 1, Me%TotalNodes                    
+                                CurrNode => Me%Nodes (NodeID)
+                                if(CurrNode%HasGrid)then
+                                    OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Property%BottomConc (NodeID)
+                                endif
+                            end do
+                            exit
+                        end if
+
+                    else
+
+                        if (Property%ID%IDNumber == OutPutResultsType) then
+                            !Fills Matrix
+                            do NodeID = 1, Me%TotalNodes                    
+                                CurrNode => Me%Nodes (NodeID)
+                                if(CurrNode%HasGrid)then
+                                    OutputMatrix (CurrNode%GridI, CurrNode%GridJ) = Property%Concentration (NodeID)
+                                endif
+                            end do
+                            exit
+                        end if     
+                     
+                    end if                
+
+                    Property => Property%Next
+                enddo
+
+                
+            
+            end select
+
+
+            STAT_CALL = SUCCESS_
+        else               
+            STAT_CALL = ready_
+        end if if0
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine FillOutPutMatrix
+
+
+    !--------------------------------------------------------------------------
+
+    subroutine IntegratedHDF5Output
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_CALL           
+        real, dimension(6), target                      :: AuxTime
+        real, dimension(:), pointer                     :: TimePointer
+        real, dimension(:), pointer                     :: OutputMatrix
+        real, dimension(:), pointer                     :: OutputMatrix_max
+        real, dimension(:), pointer                     :: OutputMatrix_min
+        integer                                         :: id, iReach
+        type (T_Node), pointer                          :: CurrNode
+
+        !----------------------------------------------------------------------              
+        
+        if (Me%CurrentTime >= Me%IntegratedOutPut%OutTime(Me%IntegratedOutPut%NextOutPut)) then
+
+            allocate (OutputMatrix     (1:Me%TotalReaches))
+            allocate (OutputMatrix_max (1:Me%TotalReaches))
+            allocate (OutputMatrix_min (1:Me%TotalReaches))
+
+            !Writes current time
+            call ExtractDate   (Me%CurrentTime, AuxTime(1), AuxTime(2),         &
+                                                AuxTime(3), AuxTime(4),         &
+                                                AuxTime(5), AuxTime(6))
+            TimePointer => AuxTime
+
+            call HDF5SetLimits  (Me%ObjIntegratedHDF5, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR010'
+
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Time", "Time",                 &
+                                 "YYYY/MM/DD HH:MM:SS",                                 &
+                                 Array1D      = TimePointer,                            &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,         &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR020'
+
+            !Everything will be written for reaches (graphical reasons)
+            !If variable is given by node, use upstream node to set reach property
+
+            !Sets limits for next write operations
+            call HDF5SetLimits   (Me%ObjIntegratedHDF5, 1, Me%TotalReaches, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR030'   
+            
+            !Writes Reach ID
+            iReach = 1
+            do id = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (id)
+                if (CurrNode%nDownstreamReaches .NE. 0) then      
+                    OutputMatrix (iReach) = Me%Reaches(CurrNode%DownstreamReaches(1))%ID
+                    iReach = iReach + 1
+                end if
+            end do
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/ID", "ReachID",                 &
+                                 "-",                                                    &
+                                 Array1D      = OutputMatrix,                            &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,          &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR040'
+                      
+            iReach = 1
+            do id = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (id)
+                if (CurrNode%nDownstreamReaches .NE. 0) then      
+                    OutputMatrix (iReach)     = Me%IntegratedOutput%ReachStatus(id)%AccFlowVolume / Me%IntegratedOutput%AccTime
+                    OutputMatrix_max (iReach) = Me%IntegratedOutput%ReachStatus(id)%MaxFlow
+                    OutputMatrix_min (iReach) = Me%IntegratedOutput%ReachStatus(id)%MinFlow  
+                    iReach = iReach + 1
+                end if
+            end do
+            
+            !Writes Average Channel Flow Modulus
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/average flow", "average flow", &
+                                 "m3/s",                                                        &
+                                 Array1D      = OutputMatrix,                                   &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,                 &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR050'
+            
+
+            !Writes Maximun Flow
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/max flow", "max flow", &
+                                 "m3/s",                                                &
+                                 Array1D      = OutputMatrix_max,                       &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,         &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR051'
+
+            !Writes Minimun Flow
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/min flow", "min flow", &
+                                 "m3/s",                                                &
+                                 Array1D      = OutputMatrix_min,                       &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,         &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR052'            
+                     
+           !Volumes
+            iReach = 1
+            do id = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (id)
+                if (CurrNode%nDownstreamReaches .NE. 0) then
+                    OutputMatrix (iReach)     = Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedVolume / &
+                                                Me%IntegratedOutput%AccTime
+                    OutputMatrix_max (iReach) = Me%IntegratedOutput%NodeStatus(iReach)%MaxVolume
+                    OutputMatrix_min (iReach) = Me%IntegratedOutput%NodeStatus(iReach)%MinVolume
+                    iReach = iReach + 1
+                endif
+            end do
+            
+            !Writes Average Channel Water Volume
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/average volume", "average volume", &
+                                 "m3",                                                              &
+                                 Array1D      = OutputMatrix,                                       &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,                     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR060'
+
+            !Writes Maximun Channel Water Volume
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/max volume",                       &
+                                 "max volume",                                                      &  
+                                 "m3",                                                              &
+                                 Array1D      = OutputMatrix_max,                                   &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,                     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR061'            
+
+            !Writes Minimun Channel Water Volume
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/min volume",                       &
+                                 "min volume",                                                      &  
+                                 "m3",                                                              &
+                                 Array1D      = OutputMatrix_min,                                   &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,                     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR062'             
+            
+            iReach = 1
+            do id = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (id)
+                if (CurrNode%nDownstreamReaches .NE. 0) then
+                    call ComputeCrossSectionForIntegration (CurrNode, OutputMatrix (iReach),                            &
+                                                            Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedDepth,    &
+                                                            Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedLevel)    
+                                                            
+                    OutputMatrix (iReach)     = Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedDepth
+                    OutputMatrix_max (iReach) = Me%IntegratedOutput%NodeStatus(iReach)%MaxDepth
+                    OutputMatrix_min (iReach) = Me%IntegratedOutput%NodeStatus(iReach)%MinDepth
+                    iReach = iReach + 1
+                endif
+            end do
+            
+            !Writes Agerage Channel Water Depth
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/average depth",    &
+                                 "average depth",                                   &  
+                                 "m",                                               &
+                                 Array1D      = OutputMatrix,                       &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR070'
+
+            !Writes Maximun Channel Water Depth
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/max depth",        &
+                                 "max depth",                                       &  
+                                 "m",                                               &
+                                 Array1D      = OutputMatrix_max,                   &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR071'            
+
+            !Writes Maximun Channel Water Depth
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/min depth",        &
+                                 "min depth",                                       &  
+                                 "m",                                               &
+                                 Array1D      = OutputMatrix_min,                   &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR072'
+            
+            iReach = 1
+            do id = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (id)
+                if (CurrNode%nDownstreamReaches .NE. 0) then
+                    OutputMatrix (iReach)     = Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedLevel 
+                    OutputMatrix_max (iReach) = Me%IntegratedOutput%NodeStatus(iReach)%MaxLevel
+                    OutputMatrix_min (iReach) = Me%IntegratedOutput%NodeStatus(iReach)%MinLevel
+                    iReach = iReach + 1
+                endif
+            end do
+            
+            !Writes Agerage Channel Water Level
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/average level",    &
+                                 "average level",                                   &  
+                                 "m",                                               &
+                                 Array1D      = OutputMatrix,                       &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR080'
+
+            !Writes Maximun Channel Water Level
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/max level",        &
+                                 "max level",                                       &
+                                 "m",                                               &
+                                 Array1D      = OutputMatrix_max,                   &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR081'            
+                       
+            !Writes Minimum Channel Water Depth
+            call HDF5WriteData  (Me%ObjIntegratedHDF5, "/Results/min level",        &
+                                 "min level",                                       &  
+                                 "m",                                               &
+                                 Array1D      = OutputMatrix_min,                   &
+                                 OutputNumber = Me%IntegratedOutPut%NextOutPut,     &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR082'            
+                       
+            Me%IntegratedOutPut%NextOutPut = Me%IntegratedOutPut%NextOutPut + 1
+            deallocate (OutputMatrix)
+            deallocate (OutputMatrix_max)
+            deallocate (OutputMatrix_min)
+
+            !Writes everything to disk
+            call HDF5FlushMemory (Me%ObjIntegratedHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'IntegratedHDF5Output - ModuleDrainageNetwork - ERR090'
+
+            iReach = 1
+            do id = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (id)
+                if (CurrNode%nDownstreamReaches .NE. 0) then
+                    Me%IntegratedOutput%Initialize = .true.
+                    Me%IntegratedOutput%AccTime = 0.0
+                    Me%IntegratedOutput%ReachStatus(iReach)%AccFlowVolume       = 0.0
+                    Me%IntegratedOutput%ReachStatus(iReach)%MaxFlow             = 0.0
+                    Me%IntegratedOutput%ReachStatus(iReach)%MinFlow             = 0.0                 
+                    Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedVolume    = 0.0
+                    Me%IntegratedOutput%NodeStatus(iReach)%MaxVolume            = 0.0
+                    Me%IntegratedOutput%NodeStatus(iReach)%MinVolume            = 0.0                
+                    Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedDepth     = 0.0
+                    Me%IntegratedOutput%NodeStatus(iReach)%MaxDepth             = 0.0
+                    Me%IntegratedOutput%NodeStatus(iReach)%MinDepth             = 0.0
+                    Me%IntegratedOutput%NodeStatus(iReach)%AccWeightedLevel     = 0.0
+                    Me%IntegratedOutput%NodeStatus(iReach)%MaxLevel             = 0.0
+                    Me%IntegratedOutput%NodeStatus(iReach)%MinLevel             = 0.0
+                    iReach = iReach + 1
+                endif
+            end do            
+            
+        endif     
+    
+    end subroutine IntegratedHDF5Output
+
+    !--------------------------------------------------------------------------
+    
+    subroutine HDF5Output
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_CALL           
+        real, dimension(6), target                      :: AuxTime
+        real, dimension(:), pointer                     :: TimePointer
+        real, dimension(:), pointer                     :: OutputMatrix
+        real, dimension(:), pointer                     :: OutputMatrix_bottom
+        real, dimension(:), pointer                     :: OutputMatrix_totalconc
+        integer                                         :: iReach, NodeID
+        type (T_Node), pointer                          :: CurrNode
+        type (T_Property), pointer                      :: Property
+
+
+        if (Me%CurrentTime >= Me%OutPut%OutTime(Me%OutPut%NextOutPut)) then
+
+            allocate (OutputMatrix          (1:Me%TotalReaches))
+            allocate (OutputMatrix_bottom   (1:Me%TotalReaches))
+            allocate (OutputMatrix_totalconc(1:Me%TotalReaches))
+
+            !Writes current time
+            call ExtractDate   (Me%CurrentTime, AuxTime(1), AuxTime(2),         &
+                                                AuxTime(3), AuxTime(4),         &
+                                                AuxTime(5), AuxTime(6))
+            TimePointer => AuxTime
+
+            call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR01'
+
+            call HDF5WriteData  (Me%ObjHDF5, "/Time", "Time",                   &
+                                 "YYYY/MM/DD HH:MM:SS",                         &
+                                 Array1D      = TimePointer,                    &
+                                 OutputNumber = Me%OutPut%NextOutPut,           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR02'
+
+            !Everything will be written for reaches (graphical reasons)
+            !If variable is given by node, use upstream node to set reach property
+
+            !Sets limits for next write operations
+            call HDF5SetLimits   (Me%ObjHDF5, 1, Me%TotalReaches, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleDrainageNetwork - ERR03'
+            
+            !Writes Reach ID
+            iReach = 1
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                if (CurrNode%nDownstreamReaches .NE. 0) then      
+                    OutputMatrix (iReach) = Me%Reaches(CurrNode%DownstreamReaches(1))%ID
+                    iReach = iReach + 1
+                end if
+            end do
+            call HDF5WriteData  (Me%ObjHDF5, "/ID", "ReachID",                           &
+                                 "-",                                                    &
+                                 Array1D      = OutputMatrix,                            &
+                                 OutputNumber = Me%OutPut%NextOutPut,                    &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR04'
+
+
+            !Writes Flow Modulus
+            iReach = 1
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                if (CurrNode%nDownstreamReaches .NE. 0) then      
+                    OutputMatrix (iReach) = Me%Reaches(CurrNode%DownstreamReaches(1))%FlowNew
+                    iReach = iReach + 1
+                end if
+            end do
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/channel flow", "channel flow",    &
+                                 "m3/s",                                                 &
+                                 Array1D      = OutputMatrix,                            &
+                                 OutputNumber = Me%OutPut%NextOutPut,                    &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR04'
+            
+
+            !Writes Velocity Modulus
+            iReach = 1
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                if (CurrNode%nDownstreamReaches .NE. 0) then      
+                    OutputMatrix (iReach) = Me%Reaches(CurrNode%DownstreamReaches(1))%Velocity
+                    iReach = iReach + 1
+                end if
+            end do
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/velocity", "velocity",            &
+                                 "m/s",                                                  &
+                                 Array1D      = OutputMatrix,                            &
+                                 OutputNumber = Me%OutPut%NextOutPut,                    &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR05'
+
+
+            !Writes Flow accumulation time in percentage
+            if (Me%Output%ComputeFlowFrequency) then
+                iReach = 1
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes (NodeID)
+                    if (CurrNode%nDownstreamReaches .NE. 0) then      
+                        OutputMatrix (iReach) = Me%Reaches(CurrNode%DownstreamReaches(1))%FlowAccPerc
+                        iReach = iReach + 1
+                    end if
+                end do
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/flow frequency", "flow frequency",    &
+                                     "-",                                                 &
+                                     Array1D      = OutputMatrix,                            &
+                                     OutputNumber = Me%OutPut%NextOutPut,                    &
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR05.1'
+            end if
+
+            !Advection
+            iReach = 1
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                if (CurrNode%nDownstreamReaches .NE. 0) then      
+                    OutputMatrix (iReach) = Me%Reaches(CurrNode%DownstreamReaches(1))%HydroAdvection
+                    iReach = iReach + 1
+                end if
+            end do
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/Advection", "Advection",           &
+                                 "m3/s",                                                 &
+                                 Array1D      = OutputMatrix,                            &
+                                 OutputNumber = Me%OutPut%NextOutPut,                    &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR05a'
+
+            !Pressure
+            iReach = 1
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                if (CurrNode%nDownstreamReaches .NE. 0) then      
+                    OutputMatrix (iReach) = Me%Reaches(CurrNode%DownstreamReaches(1))%HydroPressure
+                    iReach = iReach + 1
+                end if
+            end do
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/Pressure", "Pressure",            &
+                                 "m3/s",                                                 &
+                                 Array1D      = OutputMatrix,                            &
+                                 OutputNumber = Me%OutPut%NextOutPut,                    &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR05b'
+            
+            !Friction
+            iReach = 1
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                if (CurrNode%nDownstreamReaches .NE. 0) then      
+                    OutputMatrix (iReach) = Me%Reaches(CurrNode%DownstreamReaches(1))%HydroFriction
+                    iReach = iReach + 1
+                end if
+            end do
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/Friction", "Friction",            &
+                                 "-",                                                    &
+                                 Array1D      = OutputMatrix,                            &
+                                 OutputNumber = Me%OutPut%NextOutPut,                    &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR05c'
+
+            !Waterdepth
+            iReach = 1
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                if (CurrNode%nDownstreamReaches .NE. 0) then
+                    OutputMatrix (iReach) = CurrNode%Waterdepth 
+                    iReach = iReach + 1
+                endif
+            end do
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/channel water depth",             &
+                                 "channel water depth",                                  &  
+                                 "m",                                                    &
+                                 Array1D      = OutputMatrix,                            &
+                                 OutputNumber = Me%OutPut%NextOutPut,                    &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR06'
+
+            !WaterLevel
+            iReach = 1
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                if (CurrNode%nDownstreamReaches .NE. 0) then
+                    OutputMatrix (iReach) = CurrNode%WaterLevel 
+                    iReach = iReach + 1
+                endif
+            end do
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/channel water level",             &
+                                 "channel water level",                                  &  
+                                 "m",                                                    &
+                                 Array1D      = OutputMatrix,                            &
+                                 OutputNumber = Me%OutPut%NextOutPut,                    &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR06'
+
+            ! Volume
+            iReach = 1
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                if (CurrNode%nDownstreamReaches .NE. 0) then      
+                    OutputMatrix (iReach) = CurrNode%VolumeNew
+                    iReach = iReach + 1
+                endif
+            end do
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/Volume", "Volume",                &
+                                 "m3",                                                   &
+                                 Array1D      = OutputMatrix,                            &
+                                 OutputNumber = Me%OutPut%NextOutPut,                    &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR07'
+
+
+            !%Percentagem Volume
+            iReach = 1
+            do NodeID = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (NodeID)
+                if (CurrNode%nDownstreamReaches .NE. 0) then      
+                    OutputMatrix (iReach) = CurrNode%VolumeNew / CurrNode%VolumeMax * 100.0
+                    iReach = iReach + 1
+                endif
+            end do
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/percentage max volume",           &
+                                 "percentage max volume",                                &
+                                 "-",                                                    &
+                                 Array1D      = OutputMatrix,                            &
+                                 OutputNumber = Me%OutPut%NextOutPut,                    &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR07a'
+
+            !Shear Stress
+            if (Me%ComputeOptions%BottomFluxes) then
+                iReach = 1
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes (NodeID)
+                    if (CurrNode%nDownstreamReaches .NE. 0) then      
+                        OutputMatrix (iReach) = Me%ShearStress(iReach)
+                        iReach = iReach + 1
+                    end if
+                end do
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/Shear Stress", "Shear Stress",    &
+                                    "Pa",                                                   &
+                                    Array1D      = OutputMatrix,                            &
+                                    OutputNumber = Me%OutPut%NextOutPut,                    &
+                                    STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR08'
+            endif
+            
+         
+            !Properties
+            nullify (Property)
+            Property => Me%FirstProperty
+            do while (associated (Property))
+                iReach = 1
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes (NodeID)
+                    if (CurrNode%nDownstreamReaches .NE. 0) then      
+                        OutputMatrix (iReach) = Property%Concentration (NodeID)            !MO: IReach or NodeID???
+                                                                                           !FB: NodeID !!!! 
+                                                                                           !FB: Who is MO?
+
+                        if(Property%ComputeOptions%BottomFluxes) then  
+                            OutputMatrix_bottom (iReach) = Property%BottomConc (NodeID)    !MO: IReach or NodeID???          
+                        endif
+
+                        if(Property%ComputeOptions%SumTotalConc) then
+                            OutputMatrix_totalconc (iReach) = Property%TotalConc (NodeID)  !MO: IReach or NodeID???
+                        endif
+
+                        iReach = iReach + 1
+                    endif
+                end do
+
+                call HDF5WriteData  (Me%ObjHDF5, "/Results/"//Property%ID%Name,      &
+                                Property%ID%Name    ,                                   &
+                                "-",                                                    &
+                                Array1D      = OutputMatrix,                            &
+                                OutputNumber = Me%OutPut%NextOutPut,                    &
+                                STAT = STAT_CALL)
+
+                if(Property%ComputeOptions%BottomFluxes) then  
+                    call HDF5WriteData  (Me%ObjHDF5,                                 &
+                                "/Results/Bottom_"//Property%ID%Name,                   &
+                                "Bottom_"//Property%ID%Name,                            &
+                                "-",                                                    &
+                                Array1D      = OutputMatrix_bottom,                            &
+                                OutputNumber = Me%OutPut%NextOutPut,                    &
+                                STAT = STAT_CALL)
+                endif
+
+                if(Property%ComputeOptions%SumTotalConc) then  
+                    call HDF5WriteData  (Me%ObjHDF5,                                 &
+                                "/Results/TotalConc_"//Property%ID%Name,                &
+                                "TotalConc_"//Property%ID%Name,                         &
+                                "-",                                                    &
+                                Array1D      = OutputMatrix_totalconc,                            &
+                                OutputNumber = Me%OutPut%NextOutPut,                    &
+                                STAT = STAT_CALL)
+                endif
+
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR51'                 
+
+                Property => Property%Next
+            enddo
+        
+
+
+            Me%OutPut%NextOutPut = Me%OutPut%NextOutPut + 1
+            deallocate (OutputMatrix)
+            deallocate (OutputMatrix_bottom)
+            deallocate (OutputMatrix_totalconc)
+
+            !Writes everything to disk
+            call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5Output - ModuleDrainageNetwork - ERR99'
+
+        endif 
+        
+    end subroutine HDF5Output
+
+
+    !--------------------------------------------------------------------------
+
+   
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    !DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR
+
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+
+    subroutine KillDrainageNetwork(DrainageNetworkID, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer                             :: DrainageNetworkID              
+        integer, optional, intent(OUT)      :: STAT
+
+        !External---------------------------------------------------------------
+        integer                             :: ready_              
+
+        !Local------------------------------------------------------------------
+        integer                             :: STAT_CALL, nUsers , i
+        type (T_Property), pointer          :: Property
+        type (T_WQRate  ),  pointer         :: WQRateX
+        logical                             :: IsFinalFile
+
+        !-----------------------------------------------------------------------
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)    
+
+cd1 :   if (ready_ .NE. OFF_ERR_) then
+            
+            IsFinalFile = .true.
+            if (Me%OutPut%RestartFormat == BIN_) then
+                call WriteFinalFile_Bin(IsFinalFile)
+            else if (Me%OutPut%RestartFormat == HDF_) then
+                call WriteFinalFile_Hdf(IsFinalFile)
+            endif
+            
+            if (Me%ComputeOptions%MinConcentration) call WriteCreatedMassHDF
+                        
+            call Write_Errors_Messages            
+                                                           
+            nUsers = DeassociateInstance(mDrainageNetwork_,  Me%InstanceID)
+
+            
+            if (nUsers == 0) then
+                               
+                if (Me%WriteMaxStationValues) call MaxStationValuesOutput
+
+!                !Writes a last output of the time series
+!                if (Me%TimeSerie%nNodes .GT.0) then 
+!                    call WriteTimeSeries (0.0)
+!                    write(*,*)'Writing Time Series Last Time'
+!                endif
+                
+                deallocate (Me%RunOffVector     )
+                deallocate (Me%GroundVector     )
+                deallocate (Me%DiffuseVector    )
+                deallocate (Me%Nodes            )
+                deallocate (Me%Reaches          )
+                deallocate (Me%ComputeFaces     )
+                deallocate (Me%OpenPointsFlow   )
+                deallocate (Me%OpenPointsProcess)
+
+                if (Me%ComputeOptions%Toxicity) deallocate (Me%GlobalToxicity)
+
+                if (Me%ObjTime /= 0) then
+                    nUsers = DeassociateInstance(mTIME_, Me%ObjTime)
+                    if (nUsers == 0) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR01'
+                endif
+                
+                !Kill LightExtinction
+                if (Me%ComputeOptions%TopRadiation) then
+                    call KillLightExtinction(Me%ObjLightExtinction, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR10' 
+                endif
+
+                !Kill WaterQuality    
+                if (Me%ComputeOptions%WaterQuality .or. Me%ComputeOptions%CeQualW2) then
+                    call KillInterface (Me%ObjInterface, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR20' 
+                endif
+                
+                if (Me%ComputeOptions%MacroAlgae) then
+                    call KillInterface (Me%ObjInterfaceMacroAlgae, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR21' 
+                endif                
+
+                Me%WQRatesNumber = FillValueInt
+                if (Me%Output%Rates) then
+                    WQRateX => Me%FirstWQRate
+                    do while(associated(WQRateX))
+                        deallocate(WQRateX%Field, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR25'
+                        WQRateX => WQRateX%Next
+                    end do
+                endif
+                
+                !Kill Benthos  
+                if (Me%ComputeOptions%Benthos) then
+                    
+                    if (Me%UseSOD) deallocate(Me%SODRate)
+                    
+                    call KillInterface (Me%ObjBenthicInterface, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR30' 
+                endif
+
+
+
+                !Kill Properties
+                if (Me%HasProperties) then
+
+                    Property => Me%FirstProperty
+                    do while (associated (Property))
+
+                        deallocate (Property%Concentration           )
+                        deallocate (Property%MassCreated             )
+                        deallocate (Property%ConcentrationOld        )
+                        deallocate (Property%InitialConcentration    )
+                        deallocate (Property%InitialConcentrationOld )
+                        deallocate (Property%OverLandConc            )
+                        deallocate (Property%GWaterConc              )
+                        deallocate (Property%TotalConc               )
+                        deallocate (Property%Load                    )
+                        deallocate (Property%MassInKg                )
+                        
+                        if(Property%ComputeOptions%BottomFluxes)then
+                            deallocate (Property%BottomConc     )
+                            deallocate (Property%ErosionRate    )
+                            deallocate (Property%DepositionRate )
+                            deallocate (Property%Ws             )
+                        endif
+
+                        if (Property%ComputeOptions%Toxicity) deallocate (Property%Toxicity%Field)
+                        Property => Property%Next
+                    end do
+                    nullify (Property)
+                end if
+
+                !Kills TimeSerie Objects                
+                if (Me%TimeSerie%nNodes/=0) then
+
+                    deallocate (Me%TimeSerie%DataLine)
+
+                    if (Me%TimeSerie%ByNodes) then
+
+                        do i = 1, Me%TimeSerie%nNodes
+                            call KillTimeSerie(Me%TimeSerie%ObjTimeSerie(i), STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR40'
+                        end do                    
+
+                    else
+
+                        do i = 1, Me%TimeSerie%nProp
+                            call KillTimeSerie(Me%TimeSerie%ObjTimeSerie(i), STAT = STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR50'
+                        end do                    
+
+                    end if
+                    
+                    if (Me%TimeSerie%ObjTimeSerieIntFlow > 0) then
+                        call KillTimeSerie(Me%TimeSerie%ObjTimeSerieIntFlow, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR55'
+                    endif                    
+
+                    if (Me%Output%ComputeIntegratedMass) then
+                        do i = 1, Me%TimeSerie%nProp
+                            if (Me%TimeSerie%ObjTimeSerieMass(i) > 0) then
+                                call KillTimeSerie(Me%TimeSerie%ObjTimeSerieMass(i), STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR56'
+                            endif
+                        enddo
+                        deallocate (Me%TimeSerie%ObjTimeSerieMass)
+                    endif 
+                    
+                endif         
+                               
+                deallocate (Me%TimeSerie%ObjTimeSerie)
+                deallocate (Me%TimeSerie%Name        )
+
+                if (Me%Downstream%Boundary == ImposedWaterLevel &
+                    .AND. Me%Downstream%Evolution == ReadTimeSerie ) then
+                    
+                    call KillTimeSerie(Me%Downstream%ObjTimeSerie, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR60'
+
+                end if
+
+
+                !KillDischarges
+                if (Me%ComputeOptions%Discharges) then
+
+                    nUsers = GetUsersNumber(mDISCHARGES_, Me%ObjDischarges)
+                    if (nUsers == 1) then
+            
+                        call Kill_Discharges(Me%ObjDischarges, STAT = STAT_CALL)
+    
+                        if (STAT_CALL /= SUCCESS_)                                               &
+                            stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR70'
+
+                    else if (nUsers > 1) then
+
+                        nUsers = DeassociateInstance (mDISCHARGES_, Me%ObjDischarges)
+                        if (nUsers == 0) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR80'
+               
+                    else
+            
+                        stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR90'
+
+                    endif
+
+                endif
+                
+                if (Me%Output%Yes) then
+                    call KillHDF5 (Me%ObjHDF5, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR100'
+                endif  
+                
+                if (Me%IntegratedOutput%Yes) then
+                    call KillHDF5 (Me%ObjIntegratedHDF5, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'KillDrainageNetwork - ModuleDrainageNetwork - ERR110'
+                endif
+                
+                                                           
+                !Deallocates Instance
+                call DeallocateInstance ()
+
+                DrainageNetworkID = 0
+                STAT_CALL      = SUCCESS_
+
+            end if
+
+
+        end if cd1
+
+
+        if (present(STAT)) STAT = STAT_CALL     
+
+    end subroutine KillDrainageNetwork
+        
+    !---------------------------------------------------------------------------
+
+    subroutine MaxStationValuesOutput
+
+
+        !Local-----------------------------------------------------------------
+        integer                                 :: NodeID, STAT_CALL
+        type(T_Node) , pointer                  :: CurrNode
+        character(len=PathLength)               :: File
+        
+
+        call ReadFileName("ROOT_SRT", File, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'MaxStationValuesOutput - ModuleDrainageNetwork - ERR01'
+        File= trim(adjustl(File))//"StationsMaxFlow.dat"
+
+        open(UNIT=UnitMax, FILE=File, ACTION='WRITE', STATUS='REPLACE', IOSTAT=STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'MaxStationValuesOutput - ModuleDrainageNetwork - ERR02'
+
+        write(UnitMax,*) 'StationName             X              Y        Depth   Flow    Velocity  Time'
+
+        do NodeID = 1, Me%TotalNodes
+
+            CurrNode => Me%Nodes(NodeID)
+
+            if (CurrNode%StationName /= null_str) then
+
+                write(UnitMax,100) CurrNode%StationName, CurrNode%X, CurrNode%Y,               &
+                                   CurrNode%Max%Depth, CurrNode%Max%Flow, CurrNode%Max%Vel,    &
+                                   CurrNode%Max%Time
+            endif
+
+        enddo
+
+        close(UnitMax)
+        nullify(CurrNode)
+
+        100 format(A15,1x, 2f15.4, 3e15.4,3x, A19)   
+
+    end subroutine MaxStationValuesOutput
+
+    !---------------------------------------------------------------------------
+    
+    subroutine WriteFinalFile_Bin(IsFinalFile)
+
+        !Arguments--------------------------------------------------------------
+        logical                                     :: IsFinalFile
+
+        !Local------------------------------------------------------------------
+        real                                        :: Year_File, Month_File, Day_File
+        real                                        :: Hour_File, Minute_File, Second_File
+        integer                                     :: FinalFile
+        integer                                     :: STAT_CALL
+        type (T_Property), pointer                  :: Property
+        character(LEN = PathLength)                 :: FileName
+
+        !-----------------------------------------------------------------------
+
+        if (IsFinalFile  .or. Me%Output%RestartOverwrite) then
+            FileName = Me%Files%FinalFile
+        else
+            FileName = ChangeSuffix(Me%Files%FinalFile,                                 &
+                            "_"//trim(TimeToString(Me%CurrentTime))//".fin")
+        endif            
+
+        call UnitsManager(FinalFile, OPEN_FILE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteFinalFile - ERR01'
+
+        open(Unit = FinalFile, File = FileName, Form = 'UNFORMATTED', status = 'UNKNOWN', IOSTAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteFinalFile - ERR02'
+        
+        call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_) stop 'ModuleDrainageNetwork - WriteFinalFile - ERR03'
+
+        !Writes Date
+        call ExtractDate(Me%CurrentTime, Year_File, Month_File, Day_File,            &
+                         Hour_File, Minute_File, Second_File)
+
+        write(FinalFile) Year_File, Month_File, Day_File, Hour_File, Minute_File,    &
+                         Second_File
+
+        write(FinalFile)Me%Nodes%WaterLevel
+        write(FinalFile)Me%Reaches%FlowNew
+
+        Property => Me%FirstProperty
+        do while (associated(Property))
+            write (FinalFile) Property%Concentration
+            Property => Property%Next
+        end do
+
+        write(FinalFile)Me%CV%LastGoodNiteration
+
+        Property => Me%FirstProperty
+        do while (associated(Property))
+            if (Property%ComputeOptions%BottomFluxes) then
+                write (FinalFile) Property%BottomConc
+            endif
+            Property => Property%Next
+        end do
+
+
+        call UnitsManager(FinalFile, CLOSE_FILE, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - WriteFinalFile - ERR04'
+
+
+    end subroutine WriteFinalFile_Bin
+    
+    !---------------------------------------------------------------------------
+    
+    subroutine WriteFinalFile_Hdf(IsFinalFile)
+        
+        !Arguments-------------------------------------------------------------
+        logical                                     :: IsFinalFile
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        !integer                                     :: OutPutNumber
+        integer                                     :: HDF5_CREATE
+        character(LEN = PathLength)                 :: FileName
+        integer                                     :: ObjHDF5, iNode, ReachID
+        real, dimension(6), target                  :: AuxTime
+        real, dimension(:), pointer                 :: TimePtr
+        type (T_Time)                               :: Actual      
+        real, dimension(:), pointer                 :: NodeX, NodeY, ReachSize
+        integer, dimension(:), pointer              :: NodeID, ReachIDs
+        real, dimension(:), pointer                 :: WaterLevel, Flow
+        integer, dimension(:), pointer              :: LastNIterations
+        integer, dimension(:), pointer              :: UpNode, DownNode, ReachActive       
+        type(T_Property), pointer                   :: Property
+        !Begin----------------------------------------------------------------
+
+          !Gets File Access Code
+        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+
+        !Checks if it's at the end of the run 
+        !or !if it's supposed to overwrite the final HDF file
+        !if ((Me%ExtVar%Now == Me%ExtVar%EndTime) .or. Me%Output%RestartOverwrite) then
+        if (IsFinalFile .or. Me%Output%RestartOverwrite) then
+
+            filename = trim(Me%Files%FinalFile)
+
+        else
+
+            FileName = ChangeSuffix(Me%Files%FinalFile,                                 &
+                            "_"//trim(TimeToString(Me%CurrentTime))//".fin")
+
+        endif
+
+
+        ObjHDF5 = 0
+        !Opens HDF5 File
+        call ConstructHDF5 (ObjHDF5,                                                     &
+                            trim(filename),                                              &
+                            HDF5_CREATE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                       &
+            stop 'WriteFinalFile - ModuleDrainageNetwork - ERR10'
+
+        Actual   = Me%CurrentTime
+         
+        call ExtractDate   (Actual, AuxTime(1), AuxTime(2), AuxTime(3),          &
+                                    AuxTime(4), AuxTime(5), AuxTime(6))
+        !Writes Time
+        TimePtr => AuxTime
+        call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleDrainageNetwork - ERR11'
+
+        call HDF5WriteData  (ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS",      &
+                             Array1D = TimePtr, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleDrainageNetwork - ERR12'
+
+
+        allocate(NodeID(1: Me%TotalNodes))
+        allocate(NodeX (1: Me%TotalNodes))
+        allocate(NodeY (1: Me%TotalNodes))
+        allocate(WaterLevel(1: Me%TotalNodes))
+        
+        do iNode = 1, Me%TotalNodes
+            NodeID(iNode) = Me%Nodes(iNode)%ID
+            NodeX(iNode)  = Me%Nodes(iNode)%X
+            NodeY(iNode)  = Me%Nodes(iNode)%Y
+            WaterLevel(iNode) = Me%Nodes(iNode)%WaterLevel
+        enddo
+
+        allocate(UpNode     (1: Me%TotalReaches))
+        allocate(DownNode   (1: Me%TotalReaches))
+        allocate(ReachIDs   (1: Me%TotalReaches))
+        allocate(ReachSize  (1: Me%TotalReaches))
+        allocate(Flow       (1: Me%TotalReaches))
+        allocate(ReachActive(1: Me%TotalReaches))
+        
+        do ReachID = 1, Me%TotalReaches
+            ReachIDs    (ReachID) = ReachID
+            UpNode      (ReachID) = Me%Nodes(Me%Reaches(ReachID)%UpstreamNode)%ID
+            DownNode    (ReachID) = Me%Nodes(Me%Reaches(ReachID)%DownstreamNode)%ID
+            ReachSize   (ReachID) = Me%Nodes(Me%Reaches(ReachID)%UpstreamNode)%CrossSection%TopWidth
+            Flow        (ReachID)   = Me%Reaches(ReachID)%FlowNew
+            if (Me%Reaches(ReachID)%Active) then 
+                ReachActive (ReachID) = 1
+            else
+                ReachActive (ReachID) = 0
+            endif            
+        enddo
+
+
+        !Nodes
+        call HDF5SetLimits  (ObjHDF5, 1, Me%TotalNodes, STAT = STAT_CALL)
+        
+        
+  
+
+        call HDF5WriteData   (ObjHDF5, "/Nodes", "ID", "m",                          &
+                              Array1D = NodeID, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleDrainageNetwork - ERR020'
+        
+        call HDF5WriteData   (ObjHDF5, "/Nodes", "X", "m",                           &
+                              Array1D = NodeX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleDrainageNetwork - ERR030'
+
+        call HDF5WriteData   (ObjHDF5, "/Nodes", "Y", "m",                           &
+                              Array1D = NodeY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleDrainageNetwork - ERR040'
+
+        !Reaches
+        call HDF5SetLimits  (ObjHDF5, 1, Me%TotalReaches, STAT = STAT_CALL)
+        
+        !This seems duplication but it is present in normal hdf
+        !Writes Reach ID
+        call HDF5WriteData  (ObjHDF5, "/ID", "ReachID",                             &
+                                "-",                                                &
+                                Array1D      = ReachIDs,                            &
+                                STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleDrainageNetwork - ERR45'        
+        
+        
+        !Reach - ID
+        call HDF5WriteData   (ObjHDF5, "/Reaches", "ID", "-",                         &
+                              Array1D = ReachIDs, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleDrainageNetwork - ERR050'
+
+        !Reach - Up Node
+        call HDF5WriteData   (ObjHDF5, "/Reaches", "Up", "-",                         &
+                              Array1D = UpNode, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleDrainageNetwork - ERR060'
+
+        !Reach - Down Node
+        call HDF5WriteData   (ObjHDF5, "/Reaches", "Down", "-",                       &
+                              Array1D = DownNode, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleDrainageNetwork - ERR070'
+
+        !Reach - Size
+        call HDF5WriteData   (ObjHDF5, "/Reaches", "Size", "-",                       &
+                              Array1D = ReachSize, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleDrainageNetwork - ERR080'
+        
+        !Reach - Active
+        call HDF5WriteData   (ObjHDF5, "/Reaches", "Active", "-",                       &
+                              Array1D = ReachActive, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleDrainageNetwork - ERR085'        
+
+        !Nodes
+        call HDF5SetLimits  (ObjHDF5, 1, Me%TotalNodes, STAT = STAT_CALL)
+        
+        call HDF5WriteData   (HDF5ID            = ObjHDF5,                            &
+                              GroupName         = "/Results/water level",             &
+                              Name              = "water level",                      &
+                              Units             = "m",                                &
+                              Array1D           = WaterLevel,                &
+                              STAT              = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleDrainageNetwork - ERR090'        
+        
+        !Reaches
+        call HDF5SetLimits  (ObjHDF5, 1, Me%TotalReaches, STAT = STAT_CALL)
+        
+        call HDF5WriteData   (ObjHDF5, "/Results/flow", "flow", "m3/s",               &
+                              Array1D = Flow, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleDrainageNetwork - ERR0100'          
+        
+        
+        !Nodes
+        call HDF5SetLimits  (ObjHDF5, 1, Me%TotalNodes, STAT = STAT_CALL)        
+        
+        !Properties
+        nullify (Property)
+        Property => Me%FirstProperty
+        do while (associated (Property))
+            
+            call HDF5WriteData   (ObjHDF5, "/Results/"//trim(Property%ID%Name),     &
+                                  trim(Property%ID%Name),                           &
+                                  trim(Property%ID%Units),                          &
+                                  Array1D = Property%Concentration, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleDrainageNetwork - ERR0110' 
+
+            if (Property%ComputeOptions%BottomFluxes) then
+                call HDF5WriteData   (ObjHDF5, "/Results/Bottom_"//trim(Property%ID%Name),   &
+                                      "Bottom_"//trim(Property%ID%Name),                     &
+                                      trim(Property%ID%Units),                               &
+                                      Array1D = Property%BottomConc, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleDrainageNetwork - ERR0120' 
+            endif       
+
+            Property => Property%Next
+        enddo
+    
+        allocate(LastNIterations(1 : 1))
+        LastNIterations(1) = Me%CV%LastGoodNiteration
+        call HDF5SetLimits  (ObjHDF5, 1, 1, STAT = STAT_CALL)
+        
+        call HDF5WriteData   (ObjHDF5, "/Results/last good iteration",            &
+                              "last good iteration", "-",                         &
+                              Array1D = LastNIterations, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleDrainageNetwork - ERR0130'        
+        
+        deallocate(LastNIterations)
+        
+
+        deallocate(NodeID, NodeX, NodeY)
+        deallocate(DownNode, UpNode, ReachIDs, ReachSize, ReachActive)
+        deallocate(WaterLevel, Flow)
+
+        !Writes everything to disk
+        call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleDrainageNetwork - ERR140'
+
+            
+        call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteFinalFile - ModuleDrainageNetwork - ERR0190'            
+
+    end subroutine WriteFinalFile_Hdf
+
+    !----------------------------------------------------------------------------       
+
+    subroutine WriteCreatedMassHDF
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_CALL, HDF5_CREATE           
+        real, dimension(:), pointer                     :: OutputMatrix_masscreated
+        integer                                         :: iReach, ObjHDF5
+        type (T_Node), pointer                          :: CurrNode
+        type (T_Property), pointer                      :: Property
+        integer                                         :: LengthWithoutExt, iNode, ReachID
+        character(len=StringLength)                     :: File
+        real, dimension(:), pointer                     :: NodeX, NodeY, ReachSize
+        integer, dimension(:), pointer                  :: NodeID, ReachIDs
+        integer, dimension(:), pointer                  :: UpNode, DownNode
+
+        LengthWithoutExt = len_trim(Me%Files%HDFFile) - 4
+        File = Me%Files%HDFFile(1:LengthWithoutExt)//"_CreatedMass"//".hdf5"
+        call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
+        
+        ObjHDF5 = 0
+        !Opens HDF File
+        call ConstructHDF5      (ObjHDF5, trim(File), HDF5_CREATE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteCreatedMassHDF - ModuleDrainageNetwork - ERR01'
+
+        allocate (OutputMatrix_masscreated(1:Me%TotalReaches))
+
+        !Writes information about the Nodes / Reaches
+        !Writes the Nodes X / Y
+        allocate(NodeID(1: Me%TotalNodes))
+        allocate(NodeX (1: Me%TotalNodes))
+        allocate(NodeY (1: Me%TotalNodes))
+        
+        do iNode = 1, Me%TotalNodes
+            NodeID(iNode) = Me%Nodes(iNode)%ID
+            NodeX(iNode)  = Me%Nodes(iNode)%X
+            NodeY(iNode)  = Me%Nodes(iNode)%Y
+        enddo
+
+        allocate(UpNode     (1: Me%TotalReaches))
+        allocate(DownNode   (1: Me%TotalReaches))
+        allocate(ReachIDs   (1: Me%TotalReaches))
+        allocate(ReachSize  (1: Me%TotalReaches))
+        
+        do ReachID = 1, Me%TotalReaches
+            ReachIDs    (ReachID) = ReachID
+            UpNode      (ReachID) = Me%Nodes(Me%Reaches(ReachID)%UpstreamNode)%ID
+            DownNode    (ReachID) = Me%Nodes(Me%Reaches(ReachID)%DownstreamNode)%ID
+            ReachSize   (ReachID) = Me%Nodes(Me%Reaches(ReachID)%UpstreamNode)%CrossSection%TopWidth
+        enddo
+
+!        !Writes current time
+!        call ExtractDate   (Me%CurrentTime, AuxTime(1), AuxTime(2),         &
+!                                            AuxTime(3), AuxTime(4),         &
+!                                            AuxTime(5), AuxTime(6))
+!        TimePointer => AuxTime
+!
+!        call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'WriteCreatedMassHDF - ModuleDrainageNetwork - ERR000'
+!
+!        call HDF5WriteData  (ObjHDF5, "/Time", "Time",                   &
+!                             "YYYY/MM/DD HH:MM:SS",                         &
+!                             Array1D      = TimePointer,                    &
+!                             OutputNumber = Me%OutPut%NextOutPut,           &
+!                             STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'WriteCreatedMassHDF - ModuleDrainageNetwork - ERR010'
+
+        !Nodes
+        call HDF5SetLimits  (ObjHDF5, 1, Me%TotalNodes, STAT = STAT_CALL)
+
+        call HDF5WriteData   (ObjHDF5, "/Nodes", "ID", "m",                          &
+                              Array1D = NodeID, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteCreatedMassHDF - ModuleDrainageNetwork - ERR020'
+        
+        call HDF5WriteData   (ObjHDF5, "/Nodes", "X", "m",                           &
+                              Array1D = NodeX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteCreatedMassHDF - ModuleDrainageNetwork - ERR030'
+
+        call HDF5WriteData   (ObjHDF5, "/Nodes", "Y", "m",                           &
+                              Array1D = NodeY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteCreatedMassHDF - ModuleDrainageNetwork - ERR040'
+
+        !Reaches
+        call HDF5SetLimits  (ObjHDF5, 1, Me%TotalReaches, STAT = STAT_CALL)
+        
+        !Reach - ID
+        call HDF5WriteData   (ObjHDF5, "/Reaches", "ID", "-",                         &
+                              Array1D = ReachIDs, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteCreatedMassHDF - ModuleDrainageNetwork - ERR050'
+
+        !Reach - Up Node
+        call HDF5WriteData   (ObjHDF5, "/Reaches", "Up", "-",                         &
+                              Array1D = UpNode, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteCreatedMassHDF - ModuleDrainageNetwork - ERR060'
+
+        !Reach - Down Node
+        call HDF5WriteData   (ObjHDF5, "/Reaches", "Down", "-",                       &
+                              Array1D = DownNode, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteCreatedMassHDF - ModuleDrainageNetwork - ERR070'
+
+        !Reach - Size
+        call HDF5WriteData   (ObjHDF5, "/Reaches", "Size", "-",                       &
+                              Array1D = ReachSize, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteCreatedMassHDF - ModuleDrainageNetwork - ERR080'
+
+  
+        !Properties
+        nullify (Property)
+        Property => Me%FirstProperty
+        do while (associated (Property))
+            iReach = 1
+            do iNode = 1, Me%TotalNodes
+                CurrNode => Me%Nodes (iNode)
+                if (CurrNode%nDownstreamReaches .NE. 0) then      
+                    
+                    if (Property%ComputeOptions%MinConcentration) then
+                        OutputMatrix_masscreated (iReach) = Property%MassCreated (iReach)
+                    endif
+                    
+                    iReach = iReach + 1
+                endif
+            end do
+
+            if(Property%ComputeOptions%MinConcentration) then  
+                call HDF5WriteData  (ObjHDF5,                                    &
+                            "/Results/MassCreated_"//Property%ID%Name,              &
+                            "MassCreated_"//Property%ID%Name,                       &
+                            "g",                                                    &
+                            Array1D      = OutputMatrix_masscreated,                &
+                            STAT = STAT_CALL)
+            endif
+
+            if (STAT_CALL /= SUCCESS_) stop 'WriteCreatedMassHDF - ModuleDrainageNetwork - ERR120'                 
+
+            Property => Property%Next
+        enddo
+    
+
+        deallocate (OutputMatrix_masscreated)
+
+        deallocate(NodeID, NodeX, NodeY)
+        deallocate(DownNode, UpNode, ReachIDs, ReachSize)
+
+        !Writes everything to disk
+        call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'WriteCreatedMassHDF - ModuleDrainageNetwork - ERR130'
+
+
+        
+    end subroutine WriteCreatedMassHDF
+
+    !----------------------------------------------------------------------------
+    
+    subroutine DeallocateInstance ()
+
+        !Arguments--------------------------------------------------------------
+
+        !Local------------------------------------------------------------------
+        type (T_DrainageNetwork), pointer          :: AuxObjDrainageNetwork
+        type (T_DrainageNetwork), pointer          :: PreviousObjDrainageNetwork
+
+        !Updates pointers
+        if (Me%InstanceID == FirstDrainageNetwork%InstanceID) then
+            FirstDrainageNetwork => FirstDrainageNetwork%Next
+        else
+            PreviousObjDrainageNetwork => FirstDrainageNetwork
+            AuxObjDrainageNetwork      => FirstDrainageNetwork%Next
+            do while (AuxObjDrainageNetwork%InstanceID /= Me%InstanceID)
+                PreviousObjDrainageNetwork => AuxObjDrainageNetwork
+                AuxObjDrainageNetwork      => AuxObjDrainageNetwork%Next
+            enddo
+
+            !Now update linked list
+            PreviousObjDrainageNetwork%Next => AuxObjDrainageNetwork%Next
+
+        endif
+
+        !Deallocates instance
+        deallocate (Me)
+        nullify    (Me) 
+
+            
+    end subroutine DeallocateInstance
+
+    !---------------------------------------------------------------------------
+
+    subroutine Write_Errors_Messages
+
+        !Local------------------------------------------------------------------
+        type (T_Property), pointer                  :: Property
+        real                                        :: Total_Mass_Created, Total_Mass
+        character (Len = StringLength)              :: str_mass, string_to_be_written
+        integer                                     :: NodeID
+        type (T_Node), pointer                      :: CurrNode
+        real                                        :: BottomArea
+
+            !TotalVolume entering in DNet (by discharges, by Runoff, by GWFlow)
+            !TotalWaterVolume left in DNet
+            !TotalVolume out of DNet
+            
+            Property => Me%FirstProperty
+            do while (associated (Property))
+                
+                !Total mass created due to imposed minimum concentration
+                !kg                
+                Total_Mass_Created = SUM(Property%MassCreated)
+                
+                str_mass = ''
+                
+                write(str_mass, '(f20.8)') Total_Mass_Created
+      
+                string_to_be_written = 'Due to MinConcentration DN Total mass (kg) created on property ' //   &
+                                        trim(adjustl(adjustr(Property%ID%name)))//' = ' //   &
+                                        trim(adjustl(adjustr(str_mass))) 
+
+                call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
+
+                                
+                !Total mass of property in the channels
+                !kg
+                Total_Mass = 0.0
+                
+                do NodeID = 1, Me%TotalNodes
+                    if (Me%Nodes(NodeID)%nDownStreamReaches /= 0) then
+                        Total_Mass = Total_Mass + Property%Concentration (NodeID)           &
+                                                * Property%ISCoefficient                    &
+                                                * Me%Nodes(NodeID)%VolumeNew
+                    endif
+                end do
+                
+                
+                str_mass = ''
+                
+                write(str_mass, '(f20.8)') Total_Mass
+      
+                string_to_be_written = 'DN Total mass left of property '                //   &
+                                        trim(adjustl(adjustr(Property%ID%name)))//' = ' //   &
+                                        trim(adjustl(adjustr(str_mass))) 
+
+                call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
+
+                if(Property%ComputeOptions%BottomFluxes)then
+
+                    !Total mass of deposited property in the channels
+                    !kg
+                    Total_Mass = 0.0
+
+                    do NodeID = 1, Me%TotalNodes
+                        if (Me%Nodes(NodeID)%nDownStreamReaches /= 0) then
+                            CurrNode => Me%Nodes (NodeID)
+                            BottomArea = CurrNode%CrossSection%BottomWidth * CurrNode%Length
+                            Total_Mass = Total_Mass + Property%BottomConc (NodeID) * BottomArea
+                        endif
+                    end do
+
+                    str_mass = ''
+                
+                    write(str_mass, '(f20.8)') Total_Mass
+      
+                    string_to_be_written = 'DN Total mass left of deposited property '       //   &
+                                            trim(adjustl(adjustr(Property%ID%name)))//' = ' //   &
+                                            trim(adjustl(adjustr(str_mass))) 
+
+                    call SetError(WARNING_, INTERNAL_, string_to_be_written, OFF)
+
+                end if
+
+                Property => Property%Next
+            
+            end do
+
+    end subroutine Write_Errors_Messages
+                                            
+    !---------------------------------------------------------------------------
+    !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    !MANAGEMENT MANAGEMENT MANAGEMENT MANAGEMENT MANAGEMENT MANAGEMENT MANAGEMEN
+
+    !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+    !---------------------------------------------------------------------------
+
+    subroutine Ready (ObjDrainageNetwork_ID, ready_) 
+
+        !Arguments--------------------------------------------------------------
+        integer                                     :: ObjDrainageNetwork_ID
+        integer                                     :: ready_
+
+        !-----------------------------------------------------------------------
+
+        nullify (Me)
+
+cd1:    if (ObjDrainageNetwork_ID > 0) then
+            call LocateObjDrainageNetwork (ObjDrainageNetwork_ID)
+            ready_ = VerifyReadLock (mDrainageNetwork_, Me%InstanceID)
+        else
+            ready_ = OFF_ERR_
+        end if cd1
+
+        !-----------------------------------------------------------------------
+
+    end subroutine Ready
+
+    !---------------------------------------------------------------------------
+
+    subroutine LocateObjDrainageNetwork (DrainageNetworkID)
+
+        !Arguments--------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+
+        !Local------------------------------------------------------------------
+
+        Me => FirstDrainageNetwork
+        do while (associated (Me))
+            if (Me%InstanceID == DrainageNetworkID) exit
+            Me => Me%Next
+        enddo
+
+        if (.not. associated(Me)) stop 'ModuleDrainageNetwork - LocateObjDrainageNetwork - ERR01'
+
+    end subroutine LocateObjDrainageNetwork
+
+    !---------------------------------------------------------------------------
+
+#ifdef _OPENMI_
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetNumberOfNodes
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETNUMBEROFNODES"::GetNumberOfNodes
+    !DEC$ ENDIF
+    !Return the number of Error Messages
+    integer function GetNumberOfNodes(DrainageNetworkID)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+
+        call Ready(DrainageNetworkID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            GetNumberOfNodes = Me%TotalNodes
+        else 
+            GetNumberOfNodes = - 99.0
+        end if
+           
+    end function GetNumberOfNodes
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetNumberOfOutlets
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETNUMBEROFOUTLETS"::GetNumberOfOutlets
+    !DEC$ ENDIF
+    !Return the number of Error Messages
+    integer function GetNumberOfOutlets(DrainageNetworkID)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+
+        call Ready(DrainageNetworkID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            GetNumberOfOutlets = Me%TotalOutlets
+        else 
+            GetNumberOfOutlets = - 99.0
+        end if
+           
+    end function GetNumberOfOutlets    
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetOutletIDs
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETOUTLETIDS"::GetOutletIDs
+    !DEC$ ENDIF
+    !Return the number of Error Messages
+    logical function GetOutletIDs(DrainageNetworkID, numberOfOutlets, OutletIDs)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        integer                                     :: numberOfOutlets
+        integer, dimension(numberOfOutlets)         :: OutletIDs
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_ 
+        integer                                     :: iOutlet        
+
+        call Ready(DrainageNetworkID, ready_)    
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            !outlet does not have a type (is a node) and outlets id's are sequential when created
+            !and Me%OutletRreachID(outletID) and Me%OutletNodeID(outletID) have the respective
+            !outlet reach and node ID's and are used to access outlet properties and flows
+            do iOutlet = 1, numberOfOutlets
+                OutletIDs(iOutlet) = iOutlet
+            enddo
+            
+            GetOutletIDs = .true.
+        else 
+            GetOutletIDs = .false.
+        end if
+
+    end function GetOutletIDs
+
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetXCoordinate
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETXCOORDINATE"::GetXCoordinate
+    !DEC$ ENDIF
+    real(8) function GetXCoordinate(DrainageNetworkID, NodeID)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        integer                                     :: NodeID
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+
+        call Ready(DrainageNetworkID, ready_)    
+
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            GetXCoordinate = dble(Me%Nodes(NodeID)%X)
+        else
+            GetXCoordinate = -99.0
+        endif
+        
+
+    end function GetXCoordinate
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetYCoordinate
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETYCOORDINATE"::GetYCoordinate
+    !DEC$ ENDIF
+    real(8) function GetYCoordinate(DrainageNetworkID, NodeID)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        integer                                     :: NodeID
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+
+        call Ready(DrainageNetworkID, ready_)    
+
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            GetYCoordinate = dble(Me%Nodes(NodeID)%Y)
+        else
+            GetYCoordinate = -99.0
+        endif
+        
+    end function GetYCoordinate
+
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetOutletFlow
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETOUTLETFLOW"::GetOutletFlow
+    !DEC$ ENDIF
+    logical function GetOutletFlow(DrainageNetworkID, numberOfOutlets, outletFlow)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        integer                                     :: numberOfOutlets
+        real, dimension(numberOfOutlets)            :: outletFlow
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_   
+        integer                                     :: iOutlet
+
+        call Ready(DrainageNetworkID, ready_)    
+
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            do iOutlet = 1, numberOfOutlets                         
+                outletFlow(iOutlet) = dble(Me%Reaches(Me%OutletReachID(iOutlet))%FlowNew) 
+            enddo
+            GetOutletFlow = .true.
+        else
+            GetOutletFlow = .false.
+        endif
+        
+    end function
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::SetDownStreamWaterLevel
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_SETDOWNSTREAMWATERLEVEL"::SetDownStreamWaterLevel
+    !DEC$ ENDIF
+    logical function SetDownStreamWaterLevel(DrainageNetworkID, WaterLevel)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        real(8)                                     :: WaterLevel
+        
+        !Local-----------------------------------------------------------------
+        type (T_Node), pointer                      :: CurrNode
+
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+
+        call Ready(DrainageNetworkID, ready_)    
+
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            Me%Downstream%DefaultValue = WaterLevel
+
+            SetDownStreamWaterLevel = .true.
+        
+        else
+        
+            SetDownStreamWaterLevel = .false.
+        
+        endif        
+
+
+        return
+
+    end function SetDownStreamWaterLevel
+    
+    !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetNumberOfOutFlowNodes
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETNUMBEROFOUTFLOWNODES"::GetNumberOfOutFlowNodes
+    !DEC$ ENDIF
+    !Return the number of OutflowNodes
+    integer function GetNumberOfOutFlowNodes(DrainageNetworkID)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+
+        call Ready(DrainageNetworkID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            GetNumberOfOutFlowNodes = Me%StormWaterModelLink%nOutflowNodes
+        else 
+            GetNumberOfOutFlowNodes = -99
+        end if
+    
+    end function GetNumberOfOutFlowNodes
+    
+    !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetNumberOfInFlowNodes
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETNUMBEROFINFLOWNODES"::GetNumberOfInFlowNodes
+    !DEC$ ENDIF
+    !Return the number of InflowNodes
+    integer function GetNumberOfInFlowNodes(DrainageNetworkID)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+
+        call Ready(DrainageNetworkID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            GetNumberOfInFlowNodes = Me%StormWaterModelLink%nInflowNodes
+        else 
+            GetNumberOfInFlowNodes = -99
+        end if
+    
+    end function GetNumberOfInFlowNodes
+
+    !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetStormWaterOutFlow
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETSTORMWATEROUTFLOW"::GetStormWaterOutFlow
+    !DEC$ ENDIF
+    !Return the Storm Water Outflow
+    logical function GetStormWaterOutFlow(DrainageNetworkID, nOutflowNodes, StormWaterOutflow)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        integer                                     :: nOutflowNodes
+        real, dimension(nOutflowNodes)              :: StormWaterOutflow
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: iNode
+        integer                                     :: ready_         
+
+        call Ready(DrainageNetworkID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            do iNode = 1, nOutflowNodes 
+                StormWaterOutflow(iNode) = Me%StormWaterModelLink%Outflow(iNode)
+            enddo
+        
+            GetStormWaterOutFlow = .true.
+        
+        else 
+        
+            GetStormWaterOutFlow = .false.
+        
+        end if
+    
+    end function GetStormWaterOutFlow
+    
+    !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetStormWaterOutFlowIDs
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETSTORMWATEROUTFLOWIDS"::GetStormWaterOutFlowIDs
+    !DEC$ ENDIF
+    !Return the Storm Water Outflow IDs
+    logical function GetStormWaterOutFlowIDs(DrainageNetworkID, nOutflowNodes, StormWaterOutflowIDs)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        integer                                     :: nOutflowNodes
+        integer, dimension(nOutflowNodes)           :: StormWaterOutflowIDs
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: iNode
+        integer                                     :: ready_         
+
+        call Ready(DrainageNetworkID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            do iNode = 1, nOutflowNodes 
+                StormWaterOutflowIDs(iNode) = Me%StormWaterModelLink%OutflowIDs(iNode)
+            enddo
+        
+            GetStormWaterOutFlowIDs = .true.
+        
+        else 
+        
+            GetStormWaterOutFlowIDs = .false.
+        
+        end if
+    
+    end function GetStormWaterOutFlowIDs    
+
+    !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::SetStormWaterInFlow
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_SETSTORMWATERINFLOW"::SetStormWaterInFlow
+    !DEC$ ENDIF
+    !Return the Storm Water Outflow
+    logical function SetStormWaterInFlow(DrainageNetworkID, nInflowNodes, StormWaterInflow)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        integer                                     :: nInflowNodes
+        real, dimension(nInflowNodes)               :: StormWaterInflow
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: iNode
+        integer                                     :: ready_         
+
+        call Ready(DrainageNetworkID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            do iNode = 1, nInflowNodes 
+                write(*,*)StormWaterInflow(iNode)
+                Me%StormWaterModelLink%Inflow(iNode) = StormWaterInflow(iNode)
+            enddo
+            
+            SetStormWaterInFlow = .true.
+        
+        else 
+        
+            SetStormWaterInFlow = .false.
+        
+        end if
+    
+    end function SetStormWaterInFlow
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetStormWaterInFlowIDs
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETSTORMWATERINFLOWIDS"::GetStormWaterInFlowIDs
+    !DEC$ ENDIF
+    !Return the Storm Water Inflow IDs
+    logical function GetStormWaterInFlowIDs(DrainageNetworkID, nInflowNodes, StormWaterInflowIDs)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        integer                                     :: nInflowNodes
+        integer, dimension(nInflowNodes)            :: StormWaterInflowIDs
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: iNode
+        integer                                     :: ready_         
+
+        call Ready(DrainageNetworkID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            do iNode = 1, nInflowNodes 
+                StormWaterInflowIDs(iNode) = Me%StormWaterModelLink%InflowIDs(iNode)
+            enddo
+        
+            GetStormWaterInFlowIDs = .true.
+        
+        else 
+        
+            GetStormWaterInFlowIDs = .false.
+        
+        end if
+    
+    end function GetStormWaterInFlowIDs    
+
+
+    !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetNumberOfProperties
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETNUMBEROFPROPERTIES"::GetNumberOfProperties
+    !DEC$ ENDIF
+    !Return the number of Properties
+    integer function GetNumberOfProperties(DrainageNetworkID)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+
+        call Ready(DrainageNetworkID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            GetNumberOfProperties = Me%PropertiesNumber
+        else 
+            GetNumberOfProperties = -99
+        end if
+           
+    end function GetNumberOfProperties
+    
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetDrainageNetworkPropertyID
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETDRAINAGENETWORKPROPERTYID"::GetDrainageNetworkPropertyID
+    !DEC$ ENDIF
+    !Return the number of Error Messages
+    integer function GetDrainageNetworkPropertyID(DrainageNetworkID, idx)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        integer                                     :: idx
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        type (T_Property), pointer                  :: Property
+        integer                                     :: iProp
+
+        call Ready(DrainageNetworkID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            Property => Me%FirstProperty
+            iProp = 1
+            do while (associated (Property))
+                 
+                 if (iProp == idx) then
+                 
+                    GetDrainageNetworkPropertyID = Property%ID%IDNumber
+                    return
+                 
+                 endif
+                 
+                 Property => Property%Next
+                 iProp = iProp + 1
+            enddo
+        
+            GetDrainageNetworkPropertyID = -99
+        else 
+            GetDrainageNetworkPropertyID = -99
+        end if
+           
+    end function GetDrainageNetworkPropertyID
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetOutletFlowConcentration
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETOUTLETFLOWCONCENTRATION"::GetOutletFlowConcentration
+    !DEC$ ENDIF
+    logical function GetOutletFlowConcentration(DrainageNetworkID, numberOfOutlets, PropIDNumber, flowConcentration)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        integer                                     :: PropIDNumber
+        integer                                     :: numberOfOutlets
+        real, dimension(numberOfOutlets)            :: flowConcentration
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        type (T_Property), pointer                  :: Property
+        type (T_Reach), pointer                     :: OutletReach
+        integer                                     :: iOutlet
+
+        call Ready(DrainageNetworkID, ready_)    
+
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            call SearchProperty (Property, PropIDNumber, STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then            
+                
+                do iOutlet = 1, numberOfOutlets                                 
+                    OutletReach => Me%Reaches(Me%OutletReachID(iOutlet))
+                    flowConcentration(iOutlet) =  dble(Property%Concentration(OutletReach%UpstreamNode))
+                enddo
+                
+                GetOutletFlowConcentration = .true.
+                
+            else
+                GetOutletFlowConcentration = .false.
+            endif
+        else
+            GetOutletFlowConcentration = .false.
+        endif
+        
+    end function    
+    
+
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::SetDownStreamConcentration
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_SETDOWNSTREAMCONCENTRATION"::SetDownStreamConcentration
+    !DEC$ ENDIF
+    logical function SetDownStreamConcentration(DrainageNetworkID, numberOfOutlets, PropIDNumber, Concentration)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        integer                                     :: PropIDNumber
+        real, dimension(numberOfOutlets)            :: Concentration
+        integer                                     :: numberOfOutlets
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        type (T_Property), pointer                  :: Property
+        integer                                     :: iOutlet
+
+        call Ready(DrainageNetworkID, ready_)    
+
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            
+            call SearchProperty (Property, PropIDNumber, STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then  
+                
+                do iOutlet = 1, numberOfOutlets
+                    Property%Concentration(Me%OutletNodeID(iOutlet)) = Concentration(iOutlet)                
+                enddo
+                
+                SetDownStreamConcentration = .true.
+                
+            else
+                SetDownStreamConcentration = .false.
+            endif
+            
+        
+        else
+        
+            SetDownStreamConcentration = .false.
+        
+        endif        
+
+
+        return
+
+    end function SetDownStreamConcentration    
+    
+    
+
+#endif
+
+
+end module ModuleDrainageNetwork
+
+!----------------------------------------------------------------------------------------------------------
+!MOHID Water Modelling System.
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
+!----------------------------------------------------------------------------------------------------------
