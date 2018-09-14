@@ -3,8 +3,8 @@
 #title           : compile_mohid.sh
 #description     : This script is an attempt to compile MOHID in a linux
 #                  machine with Intel compiler ifort.
-#author          : Jorge Palma (jorgempalma@tecnico.ulisboa.pt)
-#date            : 20180712
+#author          : Jorge Palma (jorgempalma@tecnico.ulisboa.pt), Mariangel Garcia (mariangel.garcia@tecnico.ulisboa.pt)
+#date            : 20180914
 #usage           : bash compile_mohid.sh
 #notes           :
 #==============================================================================
@@ -16,15 +16,15 @@ set -e
 FC=ifort
 
 #### Debug mode ####
-IS_DEBUG=false
+IS_DEBUG=false                   # default : false
 
 #### libraries path ####
 DIR_REQ=$HOME/apps_intel
-
 ZLIB=$DIR_REQ/zlib-1.2.11
 HDF5=$DIR_REQ/hdf5-1.8.15
 NETCDF=$DIR_REQ/netcdf-4.4.1.1
-MPI=$DIR_REQ/mpich-3.2
+#MPI=$DIR_REQ/mpich-3.2
+MPI=/opt/intel/compilers_and_libraries/linux/mpi/intel64
 PROJ4=$DIR_REQ/proj-4.9.3
 PROJ4F=$DIR_REQ/proj4-fortran
 IPHREEQC=$DIR_REQ/iphreeqc-3.3.11-12535
@@ -33,6 +33,7 @@ PHREEQCRM=$DIR_REQ/phreeqcrm-3.3.11-12535
 #### Activate modules ####
 USE_OPENMP=true                  # default : true
 USE_MPI=false                    # default : false
+
 USE_HDF=true                     # default : true
 USE_NETCDF=true                  # default : true
 USE_PROJ4=true                   # default : true
@@ -63,6 +64,7 @@ USE_OPENMI=false                 # default : false
 
 ########################################################################
 ########################################################################
+
 START_OF_COMPILE=`date`
 
 #set -x #echo on
@@ -74,6 +76,7 @@ MACHINE_TYPE=`uname -m`
 
 FPP_DEFINES=""
 if [ $USE_MPI == true ]; then
+  FC=mpi${FC}
   FPP_DEFINES="$FPP_DEFINES -D_USE_MPI"
 fi
 if [ $USE_OPENMI == true ]; then
@@ -174,7 +177,7 @@ AR="ar rcs"
 LANG_FLAGS=
 DEBUG_FLAGS=
 WARNINGS_FLAGS=
-OPT_OPENMP=
+OPENMP_FLAGS=
 OPT_FLAGS=
 OTH_FLAGS=
 if [[ $FC == *"gfortran"* ]]; then
@@ -190,25 +193,34 @@ if [[ $FC == *"gfortran"* ]]; then
         WARNINGS_FLAGS="-w -pedantic"
     fi
     if [ $USE_OPENMP == true ]; then
-        OPT_OPENMP='-fopenmp'
+        OPENMP_FLAGS='-fopenmp'
     fi
-    OPT_FLAGS="-O2 -ffast-math -march=x86-64 -fconvert=little-endian -fPIC -fno-unsafe-math-optimizations -frounding-math -fsignaling-nans"
+    OPT_FLAGS="-O2 -ffast-math -march=x86-64 -fconvert=little-endian -fPIC -fno-unsafe-math-optimizations -frounding-math -fsignaling-nans "
     MODOUT="-J"
+    
 elif [[ $FC == *"ifort"* ]]; then
-    LANG_FLAGS="-cpp -real_size 64 -heap-arrays"
-    if [ $IS_DEBUG == true ]; then
-        DEBUG_FLAGS="-g -traceback -heap-arrays "
-    fi
     WARNINGS_FLAGS="-w"
-    if [ $USE_OPENMP == true ]; then
-        OPT_OPENMP='-qopenmp'
+    
+    if [ $IS_DEBUG == true ]; then
+        DEBUG_FLAGS="-g -traceback "
     fi
-    OPT_FLAGS="-O2 -convert little_endian -fPIC"
-    OTH_FLAGS="-g -traceback -xHost -ip -fpe0"
+    
+    LANG_FLAGS="-cpp -real_size 64 " #-r8
+    
+    if [ $USE_OPENMP == true ]; then
+        OPENMP_FLAGS='-qopenmp'
+    fi
+    
+    ## -fp-model source: Control the tradeoffs between accuracy, reproducibility and performance and
+    ## improve the consistency and reproducibility of floating-point results while limiting the impact on performance.
+    OPT_FLAGS="-O3 -convert little_endian -fPIC -heap-arrays 64 -fp-model source " #-mcmodel=large
+       
+    OTH_FLAGS=" -xHost -ip -fpe0  -fpp "
+    
     MODOUT="-module "
 fi
 
-CCFLAGS="$WARNINGS_FLAGS $DEBUG_FLAGS $LANG_FLAGS $OPT_OPENMP $OPT_FLAGS $OTH_FLAGS $FPP_DEFINES"
+CCFLAGS="$WARNINGS_FLAGS $DEBUG_FLAGS $LANG_FLAGS $OPENMP_FLAGS $OPT_FLAGS $OTH_FLAGS $FPP_DEFINES"
 
 ############################################
 ## settings Includes / Libraries ##
@@ -424,21 +436,26 @@ COMPILE_MOHID(){
     echo
   fi
 
-  if [ $name == 'MohidWater' ]; then
-    $FC $CCFLAGS build/*${Obj}  $BASE1_SRC/build/*${Obj}  $BASE2_SRC/build/*${Obj}  src/Main${F90}  $INCLUDES -Iinclude $LIBS  -o bin/${name}${Exe}
-  else
-    $FC $CCFLAGS build/*${Obj}  $BASE1_SRC/build/*${Obj}  $BASE2_SRC/build/*${Obj}  src/${name}${F90}  $INCLUDES -Iinclude $LIBS  -o bin/${name}${Exe}
+  output=$name
+  if [ $USE_MPI == true ]; then
+    output=${name}_mpi
   fi
 
-  if [ ! -f "bin/${name}${Exe}" ]; then
-    echo -e "${ERROR} ${name}${Exe} File not created!"
+  if [ $name == 'MohidWater' ]; then
+    $FC $CCFLAGS build/*${Obj}  $BASE1_SRC/build/*${Obj}  $BASE2_SRC/build/*${Obj}  src/Main${F90}  $INCLUDES -Iinclude $LIBS  -o bin/${output}${Exe}
+  else
+    $FC $CCFLAGS build/*${Obj}  $BASE1_SRC/build/*${Obj}  $BASE2_SRC/build/*${Obj}  src/${name}${F90}  $INCLUDES -Iinclude $LIBS  -o bin/${output}${Exe}
+  fi
+
+  if [ ! -f "bin/${output}${Exe}" ]; then
+    echo -e "${ERROR} ${output}${Exe} File not created!"
     exit 0
   else
-    echo -e " compile ${name} ${OK}                                                      "
+    echo -e " compile ${output} ${OK}                                                      "
     echo
   fi
 
-  cd $SRCREP_BIN; ln -sf ../src/${name}/bin/${name}${Exe} .
+  cd $SRCREP_BIN; ln -sf ../src/${name}/bin/${output}${Exe} .
   
   if [ $name == 'MohidWater' ]; then
     ln -sf $SRCREP/bin/MohidWater.exe $SRCREP_TEST/mohidwater/25m_deep/exe/MohidWater.exe
@@ -629,7 +646,7 @@ MOHID_WATER(){
     
     #ModuleSequentialAssimilation  \
     ModuleModel)
-
+  
   COMPILE_MOHID modules_Mohid_Water "MohidWater"
 }
 
