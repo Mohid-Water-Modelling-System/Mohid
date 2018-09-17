@@ -30268,7 +30268,7 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
         integer                             :: CHUNK
 
-        real                                :: dx1, dx2, dx3
+        real                                :: dx1, dx2, dx3, AbsorbCoef
 
 
         !Begin----------------------------------------------------------------
@@ -30738,11 +30738,11 @@ cd15:           if (Me%ComputeOptions%ComputeEnteringWave) then
 
                 endif cd15
                 
-
-                if ((Bathymetry(ib-di,jb-dj) < -55.)     .or.                           &
-                    (Bathymetry(ib+di,jb+dj) < -55.)     .or.                           &
-                    (Bathymetry(ib-dj,jb-di) < -55.)     .or.                           &
-                    (Bathymetry(ib+dj,jb+di) < -55.))   then
+                !Land boundary = No entering wave
+                if ((Bathymetry(ib-di,jb-dj) <= -60.)     .or.                           &
+                    (Bathymetry(ib+di,jb+dj) <= -60.)     .or.                           &
+                    (Bathymetry(ib-dj,jb-di) <= -60.)     .or.                           &
+                    (Bathymetry(ib+dj,jb+di) <= -60.))   then
                 
                     XY_Component_Cart_E  = 0.
 
@@ -30836,6 +30836,8 @@ cd15:           if (Me%ComputeOptions%ComputeEnteringWave) then
                     Stop 'XY_Component_L = 1'
                     !!!! $OMP END CRITICAL (WLFWW1_STOP01)
                 endif
+                
+                AbsorbCoef = 1.
 
                 !Test absorption boundaries
                 ! -65   80%
@@ -30843,31 +30845,58 @@ cd15:           if (Me%ComputeOptions%ComputeEnteringWave) then
                 ! -75   50%
                 ! -80   40%
                 ! -85   10%      
-                if (db == 1) then
-                    if      (Bathymetry(ib+di,jb+dj) == -65. ) then
-                        XY_Component_L = 0.8 * XY_Component_L
-                    elseif  (Bathymetry(ib+di,jb+dj) == -70. ) then
-                        XY_Component_L = 0.6 * XY_Component_L
-                    elseif  (Bathymetry(ib+di,jb+dj) == -75. ) then
-                        XY_Component_L = 0.5 * XY_Component_L
-                    elseif  (Bathymetry(ib+di,jb+dj) == -80. ) then
-                        XY_Component_L = 0.4 * XY_Component_L
-                    elseif  (Bathymetry(ib+di,jb+dj) == -85. ) then
-                        XY_Component_L = 0.1 * XY_Component_L                      
-                    endif  
-                else
-                    if      (Bathymetry(ib-di,jb-dj) == -65. ) then
-                        XY_Component_L = 0.8 * XY_Component_L
-                    elseif  (Bathymetry(ib-di,jb-dj) == -70. ) then
-                        XY_Component_L = 0.6 * XY_Component_L
-                    elseif  (Bathymetry(ib-di,jb-dj) == -75. ) then
-                        XY_Component_L = 0.5 * XY_Component_L
-                    elseif  (Bathymetry(ib-di,jb-dj) == -80. ) then
-                        XY_Component_L = 0.4 * XY_Component_L
-                    elseif  (Bathymetry(ib-di,jb-dj) == -85. ) then
-                        XY_Component_L = 0.1 * XY_Component_L                      
-                    endif                
-                endif
+                !if (db == 1) then
+                !    if      (Bathymetry(ib+di,jb+dj) == -65. ) then
+                !        AbsorbCoef = 0.8
+                !    elseif  (Bathymetry(ib+di,jb+dj) == -70. ) then
+                !        AbsorbCoef = 0.6
+                !    elseif  (Bathymetry(ib+di,jb+dj) == -75. ) then
+                !        AbsorbCoef = 0.5
+                !    elseif  (Bathymetry(ib+di,jb+dj) == -80. ) then
+                !        AbsorbCoef = 0.4
+                !    elseif  (Bathymetry(ib+di,jb+dj) == -85. ) then
+                !        AbsorbCoef = 0.1
+                !    elseif  (Bathymetry(ib+di,jb+dj) == -89. ) then
+                !        AbsorbCoef = 0.0                        
+                !    endif  
+                !else
+                !    if      (Bathymetry(ib-di,jb-dj) == -65. ) then
+                !        AbsorbCoef = 0.8
+                !    elseif  (Bathymetry(ib-di,jb-dj) == -70. ) then
+                !        AbsorbCoef = 0.6
+                !    elseif  (Bathymetry(ib-di,jb-dj) == -75. ) then
+                !        AbsorbCoef = 0.5
+                !    elseif  (Bathymetry(ib-di,jb-dj) == -80. ) then
+                !        AbsorbCoef = 0.4
+                !    elseif  (Bathymetry(ib-di,jb-dj) == -85. ) then
+                !        AbsorbCoef = 0.1
+                !    elseif  (Bathymetry(ib-di,jb-dj) == -89. ) then                        
+                !        AbsorbCoef = 0.0
+                !    endif                
+                !endif
+                
+                if     (Bathymetry(ib-1,jb) == -65. .or. Bathymetry(ib+1,jb) == -65. .or. &
+                        Bathymetry(ib,jb-1) == -65. .or. Bathymetry(ib,jb+1) == -65. ) then
+                    AbsorbCoef = 0.8
+                elseif (Bathymetry(ib-1,jb) == -70. .or. Bathymetry(ib+1,jb) == -70. .or. &
+                        Bathymetry(ib,jb-1) == -70. .or. Bathymetry(ib,jb+1) == -70. ) then
+                    AbsorbCoef = 0.6
+                elseif (Bathymetry(ib-1,jb) == -75. .or. Bathymetry(ib+1,jb) == -75. .or. &
+                        Bathymetry(ib,jb-1) == -75. .or. Bathymetry(ib,jb+1) == -75. ) then
+                    AbsorbCoef = 0.5
+                elseif (Bathymetry(ib-1,jb) == -80. .or. Bathymetry(ib+1,jb) == -80. .or. &
+                        Bathymetry(ib,jb-1) == -80. .or. Bathymetry(ib,jb+1) == -80. ) then
+                    AbsorbCoef = 0.4
+                elseif (Bathymetry(ib-1,jb) == -85. .or. Bathymetry(ib+1,jb) == -85. .or. &
+                        Bathymetry(ib,jb-1) == -85. .or. Bathymetry(ib,jb+1) == -85. ) then
+                    AbsorbCoef = 0.1
+                elseif (Bathymetry(ib-1,jb) == -89. .or. Bathymetry(ib+1,jb) == -89. .or. &
+                        Bathymetry(ib,jb-1) == -89. .or. Bathymetry(ib,jb+1) == -89. ) then
+                    AbsorbCoef = 0.0                        
+                endif  
+                
+                !Absorption
+                XY_Component_L  = XY_Component_L * AbsorbCoeF               
 
                 if (ImplicitFaces) then
 
@@ -30889,6 +30918,7 @@ cd15:           if (Me%ComputeOptions%ComputeEnteringWave) then
 
 
                 endif
+                
 
                 ![m/s]    = [m/s] - [m/s] * [-]
                 T3            = T3 - ImposedVelocity(ib, jb) * XY_Component_Cart_E
