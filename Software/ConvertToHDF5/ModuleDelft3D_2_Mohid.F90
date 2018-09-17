@@ -52,6 +52,14 @@ Module ModuleDelft3D_2_Mohid
         module procedure UnGetDelft3D_2_Mohid3D_I
         module procedure UnGetDelft3D_2_Mohid3D_R8
     end interface  UnGetDelft3D_2_Mohid
+    
+    !Parameter-----------------------------------------------------------------
+
+    ! Boundary normal direction
+    integer, parameter                          :: South_   = 1
+    integer, parameter                          :: North_   = 2
+    integer, parameter                          :: West_    = 3
+    integer, parameter                          :: East_    = 4
 
     !Types---------------------------------------------------------------------
     
@@ -161,6 +169,7 @@ Module ModuleDelft3D_2_Mohid
 
         integer,    dimension(:),     pointer               :: BoundCellsI
         integer,    dimension(:),     pointer               :: BoundCellsJ        
+        integer,    dimension(:),     pointer               :: BoundCellsDir        
         real,       dimension(:),     pointer               :: BoundX2D        
         real,       dimension(:),     pointer               :: BoundY2D        
         real,       dimension(:),     pointer               :: BoundPropXY2D
@@ -1438,11 +1447,12 @@ cd2 :       if (BlockInBlockFound) then
                    
         !Local-----------------------------------------------------------------
         real, dimension(:,:,:), pointer             :: ZCellCenter 
-        real, dimension(:,:),  pointer              :: CoordX, CoordY        
+        !real, dimension(:,:),  pointer              :: CornersCoordX, CornersCoordY        
+        real, dimension(:,:),  pointer              :: CoordX, CoordY                
         integer                                     :: Ncells2D, Ncells3D, icount
         integer                                     :: i, j, k, ip, STAT_CALL
+        integer                                     :: di1, dj1, di2, dj2
         integer                                     :: Ninstants, Nlayers
-        
 
         !----------------------------------------------------------------------
 
@@ -1491,16 +1501,54 @@ cd2 :       if (BlockInBlockFound) then
         allocate(Me%BoundRiemannXYZT3          (1:Ncells2D,1:NLayers,1:Ninstants))
         
         
-        call GetZCoordinates(Me%ObjMod_Grid_Out, CoordX, CoordY, STAT = STAT_CALL)
+        call GetCornersCoordinates(Me%ObjMod_Grid_Out, CoordX, CoordY, STAT = STAT_CALL)
         if (STAT_CALL/=SUCCESS_) then
             stop 'ReadBoundGridXYZ - ModuleDelft3D_2_Mohid - ERR20' 
-        endif                
-
-        do ip=1, Ncells2D        
-            i = Me%BoundCellsI(ip)
-            j = Me%BoundCellsJ(ip)
-            Me%BoundX2D(ip) = CoordX(i, j)
-            Me%BoundY2D(ip) = CoordY(i, j)
+        endif        
+        
+        !call GetZCoordinates(Me%ObjMod_Grid_Out, CoordX, CoordY, STAT = STAT_CALL)
+        !if (STAT_CALL/=SUCCESS_) then
+        !    stop 'ReadHydro - ModuleDelft3D_2_Mohid - ERR10' 
+        !endif
+        
+        do ip = 1, Ncells2D
+        
+            if      (Me%BoundCellsDir(ip) == South_) then
+                di1 = 0
+                dj1 = 0
+                di2 = 0
+                dj2 = 1
+            elseif  (Me%BoundCellsDir(ip) == West_) then
+                di1 = 0
+                dj1 = 0
+                di2 = 1
+                dj2 = 0
+            elseif  (Me%BoundCellsDir(ip) == North_) then
+                di1 = 1
+                dj1 = 0
+                di2 = 1
+                dj2 = 1                    
+            elseif  (Me%BoundCellsDir(ip) == East_) then
+                di1 = 0
+                dj1 = 1
+                di2 = 1
+                dj2 = 1
+            else                
+                write(*,*) 'Bound cell section not valid'
+                stop 'ReadBoundCells - ModuleDelft3D_2_Mohid - ERR30'
+            endif            
+            
+        
+            i   = Me%BoundCellsI(ip)
+            j   = Me%BoundCellsJ(ip)
+           
+            Me%BoundX2D(ip) = (CoordX(i+di1, j+dj1) + CoordX(i+di2, j+dj2))/2.
+            Me%BoundY2D(ip) = (CoordY(i+di1, j+dj1) + CoordY(i+di2, j+dj2))/2.
+            
+            !Me%BoundX2D(ip) = CoordX(i, j)
+            !Me%BoundY2D(ip) = CoordY(i, j)
+                
+            
         enddo        
         
         Me%BoundNoDataXY2D(:) = .true.
@@ -1511,8 +1559,8 @@ cd2 :       if (BlockInBlockFound) then
             j = Me%BoundCellsJ(ip)
             do k=1, Nlayers                        
                 icount = icount + 1
-                Me%BoundX3D(icount) = CoordX(i, j)
-                Me%BoundY3D(icount) = CoordY(i, j)
+                Me%BoundX3D(icount) = Me%BoundX2D(ip)
+                Me%BoundY3D(icount) = Me%BoundY2D(ip)
             enddo                
         enddo    
         
@@ -1552,6 +1600,8 @@ cd2 :       if (BlockInBlockFound) then
             stop 'ReadBoundGridXYZ - ModuleDelft3D_2_Mohid - ERR70' 
         endif         
         
+        
+        
     
     end subroutine ReadBoundGridXYZ    
 
@@ -1566,6 +1616,7 @@ cd2 :       if (BlockInBlockFound) then
         !Local-----------------------------------------------------------------
         character(len=StringLength)                 :: CharRead
         integer                                     :: STAT_CALL, nlines, i
+        integer                                     :: ip, ip1, ip2
         logical                                     :: StopRun
         
         !----------------------------------------------------------------------
@@ -1598,13 +1649,54 @@ cd2 :       if (BlockInBlockFound) then
         Me%BoundSectionsNumber = nlines
         
         allocate(Me%BoundSectionsName(1:Me%BoundSectionsNumber))
-        allocate(Me%BoundCellsI(1:Me%BoundCellsNumber))
-        allocate(Me%BoundCellsJ(1:Me%BoundCellsNumber))        
+        
+        allocate(Me%BoundCellsI  (1:Me%BoundCellsNumber))
+        allocate(Me%BoundCellsJ  (1:Me%BoundCellsNumber))   
+        allocate(Me%BoundCellsDir(1:Me%BoundCellsNumber))           
+        
 
         do i=1, nlines
             read(Me%BoundCellsUnit,'(A81)') CharRead
-            read(CharRead(26:49),*) Me%BoundCellsJ(2*i-1), Me%BoundCellsI(2*i-1), Me%BoundCellsJ(2*i), Me%BoundCellsI(2*i)
-            Me%BoundSectionsName(i) =   CharRead(1:15)          
+
+            ip1 = 2*i-1
+            ip2 = 2*i
+            read(CharRead(26:49),*) Me%BoundCellsJ(ip1), Me%BoundCellsI(ip1), Me%BoundCellsJ(ip2), Me%BoundCellsI(ip2)
+            
+            do ip = ip1, ip2
+                if      (Me%BoundCellsI(ip) == 1) then
+
+                    Me%BoundCellsDir(ip) = South_
+                    
+                    Me%BoundCellsJ  (ip) = Me%BoundCellsJ(ip) - 1
+                    
+                elseif (Me%BoundCellsI(ip) == Me%ModWorkSize3D%IUB + 2) then
+
+                    Me%BoundCellsDir(ip) = North_
+
+                    Me%BoundCellsJ(ip) = Me%BoundCellsJ(ip) - 1
+                    Me%BoundCellsI(ip) = Me%BoundCellsI(ip) - 2                    
+
+                elseif  (Me%BoundCellsJ(ip) == 1) then
+                
+                    Me%BoundCellsDir(ip) = West_
+
+                    Me%BoundCellsI  (ip) = Me%BoundCellsI(ip) - 1
+                    
+                elseif  (Me%BoundCellsJ(ip) == Me%ModWorkSize3D%JUB + 2) then
+                    
+                    Me%BoundCellsDir(ip) = East_
+                    
+                    Me%BoundCellsI(ip) = Me%BoundCellsI(ip) - 1
+                    Me%BoundCellsJ(ip) = Me%BoundCellsJ(ip) - 2                    
+                    
+                else                
+                    write(*,*) 'Bound cell section not valid'
+                    stop 'ReadBoundCells - ModuleDelft3D_2_Mohid - ERR30'
+                endif                
+            enddo
+            
+            Me%BoundSectionsName(i) =   CharRead(1:15)
+            
         enddo
         
         StopRun = .false. 
@@ -1621,14 +1713,14 @@ cd2 :       if (BlockInBlockFound) then
         enddo
         
         if (StopRun) then
-            stop 'ReadBoundCells - ModuleDelft3D_2_Mohid - ERR30'
+            stop 'ReadBoundCells - ModuleDelft3D_2_Mohid - ERR40'
         endif            
         
 
         call UnitsManager(Me%BoundCellsUnit, CLOSE_FILE, STAT = STAT_CALL) 
                                    
         if (STAT_CALL /= SUCCESS_) then
-            stop 'ReadBoundCells - ModuleDelft3D_2_Mohid - ERR40'
+            stop 'ReadBoundCells - ModuleDelft3D_2_Mohid - ERR50'
         endif          
     
     end subroutine ReadBoundCells    
@@ -2441,7 +2533,11 @@ cd2 :       if (BlockInBlockFound) then
         
         call WriteBoundDensity
                                    
-      
+        deallocate(Me%BoundSectionsName)
+        
+        deallocate(Me%BoundCellsI      )
+        deallocate(Me%BoundCellsJ      )         
+        deallocate(Me%BoundCellsDir    )
 
 
     end subroutine ModBound
