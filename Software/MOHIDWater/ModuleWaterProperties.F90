@@ -20961,7 +20961,7 @@ cd2 :       if (Actual.GE.Property%Evolution%NextCompute) then
         integer                                 :: di_out, dj_out
         real(8)                                 :: RoRef
         real                                    :: Depth
-        integer, save                           :: WriteNumber !teste
+        integer, save                           :: WriteNumber = 0
         integer, parameter                      :: WriteNumberMax = 1000
         !$ integer                                 :: CHUNK
         character(len=PathLength)               :: ModelName
@@ -21071,7 +21071,7 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                     !$OMP END PARALLEL
 
                 case (UNESCOState_)
-                    WriteNumber = 0
+
                     !$OMP PARALLEL PRIVATE(k,j,i,WriteNumber)
                     do k = KLB, KUB
                     !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -21091,7 +21091,7 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                             
                             if (WriteNumber > WriteNumberMax) then
                                 write(*,*) 'Too much temperature and/or salinity anomalous values >', WriteNumberMax
-                                call CloseAllAndStop (' ModifyDensity - ModuleWaterProperties - ERR60')
+                                call CloseAllAndStop ('ModifyDensity - ModuleWaterProperties - ERR60')
                             endif
 
                             Me%Density%Sigma(i, j, k) = SigmaUNESCO     (T(i, j, k), S(i, j, k))
