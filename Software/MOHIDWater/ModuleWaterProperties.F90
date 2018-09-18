@@ -20961,7 +20961,7 @@ cd2 :       if (Actual.GE.Property%Evolution%NextCompute) then
         integer                                 :: di_out, dj_out
         real(8)                                 :: RoRef
         real                                    :: Depth
-        integer, save                           :: WriteNumber    = 0
+        integer, save                           :: WriteNumber !teste
         integer, parameter                      :: WriteNumberMax = 1000
         !$ integer                                 :: CHUNK
         character(len=PathLength)               :: ModelName
@@ -21071,7 +21071,7 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                     !$OMP END PARALLEL
 
                 case (UNESCOState_)
-
+                    WriteNumber = 0
                     !$OMP PARALLEL PRIVATE(k,j,i,WriteNumber)
                     do k = KLB, KUB
                     !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
