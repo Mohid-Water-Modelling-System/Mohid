@@ -5633,6 +5633,7 @@ d5:     do k = klast + 1,KUB
         real,    dimension(:,:),   pointer                  :: SonVolInFather2D, AuxMatrix2D
         !Local variables --------------------------------------------------------------------------------
         integer                                             :: i, j, KUBFather, KUBSon, IUBSon, ILBSon, JUBSon, JLBSon
+        integer                                             ::  NThreads, CHUNK, N
         !Begin-------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB
         IUBSon = SizeSon%IUB
@@ -5640,7 +5641,11 @@ d5:     do k = klast + 1,KUB
         JUBSon = SizeSon%JUB
         KUBSon = SizeSon%KUB
         KUBFather = SizeFather%KUB
-
+        
+        NThreads = openmp_num_threads
+        CHUNK = CHUNK_J(JLBSon, JUBSon, NThreads)
+        !$OMP PARALLEL PRIVATE(i,j)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
             AuxMatrix2D(ILink(i, j), JLink(i, j)) = (AuxMatrix2D(ILink(i, j)+1, JLink(i, j)+1) + SonMatrix2D(i, j) *  &
@@ -5648,7 +5653,13 @@ d5:     do k = klast + 1,KUB
 
         enddo
         enddo
-
+        !$OMP END DO
+        !$OMP END PARALLEL
+        
+        CHUNK = CHUNK_J(JLink(1, 1), JLink(IUBSon, JUBSon), NThreads)
+        N =  (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1))
+        !$OMP PARALLEL PRIVATE(i,j) IF(N > 10000)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
             FatherMatrix2D(i, j) = FatherMatrix2D(i, j) + (AuxMatrix2D(i, j) / SonVolInFather2D(i, j) -   &
@@ -5656,7 +5667,8 @@ d5:     do k = klast + 1,KUB
                                    (VolumeFather2D(i, j)+0.001)) * Open3DFather(i, j, KUBFather)
         enddo
         enddo
-
+        !$OMP END DO
+        !$OMP END PARALLEL
     end subroutine FeedBack_Avrg_WL
 
     !--------------------------------------------------------------------------------------------------------------
@@ -5679,10 +5691,10 @@ d5:     do k = klast + 1,KUB
         real,    intent (IN)                              :: DecayTime, DT
         real, dimension(:,:,:), pointer                   :: AuxMatrix, SonVolInFather
         !Local variables -----------------------------------------------------------------------------
-        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
+        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, N, &
                                                              KUBSon, KUBFather, KLBFather, NThreads, OMPmethod, CHUNK
+                                         
         !Begin----------------------------------------------------------------------------------------
-        
         ILBSon = SizeSon%ILB
         IUBSon = SizeSon%IUB
         JLBSon = SizeSon%JLB
@@ -5701,69 +5713,67 @@ d5:     do k = klast + 1,KUB
         endif
         if (OMPmethod == 2) then
             CHUNK = CHUNK_K(KLBSon, KUBSon, NThreads)
-            if (MonitorPerformance) call StartWatch ("ModuleFunctions", "FeedBack_Avrg_UVCicle")
             !$OMP PARALLEL PRIVATE(i,j,k)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = KLBSon, KUBSon
             do j = JLBSon, JUBSon
             do i = ILBSon, IUBSon
-                    !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +          &
-                                                         SonMatrix(i, j, k) * VolumeSon(i, j, k) *         &
-                                                         Open3DSon(i, j, k) * SonComputeFaces3D(i, j, k) * &
-                                                         IgnoreOBCells(i, j)
+                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +         &
+                                                        SonMatrix(i, j, k) * VolumeSon(i, j, k) *         &
+                                                        Open3DSon(i, j, k) * SonComputeFaces3D(i, j, k) * &
+                                                        IgnoreOBCells(i, j)
+                
             enddo
             enddo
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
-             if (MonitorPerformance) call StopWatch ("ModuleFunctions", "FeedBack_Avrg_UVCicle")
-
-            !$OMP PARALLEL PRIVATE(i,j,k)
+            CHUNK = CHUNK_K(KLBFather, KUBFather, NThreads)
+            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1)) * (KUBFather - KLBFather) 
+            !$OMP PARALLEL PRIVATE(i,j) IF(N > 10000)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = KLBFather, KUBFather
             do j = JLink(1, 1), JLink(IUBSon, JUBSon)
             do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-
                 FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
                                         FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
                                         (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k) *                 &
                                          FatherComputeFaces3D(i, j, k)
-
             enddo
             enddo
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
         else
-            CHUNK = CHUNK_J(KLBSon, KUBSon, NThreads)
+            CHUNK = CHUNK_J(JLBSon, JUBSon, NThreads)
             !$OMP PARALLEL PRIVATE(i,j,k)
             do k = KLBSon, KUBSon
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = JLBSon, JUBSon
             do i = ILBSon, IUBSon
-                    !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +          &
-                                                         SonMatrix(i, j, k) * VolumeSon(i, j, k) *         &
-                                                         Open3DSon(i, j, k) * SonComputeFaces3D(i, j, k) * &
-                                                         IgnoreOBCells(i, j)
+                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +      &
+                                                     SonMatrix(i, j, k) * VolumeSon(i, j, k) *         &
+                                                     Open3DSon(i, j, k) * SonComputeFaces3D(i, j, k) * &
+                                                     IgnoreOBCells(i, j)
             enddo
             enddo
             !$OMP END DO
             enddo
             !$OMP END PARALLEL
             
-            !$OMP PARALLEL PRIVATE(i,j,k)
+            CHUNK = CHUNK_J(JLink(1, 1), JLink(IUBSon, JUBSon), NThreads)
+            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1)) * (KUBFather - KLBFather)
+            !$OMP PARALLEL PRIVATE(i,j,k) IF(N > 10000)
             do k = KLBFather, KUBFather
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = JLink(1, 1), JLink(IUBSon, JUBSon)
             do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-
                 FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
                                         FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
                                         (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k) *                 &
                                          FatherComputeFaces3D(i, j, k)
-
             enddo
             enddo
             !$OMP END DO
@@ -5790,7 +5800,7 @@ d5:     do k = klast + 1,KUB
         real,    intent (IN)                              :: DecayTime, DT
         real, dimension(:,:,:), pointer                   :: AuxMatrix, SonVolInFather
         !Local variables -----------------------------------------------------------------------------
-        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
+        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, N, &
                                                              KUBSon, KUBFather, KLBFather, NThreads, OMPmethod, CHUNK
         !Begin----------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB
@@ -5811,23 +5821,25 @@ d5:     do k = klast + 1,KUB
         endif
         if (OMPmethod == 2) then
             CHUNK = CHUNK_K(KLBSon, KUBSon, NThreads)
-            if (MonitorPerformance) call StartWatch ("ModuleFunctions", "FeedBack_Avrg_UVCicle")
             !$OMP PARALLEL PRIVATE(i,j,k)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = KLBSon, KUBSon
             do j = JLBSon, JUBSon
             do i = ILBSon, IUBSon
-                    !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
                 AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +   &
-                                                         SonMatrix(i, j, k) * VolumeSon(i, j, k) *  &
-                                                         Open3DSon(i, j, k) * IgnoreOBCells(i, j)
+                                                        SonMatrix(i, j, k) * VolumeSon(i, j, k) *      &
+                                                        Open3DSon(i, j, k) * IgnoreOBCells(i, j)
+            
             enddo
             enddo
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
+            CHUNK = CHUNK_K(KLBFather, KUBFather, NThreads)
+            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1)) * (KUBFather - KLBFather)
             
-            !$OMP PARALLEL PRIVATE(i,j,k)
+            !$OMP PARALLEL PRIVATE(i,j,k) IF(N > 10000)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)            
             do k = KLBFather, KUBFather
             do j = JLink(1, 1), JLink(IUBSon, JUBSon)
@@ -5843,40 +5855,40 @@ d5:     do k = klast + 1,KUB
             !$OMP END DO
             !$OMP END PARALLEL
         else
-            CHUNK = CHUNK_J(KLBSon, KUBSon, NThreads)
+            CHUNK = CHUNK_J(JLBSon, JUBSon, NThreads)
             !$OMP PARALLEL PRIVATE(i,j,k)
             do k = KLBSon, KUBSon
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = JLBSon, JUBSon
             do i = ILBSon, IUBSon
-                    !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
                 AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +   &
-                                                         SonMatrix(i, j, k) * VolumeSon(i, j, k) *  &
-                                                         Open3DSon(i, j, k) * IgnoreOBCells(i, j)
+                                                     SonMatrix(i, j, k) * VolumeSon(i, j, k) *  &
+                                                     Open3DSon(i, j, k) * IgnoreOBCells(i, j)
+                
             enddo
             enddo
             !$OMP END DO
             enddo
             !$OMP END PARALLEL
 
-            !$OMP PARALLEL PRIVATE(i,j,k)           
+            CHUNK = CHUNK_J(JLink(1, 1), JLink(IUBSon, JUBSon), NThreads)
+            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1)) * (KUBFather - KLBFather)
+            !$OMP PARALLEL PRIVATE(i,j,k) IF(N > 10000)
             do k = KLBFather, KUBFather
 			!$OMP DO SCHEDULE(DYNAMIC, CHUNK) 
             do j = JLink(1, 1), JLink(IUBSon, JUBSon)
             do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-
                 FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
                                         FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
-                                        (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k)
-
+                                        (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k)   
             enddo
             enddo
             !$OMP END DO
             enddo
             !$OMP END PARALLEL
         endif
-        
-
+     
                              end subroutine FeedBack_Avrg
     !-------------------------------------------------------------------------------------
 

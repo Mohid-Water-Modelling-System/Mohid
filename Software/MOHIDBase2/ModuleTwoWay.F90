@@ -862,34 +862,89 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, dimension(:, :), pointer              :: Ilink, Jlink
         integer, dimension(:, :, :), pointer, optional :: SonComputeFaces
         !Local variables--------------------------------------------------------------------------
-        integer                                 :: i, j, k
+        integer                                 :: i, j, k, NThreads, OMPmethod, CHUNK
         !Begin------------------------------------------------------------------------------------
+        OMPmethod = 2
+        NThreads = openmp_num_threads
+        if (NThreads > 1) then
+            if (NThreads - Me%WorkSize%KUB > 1) then
+                OMPmethod = 1
+            endif
+        endif
+        
         if (present(Volume_3D)) then
             if (present(SonComputeFaces))then
-            
-                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                        Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) =                             &
-                        Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) *        &
-                        Me%External_Var%Open3D(i, j, k) * Me%IgnoreOBCells(i, j) * SonComputeFaces(i, j, k)
-                enddo        
-                enddo
-                enddo
+                if (OMPmethod == 2) then
+                    CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB, NThreads)
+                    !$OMP PARALLEL PRIVATE(i,j,k)
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                            Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) =                             &
+                            Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) *        &
+                            Me%External_Var%Open3D(i, j, k) * Me%IgnoreOBCells(i, j) * SonComputeFaces(i, j, k)
+                    enddo        
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
+                else
+                    CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%KUB, NThreads)
+                    !$OMP PARALLEL PRIVATE(i,j,k)
+                    do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                            Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) =                             &
+                            Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) *        &
+                            Me%External_Var%Open3D(i, j, k) * Me%IgnoreOBCells(i, j) * SonComputeFaces(i, j, k)
+                    enddo        
+                    enddo
+                    !$OMP END DO
+                    enddo
+                    !$OMP END PARALLEL                    
+                endif
+                
             else
-                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                        Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) =                      &
-                        Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) * &
-                        Me%External_Var%Open3D(i, j, k) * Me%IgnoreOBCells(i, j)
-                enddo        
-                enddo
-                enddo
+                if (OMPmethod == 2) then
+                    CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB, NThreads)
+                    !$OMP PARALLEL PRIVATE(i,j,k)
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                            Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) =                      &
+                            Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) * &
+                            Me%External_Var%Open3D(i, j, k) * Me%IgnoreOBCells(i, j)
+                    enddo        
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
+                else
+                    CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB, NThreads)
+                    !$OMP PARALLEL PRIVATE(i,j,k)
+                    do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                            Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) =                      &
+                            Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) * &
+                            Me%External_Var%Open3D(i, j, k) * Me%IgnoreOBCells(i, j)
+                    enddo        
+                    enddo
+                    !$OMP END DO
+                    enddo
+                    !$OMP END PARALLEL
+                endif
+                
             endif
             
         else
-            
+            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB, NThreads)
+            !$OMP PARALLEL PRIVATE(i,j,k)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 Me%Father%TotSonVolIn_2D(ILink(i, j), JLink(i, j)) = &
@@ -897,7 +952,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%External_Var%Open3D(i, j, Me%WorkSize%KUB) * Me%IgnoreOBCells(i, j)
             enddo        
             enddo            
-            
+            !$OMP END DO
+            !$OMP END PARALLEL
         endif
           
     end subroutine ComputeSonVolInFather
