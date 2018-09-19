@@ -20961,7 +20961,7 @@ cd2 :       if (Actual.GE.Property%Evolution%NextCompute) then
         integer                                 :: di_out, dj_out
         real(8)                                 :: RoRef
         real                                    :: Depth
-        integer, save                           :: WriteNumber = 0
+        integer                                 :: WriteNumber
         integer, parameter                      :: WriteNumberMax = 1000
         !$ integer                                 :: CHUNK
         character(len=PathLength)               :: ModelName
@@ -21071,15 +21071,16 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                     !$OMP END PARALLEL
 
                 case (UNESCOState_)
-
-                    !$OMP PARALLEL PRIVATE(k,j,i,WriteNumber)
+                    WriteNumber = 0
+                    !$OMP PARALLEL PRIVATE(k,j,i) FIRSTPRIVATE(WriteNumber)
                     do k = KLB, KUB
                     !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                     do j = JLB, JUB
                     do i = ILB, IUB
 
                         if (WaterPoints3D(i, j, k) == 1) then
-
+                            
+                            !$OMP CRITICAL
                             if (T(i, j, k)<-20. .or. T(i, j, k)>100. .or. S(i, j, k) < -5 .or. S(i, j, k)>100.) then
                                 write(*,'(A256)') trim(ModelName)
                                 write(*,*) 'T,S,i,j,k'
@@ -21088,6 +21089,7 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                                 WriteNumber = WriteNumber + 1
                             
                             endif
+                            !$OMP END CRITICAL
                             
                             if (WriteNumber > WriteNumberMax) then
                                 write(*,*) 'Too much temperature and/or salinity anomalous values >', WriteNumberMax
