@@ -9908,10 +9908,10 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                 
                 if (SlowStartON) then
 
-                    if (T4 >= - Period) then
+                    if (T4 >= 0) then
 
                         if (T4 < Period) then
-                            A = A * StartPeriod / Period
+                            A = A * T4 / Period
                         endif
 
                     else

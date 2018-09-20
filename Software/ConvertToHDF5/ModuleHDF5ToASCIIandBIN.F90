@@ -250,7 +250,7 @@ i13:                    if (NowTime.EQ.Me%StartTime) then
                             FirstInstantSet = .TRUE. 
 !                            Me%TotalDates = Me%OutPut%Number                       
 !                            exit
-                        elseif (FirstInstantSet == .FALSE.) then
+                        elseif (.not. FirstInstantSet) then
                         
                             FirstInstant = 1
                         
