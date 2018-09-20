@@ -255,7 +255,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release MPI|x64" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" BufferedIO="true" HeapArrays="64" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\include\fortran; ..\..\..\..\ExternalLibs\Proj4\Include" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" FloatingPointExceptionHandling="fpe0"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran;..\..\..\..\ExternalLibs\MPI_x64\Microsoft;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64" PreprocessorDefinitions="_NO_NETCDF;_USE_MPI;_LAGRANGIAN_;_INCREASE_MAXINSTANCES" StandardWarnings="standardWarningsF03" WarnUnusedVariables="true" RealKIND="realKIND8" OutputCarriageControl="outputCCNone" RuntimeChecks="rtChecksNone"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
@@ -390,10 +390,10 @@
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\IPhreeqc_interface.F90">
 			<FileConfiguration Name="Debug Double|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double Parallel|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMP|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double|Win32" ExcludedFromBuild="true"/></File>
@@ -431,20 +431,20 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleGlobalData.F90">
 			<FileConfiguration Name="Debug OpenMI|x64">
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions=""/></FileConfiguration>
-			<FileConfiguration Name="Debug OpenMI|Win32">
-				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions=""/></FileConfiguration>
 			<FileConfiguration Name="Release OpenMI|x64">
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions="_INCREASE_MAXINSTANCES" FloatingPointExceptionHandling="fpe3"/></FileConfiguration>
+			<FileConfiguration Name="Debug OpenMI|Win32">
+				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions=""/></FileConfiguration>
 			<FileConfiguration Name="Release MPI|x64">
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions="_INCREASE_MAXINSTANCES" FloatingPointExceptionHandling="fpe3"/></FileConfiguration>
 			<FileConfiguration Name="Release OpenMI|Win32">
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions="_INCREASE_MAXINSTANCES" FloatingPointExceptionHandling="fpe3"/></FileConfiguration>
 			<FileConfiguration Name="Debug OpenMP|Win32">
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions="_INCREASE_MAXINSTANCES"/></FileConfiguration>
-			<FileConfiguration Name="Debug OpenMP|x64">
-				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions="_INCREASE_MAXINSTANCES"/></FileConfiguration>
 			<FileConfiguration Name="Release MPI|Win32">
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions="_INCREASE_MAXINSTANCES" FloatingPointExceptionHandling="fpe3"/></FileConfiguration>
+			<FileConfiguration Name="Debug OpenMP|x64">
+				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions="_INCREASE_MAXINSTANCES"/></FileConfiguration>
 			<FileConfiguration Name="Release|x64">
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions="_INCREASE_MAXINSTANCES" FloatingPointExceptionHandling="fpe3"/></FileConfiguration>
 			<FileConfiguration Name="Debug|x64">
@@ -488,10 +488,10 @@
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions=""/></FileConfiguration></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModulePhreeqCRM.F90">
 			<FileConfiguration Name="Debug Double|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double Parallel|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMP|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double|Win32" ExcludedFromBuild="true"/></File>
@@ -509,79 +509,79 @@
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions=""/></FileConfiguration></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleStopWatch.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTask2000.F">
-			<FileConfiguration Name="Debug Double CUDA|Win32">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Debug Double|x64">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Debug OpenMI|x64">
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions="" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Debug OpenMI|Win32">
-				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions="" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Release Double|Win32">
+			<FileConfiguration Name="Debug Double|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Release Double OpenMP|Win32">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Release Double|x64">
+			<FileConfiguration Name="Debug Double CUDA|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Release OpenMI|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Release Double OpenMI|x64">
+			<FileConfiguration Name="Release Double|x64">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Release Double OpenMP|Win32">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Release Double|Win32">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Debug OpenMI|Win32">
+				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions="" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Release MPI|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Debug|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Release MPI|x64">
+			<FileConfiguration Name="Release Double OpenMI|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Release Double OpenMP PhreeqC|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Release Double CUDA|Win32">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Release OpenMI|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Debug Double Openmp|x64">
+			<FileConfiguration Name="Release Double CUDA|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Release Double Parallel|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Debug OpenMP|Win32">
+			<FileConfiguration Name="Debug Double Openmp|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Debug OpenMP|x64">
+			<FileConfiguration Name="Debug OpenMP|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Release MPI|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Debug Double OpenMI|Win32">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Release|x64">
+			<FileConfiguration Name="Debug OpenMP|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Release OpenMP|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Release OpenMP|Win32">
+			<FileConfiguration Name="Release|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Debug|x64">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Release Double OpenMP|x64">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Debug Double PhreeqC|x64">
+			<FileConfiguration Name="Debug Double OpenMI|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Release Double Parallel|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Release Double OpenMP PhreeqC|Win32">
+			<FileConfiguration Name="Debug Double PhreeqC|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Debug Double PhreeqC|Win32">
+			<FileConfiguration Name="Release Double OpenMP|x64">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Debug|x64">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Release OpenMP|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Release Double Phreeqc|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Debug Developper Single|x64">
+			<FileConfiguration Name="Debug Double PhreeqC|Win32">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Release Double OpenMP PhreeqC|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Release|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Release Double OpenMI|Win32">
+			<FileConfiguration Name="Debug Developper Single|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Debug Double Openmp|Win32">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Release Double OpenMI|Win32">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Release Double Phreeqc|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
-			<FileConfiguration Name="Debug Double OpenMI|x64">
-				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
 			<FileConfiguration Name="Debug Double|Win32">
+				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
+			<FileConfiguration Name="Debug Double OpenMI|x64">
 				<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTime.F90">
 			<FileConfiguration Name="Debug OpenMI|x64">
@@ -604,33 +604,35 @@
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions=""/></FileConfiguration>
 			<FileConfiguration Name="Debug OpenMI|Win32">
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions=""/></FileConfiguration></File>
+		<File RelativePath="..\..\..\..\ExternalLibs\MPI_x64\Microsoft\mpi.f90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\proj4.F90">
-			<FileConfiguration Name="Debug Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug OpenMI|x64">
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions=""/></FileConfiguration>
+			<FileConfiguration Name="Debug Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug OpenMI|Win32">
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions=""/></FileConfiguration>
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMP PhreeqC|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double Parallel|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double OpenMI|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double PhreeqC|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double OpenMI|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMP|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double PhreeqC|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double Phreeqc|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Developper Single|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMI|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double Phreeqc|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double OpenMI|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double|Win32" ExcludedFromBuild="true"/></File>
+			<FileConfiguration Name="Debug Double|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double OpenMI|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\RM_interface.F90">
 			<FileConfiguration Name="Debug Double|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release Double|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double Parallel|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug Double Openmp|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release Double OpenMP|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug Double|Win32" ExcludedFromBuild="true"/></File></Filter></Files>
