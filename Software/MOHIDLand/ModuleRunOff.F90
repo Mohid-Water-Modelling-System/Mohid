@@ -7236,7 +7236,8 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !The algorithm below has the following assumptions
         !1. MOHID Land calculates the POTENTIAL inflow into the sewer system through the street gutters. values per target gutter 
         !points (matrix StreetGutterPotentialFlow)
-        !2. The values of the StreetGutterPotentialFlow are integrated at the nearest "NumberOfSewerStormWaterNodes" grid cells. values per gutter points
+        !2. The values of the StreetGutterPotentialFlow are integrated at the nearest "NumberOfSewerStormWaterNodes" grid cells. 
+        !values per gutter points
         !(matrix StormWaterPotentialFlow)
         !3. This matrix (StormWaterPotentialFlow) is provided to SWMM
         !4. Swmm calculates the EFFECTIVE inflow and returns the efective flow (inflow or outflow) at each interaction point 

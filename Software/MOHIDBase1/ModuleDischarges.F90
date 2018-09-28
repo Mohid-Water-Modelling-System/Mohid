@@ -137,6 +137,7 @@ Module ModuleDischarges
     integer, parameter :: FlowOver      = 2
     integer, parameter :: Valve         = 3
     integer, parameter :: OpenMILink    = 4
+    integer, parameter :: RatingCurve   = 5
 
     !Valve side
     integer, parameter :: SideA         = 1
@@ -202,6 +203,12 @@ Module ModuleDischarges
         real                                    :: CrestHeigth          = null_real 
     end  type T_FlowOver
 
+    type       T_RatingCurve
+        real, dimension(:), pointer             :: Level
+        real, dimension(:), pointer             :: Flow
+        integer                                 :: nValues
+    end  type T_RatingCurve
+    
     type       T_Valve
         integer                                 :: SectionType          = null_int
         real                                    :: Diameter             = null_real 
@@ -302,6 +309,7 @@ Module ModuleDischarges
          integer                                :: DischargeType    = null_int  
          type(T_Valve   )                       :: Valve
          type(T_FlowOver)                       :: FlowOver
+         type(T_RatingCurve)                    :: RatingCurve
          type(T_Property           ), pointer   :: FirstProperty    => null()
          type(T_Property           ), pointer   :: LastProperty     => null()
          type(T_Property           ), pointer   :: CurrProperty     => null()
@@ -588,7 +596,7 @@ cd2 :           if (BlockFound) then
         call Read_DataBaseFile                (NewDischarge)
 
         !Construct Discharge Flow values
-        call Construct_FlowValues             (NewDischarge)
+        call Construct_FlowValues             (NewDischarge, ClientNumber)
 
         !Construct Discharge Velocity values
         call Construct_VelocityValues         (NewDischarge)
@@ -1160,14 +1168,22 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
 
     !--------------------------------------------------------------------------
     
-    subroutine Construct_FlowValues(NewDischarge)
+    subroutine Construct_FlowValues(NewDischarge, ClientNumber)
 
         !Arguments--------------------------------------------------------------
         type(T_IndividualDischarge), pointer        :: NewDischarge
+        integer                                     :: ClientNumber
 
         !Local-----------------------------------------------------------------
         integer                                     :: flag, STAT_CALL
-
+        character(len = StringLength), parameter    :: beginratingcurve = '<<begin_rating_curve>>'
+        character(len = StringLength), parameter    :: endratingcurve   = '<<end_rating_curve>>'
+        real, dimension(:), pointer                 :: BufferLine
+        logical                                     :: BlockLayersFound
+        integer                                     :: FirstLine, LastLine
+        integer                                     :: iValue, iLine
+        
+        
         !----------------------------------------------------------------------
 
 
@@ -1231,10 +1247,11 @@ i1:     if (NewDischarge%TimeSerieON) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR30'
 
-        if      (NewDischarge%DischargeType /= Normal   .and.                           &
-                 NewDischarge%DischargeType /= FlowOver .and.                           &
-                 NewDischarge%DischargeType /= Valve    .and.                           &
-                 NewDischarge%DischargeType /= OpenMILink) then
+        if      (NewDischarge%DischargeType /= Normal       .and.                       &
+                 NewDischarge%DischargeType /= FlowOver     .and.                       &
+                 NewDischarge%DischargeType /= Valve        .and.                       &
+                 NewDischarge%DischargeType /= OpenMILink   .and.                       & 
+                 NewDischarge%DischargeType /= RatingCurve)   then
                  stop 'Construct_FlowValues - ModuleDischarges - ERR40'
         endif
         
@@ -1429,6 +1446,52 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                 stop 'Construct_FlowValues - ModuleDischarges - ERR138'
             endif     
 
+        else if (NewDischarge%DischargeType == RatingCurve) then i2
+            
+            !Get Block with rating curves values
+            call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                   &
+                            beginratingcurve, endratingcurve,                           &
+                            BlockLayersFound,                                           &
+                            FirstLine = FirstLine,                                      &
+                            LastLine  = LastLine,                                       &
+                            STAT      = STAT_CALL)
+
+cd1 :       if (STAT_CALL .EQ. SUCCESS_  .and. BlockLayersFound) then
+
+    
+                    allocate(NewDischarge%RatingCurve%Level(LastLine - FirstLine -1))
+                    allocate(NewDischarge%RatingCurve%Flow(LastLine - FirstLine -1))
+                    NewDischarge%RatingCurve%nValues = LastLine - FirstLine -1
+                    allocate(BufferLine(2))
+                    
+                    iValue = 1;                   
+                    do  iLine = FirstLine+1, LastLine-1
+
+                        call GetData(BufferLine,                                            &
+                                     Me%ObjEnterData,                                       &
+                                     flag,                                                  &
+                                     Buffer_Line = iLine,                                   &
+                                     STAT = STAT_CALL) 
+                        if (STAT_CALL /= SUCCESS_ .or. flag /= 2)             &
+                            stop "Read Rating Curve Values - ModuleDischarges - ERR139"
+
+                        NewDischarge%RatingCurve%Level(iValue) = BufferLine (1)
+                        NewDischarge%RatingCurve%Flow(iValue) = BufferLine (2)
+                    
+                        iValue = iValue + 1
+                        
+                    enddo
+
+                    deallocate (BufferLine)
+                    
+            else 
+
+                stop "Read Rating Curve Values - ModuleDischarges - ERR140"
+
+            endif cd1            
+            
+            
+            
         endif i2
 
         call GetData(NewDischarge%ByPass%ON,                                            &
@@ -3256,6 +3319,8 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         real                                        :: UpstreamH, DownstreamH, FlowDir
         real                                        :: D, TopValveH, BottomValveH, Haux, Theta
         real                                        :: PipeFriction, P, Rh
+        real                                        :: dQ1, dQ2
+        integer                                     :: iAux
          !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -3322,6 +3387,35 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                 if (DischargeX%ByPass%ON .and. DischargeX%ByPass%Side == SideB) then
                     Flow = - Flow
                 endif
+                
+            elseif (DischargeX%DischargeType == RatingCurve) then
+
+                
+                if (SurfaceElevation < DischargeX%RatingCurve%Level(1)) then
+                    Flow = 0.0
+                else if (SurfaceElevation > DischargeX%RatingCurve%Level(DischargeX%RatingCurve%nValues)) then
+                    Flow = -1.0 * DischargeX%RatingCurve%Flow(DischargeX%RatingCurve%nValues)
+                else
+
+                    iAux = 2
+                    do while (SurfaceElevation >= DischargeX%RatingCurve%Level(iAux))
+                        iAux = iAux + 1
+                    enddo
+                        
+                        
+                    dQ1 = SurfaceElevation - DischargeX%RatingCurve%Level(iAux-1)
+                    dQ2 = DischargeX%RatingCurve%Level(iAux) - SurfaceElevation
+                    
+                    Flow = -1.0 * (dQ1 * DischargeX%RatingCurve%Flow(iAux)             +           &
+                            dQ2 * DischargeX%RatingCurve%Flow(iAux-1) )         /           &
+                           (DischargeX%RatingCurve%Level(iAux)                  -           &
+                            DischargeX%RatingCurve%Level(iAux-1)) 
+                    
+                endif
+                    
+                
+                
+
                                     
             elseif (DischargeX%DischargeType == Valve) then
 
