@@ -25,7 +25,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Debug|x64" ConfigurationType="typeStaticLibrary">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran" PreprocessorDefinitions="_INCREASE_MAXINSTANCES;_LAGRANGIAN_GLOBAL_;_STACK_LIMITS_;_SWAN_COUPLING_;_GOOGLEMAPS" WarnUnusedVariables="true" WarnInterfaces="true" RealKIND="realKIND8" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran" PreprocessorDefinitions="_INCREASE_MAXINSTANCES;_LAGRANGIAN_GLOBAL_;_STACK_LIMITS_;_SWAN_COUPLING_;_GOOGLEMAPS" WarnUnusedVariables="true" WarnInterfaces="true" RealKIND="realKIND8" Traceback="true" OutputCarriageControl="outputCCFortran" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
 				<Tool Name="VFLibrarianTool"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
@@ -126,7 +126,6 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleInterface.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleLife.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleLightExtinction.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleLitter.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleLUD.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleMacroAlgae.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleMPImanagement.F90"/>
@@ -141,8 +140,8 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTriangulation.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleVoronoi3D.f">
 			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release OpenMP|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release OpenMP|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug MPI|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleWaterQuality.F90"/>
@@ -152,14 +151,14 @@
 				<Tool Name="VFFortranCompilerTool" RealKIND="realKIND8"/></FileConfiguration>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
 		<File RelativePath="..\..\..\..\Software\MOHIDBase1\proj4.F90">
-			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|Win32" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release MPI|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Release OpenMP|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release OpenMP|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release OpenMP|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug MPI|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug MPI|Win32" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|Win32" ExcludedFromBuild="true"/>
-			<FileConfiguration Name="Debug MPI|Win32" ExcludedFromBuild="true"/></File></Filter></Files>
+			<FileConfiguration Name="Debug MPI|x64" ExcludedFromBuild="true"/></File></Filter></Files>
 	<Globals/></VisualStudioProject>

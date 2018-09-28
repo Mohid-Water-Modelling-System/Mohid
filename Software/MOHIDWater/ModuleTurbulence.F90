@@ -1261,8 +1261,6 @@ case1 : select case  (Me%TurbOptions%MODTURB)
                                     Me%ObjHorizontalGrid,                               &
                                     Me%ObjGeometry,                                     & 
                                     Me%TurbOptions%Continuous_Compute,                  &
-                                    Me%TurbOptions%ReadContinuousFormat,                &
-                                    Me%TurbOptions%WriteContinuousFormat,               &                                    
                                     STAT = STAT_CALL    )
                 
                 if (STAT_CALL .NE. SUCCESS_)                                            &
@@ -1667,7 +1665,7 @@ cd2 :   if (flag .EQ. 0) then
                      Me%ObjEnterData, flag,                                             &
                      SearchType = FromFile,                                             &
                      keyword    = 'READ_CONTINUOUS_FORMAT',                             &
-                     Default    = DefaultFormat,                                        &                                           
+                     Default    = HDF5_,                                                &
                      ClientModule ='Turbulence',                                        &
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_)                                                      &
@@ -1691,7 +1689,7 @@ cd2 :   if (flag .EQ. 0) then
                      Me%ObjEnterData, flag,                                             &
                      SearchType = FromFile,                                             &
                      keyword    = 'WRITE_CONTINUOUS_FORMAT',                            &
-                     Default    = DefaultFormat,                                        &                                           
+                     Default    = HDF5_,                                                &                                           
                      ClientModule ='Turbulence',                                        &
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_)                                                      &
@@ -1718,7 +1716,7 @@ cd2 :   if (flag .EQ. 0) then
                      Me%ObjEnterData, flag,                                             &
                      SearchType = FromFile,                                             &
                      keyword    = 'CONTINUOUS_FORMAT',                                  &
-                     Default    = DefaultFormat,                                        &                                           
+                     Default    = HDF5_,                                                &
                      ClientModule ='Turbulence',                                        &
                      STAT       = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_)                                                      &

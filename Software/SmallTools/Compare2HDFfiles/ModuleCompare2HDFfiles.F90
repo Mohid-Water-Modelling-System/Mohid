@@ -164,6 +164,8 @@ Module ModuleCompare2HDFfiles
 
         logical                                     :: BeginTimeIn          = .false. 
         logical                                     :: EndTimeIn            = .false. 
+        
+        logical                                     :: MedFit               = .false.
 
         
         integer                                     :: Nout                 = null_int
@@ -385,6 +387,17 @@ Module ModuleCompare2HDFfiles
         Me%NameRMSD  = trim(Me%ScalarProperty) // " root mean square deviation" 
         Me%NameNv    = trim(Me%ScalarProperty) // " valid values"
         
+        call GetData(Me%MedFit,                                                         &
+                     Me%ObjEnterData, flag,                                             &
+                     SearchType   = FromFile,                                           &
+                     ClientModule = 'ModuleCompare2HDFfiles',                           &
+                     keyword      = 'MEDFIT',                                           &
+                     Default      = .false.,                                            &
+                     STAT         = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_)  then
+            stop "ConstructOptions - ModuleCompare2HDFfiles - ERR160"
+        endif
 
 
     end subroutine ConstructOptions
@@ -2798,8 +2811,8 @@ i1:     if (PropertyFound) then
                     
 	                Nt = 0
 	                do n = 1, Me%Nout
-	                    if (Array4D_A(i,j,k,n) > FillValueReal/100. .and. &
-	                        Array4D_B(i,j,k,n) > FillValueReal/100.) then 
+	                    if (Array3D_A(i,j,n) > FillValueReal/100. .and. &
+	                        Array3D_B(i,j,n) > FillValueReal/100.) then 
                             Nt = Nt + 1	                            
                             A(Nt) = Array3D_A(i,j,n)
                             B(Nt) = Array3D_B(i,j,n)        
@@ -3327,14 +3340,19 @@ i1:     if (PropertyFound) then
 	        RMSD=sqrt( sum( ( (A(:)-B(:) )**2) )/float(npt))
 	        
 	        if (Am > null_real/1.e4 .and. Bm > null_real/1.e4 .and.                     &
-	            (sdev_A > 0. .or. sdev_B > 0.)) then
+	            (sdev_A > 0. .and. sdev_B > 0.)) then
 
 	            call pearsn(A,B,rcorr,prob,z_fisher)
 	            
 	            rcorr_quad=rcorr*rcorr
-	            
-	            call medfit(B,A,alfa,beta_1,abdev) 
-            
+                
+                if (Me%MedFit) then
+	                call medfit(B,A,alfa,beta_1,abdev) 
+                else
+                    alfa        = null_real
+                    beta_1      = null_real
+                    abdev	    = null_real                
+                endif                    
             else
                 rcorr       = null_real
                 prob        = null_real

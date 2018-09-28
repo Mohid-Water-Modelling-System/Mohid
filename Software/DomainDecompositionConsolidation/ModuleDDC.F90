@@ -195,7 +195,7 @@ if1:    if (TreeExists) then
             call UnitsManager(iTree, OPEN_FILE, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadTreeFile - ModuleDDC - ERR01'
 
-            open(UNIT = iTree, FILE = 'Tree.dat', status = 'OLD', IOSTAT = STAT_CALL)
+            open(UNIT = iTree, FILE = 'tree.dat', status = 'OLD', IOSTAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadTreeFile - ModuleDDC - ERR02'
 
             read(unit=iTree, fmt=*) Coment1
@@ -308,30 +308,30 @@ if3 :           if (iMPI > 0) then
     !--------------------------------------------------------------------------
 
     character(len=PathLength) pure function ModelPath (AuxString, Level)
-
+    
         !Arguments-------------------------------------------------------------
         character(len=*), intent(in)                                :: AuxString
         integer,          intent(in)                                :: Level
-
+    
         !Local-----------------------------------------------------------------
         integer                                                     :: position
-
+    
         !------------------------------------------------------------------------
 
         position  = scan(AuxString, "/", back = .true.)
-        if (position == 0) then
-            position = scan(AuxString, "\", back = .true.)
+        if (position == 0) then            
+            position = scan(AuxString, backslash, back = .true.)
         endif
         if (position == 0) then
             ModelPath = "../res"
         else
             ModelPath  = AuxString(Level+1:position)//"res"
-        endif
+        endif       
         !------------------------------------------------------------------------
-
+    
     end function ModelPath
 
-
+	
     !--------------------------------------------------------------------------
 
     function AllocateDirectoryList(ModelPath)

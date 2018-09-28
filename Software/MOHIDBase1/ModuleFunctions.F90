@@ -14,7 +14,7 @@
 !------------------------------------------------------------------------------
 !
 !This program is free software; you can redistribute it and/or
-!modify it under the terms of the GNU General Public License 
+!modify it under the terms of the GNU General Public License
 !version 2, as published by the Free Software Foundation.
 !
 !This program is distributed in the hope that it will be useful,
@@ -42,9 +42,9 @@ Module ModuleFunctions
 
 #if _USE_MPI
     use mpi
-#endif    
- 
-    
+#endif
+
+
 
     implicit none
 
@@ -64,7 +64,7 @@ Module ModuleFunctions
     public  :: T_VECGW
 
     !Functions-----------------------------------------------------------------
-    
+
     !Matrix Operations
     public  :: SetMatrixValue
     public  :: SetMatrixValueAllocatable
@@ -137,12 +137,12 @@ Module ModuleFunctions
     public  :: SigmaMel96PressureCorrection
     public  :: ConvertTemperature
     public  :: SpecificHeatUNESCO
-    !Converts condutivity in salinity 
-    public  :: SAL78 
+    !Converts condutivity in salinity
+    public  :: SAL78
     !Converts pressure in meters
     public  :: depth
     !Compute the sound of speed in sea water
-    public  :: SVEL    
+    public  :: SVEL
 
     !Coordinates of grid cells
     public  :: RODAXY
@@ -152,8 +152,8 @@ Module ModuleFunctions
     interface  FromGridToCartesian
         module procedure FromGridToCartesianR4
         module procedure FromGridToCartesianR8
-    end interface  FromGridToCartesian    
-   
+    end interface  FromGridToCartesian
+
     public  :: AngleFromFieldToGrid
     public  :: AngleFromGridToField
 
@@ -167,26 +167,26 @@ Module ModuleFunctions
     public  :: LinearInterpolation
     public  :: InterpolateLinearyMatrix2D
     public  :: InterpolateLinearyMatrix3D
-    
-    !Extrapolation 
-    public  :: ExtraPol2DNearestCell 
-    public  :: ExtraPol3DNearestCell 
+
+    !Extrapolation
+    public  :: ExtraPol2DNearestCell
+    public  :: ExtraPol3DNearestCell
     public  :: ExtraPol3DNearestCell_8
-    
+
     private :: FillMatrix2DNearestCell
     private :: FillMatrix2DAverage
-    private :: FillMatrix2DConstant    
-    public  :: FillMatrix2D  
+    private :: FillMatrix2DConstant
+    public  :: FillMatrix2D
     public  :: FillMatrix3D
-    
-    !Assimilation - TwoWay   João Sobrinho
-    public  :: TwoWayAssimilation
-    
-    interface  TwoWayAssimilation
-        module procedure TwoWayAssimilation2D
-        module procedure TwoWayAssimilation3D
-    end interface  TwoWayAssimilation
-    
+
+    !Nudging - TwoWay   Joao Sobrinho
+    public  :: FeedBack_Avrg_UV
+    public  :: FeedBack_Avrg
+    public  :: FeedBack_Avrg_WL
+    public  :: FeedBack_IWD
+    public  :: FeedBack_IWD_UV
+    public  :: FeedBack_IWD_WL
+
     !Reading of Time Keywords
     public  :: ReadTimeKeyWords
 
@@ -205,32 +205,35 @@ Module ModuleFunctions
 
     !Reading keywords from OnlineString
     public  :: GetDataOnlineString
-    
+
     !Checks if number is odd or even
     public  :: IsOdd
-    
+
     !Interpolation routines
     public  :: InterpolateProfile
     public  :: InterpolateProfileR8
     public  :: QuadraticInterpolProfile
     public  :: PolIntProfile
     public  :: polint
+    
+    !Average of nearby vertical velocities
+    public  :: ComputeAvgVerticalVelocity
 
-    !Polygon 
+    !Polygon
     public  :: RelativePosition4VertPolygon
     public  :: PolygonArea
     public  :: FromGeo2Meters
-   
+
     !Secant
     public  :: Secant
 
-    !Light limitation factors for water quality 
+    !Light limitation factors for water quality
     public  :: PhytoLightLimitationFactor           !Function
-    
+
     !T90 decay time calculation methods
     public  :: ComputeT90_Canteras                  !Function
     public  :: ComputeT90_Chapra                    !Function
-    
+
 
     public  ::  Normcrossprod
 
@@ -243,12 +246,12 @@ Module ModuleFunctions
     public  ::  LatLonToLambertSP2
     public  ::  DistanceBetweenTwoGPSPoints
 
-#ifdef _USE_PROJ4  
+#ifdef _USE_PROJ4
     public  ::  GeographicToCartesian
     public  ::  CartesianToGeographic
 #endif
 
-    !Compute settling velocity    
+    !Compute settling velocity
     public  :: SettlingVelocity
     public  :: SettlingVelSecondaryClarifier
     public  :: SettlingVelPrimaryClarifier
@@ -256,7 +259,7 @@ Module ModuleFunctions
     !Bathymetry smoother
     public  :: SLPMIN
     public  :: SLPMIN2
-    
+
     !OpenMP Chunk Size
     public  :: Chunk_K
     public  :: Chunk_J
@@ -268,49 +271,49 @@ Module ModuleFunctions
 
     !ChangeSuffix
     public  :: ChangeSuffix
-    
+
     !converts all small caps in large caps
     public  :: FromLower2UpperCase
 
     !Sort functions
     private :: SortNumerically_3D
     public  :: Insertion_Sort
-    
-    
+
+
 
     private ::  QuadraticInterpolation
-    
+
     public  :: maxival
     public  :: minival
-    
+
     !Tide
     public  :: CheckAlternativeTidalCompNames
-    
+
     !esri grid ascii format
     public  :: WriteEsriGrid
     public  :: ReadEsriGrid
-    public  :: ReadEsriGridData    
-    
-    
-    public  :: WGS84toGoogleMaps    
+    public  :: ReadEsriGridData
+
+
+    public  :: WGS84toGoogleMaps
     interface  WGS84toGoogleMaps
         module procedure WGS84toGoogleMaps1D
         module procedure WGS84toGoogleMaps2D
     end interface  WGS84toGoogleMaps
-    
+
     public :: GreatCircleDistance
-    
-    !sea state functions    
-    public :: WindBeaufortScale    
-    public :: WaveBeaufortScale            
-    
+
+    !sea state functions
+    public :: WindBeaufortScale
+    public :: WaveBeaufortScale
+
     !Phase vs Complex
     public :: AmpPhase_To_Complex
     public :: Complex_to_AmpPhase
-    
+
     !wind waves lnear theory
     public :: WaveLengthHuntsApproximation
-    
+
     !types -------------------------------------------------------------------
 
     !griflet
@@ -334,9 +337,9 @@ Module ModuleFunctions
 
     !griflet
     type  T_VECGW
-        real(8), pointer, dimension(:)          :: G                     !Auxiliar thomas arrays 
-        real(8), pointer, dimension(:)          :: W                     !Auxiliar thomas arrays 
-    end type   T_VECGW        
+        real(8), pointer, dimension(:)          :: G                     !Auxiliar thomas arrays
+        real(8), pointer, dimension(:)          :: W                     !Auxiliar thomas arrays
+    end type   T_VECGW
 
     !griflet
     type   T_THOMAS2D
@@ -352,8 +355,8 @@ Module ModuleFunctions
     end type   T_THOMAS
 
     !interfaces -------------------------------------------------------------------
-    
-    !griflet: out with these non-working interfaces    
+
+    !griflet: out with these non-working interfaces
     interface THOMAS_2D
         module procedure THOMAS_2D_Original
         module procedure THOMAS_2D_NewType
@@ -363,17 +366,17 @@ Module ModuleFunctions
         module procedure THOMAS_3D_Original
         module procedure THOMAS_3D_NewType
     end interface THOMAS_3D
-    
+
     interface THOMASZ
         module procedure THOMASZ_Original
         module procedure THOMASZ_NewType
     end interface THOMASZ
-    
+
     interface QuadraticInterpolation
         module procedure QuadraticInterpolationR8
         module procedure QuadraticInterpolationR4
     end interface QuadraticInterpolation
-    
+
     public:: interpolate3D
     interface interpolate3D
         module procedure interpolate3D_R4
@@ -421,7 +424,7 @@ Module ModuleFunctions
         module procedure GetPointer2D_R4
         module procedure GetPointer2D_R8
         module procedure GetPointer3D_R4
-        module procedure GetPointer3D_R8        
+        module procedure GetPointer3D_R8
     end interface
 
     public ::  MPIKind
@@ -431,7 +434,7 @@ Module ModuleFunctions
         module procedure MPIKind1D
         module procedure MPIKind2D
         module procedure MPIKind3D
-#endif        
+#endif
     end interface MPIKind
     !include "mpif.f90"
 
@@ -489,7 +492,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_I(Size%ILB, Size%IUB)
-                
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -508,7 +511,7 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
 
     end subroutine SetMatrixValues1D_R4_FromMatrix
@@ -530,8 +533,8 @@ Module ModuleFunctions
 
         !Begin-----------------------------------------------------------------
 
-        CHUNK = CHUNK_I(Size%ILB, Size%IUB) 
-        
+        CHUNK = CHUNK_I(Size%ILB, Size%IUB)
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -550,7 +553,7 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues1D_I4_FromMatrix
 
@@ -566,12 +569,12 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i
-        integer                                         :: CHUNK 
+        integer                                         :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_I(Size%ILB, Size%IUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -590,7 +593,7 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues1D_R8_FromMatrix
 
@@ -606,12 +609,12 @@ Module ModuleFunctions
 
         !Local-----------------------------------------------------------------
         integer                                         :: i
-        integer                                         :: CHUNK 
+        integer                                         :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_I(Size%ILB, Size%IUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -630,7 +633,7 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues1D_I8_FromMatrix
 
@@ -651,7 +654,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_I(Size%ILB, Size%IUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -670,12 +673,12 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues1D_I4_Constant
-    
+
     !--------------------------------------------------------------------------
-    
+
     subroutine SetMatrixValues1D_I8_Constant (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
@@ -691,7 +694,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_I(Size%ILB, Size%IUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -710,11 +713,11 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues1D_I8_Constant
-    
-    !--------------------------------------------------------------------------    
+
+    !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues1D_R4_Constant (Matrix, Size, ValueX, MapMatrix)
 
@@ -731,7 +734,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_I(Size%ILB, Size%IUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -750,10 +753,10 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues1D_R4_Constant
-    
+
     !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues1D_R8_Constant (Matrix, Size, ValueX, MapMatrix)
@@ -771,7 +774,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_I(Size%ILB, Size%IUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -790,12 +793,12 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues1D_R8_Constant
-    
+
     !--------------------------------------------------------------------------
-    
+
     subroutine SetMatrixValues2D_I4_Constant (Matrix, Size, ValueX, MapMatrix)
 
         !Arguments-------------------------------------------------------------
@@ -811,7 +814,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_J(Size%JLB, Size%JUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -834,10 +837,10 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues2D_I4_Constant
-    
+
     !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues2D_R4_Constant (Matrix, Size, ValueX, MapMatrix)
@@ -855,7 +858,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_J(Size%JLB, Size%JUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -878,7 +881,7 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues2D_R4_Constant
 
@@ -899,7 +902,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_J(Size%JLB, Size%JUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -922,10 +925,10 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues2D_R4_ConstantAllocatable
-    
+
     !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues2D_R8_Constant (Matrix, Size, ValueX, MapMatrix)
@@ -943,7 +946,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_J(Size%JLB, Size%JUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -966,10 +969,10 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues2D_R8_Constant
-    
+
     !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues2D_R8_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix)
@@ -987,7 +990,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_J(Size%JLB, Size%JUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -1010,9 +1013,9 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
-    end subroutine SetMatrixValues2D_R8_ConstantAllocatable    
+    end subroutine SetMatrixValues2D_R8_ConstantAllocatable
 
     !--------------------------------------------------------------------------
 
@@ -1031,7 +1034,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_J(Size%JLB, Size%JUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -1054,7 +1057,7 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues2D_R4_FromMatrix
 
@@ -1075,7 +1078,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_J(Size%JLB, Size%JUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -1098,10 +1101,10 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues2D_R4_FromMatrixAllocatable
-    
+
     !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues2D_I4_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
@@ -1119,7 +1122,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_J(Size%JLB, Size%JUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -1142,7 +1145,7 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues2D_I4_FromMatrix
 
@@ -1163,7 +1166,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_J(Size%JLB, Size%JUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -1186,10 +1189,10 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues2D_R8_FromMatrix
-    
+
     !--------------------------------------------------------------------------
     subroutine SetMatrixValues2D_R8ToR4_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
 
@@ -1206,7 +1209,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_J(Size%JLB, Size%JUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -1229,10 +1232,10 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
-    end subroutine SetMatrixValues2D_R8ToR4_FromMatrix    
-    !--------------------------------------------------------------------------    
+    end subroutine SetMatrixValues2D_R8ToR4_FromMatrix
+    !--------------------------------------------------------------------------
     subroutine SetMatrixValues2D_R8_FromMatrixAllocatable (Matrix, Size, InMatrix, MapMatrix)
 
         !Arguments-------------------------------------------------------------
@@ -1248,7 +1251,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_J(Size%JLB, Size%JUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -1271,10 +1274,10 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues2D_R8_FromMatrixAllocatable
-    
+
     !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues3D_R8_FromMatrixAllocatable (Matrix, Size, InMatrix, MapMatrix)
@@ -1288,7 +1291,7 @@ Module ModuleFunctions
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
         integer                                         :: CHUNK
-        
+
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_K(Size%KLB, Size%KUB)
@@ -1319,10 +1322,10 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues3D_R8_FromMatrixAllocatable
-    
+
     !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues3D_I4_Constant (Matrix, Size, ValueX, MapMatrix)
@@ -1340,7 +1343,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_K(Size%KLB, Size%KUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J,K)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -1367,10 +1370,10 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues3D_I4_Constant
-    
+
     !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues3D_R4_Constant (Matrix, Size, ValueX, MapMatrix)
@@ -1386,9 +1389,9 @@ Module ModuleFunctions
         integer                                         :: CHUNK
 
         !Begin-----------------------------------------------------------------
-        
+
         CHUNK = CHUNK_K(Size%KLB, Size%KUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J,K)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -1418,7 +1421,7 @@ Module ModuleFunctions
         endif
 
     end subroutine SetMatrixValues3D_R4_Constant
-    
+
     !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues3D_R4_ConstantAllocatable (Matrix, Size, ValueX, MapMatrix)
@@ -1434,9 +1437,9 @@ Module ModuleFunctions
         integer                                         :: CHUNK
 
         !Begin-----------------------------------------------------------------
-        
+
         CHUNK = CHUNK_K(Size%KLB, Size%KUB)
-        
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J,K)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -1466,7 +1469,7 @@ Module ModuleFunctions
         endif
 
     end subroutine SetMatrixValues3D_R4_ConstantAllocatable
-        
+
     !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues3D_R8_Constant (Matrix, Size, ValueX, MapMatrix)
@@ -1483,8 +1486,8 @@ Module ModuleFunctions
 
         !Begin-----------------------------------------------------------------
 
-        CHUNK = CHUNK_K(Size%KLB, Size%KUB)   
-        
+        CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J,K)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -1511,7 +1514,7 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues3D_R8_Constant
 
@@ -1531,8 +1534,8 @@ Module ModuleFunctions
 
         !Begin-----------------------------------------------------------------
 
-        CHUNK = CHUNK_K(Size%KLB, Size%KUB)   
-        
+        CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J,K)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -1559,10 +1562,10 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues3D_R8_ConstantAllocatable
-    
+
     !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues3D_R4_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
@@ -1576,7 +1579,7 @@ Module ModuleFunctions
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
         integer                                         :: CHUNK
-        
+
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_K(Size%KLB, Size%KUB)
@@ -1607,12 +1610,12 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues3D_R4_FromMatrix
-    
+
     subroutine SetMatrixValues3D_R8ToR4_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
-    
+
         !Arguments-------------------------------------------------------------
         real(4), dimension(:, :, :), pointer            :: Matrix
         type (T_Size3D)                                 :: Size
@@ -1622,7 +1625,7 @@ Module ModuleFunctions
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
         integer                                         :: CHUNK
-        
+
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_K(Size%KLB, Size%KUB)
@@ -1653,7 +1656,7 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif        
+        endif
     end subroutine SetMatrixValues3D_R8ToR4_FromMatrix
 
     !--------------------------------------------------------------------------
@@ -1669,7 +1672,7 @@ Module ModuleFunctions
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
         integer                                         :: CHUNK
-        
+
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_K(Size%KLB, Size%KUB)
@@ -1700,10 +1703,10 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues3D_R4_FromMatrixAllocatable
-    
+
     !--------------------------------------------------------------------------
 
     subroutine SetMatrixValues3D_R8_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
@@ -1717,7 +1720,7 @@ Module ModuleFunctions
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
         integer                                         :: CHUNK
-        
+
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_K(Size%KLB, Size%KUB)
@@ -1748,7 +1751,7 @@ Module ModuleFunctions
             enddo
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
-        endif    
+        endif
 
     end subroutine SetMatrixValues3D_R8_FromMatrix
 
@@ -1765,7 +1768,7 @@ Module ModuleFunctions
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
         integer                                         :: CHUNK
-        
+
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_K(Size%KLB, Size%KUB)
@@ -1803,73 +1806,73 @@ Module ModuleFunctions
     !--------------------------------------------------------------------------
 
     function GetPointer2D_I4(matrix) result(ptr)
-    
+
         !Arguments-------------------------------------------------------------
         integer(4), dimension(:,:), allocatable, intent(in), target    :: matrix
-        
+
         !Local-----------------------------------------------------------------
         integer(4), dimension(:,:), pointer                            :: ptr
-        
+
         ptr => matrix
-    
+
     end function GetPointer2D_I4
 
     !--------------------------------------------------------------------------
 
     function GetPointer2D_R4(matrix) result(ptr)
-    
+
         !Arguments-------------------------------------------------------------
         real(4), dimension(:,:), allocatable, intent(in), target    :: matrix
-        
+
         !Local-----------------------------------------------------------------
         real(4), dimension(:,:), pointer                            :: ptr
-        
+
         ptr => matrix
-    
+
     end function GetPointer2D_R4
-    
+
     !--------------------------------------------------------------------------
 
     function GetPointer2D_R8(matrix) result(ptr)
-    
+
         !Arguments-------------------------------------------------------------
         real(8), dimension(:,:), allocatable, intent(in), target    :: matrix
-        
+
         !Local-----------------------------------------------------------------
         real(8), dimension(:,:), pointer                            :: ptr
-        
+
         ptr => matrix
-    
+
     end function GetPointer2D_R8
 
     !--------------------------------------------------------------------------
 
     function GetPointer3D_R4(matrix) result(ptr)
-    
+
         !Arguments-------------------------------------------------------------
         real(4), dimension(:,:,:), allocatable, intent(in), target  :: matrix
-        
+
         !Local-----------------------------------------------------------------
         real(4), dimension(:,:,:), pointer                          :: ptr
-        
+
         ptr => matrix
-    
+
     end function GetPointer3D_R4
-    
+
     !--------------------------------------------------------------------------
 
     function GetPointer3D_R8(matrix) result(ptr)
 
         !Arguments-------------------------------------------------------------
         real(8), dimension(:,:,:), allocatable, intent(in), target :: matrix
-        
+
         !Local-----------------------------------------------------------------
         real(8), dimension(:,:,:), pointer             :: ptr
-        
+
         ptr => matrix
-    
+
     end function GetPointer3D_R8
-    
+
     !--------------------------------------------------------------------------
     ! Function Pad
     ! Returns an upperbound value for padding a matrix.
@@ -1878,13 +1881,13 @@ Module ModuleFunctions
     ! Written by Jonathan van der Wielen, 2012-01-27, jonathan.vanderwielen@hydrologic.com
     !--------------------------------------------------------------------------
     function Pad(LowerBound, UpperBound) result (PaddedUpperBound)
-    
+
         !Arguments-------------------------------------------------------------
         integer, intent(in)     :: LowerBound, UpperBound
-        
+
         !Local-----------------------------------------------------------------
         integer                 :: PaddedUpperBound, a
-        
+
 #ifdef _PAD_MATRICES
         ! Padding a matrix to a multiple of 128 bytes gives a significant performance gain
         ! Padding to 32 values ensures a padding of 128 bytes for integer / single and 256 bytes for double
@@ -1902,7 +1905,7 @@ Module ModuleFunctions
 
     !--------------------------------------------------------------------------
 
-    subroutine InvSingularDiagMatrix2D(Matrix, Dim, InvMatrix) 
+    subroutine InvSingularDiagMatrix2D(Matrix, Dim, InvMatrix)
 
         !Arguments---------------------------------------------------------------
         real, dimension (:, :), pointer             :: Matrix
@@ -1927,7 +1930,7 @@ Module ModuleFunctions
 
     !----------------------------------------------------------------------
 
-    subroutine CholLinSystemSolver(A, B, Dim, X) 
+    subroutine CholLinSystemSolver(A, B, Dim, X)
 
         !Arguments---------------------------------------------------------------
         !real(8), dimension (:, :), pointer          :: A
@@ -1945,8 +1948,8 @@ Module ModuleFunctions
 
         !------------------------------------------------------------------------
 
-        !Solves a linear system of equations, A*X = B based on the Cholesky decomposition 
-        !of the system matrix A (symmetric positive definite) in a lower triangular 
+        !Solves a linear system of equations, A*X = B based on the Cholesky decomposition
+        !of the system matrix A (symmetric positive definite) in a lower triangular
         !square root matrix, AuxDiagMatrix1.
 
         !allocate aux variables
@@ -1969,7 +1972,7 @@ Module ModuleFunctions
         !Solve AuxDiagMatrix1'*x = AuxVector
         AuxDiagMatrix2 = TRANSPOSE(AuxDiagMatrix1)
         Lower = .false. !AuxDiagMatrix2 is upper triangular
-        call TriangLinSystemSolver(AuxDiagMatrix2, AuxVector, Dim, Lower, X) 
+        call TriangLinSystemSolver(AuxDiagMatrix2, AuxVector, Dim, Lower, X)
 
         !deallocate aux variables
         deallocate (AuxVector)
@@ -1980,7 +1983,7 @@ Module ModuleFunctions
 
     !----------------------------------------------------------------------
 
-    subroutine CholeskyFactorization(A, Dim, L) 
+    subroutine CholeskyFactorization(A, Dim, L)
 
         !Arguments---------------------------------------------------------------
         !real(8), dimension (:, :), pointer          :: A, L
@@ -1995,7 +1998,7 @@ Module ModuleFunctions
 
         !------------------------------------------------------------------------
 
-        !Computes the Cholesky factorization of a real symmetric 
+        !Computes the Cholesky factorization of a real symmetric
         !positive definite matrix A = L*L'
         !(no test is made for symmetric positive definite character)
 
@@ -2012,15 +2015,15 @@ Module ModuleFunctions
         do j = 2, Dim
 
             do i = j, Dim
-            
+
                 if (i == j) then
-                
+
                     AuxSum = 0.
 
                     do k = 1, j-1
-                    
-                        AuxSum = AuxSum + (L(i,k))**2        
- 
+
+                        AuxSum = AuxSum + (L(i,k))**2
+
                     end do
 
                     L(i,i) = sqrt(A(i,i) - AuxSum)
@@ -2049,7 +2052,7 @@ Module ModuleFunctions
 
     !----------------------------------------------------------------------
 
-    subroutine TriangLinSystemSolver(L, B, Dim, Lower, X) 
+    subroutine TriangLinSystemSolver(L, B, Dim, Lower, X)
 
         !Arguments---------------------------------------------------------------
         !real(8), dimension (:, :), pointer          :: L
@@ -2067,7 +2070,7 @@ Module ModuleFunctions
         !------------------------------------------------------------------------
 
         !Solves a linear system of equations L*X = B where L is a triangular matrix.
- 
+
         if (Lower) then
 
             do i = 1, Dim
@@ -2091,7 +2094,7 @@ Module ModuleFunctions
                 AuxSum = 0.
 
                 do k = i+1, Dim
-        
+
                     AuxSum = AuxSum + L(i,k)*X(k,1)
 
                 enddo
@@ -2130,7 +2133,7 @@ Module ModuleFunctions
 
         !EOFAnalysis performs the EOF analysis of Covariance
         !
-        ! Author: 
+        ! Author:
         !
         !   Adapted from Fortran 77 code by:
         !   Ibrahim Hoteit,
@@ -2139,7 +2142,7 @@ Module ModuleFunctions
         !   9500 Gilman Drive, Dept 0230,
         !   La Jolla, CA 92093-0230, USA,
         !   ihoteit@ucsd.edu
-        !       
+        !
         ! Parameters:
         !
         !    Input,
@@ -2159,10 +2162,10 @@ Module ModuleFunctions
         itermax = miter - 1
 
         write(*,*)
-        write(*,*) 'Performing EOF analysis...' 
+        write(*,*) 'Performing EOF analysis...'
 
         do ieig = 1, rank
-            
+
             eps = ieig*prec
 
             !Initialize each EOF as random
@@ -2194,7 +2197,7 @@ Module ModuleFunctions
             end do
 
             b = dsqrt(b2)
-  
+
             do k = 1, dim
                 LMatrix(k,ieig) = LMatrix(k,ieig)/b
             end do
@@ -2213,7 +2216,7 @@ Module ModuleFunctions
             iter = 1
 
             !2. Make vecr ortogonal with the other eigen vectors (are normalized)
-do1 :       do 
+do1 :       do
                 do j = 1, ieig - 1 !500
                     tmp = 0
                     do k = 1, dim
@@ -2227,7 +2230,7 @@ do1 :       do
                 end do
 
                 b2 = 0.
-        
+
                 do k = 1, dim
                     b2 = b2 + vecr(k)**2
                 end do
@@ -2236,7 +2239,7 @@ do1 :       do
 
                 !stoping test
                 angle = b/a1
-        
+
                 if (angle .lt. eps) exit do1 !goto 600
 
                 iter = iter + 1
@@ -2263,10 +2266,10 @@ do1 :       do
                 t2 = 1 + t**2
 
                 if (a1**2 .gt. a2**2) then
-                    a1 = (a1 + (t**2)*a2 + 2*t*b)/t2 
+                    a1 = (a1 + (t**2)*a2 + 2*t*b)/t2
                     t2 = dsqrt(t2)
                     tmp = t/t2
-            
+
                     do k = 1, dim
                        vecr(k) = (vecr(k) - a2*vec2(k) - b*LMatrix(k,ieig))*tmp
                        LMatrix(k,ieig) = (LMatrix(k,ieig) + t*vec2(k))/t2
@@ -2274,7 +2277,7 @@ do1 :       do
                 else
                     a1 = (a2 + (t**2)*a1 - 2*t*b)/t2
                     t2 = dsqrt(t2)
-            
+
                     do k = 1, dim
                        vecr(k) = (vecr(k) - a2*vec2(k) - b*LMatrix(k,ieig))/t2
                        LMatrix(k,ieig) = (vec2(k) - t*LMatrix(k,ieig))/t2
@@ -2284,7 +2287,7 @@ do1 :       do
             end do do1
 
             tmp = dsqrt(a1*a1 + b2) !600
-      
+
             do k = 1, dim
                 LMatrix(k,ieig) = (a1*LMatrix(k,ieig) + vecr(k))/tmp
             end do
@@ -2293,7 +2296,7 @@ do1 :       do
 
         end do
 
-        !Deallocate aux vectors      
+        !Deallocate aux vectors
         deallocate(vecr)
         deallocate(vec2)
         nullify(vecr)
@@ -2320,7 +2323,7 @@ do1 :       do
 
         !UniformRand01 returns a random number uniformely distributed in interval [0, 1]
         !
-        ! Author: 
+        ! Author:
         !
         !   Adapted from Fortran 77 code by:
         !   Ibrahim Hoteit,
@@ -2329,7 +2332,7 @@ do1 :       do
         !   9500 Gilman Drive, Dept 0230,
         !   La Jolla, CA 92093-0230, USA,
         !   ihoteit@ucsd.edu
-        !       
+        !
         ! Parameters:
         !
         !    Input,
@@ -2344,7 +2347,7 @@ do1 :       do
 
         k = idum/IQ
         idum = IA*(idum - k*IQ) - IR*k
-        if (idum .lt. 0) then 
+        if (idum .lt. 0) then
             idum = idum + IM
         endif
 
@@ -2368,7 +2371,7 @@ do1 :       do
 
         !NormalRand returns a random number following normal distribution N(0,1)
         !
-        ! Author: 
+        ! Author:
         !
         !   Adapted from Fortran 77 code by:
         !   Ibrahim Hoteit,
@@ -2377,7 +2380,7 @@ do1 :       do
         !   9500 Gilman Drive, Dept 0230,
         !   La Jolla, CA 92093-0230, USA,
         !   ihoteit@ucsd.edu
-        !       
+        !
         ! Parameters:
         !
         !    Input,
@@ -2399,11 +2402,11 @@ do1 :       do
             do
                 v1 = 2.0 * UniformRand01(idum) - 1.0
                 v2 = 2.0 * UniformRand01(idum) - 1.0
-            
+
                 rsq = v1*v1 + v2*v2
                 if ((rsq .lt. 1.0) .and. (rsq /= 0)) exit
             end do
-            
+
             fac = sqrt(- 2.0*alog(rsq)/rsq) !alog = neperian logarithm
             iset = 1
             gset = v2*fac
@@ -2414,9 +2417,9 @@ do1 :       do
         endif
 
     end function NormalRand
-    
+
     !--------------------------------------------------------------------------
-    
+
     subroutine THOMAS_2D_Original(IJmin, IJmax,                                        &
                          JImin, JImax,                                        &
                          di,    dj,                                           &
@@ -2450,16 +2453,16 @@ do2 :   do IJ = IJmin, IJmax
 do3 :       do JI=JImin+1,JImax+1
                 I        = IJ*dj + JI*di
                 J        = IJ*di + JI*dj
-                
+
                 Aux = ECoef_2D(I,J) + DCoef_2D(I,J) * VECW(JI-1)
-                
-                !if (abs(Aux)>0) then 
+
+                !if (abs(Aux)>0) then
                     VECW(JI) = -FCoef_2D(I,J) / Aux
                     VECG(JI) = (TiCoef_2D(I,J) - DCoef_2D(I,J) * VECG(JI-1))/  Aux
                 !else
                 !    VECW(JI) = 0.
                 !    VECG(JI) = 0.
-                !endif                    
+                !endif
             end do do3
 
             I = IJ * dj + (JImax+1) * di
@@ -2471,7 +2474,7 @@ do1 :       do II = JImin+1, JImax+1
                 MM = JImax+JImin+1-II
                 I  = IJ*dj + MM*di
                 J  = IJ*di + MM*dj
-                
+
                 ANSWER(I,J) = VECW(MM) * ANSWER(I+di,J+dj) + VECG(MM)
             end do do1
         end do do2
@@ -2481,7 +2484,7 @@ do1 :       do II = JImin+1, JImax+1
     end subroutine THOMAS_2D_Original
 
     !--------------------------------------------------------------------------
-    
+
     subroutine THOMAS_2D_NewType(IJmin, IJmax,                                &
                          JImin, JImax,                                        &
                          di,    dj,                                           &
@@ -2511,7 +2514,7 @@ do1 :       do II = JImin+1, JImax+1
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMAS_2D")
-        
+
         !$ CHUNK = CHUNK_J(IJmin,IJmax) !
 
         !$OMP PARALLEL PRIVATE(TID,VEC,IJ,I,J,JI,II,MM,AUX)
@@ -2583,7 +2586,7 @@ do1 :       do II = JImin+1, JImax+1
         real(8), dimension(:  ), pointer            :: VECG, VECW
 
         !Local-----------------------------------------------------------------
-        
+
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMAS_3D")
 
         if (di == 0 .and. dj == 1) then
@@ -2605,7 +2608,7 @@ do1 :       do II = JImin+1, JImax+1
                                  VECG, VECW)
 
         else
-            
+
             stop 'THOMAS_3D - ModuleFunctions - ERR01'
 
         endif
@@ -2721,9 +2724,9 @@ do1 :       do II = JImin+1, JImax+1
 #ifdef _ENABLE_CUDA
                                  , CudaID                                               &
                                  , SaveResults                                          &
-#endif _ENABLE_CUDA 
+#endif _ENABLE_CUDA
                                 )
-        
+
         !Arguments-------------------------------------------------------------
         integer,                         intent(IN) :: IJmin, IJmax
         integer,                         intent(IN) :: JImin, JImax
@@ -2739,12 +2742,12 @@ do1 :       do II = JImin+1, JImax+1
 
          !Local-----------------------------------------------------------------
         integer                                     :: Dim
-       
+
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMAS_3D")
-        
+
         if (di == 0 .and. dj == 1) then
             Dim = 1
-            
+
 #ifdef _USE_CUDA
             write(*,*) ' Solving Thomas for Y'
             ! If Y dimension, JImin / JImax = JLB / JUB. Dim = 1 = Y
@@ -2792,7 +2795,7 @@ do1 :       do II = JImin+1, JImax+1
     end subroutine THOMAS_3D_NewType
 
     !--------------------------------------------------------------------------
-    
+
     !griflet: new Thomas3D subroutine for openmp
     !--------------------------------------------------------------------------
 
@@ -2811,7 +2814,7 @@ do1 :       do II = JImin+1, JImax+1
 
         !Local-----------------------------------------------------------------
         integer                                     :: IJ, JI, II, K
-        
+
         !griflet
         type(T_VECGW), pointer                      :: VEC
         integer                                     :: TID
@@ -2842,7 +2845,7 @@ do3 :       do JI=JImin+1,JImax+1
                     write(*,*) 'I, J, K: ', IJ, JI, K
                     stop 'Error: Instability in THOMAS3D - ModuleFunctions - ERR10'
                 end if
-                
+
             end do do3
 
             ANSWER(IJ, (JImax+1), K) = VEC%G(JImax+1)
@@ -2969,7 +2972,7 @@ do4 :       DO II = KLB+1, KUB+1
             END DO do4
         END DO do1
         END DO do2
-        
+
         if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMASZ")
 
     end subroutine THOMASZ_Original
@@ -2984,7 +2987,7 @@ do4 :       DO II = KLB+1, KUB+1
 #ifdef _ENABLE_CUDA
                                  , CudaID                                         &
                                  , SaveResults                                    &
-#endif _ENABLE_CUDA 
+#endif _ENABLE_CUDA
                                 )
 
         !Arguments---------------------------------------------------------------
@@ -3005,17 +3008,17 @@ do4 :       DO II = KLB+1, KUB+1
         integer                                     :: TID
         !$ integer                                  :: CHUNK !
         integer :: I, J, K
-        integer :: II, MM     
+        integer :: II, MM
         real :: AUX
 
         !------------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMASZ")
-        
-            
+
+
 #ifdef _USE_CUDA
             write(*,*) ' Solving Thomas for Z'
-            
+
         ! This method can solve Thomas for any dimension. Dim 0 = X, 1 = Y, 2 = Z
         call SolveThomas(CudaID, ILB, IUB, JLB, JUB, KLB, KUB,                     &
                           Thomas%COEF3%D, Thomas%COEF3%E, Thomas%COEF3%F,           &
@@ -3058,7 +3061,7 @@ do4 :       DO II = KLB+1, KUB+1
         END DO do2
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-       
+
 #endif
         if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMASZ")
 
@@ -3078,7 +3081,7 @@ do4 :       DO II = KLB+1, KUB+1
                                   IMin, IMax, JMin, JMax, di, dj, i, j, k,               &
                                   EastNorthBoundary, LimitMax,                           &
                                   DT, TrelaxIn, TrelaxOut, FlowVelX,                     &
-                                  InternalCelerity, WaveDirectionX, WaveDirectionY,      & 
+                                  InternalCelerity, WaveDirectionX, WaveDirectionY,      &
                                   ConstantCelerity, NormalRadiation, Explicit,           &
                                   WaveCelerityX, WaveCelerityY, NewValue)
 
@@ -3097,14 +3100,14 @@ do4 :       DO II = KLB+1, KUB+1
 
         !Local----------------------------------------------------------------------------
         real                                         :: Interior1New, Interior1Old, Interior2New, &
-                                                        Interior2Old, Interior3Old, Interior3New, &    
+                                                        Interior2Old, Interior3Old, Interior3New, &
                                                         Boundary3Old, Boundary4Old, Boundary5Old, &
                                                         Boundary32Old, Boundary33Old,             &
                                                         Boundary42Old, Boundary43Old,             &
                                                         Interior6Old, Interior7Old
         real                                         :: Trelax, TrelaxIn_, TrelaxOut_, TimeVariability
-        real                                         :: AdjacentPropX, AdjacentPropY, ReferenceValue,  &   
-                                                        SpaceSquare, SpaceVariabilityX, SpaceVariabilityY 
+        real                                         :: AdjacentPropX, AdjacentPropY, ReferenceValue,  &
+                                                        SpaceSquare, SpaceVariabilityX, SpaceVariabilityY
         real                                         :: AuxInt, AuxIntY, AuxBound
         real                                         :: WaveCelerityX_, WaveCelerityY_
         logical                                      :: NoSouthWest, NoNorthEast
@@ -3117,89 +3120,89 @@ do4 :       DO II = KLB+1, KUB+1
         NoNorthEast = .false.
 
         if (EastNorthBoundary) then
-    
+
             Interior1New  = NewField (i - di, j - dj, k)
 
-            Interior1Old  = OldField (i - di, j - dj, k) 
+            Interior1Old  = OldField (i - di, j - dj, k)
 
-            Interior2New  = NewField (i - 2 * di, j - 2 * dj, k) 
+            Interior2New  = NewField (i - 2 * di, j - 2 * dj, k)
 
-            Interior3New  = NewField (i - 3 * di, j - 3 * dj, k) 
+            Interior3New  = NewField (i - 3 * di, j - 3 * dj, k)
 
-            Interior2Old  = OldField (i - 2 * di, j - 2 * dj, k) 
+            Interior2Old  = OldField (i - 2 * di, j - 2 * dj, k)
 
-            Interior3Old  = OldField (i - 3 * di, j - 3 * dj, k) 
+            Interior3Old  = OldField (i - 3 * di, j - 3 * dj, k)
 
-            Interior6Old  = OldField (i - di + dj, j - dj + di, k) 
+            Interior6Old  = OldField (i - di + dj, j - dj + di, k)
 
-            Interior7Old  = OldField (i - di - dj, j - dj - di, k) 
+            Interior7Old  = OldField (i - di - dj, j - dj - di, k)
 
             if ((i - di + 3 * dj) > IMax .or. (j - dj + 3 * di) > JMax) then
-            
-                NoNorthEast = .true. 
+
+                NoNorthEast = .true.
 
             else
 
                 if ((ComputePoints(i - di +     dj, j - dj +     di, k)   *              &
-                     ComputePoints(i - di + 2 * dj, j - dj + 2 * di, k)   *              & 
+                     ComputePoints(i - di + 2 * dj, j - dj + 2 * di, k)   *              &
                      ComputePoints(i - di + 3 * dj, j - dj + 3 * di, k)) == 0 )          &
                      NoNorthEast = .true.
 
             endif
 
             if ((i - di - 3 * dj) < IMin .or. (j - dj - 3 * di) < JMin) then
-            
-                NoSouthWest = .true. 
+
+                NoSouthWest = .true.
 
             else
 
                 if ((ComputePoints(i - di -     dj, j - dj -     di, k)   *              &
-                     ComputePoints(i - di - 2 * dj, j - dj - 2 * di, k)   *              & 
+                     ComputePoints(i - di - 2 * dj, j - dj - 2 * di, k)   *              &
                      ComputePoints(i - di - 3 * dj, j - dj - 3 * di, k)) == 0 )          &
                      NoSouthWest = .true.
 
             endif
 
 
-        else 
+        else
 
-            Interior1New  = NewField (i + di, j + dj, k)   
+            Interior1New  = NewField (i + di, j + dj, k)
 
-            Interior1Old  = OldField (i + di, j + dj, k) 
-        
-            Interior2New  = NewField (i + 2 * di, j + 2 * dj, k) 
+            Interior1Old  = OldField (i + di, j + dj, k)
 
-            Interior3New  = NewField (i + 3 * di, j + 3 * dj, k) 
+            Interior2New  = NewField (i + 2 * di, j + 2 * dj, k)
 
-            Interior2Old  = OldField (i + 2 * di, j + 2 * dj, k) 
+            Interior3New  = NewField (i + 3 * di, j + 3 * dj, k)
 
-            Interior3Old  = OldField (i + 3 * di, j + 3 * dj, k) 
+            Interior2Old  = OldField (i + 2 * di, j + 2 * dj, k)
 
-            Interior6Old  = OldField (i + di + dj, j + dj + di, k) 
+            Interior3Old  = OldField (i + 3 * di, j + 3 * dj, k)
 
-            Interior7Old  = OldField (i + di - dj, j + dj - di, k) 
+            Interior6Old  = OldField (i + di + dj, j + dj + di, k)
+
+            Interior7Old  = OldField (i + di - dj, j + dj - di, k)
 
             if ((i + di + 3 * dj) > IMax .or. (j + dj + 3 * di) > JMax) then
-            
-                NoNorthEast = .true. 
+
+                NoNorthEast = .true.
 
             else
 
                 if ((ComputePoints(i + di +     dj, j + dj +     di, k)   *              &
-                     ComputePoints(i + di + 2 * dj, j + dj + 2 * di, k)   *              & 
+                     ComputePoints(i + di + 2 * dj, j + dj + 2 * di, k)   *              &
                      ComputePoints(i + di + 3 * dj, j + dj + 3 * di, k)) == 0 )          &
                      NoNorthEast = .true.
 
             endif
 
             if ((i + di - 3 * dj) < IMin .or. (j + dj - 3 * di) < JMin) then
-            
-                NoSouthWest = .true. 
+
+                NoSouthWest = .true.
 
             else
 
                 if ((ComputePoints(i + di -     dj, j + dj -     di, k)   *                  &
-                     ComputePoints(i + di - 2 * dj, j + dj - 2 * di, k)   *                  & 
+                     ComputePoints(i + di - 2 * dj, j + dj - 2 * di, k)   *                  &
                      ComputePoints(i + di - 3 * dj, j + dj - 3 * di, k)) == 0 )              &
                      NoSouthWest = .true.
 
@@ -3210,25 +3213,25 @@ do4 :       DO II = KLB+1, KUB+1
 
         if (.not. NoNorthEast) then
 
-            Boundary3Old  = OldField (i +     dj, j +     di, k) 
+            Boundary3Old  = OldField (i +     dj, j +     di, k)
 
-            Boundary32Old = OldField (i + 2 * dj, j + 2 * di, k) 
+            Boundary32Old = OldField (i + 2 * dj, j + 2 * di, k)
 
-            Boundary33Old = OldField (i + 3 * dj, j + 3 * di, k) 
+            Boundary33Old = OldField (i + 3 * dj, j + 3 * di, k)
 
         endif
 
         if (.not. NoSouthWest) then
 
-            Boundary4Old  = OldField (i -     dj, j -     di, k) 
+            Boundary4Old  = OldField (i -     dj, j -     di, k)
 
-            Boundary42Old = OldField (i - 2 * dj, j - 2 * di, k) 
+            Boundary42Old = OldField (i - 2 * dj, j - 2 * di, k)
 
-            Boundary43Old = OldField (i - 3 * dj, j - 3 * di, k) 
+            Boundary43Old = OldField (i - 3 * dj, j - 3 * di, k)
 
         endif
 
-        Boundary5Old  = OldField (i     , j     , k) 
+        Boundary5Old  = OldField (i     , j     , k)
 
         if (present (ConstantCelerity)) then
 
@@ -3238,7 +3241,7 @@ do4 :       DO II = KLB+1, KUB+1
 
             ConstantCelerity_ = .false.
 
-        endif 
+        endif
 
         if (present (Explicit)) then
 
@@ -3258,7 +3261,7 @@ do4 :       DO II = KLB+1, KUB+1
 
             NormalRadiation_ = .false.
 
-        endif 
+        endif
 
         if (.not. ConstantCelerity_) then
 
@@ -3273,21 +3276,21 @@ do4 :       DO II = KLB+1, KUB+1
             if ((AuxIntY * TimeVariability) > 0 ) then
 
                 SpaceVariabilityY =  Interior1Old - Interior7Old
-                
+
                 if (NoSouthWest) SpaceVariabilityY = 0.
 
             else
 
-                SpaceVariabilityY =  Interior6Old - Interior1Old 
+                SpaceVariabilityY =  Interior6Old - Interior1Old
 
                 if (NoNorthEast) SpaceVariabilityY = 0.
 
             endif
 
 
-        
+
             SpaceSquare = SpaceVariabilityX**2. + SpaceVariabilityY**2
-        
+
 
             if (SpaceSquare > 0.) then
 
@@ -3296,11 +3299,11 @@ do4 :       DO II = KLB+1, KUB+1
 
                 if (abs(WaveCelerityX_) > LimitMax) WaveCelerityX_ = LimitMax * WaveCelerityX_/ abs(WaveCelerityX_)
                 if (abs(WaveCelerityY_) > LimitMax) WaveCelerityY_ = LimitMax * WaveCelerityY_/ abs(WaveCelerityY_)
-            
+
             else
 
                 WaveCelerityX_ = 0.
-                WaveCelerityY_ = 0. 
+                WaveCelerityY_ = 0.
 
             endif
 
@@ -3353,9 +3356,9 @@ do4 :       DO II = KLB+1, KUB+1
         if (WaveCelerityX_ > 0) then
 
             WaveCelerityX_ = 4 * WaveCelerityX_
-        
+
             if (Explicit_) then
-                
+
                 !AdjacentPropX    =   Interior1Old
 
                 AdjacentPropX    =   0.0546875 * Interior3Old - 0.2578125 * Interior2Old +    &
@@ -3365,7 +3368,7 @@ do4 :       DO II = KLB+1, KUB+1
 
                ! AdjacentPropX    =   Interior1New
                 AdjacentPropX    =   0.0546875 * Interior3New - 0.2578125 * Interior2New +    &
-                                    0.6015625 * Interior1New 
+                                    0.6015625 * Interior1New
 
             endif
 
@@ -3388,8 +3391,8 @@ do4 :       DO II = KLB+1, KUB+1
         if (.not. NormalRadiation_) then
 
             if      (WaveCelerityY_ >= 0 .and. .not. NoSouthWest) then
-                
-        
+
+
                 !AuxInt         = AuxInt - WaveCelerityY_ * (Boundary5Old - Boundary4Old)
 
                 AdjacentPropY  =   0.0546875 * Boundary43Old - 0.2578125 * Boundary42Old +    &
@@ -3418,7 +3421,7 @@ do4 :       DO II = KLB+1, KUB+1
             AuxInt   = AuxInt  - (WaveCelerityX_ + DT / Trelax) * OldField (i, j, k)
 
         else
-        
+
             !AuxBound = AuxBound + WaveCelerityX_  + DT / Trelax
             AuxBound = AuxBound + WaveCelerityX_ * (1 - 0.6015625) + DT / Trelax
 
@@ -3427,7 +3430,7 @@ do4 :       DO II = KLB+1, KUB+1
 
 
         NewField (i, j, k)= (OldField (i, j, k) +  AuxInt + &
-                             ReferenceValue * DT / Trelax) /AuxBound 
+                             ReferenceValue * DT / Trelax) /AuxBound
 
 
         if (present(WaveCelerityX)) WaveCelerityX = WaveCelerityX_
@@ -3447,9 +3450,9 @@ do4 :       DO II = KLB+1, KUB+1
     !this function calculates the partial pressure of CO2 in the water (uatm)
     !
     ! M Mateus by Nov2009
-    
+
     real function CO2PartialPressure(CO2, Temperature, Salinity, Pressure, WaterDensity)   !uatm
-    
+
         !Arguments-------------------------------------------------------------
 
         real, intent(IN) :: Temperature     !oC
@@ -3466,46 +3469,46 @@ do4 :       DO II = KLB+1, KUB+1
         !----------------------------------------------------------------------
 
         TKelvin = Temperature + 273.15
-        
+
         !CO2mass = (CO2 / 44.0 / 1025.0)               !mg/l to mol/kg    water density = 1025 kg m-3
-        CO2mass = (CO2 / 44.0 / WaterDensity)               !mg/l to mol/kg 
-        
+        CO2mass = (CO2 / 44.0 / WaterDensity)               !mg/l to mol/kg
+
         Ff = -1636.75 + 12.0408 * TKelvin - 0.0327957 * (TKelvin**2.0) + 3.16528 * (1.0E-5) * (TKelvin**3.0)
-        
+
         Fp = EXP(((Ff + 2.0 *(57.7-0.118 * TKelvin)) * Pressure) / (82.05675 * TKelvin))
-    
+
         K0 = CO2_K0(Temperature, Salinity)
-    
+
         CO2PartialPressure = (CO2mass / (Fp * K0)) * 1.0E6
-    
+
     end function CO2PartialPressure
 
     !--------------------------------------------------------------------------
 
-    
+
     real function CO2_K0(Temperature, Salinity)   !mol Kg-1 atm-1
-        
+
         !Arguments-------------------------------------------------------------
         real, intent(IN) :: Temperature     !oC
         real, intent(IN) :: Salinity
-        
+
         !Local-----------------------------------------------------------------
         real :: TKelvin
-        
+
         !----------------------------------------------------------------------
 
         TKelvin = Temperature + 273.15
-        
+
             CO2_K0 = EXP(-60.2409 + 93.4517 * 100.0 / TKelvin + 23.3585 * LOG(TKelvin / 100.0) + Salinity * &
                      (0.023517 - 0.023656 * TKelvin / 100.0 + 0.0047036 * (TKelvin / 100.0)**2.0))
-        
+
        end function CO2_K0
 
 
 
     !Saturation Oxygen concentration
     !
-    !With the values of temperature (oC) and Salinity (ppt), this function calculates the 
+    !With the values of temperature (oC) and Salinity (ppt), this function calculates the
     !saturation Oxygen concentration.
     !
     !Based in Portela's thesis (1996), following APHA (1992).
@@ -3518,22 +3521,22 @@ do4 :       DO II = KLB+1, KUB+1
         real, intent(IN) :: Salinity        !ppt
 
         !Local-----------------------------------------------------------------
-        
+
         real :: TKelvin
         logical :: OutOfRange
 
         !----------------------------------------------------------------------
-        
+
         OutOfRange = .false.
 
         if (Temperature < 0 .or. Temperature > 50 .or. Salinity < 0 .or. Salinity > 80) then
             OutOfRange = .true.
         endif
-        
+
         if (OutOfRange) then
             !mgO2/L
             OxygenSaturation = 6.
-        
+
         else
 
             TKelvin = Temperature + AbsoluteZero
@@ -3544,26 +3547,26 @@ do4 :       DO II = KLB+1, KUB+1
                                               - 8.621949E11 /(TKelvin * TKelvin * TKelvin * TKelvin)   &
                                    - (Salinity / 1.80655) * (3.1929E-02 - 19.428 / TKelvin             &
                                                              + 3.8673E03/ (TKelvin * TKelvin)))
-                                                             
+
         endif
 
     end function OxygenSaturation
 
     !--------------------------------------------------------------------------
 
-    
+
     !Saturation Oxygen concentration [mol/lw]
     !
-    !With the values of temperature (ºC), this function calculates the 
+    !With the values of temperature (ÂºC), this function calculates the
     !saturation Oxygen concentration.
     !
-    !Based in Henry's law (Metcalf & Eddy) Pedro Galvão 2002
+    !Based in Henry's law (Metcalf & Eddy) Pedro Galvao 2002
 
     real function OxygenSaturationHenry (Temperature)
 
         !Arguments-------------------------------------------------------------
 
-        real, intent(IN) :: Temperature     !ºC
+        real, intent(IN) :: Temperature     !ÂºC
         !Local-----------------------------------------------------------------
 
         real :: Henry
@@ -3572,24 +3575,24 @@ do4 :       DO II = KLB+1, KUB+1
         logical :: OutOfRange
 
         !----------------------------------------------------------------------
-        
+
         OutOfRange = .false.
 
         if (Temperature < 0 .or. Temperature > 50) then
             OutOfRange = .true.
         endif
-        
+
         if (OutOfRange) then
             !mgO2/L
             OxygenSaturationHenry = 6.
-        
+
         else
-        
+
             !----------------------------------------------------------------------
 
             if      (Temperature .GE. 0 .AND. Temperature .LE. 10   ) then
                 m       = (3.27 - 2.55) /10
-                b       = 3.27 - 10 * m 
+                b       = 3.27 - 10 * m
 
                 Henry   = m *  Temperature + b
 
@@ -3620,10 +3623,10 @@ do4 :       DO II = KLB+1, KUB+1
             else
 
             end if
-                
+
             OxygenSaturationHenry = 0.21 / (Henry * 1. * 10. ** 4.) * 55.6
-        
-        endif            
+
+        endif
 
     end function OxygenSaturationHenry
 
@@ -3631,10 +3634,10 @@ do4 :       DO II = KLB+1, KUB+1
 
     !Saturation Oxygen concentration
     !
-    !With the values of temperature (oC) and Salinity (ppt), this function calculates the 
+    !With the values of temperature (oC) and Salinity (ppt), this function calculates the
     !saturation Oxygen concentration.
     !PALT Altitude correction
-    !SALTWATER True/False  
+    !SALTWATER True/False
     !Based CeQualW2 V3.1 (Mortimer 1981)
 
     real function OxygenSaturationCeQualW2(Temperature, Salinity, PALT)
@@ -3642,7 +3645,7 @@ do4 :       DO II = KLB+1, KUB+1
         !Arguments-------------------------------------------------------------
         real,    intent(IN)             :: Temperature     !oC
         real,    intent(IN)             :: Salinity        !ppt
-        real,    intent(IN)             :: PALT 
+        real,    intent(IN)             :: PALT
 
         !Local-----------------------------------------------------------------
         real                            :: Aux
@@ -3655,25 +3658,25 @@ do4 :       DO II = KLB+1, KUB+1
         if (Temperature < 0 .or. Temperature > 50 .or. Salinity < 0 .or. Salinity > 80) then
             OutOfRange = .true.
         endif
-        
+
         if (OutOfRange) then
             !mgO2/L
             OxygenSaturationCeQualW2 = 6.
-        
+
         else
             Aux = exp(7.7117-1.31403*(log(Temperature+45.93)))*PALT
 
-            if (Salinity.gt.0.5) then  
-          
+            if (Salinity.gt.0.5) then
+
                 Aux = exp(log(aux)-Salinity *                       &
                       (1.7674E-2 - 1.0754E-1/(Temperature+273.15) + &
-                      2.1407E3/(Temperature+273.15)**2))                
+                      2.1407E3/(Temperature+273.15)**2))
             endif
 
             OxygenSaturationCeQualW2 = Aux
 
         endif
-        
+
     end function OxygenSaturationCeQualW2
 
     !--------------------------------------------------------------------------
@@ -3751,10 +3754,10 @@ do4 :       DO II = KLB+1, KUB+1
     real function SigmaWang (T, S)
         ! Modified Jan/2006     :Guillaume Riflet
         !  THIS FUNCTION COMPUTES DENSITY-1; FROM WANG, JPO '84, 1191-1199.
-        
+
         !Arguments-------------------------------------------------------------
         real                                                  :: T, S
- 
+
         !Local-----------------------------------------------------------------
         REAL R1,R2,RR3,R4,R5,R6
 
@@ -3768,10 +3771,10 @@ do4 :       DO II = KLB+1, KUB+1
 
     real function SigmaUNESCO (T, S)
 
-        ! Modified jul/2004     :João Nogueira
+        ! Modified jul/2004     :Joao Nogueira
         ! Modified Mar/2005     :Guillaume Riflet
         !                       Now it gives a sigma density variable (1000 kg/m3)
-        
+
         !Arguments-------------------------------------------------------------
         real                                              :: T, S
 
@@ -3779,42 +3782,42 @@ do4 :       DO II = KLB+1, KUB+1
         real                                              :: x, T1, S1, T2, T3, T4, T5
         real                                              :: S2, S3
         real(8)                                           :: Aux
-        
+
         !Begin-----------------------------------------------------------------
 
         T1 = T
         S1 = S
 
-        T2 = T1*T1 
-        T3 = T1*T2 
-        T4 = T2*T2 
+        T2 = T1*T1
+        T3 = T1*T2
+        T4 = T2*T2
         T5 = T1*T4
-        S2 = S1*S1 
-        S3 = S1*S2 
+        S2 = S1*S1
+        S3 = S1*S2
 
 !       Calculate density for atmosfere pressure:
 !
 !
 !       RO_ST0 = 999.842594+.06793952*T-.00909529*T**2+1.001685E-4*T**3-1.120083E-6*T**4
-!                + 6.536332E-9*T**5  +(.824493-.0040899*T +7.6438E-5*T**2-8.2467E-7*T**3 
+!                + 6.536332E-9*T**5  +(.824493-.0040899*T +7.6438E-5*T**2-8.2467E-7*T**3
 !                + 5.3875E-9*T4)*S+ (-.00572466+1.0227E-4*T-1.6546E-6*T2).S**1.5
 !                +4.8314E-4.S**2
 !
 !
         Aux = 999.842594 - dble(SigmaDensityReference)
-        x= real(Aux)+6.793952e-02*T1-9.09529e-03*T2+1.001685e-04*T3 
-        x=x-1.120083e-06*T4+6.536332e-09*T5 
-        x=x+S1*(0.824493-4.0899e-03*T1+7.6438e-05*T2-8.2467e-07*T3) 
-        x=x+S1*5.3875e-09*T4 
-        x=x+sqrt(S3)*(-5.72466e-03+1.0227e-04*T1-1.6546e-06*T2) 
+        x= real(Aux)+6.793952e-02*T1-9.09529e-03*T2+1.001685e-04*T3
+        x=x-1.120083e-06*T4+6.536332e-09*T5
+        x=x+S1*(0.824493-4.0899e-03*T1+7.6438e-05*T2-8.2467e-07*T3)
+        x=x+S1*5.3875e-09*T4
+        x=x+sqrt(S3)*(-5.72466e-03+1.0227e-04*T1-1.6546e-06*T2)
         x=x+4.8314e-04*S2
 
         SigmaUNESCO = x
 
-    end function SigmaUNESCO                   
+    end function SigmaUNESCO
 
     !--------------------------------------------------------------------------
-                 
+
     real function SigmaLeendertse (T, S)
 
         !Arguments-------------------------------------------------------------
@@ -3826,13 +3829,13 @@ do4 :       DO II = KLB+1, KUB+1
                           / ((1779.5 + 11.25 * T - 0.0745 * T * T) -(3.8 + 0.01 * T) * S &
                           + 0.698 * (5890.0 + 38.0 * T - 0.375 * T * T + 3.0 * S)) - 1.)
 
-    end function SigmaLeendertse                   
+    end function SigmaLeendertse
 
     !--------------------------------------------------------------------------
 
     real function SigmaUNESCOPressureCorrection (T, S, Depth, Sigma_P0)
 
-        ! Created jul/2004     :João Nogueira
+        ! Created jul/2004     :Joao Nogueira
         !
         ! The correction is made with the UNESCO International Equation of State
 
@@ -3851,12 +3854,12 @@ do4 :       DO II = KLB+1, KUB+1
         T1 = T
         S1 = S
 
-        T2 = T1*T1 
-        T3 = T1*T2 
-        T4 = T2*T2 
+        T2 = T1*T1
+        T3 = T1*T2
+        T4 = T2*T2
         T5 = T1*T4
-        S2 = S1*S1 
-        S3 = S1*S2 
+        S2 = S1*S1
+        S3 = S1*S2
 
         RO_ST0 = Sigma_P0
 
@@ -3874,7 +3877,7 @@ do4 :       DO II = KLB+1, KUB+1
             pressureBars = 0.1*Depth
 
 
-!!      Calculate bulk modulus for atmosfere pressure      
+!!      Calculate bulk modulus for atmosfere pressure
 !!
 !!
 !!      K_ST0 = 19652.21+148.4206*T-2.327105*T**2+.01360477*T**3-5.155288E-5*T**4
@@ -3902,36 +3905,36 @@ do4 :       DO II = KLB+1, KUB+1
             x2 = 3.239908+.00143713*T1+1.16092E-4*T2-5.77905E-7*T3
             x2 = x2+(.0022838-1.0981E-5*T1-1.6078E-6*T2)*S1 + 1.91075E-4*sqrt(S3)
             CoefA = x2
- 
+
 !
             x3 = 8.50935E-5-6.12293E-6*T1+5.2787E-8*T2
             x3 = x3+(-9.9348E-7+2.0816E-8*T1+9.1697E-10*T2)*S1
             CoefB = x3
- 
- 
+
+
 !!      Calculate bulk modulus
- 
+
             K_STP=K_ST0+pressureBars*(CoefA+pressureBars*CoefB)
- 
- 
+
+
 !!      Calculate corrected density
- 
+
 !            RO_STP=RO_ST0/(1.0-pressureBars/K_STP)
             RO_STP= (SigmaDensityReference*pressureBars + RO_ST0*K_STP) /(K_STP-pressureBars)
- 
+
             SigmaUNESCOPressureCorrection = RO_STP
-  
+
 
     end function SigmaUNESCOPressureCorrection
-    
+
     !--------------------------------------------------------------------------
- 
+
     real function SigmaJMD95PressureCorrection (T, S, Depth, Sigma_P0)
 
-        ! Created jul/2004     :João Nogueira
+        ! Created jul/2004     :Joao Nogueira
         !
         ! The correction is made with the UNESCO International Equation of State
-        
+
         !Arguments-------------------------------------------------------------
         real                                                  :: T, S
         real                                                  :: Depth, Sigma_P0
@@ -3942,18 +3945,18 @@ do4 :       DO II = KLB+1, KUB+1
         real                                              :: pressureBars
         real                                              :: RO_ST0, RO_STP, K_ST0, K_STP
         real                                              :: CoefA, CoefB, x1, x2, x3
-       
+
         !Begin-----------------------------------------------------------------
 
         T1 = T
         S1 = S
 
-        T2 = T1*T1 
-        T3 = T1*T2 
-        T4 = T2*T2 
+        T2 = T1*T1
+        T3 = T1*T2
+        T4 = T2*T2
         T5 = T1*T4
-        S2 = S1*S1 
-        S3 = S1*S2 
+        S2 = S1*S1
+        S3 = S1*S2
 
         RO_ST0 = Sigma_P0
 
@@ -3972,27 +3975,27 @@ do4 :       DO II = KLB+1, KUB+1
         x3 = 2.102898E-4 - 1.202016E-5*T1 + 1.394680E-7*T2
         x3 = x3+( - 2.040237E-6 + 6.128773E-8*T1 + 6.207323E-10*T2)*S1
         CoefB = x3
- 
+
         K_STP=K_ST0+pressureBars*(CoefA+pressureBars*CoefB)
- 
+
         RO_STP= (SigmaDensityReference*pressureBars + RO_ST0*K_STP) /(K_STP-pressureBars)
- 
+
         SigmaJMD95PressureCorrection = RO_STP
-  
+
 
     end function SigmaJMD95PressureCorrection
-    
+
     !--------------------------------------------------------------------------
 
     real function SigmaMel96PressureCorrection(T, S, Depth, Sigma_P0)
     ! Created Mar/2005     :Guillaume Riflet
     !
-    !The correction is made in decibars 
+    !The correction is made in decibars
     !
     !Mellor 96 formula.
     !
     !T is the POTENTIAL TEMPERATURE!
-        
+
      !Arguments-------------------------------------------------------------
       real                                                  :: T, S
       real                                                  :: Depth, Sigma_P0
@@ -4008,11 +4011,11 @@ do4 :       DO II = KLB+1, KUB+1
         c = 1449.1 + .00821*p + 4.55*T - .045*T2 + 1.34*(S-35.);
         cc = c*c;
         cc = 1./cc;
-        K = 1.e4*p*cc*(1.-.20*p*cc); 
+        K = 1.e4*p*cc*(1.-.20*p*cc);
         SigmaMel96PressureCorrection = Sigma_P0 + K;
 
     end function SigmaMel96PressureCorrection
-    
+
     !--------------------------------------------------------------------------
 
     real function ConvertTemperature(T,S,Depth)
@@ -4025,7 +4028,7 @@ do4 :       DO II = KLB+1, KUB+1
     !
         !Arguments-------------------------------------------------------------
         real, intent (in)       :: T,S,Depth     !in-situ temperature, salinity and depth
-    
+
         !Local-----------------------------------------------------------------
         real                    :: p
 
@@ -4034,21 +4037,21 @@ do4 :       DO II = KLB+1, KUB+1
         ConvertTemperature = T  + p*( -1*(3.6504e-5 + T*(8.3198e-6 - T*(5.4065e-8 + 4.0274e-10*T))) &
             - (1.7439e-6 - 2.9778e-8*T)*(S-35.)                 &
             + p*(4.1057e-11*(S-35.)                             &
-            - (8.9309e-9 - T*(3.1628e-10 + 2.1987e-12*T))       & 
+            - (8.9309e-9 - T*(3.1628e-10 + 2.1987e-12*T))       &
             - (-1.6056e-13 + 5.0484e-15*T)*p) );
-    
+
     end function ConvertTemperature
-    
+
     !--------------------------------------------------------------------------
 
     real function SpecificHeatUNESCO(s, t, Depth)
     !Calculates the specific heat of water
     !Created: Feb'05    Guillaume Riflet
-    
+
     !ref: millero et al,1973,jgr,78,4499-4507
     !      millero et al, unesco report no. 38 1981 pp. 99-188.
     !UNESCO formulas: reference pressure p = 0 at sealevel
-        
+
         !Arguments-------------------------------------------------------------
         real, intent (in)       :: s, t, Depth     !Salinity, temperature and pressure in decibars or depth
 
@@ -4255,7 +4258,7 @@ SVEL=C4+(A4+B4*SR+D*S)*S
 
 end function
 
-!----------------------------------------------------------------------------------------------------------- 
+!-----------------------------------------------------------------------------------------------------------
    !**********************************************************************
     !                                                                     *
     ! RODAXY - Conversao das coordenadas (x,y) de um ponto num referencial*
@@ -4267,12 +4270,12 @@ end function
     !   Ultima alteracao:  95-11-24                   Flavio              *
     !                      May99 - Code alignment     Frank               *
     !                                                                     *
-    !**********************************************************************      
+    !**********************************************************************
     subroutine RODAXY (XORIG, YORIG, ALPHA, X_PONTO, Y_PONTO)
 
         !Arguments-------------------------------------------------------------
         real, intent (in)   :: XORIG, YORIG, ALPHA
-        real, intent (inout)  :: X_PONTO, Y_PONTO         
+        real, intent (inout)  :: X_PONTO, Y_PONTO
 
         !Local-----------------------------------------------------------------
         real(8), parameter  :: PI_DBLE       = 3.1415926536 !PI
@@ -4286,7 +4289,7 @@ end function
             X_PONTO = X_PONTO + XORIG
             Y_PONTO = Y_PONTO + YORIG
 
-        else  
+        else
 
             !Calcula os cosenos directores
             Radianos = ALPHA * PI_DBLE / 180.
@@ -4365,7 +4368,7 @@ end function
     end subroutine FromGridToCartesianR8
 
     !--------------------------------------------------------------------------
-    
+
     !Convert from user referential (Nautical, Currents) to cell trigonometric angle
     subroutine AngleFromFieldToGrid (AngleInReferential, Referential, GridAngle, AngleOutGrid)
 
@@ -4376,28 +4379,28 @@ end function
 
         !Local-----------------------------------------------------------------
 
-        
-        !Nautical referential 0º is coming from N, 90ºN from E, 180º from S, 270º from W
+
+        !Nautical referential 0Âº is coming from N, 90ÂºN from E, 180Âº from S, 270Âº from W
         if (Referential == NauticalReferential_) then
-            
+
             AngleOutGrid = 270. - AngleInReferential - GridAngle
-        
-        !Current referential 0º is going to N, 90ºN to E, 180º to S, 270º to W
+
+        !Current referential 0Âº is going to N, 90ÂºN to E, 180Âº to S, 270Âº to W
         else if (Referential == CurrentsReferential_) then
-            
+
             AngleOutGrid = 90. - AngleInReferential - GridAngle
-            
+
         endif
-        
+
         !0-360
         if (AngleOutGrid < 0) AngleOutGrid = 360.0 + AngleOutGrid
         if (AngleOutGrid > 360) AngleOutGrid = AngleOutGrid - 360.0
 
-        
+
     end subroutine AngleFromFieldToGrid
 
-    !--------------------------------------------------------------------------    
-    !Convert from cell trigonometric angle to user referential (Nautical, Currents) 
+    !--------------------------------------------------------------------------
+    !Convert from cell trigonometric angle to user referential (Nautical, Currents)
     subroutine AngleFromGridToField (AngleInGrid, Referential, GridAngle, AngleOutReferential)
 
         !Arguments-------------------------------------------------------------
@@ -4406,27 +4409,27 @@ end function
         real, intent (out)                :: AngleOutReferential
 
         !Local-----------------------------------------------------------------
-        
-        !Nautical referential 0º is coming from N, 90ºN from E, 180º from S, 270º from W
+
+        !Nautical referential 0Âº is coming from N, 90ÂºN from E, 180Âº from S, 270Âº from W
         if (Referential == NauticalReferential_) then
-            
+
             AngleOutReferential = AngleInGrid - 270. + GridAngle
-        
-        !Current referential 0º is going to N, 90ºN to E, 180º to S, 270º to W
+
+        !Current referential 0Âº is going to N, 90ÂºN to E, 180Âº to S, 270Âº to W
         else if (Referential == CurrentsReferential_) then
-            
+
             AngleOutReferential = AngleInGrid - 90. + GridAngle
-            
+
         endif
 
         !0-360
         if (AngleOutReferential < 0) AngleOutReferential = 360.0 + AngleOutReferential
-        if (AngleOutReferential > 360) AngleOutReferential = AngleOutReferential - 360.0        
-        
+        if (AngleOutReferential > 360) AngleOutReferential = AngleOutReferential - 360.0
+
     end subroutine AngleFromGridToField
 
-    !--------------------------------------------------------------------------    
-    
+    !--------------------------------------------------------------------------
+
     subroutine InterpolateValueInTime(ActualTime, Time1, Value1, Time2, Value2, ValueOut)
 
         !Arguments-------------------------------------------------------------
@@ -4435,7 +4438,7 @@ end function
         real,              intent(IN)               :: Value1
         type(T_Time),      intent(IN)               :: Time2
         real,              intent(IN)               :: Value2
-        
+
         real,              intent(OUT)              :: ValueOUT
 
         !Local-----------------------------------------------------------------
@@ -4497,7 +4500,7 @@ end function
 
         !Local-----------------------------------------------------------------
         real                                            :: X1, X, X2
-        
+
         !Begin-----------------------------------------------------------------
 
         !Time1 = 0
@@ -4528,9 +4531,9 @@ end function
         integer                                         :: i, j
         real                                            :: DT1, DT2, DTtotal
         real                                            :: RealOut, Real1, Real2
-        real                                            :: ImagOut, Imag1, Imag2 
-        real                                            :: Amp       
-        integer                                         :: CHUNK 
+        real                                            :: ImagOut, Imag1, Imag2
+        real                                            :: Amp
+        integer                                         :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -4539,32 +4542,32 @@ end function
         DTtotal  = DT1 + DT2
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "InterpolateLinearyMatrix2D")
-       
+
         CHUNK = CHUNK_J(Size%JLB, Size%JUB)
 
         if(present(PointsToFill2D))then
-            
+
             !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill2D, &
             !! $OMP Real1, Imag1, Real2, Imag2, RealOut, ImagOut) PRIVATE(I,J)
             !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
-            
+
                 if(PointsToFill2D(i,j) == 1)then
-                
-                    
+
+
                     call AmpPhase_To_Complex(1., Matrix1(i,j)/360.,Real1, Imag1)
                     call AmpPhase_To_Complex(1., Matrix2(i,j)/360.,Real2, Imag2)
 
                     RealOut = (DT1 * Real1 + DT2 * Real2) / DTtotal
-                    ImagOut = (DT1 * Imag1 + DT2 * Imag2) / DTtotal                    
-                    
-                    call Complex_to_AmpPhase(RealOut,ImagOut, Amp, MatrixOUT(i,j))
-                    
-                    MatrixOUT(i,j) = MatrixOUT(i,j) * 360. 
+                    ImagOut = (DT1 * Imag1 + DT2 * Imag2) / DTtotal
 
-                    !MatrixOUT(i,j) = (DT1 * Matrix2(i,j) + DT2 * Matrix1(i,j)) / DTtotal                    
-            
+                    call Complex_to_AmpPhase(RealOut,ImagOut, Amp, MatrixOUT(i,j))
+
+                    MatrixOUT(i,j) = MatrixOUT(i,j) * 360.
+
+                    !MatrixOUT(i,j) = (DT1 * Matrix2(i,j) + DT2 * Matrix1(i,j)) / DTtotal
+
                 endif
 
             enddo
@@ -4573,24 +4576,24 @@ end function
             !! $OMP END PARALLEL
 
         else
-            
+
             !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, &
             !! $OMP Real1, Imag1, Real2, Imag2, RealOut, ImagOut) PRIVATE(I,J)
             !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
-            
+
                     call AmpPhase_To_Complex(1., Matrix1(i,j)/360.,Real1, Imag1)
                     call AmpPhase_To_Complex(1., Matrix2(i,j)/360.,Real2, Imag2)
 
                     RealOut = (DT1 * Real1 + DT2 * Real2) / DTtotal
-                    ImagOut = (DT1 * Imag1 + DT2 * Imag2) / DTtotal                    
-                    
+                    ImagOut = (DT1 * Imag1 + DT2 * Imag2) / DTtotal
+
                     call Complex_to_AmpPhase(RealOut,ImagOut, 1., MatrixOUT(i,j))
-                    
-                    MatrixOUT(i,j) = MatrixOUT(i,j) * 360.     
-                    
-                    !MatrixOUT(i,j) = (DT1 * Matrix2(i,j) + DT2 * Matrix1(i,j)) / DTtotal 
+
+                    MatrixOUT(i,j) = MatrixOUT(i,j) * 360.
+
+                    !MatrixOUT(i,j) = (DT1 * Matrix2(i,j) + DT2 * Matrix1(i,j)) / DTtotal
 
             enddo
             enddo
@@ -4620,10 +4623,10 @@ end function
         integer                                         :: i, j, k
         real                                            :: DT1, DT2, DTtotal
         real                                            :: RealOut, Real1, Real2
-        real                                            :: ImagOut, Imag1, Imag2 
-        real                                            :: Amp                      
-        integer                                         :: CHUNK 
-        
+        real                                            :: ImagOut, Imag1, Imag2
+        real                                            :: Amp
+        integer                                         :: CHUNK
+
         !Begin-----------------------------------------------------------------
 
 
@@ -4649,13 +4652,13 @@ end function
                     call AmpPhase_To_Complex(1., Matrix2(i,j,k)/360.,Real2, Imag2)
 
                     RealOut = (DT1 * Real1 + DT2 * Real2) / DTtotal
-                    ImagOut = (DT1 * Imag1 + DT2 * Imag2) / DTtotal                    
-                    
+                    ImagOut = (DT1 * Imag1 + DT2 * Imag2) / DTtotal
+
                     call Complex_to_AmpPhase(RealOut,ImagOut, Amp, MatrixOUT(i,j,k))
-                    
-                    MatrixOUT(i,j,k) = MatrixOUT(i,j,k) * 360.                     
-                    
-                    !MatrixOUT(i,j,k) = (DT1 * Matrix2(i,j,k) + DT2 * Matrix1(i,j,k)) / DTtotal 
+
+                    MatrixOUT(i,j,k) = MatrixOUT(i,j,k) * 360.
+
+                    !MatrixOUT(i,j,k) = (DT1 * Matrix2(i,j,k) + DT2 * Matrix1(i,j,k)) / DTtotal
 
 
                 endif
@@ -4667,7 +4670,7 @@ end function
             !! $OMP END PARALLEL
 
         else
-            
+
             !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill3D) PRIVATE(I,J)
             !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = Size%KLB, Size%KUB
@@ -4678,13 +4681,13 @@ end function
                 call AmpPhase_To_Complex(1., Matrix2(i,j,k)/360.,Real2, Imag2)
 
                 RealOut = (DT1 * Real1 + DT2 * Real2) / DTtotal
-                ImagOut = (DT1 * Imag1 + DT2 * Imag2) / DTtotal                    
-                
+                ImagOut = (DT1 * Imag1 + DT2 * Imag2) / DTtotal
+
                 call Complex_to_AmpPhase(RealOut,ImagOut, 1., MatrixOUT(i,j,k))
-                
-                MatrixOUT(i,j,k) = MatrixOUT(i,j,k) * 360.         
-                
-                !MatrixOUT(i,j,k) = (DT1 * Matrix2(i,j,k) + DT2 * Matrix1(i,j,k)) / DTtotal 
+
+                MatrixOUT(i,j,k) = MatrixOUT(i,j,k) * 360.
+
+                !MatrixOUT(i,j,k) = (DT1 * Matrix2(i,j,k) + DT2 * Matrix1(i,j,k)) / DTtotal
 
             enddo
             enddo
@@ -4746,7 +4749,7 @@ end function
 
         !Local-----------------------------------------------------------------
         real                                            :: X1, X, X2
-        
+
         !Begin-----------------------------------------------------------------
 
         !Time1 = 0
@@ -4760,7 +4763,7 @@ end function
     end subroutine InterpolateMatrix3DInTime
 
     !--------------------------------------------------------------------------
-    
+
     real function LinearInterpolation (x1, y1, x2, y2, xc)
 
         !Arguments-------------------------------------------------------------
@@ -4777,7 +4780,7 @@ end function
 !            dist2 = x1 - xc
 !        end If
 !        LinearInterpolation = (dist2 * y1 + dist1 * y2) / (dist1 + dist2)
-        
+
         LinearInterpolation = y1 + (xc - x1) / (x2 - x1) * (y2 - y1)
 
     end function
@@ -4798,7 +4801,7 @@ end function
         !Local-----------------------------------------------------------------
         integer                                         :: i, j
         real                                            :: DT1, DT2, DTtotal
-        integer                                         :: CHUNK 
+        integer                                         :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
@@ -4807,20 +4810,20 @@ end function
         DTtotal  = DT1 + DT2
 
         if (MonitorPerformance) call StartWatch ("ModuleFunctions", "InterpolateLinearyMatrix2D")
-       
+
         CHUNK = CHUNK_J(Size%JLB, Size%JUB)
 
         if(present(PointsToFill2D))then
-            
+
             !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill2D) PRIVATE(I,J)
             !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
-            
+
                 if(PointsToFill2D(i,j) == 1)then
 
                     MatrixOUT(i,j) = (DT1 * Matrix2(i,j) + DT2 * Matrix1(i,j)) / DTtotal
-            
+
                 endif
 
             enddo
@@ -4829,12 +4832,12 @@ end function
             !! $OMP END PARALLEL
 
         else
-            
+
             !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal) PRIVATE(I,J)
             !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
-            
+
                 MatrixOUT(i,j) = (DT1 * Matrix2(i,j) + DT2 * Matrix1(i,j)) / DTtotal
 
             enddo
@@ -4864,8 +4867,8 @@ end function
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
         real                                            :: DT1, DT2, DTtotal
-        integer                                         :: CHUNK 
-        
+        integer                                         :: CHUNK
+
         !Begin-----------------------------------------------------------------
 
 
@@ -4898,7 +4901,7 @@ end function
             !! $OMP END PARALLEL
 
         else
-            
+
             !! $OMP PARALLEL SHARED(CHUNK, DT1, Matrix2, DT2, Matrix1, DTtotal, PointsToFill3D) PRIVATE(I,J)
             !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = Size%KLB, Size%KUB
@@ -4924,7 +4927,7 @@ end function
     subroutine ExtraPol2DNearestCell (ILB, IUB, JLB, JUB, KUB, ComputePoints3D, OutValues2D)
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: JLB, JUB, ILB, IUB, KUB        
+        integer                                     :: JLB, JUB, ILB, IUB, KUB
         real,         dimension(:,:),   pointer     :: OutValues2D
         integer,      dimension(:,:,:), pointer     :: ComputePoints3D
 
@@ -4934,9 +4937,9 @@ end function
         integer                                     :: jj, ii, dijmax, dimax, djmax
         real                                        :: SumValues
         !$ integer                                  :: CHUNK !
-        
+
         !Begin-----------------------------------------------------------------
-            
+
         !$ CHUNK = CHUNK_J(JLB,JUB) !
 
         NumberOfCells =  Sum(ComputePoints3D(ILB:IUB, JLB:JUB, KUB))
@@ -4944,17 +4947,17 @@ end function
         if (NumberOfCells > 0) then
 
             !!! $OMP PARALLEL PRIVATE(j,i,dimax,djmax,dijmax,SumValues,Count,dij,jj,ii)
-            !!! $OMP DO SCHEDULE(DYNAMIC,CHUNK)        
+            !!! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
-            
+
                 if (OutValues2D(i, j) < FillValueReal/4. .and. ComputePoints3D(i, j, KUB) == 1) then
-            
+
                     dimax = IUB-ILB + 1
                     djmax = JUB-JLB + 1
 
                     dijmax = max(dimax, djmax)
-                
+
                     SumValues   = 0
                     Count = 0
 
@@ -4969,7 +4972,7 @@ end function
                             if (ii > IUB) cycle
 
                             if (OutValues2D(ii, jj) > FillValueReal/4.) then
-                                SumValues   = SumValues   + OutValues2D(ii, jj) 
+                                SumValues   = SumValues   + OutValues2D(ii, jj)
                                 Count = Count + 1
                             endif
 
@@ -5004,7 +5007,7 @@ end function
     subroutine ExtraPol3DNearestCell (ILB, IUB, JLB, JUB, KLB, KUB, ComputePoints3D, OutValues3D)
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: JLB, JUB, ILB, IUB, KLB, KUB  
+        integer                                     :: JLB, JUB, ILB, IUB, KLB, KUB
         real,         dimension(:,:,:), pointer     :: OutValues3D
         integer,      dimension(:,:,:), pointer     :: ComputePoints3D
 
@@ -5013,13 +5016,13 @@ end function
         integer                                     :: jj, ii, kk, dijmax, dimax, djmax
         real                                        :: SumValues
         logical                                     :: NoMapping, OkMap
-        
+
         !$ integer                                  :: CHUNK !
-        
+
         !Begin-----------------------------------------------------------------
 
         !$ CHUNK = CHUNK_J(JLB,JUB) !
-        
+
         !griflet
         !!! $OMP PARALLEL PRIVATE( k,NumberOfCells,NoMapping,j,i,OkMap,&
         !!! $OMP                   dimax,djmax,dijmax,SumValues,Count, &
@@ -5030,33 +5033,33 @@ d1:     do k = KLB, KUB
 
                 NumberOfCells =  Sum(ComputePoints3D(ILB:IUB, JLB:JUB, k))
                 NoMapping     = .false.
-            
+
             else
-            
-                NoMapping     = .true. 
+
+                NoMapping     = .true.
                 NumberOfCells = 1
-            
-            endif 
+
+            endif
 
             if (NumberOfCells > 0) then
 
                 !!! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
-                
+
                     if (NoMapping) then
-                    
+
                         OkMap = .true.
-                        
-                                   
+
+
                     else
-                    
+
                         if (ComputePoints3D(i, j, k) == 1) then
                             OkMap = .true.
                         else
                             OkMap = .false.
-                        endif    
-                    
+                        endif
+
                     endif
 
                     if (OutValues3D(i, j, k) < FillValueReal/4. .and. OkMap) then
@@ -5065,7 +5068,7 @@ d1:     do k = KLB, KUB
                         djmax = JUB-JLB + 1
 
                         dijmax = max(dimax, djmax)
-                    
+
                         SumValues   = 0
                         Count = 0
 
@@ -5082,7 +5085,7 @@ d1:     do k = KLB, KUB
                                     if (ii > IUB) cycle
 
                                     if (OutValues3D(ii, jj, k) > FillValueReal/4.) then
-                                        SumValues   = SumValues   + OutValues3D(ii, jj, k) 
+                                        SumValues   = SumValues   + OutValues3D(ii, jj, k)
                                         Count = Count + 1
                                     endif
 
@@ -5099,40 +5102,40 @@ d1:     do k = KLB, KUB
 
                         else
                             do dk = 1, KUB - KLB + 1
-                            
+
                                 do kk = k - dk, k + dk
 
                                     if (kk < KLB) cycle
                                     if (kk > KUB) cycle
-                                    
+
                                     if (OutValues3D(i, j, kk) > FillValueReal/4.) then
-                                        SumValues   = SumValues   + OutValues3D(i, j, kk) 
+                                        SumValues   = SumValues   + OutValues3D(i, j, kk)
                                         Count = Count + 1
                                     endif
 
-                                enddo  
-                                
+                                enddo
+
                                 if (Count >0) exit
-                                
-                            enddo 
-                                
+
+                            enddo
+
                             if (Count > 0) then
 
                                 OutValues3D(i, j, k) = SumValues / real(Count)
-                            
+
                             else
 
                                 if (NoMapping) then
-                                
+
                                     OutValues3D(i, j, k) = FillValueReal
-                                                                       
+
                                 else
 
-                                    write(*,*) 'i j k=',i,j,k   
+                                    write(*,*) 'i j k=',i,j,k
                                     stop 'ExtraPol3DNearestCell - ModuleFunctions - ERR10'
-                                
+
                                 endif
-                                
+
                             endif
                         endif
 
@@ -5156,7 +5159,7 @@ d1:     do k = KLB, KUB
     subroutine ExtraPol3DNearestCell_8 (ILB, IUB, JLB, JUB, KLB, KUB, ComputePoints3D, OutValues3D)
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: JLB, JUB, ILB, IUB, KLB, KUB  
+        integer                                     :: JLB, JUB, ILB, IUB, KLB, KUB
         real(8),      dimension(:,:,:), pointer     :: OutValues3D
         integer,      dimension(:,:,:), pointer     :: ComputePoints3D
 
@@ -5165,13 +5168,13 @@ d1:     do k = KLB, KUB
         integer                                     :: jj, ii, kk, dijmax, dimax, djmax
         real                                        :: SumValues
         logical                                     :: NoMapping, OkMap
-        
+
         !$ integer                                  :: CHUNK !
-        
+
         !Begin-----------------------------------------------------------------
 
         !$ CHUNK = CHUNK_J(JLB,JUB) !
-        
+
         !griflet
         !!! $OMP PARALLEL PRIVATE( k,NumberOfCells,NoMapping,j,i,OkMap,&
         !!! $OMP                   dimax,djmax,dijmax,SumValues,Count, &
@@ -5181,32 +5184,32 @@ d1:     do k = KLB, KUB
             if (associated(ComputePoints3D)) then
 
                 NumberOfCells =  Sum(ComputePoints3D(ILB:IUB, JLB:JUB, k))
-                NoMapping     = .false.            
+                NoMapping     = .false.
             else
-            
-                NoMapping     = .true. 
+
+                NoMapping     = .true.
                 NumberOfCells = 1
-            
-            endif 
+
+            endif
 
             if (NumberOfCells > 0) then
 
                 !!! $OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
-                
+
                     if (NoMapping) then
-                    
+
                         OkMap = .true.
-                                                           
+
                     else
-                    
+
                         if (ComputePoints3D(i, j, k) == 1) then
                             OkMap = .true.
                         else
                             OkMap = .false.
-                        endif    
-                    
+                        endif
+
                     endif
 
                     if (OutValues3D(i, j, k) < FillValueReal/4. .and. OkMap) then
@@ -5215,7 +5218,7 @@ d1:     do k = KLB, KUB
                         djmax = JUB-JLB + 1
 
                         dijmax = max(dimax, djmax)
-                    
+
                         SumValues   = 0
                         Count = 0
 
@@ -5232,7 +5235,7 @@ d1:     do k = KLB, KUB
                                     if (ii > IUB) cycle
 
                                     if (OutValues3D(ii, jj, k) > FillValueReal/4.) then
-                                        SumValues   = SumValues   + OutValues3D(ii, jj, k) 
+                                        SumValues   = SumValues   + OutValues3D(ii, jj, k)
                                         Count = Count + 1
                                     endif
 
@@ -5249,42 +5252,42 @@ d1:     do k = KLB, KUB
 
                         else
                             do dk = 1, KUB - KLB + 1
-                            
+
                                 do kk = k - dk, k + dk
 
                                     if (kk < KLB) cycle
                                     if (kk > KUB) cycle
-                                    
+
                                     if (OutValues3D(i, j, kk) > FillValueReal/4.) then
-                                        SumValues   = SumValues   + OutValues3D(i, j, kk) 
+                                        SumValues   = SumValues   + OutValues3D(i, j, kk)
                                         Count = Count + 1
                                     endif
 
-                                enddo  
-                                
+                                enddo
+
                                 if (Count >0) exit
-                                
-                            enddo 
-                                
+
+                            enddo
+
                             if (Count > 0) then
 
                                 OutValues3D(i, j, k) = SumValues / real(Count)
-                            
+
                             else
 
                                 if (NoMapping) then
-                                
+
                                     OutValues3D(i, j, k) = FillValueReal
-                                                                       
+
                                 else
                                     write(*,*) 'kk dk=',kk, dk
                                     write(*,*) 'ii jj dij dijmax=',ii, jj, dij, dijmax
                                     write(*,*) 'Count SumValues=',Count, SumValues
-                                    write(*,*) 'i j k=',i,j,k   
+                                    write(*,*) 'i j k=',i,j,k
                                     stop 'ExtraPol3DNearestCell_8 - ModuleFunctions - ERR10'
-                                
+
                                 endif
-                                    
+
                             endif
                         endif
 
@@ -5315,9 +5318,9 @@ d1:     do k = KLB, KUB
         integer                                     :: dij, Count, i, j, NumberOfCells
         integer                                     :: jj, ii, dijmax, dimax, djmax
         real                                        :: SumValues
-        
+
         !Begin-----------------------------------------------------------------
-        
+
         NumberOfCells = 0
 
         do j=JLB,JUB
@@ -5327,13 +5330,13 @@ d1:     do k = KLB, KUB
                     OutValues2D(i+1, j) < FillValueReal/1e4 .or. ComputePoints2D(i+1, j) == 0 .or. &
                     OutValues2D(i, j-1) < FillValueReal/1e4 .or. ComputePoints2D(i, j-1) == 0 .or. &
                     OutValues2D(i, j+1) < FillValueReal/1e4 .or. ComputePoints2D(i, j+1) == 0) then
-                    
-                    NumberOfCells = NumberOfCells + ComputePoints2D(i, j)                    
-                    
+
+                    NumberOfCells = NumberOfCells + ComputePoints2D(i, j)
+
                 endif
-            endif                
+            endif
         enddo
-        enddo        
+        enddo
 
         if (NumberOfCells > 0) then
 
@@ -5346,7 +5349,7 @@ d1:     do k = KLB, KUB
                     djmax = JUB-JLB + 1
 
                     dijmax = max(dimax, djmax)
-                
+
                     SumValues   = 0
                     Count = 0
 
@@ -5361,7 +5364,7 @@ d1:     do k = KLB, KUB
                             if (ii > IUB) cycle
 
                             if (OutValues2D(ii, jj) > FillValueReal/1e4 .and. ComputePoints2D(ii, jj) == 1) then
-                                SumValues   = SumValues + OutValues2D(ii, jj) 
+                                SumValues   = SumValues + OutValues2D(ii, jj)
                                 Count = Count + 1
                             endif
 
@@ -5386,12 +5389,12 @@ d1:     do k = KLB, KUB
             enddo
 
         else
-        
+
             do j=JLB,JUB
             do i=ILB,IUB
                 OutValues2D(i, j) = FillValueReal
             enddo
-            enddo                    
+            enddo
 
         endif
 
@@ -5410,9 +5413,9 @@ d1:     do k = KLB, KUB
 
         !Local-----------------------------------------------------------------
         integer                                     :: i, j, NumberOfCells
-        
+
         !Begin-----------------------------------------------------------------
-        
+
         NumberOfCells = 0
 
         do j=JLB,JUB
@@ -5422,14 +5425,14 @@ d1:     do k = KLB, KUB
                     OutValues2D(i+1, j) < FillValueReal/1e4 .or. ComputePoints2D(i+1, j) == 0 .or. &
                     OutValues2D(i, j-1) < FillValueReal/1e4 .or. ComputePoints2D(i, j-1) == 0 .or. &
                     OutValues2D(i, j+1) < FillValueReal/1e4 .or. ComputePoints2D(i, j+1) == 0) then
-                    
-                    NumberOfCells = NumberOfCells + ComputePoints2D(i, j)                    
-                    
+
+                    NumberOfCells = NumberOfCells + ComputePoints2D(i, j)
+
                 endif
-            endif                
+            endif
         enddo
         enddo
-                
+
 
         if (NumberOfCells > 0) then
 
@@ -5445,7 +5448,7 @@ d1:     do k = KLB, KUB
         endif
 
     end subroutine FillMatrix2DConstant
-    
+
     !--------------------------------------------------------------------------
 
     subroutine FillMatrix2DAverage (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
@@ -5471,19 +5474,19 @@ d1:     do k = KLB, KUB
                     OutValues2D(i+1, j) < FillValueReal/1e4 .or. ComputePoints2D(i+1, j) == 0 .or. &
                     OutValues2D(i, j-1) < FillValueReal/1e4 .or. ComputePoints2D(i, j-1) == 0 .or. &
                     OutValues2D(i, j+1) < FillValueReal/1e4 .or. ComputePoints2D(i, j+1) == 0) then
-                    
+
                     SumVal        = SumVal + OutValues2D(i, j)
-                    NumberOfCells = NumberOfCells + ComputePoints2D(i, j)                    
-                    
+                    NumberOfCells = NumberOfCells + ComputePoints2D(i, j)
+
                 endif
-            endif                
+            endif
         enddo
         enddo
-        
+
 i1:     if (NumberOfCells > 0) then
 
             AverageVal =  SumVal / real (NumberOfCells)
-            
+
             do j=JLB,JUB
             do i=ILB,IUB
                 if (OutValues2D(i, j) < FillValueReal/1e4 .or. ComputePoints2D(i, j) == 0) then
@@ -5491,9 +5494,9 @@ i1:     if (NumberOfCells > 0) then
                 endif
             enddo
             enddo
-            
 
-                
+
+
         else  i1
 
             do j=JLB,JUB
@@ -5501,14 +5504,14 @@ i1:     if (NumberOfCells > 0) then
                 OutValues2D(i, j) = FillValueReal
             enddo
             enddo
-        
+
         endif i1
 
 
     end subroutine FillMatrix2DAverage
-    
+
     !-------------------------------------------------------------------------------------
-    
+
     !--------------------------------------------------------------------------
 
     subroutine FillMatrix2D (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D, FillGridMethod)
@@ -5524,8 +5527,8 @@ i1:     if (NumberOfCells > 0) then
         if      (FillGridMethod == ExtrapolAverage_) then
             call FillMatrix2DAverage     (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
         elseif  (FillGridMethod == ExtrapolConstant_) then
-            !call FillMatrix2DAverage     (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D, ExtrapolateValue)        
-        elseif  (FillGridMethod == ExtrapolNearstCell_) then            
+            !call FillMatrix2DAverage     (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D, ExtrapolateValue)
+        elseif  (FillGridMethod == ExtrapolNearstCell_) then
             call FillMatrix2DNearestCell (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
         else
             stop 'FillMatrix2D - ModuleFunctions - ERR10'
@@ -5534,14 +5537,14 @@ i1:     if (NumberOfCells > 0) then
 
 
     end subroutine FillMatrix2D
-    
-    !-------------------------------------------------------------------------------------    
-    
-    
+
+    !-------------------------------------------------------------------------------------
+
+
     subroutine FillMatrix3D (ILB, IUB, JLB, JUB, KLB, KUB, ComputePoints3D, OutValues3D, FillGridMethod)
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: JLB, JUB, ILB, IUB, KLB, KUB  
+        integer                                     :: JLB, JUB, ILB, IUB, KLB, KUB
         real,         dimension(:,:,:), pointer     :: OutValues3D
         integer,      dimension(:,:,:), pointer     :: ComputePoints3D
         integer                                     :: FillGridMethod
@@ -5551,8 +5554,8 @@ i1:     if (NumberOfCells > 0) then
         integer,      dimension(:,:  ), pointer     :: Map2D
 
         integer                                     :: k, kfirst, klast, i, j
-        
-        
+
+
         !Begin-----------------------------------------------------------------
 
         allocate(Value2D(ILB-1:IUB+1, JLB-1:JUB+1))
@@ -5562,28 +5565,28 @@ d1:     do k = KLB, KUB
 
             Map2D      (ILB-1:IUB+1, JLB-1:JUB+1  ) = ComputePoints3D(ILB-1:IUB+1, JLB-1:JUB+1,k)
             Value2D    (ILB-1:IUB+1, JLB-1:JUB+1  ) = OutValues3D    (ILB-1:IUB+1, JLB-1:JUB+1,k)
-            
+
             call FillMatrix2D (ILB, IUB, JLB, JUB, Map2D, Value2D, FillGridMethod)
-            
+
             OutValues3D(ILB-1:IUB+1, JLB-1:JUB+1,k) = Value2D        (ILB-1:IUB+1, JLB-1:JUB+1  )
-            
+
         enddo d1
-        
+
         kfirst = -FillValueInt
         klast  = -FillValueInt
-        
+
 !Search for the first layer with data
 d2:     do k = KLB, KUB
         do j = JLB, JUB
-        do i = ILB, IUB        
+        do i = ILB, IUB
             if (OutValues3D(i, j, k) > FillValueReal/1e4) then
                 kfirst = k
                 exit d2
             endif
         enddo
-        enddo            
+        enddo
         enddo d2
-        
+
 !Extrapolate for the bottom layers
 d3:     do k = KLB, kfirst - 1
             OutValues3D(ILB-1:IUB+1, JLB-1:JUB+1,k) = OutValues3D(ILB-1:IUB+1, JLB-1:JUB+1,kfirst)
@@ -5598,151 +5601,486 @@ d4:     do k = KUB, KLB,-1
                 exit d4
             endif
         enddo
-        enddo            
+        enddo
         enddo d4
-        
+
 !Extrapolate for the surface layers
 d5:     do k = klast + 1,KUB
             OutValues3D(ILB-1:IUB+1, JLB-1:JUB+1,k) = OutValues3D(ILB-1:IUB+1, JLB-1:JUB+1,klast)
         enddo d5
 
 
-        deallocate(Map2D, Value2D)        
+        deallocate(Map2D, Value2D)
 
     end subroutine FillMatrix3D
     !-----------------------------------------------------------------------------------------------------------------
-    
-    subroutine TwoWayAssimilation2D(FatherProperty, SonProperty, Open3DFather, Open3DSon, KUBFather,        &
-                                    IUBSon, ILBSon, JUBSon, JLBSon, KUBSon, IConnect, Jconnect, DecayTime,  &
-                                    DT, TotSonVolInFather, AuxMatrix, FatherCopyCorners, VolumeZSon, VolumeZFather)
-    !Arguments---------------------------------------------------------------------------------
-    real,    dimension(:,:), pointer, intent(IN)        :: SonProperty
-    integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
-    real(8), dimension(:,:,:), pointer, intent(IN)      :: VolumeZSon, VolumeZFather
-    real,    dimension(:,:), pointer, intent(INOUT)     :: FatherProperty
-    integer, dimension(:,:), pointer, intent(IN)        :: IConnect, Jconnect
-    integer, intent(IN)                                 :: KUBFather, KUBSon, IUBSon, ILBSon, JUBSon, JLBSon
-    real, intent(IN)                                    :: DecayTime, DT
-    !Aux variables --------------------------------------------------------------------------------
-    integer                                             :: i, j
-    real,    dimension(:,:), pointer                    :: AuxMatrix
-    real,    dimension(:,:,:), pointer                  :: TotSonVolInFather
-    real,    dimension(:,:), pointer                    :: FatherCopyCorners
-    !Begin-------------------------------------------------------------------------------------
-
-    !left lower corner
-    FatherCopyCorners(1, KUBFather) = FatherProperty(IConnect(ILBSon, JLBSon)+1, Jconnect(ILBSon, JLBSon)+1)
-    !left upper corner
-    FatherCopyCorners(2, KUBFather) = FatherProperty(IConnect(IUBSon, JLBSon)+1, Jconnect(IUBSon, JLBSon)+1)
-    !Right lower corner
-    FatherCopyCorners(3, KUBFather) = FatherProperty(IConnect(ILBSon, JUBSon)+1, Jconnect(ILBSon, JUBSon)+1)
-    !Right upper corner
-    FatherCopyCorners(4, KUBFather) = FatherProperty(IConnect(IUBSon, JUBSon)+1, Jconnect(IUBSon, JUBSon)+1)
-    
-        do j = JLBSon, JUBSon
-            do i = ILBSon, IUBSon
-                if (Open3DSon(i, j, KUBSon) == 1)then                     
-                    AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1) = &
-                    AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1) + SonProperty(i, j) * VolumeZSon(i, j, KUBFather)
-                endif
-            enddo        
-        enddo
-    
-        do j = Jconnect(1, 1)+1, Jconnect(IUBSon, JUBSon)+1
-            do i = IConnect(1, 1)+1, IConnect(IUBSon, JUBSon)+1  
-                if (Open3DFather(i, j, KUBFather) == 1 .and. TotSonVolInFather(i, j, KUBFather) > 0 )then
-                    FatherProperty(i, j) = FatherProperty(i, j) + (AuxMatrix(i, j) /                      &
-                                           TotSonVolInFather(i, j, KUBFather) - FatherProperty(i, j)) *   &
-                                           (DT / DecayTime) * (TotSonVolInFather(i, j, KUBFather) /       &
-                                           VolumeZFather(i, j, KUBFather))
-                endif
-            enddo
-        enddo
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>feeds back info from son to father using an volume weighted average method. routine for water level
+    !>@param[in] FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
+    !>           SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, DecayTime, DT,  &
+    !>           SonVolInFather, AuxMatrix, FatherCorners, VolumeSon, VolumeFather, IgnoreOBCells
+    subroutine FeedBack_Avrg_WL(FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink, &
+                                JLink, DecayTime, DT, SonVolInFather2D, AuxMatrix2D, VolumeSon2D, VolumeFather2D,         &
+                                IgnoreOBCells)
+        !Arguments---------------------------------------------------------------------------------
+        type(T_Size3D)                    , intent(IN)      :: SizeSon, SizeFather
+        real,    dimension(:,:  ), pointer, intent(IN)      :: SonMatrix2D, VolumeFather2D, VolumeSon2D
+        integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
+        real,    dimension(:,:  ), pointer, intent(INOUT)   :: FatherMatrix2D
+        integer, dimension(:,:  ), pointer, intent(IN)      :: ILink, JLink, IgnoreOBCells
+        real,                               intent(IN)      :: DecayTime, DT
+        real,    dimension(:,:),   pointer                  :: SonVolInFather2D, AuxMatrix2D
+        !Local variables --------------------------------------------------------------------------------
+        integer                                             :: i, j, KUBFather, KUBSon, IUBSon, ILBSon, JUBSon, JLBSon
+        integer                                             ::  NThreads, CHUNK, N
+        !Begin-------------------------------------------------------------------------------------
+        ILBSon = SizeSon%ILB
+        IUBSon = SizeSon%IUB
+        JLBSon = SizeSon%JLB
+        JUBSon = SizeSon%JUB
+        KUBSon = SizeSon%KUB
+        KUBFather = SizeFather%KUB
         
-        !left lower corner
-        FatherProperty(IConnect(ILBSon, JLBSon)+1, Jconnect(ILBSon, JLBSon)+1) = FatherCopyCorners(1,KUBFather) 
-        !left upper corner, KUBFather
-        FatherProperty(IConnect(IUBSon, JLBSon)+1, Jconnect(IUBSon, JLBSon)+1) = FatherCopyCorners(2,KUBFather)
-        !Right lower corner
-        FatherProperty(IConnect(ILBSon, JUBSon)+1, Jconnect(ILBSon, JUBSon)+1) = FatherCopyCorners(3,KUBFather)
-        !Right upper corner
-        FatherProperty(IConnect(IUBSon, JUBSon)+1, Jconnect(IUBSon, JUBSon)+1) = FatherCopyCorners(4,KUBFather)
-    
-    end subroutine TwoWayAssimilation2D
-    !------------------------------------------------------------------------------------------------------------------
-
-    subroutine TwoWayAssimilation3D(FatherProperty,SonProperty, Open3DFather, Open3DSon,  &
-                                    KUBFather, KLBFather, IUBSon, ILBSon, JUBSon, JLBSon, &
-                                    KUBSon, KLBSon, IConnect, Jconnect, DecayTime, DT,    &
-                                    TotSonVolInFather, AuxMatrix, FatherCopyCorners, VolumeZSon, VolumeZFather) 
-    !Arguments---------------------------------------------------------------------------------
-    real,    dimension(:,:,:), pointer, intent(IN)      :: SonProperty
-    real(8), dimension(:,:,:), pointer, intent(IN)      :: VolumeZSon, VolumeZFather
-    real,    dimension(:,:,:), pointer, intent(INOUT)   :: FatherProperty
-    integer, dimension(:,:),   pointer, intent(IN)      :: IConnect, Jconnect
-    integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
-    integer, intent(IN)                                 :: KUBFather, KLBFather, IUBSon, ILBSon, JUBSon, JLBSon
-    integer, intent(IN)                                 :: KUBSon, KLBSon
-    real,    intent (IN)                                :: DecayTime, DT
-    !Aux variables -----------------------------------------------------------------------------
-    integer                                             :: i, j, k
-    real, dimension(:,:,:), pointer                     :: AuxMatrix
-    real, dimension(:,:,:), pointer                     :: TotSonVolInFather
-    real, dimension(:,:), pointer                       :: FatherCopyCorners
-    !Begin----------------------------------------------------------------------------------------
-    
-    !Copies Values of FatherProperty coincident with the corners of the Son domain (because the son domain does
-    ! not compute them).
-    do k = KLBFather, KUBFather
-        !left lower corner
-        FatherCopyCorners(1, k) = FatherProperty(IConnect(ILBSon, JLBSon)+1, Jconnect(ILBSon, JLBSon)+1, k)
-        !left upper corner
-        FatherCopyCorners(2, k) = FatherProperty(IConnect(IUBSon, JLBSon)+1, Jconnect(IUBSon, JLBSon)+1, k)
-        !Right lower corner
-        FatherCopyCorners(3, k) = FatherProperty(IConnect(ILBSon, JUBSon)+1, Jconnect(ILBSon, JUBSon)+1, k)
-        !Right upper corner
-        FatherCopyCorners(4, k) = FatherProperty(IConnect(IUBSon, JUBSon)+1, Jconnect(IUBSon, JUBSon)+1, k)
-    enddo
-    !Paralelizar! João Sobrinho
-    do k = KLBSon, KUBSon
+        NThreads = openmp_num_threads
+        CHUNK = CHUNK_J(JLBSon, JUBSon, NThreads)
+        !$OMP PARALLEL PRIVATE(i,j)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLBSon, JUBSon
-            do i = ILBSon, IUBSon
-                if (Open3DSon(i, j, k) == 1)then
-                    !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-                    AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1, k) = AuxMatrix(IConnect(i, j)+1, Jconnect(i, j)+1, k) + &
-                                                                      SonProperty(i, j, k) * VolumeZSon(i, j, k)
-                endif
-            enddo        
+        do i = ILBSon, IUBSon
+            AuxMatrix2D(ILink(i, j), JLink(i, j)) = (AuxMatrix2D(ILink(i, j)+1, JLink(i, j)+1) + SonMatrix2D(i, j) *  &
+                                                     VolumeSon2D(i, j)) * Open3DSon(i, j, KUBSon) * IgnoreOBCells(i, j)
+
         enddo
-    enddo
-    !Paralelizar! João Sobrinho
-    do k = KLBFather, KUBFather
-        do j = Jconnect(1, 1)+1, Jconnect(IUBSon, JUBSon)+1
-            do i = IConnect(1, 1)+1, IConnect(IUBSon, JUBSon)+1
-                if (Open3DFather(i, j, k) == 1 .and. TotSonVolInFather(i, j, k) > 0. )then
-                    FatherProperty(i, j, k) = FatherProperty(i, j, k) + &
-                                              (AuxMatrix(i, j, k) / TotSonVolInFather(i, j, k) - FatherProperty(i, j, k)) * &
-                                              (DT / DecayTime) * (TotSonVolInFather(i, j, k) / VolumeZFather(i, j, k))
-                endif
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+        
+        CHUNK = CHUNK_J(JLink(1, 1), JLink(IUBSon, JUBSon), NThreads)
+        N =  (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1))
+        !$OMP PARALLEL PRIVATE(i,j) IF(N > 10000)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+        do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+            FatherMatrix2D(i, j) = FatherMatrix2D(i, j) + (AuxMatrix2D(i, j) / SonVolInFather2D(i, j) -   &
+                                   FatherMatrix2D(i, j)) * (DT / DecayTime) * (SonVolInFather2D(i, j) / &
+                                   (VolumeFather2D(i, j)+0.001)) * Open3DFather(i, j, KUBFather)
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+    end subroutine FeedBack_Avrg_WL
+
+    !--------------------------------------------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>feeds back info from son to father using an volume weighted average method. routine for U/V types
+    !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
+    !>           SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, DecayTime, DT,  &
+    !>           SonVolInFather, AuxMatrix, FatherCorners, VolumeSon, VolumeFather, IgnoreOBCells
+    subroutine FeedBack_Avrg_UV(FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
+                                SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, DecayTime, DT,              &
+                                SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells)
+        !Arguments---------------------------------------------------------------------------------
+        type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
+        real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix, VolumeSon, VolumeFather
+        real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
+        integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink, IgnoreOBCells
+        integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon
+        integer, dimension(:,:,:), pointer, intent(IN)    :: FatherComputeFaces3D, SonComputeFaces3D
+        real,    intent (IN)                              :: DecayTime, DT
+        real, dimension(:,:,:), pointer                   :: AuxMatrix, SonVolInFather
+        !Local variables -----------------------------------------------------------------------------
+        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, N, &
+                                                             KUBSon, KUBFather, KLBFather, NThreads, OMPmethod, CHUNK
+                                         
+        !Begin----------------------------------------------------------------------------------------
+        ILBSon = SizeSon%ILB
+        IUBSon = SizeSon%IUB
+        JLBSon = SizeSon%JLB
+        JUBSon = SizeSon%JUB
+        KLBSon = SizeSon%KLB
+        KUBSon = SizeSon%KUB
+        KLBFather = SizeFather%KLB
+        KUBFather = SizeFather%KUB
+        OMPmethod = 2 !paralelization at the k level
+        ! This function will have to be changed if the son domain is allowed to have cells outside the father domain
+        NThreads = openmp_num_threads
+        if (NThreads > 1) then
+            if (NThreads - KUBSon > 1) then
+                OMPmethod = 1
+            endif
+        endif
+        if (OMPmethod == 2) then
+            CHUNK = CHUNK_K(KLBSon, KUBSon, NThreads)
+            !$OMP PARALLEL PRIVATE(i,j,k)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = KLBSon, KUBSon
+            do j = JLBSon, JUBSon
+            do i = ILBSon, IUBSon
+                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +         &
+                                                        SonMatrix(i, j, k) * VolumeSon(i, j, k) *         &
+                                                        Open3DSon(i, j, k) * SonComputeFaces3D(i, j, k) * &
+                                                        IgnoreOBCells(i, j)
                 
             enddo
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+            CHUNK = CHUNK_K(KLBFather, KUBFather, NThreads)
+            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1)) * (KUBFather - KLBFather) 
+            !$OMP PARALLEL PRIVATE(i,j) IF(N > 10000)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = KLBFather, KUBFather
+            do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+            do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
+                                        FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
+                                        (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k) *                 &
+                                         FatherComputeFaces3D(i, j, k)
+            enddo
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+        else
+            CHUNK = CHUNK_J(JLBSon, JUBSon, NThreads)
+            !$OMP PARALLEL PRIVATE(i,j,k)
+            do k = KLBSon, KUBSon
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = JLBSon, JUBSon
+            do i = ILBSon, IUBSon
+                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +      &
+                                                     SonMatrix(i, j, k) * VolumeSon(i, j, k) *         &
+                                                     Open3DSon(i, j, k) * SonComputeFaces3D(i, j, k) * &
+                                                     IgnoreOBCells(i, j)
+            enddo
+            enddo
+            !$OMP END DO
+            enddo
+            !$OMP END PARALLEL
+            
+            CHUNK = CHUNK_J(JLink(1, 1), JLink(IUBSon, JUBSon), NThreads)
+            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1)) * (KUBFather - KLBFather)
+            !$OMP PARALLEL PRIVATE(i,j,k) IF(N > 10000)
+            do k = KLBFather, KUBFather
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+            do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
+                                        FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
+                                        (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k) *                 &
+                                         FatherComputeFaces3D(i, j, k)
+            enddo
+            enddo
+            !$OMP END DO
+            enddo
+            !$OMP END PARALLEL
+        endif
+
+    end subroutine FeedBack_Avrg_UV
+    !-------------------------------------------------------------------------------------
+
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>feeds back info from son to father using an volume weighted average method. routine for Z types
+    !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink, JLink, DecayTime, &
+    !>           DT, SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells
+    subroutine FeedBack_Avrg(FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink, &
+                             JLink, DecayTime, DT, SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells)
+        !Arguments---------------------------------------------------------------------------------
+        type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
+        real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix, VolumeSon, VolumeFather
+        real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
+        integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink, IgnoreOBCells
+        integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon
+        real,    intent (IN)                              :: DecayTime, DT
+        real, dimension(:,:,:), pointer                   :: AuxMatrix, SonVolInFather
+        !Local variables -----------------------------------------------------------------------------
+        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, N, &
+                                                             KUBSon, KUBFather, KLBFather, NThreads, OMPmethod, CHUNK
+        !Begin----------------------------------------------------------------------------------------
+        ILBSon = SizeSon%ILB
+        IUBSon = SizeSon%IUB
+        JLBSon = SizeSon%JLB
+        JUBSon = SizeSon%JUB
+        KLBSon = SizeSon%KLB
+        KUBSon = SizeSon%KUB
+        KLBFather = SizeFather%KLB
+        KUBFather = SizeFather%KUB
+        OMPmethod = 2 !paralelization at the k level
+        ! This function will have to be changed if the son domain is allowed to have cells outside the father domain
+        NThreads = openmp_num_threads
+        if (NThreads > 1) then
+            if (NThreads - KUBSon > 1) then
+                OMPmethod = 1
+            endif
+        endif
+        if (OMPmethod == 2) then
+            CHUNK = CHUNK_K(KLBSon, KUBSon, NThreads)
+            !$OMP PARALLEL PRIVATE(i,j,k)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = KLBSon, KUBSon
+            do j = JLBSon, JUBSon
+            do i = ILBSon, IUBSon
+                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +   &
+                                                        SonMatrix(i, j, k) * VolumeSon(i, j, k) *      &
+                                                        Open3DSon(i, j, k) * IgnoreOBCells(i, j)
+            
+            enddo
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+            CHUNK = CHUNK_K(KLBFather, KUBFather, NThreads)
+            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1)) * (KUBFather - KLBFather)
+            
+            !$OMP PARALLEL PRIVATE(i,j,k) IF(N > 10000)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)            
+            do k = KLBFather, KUBFather
+            do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+            do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+
+                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
+                                        FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
+                                        (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k)
+
+            enddo
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+        else
+            CHUNK = CHUNK_J(JLBSon, JUBSon, NThreads)
+            !$OMP PARALLEL PRIVATE(i,j,k)
+            do k = KLBSon, KUBSon
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = JLBSon, JUBSon
+            do i = ILBSon, IUBSon
+                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +   &
+                                                     SonMatrix(i, j, k) * VolumeSon(i, j, k) *  &
+                                                     Open3DSon(i, j, k) * IgnoreOBCells(i, j)
+                
+            enddo
+            enddo
+            !$OMP END DO
+            enddo
+            !$OMP END PARALLEL
+
+            CHUNK = CHUNK_J(JLink(1, 1), JLink(IUBSon, JUBSon), NThreads)
+            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1)) * (KUBFather - KLBFather)
+            !$OMP PARALLEL PRIVATE(i,j,k) IF(N > 10000)
+            do k = KLBFather, KUBFather
+			!$OMP DO SCHEDULE(DYNAMIC, CHUNK) 
+            do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+            do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
+                                        FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
+                                        (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k)   
+            enddo
+            enddo
+            !$OMP END DO
+            enddo
+            !$OMP END PARALLEL
+        endif
+     
+                             end subroutine FeedBack_Avrg
+    !-------------------------------------------------------------------------------------
+
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>feeds back info from son to father using the inverse weigthed distance method. routine for Z types
+    !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeSon, Connections, &
+    !>                         Distances, DecayTime, DT, IgnoreOBCells, Nodes
+    subroutine FeedBack_IWD (FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeSon, ILink, JLink, Connections, &
+                             Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom)
+
+        !Arguments---------------------------------------------------------------------------------
+        type(T_Size3D)                    , intent(IN)    :: SizeSon
+        real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
+        real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
+        real,    dimension(:,:,:), pointer                :: Nom, Denom
+        integer, dimension(:,:  ), pointer, intent(IN)    :: Connections, IgnoreOBCells, ILink, JLink
+        integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon
+        real,    intent (IN)                              :: DecayTime, DT
+        real, dimension(:), pointer                       :: Dist
+        integer                                           :: Nodes, IWDn
+        !Local variables -----------------------------------------------------------------------------
+        integer                                           :: i, j, k, KLBSon, KUBSon, ILBSon, IUBSon, JLBSon, JUBSon, &
+                                                             index, iSon, jSon, iFather, jFather
+        !Begin----------------------------------------------------------------------------------------
+
+        !As the son domain can have less layers than the father domain, it is necessary to use the son size to avoid
+        ! accessing unallocated memory adresses.
+        ILBSon = SizeSon%ILB
+        IUBSon = SizeSon%IUB
+        JLBSon = SizeSon%JLB
+        JUBSon = SizeSon%JUB
+        KLBSon = SizeSon%KLB
+        KUBSon = SizeSon%KUB
+
+        do k = KLBSon, KUBSon
+        do index = 1, Nodes
+
+            iFather  = Connections (index, 1)
+            jFather  = Connections (index, 2)
+            iSon     = Connections (index, 3)
+            jSon     = Connections (index, 4)
+
+            Nom(iFather, jFather, k)  = Nom(iFather, jFather, k) + SonMatrix(iSon, jSon, k) / (Dist(index) ** IWDn) * &
+                                                                   IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k)
+
+            Denom(iFather, jFather, k) = Denom(iFather, jFather, k) + (1.e-5 / (Dist(index) ** IWDn)) * &
+                                                                   IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k)
+
         enddo
-    enddo
-    
-    do k = KLBFather, KUBFather
-        !left lower corner
-        FatherProperty(IConnect(ILBSon, JLBSon)+1, Jconnect(ILBSon, JLBSon)+1, k) = FatherCopyCorners(1, k) 
-        !left upper corner
-        FatherProperty(IConnect(IUBSon, JLBSon)+1, Jconnect(IUBSon, JLBSon)+1, k) = FatherCopyCorners(2, k)
-        !Right lower corner
-        FatherProperty(IConnect(ILBSon, JUBSon)+1, Jconnect(ILBSon, JUBSon)+1, k) = FatherCopyCorners(3, k)
-        !Right upper corner
-        FatherProperty(IConnect(IUBSon, JUBSon)+1, Jconnect(IUBSon, JUBSon)+1, k) = FatherCopyCorners(4, k)
-    enddo
-    
-    end subroutine TwoWayAssimilation3D
-   
-    !-------------------------------------------------------------------------------------    
+        enddo
+
+        do k = KLBSon, KUBSon
+        do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+        do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+            !1e-5 reffers to the reference distance used in the IWD method (horizontalGrid).
+            if (Denom (i, j, k) > 0) then
+                FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                           + &
+                                        (Nom(i, j, k) * 1.e-5 / Denom(i, j, k) - FatherMatrix(i, j, k)) * &
+                                        (DT / DecayTime) * Open3DFather(i, j, k)
+            endif
+        enddo
+        enddo
+        enddo
+
+    end subroutine FeedBack_IWD
+
+    !-------------------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>feeds back info from son to father using the inverse weigthed distance method. routine for Z types
+    !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeSon, Connections, &
+    !>                         Distances, DecayTime, DT, IgnoreOBCells, Nodes, IWDn
+    subroutine FeedBack_IWD_UV (FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D, &
+                                SonComputeFaces3D, SizeSon, ILink, JLink, Connections, Dist, DecayTime, DT, &
+                                IgnoreOBCells, Nodes, IWDn, Nom, Denom)
+        !Arguments---------------------------------------------------------------------------------
+        type(T_Size3D)                    , intent(IN)    :: SizeSon
+        real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
+        real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
+        real,    dimension(:,:,:), pointer                :: Nom, Denom
+        integer, dimension(:,:  ), pointer, intent(IN)    :: Connections, IgnoreOBCells, ILink, JLink
+        integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon, FatherComputeFaces3D, &
+                                                             SonComputeFaces3D
+        real,    intent (IN)                              :: DecayTime, DT
+        real, dimension(:), pointer                       :: Dist
+        integer                                           :: Nodes, IWDn
+        !Local variables -----------------------------------------------------------------------------
+        integer                                           :: i, j, k, KLBSon, KUBSon, index, ILBSon, &
+                                                             IUBSon, JLBSon, JUBSon, iSon, jSon, iFather, jFather
+        !Begin----------------------------------------------------------------------------------------
+
+        !As the son domain can have less layers than the father domain, it is necessary to use the son size to avoid
+        ! accessing unallocated memory adresses.
+        ILBSon = SizeSon%ILB
+        IUBSon = SizeSon%IUB
+        JLBSon = SizeSon%JLB
+        JUBSon = SizeSon%JUB
+        KLBSon = SizeSon%KLB
+        KUBSon = SizeSon%KUB
+
+        do k = KLBSon, KUBSon
+        do index = 1, Nodes
+
+            iFather  = Connections (index, 1)
+            jFather  = Connections (index, 2)
+            iSon     = Connections (index, 3)
+            jSon     = Connections (index, 4)
+
+            Nom(iFather, jFather, k) = Nom(iFather, jFather, k) +                             &
+                                       SonMatrix(iSon, jSon, k) / (Dist(index) ** IWDn) *     &
+                                       IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k) * &
+                                       SonComputeFaces3D(iSon, jSon, k)
+
+            Denom(iFather, jFather, k) = Denom(iFather, jFather, k) +                           &
+                                         (1.e-5 / (Dist(index) ** IWDn)) *                      &
+                                         IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k) * &
+                                         SonComputeFaces3D(iSon, jSon, k)
+
+        enddo
+        enddo
+
+        do k = KLBSon, KUBSon
+        do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+        do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+            !1e-5 reffers to the reference distance used in the IWD method (horizontalGrid).
+            if (Denom (i, j, k) > 0) then
+                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) +                                                &
+                                        (Nom(i, j, k) * 1.e-5 / Denom(i, j, k) - FatherMatrix(i, j, k)) *      &
+                                        (DT / DecayTime) * Open3DFather(i, j, k) * FatherComputeFaces3D(i, j, k)
+            endif
+        enddo
+        enddo
+        enddo
+
+                                end subroutine FeedBack_IWD_UV
+    !-------------------------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>feeds back info from son to father using the inverse weigthed distance method. routine for Z types
+    !>@param[in] FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeSon, Connections, &
+    !>                         Distances, DecayTime, DT, IgnoreOBCells, Nodes
+    subroutine FeedBack_IWD_WL (FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeSon, ILink, JLink, &
+                                Connections, Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom)
+        !Arguments---------------------------------------------------------------------------------
+        type(T_Size3D)                    , intent(IN)    :: SizeSon
+        real,    dimension(:,:  ), pointer, intent(IN)    :: SonMatrix2D
+        real,    dimension(:,:  ), pointer, intent(INOUT) :: FatherMatrix2D
+        integer, dimension(:,:  ), pointer, intent(IN)    :: Connections, IgnoreOBCells, ILink, JLink
+        integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon
+        real,    dimension(:,:,:), pointer                :: Nom, Denom
+        real,    intent (IN)                              :: DecayTime, DT
+        real, dimension(:), pointer                       :: Dist
+        integer                                           :: Nodes, IWDn
+        !Local variables -----------------------------------------------------------------------------
+        integer                                           :: i, j, index, ILBSon, IUBSon, JLBSon, &
+                                                             JUBSon, iSon, jSon, iFather, jFather
+        !Begin----------------------------------------------------------------------------------------
+
+        ILBSon = SizeSon%ILB
+        IUBSon = SizeSon%IUB
+        JLBSon = SizeSon%JLB
+        JUBSon = SizeSon%JUB
+
+        do index = 1, Nodes ! ir buscar isto ao horizontal grid
+
+            iFather  = Connections (index, 1)
+            jFather  = Connections (index, 2)
+            iSon     = Connections (index, 3)
+            jSon     = Connections (index, 4)
+
+            Nom(iFather, jFather, 1) = Nom(iFather, jFather, 1) + SonMatrix2D(iSon, jSon) / (Dist(index) ** IWDn) * &
+                                                                  IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, 1)
+
+            Denom(iFather, jFather, 1) = Denom(iFather, jFather, 1) + 1.e-5 / (Dist(index) ** IWDn) * &
+                                                                  IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, 1)
+
+        enddo
+
+        do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+        do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+            if (Denom (i, j, 1) > 0) then
+                FatherMatrix2D(i, j) = FatherMatrix2D(i, j)                                           + &
+                                       (Nom(i, j, 1) * 1.e-5 / Denom(i, j, 1) - FatherMatrix2D(i, j)) * &
+                                       (DT / DecayTime) * Open3DFather(i, j, 1)
+            endif
+        enddo
+        enddo
+
+    end subroutine FeedBack_IWD_WL
+    !-------------------------------------------------------------------------------------------
+
     subroutine ReadTimeKeyWords(ObjEnterData, ExtractTime, BeginTime, EndTime, DT,       &
                                 VariableDT, ClientModule, MaxDT, GmtReference,           &
                                 DTPredictionInterval)
@@ -5769,14 +6107,14 @@ d5:     do k = klast + 1,KUB
                      SearchType   = ExtractTime,                                         &
                      ClientModule = ClientModule,                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadTimeKeyWords - ModuleFunctions - ERR01'   
+        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadTimeKeyWords - ModuleFunctions - ERR01'
 
-        !Reads End Time 
+        !Reads End Time
         call GetData(EndTime,   ObjEnterData, iflag, keyword = 'END',                    &
                      SearchType   = ExtractTime,                                         &
                      ClientModule = ClientModule,                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadTimeKeyWords - ModuleFunctions - ERR02'   
+        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) stop 'ReadTimeKeyWords - ModuleFunctions - ERR02'
 
         !Reads DT
         call GetData(DT,   ObjEnterData, iflag, keyword = 'DT',                          &
@@ -5802,7 +6140,7 @@ d5:     do k = klast + 1,KUB
         !Reads MaxDT
         if (VariableDT) then
 
-            if (present(MaxDT)) then 
+            if (present(MaxDT)) then
                 call GetData(MaxDT,   ObjEnterData, iflag, keyword = 'MAXDT',                    &
                              SearchType   = ExtractTime,                                         &
                              ClientModule = ClientModule,                                   &
@@ -5814,13 +6152,13 @@ d5:     do k = klast + 1,KUB
                     stop 'ReadTimeKeyWords - ModuleFunctions - ERR04a'
                 endif
             else
-                !MAXDT will be read somewhere else...                
+                !MAXDT will be read somewhere else...
             endif
 
         endif
 
         !Reads GmtReference
-        if (present(GmtReference)) then 
+        if (present(GmtReference)) then
             call GetData(GmtReference,   ObjEnterData, iflag, keyword = 'GMTREFERENCE',             &
                          SearchType   = ExtractTime,              &
                          ClientModule = ClientModule,             &
@@ -5833,10 +6171,10 @@ d5:     do k = klast + 1,KUB
                 stop 'ReadTimeKeyWords - ModuleFunctions - ERR22a'
             endif
         else
-            !GmtReference will be read somewhere else...                
+            !GmtReference will be read somewhere else...
         endif
-        
-        
+
+
         if (present(DTPredictionInterval)) then
             call GetData(DTPredictionInterval, ObjEnterData,      &
                          iflag,                                   &
@@ -5852,7 +6190,7 @@ d5:     do k = klast + 1,KUB
                 stop 'ReadTimeKeyWords - ModuleFunctions - ERR25a'
             endif
         endif
-        
+
         !Verifies Time Variables
         if (EndTime .le. BeginTime) then
             write (*,*) 'End Time is BEFORE model Start Time'
@@ -5871,25 +6209,25 @@ d5:     do k = klast + 1,KUB
 
             !Run period in seconds
             aux  = EndTime - BeginTime
-            
+
             !when real is real(4) by default if DT = 0.2
             !DTD = dble(DT) = 0.200000002980232
             DTD  = dble(DT)
-            
-            !after many attempts this was the only way to clear the spurious values 
+
+            !after many attempts this was the only way to clear the spurious values
             !added by the dble function after the 6 decimal place
-            
+
             write(AuxChar,*)  DTD
             i = scan(AuxChar,".")
-            read (AuxChar(1:i+7),*) DTD 
-            
+            read (AuxChar(1:i+7),*) DTD
+
             !The run period must be a multiple of the model DT
             !The abs function is used, to avoid rounding erros
-            
+
             aux1 = dmod (aux, DTD)
             MinError = min (dabs(aux1), dabs(DTD - aux1))
             if (MinError >= 1.e-5.and.(.not.VariableDT)) then
-                write(*,*) 
+                write(*,*)
                 write(*,*)' Time step error - Run period must be a multiple of DT'
                 write(*,*)' Shorten the run time by ', aux1
                 write(*,*)' or increase the run time by ', DTD - aux1
@@ -5928,7 +6266,7 @@ d5:     do k = klast + 1,KUB
 
         !Property Name
         PropertyID%Name = Name
-        
+
         PropertyID%IsDynamic = IsDynamic
         if (IsDynamic) then
             PropertyID%IDnumber = RegisterDynamicProperty(PropertyID%Name)
@@ -5949,38 +6287,38 @@ d5:     do k = klast + 1,KUB
             endif
         else
             if (.not. present(IDNumber)) &
-                stop 'ConstructPropertyID - ModuleFunctions - ERR010'  
-            
+                stop 'ConstructPropertyID - ModuleFunctions - ERR010'
+
             PropertyID%IDNumber = IDNumber
-        
+
             PropertyID%IsAngle = Check_Angle_Property(PropertyID%IDNumber)
             PropertyID%IsParticulate = Check_Particulate_Property(PropertyID%IDNumber)
             PropertyID%IsVectorial = Check_Vectorial_Property(PropertyID%IDNumber)
         endif
-        
+
         if (present(Units)) then
             PropertyID%Units = Units
         endif
-        
+
         if (present(Description)) then
             PropertyID%Description = Description
         endif
-        
+
         if (present(CheckProperty)) then
             check = CheckProperty
         else
             check = .true.
         endif
-        
+
         if (check) then
         if (.not. CheckPropertyName (PropertyID%Name, PropertyID%IDnumber)) then
             write (*, *)'The property isnt recognized by the model :', trim(PropertyID%Name)
-            stop 'ConstructPropertyID - ModuleFunctions - ERR20'            
+            stop 'ConstructPropertyID - ModuleFunctions - ERR20'
         endif
         endif
- 
+
     end subroutine ConstructPropertyIDOnFly
-    
+
     !--------------------------------------------------------------------------
 
     subroutine ConstructPropertyID (PropertyID, ObjEnterData, ExtractType, CheckProperty)
@@ -6016,11 +6354,11 @@ d5:     do k = klast + 1,KUB
                      keyword      = 'DYNAMIC',                                           &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyID - ModuleFunctions - ERR03.1'
-        
+
         if (dynamic_property) then
             PropertyID%IDnumber = RegisterDynamicProperty(PropertyID%Name)
             PropertyID%IsDynamic = ON
-            
+
             call GetData(PropertyID%IsAngle, ObjEnterData, flag,                             &
                          SearchType   = ExtractType,                                         &
                          default      = .false.,                                             &
@@ -6058,20 +6396,20 @@ d5:     do k = klast + 1,KUB
             PropertyID%IsParticulate = Check_Particulate_Property(PropertyID%IDNumber)
             PropertyID%IsVectorial   = Check_Vectorial_Property  (PropertyID%IDNumber)
         endif
-        
+
         if (present(CheckProperty)) then
             check = CheckProperty
         else
             check = .true.
         endif
-        
+
         if (check) then
             if (.not. CheckPropertyName (PropertyID%Name, PropertyID%IDnumber)) then
                 write (*, *)'The property isnt recognized by the model :', trim(PropertyID%Name)
-                stop 'ConstructPropertyID - ModuleFunctions - ERR03'            
+                stop 'ConstructPropertyID - ModuleFunctions - ERR03'
             endif
         endif
-        
+
         !Units
         call GetData(PropertyID%Units, ObjEnterData, flag,                               &
                      SearchType   = ExtractType,                                         &
@@ -6138,11 +6476,11 @@ cd1 :   if ((Property == Temperature_           ) .OR.  (Property == Salinity_  
             (Property == DOPNon_Refractory_     ) .OR.  (Property == DONRefractory_         ) .OR.          &
             (Property == DONNon_Refractory_     ) .OR.  (Property == Inorganic_Phosphorus_  ) .OR.          &
             (Property == POC_                   ) .OR.  (Property == POP_                   ) .OR.          &
-            (Property == DOC_                   ) .OR.  (Property == DOP_                   ) .OR.          &            
-            (Property == DON_                   ) .OR.  (Property == DOCsl_                 ) .OR.          &  
-            (Property == DOPsl_                 ) .OR.  (Property == DONsl_                 ) .OR.          &  
-            (Property == Ammonia_               ) .OR.  (Property == Nitrate_               ) .OR.          &  
-            (Property == Silicate_              ) .OR.  (Property == BioSilica_             ) .OR.          &  
+            (Property == DOC_                   ) .OR.  (Property == DOP_                   ) .OR.          &
+            (Property == DON_                   ) .OR.  (Property == DOCsl_                 ) .OR.          &
+            (Property == DOPsl_                 ) .OR.  (Property == DONsl_                 ) .OR.          &
+            (Property == Ammonia_               ) .OR.  (Property == Nitrate_               ) .OR.          &
+            (Property == Silicate_              ) .OR.  (Property == BioSilica_             ) .OR.          &
             (Property == CarbonDioxide_         ) .OR.  (Property == Oxygen_                ) .OR.          &
             (Property == DissolO2PercentSat_    ) .OR.  (Property == Diatom_C_              ) .OR.          &
             (Property == Diatom_N_              ) .OR.  (Property == Diatom_P_              ) .OR.          &
@@ -6150,13 +6488,13 @@ cd1 :   if ((Property == Temperature_           ) .OR.  (Property == Salinity_  
             (Property == Mix_Flagellate_C_      ) .OR.  (Property == Mix_Flagellate_N_      ) .OR.          &
             (Property == Mix_Flagellate_P_      ) .OR.  (Property == Mix_Flagellate_Chl_    ) .OR.          &
             (Property == Picoalgae_C_           ) .OR.  (Property == Picoalgae_N_           ) .OR.          &
-            (Property == Picoalgae_P_           ) .OR.  (Property == Picoalgae_Chl_         ) .OR.          &  
-            (Property == Flagellate_C_          ) .OR.  (Property == Flagellate_N_          ) .OR.          &  
+            (Property == Picoalgae_P_           ) .OR.  (Property == Picoalgae_Chl_         ) .OR.          &
+            (Property == Flagellate_C_          ) .OR.  (Property == Flagellate_N_          ) .OR.          &
             (Property == Flagellate_P_          ) .OR.  (Property == Flagellate_Chl_        ) .OR.          &
             (Property == Microzooplankton_C_    ) .OR.  (Property == Microzooplankton_N_    ) .OR.          &
-            (Property == Microzooplankton_P_    ) .OR.  (Property == Het_Nanoflagellate_C_  ) .OR.          &  
-            (Property == Het_Nanoflagellate_N_  ) .OR.  (Property == Het_Nanoflagellate_P_  ) .OR.          &  
-            (Property == Mesozooplankton_C_     ) .OR.  (Property == Mesozooplankton_N_     ) .OR.          &  
+            (Property == Microzooplankton_P_    ) .OR.  (Property == Het_Nanoflagellate_C_  ) .OR.          &
+            (Property == Het_Nanoflagellate_N_  ) .OR.  (Property == Het_Nanoflagellate_P_  ) .OR.          &
+            (Property == Mesozooplankton_C_     ) .OR.  (Property == Mesozooplankton_N_     ) .OR.          &
             (Property == Mesozooplankton_P_     ) .OR.  (Property == Het_Bacteria_C_        ) .OR.          &
             (Property == Het_Bacteria_N_        ) .OR.  (Property == Het_Bacteria_P_        ) .OR.          &
             (Property == Nitrite_               ) .OR.  (Property == BOD_                   ) .OR.          &
@@ -6236,13 +6574,13 @@ cd1 :   if ((Property == Temperature_           ) .OR.  (Property == Salinity_  
             (Property == FloatingObject_        )  ) then
 
             Check_Water_Property = .TRUE.
-        
+
         else
 
             Check_Water_Property = .FALSE.
 
         end if cd1
-           
+
     end function Check_Water_Property
 #endif
 
@@ -6282,15 +6620,15 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
              CanopyHeight_                                  == Property .or.            &
              PotLeafAreaIndex_                              == Property .or.            &
              BoundaryLeafAreaIndex_                         == Property ) then
-             
-            NonNegativeProperty = .TRUE.                   
-                                                            
-        else                                                
+
+            NonNegativeProperty = .TRUE.
+
+        else
 
             NonNegativeProperty = .FALSE.
 
         end if cd1
-           
+
     end function NonNegativeProperty
 
     !---------------------------------------------------------------------------------
@@ -6317,10 +6655,10 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
         FoundKeyword = .false.
 
         do s = 1, ls - lk
-        
+
             if ('&'//Keyword(1:lk)//'=' == OnLineString(s:s+lk+1)) then
                 FoundKeyword = .true.
-                sk = s + lk 
+                sk = s + lk
                 exit
             endif
 
@@ -6436,7 +6774,7 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
         real(8), dimension(:), pointer:: b, gam
         real   , dimension(:), pointer:: a, c, r, x
         integer                       :: jmin, jmax
-        !Local 
+        !Local
         integer                       :: j
         real(8)                       :: bet
 
@@ -6459,16 +6797,16 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
     end subroutine tridag
 
-    
+
     subroutine Tridag_cyclic(a, b, c, alpha, beta, r, x, gam, bb, u, z, imin, imax)
-        
+
         !Arguments-------------------------------------------------------------
         real                          :: alpha, beta
         real(8), dimension(:), pointer:: b, bb, gam
         real,    dimension(:), pointer:: a, c, r, x, u, z
         integer                       :: imin, imax
 
-        !Local----------------------------------------------------------------- 
+        !Local-----------------------------------------------------------------
         integer                       :: i
         real                          :: fact,gamma
 
@@ -6493,7 +6831,7 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
         enddo
 
         call tridag(a,bb, c, u, z, gam, imin, imax)
-                   
+
         fact=(x(imin)+beta*x(imax)/gamma)/(1.+z(imin)+beta*z(imax)/gamma)
 
         do i=imin,imax
@@ -6504,7 +6842,7 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
     !--------------------------------------------------------------------------
 
-    !Computes de value for a depth based in a profile. 
+    !Computes de value for a depth based in a profile.
     real function InterpolateProfile (CellDepth, NDEPTHS, Depth, Values)
 
         !Arguments-------------------------------------------------------------
@@ -6525,10 +6863,10 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
                 InterpolateProfile = Values(1)
 
             else if (CellDepth <= Depth(NDEPTHS)) then
-        
+
                 InterpolateProfile = Values(NDEPTHS)
 
-            else  
+            else
 
                 do i = 1 , NDEPTHS
 
@@ -6536,8 +6874,8 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
                         dx = dble(Depth(i) - CellDepth) / dble(Depth(i) - Depth(i + 1))
 
-                        InterpolateProfile = Values(i+1) * dx + Values(i  ) *  (1. - dx) 
-                        
+                        InterpolateProfile = Values(i+1) * dx + Values(i  ) *  (1. - dx)
+
                         exit
 
                     endif
@@ -6545,7 +6883,7 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
                 enddo
 
-            endif     
+            endif
         else
 
             if (CellDepth <= Depth(1)) then
@@ -6553,10 +6891,10 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
                 InterpolateProfile = Values(1)
 
             else if (CellDepth >= Depth(NDEPTHS)) then
-        
+
                 InterpolateProfile = Values(NDEPTHS)
 
-            else  
+            else
 
                 do i = 1 , NDEPTHS
 
@@ -6566,14 +6904,14 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
                         InterpolateProfile = Values(i+1) * dx + Values(i  ) *  (1 - dx)
 
-                        exit 
+                        exit
 
                     endif
 
 
                 enddo
 
-            endif     
+            endif
 
         endif
 
@@ -6583,7 +6921,7 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
     !--------------------------------------------------------------------------
 
-    !Computes de value for a depth based in a profile. 
+    !Computes de value for a depth based in a profile.
     real(8) function InterpolateProfileR8 (CellDepth, NDEPTHS, Depth, Values, FoundBottom, FoundSurface)
 
         !Arguments-------------------------------------------------------------
@@ -6603,27 +6941,27 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
                 FoundBottom  = .true.
             else
                 FoundBottom  = .false.
-            endif 
-        endif     
-        
+            endif
+        endif
+
         if (present(FoundSurface )) then
             if ((CellDepth - Depth(NDEPTHS)) <  + 1e-6) then
                 FoundSurface  = .true.
             else
                 FoundSurface  = .false.
-            endif 
-        endif                                                            
-        
+            endif
+        endif
+
 
         if (CellDepth >= Depth(1)) then
 
             InterpolateProfileR8 = Values(1)
 
         else if (CellDepth <= Depth(NDEPTHS)) then
-    
+
             InterpolateProfileR8 = Values(NDEPTHS)
 
-        else  
+        else
 
             do i = 1 , NDEPTHS
 
@@ -6631,23 +6969,23 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
                     dx = (Depth(i) - CellDepth) / (Depth(i) - Depth(i + 1))
 
-                    InterpolateProfileR8 = Values(i+1) * dx + Values(i  ) *  (1. - dx) 
+                    InterpolateProfileR8 = Values(i+1) * dx + Values(i  ) *  (1. - dx)
 
-                    exit 
-                    
+                    exit
+
                 endif
 
 
             enddo
 
-        endif     
+        endif
 
     end function InterpolateProfileR8
 
 
     !--------------------------------------------------------------------------
 
-    !Computes de value for a depth based in a profile. 
+    !Computes de value for a depth based in a profile.
     real(8) function QuadraticInterpolProfile (CellDepth, NDEPTHS, Depth, Values, FoundBottom, FoundSurface)
 
         !Arguments-------------------------------------------------------------
@@ -6677,7 +7015,7 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
             QuadraticInterpolProfile = QuadraticInterpolationR8(Values(3), Values(2), Values(1), &
                                                                 Depth(3), Depth(2), Depth(1), CellDepth)
             if  (CellDepth >= Depth(1      )) FoundBottom  = .true.
-        else 
+        else
 
             do i = 1 , NDEPTHS
 
@@ -6695,7 +7033,7 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
             enddo
 
         endif
-    
+
 
     end function QuadraticInterpolProfile
 
@@ -6703,7 +7041,7 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
     !--------------------------------------------------------------------------
 !--------------------------------------------------------------------------
 
-    !Computes de value for a depth based in a profile. 
+    !Computes de value for a depth based in a profile.
     real(8) function PolIntProfile (CellDepth, NDEPTHS, Depth, Values, Npoli, IsEven, Error)
 
         !Arguments-------------------------------------------------------------
@@ -6720,24 +7058,24 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
         !Begin-----------------------------------------------------------------
 
-        di = int(NPoli/2.) 
+        di = int(NPoli/2.)
 
         if (.not. IsEven) then
-            
+
             di = di + 1
 
         endif
 
 
         if (CellDepth < Depth(NDEPTHS - di)) then
-            
+
             iupper = NDEPTHS
             ilower = NDEPTHS - Npoli
 
         else if (CellDepth >  Depth(1 + di)) then
             iupper = Npoli + 1
             ilower = 1
-        else 
+        else
 
             if (IsEven) then
 
@@ -6764,25 +7102,25 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
             endif
 
         endif
-        
+
         call PolInt(Depth(ilower:iupper), Values(ilower:iupper),Npoli + 1,CellDepth,PolIntProfile,Error_)
 
         if (present(Error)) Error = Error_
-    
+
 
     end function PolIntProfile
-    
+
     !--------------------------------------------------------------------------
-    
+
     pure subroutine Insertion_Sort(a)
-    
+
       !Arguments-----------------------------
       real, intent(in out), dimension(:) :: a
-      
+
       !Local---------------------------------
       real    :: temp
       integer :: i, j
-      
+
       !Begin---------------------------------
 
       do i = 2, size(a)
@@ -6794,9 +7132,9 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
             if (j<1) exit
          enddo
          a(j+1) = temp
-      enddo 
-    
-    end subroutine Insertion_Sort    
+      enddo
+
+    end subroutine Insertion_Sort
 
     !--------------------------------------------------------------------------
 
@@ -6804,9 +7142,9 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
         !Arguments---------------------------------------------------------------
         real                :: Xa, Ya, Xb, Yb, Xc, Yc, Xd, Yd, Xe, Ye, Xex, Yey
-        
+
         !Local-------------------------------------------------------------------
-        real(8)             :: DXdc, DYac, DXba, DYbd, DXef, DYeg 
+        real(8)             :: DXdc, DYac, DXba, DYbd, DXef, DYeg
         real(8)             :: MinDx, SumAux
         real(8)             :: a1, b1, a2, b2, a3, b3, a4, b4
         real(8)             :: Seg_ac, Seg_dc,Seg_hc, Seg_ic
@@ -6818,11 +7156,11 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
         YcR8 = dble(Yc); XdR8 = dble(Xd); YdR8 = dble(Yd); XeR8 = dble(Xe); YeR8 = dble(Ye)
 
         !the four segments of the cell
-        DXdc = XdR8 - XcR8 
+        DXdc = XdR8 - XcR8
         DXba = XbR8 - XaR8
-        DYac = YaR8 - YcR8 
+        DYac = YaR8 - YcR8
         DYbd = YbR8 - YdR8
-        
+
 
         SumAux = abs(DXdc + DXba + DYac + DYbd)
         MinDx  = SumAux * 1.e-16
@@ -6844,7 +7182,7 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
         a4 = (XdR8*YbR8 - XbR8*YdR8) / DYbd
         b4 = (   XbR8 -    XdR8) / DYbd
 
-        !intersection points 
+        !intersection points
         if (b2/=b1) then
 
             !F point intersection point of X faces
@@ -6901,16 +7239,16 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 !!  Public-domain function by Darel Rex Finley, 2006.
 !   Computes the area of polygon
 
-    real function PolygonArea(X, Y, points) 
+    real function PolygonArea(X, Y, points)
 
         !Arguments-------------------------------------------------------------
         real,       dimension(:), pointer :: X, Y
-        integer                           :: points                     
-        
+        integer                           :: points
+
         !Local-----------------------------------------------------------------
         real                              :: area=0.
         integer                           :: i, j
-        
+
         !Begin-----------------------------------------------------------------
 
         j = points
@@ -6918,16 +7256,16 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
             area = area + (X(j)+X(i))*(Y(j)-Y(i))
             j = i
         enddo
-        
+
         polygonArea = abs(0.5*area)
-  
+
     end function PolygonArea
 
 
     !--------------------------------------------------------------------------
-    !This subroutine convert geographic coordinates in distance to meters relative to 
+    !This subroutine convert geographic coordinates in distance to meters relative to
     !a reference point (LongRef, LatRef)
-    
+
     subroutine FromGeo2Meters(Lat, Long, LatRef, LongRef, X, Y)
 
         !Arguments----------------------------------------------------------------------
@@ -6935,29 +7273,29 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
         real(8), intent(OUT)    :: X, Y
 
         !Local--------------------------------------------------------------------------
-        real(8)                 :: radians, EarthRadius, Rad_Lat, CosenLat        
+        real(8)                 :: radians, EarthRadius, Rad_Lat, CosenLat
 
         !Begin--------------------------------------------------------------------------
-    
+
         radians      = Pi / 180.0
         EarthRadius  = 6371008.8
-        Rad_Lat      = Lat * radians 
+        Rad_Lat      = Lat * radians
         CosenLat     = cos(Rad_Lat)
         X            = CosenLat * EarthRadius * (Long - LongRef) * radians
         Y            =            EarthRadius * (Lat  - LatRef ) * radians
-        
-    
+
+
     end subroutine FromGeo2Meters
 
     !--------------------------------------------------------------------------
-    
+
 #ifdef _USE_MPI
 
     integer function MPIKind0D(Variable0D)
-        
+
         !Arguments-------------------------------------------------------------
         real                                :: Variable0D
-        
+
         !Begin-----------------------------------------------------------------
 
         if(    kind(Variable0D) == 4)then
@@ -6972,18 +7310,18 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
 
     integer function MPIKind1D(Variable1D)
-        
+
         !Arguments-------------------------------------------------------------
         real, dimension(:), pointer             :: Variable1D
-        
+
         !Begin-----------------------------------------------------------------
 
         if(    kind(Variable1D) == 4)then
             MPIKind1D = MPI_REAL
         elseif(kind(Variable1D) == 8)then
             MPIKind1D = MPI_DOUBLE_PRECISION
-        end if    
-    
+        end if
+
     end function MPIKind1D
 
 
@@ -6991,10 +7329,10 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
 
     integer function MPIKind2D(Variable2D)
-        
+
         !Arguments-------------------------------------------------------------
         real, dimension(:,:), pointer           :: Variable2D
-        
+
         !Begin-----------------------------------------------------------------
 
         if(    kind(Variable2D) == 4)then
@@ -7012,7 +7350,7 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
         !Arguments-------------------------------------------------------------
         real, dimension(:,:,:), pointer         :: Variable3D
-        
+
         !Begin-----------------------------------------------------------------
 
         if(    kind(Variable3D) == 4)then
@@ -7035,14 +7373,14 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
     function PhytoLightLimitationFactor(Thickness,                        &
                                         TopRadiation,                     &
                                         PExt,                             &
-                                        Photoinhibition)      
+                                        Photoinhibition)
         real ::  PhytoLightLimitationFactor
 
         !Arguments---------------------------------------------------------------
         real, intent(IN) :: Thickness                   !Thickness of the water mass
         real, intent(IN) :: TopRadiation                !Radiation at the water mass top
         real, intent(IN) :: PExt
-        real, intent(IN) :: Photoinhibition     
+        real, intent(IN) :: Photoinhibition
 
         !Local variables---------------------------------------------------------
 
@@ -7056,7 +7394,7 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 
         xe   = -(TopRadiation / Photoinhibition) * exp(-PExt * Thickness)
 
-        xf   = -(TopRadiation / Photoinhibition) 
+        xf   = -(TopRadiation / Photoinhibition)
 
         PhytoLightLimitationFactor = xd * (exp(xe) - exp(xf))
 
@@ -7085,8 +7423,8 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
 
     !----------------------------------------------------------------------------
     !Computes T90 deacy time according to Canteras et al. (1995)
-    
-    function ComputeT90_Canteras       (Temperature, Salinity, Radiation)      
+
+    function ComputeT90_Canteras       (Temperature, Salinity, Radiation)
 
         real ::  ComputeT90_Canteras
 
@@ -7107,8 +7445,8 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
 
     !------------------------------------------------------------------------
     !Fecal decay according to Chapra (1997)
-    
-    function ComputeT90_Chapra       (Temperature, Salinity, Light)      
+
+    function ComputeT90_Chapra       (Temperature, Salinity, Light)
 
         real ::  ComputeT90_Chapra
 
@@ -7133,7 +7471,7 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
 
         !Arguments---------------------------------------------------------------
         real, intent(IN)    :: CloudCover, AirTemp
-        
+
         LongWaveDownward = 0.97 * StefanBoltzmann * 0.937e-5 * (1.0 + 0.17 * CloudCover) * (AirTemp + 273.15) ** 6.0
 
     end function LongWaveDownward
@@ -7145,7 +7483,7 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
 
         !Arguments---------------------------------------------------------------
         real, intent(IN)    :: WaterTemp
-        
+
         LongWaveUpward = -0.97 * StefanBoltzmann * (WaterTemp + 273.15) ** 4.0
 
     end function LongWaveUpward
@@ -7155,7 +7493,7 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
         !Arguments---------------------------------------------------------------
         real, intent(IN)    :: SurfaceTemperature
         real, intent(IN)    :: Jcool
-        
+
         LongWaveUpwardCOARE = - 0.97 * 5.67e-8 * (SurfaceTemperature - 0.3 * Jcool + 273.16)**4.0
 
     end function LongWaveUpwardCOARE
@@ -7170,12 +7508,11 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
         !Local-----------------------------------------------------------------
         real                                        :: a = 6.108   ![mb]
         real                                        :: b = 17.27
-        real                                        :: c = 237.2   ![ºC] corrected! (from 273.2)
-
+        real                                        :: c = 237.2   ![ÂºC] corrected! (from 273.2)
         SaturatedVaporPressure = a * exp(b * Temperature / (Temperature + c))
 
     end function SaturatedVaporPressure
-    
+
     real function COAREInterfaceMoistureContent(Temperature, Pressure)
 
         !Arguments-------------------------------------------------------------
@@ -7186,11 +7523,11 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
         real                                        :: es   ![mb]
 
         es = 6.112 * exp(17.502 * Temperature / (Temperature + 240.97)) * 0.98 * (1.0007 + 3.46e-6 * Pressure)
-        
+
         COAREInterfaceMoistureContent = es * 621.97 / (Pressure - 0.378 * es)
 
     end function COAREInterfaceMoistureContent
-    
+
     real function COAREMoistureContentAir(Temperature, Pressure, RelativeHumidity)
 
         !Arguments-------------------------------------------------------------
@@ -7273,7 +7610,7 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
         !Arguments-------------------------------------------------------------
         integer                                     :: AerationEquation
         real                                        :: WindVelocity, WaterTemperature
-        
+
         !Local-----------------------------------------------------------------
         real,    parameter                          :: ReaerationCoefficient    = 1.024
         real                                        :: a, bcoef, KL, DMO2
@@ -7297,7 +7634,7 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
                     bcoef = 2.0
                 endif
 
-                !KL in m/day    
+                !KL in m/day
                 KL = a * WindVelocity ** bcoef
 
             case(Banks_Herrera_1977)
@@ -7305,7 +7642,7 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
                 KL = (0.728*sqrt(WindVelocity)-0.317*WindVelocity+0.0372*WindVelocity**2)
 
             case(Wanninkhof_et_al_1991)
-                
+
                 KL = 0.0986*WindVelocity**1.64
 
             case(Chen_Kanwisher_1963)
@@ -7315,11 +7652,11 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
 
 
             case(Cole_Buchak_1993)
-                
+
                 KL = (0.5+0.05*WindVelocity*WindVelocity)
 
             case(Banks_1975)
-                
+
                 if (WindVelocity <= 5.5) then
                     KL = 0.362 * sqrt(WindVelocity)
                 else
@@ -7341,20 +7678,20 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
 
             case(Downing_Truesdale_1955)
 
-                KL = 0.0276*WindVelocity**2 
+                KL = 0.0276*WindVelocity**2
 
             case(Kanwisher_1963)
 
                 KL = 0.0432*WindVelocity**2
-            
+
             case(Yu_et_al_1977)
 
                 KL = 0.319*WindVelocity
 
             case(Weiler_1974)
 
-                if (WindVelocity <= 1.6) then                      
-                    KL = 0.398                    
+                if (WindVelocity <= 1.6) then
+                    KL = 0.398
                 else
                     KL = 0.155 * WindVelocity**2
                 endif
@@ -7373,7 +7710,7 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
         KL = KL * ReaerationCoefficient**(WaterTemperature - 20.0)
 
         !convert from m/d to m/s
-        KL = KL / 86400.             
+        KL = KL / 86400.
 
         AerationFlux = KL
         return
@@ -7385,73 +7722,73 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
     !--------------------------------------------------------------------------
     !Several Formulations to calculate Aeration Flux (Carbon Dioxide)
     real function AerationFlux_CO2 (CO2AerationEquation, WindVelocity, WaterVelocity, WaterTemperature, WaterSalinity)
-    
+
         !Arguments-------------------------------------------------------------
             integer                                     :: CO2AerationEquation
             real                                        :: WindVelocity, WaterVelocity, WaterTemperature
             real                                        :: WaterDepth, WaterSalinity
             real                                        :: fTS, Sc0, Sc35, Alfa, ko, k
-            
+
             !Local-----------------------------------------------------------------
-    
-    
+
+
         WaterDepth = 1
-        
+
         ! OConnor_Dobbins_1958
         ko = 1.719 * ((WaterVelocity * 100/WaterDepth)**(1./2.))
-        
-        
+
+
         select case(CO2AerationEquation)
-        
+
             case(Borges_et_al_2004)
-            
+
                 Sc0  = 1800.6 - (120.1 * WaterTemperature) + (3.7818 * WaterTemperature**2.)     &
                        - (0.047608 * WaterTemperature**3.)
-                      
+
                 Sc35 = 1953.4 - (128.0 * WaterTemperature) + (3.9918 * WaterTemperature**2.)     &
                        - (0.050091 * WaterTemperature**3.)
-                 
-                fTS  = ((Sc35 - Sc0) * WaterSalinity) / 35.0 + Sc0       
-                                
+
+                fTS  = ((Sc35 - Sc0) * WaterSalinity) / 35.0 + Sc0
+
                 Alfa = (600/fTS)**(1./2.)
-            
+
                 k = ((1. + 2.58 * WindVelocity) + ko) * Alfa
-            
-            
-                        
+
+
+
             case(Carini_et_al_1996)
-            
+
                 fTS = 2073.1 - (125.62 * WaterTemperature) + (3.6276 * (WaterTemperature**2.))    &
                      - (0.043219 * (WaterTemperature**3.))
-                 
+
                 Alfa = (600/fTS)**(1./2.)
-            
-                k = ((0.045 + 2.0277 * WindVelocity) + ko) * Alfa 
-            
-            
-            
+
+                k = ((0.045 + 2.0277 * WindVelocity) + ko) * Alfa
+
+
+
             case(Raimond_Cole_2001)
-            
+
                  fTS = 2073.1 - (125.62 * WaterTemperature) + (3.6276 * (WaterTemperature**2.))    &
                      - (0.043219 * (WaterTemperature**3.))
-                     
+
                  Alfa = (600/fTS)**(1./2.)
-                 
-                 k = ((1.91 * Exp(0.35 * WindVelocity)) + ko) * Alfa 
-                
-            
-        
+
+                 k = ((1.91 * Exp(0.35 * WindVelocity)) + ko) * Alfa
+
+
+
             case default
 
                 write(*,*)'Unknown Aeration method'
                 stop 'AerationFlux_CO2 - ModuleFunctions - ERR01'
 
         end select
-            
+
         AerationFlux_CO2 = k / (100. * 3600.)     !conversion from cm/h to m/s
         return
-        
-    end function AerationFlux_CO2 
+
+    end function AerationFlux_CO2
 
 
 
@@ -7468,7 +7805,7 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
         integer, dimension(:), pointer     :: ComputePoints
         real                               :: dt, VolumeRelMax
         integer                            :: ilb, iub, Method, TVD_Limitation
-        real                               :: TetaExplicit !(0 - fully explicit, 1 - fully implicit) 
+        real                               :: TetaExplicit !(0 - fully explicit, 1 - fully implicit)
         logical                            :: Upwind2
         real(8), dimension(:), pointer     :: Ecoef
         real,    dimension(:), pointer     :: Ticoef, DCoef, Fcoef
@@ -7508,7 +7845,7 @@ i1:         if (ComputePoints(i-1) == Compute .and. ComputePoints(i) == Compute)
                 CrLeft  = QFace * dt / V4(2)
                 CrRight = QFace * dt / V4(3)
 
-                
+
                 Aux           = CFace(1) * Prop(i-2) + CFace(2) * Prop(i-1) +           &
                                 CFace(3) * Prop(i  ) + CFace(4) * Prop(i+1)
 
@@ -7516,7 +7853,7 @@ i1:         if (ComputePoints(i-1) == Compute .and. ComputePoints(i) == Compute)
                 TiCoef(i    ) = TiCoef(i    ) + (1 - TetaExplicit) * CrRight * Aux
 
                 if (TetaExplicit > 0. .and. (abs(CFace(1)) > 0. .or. abs(CFace(4)) > 0.)) then
-                
+
                     stop 'ModuleFunctions - ComputeAdvection1D - ERR01'
 
                 endif
@@ -7589,7 +7926,7 @@ i1:         if (ComputePoints(i-1) == Compute .and. ComputePoints(i) == Compute)
 
 
         enddo d1
-    
+
 
     end subroutine ComputeAdvection1D_V2
 
@@ -7612,27 +7949,27 @@ i1:         if (ComputePoints(i-1) == Compute .and. ComputePoints(i) == Compute)
         real                                :: Cr, Theta, dC, r, a, b, AuxLeft, AuxRight
         real,   dimension(4)                :: Cup1, CupHighOrder
         real(8)                             :: Aux, VolumeRel
-                                            
+
         !Begin-------------------------------------------------------
 
         call FaceConcUpFirstOrder(Cup1, QFace)
 
         if (.not. NearBoundary) then
             if (QFace > 0) then
-                Cr          = Courant (QFace,V(2),dt)  
-                
+                Cr          = Courant (QFace,V(2),dt)
+
                 Aux         = min(V(1),V(2),V(3))
-                VolumeRel   = max(V(1),V(2),V(3)) / Aux 
+                VolumeRel   = max(V(1),V(2),V(3)) / Aux
             else
                 Cr  = Courant (QFace,V(3),dt)
-                
+
                 Aux         = min(V(2),V(3),V(4))
-                VolumeRel   = max(V(2),V(3),V(4)) / Aux 
+                VolumeRel   = max(V(2),V(3),V(4)) / Aux
             endif
         endif
 
-i2 :    if (Method == UpwindOrder1 .or. (NearBoundary.and.Upwind2)) then 
-            
+i2 :    if (Method == UpwindOrder1 .or. (NearBoundary.and.Upwind2)) then
+
             CupHighOrder(1:4) = Cup1(1:4)
             Theta = 0.
 
@@ -7647,20 +7984,20 @@ i2 :    if (Method == UpwindOrder1 .or. (NearBoundary.and.Upwind2)) then
         else if (Method == UpwindOrder2 .and. .not. NearBoundary) then i2
 
             call FaceConcUpSecondOrder(CupHighOrder, QFace)
-            
+
             !1st order upwind is used in this case
             if (VolumeRel > VolumeRelMax) then
-                Theta = 0. 
+                Theta = 0.
             else
                 Theta = 1.
             endif
-            
+
         else if (Method ==  UpwindOrder3 .and. .not. NearBoundary) then i2
 
             call FaceConcUpThirdOrder(CupHighOrder, QFace, Cr)
             !1st order upwind is used in this case
             if (VolumeRel > VolumeRelMax) then
-                Theta = 0. 
+                Theta = 0.
             else
                 Theta = 1.
             endif
@@ -7673,7 +8010,7 @@ i2 :    if (Method == UpwindOrder1 .or. (NearBoundary.and.Upwind2)) then
 
             CupHighOrder(1) = 0.
             CupHighOrder(2) = AuxLeft
-            CupHighOrder(3) = AuxRight 
+            CupHighOrder(3) = AuxRight
             CupHighOrder(4) = 0.
 
             Theta = 1.
@@ -7695,7 +8032,7 @@ i2 :    if (Method == UpwindOrder1 .or. (NearBoundary.and.Upwind2)) then
                         dc = - MinValue
                     endif
                 endif
-             
+
                 r = (Prop(2)-Prop(1))/ (du(2) + du(1))/ dC
 
             else
@@ -7711,11 +8048,11 @@ i2 :    if (Method == UpwindOrder1 .or. (NearBoundary.and.Upwind2)) then
                         dc = - MinValue
                     endif
                 endif
-         
+
                 r = (Prop(3)-Prop(4))/ (du(3) + du(4)) / dC
             endif
 
-            
+
 i5:         if      (TVD_Limitation == MinMod) then
                 !minmod
                 Theta = max(0.,min(1.,r))
@@ -7767,21 +8104,21 @@ i5:         if      (TVD_Limitation == MinMod) then
             stop "This method is not valid to compute Advection1D"
 
         endif i2
-        
+
         !GRiflet: It is best not to include this limitation as
         !Tagus 3D with Sediments wouldn't run for some reason.
-        !!GRiflet: Should theta fall out of [0, 1], theta is brought        
+        !!GRiflet: Should theta fall out of [0, 1], theta is brought
         !!back to [0, 1].
         !!A Theta bigger than 1D7 meant
         !!that, numerically, 1. - Theta = - Theta.
-        !!This would imply a division by zero later, in the 
+        !!This would imply a division by zero later, in the
         !!the Thomas Algorithm...
         !if (Theta > 1.) then
         !    Theta = 1.
         !elseif (Theta < 0.) then
         !    Theta = 0.
         !endif
-   
+
         CFace(1) =  (1. - Theta) * Cup1(1) + Theta * CupHighOrder(1)
         CFace(2) =  (1. - Theta) * Cup1(2) + Theta * CupHighOrder(2)
         CFace(3) =  (1. - Theta) * Cup1(3) + Theta * CupHighOrder(3)
@@ -7809,9 +8146,9 @@ i5:         if      (TVD_Limitation == MinMod) then
         !Local-------------------------------------------------------
 
         Coef(1:4) = 0.
-        
+
         if(QFace>0) then
-        
+
             !In a grid with constant spatial step
             Coef(1) = -1./8.
             Coef(2) =  6./8.
@@ -7849,10 +8186,10 @@ i5:         if      (TVD_Limitation == MinMod) then
         b = 0.5 - c
 
         d = (1 - abs(Cr))/2.
-       
+
         if(QFace>0) then
-        
-            
+
+
             Coef(1) = - d * b
             Coef(2) = 1 + d * (b - a)
             Coef(3) =   d * a
@@ -7880,12 +8217,12 @@ i5:         if      (TVD_Limitation == MinMod) then
         real(8)                        :: QFace
 
 
-        Coef(1:4) = 0.                
+        Coef(1:4) = 0.
         if (QFace>0.) then
             Coef(2) = 1.
         else
             Coef(3) = 1.
-        endif           
+        endif
 
     end Subroutine FaceConcUpFirstOrder
 
@@ -7906,7 +8243,7 @@ i5:         if      (TVD_Limitation == MinMod) then
         b = (y3-y1) + (y1-y2)*x3*x3/x2/x2
         b = b / (x3 - x3*x3/x2)
         a = (y2 - y1 - b*x2) / x2 / x2
-        
+
         QuadraticInterpolationR4 = a * x * x + b * x + c
 
     end function QuadraticInterpolationR4
@@ -7930,7 +8267,7 @@ i5:         if      (TVD_Limitation == MinMod) then
         b = (y3-y1) + (y1-y2)*x3*x3/x2/x2
         b = b / (x3 - x3*x3/x2)
         a = (y2 - y1 - b*x2) / x2 / x2
-        
+
         QuadraticInterpolationR8 = a * x * x + b * x + c
 
     end function QuadraticInterpolationR8
@@ -7947,13 +8284,13 @@ i5:         if      (TVD_Limitation == MinMod) then
         real(8), intent(IN) ::  x,xa(n),ya(n)
         real(8), intent(OUT)::  dy,y
         integer, intent(OUT), optional :: STAT
-        
+
         !Largest anticipated value of n.
         integer, PARAMETER  :: NMAX=10
         !Local-------------------------------------------------------
         integer :: i,m,ns
         real    :: den,dif,dift,ho,hp,w,c(NMAX),d(NMAX)
-        
+
         if(present(STAT))STAT = SUCCESS_
 
         ns=1
@@ -7964,41 +8301,41 @@ d1:     do i=1,n ! Here we find the index ns of the closest table entry,
                 ns=i
                 dif=dift
             endif
-            c(i)=ya(i) !and initialize the tableau of c’s and d’s.
+            c(i)=ya(i) !and initialize the tableau of c's and d's.
             d(i)=ya(i)
         enddo d1
         y=ya(ns) !This is the initial approximation to y.
         ns=ns-1
 d3:     do m=1,n-1 !For each column of the tableau,
-d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
+d2:         do i=1,n-m ! we loop over the current c's and d's and update them.
                 ho=xa(i)-x
                 hp=xa(i+m)-x
                 w=c(i+1)-d(i)
                 den=ho-hp
                 if(abs(den)<1e-12) then
-                    if (present(STAT)) then 
+                    if (present(STAT)) then
                         STAT = UNKNOWN_
                         exit
                     else
                         stop "failure in polint"
                     endif
-                    
-                endif 
-                !This error can occur only if two input xa’s are (to within roundoff) identical.
+
+                endif
+                !This error can occur only if two input xa's are (to within roundoff) identical.
                 den=w/den
-                d(i)=hp*den ! Here the c’s and d’s are updated.
+                d(i)=hp*den ! Here the c's and d's are updated.
                 c(i)=ho*den
             enddo d2
-            
+
             if(present(STAT))then
-                if (STAT /= SUCCESS_) exit 
+                if (STAT /= SUCCESS_) exit
             endif
-            
+
             if (2*ns.lt.n-m)then !After each column in the tableau is completed, we decide
                                  !which correction, c or d, we want to add to our accumulating
                                  !value of y, i.e., which path to take through
-                                 !the tableau—forking up or down. We do this in such a
-                                 !way as to take the most “straight line” route through the
+                                 !the tableau'forking up or down. We do this in such a
+                                 !way as to take the most "straight line" route through the
                                  !tableau to its apex, updating ns accordingly to keep track
                                  !of where we are. This route keeps the partial approximations
                                  !centered (insofar as possible) on the target x. T he
@@ -8012,12 +8349,67 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         enddo d3
 
     end subroutine
-    !End------------------------------------------------------------ 
+    
+    ! This routine computes the average of the vertical velocities around (and including) the center cell
+    ! To be used for the lagrangian layers evolution. Matrix outputed : ZonalVerticalVelocity
+    ! Needs to be parallelized
+    ! Joao Sobrinho
+    subroutine ComputeAvgVerticalVelocity(VerticalVelocity, ZonalVerticalVelocity, Size3D, &
+                                          OpenPoints3D)
+        !Arguments---------------------------------------------------
+        real, dimension(:,:,:), pointer     :: VerticalVelocity, ZonalVerticalVelocity
+        integer, dimension(:,:,:), pointer  :: OpenPoints3D
+        type(T_Size3D)                      :: Size3D
+        integer                             :: i, j, k, NumCells, ILB, IUB, JLB, JUB, KLB, KUB
+        real                                :: SumVerticalVelocity
+        !Begin-------------------------------------------------------
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "ComputeAvgVerticalVelocity")
+        
+        ILB = Size3D%ILB
+        IUB = Size3D%IUB
+
+        JLB = Size3D%JLB
+        JUB = Size3D%JUB
+
+        KLB = Size3D%KLB
+        KUB = Size3D%KUB
+        
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+            !If The current cell is a water point BUT not an openpoint, then zonal vertical velocity should use ony the
+            ! vertical velocity of the current cell. Hence the OpenPoints3D(i, j  , k) in the end
+            SumVerticalVelocity   = VerticalVelocity(i, j, k)                                     + &
+                                   (VerticalVelocity(i+1, j-1, k)  * OpenPoints3D(i+1, j-1, k)    + &
+                                    VerticalVelocity(i+1, j  , k)  * OpenPoints3D(i+1, j  , k)    + &
+                                    VerticalVelocity(i+1, j+1, k)  * OpenPoints3D(i+1, j+1, k)    + &
+                                    VerticalVelocity(i  , j-1, k)  * OpenPoints3D(i  , j-1, k)    + &
+                                    VerticalVelocity(i  , j+1, k)  * OpenPoints3D(i  , j+1, k)    + &
+                                    VerticalVelocity(i-1, j-1, k)  * OpenPoints3D(i-1, j-1, k)    + &
+                                    VerticalVelocity(i-1, j  , k)  * OpenPoints3D(i-1, j  , k)    + &
+                                    VerticalVelocity(i-1, j+1, k)  * OpenPoints3D(i-1, j+1, k))   * &
+                                    OpenPoints3D(i, j  , k)
+            
+            NumCells = 1 + (OpenPoints3D(i+1, j-1, k) + OpenPoints3D(i+1, j  , k) + OpenPoints3D(i+1, j+1, k)  + &
+                            OpenPoints3D(i  , j-1, k) + OpenPoints3D(i  , j  , k) + OpenPoints3D(i  , j+1, k)  + &
+                            OpenPoints3D(i-1, j-1, k) + OpenPoints3D(i-1, j  , k) + OpenPoints3D(i-1, j+1, k)) * &
+                            OpenPoints3D(i, j  , k)
+            
+            ZonalVerticalVelocity(i, j, k) = SumVerticalVelocity / NumCells
+            
+        enddo        
+        enddo   
+        enddo
+        
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "ComputeAvgVerticalVelocity")
+        
+    end subroutine ComputeAvgVerticalVelocity
+    !End------------------------------------------------------------
     Subroutine ComputeDiffusion1D(ilb, iub, dt, du, Prop, k, v, ComputePoints, &
                                   Ticoef, Ecoef, DCoef, Fcoef, Theta)
         !Arguments---------------------------------------------------
         real(8), dimension(:), pointer  :: v, k
-        real,    dimension(:), pointer  :: du, Prop 
+        real,    dimension(:), pointer  :: du, Prop
         integer, dimension(:), pointer  :: ComputePoints
         real                            :: dt
         integer                         :: ilb, iub
@@ -8030,12 +8422,12 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         !Begin---------------------------------------------------
         do i = ilb, iub
             if((ComputePoints(i)==Compute).and. &
-               (ComputePoints(i-1)==Compute)) then    
-                ![m^3] = [m^2/s * m^2] * [s] / [m] 
+               (ComputePoints(i-1)==Compute)) then
+                ![m^3] = [m^2/s * m^2] * [s] / [m]
                 aux  = - k(i) * dt / du(i)
                 ![ ] = [m^3] / [m^3]
                 auxL = aux / v(i-1)
-                auxR = aux / v(i) 
+                auxR = aux / v(i)
                 DCoef(i)    = DCoef(i)   - Theta * auxR
                 ECoef(i)    = ECoef(i)   + Theta * auxR
                 ECoef(i-1)  = ECoef(i-1) + Theta * auxL
@@ -8043,7 +8435,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
                 TiCoef(i)   = TiCoef(i)   + (1 - Theta) * auxR * (Prop(i) - Prop(i-1))
                 TiCoef(i-1) = TiCoef(i-1) - (1 - Theta) * auxL * (Prop(i) - Prop(i-1))
             endif
-                       
+
         enddo
     End Subroutine ComputeDiffusion1D
     !End------------------------------------------------------------
@@ -8058,9 +8450,9 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         !Arguments---------------------------------------------------
         integer,                   intent(IN)  :: ilb, iub,jlb, jub, klb, kub
         real, dimension(:,:),pointer       :: dx, dy
-        real, dimension(:,:,:), pointer     :: dz    
-        integer, dimension(:,:,:), pointer  :: cpz    
-        real(8), dimension(:,:,:), pointer  :: kx, ky, kz    
+        real, dimension(:,:,:), pointer     :: dz
+        integer, dimension(:,:,:), pointer  :: cpz
+        real(8), dimension(:,:,:), pointer  :: kx, ky, kz
         real(8), dimension(:,:,:), pointer  :: v
         real,    dimension(:,:,:), pointer  :: p
         real   ,                   intent(IN)  :: dt
@@ -8082,14 +8474,14 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
                   E1D(1:ubmax), D1D(1:ubmax), F1D(1:ubmax), v1D(1:ubmax), cp1D(1:ubmax))
 
         !----X diffusion
-        if(CalcX) then 
+        if(CalcX) then
             pint(:)=FillValueReal;dx1D(:)=FillValueReal;k1d(:)=FillValueReal;v1D(:)=FillValueReal; cp1D(:)=FillValueInt;
             T1D (:)=FillValueReal;E1D (:)=FillValueReal;D1D(:)=FillValueReal;F1D(:)=FillValueReal;
             do k = klb, kub+1
             do i = ilb, iub
-                
-                do j = jlb, jub  
-                    pint    (j) = p     (i,j,k)                                                  
+
+                do j = jlb, jub
+                    pint    (j) = p     (i,j,k)
                     dx1D    (j) = dx    (i,j)
                     k1D     (j) = kx    (i,j,k)
                     v1D     (j) = v     (i,j,k)
@@ -8097,30 +8489,30 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
                     T1D     (j) = TiCoef(i,j,k)
                     E1D     (j) = ECoef (i,j,k)
                     D1D     (j) = DCoef (i,j,k)
-                    F1D     (j) = FCoef (i,j,k)                    
+                    F1D     (j) = FCoef (i,j,k)
                 enddo
-                
+
                 call ComputeDiffusion1D(jlb+1, jub, dt, dx1D, pint,                     &
                                         k1d, v1D, cp1D,T1D, E1D,D1D,F1D, ThetaX)
-                do j = jlb, jub  
-                    TiCoef(i,j,k)= T1D     (j) 
-                    ECoef (i,j,k)= E1D     (j) 
-                    DCoef (i,j,k)= D1D     (j) 
-                    FCoef (i,j,k)= F1D     (j) 
-                enddo                                        
+                do j = jlb, jub
+                    TiCoef(i,j,k)= T1D     (j)
+                    ECoef (i,j,k)= E1D     (j)
+                    DCoef (i,j,k)= D1D     (j)
+                    FCoef (i,j,k)= F1D     (j)
+                enddo
 
             enddo
             enddo
         endif
         !----Y diffusion
-        if(CalcY) then 
+        if(CalcY) then
             pint(:)=FillValueReal;dx1D(:)=FillValueReal;k1d(:)=FillValueReal;v1D(:)=FillValueReal; cp1D(:)=FillValueInt;
             T1D (:)=FillValueReal;E1D (:)=FillValueReal;D1D(:)=FillValueReal;F1D(:)=FillValueReal;
 
             do k = klb, kub+1
             do j = jlb, jub
-                do i = ilb, iub                                    
-                    pint    (i) = p     (i,j,k)                
+                do i = ilb, iub
+                    pint    (i) = p     (i,j,k)
                     dx1D    (i) = dy    (i,j)
                     k1D     (i) = ky    (i,j,k)
                     v1D     (i) = v     (i,j,k)
@@ -8128,17 +8520,17 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
                     T1D     (i) = TiCoef(i,j,k)
                     E1D     (i) = ECoef (i,j,k)
                     D1D     (i) = DCoef (i,j,k)
-                    F1D     (i) = FCoef (i,j,k)                    
+                    F1D     (i) = FCoef (i,j,k)
                 enddo
                 call ComputeDiffusion1D(ilb+1, iub, dt, dx1D, pint,                 &
                                         k1d, v1D, cp1D,T1D, E1D,D1D,F1D, ThetaY)
 
-                do i = ilb, iub  
-                    TiCoef(i,j,k)= T1D     (i) 
-                    ECoef (i,j,k)= E1D     (i) 
-                    DCoef (i,j,k)= D1D     (i) 
-                    FCoef (i,j,k)= F1D     (i) 
-                enddo                                        
+                do i = ilb, iub
+                    TiCoef(i,j,k)= T1D     (i)
+                    ECoef (i,j,k)= E1D     (i)
+                    DCoef (i,j,k)= D1D     (i)
+                    FCoef (i,j,k)= F1D     (i)
+                enddo
 
             enddo
             enddo
@@ -8150,8 +8542,8 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
 
             do j = jlb, jub
             do i = ilb, iub                !interpolate on faces
-                do k = klb, kub+1   
-                    pint    (k) = p     (i,j,k)                                                 
+                do k = klb, kub+1
+                    pint    (k) = p     (i,j,k)
                     dx1D    (k) = dz    (i,j,k)
                     k1D     (k) = kz    (i,j,k)
                     v1D     (k) = v     (i,j,k)
@@ -8159,25 +8551,25 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
                     T1D     (k) = TiCoef(i,j,k)
                     E1D     (k) = ECoef (i,j,k)
                     D1D     (k) = DCoef (i,j,k)
-                    F1D     (k) = FCoef (i,j,k)                    
+                    F1D     (k) = FCoef (i,j,k)
                 enddo
                 call ComputeDiffusion1D(klb+1, kub+1, dt, dx1D, pint,                   &
                                         k1d, v1D, cp1D,T1D, E1D,D1D,F1D, ThetaZ)
-                                        
-                do k = klb, kub+1  
-                    TiCoef(i,j,k)= T1D     (k) 
-                    ECoef (i,j,k)= E1D     (k) 
-                    DCoef (i,j,k)= D1D     (k) 
-                    FCoef (i,j,k)= F1D     (k) 
-                enddo                                        
-                                        
+
+                do k = klb, kub+1
+                    TiCoef(i,j,k)= T1D     (k)
+                    ECoef (i,j,k)= E1D     (k)
+                    DCoef (i,j,k)= D1D     (k)
+                    FCoef (i,j,k)= F1D     (k)
+                enddo
+
             enddo !do i
             enddo !do j
         endif
 
         deallocate(pint,dx1D,k1D,T1D,E1D,D1D,F1D,v1D,cp1D)
 
-    End Subroutine ComputeDiffusion3D   
+    End Subroutine ComputeDiffusion3D
     !End------------------------------------------------------------
     Subroutine ComputeAdvection3D(ilb, iub, jlb, jub, klb, kub,     &
                                   dx, dy, dz,                       &
@@ -8193,16 +8585,16 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         !Arguments---------------------------------------------------
         integer                             :: ilb, iub,jlb, jub, klb, kub
         real, dimension(:,:), pointer       :: dx, dy
-        real, dimension(:,:,:), pointer     :: dz    
-        integer, dimension(:,:,:), pointer  :: cpz    
-        real(8), dimension(:,:,:), pointer  :: fx, fy, fz    
+        real, dimension(:,:,:), pointer     :: dz
+        integer, dimension(:,:,:), pointer  :: cpz
+        real(8), dimension(:,:,:), pointer  :: fx, fy, fz
         real(8), dimension(:,:,:), pointer  :: v
         real,    dimension(:,:,:), pointer  :: p
         real                                :: dt
         real                                :: ThetaX, ThetaY, ThetaZ
         real(8), dimension(:,:,:), pointer  :: e
         real,    dimension(:,:,:), pointer  :: ti, d, f
-                integer                        :: methodH, methodV 
+                integer                        :: methodH, methodV
         integer                                :: TVD_LimitationH, TVD_LimitationV
         real                                   :: VolumeRelMax
         logical                                :: Upwind2H, Upwind2V
@@ -8220,142 +8612,142 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         allocate(p1D(1:ubmax),dx1D(1:ubmax), q1D(1:ubmax), T1D(1:ubmax),              &
                   E1D(1:ubmax), D1D(1:ubmax), F1D(1:ubmax), v1D(1:ubmax), cp1D(1:ubmax))
 
-        
+
         !Begin-----------------------------------------------------------
         !
         !----X advection
-        if(CalcX) then 
+        if(CalcX) then
             p1D(:)=FillValueReal;dx1D(:)=FillValueReal;q1D(:)=FillValueReal;v1D(:)=FillValueReal; cp1D(:)=FillValueInt;
             T1D(:)=FillValueReal;E1D (:)=FillValueReal;D1D(:)=FillValueReal;F1D(:)=FillValueReal;
-        
+
             do k = klb+1, kub+1
             do i = ilb+1, iub+1
                 do j = jlb+1, jub+1
                     dx1D    (j) = dx (i,j)
-                    p1D     (j) = p  (i,j,k)                    
+                    p1D     (j) = p  (i,j,k)
                     q1D     (j) = fx (i,j,k)
                     v1D     (j) = v  (i,j,k)
                     cp1D    (j) = cpz(i,j,k)
                     T1D     (j) = ti (i,j,k)
                     E1D     (j) = e  (i,j,k)
                     D1D     (j) = d  (i,j,k)
-                    F1D     (j) = f  (i,j,k)                    
+                    F1D     (j) = f  (i,j,k)
                 enddo
-                
+
                 call ComputeAdvection1D (jlb+1 , jub+1,                                 &
                                          dt, dx1D, p1D,q1d, v1D, cp1D,T1D, E1D,D1D,F1D, &
                                          MethodH, TVD_LimitationH, ThetaX, VolumeRelMax,&
                                          Upwind2H)
                 do j = jlb+1, jub+1
-                    ti (i,j,k)= T1D     (j) 
-                    e  (i,j,k)= E1D     (j) 
-                    d  (i,j,k)= D1D     (j) 
-                    f  (i,j,k)= F1D     (j) 
-                enddo                                           
+                    ti (i,j,k)= T1D     (j)
+                    e  (i,j,k)= E1D     (j)
+                    d  (i,j,k)= D1D     (j)
+                    f  (i,j,k)= F1D     (j)
+                enddo
             enddo
             enddo
         endif
         !----Y advection
-        if(CalcY) then 
+        if(CalcY) then
             p1D (:)=FillValueReal;dx1D(:)=FillValueReal;
-            q1D (:)=FillValueReal;v1D (:)=FillValueReal; 
+            q1D (:)=FillValueReal;v1D (:)=FillValueReal;
             cp1D(:)=FillValueInt; T1D (:)=FillValueReal;
             E1D (:)=FillValueReal;D1D (:)=FillValueReal;
             F1D (:)=FillValueReal;
-        
+
             do k = klb+1, kub+1
             do j = jlb+1, jub+1
                 do i = ilb+1, iub+1
                     dx1D    (i) = dy (i,j)
-                    p1D     (i) = p  (i,j,k)                    
+                    p1D     (i) = p  (i,j,k)
                     q1D     (i) = fy (i,j,k)
                     v1D     (i) = v  (i,j,k)
                     cp1D    (i) = cpz(i,j,k)
                     T1D     (i) = ti (i,j,k)
                     E1D     (i) = e  (i,j,k)
                     D1D     (i) = d  (i,j,k)
-                    F1D     (i) = f  (i,j,k)                    
+                    F1D     (i) = f  (i,j,k)
                 enddo
-            
+
                 call ComputeAdvection1D (ilb+1 , iub+1,                                 &
                                          dt, dx1D, p1D,q1d, v1D, cp1D,T1D, E1D,D1D,F1D, &
                                          MethodH, TVD_LimitationH, ThetaY, VolumeRelMax,&
                                          Upwind2H)
-                                         
+
                 do i = ilb+1, iub+1
-                    ti (i,j,k)= T1D     (i) 
-                    e  (i,j,k)= E1D     (i) 
-                    d  (i,j,k)= D1D     (i) 
-                    f  (i,j,k)= F1D     (i) 
-                enddo                                                       
+                    ti (i,j,k)= T1D     (i)
+                    e  (i,j,k)= E1D     (i)
+                    d  (i,j,k)= D1D     (i)
+                    f  (i,j,k)= F1D     (i)
+                enddo
             enddo
             enddo
         endif
         !----Z advection
-        if(CalcZ) then 
+        if(CalcZ) then
             p1D(:)=FillValueReal;dx1D(:)=FillValueReal;
             q1D(:)=FillValueReal;
             v1D(:)=FillValueReal;cp1D(:)=FillValueInt;
             T1D(:)=FillValueReal;E1D (:)=FillValueReal;
             D1D(:)=FillValueReal;F1D (:)=FillValueReal;
-        
+
             do j = jlb+1, jub+1
             do i = ilb+1, iub+1
                 do k = klb+1, kub+1
                     dx1D    (k) = dz (i,j,k)
-                    p1D     (k) = p  (i,j,k)                    
+                    p1D     (k) = p  (i,j,k)
                     q1D     (k) = fz (i,j,k)
                     v1D     (k) = v  (i,j,k)
                     cp1D    (k) = cpz(i,j,k)
                     T1D     (k) = ti (i,j,k)
                     E1D     (k) = e  (i,j,k)
                     D1D     (k) = d  (i,j,k)
-                    F1D     (k) = f  (i,j,k)                    
+                    F1D     (k) = f  (i,j,k)
                 enddo
-            
+
                 call ComputeAdvection1D (klb +1, kub+1,                                 &
                                          dt, dx1D, p1D,q1d, v1D, cp1D,T1D, E1D,D1D,F1D, &
                                          MethodV, TVD_LimitationV, ThetaZ , VolumeRelMax,&
                                          Upwind2V)
-                                         
+
                 do k = klb+1, kub+1
-                    ti (i,j,k)= T1D     (k) 
-                    e  (i,j,k)= E1D     (k) 
-                    d  (i,j,k)= D1D     (k) 
-                    f  (i,j,k)= F1D     (k) 
-                enddo                                                       
+                    ti (i,j,k)= T1D     (k)
+                    e  (i,j,k)= E1D     (k)
+                    d  (i,j,k)= D1D     (k)
+                    f  (i,j,k)= F1D     (k)
+                enddo
             enddo
             enddo
         endif
 
-        deallocate(p1D,dx1D, q1d, T1D, E1D, D1D, F1D, v1D, cp1D)    
-            
+        deallocate(p1D,dx1D, q1d, T1D, E1D, D1D, F1D, v1D, cp1D)
+
     End Subroutine ComputeAdvection3D
-    
+
     !End------------------------------------------------------------
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !                                                                                      !    
+    !                                                                                      !
     ! Interpolate3D
     !
     ! This routine makes interpolation of a value in a 3D grid.
     ! For the moment only a tri-linear scheme is used.
     ! This can be improved, but I cannot see any reason for it.
-    ! It reduces to bilinear or simple interpolation if one or more 
+    ! It reduces to bilinear or simple interpolation if one or more
     ! interpolation coefficients are equal to zero.
     ! The true improvement would be to avoid unecessary operations for
     ! those cases.
     !
-    ! This routine gives us the interpolated values at 26 different 
+    ! This routine gives us the interpolated values at 26 different
     ! locations on the faces of a grid. We should be very happy.
     !
     ! Note that dx, dy and dz are distances BETWEEN FACES measured trough cell centers
-    ! fi, fj, fk are cell coordinates 
+    ! fi, fj, fk are cell coordinates
     ! (0,0,0) represents the center
     ! a +/- 1 represents a displacement to one of the faces.
     ! e.g. : (1,1,1) is upper corner
     !        (0,1,0) is center of x positive face of the cell
     !        (-1,-1,-1) is the lower corner
-    !                                                            
+    !
     ! Author: Hernani Theias (05/2004)                                                       !
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -8373,14 +8765,14 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         if((fi==0).and.(fj==0).and.(fk==0))then !save some time if there is no interpolation
             interpolate3D_R4 = p(i, j, k)
             return
-        endif 
+        endif
         ! eta = x / DX
         if((fj == 0).or.(abs(p(i, j + fj, k)/FillValueReal)>0.01) &
                     .or.(abs(p(i + fi, j + fj, k)/FillValueReal)>0.01)) then
             eta = 0 !save some time here
         else
             eta  = (dx(i, j) + dx(i + fi, j))                           &
-                   / (                                                  &          
+                   / (                                                  &
                          dx(i, j) + dx(i + fi, j)                       &
                        + dx(i, j + fj) + dx(i + fi, j + fj)             &
                      )
@@ -8391,7 +8783,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
             xsi = 0 !again...
         else
             xsi  = (dy(i, j) + dy(i, j + fj))                           &
-                   / (                                                  &          
+                   / (                                                  &
                          dy(i, j) + dy(i, j + fj)                       &
                        + dy(i + fi, j) + dy(i + fi, j + fj)             &
                      )
@@ -8414,8 +8806,8 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
                  + (    eta) * (1 - xsi) * dz(i     , j + fj, k + fk)     &
                  + (1 - eta) * (    xsi) * dz(i + fi, j     , k + fk)     &
                  + (    eta) * (    xsi) * dz(i + fi, j + fj, k + fk)
-           zeta = dz1 / (dz1 + dz2) 
-        endif 
+           zeta = dz1 / (dz1 + dz2)
+        endif
         !interpolate (tri-linear)
         interpolate3D_R4 =   (1 - xsi) * (1 - eta) * (1 - zeta) * p(i     , j     , k     )  &
                            + (    xsi) * (1 - eta) * (1 - zeta) * p(i + fi, j     , k     )  &
@@ -8442,14 +8834,14 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         if((fi==0).and.(fj==0).and.(fk==0))then !save some time if there is no interpolation
             interpolate3D_R8 = p(i, j, k)
             return
-        endif 
+        endif
         ! eta = x / DX
         if((fj == 0).or.(abs(p(i, j + fj, k)/FillValueReal)>0.01) &
                     .or.(abs(p(i + fi, j + fj, k)/FillValueReal)>0.01)) then
             eta = 0 !save some time here
         else
             eta  = (dx(i, j) + dx(i + fi, j))                           &
-                   / (                                                  &          
+                   / (                                                  &
                          dx(i, j) + dx(i + fi, j)                       &
                        + dx(i, j + fj) + dx(i + fi, j + fj)             &
                      )
@@ -8460,7 +8852,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
             xsi = 0 !again...
         else
             xsi  = (dy(i, j) + dy(i, j + fj))                           &
-                   / (                                                  &          
+                   / (                                                  &
                          dy(i, j) + dy(i, j + fj)                       &
                        + dy(i + fi, j) + dy(i + fi, j + fj)             &
                      )
@@ -8483,8 +8875,8 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
                  + (    eta) * (1 - xsi) * dz(i     , j + fj, k + fk)     &
                  + (1 - eta) * (    xsi) * dz(i + fi, j     , k + fk)     &
                  + (    eta) * (    xsi) * dz(i + fi, j + fj, k + fk)
-           zeta = dz1 / (dz1 + dz2) 
-        endif 
+           zeta = dz1 / (dz1 + dz2)
+        endif
         !interpolate (tri-linear)
         interpolate3D_R8 =   (1 - xsi) * (1 - eta) * (1 - zeta) * p(i     , j     , k     )  &
                            + (    xsi) * (1 - eta) * (1 - zeta) * p(i + fi, j     , k     )  &
@@ -8497,16 +8889,16 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
     end function interpolate3D_R8
     !End------------------------------------------------------------
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !                                                                                      !    
+    !                                                                                      !
     ! CGS2D
     !
-    ! Pre-Conditionned Conjugate Gradient Solver for symmetric 
+    ! Pre-Conditionned Conjugate Gradient Solver for symmetric
     ! matrices (e.g., pressure or pressure correction equation, heat conduction, etc.)
     !
     ! Taken from 'Computational Methods for Fluid Dynamics'
     ! by J.H. Ferziger and M.Peric
     ! Original code by I.Demirdzic - Masinski Fakultet, Sarajevo (1987)
-    ! 
+    !
     ! Adapted for MOHID : Hernani Theias (05/04)                                                       !
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -8529,7 +8921,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         integer                                     :: dKi, dKj, dKk !index change in B-T direction
         real                                        :: resmax !maximum value allowed for residual
         integer, dimension(:,:,:), pointer          :: mapping !cells mapping
-        logical                                     :: normalized !specifies if abs or norm residuals must 
+        logical                                     :: normalized !specifies if abs or norm residuals must
                                                                   !be used in convergence test
         !Local--------------------------------------------------------------
         integer                                     :: IL, IU, JL, JU, KL, KU, II, JJ, KK
@@ -8557,7 +8949,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         KU = iub * dKi + jub * dKj + kub * dKk
         !----Solve for each K (in the non-solving direction)
         do KK = KL, KU
-        !--------Calculate intial residual vector 
+        !--------Calculate intial residual vector
             res0 = 0.0
             do II = IL, IU
             do JJ = JL, JU
@@ -8584,7 +8976,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
                 if(mapping(i, j, k) == OpenPoint) then
                     d(i, j, k) = 1.0 / ap(i, j, k)                                             &
                                   - aw(i, j, k) ** 2 * d(i - dIi, j - dIj, k - dIk)             &
-                                  - as(i, j, k) ** 2 * d(i - dJi, j - dJj, k - dJk) 
+                                  - as(i, j, k) ** 2 * d(i - dJi, j - dJj, k - dJk)
                 endif
             enddo
             enddo
@@ -8668,7 +9060,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
                     endif
                 enddo
                 enddo
-        ! 
+        !
                 alf = sk / (s2 + 1.e-20)
         !
         !------------Calculate new residual and update variable
@@ -8709,12 +9101,12 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         deallocate(pk)
         nullify(pk)
         !
-        return            
+        return
     End Subroutine ! CSG2D
     !End------------------------------------------------------------
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !                                                                                          
+    !
     ! LISOLVE
     !
     ! TDMA algortihm applied line-by-line alterning along J and I lines
@@ -8722,9 +9114,9 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
     ! ----------------------------
     !
     ! author : Hernani Theias
-    ! last modified  : 06/2004 
-    ! e-mail : hernanitheias@netcabo.pt     
-    !                                                                                      
+    ! last modified  : 06/2004
+    ! e-mail : hernanitheias@netcabo.pt
+    !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     Subroutine LISOLVE( fi, ap, as, an, aw, ae, q,          &
                         ilb, iub, jlb, jub, klb, kub,       &
@@ -8860,12 +9252,12 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         nullify(vecg)
         deallocate(vecw)
         nullify(vecw)
-        !      
+        !
     End Subroutine
     !End------------------------------------------------------------
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !                                                                                      !    
+    !                                                                                      !
     ! SIP_SOL
     !
     ! This is the ILU solver after Stone.
@@ -8873,7 +9265,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
     ! Taken from 'Computational Methods for Fluid Dynamics'
     ! by J.H. Ferziger and M.Peric, Institut fuer Schiffbau, Hamburg, 1995
     ! Original code by M. Peric
-    ! 
+    !
     ! Adapted for MOHID : Hernani Theias (05/04)                                                       !
     !                                                         !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -8929,7 +9321,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         KU = iub * dKi + jub * dKj + kub * dKk
         !----Solve for each K (in the non-solving direction)
         do KK = KL, KU
-        !--------Calculate elements of [L] ans [U] matrices 
+        !--------Calculate elements of [L] ans [U] matrices
             res0 = 0.0
             do II = IL, IU
             do JJ = JL, JU
@@ -9018,24 +9410,24 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         nullify(un)
         deallocate(ue)
         nullify(ue)
-        !      
+        !
     End Subroutine ! SIP_SOLV
     !End------------------------------------------------------------
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !   
+    !
     ! BICGSTAB2D
     !
     ! ----------------------------
     !
     ! Bi-Conjugate Gradient Stabilized Algorithm.
     ! See :
-    ! G. Sleijpen, H. Van der Vorst, 'Hybrid Bi-Conjugate Gradient Methods for CFD Problems' 
+    ! G. Sleijpen, H. Van der Vorst, 'Hybrid Bi-Conjugate Gradient Methods for CFD Problems'
     !
     ! author : Hernani Theias
-    ! last modified  : 06/2004 
-    ! e-mail : hernanitheias@netcabo.pt     
+    ! last modified  : 06/2004
+    ! e-mail : hernanitheias@netcabo.pt
     !
-    !                                                                                      
+    !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     Subroutine BICGSTAB2D(fi, cp, cs, cn, cw, ce, qq,       &
                           ilb, iub, jlb, jub, klb, kub,     &
@@ -9054,7 +9446,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         real                                        :: resmax !maximum value allowed for residual
         integer, dimension(:,:,:), pointer          :: mapping !cells mapping
         real                                        :: alphaLU !alpha coeffient of Stone's method
-        logical                                     :: normalized !specifies if abs or norm residuals must 
+        logical                                     :: normalized !specifies if abs or norm residuals must
                                                                   !be used in convergence test
         !Local--------------------------------------------------------------
         integer                                     :: IU, JU, KL, KU
@@ -9068,14 +9460,14 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         real, dimension(:,:), pointer               :: x
         integer, dimension(:,:), pointer            :: mapp
         logical                                     :: EndIterate
-        real                                        :: global_residual 
+        real                                        :: global_residual
         integer                                     :: global_n !numb. of it.
         !Begin--------------------------------------------------------------
 
         rho0       = 0.
         omega      = 0.
-        alpha      = 0.        
-       
+        alpha      = 0.
+
         !
         !----Calculate index bounds
         if(normal == 0) then
@@ -9162,7 +9554,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
                           - ae(i, j) * x(i    , j + 1)           &
                           - as(i, j) * x(i - 1, j    )           &
                           - an(i, j) * x(i + 1, j    )
-                r0(i, j) = r(i, j) 
+                r0(i, j) = r(i, j)
                 res0 = res0 + abs(r(i, j))
             enddo
             enddo
@@ -9230,7 +9622,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
                               + an(i, j) * pk(i + 1, j    )               &
                               + aw(i, j) * pk(i    , j - 1)               &
                               + ae(i, j) * pk(i    , j + 1)
-                    
+
                 enddo
                 enddo
         !--------Dot product <v,r0>
@@ -9262,7 +9654,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         !------------Backward Substitution [U][sk] = [INV([L])][s0]
                 do i = IU, 2, -1
                 do j = JU, 2, -1
-                        sk(i, j) =   sk(i, j)                                     &             
+                        sk(i, j) =   sk(i, j)                                     &
                                   - un(i, j) * sk(i + 1, j    )                   &
                                   - ue(i, j) * sk(i    , j + 1)
                 enddo
@@ -9307,12 +9699,12 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
             global_residual = global_residual + resn
             global_n = global_n + n
             if(n>=maxit) then
-                write(*,*) 'ERR - NH MODEL - Solution not converging to specified value.' 
+                write(*,*) 'ERR - NH MODEL - Solution not converging to specified value.'
                 write(*,*) " - Residual : ", resn
                 stop
             endif
         enddo !do KK
-        write(*, *)" - NH MODEL - Global Residual : ", global_residual 
+        write(*, *)" - NH MODEL - Global Residual : ", global_residual
         write(*, *)" - NH MODEL - Number of iterations : ", global_n - (KU - KL + 1)
         !----De-Allocate Local Matrices
         deallocate(r)
@@ -9351,16 +9743,16 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
 ! * MIT Ocean Acoustics
 ! * pmd@mit.edu
 ! * 25-MAY-1998
-! * 
+! *
 ! Revisions:
 !   Jan. 25, 1999 DHG  Port to Fortran 90
-!   Mar. 23, 1999 DHG  To add Lewis Dozier's fix to "rr1" calculation 
-! * 
+!   Mar. 23, 1999 DHG  To add Lewis Dozier's fix to "rr1" calculation
+! *
 ! Description:
-! * 
+! *
 ! * These routines convert UTM to Lat/Longitude and vice-versa,
 ! * using the WGS-84 (GPS standard) or Clarke 1866 Datums.
-! * 
+! *
 ! * The formulae for these routines were originally taken from
 ! * Chapter 10 of "GPS: Theory and Practice," by B. Hofmann-Wellenhof,
 ! * H. Lictenegger, and J. Collins. (3rd ed) ISBN: 3-211-82591-6,
@@ -9459,7 +9851,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         real (kind=8) latitude, longitude
 
         real (kind=8) M_PI
- 
+
         m_pi = ACOS (-1.0)
 
         !/* Given the grid zone, then set the central meridian, lambda0 */
@@ -9471,7 +9863,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         if ((zone_long .LT. 1) .OR. (zone_long .GT. 61)) then
             write (*,*) 'Invalid grid zone format: ', zone_long, zone_lat
             ierr = -1
-            return 
+            return
         endif
 
         longitude = (FLOAT (zone_long - 1) * 6.0) - 180.0
@@ -9482,7 +9874,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         if ((latitude .LT. -80.0) .OR. (latitude .GT. 84.0)) then
             lambda0 = 0.0
             ierr = 0
-            return 
+            return
         endif
 
         if (latitude .GT. 56.0 .AND. latitude .LT. 64.0 .AND. &
@@ -9541,8 +9933,8 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
             a = 6378137.0             !/* semimajor axis of ellipsoid (meters) */
             b = 6356752.31425         !/* semiminor axis of ellipsoid (meters) */
         elseif (datum == ED_50_DATUM) then      ! ED_50_DATUM: ellipsoid International 1926 (Hayford)
-            a = 6378388.0           
-            b = 6356911.94613  
+            a = 6378388.0
+            b = 6356911.94613
         elseif (datum == SPHERE_DATUM) then       !normal sphere (r=6370997m)
             a = 6370997.0
             b = 6370997.0
@@ -9914,7 +10306,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
             write(*,*)'sp1 must be lower than sp2'
             write(*,*)'sp1 = ', sp1
             write(*,*)'sp2 = ', sp2
-            stop 'LambertConformalConicProj_ToMetric - ModuleFunctions - ERR01' 
+            stop 'LambertConformalConicProj_ToMetric - ModuleFunctions - ERR01'
         endif
 
         call GetEllipsoid (datum, a,b)
@@ -9925,7 +10317,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         e2 = (2.0 * flat) - (flat * flat)
         e = sqrt (e2)
         e05 = e / 2.
- 
+
         torad = Pi / 180.
 
         lat     = lat * torad
@@ -9938,23 +10330,23 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         es1 = e * sin(sp1)
         es2 = e * sin(sp2)
         esr = e * sin(lat_ref)
-        es  = e * sin(lat) 
-        
+        es  = e * sin(lat)
+
         m1 = cos(sp1) / sqrt((1.- es1**2.))
         m2 = cos(sp2) / sqrt((1.- es2**2.))
-        
+
         dt1 = (1. - es1) / (1. + es1)
-        dt2 = (1. - es2) / (1. + es2) 
-        dtr = (1. - esr) / (1. + esr) 
-        dt  = (1. - es)  / (1. + es) 
+        dt2 = (1. - es2) / (1. + es2)
+        dtr = (1. - esr) / (1. + esr)
+        dt  = (1. - es)  / (1. + es)
 
         t1 = tan(0.25*Pi - 0.5*sp1)     / dt1**(e05)
         t2 = tan(0.25*Pi - 0.5*sp2)     / dt2**(e05)
-        tr = tan(0.25*Pi - 0.5*lat_ref) / dtr**(e05)    
+        tr = tan(0.25*Pi - 0.5*lat_ref) / dtr**(e05)
         t  = tan(0.25*Pi - 0.5*lat)     / dt **(e05)
-        
+
         aux1    = log(t1) - log(t2)
-        
+
         n       = (log(m1) - log(m2)) / aux1
 
         F       = m1 / (n * (t1**n))
@@ -9971,31 +10363,31 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
     end subroutine LatLonToLambertSP2
 
     !--------------------------------------------------------------------------
-    
+
     !--------------------------------------------------------------------------
-    
+
     !Calculates the distance in m between two GPS coordinates using the Haversine formulation (aprox)
     !Equations from http://mathforum.org/library/drmath/view/51879.html
     real function DistanceBetweenTwoGPSPoints(lon1, lat1, lon2, lat2)
-        
+
         !Arguments-------------------------------------------------------------
         real, intent(in)                            :: lon1, lat1, lon2, lat2
-        
+
         !Local-----------------------------------------------------------------
         real                                        :: degreesToRadians = Pi / 180.0
         real                                        :: dlon, dlat, a, c
 
         dlon = lon2 * degreesToRadians - lon1 * degreesToRadians
         dlat = lat2 * degreesToRadians - lat1 * degreesToRadians
-            
+
         a = Sin(dlat / 2.0)**2.0 + Cos(lat1 * degreesToRadians) * Cos(lat2 * degreesToRadians) * Sin(dlon / 2.0) ** 2.0
         c = 2 * Atan2(Sqrt(a), Sqrt(1 - a))
-        
+
         DistanceBetweenTwoGPSPoints = MeanRadius_ * c;
 
-       
 
-    end function        
+
+    end function
 
 #ifdef _USE_PROJ4
 
@@ -10005,9 +10397,9 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
 
         !Arguments-------------------------------------------------------------
         real(8)                                     :: lat,lon
-        character(len=20), dimension(:)             :: params 
+        character(len=20), dimension(:)             :: params
         real(8), intent(out)                        :: x,y
-        
+
         !Internal--------------------------------------------------------------
         integer                                     :: status
         type(prj90_projection)                      :: proj
@@ -10029,7 +10421,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
             write(*,*) prj90_strerrno(status)
             stop 'GeographicToCartesian - ModuleFunctions - ERR03'
         end if
-    
+
     end subroutine GeographicToCartesian
 
     !--------------------------------------------------------------------------
@@ -10040,9 +10432,9 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
 
         !Arguments-------------------------------------------------------------
         real(8)                                     :: x,y
-        character(len=20), dimension(:)             :: params 
+        character(len=20), dimension(:)             :: params
         real(8), intent(out)                        :: lat,lon
- 
+
         !Internal--------------------------------------------------------------
         integer                                     :: status
         type(prj90_projection)                      :: proj
@@ -10064,7 +10456,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
             write(*,*) prj90_strerrno(status)
             stop 'CartesianToGeographic - ModuleFunctions - ERR03'
         end if
-    
+
     end subroutine CartesianToGeographic
 
     !--------------------------------------------------------------------------
@@ -10072,9 +10464,9 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
 #endif
 
     !--------------------------------------------------------------------------
-    
+
     function Normcrossprod(x, y, z)
-        
+
         !Arguments-------------------------------------------------------------
         real(8), dimension(3)                       :: normcrossprod
         real   , dimension(3), intent(in)           :: x, y, z
@@ -10099,28 +10491,28 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
     !Settling velocity computed as function of a hindered settling concentration
     !Used only for cohesive sediments. Units in this formulation in kg/m3
     real function SettlingVelocity (Concentration, CHS, KL, KL1, M, ML, I,J,K)
-        
+
         !Arguments-------------------------------------------------
-        real,       intent(IN) :: Concentration     !kg/m3 or g/l 
+        real,       intent(IN) :: Concentration     !kg/m3 or g/l
         real,       intent(IN) :: CHS               !Hindered settling concentration
         real,       intent(IN) :: KL, KL1, M, ML
         integer,    intent(IN) :: i, j, k
 
         !Local-----------------------------------------------------
         real                    :: Aux
-        
+
         !Begin-----------------------------------------------------
 
 
         Aux = KL1 * (Concentration - CHS)
 
-        if (Concentration < CHS .and. Concentration >= 0.) then 
+        if (Concentration < CHS .and. Concentration >= 0.) then
 
             SettlingVelocity = KL*(Concentration)**M
 
         elseif(Aux < 1. .and. Aux >= 0.) then
 
-            SettlingVelocity = KL*(CHS)**M*(1.0-Aux)**ML 
+            SettlingVelocity = KL*(CHS)**M*(1.0-Aux)**ML
 
         !GRiflet: Correccao feita em coordenacao com LPinto
         elseif(Aux > 1.) then
@@ -10140,32 +10532,32 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
 
 
     real function SettlingVelPrimaryClarifier (Cx, Rh_i, Rf_i, v0max_i, v0_i)
-        
+
         !Arguments-------------------------------------------------
-        real,       intent(IN)           :: Cx     !kg/m3 or g/l 
+        real,       intent(IN)           :: Cx     !kg/m3 or g/l
         real,       intent(IN), optional :: Rh_i, Rf_i, v0max_i, v0_i
-        
+
         !Local-----------------------------------------------------
         real(8)                :: v0max, v0, Rh, Rf, Fns, Cmin, vs, Cy, Cin_
-        
+
         !Begin-----------------------------------------------------
 
-        
-        !Parameters - Hindering settling - PhD Thesis Takács (2008)
+
+        !Parameters - Hindering settling - PhD Thesis Takacs (2008)
         ![m/day]
         if (present(v0max_i)) then
             v0max   = v0max_i
         else
-            v0max   = 218.4        
+            v0max   = 218.4
         endif
-        
-        
+
+
         ! 120 - 370
 
         if (present(v0_i)) then
             v0      = v0_i
         else
-            v0      = 199.2        
+            v0      = 199.2
         endif
 
         ![l/g]
@@ -10173,7 +10565,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         if (present(Rh_i)) then
             Rh      = Rh_i
         else
-            Rh      = 0.1        
+            Rh      = 0.1
         endif
 
         !5 - 100
@@ -10182,45 +10574,45 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         else
             Rf      = 5
         endif
-        
+
         ![-]
         !No settling fraction
         !1e-3 : 3e-3
         Fns     = 1e-3
-        
+
         Cin_ = 3.
 
         !g/l
         Cmin = Cin_ * Fns
         Cy   = Cx - Cmin
-        
+
         !Hindering settling (m/day)
 
         vs = v0 * (exp(-Rh*Cy)-exp(-Rf*Cy))
-        
+
         !From m/day to m/s
-        if (vs <0    ) vs = 0.                  
-        if (vs >v0max) vs = v0max 
-        
+        if (vs <0    ) vs = 0.
+        if (vs >v0max) vs = v0max
+
         SettlingVelPrimaryClarifier = vs / 86400.
 
-    end function SettlingVelPrimaryClarifier    
+    end function SettlingVelPrimaryClarifier
 
     real function SettlingVelSecondaryClarifier (Cx, WithCompression, SVI, Clarification, Cin)
-        
+
         !Arguments-------------------------------------------------
-        real,       intent(IN)           :: Cx     !kg/m3 or g/l 
+        real,       intent(IN)           :: Cx     !kg/m3 or g/l
         logical,    intent(IN)           :: WithCompression
         real,       intent(IN), optional :: SVI, Clarification, Cin
-        
+
         !Local-----------------------------------------------------
         real(8)                :: v0max, v0, Rh, Rf, Fns, Cmin, vs, Cy, Cin_
-        real(8)                :: Vcorr, Vres, Rcorr1, Rcorr2, Xcorr1, Xcorr2, Clar 
+        real(8)                :: Vcorr, Vres, Rcorr1, Rcorr2, Xcorr1, Xcorr2, Clar
         real(8)                :: fcorr1, fcorr2, fcorr3, fcorr4, fcorr5, fcorr6, fcorr7, fcorr8, fcorr9
-        
+
         !Begin-----------------------------------------------------
 
-        
+
         if (present(SVI)) then
             !GPSX default values
             fcorr1 = 709.7
@@ -10232,28 +10624,28 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
             fcorr7 =  -1.62e-4
             fcorr8 =   4.9e-3
             fcorr9 =   6.47e-4
-                                    
-            !Parameters - Hindering settling function of SVI - GPSX 
+
+            !Parameters - Hindering settling function of SVI - GPSX
             ![m/day]
             v0      = fcorr1 + fcorr2 * SVI + fcorr3 * SVI * SVI
             v0max   = v0
             ![l/mg]
             Rh      = fcorr4 + fcorr5 * SVI + fcorr6 * SVI * SVI
-            ![l/g]  
+            ![l/g]
             Rh      = Rh * 1000
-            
+
             if (present(Clarification)) then
                 Clar = Clarification
             else
                 Clar = 1.
             endif
-            
+
             ![l/mg]
             Rf      = fcorr7 + fcorr8 * Clar + fcorr9 * Clar * Clar
-            ![l/g]  
+            ![l/g]
             Rf      = Rf * 1000
         else
-            !Parameters - Hindering settling - PhD Thesis Takács (2008)
+            !Parameters - Hindering settling - PhD Thesis Takacs (2008)
             ![m/day]
             v0max   = 360
             ! 120 - 370
@@ -10263,48 +10655,48 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
             Rh      = 1
             !5 - 100
             Rf      = 100
-        endif            
+        endif
         ![-]
         !No settling fraction
         !1e-3 : 3e-3
         Fns     = 2e-3
-        
+
         !Parameters - Compression settling
         ![m/day]
-        
+
         Vcorr   = 20.
         Vres    = 0.5
         ![l/g]
-        Rcorr1  = 3. 
+        Rcorr1  = 3.
         Rcorr2  = 0.5
         ![g/l]
-        Xcorr1  = 4.     
+        Xcorr1  = 4.
         Xcorr2  = 8.
-        
+
         if (present(Cin)) then
             Cin_ = Cin
         else
             Cin_ = 3.
-        endif            
+        endif
 
         !g/l
         Cmin = Cin_ * Fns
         Cy   = Cx - Cmin
-        
+
         !Hindering settling (m/day)
 
         vs = v0 * (exp(-Rh*Cy)-exp(-Rf*Cy))
-        
+
         if (WithCompression) then
             !compression (m/day)
             vs = vs +  Vcorr          /(1+exp(-Rcorr1*(Cx-Xcorr1))) - &
                       (Vcorr + Vres)  /(1+exp(-Rcorr2*(Cx-Xcorr2)))
         endif
-                            
+
         !From m/day to m/s
-        if (vs <0    ) vs = 0.                  
-        if (vs >v0max) vs = v0max 
-        
+        if (vs <0    ) vs = 0.
+        if (vs >v0max) vs = v0max
+
         SettlingVelSecondaryClarifier = vs / 86400.
 
     end function SettlingVelSecondaryClarifier
@@ -10317,7 +10709,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
         real,    dimension(:,:), pointer             :: Hin
         integer, dimension(:,:), pointer             :: WaterPoints2D
         integer                         , intent(IN) :: imax, jmax
-        real                            , intent(IN) :: SLMIN 
+        real                            , intent(IN) :: SLMIN
         real,    dimension(:,:), pointer             :: Slope
 
         !local-----------------------------------------------------
@@ -10330,7 +10722,7 @@ d2:         do i=1,n-m ! we loop over the current c’s and d’s and update them.
 !     The maximum possible value is unity.
 
         Hmin = 0.5
-    
+
 !    sweep right
 D7:     do I=2,imax-1
 D6:     do J=2,jmax-1
@@ -10345,11 +10737,11 @@ D6:     do J=2,jmax-1
                   if (Hin(I,J+1).GT.Hin(I,J)) SN=1.
                   Hin(I,J+1)=Hin(I,J+1)-SN*DH
                   Hin(I,J)=Hin(I,J)+SN*DH
-                endif        
+                endif
             endif
         enddo D6
 !    sweep left
- 
+
 D5:     do J=jmax-1,2,-1
             if (WaterPoints2D(I,J).EQ.1..and.WaterPoints2D(I,J+1).EQ.1.) then
                 H1 = max(Hin(I,J)  ,Hmin)
@@ -10367,7 +10759,7 @@ D5:     do J=jmax-1,2,-1
         enddo D5
         enddo D7
 
-!   sweep up     
+!   sweep up
 D3:     do J=2,jmax-1
 D1:     do I=2,imax-1
             if (WaterPoints2D(I,J).EQ.1..and.WaterPoints2D(I+1,J).EQ.1.) then
@@ -10414,7 +10806,7 @@ D2:     do I=imax-1,2,-1
         real,    dimension(:,:), pointer             :: Hin,DZX, DZY
         integer, dimension(:,:), pointer             :: WaterPoints2D
         integer                         , intent(IN) :: imax, jmax
-        real                            , intent(IN) :: SLMIN 
+        real                            , intent(IN) :: SLMIN
         real,    dimension(:,:), pointer             :: Slope
 
         !local-----------------------------------------------------
@@ -10425,7 +10817,7 @@ D2:     do I=imax-1,2,-1
 !     This subroutine limits the maximum slope of adjacent cells in H .
 
         Hmin = 0.5
-    
+
 !    sweep right
 D7:     do I=2,imax-1
 D6:     do J=2,jmax-1
@@ -10440,11 +10832,11 @@ D6:     do J=2,jmax-1
                   if (Hin(I,J+1).GT.Hin(I,J)) SN=1.
                   Hin(I,J+1)=Hin(I,J+1)-SN*DH
                   Hin(I,J)=Hin(I,J)+SN*DH
-                endif        
+                endif
             endif
         enddo D6
 !    sweep left
- 
+
 D5:     do J=jmax-1,2,-1
             if (WaterPoints2D(I,J).EQ.1..and.WaterPoints2D(I,J+1).EQ.1.) then
                 H1 = max(Hin(I,J)  ,Hmin)
@@ -10462,7 +10854,7 @@ D5:     do J=jmax-1,2,-1
         enddo D5
         enddo D7
 
-!   sweep up     
+!   sweep up
 D3:     do J=2,jmax-1
 D1:     do I=2,imax-1
             if (WaterPoints2D(I,J).EQ.1..and.WaterPoints2D(I+1,J).EQ.1.) then
@@ -10508,7 +10900,7 @@ D2:     do I=imax-1,2,-1
         !Arguments-----------------------------------------------
         real, dimension(:), pointer                                 :: Density, Volume, Height
         integer                                                     :: Size
-        
+
         !locals--------------------------------------------------
         integer                                                     :: m
 
@@ -10537,8 +10929,8 @@ D2:     do I=imax-1,2,-1
             if(Waterpoints3D(i,j,k) == 1) then
                 m = m + 1
             end if
-            
-        end do 
+
+        end do
         end do
         end do
 
@@ -10547,12 +10939,12 @@ D2:     do I=imax-1,2,-1
     end function
 
     subroutine CalculateStageAreas( VolumeZ, VolumeHeight, Areas, Size3D, Waterpoints3D)
-    
+
         !Arguments-------------------------------------------------------------------------
         type(T_Size3D), pointer                                     :: Size3D
-        real, dimension(:,:,:), pointer                             :: VolumeZ, VolumeHeight    
-        real, dimension(:    ), pointer                             :: Areas    
-        integer, dimension(:,:,:), pointer                          :: Waterpoints3D        
+        real, dimension(:,:,:), pointer                             :: VolumeZ, VolumeHeight
+        real, dimension(:    ), pointer                             :: Areas
+        integer, dimension(:,:,:), pointer                          :: Waterpoints3D
 
         !Locals----------------------------------------------------------------------------
         integer                                                     :: i,j,k,m,p,pstart,pstop
@@ -10589,7 +10981,7 @@ D2:     do I=imax-1,2,-1
     end subroutine CalculateStageAreas
 
     subroutine SortNumerically_3D( TargetReference, TargetAcolyte, SourceReference, SourceAcolyte, Size3D, Waterpoints3D)
-        
+
         !Arguments-------------------------------------------------------------------------
         type(T_Size3D), pointer                                     :: Size3D
         real, dimension(:,:,:), pointer                             :: SourceReference, SourceAcolyte
@@ -10609,22 +11001,22 @@ D2:     do I=imax-1,2,-1
                 TargetReference(m) = SourceReference(i,j,k)
                 TargetAcolyte(m) = SourceAcolyte(i,j,k)
             end if
-            
+
             p = m
-            do while (p>1 .AND. TargetReference(p) > TargetReference(p-1)) 
+            do while (p>1 .AND. TargetReference(p) > TargetReference(p-1))
                 call swap(TargetReference, p, p-1)
                 call swap(TargetAcolyte, p, p-1)
                 p=p-1
             end do
 
-        end do 
+        end do
         end do
         end do
 
     end subroutine SortNumerically_3D
 
     subroutine DetermineCentreHeight_3D( TargetHeight, SourceHeight, Size3D, Waterpoints3D, method, VolumeZ, Areas)
-        
+
         !Arguments-------------------------------------------------------------------------
         type(T_Size3D), pointer                                     :: Size3D
         real, dimension(:,:,:), pointer                             :: SourceHeight
@@ -10643,7 +11035,7 @@ D2:     do I=imax-1,2,-1
 
         select case (method)
 
-            case(SimpleHeight_) 
+            case(SimpleHeight_)
                 m = 0;
                 do i = Size3D%ILB, Size3D%IUB
                 do j = Size3D%JLB, Size3D%JUB
@@ -10653,14 +11045,14 @@ D2:     do I=imax-1,2,-1
                         m = m + 1
                         TargetHeight(m) = SourceHeight(i,j,k)
                     end if
-            
-                end do 
+
+                end do
                 end do
                 end do
 
             case(ComplexHeight_)
-                HeightEdge_old  = 0.; 
-                HeightEdge      = 0.; 
+                HeightEdge_old  = 0.;
+                HeightEdge      = 0.;
                 m = 0;
                 do i = Size3D%ILB, Size3D%IUB
                 do j = Size3D%JLB, Size3D%JUB
@@ -10675,21 +11067,21 @@ D2:     do I=imax-1,2,-1
                         TargetHeight(m) = HeightEdge + 0.5 * ElementHeight
                         HeightEdge_old = HeightEdge
                     end if
-            
-                end do 
+
+                end do
                 end do
                 end do
 
         end select
 
     end subroutine DetermineCentreHeight_3D
-    
+
     subroutine swap(Vec, m, n)
 
         !Arguments-------------------------------------------------------
         real, dimension(:)                              :: Vec
         integer                                         :: m, n
-        
+
         !Locals----------------------------------------------------------
         real                                            :: a
 
@@ -10698,49 +11090,49 @@ D2:     do I=imax-1,2,-1
         Vec(n) = a
 
     end subroutine
-    
+
     !--------------------------------------------------------------------------------------
     !
     !Centralizes way to calculate chunk size. For future optimization
     !
     pure integer function Chunk_K(KLB, KUB, factor)
-    
+
         !Arguments-------------------------------------------------------
         integer, intent(IN)                         :: KLB, KUB
         integer, optional, intent(IN)               :: factor
-        
+
         !Locals----------------------------------------------------------
         integer                                     :: factor_
-        
+
         if (present(factor)) then
             factor_ = factor
         else
             factor_ = ChunkKFactor
         endif
-        
+
         Chunk_K = max((KUB - KLB) / factor_, 1)
 
     end function Chunk_K
-        
+
     !--------------------------------------------------------------------------------------
     !
     !Centralizes way to calculate chunk size. For future optimization
     !
     integer function Chunk_J(JLB, JUB, factor)
-    
+
         !Arguments-------------------------------------------------------
         integer, intent(IN)                         :: JLB, JUB
         integer, optional, intent(IN)               :: factor
-        
+
         !Locals----------------------------------------------------------
         integer                                     :: factor_
-        
+
         if (present(factor)) then
             factor_ = factor
         else
             factor_ = ChunkJFactor
         endif
-        
+
         Chunk_J = max((JUB - JLB) / factor_, 1)
 
     end function Chunk_J
@@ -10750,11 +11142,11 @@ D2:     do I=imax-1,2,-1
     !Centralizes way to calculate chunk size. For future optimization
     !
     integer function Chunk_I(ILB, IUB, factor)
-    
+
         !Arguments-------------------------------------------------------
         integer, intent(IN)                         :: ILB, IUB
         integer, optional, intent(IN)               :: factor
-        
+
         !Locals----------------------------------------------------------
         integer                                     :: factor_
 
@@ -10783,7 +11175,7 @@ D2:     do I=imax-1,2,-1
         character(len=2)                        :: CharHour
         character(len=2)                        :: CharMinute
         character(len=2)                        :: CharSecond
-        character(len=6)                        :: CharMilliSecond        
+        character(len=6)                        :: CharMilliSecond
         integer                                 :: MilliSecond
 
         !Begin-----------------------------------------------------------------
@@ -10791,7 +11183,7 @@ D2:     do I=imax-1,2,-1
         call ExtractDate(Date, Year     = AuxTime(1), Month  = AuxTime(2), &
                                Day      = AuxTime(3), Hour   = AuxTime(4), &
                                Minute   = AuxTime(5), Second = AuxTime(6))
-        
+
         write(CharYear,  '(i4)')int(AuxTime(1))
         write(CharMonth, '(i2)')int(AuxTime(2))
         write(CharDay,   '(i2)')int(AuxTime(3))
@@ -10805,26 +11197,26 @@ D2:     do I=imax-1,2,-1
             write(CharMilliSecond,'(i3)')MilliSecond
         endif
 
-        if(len_trim(trim(adjustl(CharMonth)))   < 2)then 
+        if(len_trim(trim(adjustl(CharMonth)))   < 2)then
             CharMonth = "0"//trim(adjustl(CharMonth))
         endif
-        
-        if(len_trim(trim(adjustl(CharDay)))     < 2)then 
+
+        if(len_trim(trim(adjustl(CharDay)))     < 2)then
             CharDay = "0"//trim(adjustl(CharDay))
         endif
 
-        if(len_trim(trim(adjustl(CharHour)))    < 2)then 
+        if(len_trim(trim(adjustl(CharHour)))    < 2)then
             CharHour = "0"//trim(adjustl(CharHour))
         endif
 
-        if(len_trim(trim(adjustl(CharMinute)))  < 2)then 
+        if(len_trim(trim(adjustl(CharMinute)))  < 2)then
             CharMinute = "0"//trim(adjustl(CharMinute))
         endif
 
-        if(len_trim(trim(adjustl(CharSecond)))  < 2)then 
+        if(len_trim(trim(adjustl(CharSecond)))  < 2)then
             CharSecond = "0"//trim(adjustl(CharSecond))
         endif
-        
+
 
         !Output Format: YYYYMMDD-hhmmss.sss
         TimeToString = CharYear//CharMonth//CharDay//"-"//&
@@ -10835,18 +11227,18 @@ D2:     do I=imax-1,2,-1
                 TimeToString = trim(TimeToString)//"."//"00"//trim(adjustl(CharMilliSecond))
             elseif (len_trim(trim(adjustl(CharMilliSecond))) == 2 ) then
                 TimeToString = trim(TimeToString)//"."//"0" //trim(adjustl(CharMilliSecond))
-            elseif (len_trim(trim(adjustl(CharMilliSecond))) == 3 ) then                
+            elseif (len_trim(trim(adjustl(CharMilliSecond))) == 3 ) then
                 TimeToString = trim(TimeToString)//"."      //trim(adjustl(CharMilliSecond))
             endif
         endif
-        
+
 
 
     end function TimeToString
-    
+
     !--------------------------------------------------------------------------
     !--------------------------------------------------------------------------
-    
+
 
     character(len=19) function TimeToStringV2(Date, Separator)
 
@@ -10864,7 +11256,7 @@ D2:     do I=imax-1,2,-1
         character(len=1)                        :: Separator_
 
         !Begin-----------------------------------------------------------------
-        
+
         if (present(Separator)) then
             Separator_ = Separator
         else
@@ -10874,7 +11266,7 @@ D2:     do I=imax-1,2,-1
         call ExtractDate(Date, Year     = AuxTime(1), Month  = AuxTime(2), &
                                Day      = AuxTime(3), Hour   = AuxTime(4), &
                                Minute   = AuxTime(5), Second = AuxTime(6))
-        
+
         write(CharYear,  '(i4)')int(AuxTime(1))
         write(CharMonth, '(i2)')int(AuxTime(2))
         write(CharDay,   '(i2)')int(AuxTime(3))
@@ -10882,23 +11274,23 @@ D2:     do I=imax-1,2,-1
         write(CharMinute,'(i2)')int(AuxTime(5))
         write(CharSecond,'(i2)')int(AuxTime(6))
 
-        if(len_trim(trim(adjustl(CharMonth)))   < 2)then 
+        if(len_trim(trim(adjustl(CharMonth)))   < 2)then
             CharMonth = "0"//trim(adjustl(CharMonth))
         endif
-        
-        if(len_trim(trim(adjustl(CharDay)))     < 2)then 
+
+        if(len_trim(trim(adjustl(CharDay)))     < 2)then
             CharDay = "0"//trim(adjustl(CharDay))
         endif
 
-        if(len_trim(trim(adjustl(CharHour)))    < 2)then 
+        if(len_trim(trim(adjustl(CharHour)))    < 2)then
             CharHour = "0"//trim(adjustl(CharHour))
         endif
 
-        if(len_trim(trim(adjustl(CharMinute)))  < 2)then 
+        if(len_trim(trim(adjustl(CharMinute)))  < 2)then
             CharMinute = "0"//trim(adjustl(CharMinute))
         endif
 
-        if(len_trim(trim(adjustl(CharSecond)))  < 2)then 
+        if(len_trim(trim(adjustl(CharSecond)))  < 2)then
             CharSecond = "0"//trim(adjustl(CharSecond))
         endif
 
@@ -10910,11 +11302,11 @@ D2:     do I=imax-1,2,-1
 
 
     !--------------------------------------------------------------------------
-    
+
 
 !------------------------------------------------------------------------------
 
-    subroutine WGS84toGoogleMaps2D(lon, lat, ILB, IUB, JLB, JUB, x, y) 
+    subroutine WGS84toGoogleMaps2D(lon, lat, ILB, IUB, JLB, JUB, x, y)
 
         !Arguments-------------------------------------------------------------
          real,    dimension(:,:), pointer :: lon, lat
@@ -10923,10 +11315,10 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                           :: i, j
         !Begin-----------------------------------------------------------------
-        
+
         do j=JLB, JUB+1
-        do i=ILB, IUB+1        
-        
+        do i=ILB, IUB+1
+
             x(i,j) = lon(i,j) * 20037508.34 / 180;
             if (abs(lat(i,j))<90) then
                 y(i,j) = log(tan((90 + lat(i,j)) * Pi / 360)) / (Pi / 180)
@@ -10936,16 +11328,16 @@ D2:     do I=imax-1,2,-1
                 write(*,*) 'i=',i,' j=',j,' Lat=',Lat(i,j)
                 stop 'WGS84toGoogleMaps2D - ModuleFunctions - ERR10'
             endif
-            
+
         enddo
         enddo
-        
+
     end subroutine WGS84toGoogleMaps2D
-  
+
 !------------------------------------------------------------------------------
 !------------------------------------------------------------------------------
 
-    subroutine WGS84toGoogleMaps1D(lon, lat, Dim,  x, y) 
+    subroutine WGS84toGoogleMaps1D(lon, lat, Dim,  x, y)
 
         !Arguments-------------------------------------------------------------
          real(8), dimension(:  ), pointer :: lon, lat
@@ -10954,11 +11346,11 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                           :: i
         !Begin-----------------------------------------------------------------
-        
+
         do i=1, Dim
             x(i) = lon(i) * 20037508.34 / 180;
         enddo
-        
+
         do i=1, Dim
             if (abs(lat(i))<90) then
                 y(i) = log(tan((90 + lat(i)) * Pi / 360)) / (Pi / 180)
@@ -10968,36 +11360,36 @@ D2:     do I=imax-1,2,-1
                 stop 'WGS84toGoogleMap1D - ModuleHorizontalGrid - ERR10'
             endif
         enddo
-        
+
     end subroutine WGS84toGoogleMaps1D
-  
-!------------------------------------------------------------------------------  
+
+!------------------------------------------------------------------------------
 
     real function GreatCircleDistance(Long1, Lat1, Long2, Lat2)
-    
-        !arguments                  :: 
+
+        !arguments                  ::
         real, intent(IN)            :: Long1, Lat1, Long2, Lat2
-        
+
         !local
-        real                        :: RLong1, RLat1, RLong2, RLat2        
+        real                        :: RLong1, RLat1, RLong2, RLat2
         real                        :: Dlong, Dlat, Dsigma, AuxRoot
-        
+
         !Begin----------------------------------------------------------------
-        
+
         RLong1  = Long1 * Pi / 180.
         RLat1   = Lat1  * Pi / 180.
         RLong2  = Long2 * Pi / 180.
         RLat2   = Lat2  * Pi / 180.
-        
+
         Dlong   = RLong2 - RLong1
         Dlat    = RLat2  - RLat1
-        
+
         AuxRoot = sqrt((cos(Rlat2)*sin(DLong))**2. + (cos(Rlat1)*sin(Rlat2)         &
                       - sin(Rlat1)*cos(Rlat2)*cos(Dlong))**2.)
-        Dsigma  = atan2(AuxRoot, (sin(Rlat1)*sin(Rlat2)+cos(Rlat1)*cos(Rlat2)*cos(Dlong))) 
+        Dsigma  = atan2(AuxRoot, (sin(Rlat1)*sin(Rlat2)+cos(Rlat1)*cos(Rlat2)*cos(Dlong)))
 
         GreatCircleDistance = MeanRadius_ * Dsigma
-    
+
     end  function GreatCircleDistance
 
     !--------------------------------------------------------------------------
@@ -11011,9 +11403,9 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         Integer                             :: Position
         Logical                             :: Back
-        
+
         !Initializing our variable
-        ChangeSuffix = ""       
+        ChangeSuffix = ""
 
         !Search the first "." char in the string filename (ex:"d:\aplica\filename.dat")
         !counting backwards.
@@ -11025,14 +11417,14 @@ D2:     do I=imax-1,2,-1
             stop 'ChangeSuffix - ModuleFunctions - ERR01'
 
         ChangeSuffix = Filename(1:Position-1)//trim(NewSuffix)
-        
+
     end function ChangeSuffix
-    
+
     !--------------------------------------------------------------------------
     !OPENMP Function for min and  max with mapping from fill values
-    
+
     function minival1D_R4(array, size1D)
-            
+
         !Arguments-------------------------------------------------------------
         real(4), dimension(:), pointer     :: array
         type(T_size1D)                  :: size1D
@@ -11040,7 +11432,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                         :: i
         real(4)                           :: minival1D_R4
-        
+
         minival1D_R4 = 1e15
         !$OMP PARALLEL PRIVATE(i)
         !$OMP DO SCHEDULE(STATIC) REDUCTION(MIN:minival1D_R4)
@@ -11051,11 +11443,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function minival1D_R4
 
     function minival2D_R4(array, size2D)
-            
+
         !Arguments-------------------------------------------------------------
         real(4), dimension(:,:), pointer    :: array
         type(T_size2D)                      :: size2D
@@ -11063,7 +11455,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                             :: i,j
         real(4)                             :: minival2D_R4
-        
+
         minival2D_R4 = 1e15
         !$OMP PARALLEL PRIVATE(i,j)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(MIN:minival2D_R4)
@@ -11076,11 +11468,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function minival2D_R4
 
     function minival3D_R4(array, size3D)
-            
+
         !Arguments-------------------------------------------------------------
         real(4), dimension(:,:,:), pointer  :: array
         type(T_size3D)                      :: size3D
@@ -11088,7 +11480,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                             :: i,j,k
         real(4)                             :: minival3D_R4
-        
+
         minival3D_R4 = 1e15
         !$OMP PARALLEL PRIVATE(i,j,k)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKK) REDUCTION(MIN:minival3D_R4)
@@ -11103,11 +11495,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function minival3D_R4
 
     function maxival1D_R4(array, size1D)
-            
+
         !Arguments-------------------------------------------------------------
         real(4), dimension(:), pointer      :: array
         type(T_size1D)                      :: size1D
@@ -11115,7 +11507,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                             :: i
         real(4)                             :: maxival1D_R4
-        
+
         maxival1D_R4 = -1e15
         !$OMP PARALLEL PRIVATE(i)
         !$OMP DO SCHEDULE(STATIC) REDUCTION(MAX:maxival1D_R4)
@@ -11126,11 +11518,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function maxival1D_R4
 
     function maxival2D_R4(array, size2D)
-            
+
         !Arguments-------------------------------------------------------------
         real(4), dimension(:,:), pointer   :: array
         type(T_size2D)                  :: size2D
@@ -11138,7 +11530,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                         :: i,j
         real(4)                            :: maxival2D_R4
-        
+
         maxival2D_R4 = -1e15
         !$OMP PARALLEL PRIVATE(i,j)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(MAX:maxival2D_R4)
@@ -11151,11 +11543,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function maxival2D_R4
 
     function maxival3D_R4(array, size3D)
-            
+
         !Arguments-------------------------------------------------------------
         real(4), dimension(:,:,:), pointer  :: array
         type(T_size3D)                      :: size3D
@@ -11163,7 +11555,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                             :: i,j,k
         real(4)                             :: maxival3D_R4
-        
+
         maxival3D_R4 = -1e15
         !$OMP PARALLEL PRIVATE(i,j,k)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKK) REDUCTION(MAX:maxival3D_R4)
@@ -11178,11 +11570,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function maxival3D_R4
 
     function minival1D_R8(array, size1D)
-            
+
         !Arguments-------------------------------------------------------------
         real(8), dimension(:), pointer      :: array
         type(T_size1D)                      :: size1D
@@ -11190,7 +11582,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                             :: i
         real(8)                             :: minival1D_R8
-        
+
         minival1D_R8 = 1e15
         !$OMP PARALLEL PRIVATE(i)
         !$OMP DO SCHEDULE(STATIC) REDUCTION(MIN:minival1D_R8)
@@ -11201,11 +11593,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function minival1D_R8
 
     function minival2D_R8(array, size2D)
-            
+
         !Arguments-------------------------------------------------------------
         real(8), dimension(:,:), pointer    :: array
         type(T_size2D)                      :: size2D
@@ -11213,7 +11605,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                             :: i,j
         real(8)                             :: minival2D_R8
-        
+
         minival2D_R8 = 1e15
         !$OMP PARALLEL PRIVATE(i,j)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(MIN:minival2D_R8)
@@ -11226,11 +11618,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function minival2D_R8
 
     function minival3D_R8(array, size3D)
-            
+
         !Arguments-------------------------------------------------------------
         real(8), dimension(:,:,:), pointer  :: array
         type(T_size3D)                      :: size3D
@@ -11238,7 +11630,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                             :: i,j,k
         real(8)                             :: minival3D_R8
-        
+
         minival3D_R8 = 1e15
 
         !$OMP PARALLEL PRIVATE(i, j, k)
@@ -11254,12 +11646,12 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
-        
+
+
     end function minival3D_R8
 
     function maxival1D_R8(array, size1D)
-            
+
         !Arguments-------------------------------------------------------------
         real(8), dimension(:), pointer      :: array
         type(T_size1D)                      :: size1D
@@ -11267,7 +11659,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                             :: i
         real(8)                             :: maxival1D_R8
-        
+
         maxival1D_R8 = -1e15
         !$OMP PARALLEL PRIVATE(i)
         !$OMP DO SCHEDULE(STATIC) REDUCTION(MAX:maxival1D_R8)
@@ -11278,11 +11670,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function maxival1D_R8
 
     function maxival2D_R8(array, size2D)
-            
+
         !Arguments-------------------------------------------------------------
         real(8), dimension(:,:), pointer    :: array
         type(T_size2D)                      :: size2D
@@ -11290,7 +11682,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                             :: i,j
         real(8)                             :: maxival2D_R8
-        
+
         maxival2D_R8 = -1e15
         !$OMP PARALLEL PRIVATE(i,j)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(MAX:maxival2D_R8)
@@ -11303,11 +11695,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function maxival2D_R8
 
     function maxival3D_R8(array, size3D)
-            
+
         !Arguments-------------------------------------------------------------
         real(8), dimension(:,:,:), pointer :: array
         type(T_size3D)                  :: size3D
@@ -11315,7 +11707,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                         :: i,j,k
         real(8)                         :: maxival3D_R8
-        
+
         maxival3D_R8 = -1e15
         !$OMP PARALLEL PRIVATE(i, j, k)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKK) REDUCTION(MAX:maxival3D_R8)
@@ -11330,11 +11722,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function maxival3D_R8
 
     function minival1D_I4(array, size1D)
-            
+
         !Arguments-------------------------------------------------------------
         integer, dimension(:), pointer     :: array
         type(T_size1D)                  :: size1D
@@ -11342,7 +11734,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                         :: i
         integer                            :: minival1D_I4
-        
+
         minival1D_I4 = 1e9
         !$OMP PARALLEL PRIVATE(i)
         !$OMP DO SCHEDULE(STATIC) REDUCTION(MIN:minival1D_I4)
@@ -11353,11 +11745,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function minival1D_I4
 
     function minival2D_I4(array, size2D)
-            
+
         !Arguments-------------------------------------------------------------
         integer, dimension(:,:), pointer   :: array
         type(T_size2D)                     :: size2D
@@ -11365,7 +11757,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                            :: i,j
         integer                            :: minival2D_I4
-        
+
         minival2D_I4 = 1e9
         !$OMP PARALLEL PRIVATE(i, j)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(MIN:minival2D_I4)
@@ -11378,7 +11770,7 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function minival2D_I4
 
     function minival3D_I4(array, size3D)
@@ -11417,7 +11809,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                         :: i
         integer                         :: maxival1D_I4
-        
+
         maxival1D_I4 = -1e9
         !$OMP PARALLEL PRIVATE(i)
         !$OMP DO SCHEDULE(STATIC) REDUCTION(MAX:maxival1D_I4)
@@ -11428,11 +11820,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function maxival1D_I4
 
     function maxival2D_I4(array, size2D)
-            
+
         !Arguments-------------------------------------------------------------
         integer, dimension(:,:), pointer    :: array
         type(T_size2D)                      :: size2D
@@ -11440,7 +11832,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                             :: i,j
         integer                             :: maxival2D_I4
-        
+
         maxival2D_I4 = -1e9
         !$OMP PARALLEL PRIVATE(i, j)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(MAX:maxival2D_I4)
@@ -11453,11 +11845,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function maxival2D_I4
 
     function maxival3D_I4(array, size3D)
-            
+
         !Arguments-------------------------------------------------------------
         integer, dimension(:,:,:), pointer  :: array
         type(T_size3D)                      :: size3D
@@ -11465,7 +11857,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                             :: i,j,k
         integer                             :: maxival3D_I4
-        
+
         maxival3D_I4 = -1e9
         !$OMP PARALLEL PRIVATE(i, j, k)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKK) REDUCTION(MAX:maxival3D_I4)
@@ -11480,11 +11872,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function maxival3D_I4
 
     function minival1D_I8(array, size1D)
-            
+
         !Arguments-------------------------------------------------------------
         integer(8), dimension(:), pointer     :: array
         type(T_size1D)                  :: size1D
@@ -11492,7 +11884,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                         :: i
         integer(8)                            :: minival1D_I8
-        
+
         minival1D_I8 = 1e15
         !$OMP PARALLEL PRIVATE(i)
         !$OMP DO SCHEDULE(STATIC) REDUCTION(MIN:minival1D_I8)
@@ -11503,11 +11895,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function minival1D_I8
 
     function minival2D_I8(array, size2D)
-            
+
         !Arguments-------------------------------------------------------------
         integer(8), dimension(:,:), pointer     :: array
         type(T_size2D)                          :: size2D
@@ -11515,7 +11907,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                                 :: i,j
         integer(8)                          :: minival2D_I8
-        
+
         minival2D_I8 = 1e15
         !$OMP PARALLEL PRIVATE(i, j)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(MIN:minival2D_I8)
@@ -11528,11 +11920,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function minival2D_I8
 
     function minival3D_I8(array, size3D)
-            
+
         !Arguments-------------------------------------------------------------
         integer(8), dimension(:,:,:), pointer   :: array
         type(T_size3D)                          :: size3D
@@ -11540,7 +11932,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                                 :: i,j,k
         integer(8)                          :: minival3D_I8
-        
+
         minival3D_I8 = 1e15
         !$OMP PARALLEL PRIVATE(i, j, k)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKK) REDUCTION(MIN:minival3D_I8)
@@ -11555,11 +11947,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function minival3D_I8
 
     function maxival1D_I8(array, size1D)
-            
+
         !Arguments-------------------------------------------------------------
         integer(8), dimension(:), pointer   :: array
         type(T_size1D)                      :: size1D
@@ -11567,7 +11959,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                             :: i
         integer(8)                          :: maxival1D_I8
-        
+
         maxival1D_I8 = -1e15
         !$OMP PARALLEL PRIVATE(i)
         !$OMP DO SCHEDULE(STATIC) REDUCTION(MAX:maxival1D_I8)
@@ -11578,11 +11970,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function maxival1D_I8
 
     function maxival2D_I8(array, size2D)
-            
+
         !Arguments-------------------------------------------------------------
         integer(8), dimension(:,:), pointer   :: array
         type(T_size2D)                  :: size2D
@@ -11590,7 +11982,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                         :: i,j
         integer(8)                         :: maxival2D_I8
-        
+
         maxival2D_I8 = -1e15
         !$OMP PARALLEL PRIVATE(i, j)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ) REDUCTION(MAX:maxival2D_I8)
@@ -11603,11 +11995,11 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function maxival2D_I8
 
     function maxival3D_I8(array, size3D)
-            
+
         !Arguments-------------------------------------------------------------
         integer(8), dimension(:,:,:), pointer :: array
         type(T_size3D)                  :: size3D
@@ -11615,7 +12007,7 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                         :: i,j,k
         integer(8)                         :: maxival3D_I8
-        
+
         maxival3D_I8 = -1e15
         !$OMP PARALLEL PRIVATE(i, j, k)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKK) REDUCTION(MAX:maxival3D_I8)
@@ -11630,82 +12022,82 @@ D2:     do I=imax-1,2,-1
         end do
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-        
+
     end function maxival3D_I8
 
-    !------------------------------------------------------------------------    
-    !Beaufort scale for wave height see http://en.wikipedia.org/wiki/Beaufort_scale    
-    real function WindBeaufortScale (wind)        
-    !Arguments-------------------------------------------------------------            
-    real                :: wind        
-    !Begin--------------------------------------------------------------------        
-    if     (wind < 0.3) then             
-        WindBeaufortScale = 0        
-    elseif (wind >= 0.3 .and. wind <1.6) then             
-        WindBeaufortScale = 1        
-    elseif (wind >= 1.6 .and. wind <3.4) then             
-        WindBeaufortScale = 2        
-    elseif (wind >= 3.4 .and. wind <5.5) then             
-        WindBeaufortScale = 3        
-    elseif (wind >= 5.5 .and. wind <8  ) then             
-        WindBeaufortScale = 4        
-    elseif (wind >= 8 .and. wind <10.8 ) then             
-        WindBeaufortScale = 5        
-    elseif (wind >= 10.8 .and. wind <13.9) then             
-        WindBeaufortScale = 6        
+    !------------------------------------------------------------------------
+    !Beaufort scale for wave height see http://en.wikipedia.org/wiki/Beaufort_scale
+    real function WindBeaufortScale (wind)
+    !Arguments-------------------------------------------------------------
+    real                :: wind
+    !Begin--------------------------------------------------------------------
+    if     (wind < 0.3) then
+        WindBeaufortScale = 0
+    elseif (wind >= 0.3 .and. wind <1.6) then
+        WindBeaufortScale = 1
+    elseif (wind >= 1.6 .and. wind <3.4) then
+        WindBeaufortScale = 2
+    elseif (wind >= 3.4 .and. wind <5.5) then
+        WindBeaufortScale = 3
+    elseif (wind >= 5.5 .and. wind <8  ) then
+        WindBeaufortScale = 4
+    elseif (wind >= 8 .and. wind <10.8 ) then
+        WindBeaufortScale = 5
+    elseif (wind >= 10.8 .and. wind <13.9) then
+        WindBeaufortScale = 6
     elseif (wind >= 13.9 .and. wind <17.2) then
-        WindBeaufortScale = 7        
+        WindBeaufortScale = 7
     elseif (wind >= 17.2 .and. wind <20.8) then
-        WindBeaufortScale = 8        
-    elseif (wind >= 20.8 .and. wind <24.5) then             
-        WindBeaufortScale = 9        
-    elseif (wind >= 24.5 .and. wind <28.5) then             
-        WindBeaufortScale = 10        
-    elseif (wind >= 28.5 .and. wind <32.5) then             
-        WindBeaufortScale = 11        
-    elseif (wind >= 32.7) then             
-        WindBeaufortScale = 12        
-    endif                    
-    end function WindBeaufortScale     
-    !-----------------------------------------------------------------------    
-    
-    !Beaufort scale for wave height see http://en.wikipedia.org/wiki/Beaufort_scale                
-    real function WaveBeaufortScale (Wave)        
-    !Arguments-------------------------------------------------------------            
-    real                :: Wave        
-    !Begin--------------------------------------------------------------------        
-        if     (Wave == 0) then            
-            WaveBeaufortScale = 0        
-        elseif (Wave > 0 .and. Wave<=0.2) then                
-         WaveBeaufortScale = 1       
-        elseif (Wave > 0.2 .and. Wave<=0.5) then                
-          WaveBeaufortScale = 2        
-        elseif (Wave > 0.5 .and. Wave<=1) then                
-         WaveBeaufortScale = 3        
-        elseif (Wave > 1 .and. Wave<=2) then                
-            WaveBeaufortScale = 4        
-        elseif (Wave > 2 .and. Wave<=3) then                
-            WaveBeaufortScale = 5        
-        elseif (Wave > 3 .and. Wave<=4) then                
-            WaveBeaufortScale = 6        
-        elseif (Wave > 4 .and. Wave<=5.5) then                
-            WaveBeaufortScale = 7        
-        elseif (Wave > 5.5 .and. Wave<=7.5) then                
-            WaveBeaufortScale = 8        
-        elseif (Wave > 7.5 .and. Wave<=10) then                
-            WaveBeaufortScale = 9        
-        elseif (Wave > 9 .and. Wave<=12.5) then                
-            WaveBeaufortScale = 10        
-        elseif (Wave > 12.5 .and. Wave<=14) then                
-            WaveBeaufortScale = 11        
-        elseif (Wave >14) then                
-            WaveBeaufortScale = 12        
-        endif        
-    
-    end function WaveBeaufortScale 
-    
-    !Convert amplitude and phase (degrees / 360º) in complex number (Sreal+ i * Simag)
-   
+        WindBeaufortScale = 8
+    elseif (wind >= 20.8 .and. wind <24.5) then
+        WindBeaufortScale = 9
+    elseif (wind >= 24.5 .and. wind <28.5) then
+        WindBeaufortScale = 10
+    elseif (wind >= 28.5 .and. wind <32.5) then
+        WindBeaufortScale = 11
+    elseif (wind >= 32.7) then
+        WindBeaufortScale = 12
+    endif
+    end function WindBeaufortScale
+    !-----------------------------------------------------------------------
+
+    !Beaufort scale for wave height see http://en.wikipedia.org/wiki/Beaufort_scale
+    real function WaveBeaufortScale (Wave)
+    !Arguments-------------------------------------------------------------
+    real                :: Wave
+    !Begin--------------------------------------------------------------------
+        if     (Wave == 0) then
+            WaveBeaufortScale = 0
+        elseif (Wave > 0 .and. Wave<=0.2) then
+         WaveBeaufortScale = 1
+        elseif (Wave > 0.2 .and. Wave<=0.5) then
+          WaveBeaufortScale = 2
+        elseif (Wave > 0.5 .and. Wave<=1) then
+         WaveBeaufortScale = 3
+        elseif (Wave > 1 .and. Wave<=2) then
+            WaveBeaufortScale = 4
+        elseif (Wave > 2 .and. Wave<=3) then
+            WaveBeaufortScale = 5
+        elseif (Wave > 3 .and. Wave<=4) then
+            WaveBeaufortScale = 6
+        elseif (Wave > 4 .and. Wave<=5.5) then
+            WaveBeaufortScale = 7
+        elseif (Wave > 5.5 .and. Wave<=7.5) then
+            WaveBeaufortScale = 8
+        elseif (Wave > 7.5 .and. Wave<=10) then
+            WaveBeaufortScale = 9
+        elseif (Wave > 9 .and. Wave<=12.5) then
+            WaveBeaufortScale = 10
+        elseif (Wave > 12.5 .and. Wave<=14) then
+            WaveBeaufortScale = 11
+        elseif (Wave >14) then
+            WaveBeaufortScale = 12
+        endif
+
+    end function WaveBeaufortScale
+
+    !Convert amplitude and phase (degrees / 360Âº) in complex number (Sreal+ i * Simag)
+
     subroutine AmpPhase_To_Complex (Amplitude, Phase, Sreal, Simag)
 
         !Arguments-------------------------------------------------------------
@@ -11716,52 +12108,52 @@ D2:     do I=imax-1,2,-1
         Simag = Amplitude*sin(Phase * 2 * Pi)
 
     end Subroutine AmpPhase_To_Complex
-    
-    
-    !Convert complex number (Sreal+ i * Simag) in amplitude and phase (degrees / 360º)
+
+
+    !Convert complex number (Sreal+ i * Simag) in amplitude and phase (degrees / 360Âº)
     subroutine Complex_to_AmpPhase (Sreal,Simag,Amplitude,Phase)
 
-        !Arguments-------------------------------------------------------------    
+        !Arguments-------------------------------------------------------------
         real :: Amplitude, Phase, Sreal, Simag
 
-        !Begin-----------------------------------------------------------------    
+        !Begin-----------------------------------------------------------------
         Amplitude = sqrt(Sreal**2.+Simag**2.)
         if (abs(Sreal)>0.) then
             Phase = Atan2 (Simag,Sreal)
         else
-        
+
             if (Simag > 0) then
                 Phase =  Pi/2.
             else
-                Phase = -Pi/2.            
+                Phase = -Pi/2.
             endif
-            
-        endif            
+
+        endif
 
         Phase = Phase / (2 * Pi)
 
         if (Phase >= 1.) Phase = Phase - 1.
-        if (Phase <  0.) Phase = Phase + 1.            
+        if (Phase <  0.) Phase = Phase + 1.
 
     end subroutine Complex_to_AmpPhase
 
     !------------------------------------------------------------------------------
-    
+
     !change all lower cases of a character variable to upper case
     subroutine FromLower2UpperCase (InputChar, OutputChar)
 
-        !Arguments-------------------------------------------------------------    
+        !Arguments-------------------------------------------------------------
         character(len=*), intent(IN)        :: InputChar
         character(len=*), intent(OUT)       :: OutputChar
         !Local-----------------------------------------------------------------
         integer                             :: il, i, j
 
-        !Begin-----------------------------------------------------------------    
-        
+        !Begin-----------------------------------------------------------------
+
         il  =   len_trim(InputChar)
-        
+
         OutputChar = InputChar
-        
+
         do i=1,il
             j = ichar(OutputChar(i:i))
             ! ASCII Character Codes (W*32, W*64)
@@ -11769,94 +12161,94 @@ D2:     do I=imax-1,2,-1
                 OutputChar(i:i)= char(j-32)
             endif
         enddo
-        
+
 
     end subroutine FromLower2UpperCase
 
     !------------------------------------------------------------------------------
-    
+
     !Check if a tidal component name (TidalName) is an alternative name of standard name used by MOHID
     subroutine CheckAlternativeTidalCompNames (TidalName, MohidTidalName)
 
-        !Arguments-------------------------------------------------------------    
+        !Arguments-------------------------------------------------------------
         character(len=*), intent(IN)        :: TidalName
         character(len=*), intent(OUT)       :: MohidTidalName
         !Local-----------------------------------------------------------------
         integer                             :: il
-        !Begin-----------------------------------------------------------------   
-        
+        !Begin-----------------------------------------------------------------
+
         MohidTidalName = TidalName
-        
+
         il  =   len_trim(TidalName)
-        
+
         if (TidalName(1:il) == 'Sa') then
-           MohidTidalName = 'SA' 
+           MohidTidalName = 'SA'
         endif
-        
+
         if (TidalName(1:il) == 'Ssa') then
-           MohidTidalName = 'SSA' 
+           MohidTidalName = 'SSA'
         endif
 
         if (TidalName(1:il) == 'Mm') then
-           MohidTidalName = 'MM' 
+           MohidTidalName = 'MM'
         endif
 
         if (TidalName(1:il) == 'Mf') then
-           MohidTidalName = 'MF' 
+           MohidTidalName = 'MF'
         endif
-        
+
         if (TidalName(1:il) == 'MSf') then
-           MohidTidalName = 'MSF' 
+           MohidTidalName = 'MSF'
         endif
-        
+
 
         if (TidalName(1:il) == 'E2') then
-           MohidTidalName = 'EPS2' 
+           MohidTidalName = 'EPS2'
         endif
 
         if (TidalName(1:il) == 'Mu2') then
-           MohidTidalName = 'MU2' 
+           MohidTidalName = 'MU2'
         endif
 
         if (TidalName(1:il) == 'Nu2') then
-           MohidTidalName = 'NU2' 
+           MohidTidalName = 'NU2'
         endif
 
-        if (TidalName(1:il) == 'La2' .or. TidalName(1:il) == 'LAMDA2') then
-           MohidTidalName = 'LDA2' 
+        if (TidalName(1:il) == 'La2' .or. TidalName(1:il) == 'LAMDA2' .or. TidalName(1:il) == 'LA2') then
+           MohidTidalName = 'LDA2'
         endif
 
     end subroutine CheckAlternativeTidalCompNames
-    
+
     !------------------------------------------------------------------------------
-    
+
     ! Hunt's Method to calculate Wave Length (accuracy of 0.1%)
     real function WaveLengthHuntsApproximation(WavePeriod, WaterDepth)
 
-        !Arguments-------------------------------------------------------------    
+        !Arguments-------------------------------------------------------------
         real , intent(IN)        :: WavePeriod, WaterDepth
         !Local-----------------------------------------------------------------
         real                     :: G_Aux, F_Aux
-        !Begin-----------------------------------------------------------------   
-        
+        !Begin-----------------------------------------------------------------
+
         G_Aux                       = ((2 * Pi / WavePeriod)**2) * WaterDepth / Gravity
         F_Aux                       = G_Aux + (1 / (1. + 0.6522 * G_Aux + 0.4622 * (G_Aux**2) + &
                                       0.0864 * (G_Aux**4) + 0.0675 * (G_Aux**5)))
         if (F_Aux > 0. .and. WaterDepth > 0.) then
             WaveLengthHuntsApproximation = WavePeriod * sqrt(gravity * WaterDepth / F_Aux)
         else
-            WaveLengthHuntsApproximation = 0.                     
+            WaveLengthHuntsApproximation = 0.
         endif
-        
+
 
     end function WaveLengthHuntsApproximation
 
-    !------------------------------------------------------------------------------        
-    
+    !------------------------------------------------------------------------------
+
     integer function WriteEsriGrid(UnitOut, ILB, IUB, JLB, JUB, OriginX, OriginY,       &
                                    DXY, FillValue, Matrix2D)
-    
-        !Arguments-------------------------------------------------------------    
+
+        !Arguments-------------------------------------------------------------
         real,   dimension(:,:), pointer, intent(IN) :: Matrix2D
         real,                            intent(IN) :: OriginX, OriginY, DXY, FillValue
         integer,                         intent(IN) :: UnitOut, ILB, IUB, JLB, JUB
@@ -11864,14 +12256,14 @@ D2:     do I=imax-1,2,-1
         integer                                     :: Imax, Jmax, bt, ba, a, i
         integer                                     :: STAT_CALL
         character(len=:),            allocatable    :: Line
-        character(len=StringLength), allocatable    :: AuxChar        
-        logical                                     :: Found2Blanks         
-        !Begin-----------------------------------------------------------------   
-    
+        character(len=StringLength), allocatable    :: AuxChar
+        logical                                     :: Found2Blanks
+        !Begin-----------------------------------------------------------------
+
         Imax = IUB - ILB + 1
-        Jmax = JUB - JLB + 1    
-        
-     
+        Jmax = JUB - JLB + 1
+
+
         write(UnitOut,'(A14,I6)', IOSTAT = STAT_CALL) 'ncols         ', Jmax
         if (STAT_CALL /= SUCCESS_) then
             stop 'WriteEsriGrid - ModuleFunctions - ERR10'
@@ -11881,85 +12273,85 @@ D2:     do I=imax-1,2,-1
         if (STAT_CALL /= SUCCESS_) then
             stop 'WriteEsriGrid - ModuleFunctions - ERR20'
         endif
-                
-        write(AuxChar,'(f18.6)',  IOSTAT = STAT_CALL) OriginX    
+
+        write(AuxChar,'(f18.6)',  IOSTAT = STAT_CALL) OriginX
         if (STAT_CALL /= SUCCESS_) then
             stop 'WriteEsriGrid - ModuleFunctions - ERR30'
-        endif        
-        
+        endif
+
         write(UnitOut,'(A14,A)',  IOSTAT = STAT_CALL) 'xllcorner     ', trim(adjustl(AuxChar))
         if (STAT_CALL /= SUCCESS_) then
             stop 'WriteEsriGrid - ModuleFunctions - ERR40'
         endif
-                
-        write(AuxChar,'(f18.6)',  IOSTAT = STAT_CALL) OriginY  
+
+        write(AuxChar,'(f18.6)',  IOSTAT = STAT_CALL) OriginY
         if (STAT_CALL /= SUCCESS_) then
             stop 'WriteEsriGrid - ModuleFunctions - ERR50'
         endif
-              
+
         write(UnitOut,'(A14,A)',  IOSTAT = STAT_CALL) 'yllcorner     ', trim(adjustl(AuxChar))
         if (STAT_CALL /= SUCCESS_) then
             stop 'WriteEsriGrid - ModuleFunctions - ERR60'
         endif
-        
-        write(AuxChar,'(f18.6)',  IOSTAT = STAT_CALL) DXY    
+
+        write(AuxChar,'(f18.6)',  IOSTAT = STAT_CALL) DXY
         if (STAT_CALL /= SUCCESS_) then
             stop 'WriteEsriGrid - ModuleFunctions - ERR70'
         endif
-        
+
         write(UnitOut,'(A14,A)',  IOSTAT = STAT_CALL) 'cellsize      ', trim(adjustl(AuxChar))
         if (STAT_CALL /= SUCCESS_) then
             stop 'WriteEsriGrid - ModuleFunctions - ERR80'
         endif
-        
+
         write(AuxChar,'(f18.6)',  IOSTAT = STAT_CALL) FillValue
         if (STAT_CALL /= SUCCESS_) then
             stop 'WriteEsriGrid - ModuleFunctions - ERR90'
         endif
-        
+
         write(UnitOut,'(A14,A)',  IOSTAT = STAT_CALL) 'nodata_value  ', trim(adjustl(AuxChar))
         if (STAT_CALL /= SUCCESS_) then
             stop 'WriteEsriGrid - ModuleFunctions - ERR100'
         endif
-        
-        
+
+
         do i=Imax,1,-1
-        
+
             write(Line,'(20000(f12.6,1x))', IOSTAT = STAT_CALL) Matrix2D(i,1:Jmax)
             if (STAT_CALL /= SUCCESS_) then
                 stop 'WriteEsriGrid - ModuleFunctions - ERR110'
             endif
-            
+
             Line = adjustl(Line)
             Found2Blanks = .true.
 
             bt = len_trim(Line)
             ba = bt
             do a = 1, bt-1
-                do while (Line(a:a+1)=='  ') 
+                do while (Line(a:a+1)=='  ')
                     Line(a:ba)=Line(a+1:ba+1)
                     ba = ba - 1
                     if (ba == a) exit
                 enddo
                 if (ba == a) exit
             enddo
-            write(UnitOut,'(A)', IOSTAT = STAT_CALL) trim(Line)        
+            write(UnitOut,'(A)', IOSTAT = STAT_CALL) trim(Line)
             if (STAT_CALL /= SUCCESS_) then
                 stop 'WriteEsriGrid - ModuleFunctions - ERR120'
-            endif            
-            
+            endif
+
         enddo
-        
+
         WriteEsriGrid = SUCCESS_
-    
+
     end function WriteEsriGrid
-    
+
     !----------------------------------------------------------------------------------
-    
+
     integer function ReadEsriGrid(UnitIn, Imax, Jmax, OriginX, OriginY,                 &
                                   DXY, FillValue)
-    
-        !Arguments-------------------------------------------------------------    
+
+        !Arguments-------------------------------------------------------------
         integer,                         intent(IN)  :: UnitIn
 !        real,   dimension(:,:), pointer, intent(OUT) :: Matrix2D
         real,                            intent(OUT) :: OriginX, OriginY, DXY, FillValue
@@ -11967,123 +12359,122 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                                      :: STAT_CALL !, i, j
         !character(len=:),            allocatable     :: Line
-        character(len=256), allocatable     :: AuxChar        
-     
-        !Begin-----------------------------------------------------------------   
-    
+        character(len=256), allocatable     :: AuxChar
+
+        !Begin-----------------------------------------------------------------
+
         read(UnitIn,'(A256)') AuxChar
         if (STAT_CALL /= SUCCESS_) then
             stop 'ReadEsriGrid - ModuleFunctions - ERR10'
-        endif        
-        
-        read(AuxChar(14:256),*) Jmax        
+        endif
+
+        read(AuxChar(14:256),*) Jmax
         if (STAT_CALL /= SUCCESS_) then
             stop 'ReadEsriGrid - ModuleFunctions - ERR20'
-        endif        
-        
+        endif
+
         read(UnitIn,'(A256)') AuxChar
         if (STAT_CALL /= SUCCESS_) then
             stop 'ReadEsriGrid - ModuleFunctions - ERR30'
-        endif        
-        
-        read(AuxChar(14:256),*) Imax        
+        endif
+
+        read(AuxChar(14:256),*) Imax
         if (STAT_CALL /= SUCCESS_) then
             stop 'ReadEsriGrid - ModuleFunctions - ERR40'
-        endif        
-        
+        endif
+
         read(UnitIn,'(A256)') AuxChar
         if (STAT_CALL /= SUCCESS_) then
             stop 'ReadEsriGrid - ModuleFunctions - ERR50'
-        endif        
-        
+        endif
+
         read(AuxChar(14:256),*, IOSTAT = STAT_CALL) OriginX
         if (STAT_CALL /= SUCCESS_) then
             stop 'ReadEsriGrid - ModuleFunctions - ERR60'
-        endif        
-        
+        endif
+
         read(UnitIn,'(A256)', IOSTAT = STAT_CALL) AuxChar
         if (STAT_CALL /= SUCCESS_) then
             stop 'ReadEsriGrid - ModuleFunctions - ERR10'
-        endif        
-        
+        endif
+
         read(AuxChar(14:256),*, IOSTAT = STAT_CALL) OriginY
         if (STAT_CALL /= SUCCESS_) then
             stop 'ReadEsriGrid - ModuleFunctions - ERR70'
-        endif        
-        
+        endif
+
         read(UnitIn,'(A256)', IOSTAT = STAT_CALL) AuxChar
         if (STAT_CALL /= SUCCESS_) then
             stop 'ReadEsriGrid - ModuleFunctions - ERR80'
-        endif        
-        
+        endif
+
         read(AuxChar(14:256),*, IOSTAT = STAT_CALL) DXY
         if (STAT_CALL /= SUCCESS_) then
             stop 'ReadEsriGrid - ModuleFunctions - ERR90'
-        endif        
-          
+        endif
+
         read(UnitIn,'(A256)', IOSTAT = STAT_CALL) AuxChar
         if (STAT_CALL /= SUCCESS_) then
             stop 'ReadEsriGrid - ModuleFunctions - ERR100'
-        endif        
-        
-        read(AuxChar(14:256),*, IOSTAT = STAT_CALL) FillValue  
+        endif
+
+        read(AuxChar(14:256),*, IOSTAT = STAT_CALL) FillValue
         if (STAT_CALL /= SUCCESS_) then
             stop 'ReadEsriGrid - ModuleFunctions - ERR110'
-        endif        
+        endif
 !
 !        do i=Imax,1,-1
-!       
+!
 !            read(UnitIn,*, IOSTAT = STAT_CALL) (Matrix2D(i, j),j=1,Jmax)
 !            if (STAT_CALL /= SUCCESS_) then
 !                stop 'ReadEsriGrid - ModuleFunctions - ERR120'
-!            endif                    
-!        
-!        enddo            
-   
+!            endif
+!
+!        enddo
+
         ReadEsriGrid = SUCCESS_
-    
+
     end function ReadEsriGrid
-        
+
     !----------------------------------------------------------------------------------
-    
+
     integer function ReadEsriGridData(UnitIn, Imax, Jmax, Matrix2D)
-    
-        !Arguments-------------------------------------------------------------    
+
+        !Arguments-------------------------------------------------------------
         integer,                         intent(IN)  :: UnitIn
         integer,                         intent(IN)  :: Imax, Jmax
-        real,   dimension(:,:), pointer, intent(OUT) :: Matrix2D        
+        real,   dimension(:,:), pointer, intent(OUT) :: Matrix2D
         !Local-----------------------------------------------------------------
         integer                                      :: STAT_CALL , i , j
         !character(len=:),            allocatable     :: Line
-        !character(len=StringLength), allocatable     :: AuxChar        
-     
-        !Begin-----------------------------------------------------------------   
-    
+        !character(len=StringLength), allocatable     :: AuxChar
+
+        !Begin-----------------------------------------------------------------
+
         do i=1,6
-            read(UnitIn,*) 
+            read(UnitIn,*)
             if (STAT_CALL /= SUCCESS_) then
                 stop 'ReadEsriGridData - ModuleFunctions - ERR10'
-            endif        
+            endif
         enddo
-        
+
         do i=Imax,1,-1
-       
+
             read(UnitIn,*, IOSTAT = STAT_CALL) (Matrix2D(i, j),j=1,Jmax)
             if (STAT_CALL /= SUCCESS_) then
                 stop 'ReadEsriGridData - ModuleFunctions - ERR20'
-            endif                    
-        
-        enddo            
-   
+            endif
+
+        enddo
+
         ReadEsriGridData = SUCCESS_
-    
+
     end function ReadEsriGridData
 
-    
+
     end module ModuleFunctions
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior TÃ©cnico, Technical University of Lisbon.
 !----------------------------------------------------------------------------------------------------------
-

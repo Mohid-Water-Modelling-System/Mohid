@@ -4302,6 +4302,7 @@ em4:        do em =1, Me%EulerModelNumber
         if (Me%LitterON) then
             call ConstructLitter(ObjLitterID    = Me%ObjLitter,                         &
                                  Nomfich        = Me%Files%Nomfich,                     &
+                                 StartTime      = Me%ExternalVar%BeginTime,             &                                 
                                  EndTime        = Me%ExternalVar%EndTime,               &
                                  ModelDomain    = Me%GridsBounds,                       &
                                  STAT           = STAT_CALL)
@@ -15674,15 +15675,15 @@ CurrOr: do while (associated(CurrentOrigin))
         !Begin-----------------------------------------------------------------------------------------
         
         if (Me%State%Oil) then
-            call GetOilViscCin(OilID         = CurrentOrigin%ObjOil,       &
-                               OilViscCin    = OilViscCin,                 &              
+            call GetOilViscCin(OilID         = CurrentOrigin%ObjOil,                    &
+                               OilViscCin    = OilViscCin,                              &              
                                  STAT        = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR01'
             
             !next property needed for rising velocity, method Zheng 
-            If (CurrentOrigin%MethodFloatVel .EQ. Zheng_) then
-                call GetOWInterfacialTension(CurrentOrigin%ObjOil,                                &
-                                             OWInterfacialTension   = OWInterfacialTension,       &              
+            If (CurrentOrigin%MethodFloatVel .EQ. Zheng_) then                              
+                call GetOWInterfacialTension(CurrentOrigin%ObjOil,                          &
+                                             OWInterfacialTension   = OWInterfacialTension, &
                                              STAT                   = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'MoveParticHorizontal - ModuleLagrangianGlobal - ERR02'
                
@@ -15775,9 +15776,10 @@ BD:             if (CurrentPartic%Beached .or. CurrentPartic%Deposited .or. Curr
                 U = CurrentPartic%CurrentX                
                 V = CurrentPartic%CurrentY 
                 
-                if (CurrentOrigin%Movement%Float) then                 
-                    GradDWx = 0.0
-                    GradDWy = 0.0                
+                if (CurrentOrigin%Movement%Float) then   
+                    !Equal probability to go in any horizontal direction
+                    GradDWx = 0.5
+                    GradDWy = 0.5
                 else
                     !Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).                        
                     !Linear Interpolation to obtain the thickness gradient
