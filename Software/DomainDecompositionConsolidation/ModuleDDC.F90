@@ -195,7 +195,7 @@ if1:    if (TreeExists) then
             call UnitsManager(iTree, OPEN_FILE, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadTreeFile - ModuleDDC - ERR01'
 
-            open(UNIT = iTree, FILE = 'Tree.dat', status = 'OLD', IOSTAT = STAT_CALL)
+            open(UNIT = iTree, FILE = 'tree.dat', status = 'OLD', IOSTAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadTreeFile - ModuleDDC - ERR02'
 
             read(unit=iTree, fmt=*) Coment1

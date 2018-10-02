@@ -182,6 +182,7 @@ Module ModuleAssimilation
         logical                                 :: OutputHDF            = .false.
         type (T_Time)                           :: LastTimeSerieOutput
         type (T_Property), pointer              :: Next, Prev
+        character(len=StringLength)             :: GroupOutPutName      = null_str
     end type T_Property
 
     private :: T_Files
@@ -395,7 +396,12 @@ Module ModuleAssimilation
             if(STAT_CALL .ne. SUCCESS_)stop 'StartAssimilation - ModuleAssimilation - ERR04'
 
             ! By default a output file is always open in the construction phase
-            if (Me%OutPut%ON) call Open_HDF5_OutPut_File
+            if (Me%OutPut%ON) then
+                call Open_HDF5_OutPut_File
+            endif                
+
+            call CheckOutputGroupName
+            
 
             call null_time(Me%ActualTime)
 
@@ -416,6 +422,48 @@ Module ModuleAssimilation
     end subroutine StartAssimilation
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    subroutine CheckOutputGroupName
+
+        !Local-----------------------------------------------------------------
+        type(T_Property), pointer                           :: PropertyX, PropertyY
+        character(len=StringLength)                         :: AuxChar
+        integer                                             :: cX, cY, cF, NumOfFields
+        
+        !Begin-----------------------------------------------------------------
+
+        cX = 0
+        PropertyX   => Me%FirstAssimilationProp
+        do while (associated(PropertyX)) 
+            cX = cX + 1
+            NumOfFields = CountNumOfFields(PropertyX%ID%IDNumber)
+
+            if (NumOfFields > 1) then
+                cY = 0
+                cF = 1
+                PropertyY   => Me%FirstAssimilationProp    
+                do while (associated(PropertyY))
+                    cY = cY + 1
+                    if (trim(PropertyY%GroupOutPutName) == trim(PropertyX%ID%Name)         .and. &
+                        trim(PropertyY%GroupOutPutName) == trim(PropertyX%GroupOutPutName) .and. &
+                        cY /= cX) then
+                        cF = cF + 1  
+                        write(AuxChar,fmt=*) cF
+                        PropertyY%GroupOutPutName = trim(PropertyY%GroupOutPutName)//"_"//trim(adjustl(AuxChar))
+                    endif
+                    PropertyY => PropertyY%Next                    
+                enddo
+            endif
+            
+            PropertyX => PropertyX%Next
+            
+        enddo            
+  
+    end subroutine CheckOutputGroupName        
+
+  !--------------------------------------------------------------------------    
     
     subroutine AllocateInstance
                                                     
@@ -999,6 +1047,14 @@ cd2 :           if (BlockFound) then
                      STAT           = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR50'
 
+        call GetData(NewProperty%GroupOutPutName, Me%ObjEnterData, iflag,               &
+                     keyword        = 'GROUP_OUTPUT_NAME',                              &  
+                     default        = trim(NewProperty%ID%Name),                        &
+                     SearchType     = FromBlock,                                        &
+                     ClientModule   = 'ModuleAssimilation',                             &
+                     STAT           = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR55'
+        
 
         call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                       &
                                    begin_field, end_field, BlockFound,                  &
@@ -1785,7 +1841,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
     
     subroutine GetAssimilationField(AssimilationID, ID, N_Field,                & 
-                                    Field2D, Field3D, STAT)
+                                    Field2D, Field3D, GroupOutPutName, STAT)
 
         !Arguments--------------------------------------------------------------
         integer          , intent(IN )              :: AssimilationID
@@ -1793,6 +1849,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         integer          , intent(IN ),  optional   :: N_Field          
         real, dimension(:,:  ), pointer, optional   :: Field2D
         real, dimension(:,:,:), pointer, optional   :: Field3D
+        character(len=StringLength), optional       :: GroupOutPutName
         integer, optional, intent(OUT)              :: STAT
 
         !External--------------------------------------------------------------
@@ -1827,8 +1884,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
                                 STAT                = STAT_CALL)                                         
                            
 cd2:        if (STAT_CALL == SUCCESS_) then
-
-
+                
+                if (present(GroupOutPutName)) then
+                    GroupOutPutName = PropertyX%GroupOutPutName
+                endif
+                
                 STAT_CALL1 = SUCCESS_
 
 cd3:            if (PropertyX%Dim == Dim_2D) then
@@ -1859,6 +1919,8 @@ cd3:            if (PropertyX%Dim == Dim_2D) then
                     if (present(Field2D    )) STAT_CALL1 =  NOT_ASSOCIATE_
 
                 endif cd3
+                
+                
 
                 STAT_ = STAT_CALL1
 
@@ -1889,6 +1951,7 @@ cd3:            if (PropertyX%Dim == Dim_2D) then
     
     subroutine GetAssimilationVectorField(AssimilationID,                               &
                                           VectorX_ID, VectorY_ID,                       & 
+                                          N_Field,                                      &
                                           VectorX_2D, VectorY_2D,                       &
                                           VectorX_3D, VectorY_3D,                       &
                                           STAT)
@@ -1896,6 +1959,7 @@ cd3:            if (PropertyX%Dim == Dim_2D) then
         !Arguments--------------------------------------------------------------
         integer                                     :: AssimilationID
         integer                                     :: VectorX_ID, VectorY_ID
+        integer,                         optional   :: N_Field        
         real, dimension(:,:  ), pointer, optional   :: VectorX_2D, VectorY_2D
         real, dimension(:,:,:), pointer, optional   :: VectorX_3D, VectorY_3D
         integer, optional, intent(OUT)              :: STAT
@@ -1903,7 +1967,8 @@ cd3:            if (PropertyX%Dim == Dim_2D) then
         !External--------------------------------------------------------------
         integer                                     :: ready_        
         type (T_Property), pointer                  :: PropertyX, PropertyY
-        integer                                     :: STAT_CALL_X, STAT_CALL_Y   
+        integer                                     :: STAT_CALL_X, STAT_CALL_Y  
+        integer                                     :: N_Field_
         
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_
@@ -1916,12 +1981,23 @@ cd3:            if (PropertyX%Dim == Dim_2D) then
         
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
             (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            if (present(N_Field)) then
+                N_Field_ = N_Field
+            else
+                N_Field_ = 1
+            endif            
 
             nullify(PropertyX)
-            call SearchProperty(PropertyX = PropertyX, PropertyXIDNumber = VectorX_ID, STAT = STAT_CALL_X) 
-                                         
+            call SearchProperty(PropertyX           = PropertyX,                        &
+                                PropertyXIDNumber   = VectorX_ID,                       &
+                                N_Field             = N_Field_,                         &
+                                STAT                = STAT_CALL_X)                   
             nullify(PropertyY)
-            call SearchProperty(PropertyX = PropertyY, PropertyXIDNumber = VectorY_ID, STAT = STAT_CALL_Y) 
+            call SearchProperty(PropertyX           = PropertyY,                        &
+                                PropertyXIDNumber   = VectorY_ID,                       &
+                                N_Field             = N_Field_,                         &
+                                STAT                = STAT_CALL_Y)                   
 
                            
 cd2:        if (STAT_CALL_X == SUCCESS_ .and. STAT_CALL_Y == SUCCESS_) then
@@ -2441,7 +2517,6 @@ cd2:        if (STAT_CALL == SUCCESS_) then
 
         !External--------------------------------------------------------------
         integer                                     :: ready_        
-        type (T_Property), pointer                  :: PropertyX    
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_
@@ -2455,19 +2530,10 @@ cd2:        if (STAT_CALL == SUCCESS_) then
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            NumberOfFields = 0
-            
-            PropertyX => Me%FirstAssimilationProp
 
-            do while (associated(PropertyX)) 
-                
-                if (PropertyX%ID%IDNumber == ID) then
-                    NumberOfFields  = NumberOfFields + 1
-                endif
-                
-                PropertyX => PropertyX%Next                 
-                
-            end do                
+            NumberOfFields = CountNumOfFields(ID) 
+            
+            STAT_ = SUCCESS_            
             
         else cd1
          
@@ -2484,8 +2550,38 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
     end subroutine GetNumberOfFields
 
     !--------------------------------------------------------------------------
-   
     
+    
+    !--------------------------------------------------------------------------
+    
+    integer function CountNumOfFields(ID)
+
+        !Arguments--------------------------------------------------------------
+        integer,            intent(IN )             :: ID
+
+        !Local-----------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX    
+        integer                                     :: NumberOfFields
+
+        !----------------------------------------------------------------------    
+   
+        NumberOfFields = 0
+            
+        PropertyX => Me%FirstAssimilationProp
+
+        do while (associated(PropertyX)) 
+                
+            if (PropertyX%ID%IDNumber == ID) then
+                NumberOfFields  = NumberOfFields + 1
+            endif
+                
+            PropertyX => PropertyX%Next                 
+                
+        end do     
+        
+        CountNumOfFields = NumberOfFields
+        
+    end function CountNumOfFields        
    
     !--------------------------------------------------------------------------
 
@@ -3995,6 +4091,7 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
         integer                                     :: WorkKLB, WorkKUB
         real,       dimension(6),     target        :: AuxTime
         real,       dimension(:),     pointer       :: TimePtr
+        character(len=StringLength)                 :: GroupOutPutName
 
         !----------------------------------------------------------------------
 
@@ -4071,39 +4168,44 @@ TOut:   if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
             PropertyX => Me%FirstAssimilationProp
   
             do while (associated(PropertyX)) 
+            
 
                 if (PropertyX%OutputHDF) then
-                if (PropertyX%Dim == Dim_2D) then
 
-                    call HDF5WriteData  (Me%ObjHDF5, "/Results/"//PropertyX%ID%Name, PropertyX%ID%Name, &
-                                         PropertyX%ID%Units, Array2D = PropertyX%Field%R2D,             &
-                                         OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR09'
+                    GroupOutPutName = PropertyX%GroupOutPutName                
+                
+                
+                    if (PropertyX%Dim == Dim_2D) then
 
-
-                    call HDF5WriteData  (Me%ObjHDF5, "/DecayCoefs/"//PropertyX%ID%Name, PropertyX%ID%Name, &
-                                         PropertyX%ID%Units, Array2D = PropertyX%CoefField%R2D,            &
-                                         OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR14'
-
-                elseif (PropertyX%Dim == Dim_3D) then
-
-                    call HDF5WriteData  (Me%ObjHDF5, "/Results/"//PropertyX%ID%Name, PropertyX%ID%Name, &
-                                         PropertyX%ID%Units, Array3D = PropertyX%Field%R3D,             &
-                                         OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR10'
+                        call HDF5WriteData  (Me%ObjHDF5, "/Results/"//GroupOutPutName, PropertyX%ID%Name, &
+                                             PropertyX%ID%Units, Array2D = PropertyX%Field%R2D,           &
+                                             OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR09'
 
 
-                    call HDF5WriteData  (Me%ObjHDF5, "/DecayCoefs/"//PropertyX%ID%Name, PropertyX%ID%Name, &
-                                         PropertyX%ID%Units, Array3D = PropertyX%CoefField%R3D,            &
-                                         OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR10'
+                        call HDF5WriteData  (Me%ObjHDF5, "/DecayCoefs/"//GroupOutPutName, PropertyX%ID%Name, &
+                                             PropertyX%ID%Units, Array2D = PropertyX%CoefField%R2D,          &
+                                             OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR14'
 
-                else 
+                    elseif (PropertyX%Dim == Dim_3D) then
 
-                    stop 'OutPutResultsHDF - ModuleAssimilation - ERR11'
+                        call HDF5WriteData  (Me%ObjHDF5, "/Results/"//GroupOutPutName, PropertyX%ID%Name, &
+                                             PropertyX%ID%Units, Array3D = PropertyX%Field%R3D,           &
+                                             OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR10'
 
-                endif                
+
+                        call HDF5WriteData  (Me%ObjHDF5, "/DecayCoefs/"//GroupOutPutName, PropertyX%ID%Name, &
+                                             PropertyX%ID%Units, Array3D = PropertyX%CoefField%R3D,          &
+                                             OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                        if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR10'
+
+                    else 
+
+                        stop 'OutPutResultsHDF - ModuleAssimilation - ERR11'
+
+                    endif                
                 endif
 
 

@@ -84,7 +84,7 @@
     !TAH                  : 31376    !31376, K, Arrhenius temperature for upper boundary (van der Veer etal., 2006)
     !
     !F_FIX                : 1        !1, adim, constant food density parameter (only if simple filtration)
-    !PAM_FIX              : 94.79    !80.5, Jd-1cm-2, bivalve surface-specific assimilation rate if fix (Saraiva etal., inpress)
+    !PXM_FIX              : 94.79    !80.5, Jd-1cm-2, bivalve surface-specific ingestion rate if fix 
     !DELTA_M              : 0.297    !0.297, cm(volumetric)/cm(real), shape coefficient  (Saraiva etal., inpress)
     !LIFE_SPAN            : 24       !24, years, max life span for a mussel under natural conditions (Sukhotin et al. (2007))
     !M_VELOCITY           : 0.0      !/d, fraction of individuals that die due to high velocity
@@ -110,7 +110,7 @@
     !JX0IM                : 0.11     !0.11, g/(d.cm2), inorganic material maximum surface area-specific ingestion rate (Saraiva etal.
     !YEX                  : 0.75     !0.65, molCE/molCV, yield coeficienct of reserves in algae structure
     !uece!
-    !K_NOFOOD             : 40       !mg/l half saturation constant for non food items
+    !K_SED                : 40       !mg/l half saturation constant for non food items
     !GSR_MIN              : 0.1      !0.1, molC(gam)/molC(struc), minimum gonado-somatic ratio in the organism (Cardoso et al., 2007)
     !GSR_SPAWN            : 0.2      !0.2, molC(gam)/molC(struc), gonado-somatic ratio to spawn (Saraiva etal., submited)
     !T_SPAWN              : 9.6      !9.6, C, minimum temperature for spawning (Hummel etal., 1989)
@@ -233,8 +233,10 @@
     private ::                  ComputeAuxiliarParameters
     private ::                  ComputeBivalveCondition
     private ::                  ComputeFeedingProcesses
-    private ::                      ComputeSimpleFiltration
-    private ::                      ComputeComplexFiltration
+    private ::                      ComputeImposeFiltration
+    private ::                      ComputeSimpleFeeding
+    private ::                          ComputeTotalFiltrationWish
+    private ::                      ComputeComplexFeeding
     private ::                          ComputeClearanceRate
     private ::                          ComputeFiltrationRate
     private ::                          ComputeIngestAssimiRate
@@ -296,8 +298,9 @@
     type     T_ComputeOptions
         logical                          :: Nitrogen           = .false.
         logical                          :: Phosphorus         = .false.
-        logical                          :: SimpleFiltration   = .false.
-        logical                          :: Impose_f           = .false.
+        logical                          :: ImposeFiltration   = .false.
+        logical                          :: ComplexFiltration  = .false.
+        logical                          :: SimpleFiltration   = .true.
         logical                          :: CorrectFiltration  = .true.
         logical                          :: MassBalance        = .false.
         character(len=StringLength)      :: PelagicModel       = null_str
@@ -411,7 +414,7 @@
         real                             :: TAL                = null_real !K, Arrhenius lower boundary
         real                             :: TAH                = null_real !K, Arrhenius upper boundary
         real                             :: F_FIX              = null_real !adim, constant food density parameter
-        real                             :: PAM_FIX            = null_real !Jd-1cm-2, bivalve sur-spec assimilation rate
+        real                             :: PXM_FIX            = null_real !Jd-1cm-2, bivalve sur-spec ingestion rate
         real                             :: delta_M            = null_real !cm(volumetric)/cm(real), shape coefficient
         real                             :: Em                 = null_real !cm(volumetric)/cm(real), shape coefficient        
         real                             :: LifeSpan           = null_real !years, max life span
@@ -438,7 +441,7 @@
         real                             :: JX0Im              = null_real !molC/d, max surf area-spec ing rate for inorg mat
         real                             :: YEX                = null_real !molCE/molCX, yield coef of reser in algae struc       
         real                             :: K_Food             = null_real !mgC/l	half saturation constant for food items
-        real                             :: K_NoFood           = null_real !mg/l	half saturation constant for non food items      
+        real                             :: K_Sed              = null_real !mg/l	half saturation constant for non food items      
         real                             :: GSR_MIN            = null_real !molCE/molCV, min GSR in the organism
         real                             :: GSR_SPAWN          = null_real !molCE/molCV, gonado-somatic ratio to spawn
         real                             :: T_SPAWN            = null_real !oC, minimum temperature for spawning
@@ -547,6 +550,8 @@
 
     type   T_Processes 
         real                             :: ClearanceRate                  = null_real  !m3/d, ClearanceRate
+        real                             :: f_potential                    = null_real  !food limitation based on phyto 
+        real                             :: f_real                         = null_real  !real food limitation based on phyto 
         real                             :: FilteredInorganic              = null_real  !g/d, filtered inorganic material 
         type(T_ByElement )               :: FilteredFood                      
         real                             :: IngestionInorganic             = null_real  !mg/d, ingested inorganic material 
@@ -667,7 +672,7 @@
         type(T_Processes             )   :: Processes
         real,  pointer, dimension(:,:)   :: FeedingOn   => null()  !to store, Columns = Filtered|ingested|assimilated (molC/g.d.ind)
         type(T_Output                )   :: CohortOutput
-        logical                          :: Larvae      = OFF
+        logical                          :: IsLarvae      = OFF
         integer                          :: Dead        = 0
         integer                          :: GlobalDeath = 1
         logical                          :: AtLeastOneLarvae         = .false.
@@ -718,7 +723,11 @@
         integer                          :: nCohorts
         integer, dimension(:), pointer   :: CohortIDs     => null()
     end type T_RestartSpecies
-
+    
+    type     T_BivalveAux
+        real                                 :: TotalFiltrationWish      = 0 !To be saved in each step
+    end type T_BivalveAux
+    
     type     T_Bivalve
         integer                              :: InstanceID
         integer                              :: ObjTime                  = 0
@@ -731,7 +740,7 @@
         type (T_Size1D)                      :: Array                    
         type (T_Size1D)                      :: Prop                   
         integer                              :: nSpecies                 = 0
-        real                                 :: LackOfFood               = 0
+        real                                 :: LackOfFood               = 0.0
         integer, dimension(:), pointer       :: PropertyList             => null()
         integer                              :: nPropertiesFromBivalve   = 0
         integer                              :: nCohortProperties        = 7          !Each cohort has 7 associated properties
@@ -755,6 +764,7 @@
         type (T_Species       ), pointer     :: FirstSpecies
         type (T_ExternalVar   )              :: ExternalVar
         real                                 :: MassLoss                 = 0.0
+        type (T_BivalveAux   )               :: BivalveAux
         real                                 :: MaxTNField               = 0.0  ! #/m2
         !character(len = PathLength)         :: PathFileName = '/home/saraiva/00_Projects/Parametric/Running/' !biocluster
         character(len = PathLength)          :: PathFileName = ''  
@@ -1033,28 +1043,40 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
         stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR40'
 
 
-        call GetData(Me%ComputeOptions%SimpleFiltration                    , &
+        call GetData(Me%ComputeOptions%ImposeFiltration                    , &
                     Me%ObjEnterData, flag                                  , &
                     SearchType   = FromFile                                , &
-                    keyword      = 'SIMPLE_FILTRATION'                     , &
+                    keyword      = 'IMPOSE_FILTRATION'                     , &
                     Default      = .false.                                 , &
                     ClientModule = 'ModuleBivalve'                         , &
                     STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_)                                          &
         stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR50'
-        
-        if(Me%ComputeOptions%PelagicModel .ne. WaterQualityModel )then
-            write(*,*)'SIMPLE_FILTRATION option only works if the pelagic model is:'
-            write(*,*)trim(WaterQualityModel)
-            stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR51'
+                
+        call GetData(Me%ComputeOptions%ComplexFiltration                   , &
+                    Me%ObjEnterData, flag                                  , &
+                    SearchType   = FromFile                                , &
+                    keyword      = 'COMPLEX_FILTRATION'                    , &
+                    Default      = .false.                                 , &
+                    ClientModule = 'ModuleBivalve'                         , &
+                    STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_)                                          &
+        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR51'
+
+        if(Me%ComputeOptions%ImposeFiltration .and. (Me%ComputeOptions%ComplexFiltration))then
+            write(*,*)'COMPLEX_FILTRATION option only works if IMPOSE_FILTRATION is 0'
+            stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR52'
         end if 
 
+        if(Me%ComputeOptions%ImposeFiltration .or. (Me%ComputeOptions%ComplexFiltration))then
+            Me%ComputeOptions%SimpleFiltration = .false.
+        end if 
 
         call GetData(Me%ComputeOptions%CorrectFiltration                   , &
                     Me%ObjEnterData, flag                                  , &
                     SearchType   = FromFile                                , &
                     keyword      = 'CORRECT_FILTRATION'                    , &
-                    Default      = .false.                                 , &
+                    Default      = .true.                                  , &
                     ClientModule = 'ModuleBivalve'                         , &
                     STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_)                                          &
@@ -1170,21 +1192,6 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
         Me%NextSpawnTime   =  Me%InitialDate
         Me%SpawningAllowed = .true. 
         
-       call GetData(Me%ComputeOptions%Impose_f                             , &
-                    Me%ObjEnterData, flag                                  , &
-                    SearchType   = FromFile                                , &
-                    keyword      = 'IMPOSE_F'                         , &
-                    Default      = .false.                                 , &
-                    ClientModule = 'ModuleBivalve'                         , &
-                    STAT         = STAT_CALL)
-        if(STAT_CALL .NE. SUCCESS_)                                          &
-        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR170'
-
-        if(Me%ComputeOptions%Impose_f .and. (.NOT. Me%ComputeOptions%SimpleFiltration))then
-            write(*,*)'IMPOSE_F option only works if SIMPLE_FILTRATION on'
-            stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR180'
-        end if 
-
     end subroutine ConstructGlobalVariables
 
     !-------------------------------------------------------------------------------
@@ -1544,11 +1551,11 @@ do1:        do while (associated(ObjCohort%Next))
             (Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      .gt. 0.0) .and. &
             (Me%ExternalVar%Mass(Cohort%StateIndex%L,Index)      .le. LarvaeMaxSize)) then
                         
-            Cohort%Larvae = .true.
+            Cohort%IsLarvae = .true.
                     
         else
                     
-            Cohort%Larvae = .false.
+            Cohort%IsLarvae = .false.
                         
         end if
     
@@ -1627,6 +1634,10 @@ do1:        do while (associated(ObjCohort%Next))
                 !time serie format
                 call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "Time Serie Results File")
 
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "LOCALIZATION_I", "")
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "LOCALIZATION_J", "")
+                call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "LOCALIZATION_K", "")
+
                 call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), "NAME", 'Population File')
 
                 call WriteDataLine(Species%PopulationOutput%Unit(iIndexOutput), 'SERIE_INITIAL_DATA', Me%InitialDate)
@@ -1689,6 +1700,10 @@ do1:        do while (associated(ObjCohort%Next))
                     call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), "Time Serie Results File")
 
                     call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), "NAME", 'Population File')
+
+                    call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), "LOCALIZATION_I", "")
+                    call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), "LOCALIZATION_J", "")
+                    call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), "LOCALIZATION_K", "")
 
                     call WriteDataLine(Species%SizeDistributionOutput%Unit(iIndexOutput), 'SERIE_INITIAL_DATA', Me%InitialDate)
 
@@ -1790,35 +1805,39 @@ do1:        do while (associated(ObjCohort%Next))
 
         call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), "NAME", trim(IndexOutputStr)//'_'//trim(Cohort%ID%Name))
 
+        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), "LOCALIZATION_I", "")
+        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), "LOCALIZATION_J", "")
+        call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), "LOCALIZATION_K", "")
+ 
         call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), 'SERIE_INITIAL_DATA', Me%InitialDate)
         
         call WriteDataLine(Cohort%CohortOutput%Unit(iIndexOutput), 'TIME_UNITS', 'SECONDS')
 
         101 format(A800)
 
-        OuputHeader =  " !Seconds_1 YY_2    MM_3 DD_4 hh_5 mm_6    ss_7 "                    // &
-                       "#/m2_8 mol_9 mol_10 mol_11 mol_12 cm_13 y_14 m3/d.ind_15 "     // &
+        OuputHeader =  " !Seconds_1 YY_2    MM_3 DD_4 hh_5 mm_6    ss_7 "             // &
+                       "#/m2_8 mol_9 mol_10 mol_11 mol_12 cm_13 y_14 m3/d.ind_15 "    // &
                        "g/d.ind_16 mol/d.ind_17 g/d.ind_18 mol/d.ind_19 g/d.ind_20 "  // &
                        "mol/d.ind_21 mol/d.ind_22 g/d.ind_23 mol/d_24 mol/d_25 "      // &
                        "mol/dm3_26 mol/dm3_27 mol/d_28 mol/d_29 mol/d_30 "            // &
-                       "mol/d_31 mol/d_32 mol/d_33 #_34 mol/d_35 "                    // &
-                       "mol/d_36 mol/d_37 mol/d_38 mol/d_39 mol/d_40 "                // &
-                       "#/d.m2_41 #/d.m2_42 #/d.m2_43 #/d.m2_44 #/d.m2_45 "           // &
-                       "#/d.m2_46 #/d.m2_47 #/d.m2_48 #/d.m2_49 #/d.m2_50 "           // &
-                       "#/d.m2_51 #/d.m2_52 #/d.m2_53 #/d.m2_54 adim_55 adim_56"
+                       "mol/d_31 mol/d_32 #_33 mol/d_34 "                             // &
+                       "mol/d_35 mol/d_36 mol/d_37 mol/d_38 mol/d_39 "                // &
+                       "#/d.m2_40 #/d.m2_41 #/d.m2_42 #/d.m2_43 #/d.m2_44 "           // &
+                       "#/d.m2_45 #/d.m2_46 #/d.m2_47 #/d.m2_48 #/d.m2_49 "           // &
+                       "#/d.m2_50 #/d.m2_51 #/d.m2_52 #/d.m2_53 adim_54 adim_55"
 
         write(Cohort%CohortOutput%Unit(iIndexOutput), 101) OuputHeader
 
-        OuputHeader = " Seconds_1 YY_2 MM_3 DD_4 hh_5 mm_6 ss_7 "            // &
+        OuputHeader = " Seconds_1 YY_2 MM_3 DD_4 hh_5 mm_6 ss_7 "           // &
                       "Number_8 ME_9 MV_10 MH_11 MR_12 L_13 A_14 Cr_15 "    // &
                       "FInorg_16 F_17 IInorg_18 I_19 PFInorg_20 "           // &
                       "PF_21 Ass_22 FAEIng_23 FAE_24 JEM_25 "               // &
                       "JE_26 dE_27 GamLoss_28 StruLoss_29 JV_30 "           // &
-                      "JH_31 MatLoss_32 JS_33 Gam_34 JR_35 "                // &
-                      "CO2_36 H2O_37 O2_38 NH3_39 PO4_40 "                  // &
-                      "m_A_41 m_O_42 m_F_43 m_nat_44 m_shr_45 "             // &
-                      "m_cra_46 m_oys_47 m_duck_48 m_gull_49 m_low_50 "     // &
-                      "m_self_51 m_others_52 m_vel_53 m_settle_54 ScaledE_55  f_56"
+                      "MatLoss_31 JS_32 Gam_33 JR_34 "                      // &
+                      "CO2_35 H2O_36 O2_37 NH3_38 PO4_39 "                  // &
+                      "m_A_40 m_O_41 m_F_42 m_nat_43 m_shr_44 "             // &
+                      "m_cra_45 m_oys_46 m_duck_47 m_gull_48 m_low_49 "     // &
+                      "m_self_50 m_others_51 m_vel_52 m_settle_53 fpot54 freal55"
         
         write(Cohort%CohortOutput%Unit(iIndexOutput), 101) OuputHeader
         
@@ -2332,10 +2351,10 @@ do1:        do while (associated(ObjCohort%Next))
                     stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR07'
 
         !Jd-1cm-2, bivalve surface-specific assimilation rate if fix (Saraiva etal., inpress)   
-        call GetData(IndividualParameters%PAM_FIX           , &
+        call GetData(IndividualParameters%PXM_FIX           , &
                     Me%ObjEnterData, flag                   , &
                     SearchType   = FromBlock                , &
-                    keyword      = 'PAM_FIX'                , &
+                    keyword      = 'PXM_FIX'                , &
                     default      = 80.5                     , &
                     ClientModule = 'ModuleBivalve'          , & 
                     STAT         = STAT_CALL)
@@ -2789,18 +2808,21 @@ do1:        do while (associated(ObjCohort%Next))
 
                     if (STAT_CALL .NE. SUCCESS_)              &
                     stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR50'
-
+                    
         !mgC/l, half saturation constant for food items 
-        call GetData(IndividualParameters%K_NoFood          , &
+        call GetData(IndividualParameters%K_Sed             , &
                     Me%ObjEnterData, flag                   , &
                     SearchType   = FromBlock                , &
-                    keyword      = 'K_NOFOOD'               , &
-                    default      = 0.40                     , &
+                    keyword      = 'K_SED'                  , &
+                    default      = 40.                      , &
                     ClientModule = 'ModuleBivalve'          , & 
                     STAT         = STAT_CALL)
 
                     if (STAT_CALL .NE. SUCCESS_)              &
-                    stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR55'                  
+                    stop 'Subroutine ConstructIndividualParameters - ModuleBivalve - ERR50'
+
+                    !mg/l, half saturation constant for non-food items 
+
 
     end subroutine ConstructIndividualParameters
 
@@ -4079,6 +4101,8 @@ do1:        do while (associated(ObjPredator%Next))
         
         call ConvertUnits (Index)
         
+        Me%BivalveAux%TotalFiltrationWish = 0.0
+        
         Species => Me%FirstSpecies
         do while(associated(Species))
         
@@ -4107,7 +4131,7 @@ do1:        do while (associated(ObjPredator%Next))
                 Cohort => SpeciesAgain%FirstCohort
                 do while(associated(Cohort))
                 
-                    if (Species%FeedOnLarvae .and. Cohort%Larvae) then 
+                    if (Species%FeedOnLarvae .and. Cohort%IsLarvae) then 
                         
                         !Add this cohort to the list of properties
                         allocate(NewParticles)
@@ -4214,7 +4238,7 @@ do1:        do while (associated(ObjPredator%Next))
                 
                 Species%PopulationProcesses%TNStartTimeStep =  Species%PopulationProcesses%TNStartTimeStep        + &
                                                                Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index)
-                if(.not. Cohort%Larvae)then                           
+                if(.not. Cohort%IsLarvae)then                           
                     Species%PopulationProcesses%TNNonLarvaeStartTimeStep =  &
                                                             Species%PopulationProcesses%TNNonLarvaeStartTimeStep + &
                                                             Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index)
@@ -5170,7 +5194,7 @@ d2:         do while (associated(Cohort))
             
                 if(Cohort%Dead .eq. 0)then 
             
-                    if (.not. Cohort%Larvae) then
+                    if (.not. Cohort%IsLarvae) then
 
                         M_V     = Cohort%StateIndex%M_V
                         M_E     = Cohort%StateIndex%M_E
@@ -5628,7 +5652,7 @@ d1:         do while(associated(Species))
         !Local-----------------------------------------------------------------
         real                            :: Tref, TA, TL, TH, TAL, TAH
         real                            :: pM, EG, mu_E, d_V
-        real                            :: PAM_FIX, delta_M, kappa
+        real                            :: PXM_FIX, delta_M, kappa
         real                            :: T
 
         !Begin-----------------------------------------------------------------
@@ -5643,7 +5667,7 @@ d1:         do while(associated(Species))
         EG          = Species%IndividualParameters%EG     
         mu_E        = Species%IndividualParameters%mu_E
         d_V         = Species%IndividualParameters%d_V
-        PAM_FIX     = Species%IndividualParameters%PAM_FIX
+        PXM_FIX     = Species%IndividualParameters%PXM_FIX
         delta_M     = Species%IndividualParameters%delta_M
         kappa       = Species%IndividualParameters%kappa
 
@@ -5696,7 +5720,7 @@ d1:         do while(associated(Species))
 
         !Lm, cm, maximum length of the species
         if (pM .gt. 0.0) then
-            Species%AuxiliarParameters%Lm   = ((kappa * PAM_FIX) / pM) / delta_M 
+            Species%AuxiliarParameters%Lm   = ((kappa * PXM_FIX) / pM) / delta_M 
         else
             Species%AuxiliarParameters%Lm   = 0.0
         end if
@@ -5799,15 +5823,19 @@ d1:         do while(associated(Species))
 
         !Choose feeding processes model
         if (CheckIfOpenPoint == OpenPoint) then
+            
+            if(Me%ComputeOptions%ImposeFiltration)  then  
+            
+                call ComputeImposeFiltration (Index) !fedding is imposed by an f value
+                
+            else if (Me%ComputeOptions%SimpleFiltration)   then !fedding is computed by the simple model based on f
+                      
+                call ComputeSimpleFeeding (Index)
 
-            if (Me%ComputeOptions%SimpleFiltration) then ! all are simple filtration model
-
-                call ComputeSimpleFiltration (Index)
-
-            else ! complex filtration model
-
-                call ComputeComplexFiltration (Index) ! all will be computed as complex
-
+            else if (Me%ComputeOptions%ComplexFiltration)   then !fedding is computed by the complex model with pseudofaeces
+               
+                call ComputeComplexFeeding (Index)
+                
             end if
 
         else
@@ -5832,7 +5860,7 @@ d1:         do while(associated(Species))
 
     !--------------------------------------------------------------------------
 
-    subroutine ComputeSimpleFiltration (Index)
+    subroutine ComputeImposeFiltration (Index)
 
         !Arguments-------------------------------------------------------------
         integer, intent(IN)                 :: Index
@@ -5840,34 +5868,19 @@ d1:         do while(associated(Species))
         !Local-----------------------------------------------------------------
         type(T_Species)  ,   pointer        :: Species
         type(T_Cohort)   ,   pointer        :: Cohort
-        type(T_Particles),   pointer        :: Particles
-        integer                             :: M_H 
-        real                                :: PAM_FIX, mu_E, YEX, f
-        real                                :: Combined_K,K_Food,K_NoFood
+        integer                             :: M_H, Number
+        real                                :: PXM_FIX, mu_E, YEX
         real                                :: C_AtomicMass, H_AtomicMass, O_AtomicMass
         real                                :: P_AtomicMass, N_AtomicMass
-        real                                :: RATIOHC, RATIOOC, RATIONC, RATIOPC 
+        real                                :: nH,nO,nN,nP
         real                                :: Vol, TempCorrection,MHb
-        real                                :: Sediments, Phyto
 
         !Begin-----------------------------------------------------------------
  
-        !mg/l, assumed as food concentration
-        Phyto       = Me%ExternalVar%Mass(Me%PropIndex%phyto,Index)        
-        
-        !mg/l assumed as non food concentration if it exists
-        if(Me%PropIndex%sediments .eq. null_int)then
-            Sediments = 0.0
-        else
-            Sediments = Me%ExternalVar%Mass(Me%PropIndex%Sediments,Index)
-        end if
-                       
         Species   => Me%FirstSpecies
 d1:     do while(associated(Species))
            
-            K_Food          = Species%IndividualParameters%K_Food
-            K_NoFood        = Species%IndividualParameters%K_NoFood
-            PAM_FIX         = Species%IndividualParameters%PAM_FIX 
+            PXM_FIX         = Species%IndividualParameters%PXM_FIX 
             mu_E            = Species%IndividualParameters%mu_E
             YEX             = Species%IndividualParameters%YEX
 
@@ -5878,53 +5891,32 @@ d1:     do while(associated(Species))
             N_AtomicMass    = Species%AuxiliarParameters%N_AtomicMass        
             TempCorrection  = Species%AuxiliarParameters%TempCorrection         
             MHb             = Species%AuxiliarParameters%MHb
-
-            !Compute food limitation factor
-            if (Me%ComputeOptions%SimpleFiltration) then
             
-                if (Me%ComputeOptions%Impose_f) then
-                    Species%AuxiliarParameters%f = Species%IndividualParameters%F_FIX             
-                else
-                    Combined_K                    = K_Food * (1 + Sediments / K_NoFood)
-                    Species%AuxiliarParameters%f  = Phyto / (Phyto + Combined_K) 
-                end if
-            
-            end if
-            
-            f = Species%AuxiliarParameters%f
-            
-            !Find ratios from food
-            Particles   => Species%FirstParticles
-            do while(associated(Particles))
-
-                if (Particles%ID%Name .eq.'phytoplankton') then
-
-                    RATIOHC =  Particles%Ratios%HC_Ratio      
-                    RATIOOC =  Particles%Ratios%OC_Ratio      
-                    RATIONC =  Particles%Ratios%NC_Ratio      
-                    RATIOPC =  Particles%Ratios%PC_Ratio      
-            
-                end if !if phytoplankton
-                
-                Particles => Particles%Next
-        
-            end do
-                
+            nH              = Species%SpeciesComposition%StructureComposition%nH
+            nO              = Species%SpeciesComposition%StructureComposition%nO
+            nP              = Species%SpeciesComposition%StructureComposition%nP
+            nN              = Species%SpeciesComposition%StructureComposition%nN
+                          
             Cohort => Species%FirstCohort
 d2:         do while(associated(Cohort))
 
                 M_H         = Cohort%StateIndex%M_H    
                 Vol         = Cohort%BivalveCondition%Vol
+                Number      = Cohort%StateIndex%Number
+                
+                Cohort%Processes%f_potential = Species%IndividualParameters%F_FIX         
+                Cohort%Processes%f_real      = Species%IndividualParameters%F_FIX         
 
-                if (Me%ExternalVar%Mass(M_H,Index) .gt. MHb) then !feeding 
-                                           
+                if (Me%ExternalVar%Mass(M_H,Index) .gt. MHb) then !feeding   
+                                      
                     !Filtration, molC/d
                     Cohort%Processes%FilteredInorganic = 0.0
-                    Cohort%Processes%FilteredFood%C    = f * PAM_FIX / mu_E * TempCorrection * Vol**(2.0/3.0) / YEX
-                    Cohort%Processes%FilteredFood%H    = Cohort%Processes%FilteredFood%C * RATIOHC / H_AtomicMass * C_AtomicMass
-                    Cohort%Processes%FilteredFood%O    = Cohort%Processes%FilteredFood%C * RATIOOC / O_AtomicMass * C_AtomicMass
-                    Cohort%Processes%FilteredFood%N    = Cohort%Processes%FilteredFood%C * RATIONC / N_AtomicMass * C_AtomicMass
-                    Cohort%Processes%FilteredFood%P    = Cohort%Processes%FilteredFood%C * RATIOPC / P_AtomicMass * C_AtomicMass
+                    Cohort%Processes%FilteredFood%C    = Cohort%Processes%f_real *    & 
+                                                          PXM_FIX / mu_E * TempCorrection * Vol**(2.0/3.0)
+                    Cohort%Processes%FilteredFood%H    = Cohort%Processes%FilteredFood%C * nH
+                    Cohort%Processes%FilteredFood%O    = Cohort%Processes%FilteredFood%C * nO
+                    Cohort%Processes%FilteredFood%N    = Cohort%Processes%FilteredFood%C * nN
+                    Cohort%Processes%FilteredFood%P    = Cohort%Processes%FilteredFood%C * nP
 
                     !Clearance rate, m3/d        
                     Cohort%Processes%ClearanceRate      = 0.0  
@@ -5946,11 +5938,11 @@ d2:         do while(associated(Cohort))
                     Cohort%Processes%PFContributionFood%P     = 0.0
 
                     !Compute Assimilation, molC/d
-                    Cohort%Processes%Assimilation%C    = f * PAM_FIX / mu_E * TempCorrection * Vol**(2.0/3.0)
-                    Cohort%Processes%Assimilation%H    = Cohort%Processes%Assimilation%C * RATIOHC / H_AtomicMass * C_AtomicMass
-                    Cohort%Processes%Assimilation%O    = Cohort%Processes%Assimilation%C * RATIOOC / O_AtomicMass * C_AtomicMass
-                    Cohort%Processes%Assimilation%N    = Cohort%Processes%Assimilation%C * RATIONC / N_AtomicMass * C_AtomicMass
-                    Cohort%Processes%Assimilation%P    = Cohort%Processes%Assimilation%C * RATIOPC / P_AtomicMass * C_AtomicMass
+                    Cohort%Processes%Assimilation%C    = Cohort%Processes%IngestionFood%C * YEX
+                    Cohort%Processes%Assimilation%H    = Cohort%Processes%IngestionFood%H * YEX
+                    Cohort%Processes%Assimilation%O    = Cohort%Processes%IngestionFood%O * YEX
+                    Cohort%Processes%Assimilation%N    = Cohort%Processes%IngestionFood%N * YEX
+                    Cohort%Processes%Assimilation%P    = Cohort%Processes%IngestionFood%P * YEX
 
                     !Compute Faecesproduction, molC/d
                     Cohort%Processes%FaecesContributionInorganic = 0.0                                
@@ -5981,9 +5973,9 @@ d2:         do while(associated(Cohort))
 
         end do d1
 
-    end subroutine ComputeSimpleFiltration
+    end subroutine ComputeImposeFiltration
 
-    !--------------------------------------------------------------------------
+   !--------------------------------------------------------------------------
 
     subroutine ImposeNoFiltrationProcess (Cohort)
 
@@ -6027,12 +6019,276 @@ d2:         do while(associated(Cohort))
         Cohort%Processes%FaecesContributionFood%O      = 0.0
         Cohort%Processes%FaecesContributionFood%N      = 0.0
         Cohort%Processes%FaecesContributionFood%P      = 0.0
+        
+        Cohort%Processes%f_potential                   = 0.0
+        Cohort%Processes%f_real                        = 0.0        
 
     end subroutine ImposeNoFiltrationProcess
 
     !--------------------------------------------------------------------------
 
-    subroutine ComputeComplexFiltration(Index)
+    subroutine ComputeSimpleFeeding (Index)
+
+        !Arguments-------------------------------------------------------------
+        integer, intent(IN)                 :: Index
+
+        !Local-----------------------------------------------------------------
+        type(T_Species)  ,   pointer        :: Species
+        type(T_Cohort)   ,   pointer        :: Cohort
+        type(T_Particles),   pointer        :: Particles
+        integer                             :: M_H, Number
+        real                                :: PXM_FIX, mu_E, YEX
+        real                                :: K_Food,K_Sed
+        real                                :: C_AtomicMass, H_AtomicMass, O_AtomicMass
+        real                                :: P_AtomicMass, N_AtomicMass
+        real                                :: RATIOHC, RATIOOC, RATIONC, RATIOPC 
+        real                                :: Vol, TempCorrection,MHb
+        real                                :: Sediments, Phyto
+        real                                :: FiltrationWish, FiltrationFraction
+
+        !Begin-----------------------------------------------------------------
+ 
+        !mgC/l, assumed as food concentration
+        Phyto = Me%ExternalVar%Mass(Me%PropIndex%phyto,Index)     
+        
+        !mg/l assumed as non food concentration if it exists
+        if(Me%PropIndex%sediments .eq. null_int)then
+            Sediments = 0.0
+        else
+            Sediments = Me%ExternalVar%Mass(Me%PropIndex%Sediments,Index)
+        end if
+        
+        call ComputeTotalFiltrationWish (Index)
+        
+        Species   => Me%FirstSpecies
+d1:     do while(associated(Species))
+           
+            K_Food          = Species%IndividualParameters%K_Food
+            K_Sed           = Species%IndividualParameters%K_Sed
+            PXM_FIX         = Species%IndividualParameters%PXM_FIX 
+            mu_E            = Species%IndividualParameters%mu_E
+            YEX             = Species%IndividualParameters%YEX
+
+            C_AtomicMass    = Species%AuxiliarParameters%C_AtomicMass        
+            H_AtomicMass    = Species%AuxiliarParameters%H_AtomicMass        
+            O_AtomicMass    = Species%AuxiliarParameters%O_AtomicMass        
+            P_AtomicMass    = Species%AuxiliarParameters%P_AtomicMass        
+            N_AtomicMass    = Species%AuxiliarParameters%N_AtomicMass        
+            TempCorrection  = Species%AuxiliarParameters%TempCorrection         
+            MHb             = Species%AuxiliarParameters%MHb
+                        
+            !Find ratios from food
+            Particles   => Species%FirstParticles
+            do while(associated(Particles))
+
+                if (Particles%ID%Name .eq.'phytoplankton') then
+
+                    RATIOHC =  Particles%Ratios%HC_Ratio      
+                    RATIOOC =  Particles%Ratios%OC_Ratio      
+                    RATIONC =  Particles%Ratios%NC_Ratio      
+                    RATIOPC =  Particles%Ratios%PC_Ratio      
+            
+                end if !if phytoplankton
+                
+                Particles => Particles%Next
+        
+            end do
+            
+            !Feeding by cohort
+            Cohort => Species%FirstCohort
+d2:         do while(associated(Cohort))
+
+                M_H         = Cohort%StateIndex%M_H    
+                Vol         = Cohort%BivalveCondition%Vol
+                Number      = Cohort%StateIndex%Number
+
+                if (Me%ExternalVar%Mass(M_H,Index) .gt. MHb) then !feeding   
+                                      
+                    !total molC per l required by this cohort = molC/d.ind
+                    FiltrationWish =  Cohort%Processes%f_potential                       &
+                                      * PXM_FIX / mu_E * TempCorrection * Vol**(2.0/3.0)              
+
+                    if (Me%ComputeOptions%CorrectFiltration .and. Me%LackOfFood == 1.0) then
+                        
+                        FiltrationFraction = FiltrationWish * C_AtomicMass * Me%ExternalVar%Mass(Number,Index) &
+                                             / Me%BivalveAux%TotalFiltrationWish
+                        
+                        
+                        !Filtration, molC/d.ind
+                        Cohort%Processes%FilteredFood%C = FiltrationFraction * Phyto / C_AtomicMass &
+                                                          / Me%ExternalVar%Mass(Number,Index) / Me%DTDay
+                    
+                        Cohort%Processes%f_real = Cohort%Processes%FilteredFood%C / &
+                                                  (PXM_FIX / mu_E * TempCorrection * Vol**(2.0/3.0))
+                     
+                    else
+                        !Filtration, molC/d
+                        Cohort%Processes%FilteredFood%C = FiltrationWish
+                        
+                        Cohort%Processes%f_real = Cohort%Processes%f_potential
+                        
+                    end if
+
+                    !Filtration, other elements mol/d
+                    Cohort%Processes%FilteredFood%H    = Cohort%Processes%FilteredFood%C * RATIOHC / H_AtomicMass * C_AtomicMass
+                    Cohort%Processes%FilteredFood%O    = Cohort%Processes%FilteredFood%C * RATIOOC / O_AtomicMass * C_AtomicMass
+                    Cohort%Processes%FilteredFood%N    = Cohort%Processes%FilteredFood%C * RATIONC / N_AtomicMass * C_AtomicMass
+                    Cohort%Processes%FilteredFood%P    = Cohort%Processes%FilteredFood%C * RATIOPC / P_AtomicMass * C_AtomicMass
+
+                    !Clearance rate, m3/d        
+                    Cohort%Processes%ClearanceRate      = 0.0  
+
+                    !Ingestion rate, molC/d        
+                    Cohort%Processes%IngestionInorganic = 0.0  
+                    Cohort%Processes%IngestionFood%C    = Cohort%Processes%FilteredFood%C
+                    Cohort%Processes%IngestionFood%H    = Cohort%Processes%FilteredFood%H
+                    Cohort%Processes%IngestionFood%O    = Cohort%Processes%FilteredFood%O
+                    Cohort%Processes%IngestionFood%N    = Cohort%Processes%FilteredFood%N
+                    Cohort%Processes%IngestionFood%P    = Cohort%Processes%FilteredFood%P
+
+                    !Pseudo-faeces contribution rate, molC/d        
+                    Cohort%Processes%PFContributionInorganic  = 0.0
+                    Cohort%Processes%PFContributionFood%C     = 0.0
+                    Cohort%Processes%PFContributionFood%H     = 0.0
+                    Cohort%Processes%PFContributionFood%O     = 0.0
+                    Cohort%Processes%PFContributionFood%N     = 0.0
+                    Cohort%Processes%PFContributionFood%P     = 0.0
+
+                    !Compute Assimilation, molC/d
+                    Cohort%Processes%Assimilation%C    = Cohort%Processes%FilteredFood%C * YEX
+                    Cohort%Processes%Assimilation%H    = Cohort%Processes%Assimilation%C * RATIOHC / H_AtomicMass * C_AtomicMass
+                    Cohort%Processes%Assimilation%O    = Cohort%Processes%Assimilation%C * RATIOOC / O_AtomicMass * C_AtomicMass
+                    Cohort%Processes%Assimilation%N    = Cohort%Processes%Assimilation%C * RATIONC / N_AtomicMass * C_AtomicMass
+                    Cohort%Processes%Assimilation%P    = Cohort%Processes%Assimilation%C * RATIOPC / P_AtomicMass * C_AtomicMass
+
+                    !Compute Faecesproduction, molC/d
+                    Cohort%Processes%FaecesContributionInorganic = 0.0                                
+                    Cohort%Processes%FaecesContributionFood%C    = Cohort%Processes%IngestionFood%C - &
+                                                                   Cohort%Processes%Assimilation%C
+                    Cohort%Processes%FaecesContributionFood%H    = Cohort%Processes%IngestionFood%H - &
+                                                                   Cohort%Processes%Assimilation%H
+                    Cohort%Processes%FaecesContributionFood%O    = Cohort%Processes%IngestionFood%O - &
+                                                                   Cohort%Processes%Assimilation%O
+                    Cohort%Processes%FaecesContributionFood%N    = Cohort%Processes%IngestionFood%N - &
+                                                                   Cohort%Processes%Assimilation%N
+                    Cohort%Processes%FaecesContributionFood%P    = Cohort%Processes%IngestionFood%P - &
+                                                                   Cohort%Processes%Assimilation%P
+
+                else ! if not (M_H .gt. MHb), dont feed
+
+                    call ImposeNoFiltrationProcess (Cohort)
+
+                end if !(M_H .gt. MHb) feeding
+
+                Cohort%FeedingOn = 0.0
+
+                Cohort => Cohort%Next
+
+            end do d2
+
+            Species => Species%Next
+
+        end do d1
+
+    end subroutine ComputeSimpleFeeding
+
+     !--------------------------------------------------------------------------
+
+    subroutine ComputeTotalFiltrationWish (Index)
+
+        !Arguments-------------------------------------------------------------
+        integer, intent(IN)                 :: Index
+
+        !Local-----------------------------------------------------------------
+        type(T_Species)  ,   pointer        :: Species
+        type(T_Cohort)   ,   pointer        :: Cohort
+        integer                             :: M_H, Number
+        real                                :: PXM_FIX, mu_E, YEX
+        real                                :: Combined_K,K_Food,K_Sed
+        real                                :: Vol, TempCorrection,MHb, C_AtomicMass
+        real                                :: Sediments, Phyto
+        real                                :: CohortPotentialFiltration, TotalFiltration
+        real                                :: TotalFiltrationInTimeStep
+
+        !Begin-----------------------------------------------------------------
+ 
+        !mg/l, assumed as food concentration
+        Phyto       = Me%ExternalVar%Mass(Me%PropIndex%phyto,Index)
+        
+        Me%LackOfFood = 0.0      
+        
+        !mg/l assumed as non food concentration if it exists
+        if(Me%PropIndex%sediments .eq. null_int)then
+            Sediments = 0.0
+        else
+            Sediments = Me%ExternalVar%Mass(Me%PropIndex%Sediments,Index)
+        end if
+        
+        TotalFiltration = 0.0
+        Species   => Me%FirstSpecies
+d1:     do while(associated(Species))
+           
+            K_Food          = Species%IndividualParameters%K_Food
+            K_Sed           = Species%IndividualParameters%K_Sed
+            PXM_FIX         = Species%IndividualParameters%PXM_FIX 
+            mu_E            = Species%IndividualParameters%mu_E
+            YEX             = Species%IndividualParameters%YEX
+
+            TempCorrection  = Species%AuxiliarParameters%TempCorrection         
+            MHb             = Species%AuxiliarParameters%MHb
+            C_AtomicMass    = Species%AuxiliarParameters%C_AtomicMass        
+
+
+            !Compute food limitation factor
+            Combined_K  = K_Food * (1 + Sediments / K_Sed)
+                                            
+            !Compute TotalFiltration
+            Cohort => Species%FirstCohort
+d2:         do while(associated(Cohort))
+
+                M_H         = Cohort%StateIndex%M_H    
+                Vol         = Cohort%BivalveCondition%Vol
+                Number      = Cohort%StateIndex%Number
+                
+                Cohort%Processes%f_potential = Phyto / (Phyto + Combined_K)
+
+                if (Me%ExternalVar%Mass(M_H,Index) .gt. MHb) then !feeding   
+                                           
+                    !Filtration, molC/d.ind
+                    CohortPotentialFiltration =  Cohort%Processes%f_potential    *  &
+                                                 PXM_FIX / mu_E * TempCorrection * Vol**(2.0/3.0)
+                    
+                    !total Filtration, mgC/d                    
+                    TotalFiltration    = TotalFiltration + CohortPotentialFiltration * &
+                                         C_AtomicMass * Me%ExternalVar%Mass(Number,Index)
+
+                end if !(M_H .gt. MHb) feeding
+
+                Cohort => Cohort%Next
+
+            end do d2
+
+            Species => Species%Next
+
+        end do d1
+
+        !total filtration, mgC/d
+        Me%BivalveAux%TotalFiltrationWish = TotalFiltration
+        
+        !Check if there is lack of food
+        !Total need in the time step, mgC
+        TotalFiltrationInTimeStep = Me%BivalveAux%TotalFiltrationWish * Me%DTDay
+            
+        !Is there a lack of food?
+        if (Phyto .lt. TotalFiltrationInTimeStep) then
+            Me%LackOfFood = 1.0
+        end if
+
+
+    end subroutine ComputeTotalFiltrationWish
+   !--------------------------------------------------------------------------
+
+    subroutine ComputeComplexFeeding(Index)
 
         !Arguments-------------------------------------------------------------
         integer, intent(IN)             :: Index
@@ -6041,7 +6297,6 @@ d2:         do while(associated(Cohort))
         type(T_Species),    pointer     :: Species
 
         !Begin-----------------------------------------------------------------
-
 
         Me%LackOfFood = 0.0      
         
@@ -6067,7 +6322,7 @@ d2:         do while(associated(Cohort))
             Species => Species%Next
         end do 
 
-    end subroutine ComputeComplexFiltration
+    end subroutine ComputeComplexFeeding
 
     !--------------------------------------------------------------------------
 
@@ -6243,7 +6498,7 @@ d2:         do while(associated(Cohort))
 
                 if (Me%ExternalVar%Mass(M_H,Index) .gt. MHb) then !feeding
                 
-                    if ((Species%FeedOnLarvae) .and. (.not.(Cohort%Larvae))) then
+                    if ((Species%FeedOnLarvae) .and. (.not.(Cohort%IsLarvae))) then
                     !this cohort will feed on larvae and clearance rate computed using the denominator with larvae
                         
                         Cohort%Processes%ClearanceRate = Crm * Tempcorrection * Vol**(2.0/3.0) / CrDenominator_Withlarvae 
@@ -6494,7 +6749,7 @@ d2:         do while(associated(Cohort))
                     Number = Cohort%StateIndex%Number    
                     L      = Cohort%StateIndex%L 
                                         
-                    if (Particles%Larvae .and. Cohort%Larvae) then 
+                    if (Particles%Larvae .and. Cohort%IsLarvae) then 
                     !this cohort does not feed on larvae if it is a larvae
                         
                         FilteredByCohort = 0.0
@@ -6581,11 +6836,12 @@ d2:         do while(associated(Cohort))
         type(T_Cohort)   ,       pointer     :: Cohort
         type(T_Particles),       pointer     :: Particles
         real                                 :: ro_X1, ro_X0, JX1Im, JX0Im, YEX
-        integer                              :: par
+        integer                              :: par, Vol
         real                                 :: IngDenominator !, ComputedYEX
         real                                 :: FilteredByCohort,IngestedByCohort, AssimilatedByCohort
         real                                 :: r_C, r_N, r_P
         real                                 :: AssimilatedStructure, AssimilatedReserves
+        real                                 :: PXM_FIX, mu_E, TempCorrection
 
         !Begin-----------------------------------------------------------------
 
@@ -6594,12 +6850,19 @@ d2:         do while(associated(Cohort))
         JX1Im          = Species%IndividualParameters%JX1Im      
         JX0Im          = Species%IndividualParameters%JX0Im
         YEX            = Species%IndividualParameters%YEX
+        PXM_FIX        = Species%IndividualParameters%PXM_FIX 
+        mu_E           = Species%IndividualParameters%mu_E
+        TempCorrection  = Species%AuxiliarParameters%TempCorrection         
+
 
         !Compute ingestion and assimilation, molC/d/individual
         Cohort => Species%FirstCohort
         do while(associated(Cohort))
         
             if (Cohort%Dead .eq. 0) then
+                
+                Vol    = Cohort%BivalveCondition%Vol        
+
 
                 !Because ro_Xi and JXiIm are the same for all organic particles
                 IngDenominator = 1 + (ro_X1 * Cohort%Processes%FilteredFood%C)    / JX1Im    + &
@@ -6775,8 +7038,17 @@ d2:         do while(associated(Cohort))
 
                     Particles => Particles%Next
 
-                end do     
+                end do 
+                
+                !food limitation computed based on the total food he got
+                Cohort%Processes%f_real  = Cohort%Processes%FilteredFood%C / &
+                                           (PXM_FIX / mu_E * TempCorrection * Vol**(2.0/3.0))
+                
+                Cohort%Processes%f_potential  = 0.0
+
             endif !Cohort%Dead
+            
+            
             Cohort => Cohort%Next
         end do 
         
@@ -8263,7 +8535,7 @@ d1:     do while(associated(Species))
             Cohort => Species%FirstCohort
 d2:         do while(associated(Cohort))
 
-                    if ((.not. Cohort%Larvae ) .and. & 
+                    if ((.not. Cohort%IsLarvae ) .and. & 
                        (Me%ExternalVar%Mass(Cohort%StateIndex%Number,Index) .lt. Me%MinNumber)) then
 
                     if (Cohort%Dead .eq. 0 ) then 
@@ -8945,20 +9217,20 @@ d2:             do while(associated(Cohort))
                     Age     = Cohort%StateIndex%Age
                     Number  = Cohort%StateIndex%Number
 
-!        OuputHeader = " Seconds_1 YY_2 MM_3 DD_4 hh_5 mm_6 ss_7 "            // &
-!                      "Number_8 ME_9 MV_10 MH_11 MR_12 L_13 A_14 Cr_15 "    // &
-!                      "FInorg_16 F_17 IInorg_18 I_19 PFInorg_20 "           // &
-!                      "PF_21 Ass_22 FAEIng_23 FAE_24 JEM_25 "               // &
-!                      "JE_26 dE_27 GamLoss_28 StruLoss_29 JV_30 "           // &
-!                      "JH_31 MatLoss_32 JS_33 Gam_34 JR_35 "                // &
-!                      "CO2_36 H2O_37 O2_38 NH3_39 PO4_40 "                  // &
-!                      "m_A_41 m_O_42 m_F_43 m_nat_44 m_shr_45 "             // &
-!                      "m_cra_46 m_oys_47 m_duck_48 m_gull_49 m_low_50 "     // &
-!                      "m_self_51 m_others_52 m_vel_53 m_settle_54 ScaledE_55  f_56"
+        !OuputHeader = " Seconds_1 YY_2 MM_3 DD_4 hh_5 mm_6 ss_7 "           // &
+        !              "Number_8 ME_9 MV_10 MH_11 MR_12 L_13 A_14 Cr_15 "    // &
+        !              "FInorg_16 F_17 IInorg_18 I_19 PFInorg_20 "           // &
+        !              "PF_21 Ass_22 FAEIng_23 FAE_24 JEM_25 "               // &
+        !              "JE_26 dE_27 GamLoss_28 StruLoss_29 JV_30 "           // &
+        !              "MatLoss_31 JS_32 Gam_33 JR_34 "                      // &
+        !              "CO2_35 H2O_36 O2_37 NH3_38 PO4_39 "                  // &
+        !              "m_A_40 m_O_41 m_F_42 m_nat_43 m_shr_44 "             // &
+        !              "m_cra_45 m_oys_46 m_duck_47 m_gull_48 m_low_49 "     // &
+        !              "m_self_50 m_others_51 m_vel_52 m_settle_53 fpot54 freal55"
 
                     102 format( F16.2  , 1x, I4   , 1x, I2,    1x, I2,    1x, I2,    1x, I2,    1x, I2, 1x          , &  !7
-                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                                      , &  !11
-                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !15
+                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !12
+                                E20.13, 1x, E20.13, 1x, E20.13, 1x                                                  , &  !15
                                 E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !20
                                 E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !25
                                 E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !30
@@ -8966,25 +9238,25 @@ d2:             do while(associated(Cohort))
                                 E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !40
                                 E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !45
                                 E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          , &  !50
-                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x,E20.13, 1x)                               !56
+                                E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x)                              !55
 
-                    write(Cohort%CohortOutput%Unit(iIndexOutput), 102) TotalSeconds, int(Year), int(Month), int(Day) ,& !1,2,3
-                                    int(hour), int(minute), int(second)                                              ,& !4,5,6
-                                    Me%ExternalVar%Mass(Number,Index)          /Factor                               ,& !7, #/m2
-                                    Me%ExternalVar%Mass(M_E,Index)                                                   ,& !8
-                                    Me%ExternalVar%Mass(M_V,Index)        , Me%ExternalVar%Mass(M_H,Index)           ,& !9,10    
-                                    Me%ExternalVar%Mass(M_R,Index)        , Me%ExternalVar%Mass(L,Index)             ,& !11,12    
-                                    Me%ExternalVar%Mass(Age,Index)/365.                                                   ,& !13
-                                    Cohort%Processes%ClearanceRate        , Cohort%Processes%FilteredInorganic       ,& !14,15    
-                                    Cohort%Processes%FilteredFood%C       , Cohort%Processes%IngestionInorganic      ,& !16,17
-                                    Cohort%Processes%IngestionFood%C      , Cohort%Processes%PFContributionInorganic ,& !18,19
-                                    Cohort%Processes%PFContributionFood%C , Cohort%Processes%Assimilation%C          ,& !20,21
-                                    Cohort%Processes%FaecesContributionInorganic                                     ,& !22
-                                    Cohort%Processes%FaecesContributionFood%C                                        ,& !23
-                                    Cohort%Processes%SomaticMaintenance   , Cohort%Processes%Mobilization            ,& !24,25    
-                                    Cohort%Processes%ReservesDynamics     , Cohort%Processes%GametesLoss             ,& !26,27    
-                                    Cohort%Processes%StructureLoss        , Cohort%Processes%StructureDynamics       ,& !28,29    
-                                    Cohort%Processes%MaturityDynamics     , Cohort%Processes%MaturityLoss            ,& !30,31    
+                    write(Cohort%CohortOutput%Unit(iIndexOutput), 102) TotalSeconds, int(Year), int(Month), int(Day) ,& !1,2,3,4
+                                    int(hour), int(minute), int(second)                                              ,& !5,6,7
+                                    Me%ExternalVar%Mass(Number,Index)          /Factor                               ,& !8, #/m2
+                                    Me%ExternalVar%Mass(M_E,Index)                                                   ,& !9
+                                    Me%ExternalVar%Mass(M_V,Index)        , Me%ExternalVar%Mass(M_H,Index)           ,& !10,11    
+                                    Me%ExternalVar%Mass(M_R,Index)        , Me%ExternalVar%Mass(L,Index)             ,& !12,13    
+                                    Me%ExternalVar%Mass(Age,Index)/365.                                              ,& !14
+                                    Cohort%Processes%ClearanceRate        , Cohort%Processes%FilteredInorganic       ,& !15,16   
+                                    Cohort%Processes%FilteredFood%C       , Cohort%Processes%IngestionInorganic      ,& !17,18
+                                    Cohort%Processes%IngestionFood%C      , Cohort%Processes%PFContributionInorganic ,& !19,20
+                                    Cohort%Processes%PFContributionFood%C , Cohort%Processes%Assimilation%C          ,& !21,22
+                                    Cohort%Processes%FaecesContributionInorganic                                     ,& !23
+                                    Cohort%Processes%FaecesContributionFood%C                                        ,& !24
+                                    Cohort%Processes%SomaticMaintenance   , Cohort%Processes%Mobilization            ,& !25,26    
+                                    Cohort%Processes%ReservesDynamics     , Cohort%Processes%GametesLoss             ,& !27,28    
+                                    Cohort%Processes%StructureLoss        , Cohort%Processes%StructureDynamics       ,& !29,30    
+                                    Cohort%Processes%MaturityLoss                                                    ,& !31    
                                     Cohort%Processes%Spawning             , Cohort%Processes%GametesToRelease        ,& !32,33    
                                     Cohort%Processes%ReproductionDynamics , Cohort%Processes%InorganicFluxes%CO2     ,& !34,35
                                     Cohort%Processes%InorganicFluxes%H2O  , Cohort%Processes%InorganicFluxes%O2      ,& !36,37
@@ -9003,8 +9275,9 @@ d2:             do while(associated(Cohort))
                                     Cohort%Processes%DeathByLarvaePredationByOthers /Factor                          ,& !51, #.d/m2
                                     Cohort%Processes%DeathByVelocity                /Factor                          ,& !52, #.d/m2
                                     Cohort%Processes%DeathByWrongSettlement         /Factor                          ,& !53, #.d/m2
-                                    Cohort%BivalveCondition%ScaledE                                                  ,& !54, #.d/m2
-                                    Species%AuxiliarParameters%f                                                        !55, adim
+                                    !Cohort%BivalveCondition%ScaledE                                                  ,& !54, #.d/m2
+                                    Cohort%Processes%f_potential                                                     ,&   !54, adim
+                                    Cohort%Processes%f_real                                                              !55, adim
 
                     Cohort => Cohort%Next
                 end do d2
@@ -9029,8 +9302,8 @@ d2:             do while(associated(Cohort))
 !                                " InitialPhyto InitialShrimp"                                       // &
 !                                " MaxLength MaxTNFiels SpawningEvents"
 
-                103 format( F16.2,  1x, I4,     1x, I2,     1x, I2,     1x, I2,     1x, I2,    1x, I2, 1x       ,&  !6
-                            E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !10
+                103 format( F16.2,  1x, I4,     1x, I2,     1x, I2,     1x, I2,     1x, I2,    1x, I2, 1x       ,&  !7
+                            E20.13, 1x, E20.13, 1x, E20.13, 1x                                                  ,&  !10
                             E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !15
                             E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !20
                             E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !25
@@ -9042,45 +9315,45 @@ d2:             do while(associated(Cohort))
                             E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !55 
                             E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !60 
                             E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x, E20.13, 1x                          ,&  !65 
-                            E20.13, 1x, I4, 1x)                                                                     !66,67
+                            E20.13, 1x, E20.13, 1x, I4, 1x)                                                         !66,67,68
                 
                 write(Species%PopulationOutput%Unit(iIndexOutput), 103) TotalSeconds                           ,& !1
                     int(Year), int(Month), int(Day),int(hour), int(minute), int(second)                        ,& !2 to 7
-                    Population%TN/Factor         , Population%NCoh                                             ,& !7to8, #/m2
-                    Population%TBio/Factor       , Population%Cr/Factor                                        ,& !9to10 molC/m2
-                    Population%Fil               , Population%Ing             , Population%Ass                 ,& !11,12,13 molC/m3
-                    Population%CO2               , Population%H2O             , Population%O                   ,& !14,15,16 mol/m3
-                    Population%NH3               , Population%PO4                                              ,& !17,18, mol/m3
-                    Me%LackOfFood                                                                              ,& !19
-                    Population%m_A/Factor        , Population%m_O/Factor      , Population%m_F/Factor          ,& !20,21 22#/d.m2
-                    Population%m_nat/Factor      , Population%m_shr/Factor    , Population%m_cra               ,& !23,24 25 #/d.m2
-                    Population%m_oys/Factor      , Population%m_duck/Factor   , Population%m_gull/Factor       ,& !26,27 28,#/d.m2
-                    Population%m_low/Factor      , Population%m_self/Factor   , Population%m_vel/Factor        ,& !29 30 31,#/d.m2
-                    Population%m_settle/Factor   , Population%m_others/Factor                                  ,& !32 33,#/d.m2    
-                    Population%SumAllMortalityInMass(1) /Factor  , Population%SumAllMortalityInMass(2) /Factor ,& !34 35,#/d.m2    
-                    Population%SumAllMortalityInMass(3) /Factor  , Population%SumAllMortalityInMass(4) /Factor ,& !36 37,#/d.m2    
-                    Population%SumAllMortalityInMass(5) /Factor  , Population%SumAllMortalityInMass(6) /Factor ,& !38 39,#/d.m2    
-                    Population%SumAllMortalityInMass(7) /Factor  , Population%SumAllMortalityInMass(8) /Factor ,& !40 41,#/d.m2
-                    Population%SumAllMortalityInMass(9) /Factor  , Population%SumAllMortalityInMass(10)/Factor ,& !42 43,#/d.m2
-                    Population%SumAllMortalityInMass(11)/Factor , Population%SumAllMortalityInMass(12) /Factor ,& !44 45,#/d.m2
-                    Population%SumAllMortalityInMass(13)/Factor , Population%SumAllMortalityInMass(14) /Factor ,& !46 47,#/d.m2
-                    Population%AverageMortalityInNumbers(1) /Factor                                            ,& !48 ,#/d.m2  
-                    Population%AverageMortalityInNumbers(2) /Factor                                            ,& !49 ,#/d.m2   
-                    Population%AverageMortalityInNumbers(3) /Factor                                            ,& !50 ,#/d.m2   
-                    Population%AverageMortalityInNumbers(4) /Factor                                            ,& !51 ,#/d.m2
-                    Population%AverageMortalityInNumbers(5) /Factor                                            ,& !52 ,#/d.m2   
-                    Population%AverageMortalityInNumbers(6) /Factor                                            ,& !53 ,#/d.m2   
-                    Population%AverageMortalityInNumbers(7) /Factor                                            ,& !54 ,#/d.m2
-                    Population%AverageMortalityInNumbers(8) /Factor                                            ,& !55 ,#/d.m2
-                    Population%AverageMortalityInNumbers(9) /Factor                                            ,& !56 ,#/d.m2
-                    Population%AverageMortalityInNumbers(10)/Factor                                            ,& !57 ,#/d.m2
-                    Population%AverageMortalityInNumbers(11)/Factor                                            ,& !58 ,#/d.m2
-                    Population%AverageMortalityInNumbers(12)/Factor                                            ,& !59 ,#/d.m2
-                    Population%AverageMortalityInNumbers(13)/Factor                                            ,& !60 ,#/d.m2
-                    Population%AverageMortalityInNumbers(14)/Factor                                            ,& !61 ,#/d.m2
-                    Population%TNField                      /Factor                                            ,& !62 ,#/d.m2
-                    Me%ExternalVar%InitialPhyto(Index), Me%ExternalVar%InitialShrimp(Index)                    ,& !63 64
-                    Population%MaxLength , Me%MaxTNField/Factor , Population%nSpawning                            !65, 66, 67
+                    Population%TN/Factor         , Population%NCoh                                             ,& !8to9, #/m2
+                    Population%TBio/Factor       , Population%Cr/Factor                                        ,& !10to11 molC/m2
+                    Population%Fil               , Population%Ing             , Population%Ass                 ,& !12,13,14 molC/m3
+                    Population%CO2               , Population%H2O             , Population%O                   ,& !15,16,17 mol/m3
+                    Population%NH3               , Population%PO4                                              ,& !18,19, mol/m3
+                    Me%LackOfFood                                                                              ,& !20
+                    Population%m_A/Factor        , Population%m_O/Factor      , Population%m_F/Factor          ,& !21,22 23#/d.m2
+                    Population%m_nat/Factor      , Population%m_shr/Factor    , Population%m_cra               ,& !24,25 26 #/d.m2
+                    Population%m_oys/Factor      , Population%m_duck/Factor   , Population%m_gull/Factor       ,& !27,28 29,#/d.m2
+                    Population%m_low/Factor      , Population%m_self/Factor   , Population%m_vel/Factor        ,& !30 31 32,#/d.m2
+                    Population%m_settle/Factor   , Population%m_others/Factor                                  ,& !33 34,#/d.m2    
+                    Population%SumAllMortalityInMass(1) /Factor  , Population%SumAllMortalityInMass(2) /Factor ,& !35 36,#/d.m2    
+                    Population%SumAllMortalityInMass(3) /Factor  , Population%SumAllMortalityInMass(4) /Factor ,& !37 38,#/d.m2    
+                    Population%SumAllMortalityInMass(5) /Factor  , Population%SumAllMortalityInMass(6) /Factor ,& !39 40,#/d.m2    
+                    Population%SumAllMortalityInMass(7) /Factor  , Population%SumAllMortalityInMass(8) /Factor ,& !41 42,#/d.m2
+                    Population%SumAllMortalityInMass(9) /Factor  , Population%SumAllMortalityInMass(10)/Factor ,& !43 44,#/d.m2
+                    Population%SumAllMortalityInMass(11)/Factor , Population%SumAllMortalityInMass(12) /Factor ,& !45 46,#/d.m2
+                    Population%SumAllMortalityInMass(13)/Factor , Population%SumAllMortalityInMass(14) /Factor ,& !47 48,#/d.m2
+                    Population%AverageMortalityInNumbers(1) /Factor                                            ,& !49 ,#/d.m2  
+                    Population%AverageMortalityInNumbers(2) /Factor                                            ,& !50 ,#/d.m2   
+                    Population%AverageMortalityInNumbers(3) /Factor                                            ,& !51 ,#/d.m2   
+                    Population%AverageMortalityInNumbers(4) /Factor                                            ,& !52 ,#/d.m2
+                    Population%AverageMortalityInNumbers(5) /Factor                                            ,& !53 ,#/d.m2   
+                    Population%AverageMortalityInNumbers(6) /Factor                                            ,& !54 ,#/d.m2   
+                    Population%AverageMortalityInNumbers(7) /Factor                                            ,& !55 ,#/d.m2
+                    Population%AverageMortalityInNumbers(8) /Factor                                            ,& !56 ,#/d.m2
+                    Population%AverageMortalityInNumbers(9) /Factor                                            ,& !57 ,#/d.m2
+                    Population%AverageMortalityInNumbers(10)/Factor                                            ,& !58 ,#/d.m2
+                    Population%AverageMortalityInNumbers(11)/Factor                                            ,& !59 ,#/d.m2
+                    Population%AverageMortalityInNumbers(12)/Factor                                            ,& !60 ,#/d.m2
+                    Population%AverageMortalityInNumbers(13)/Factor                                            ,& !61 ,#/d.m2
+                    Population%AverageMortalityInNumbers(14)/Factor                                            ,& !62 ,#/d.m2
+                    Population%TNField                      /Factor                                            ,& !63 ,#/d.m2
+                    Me%ExternalVar%InitialPhyto(Index), Me%ExternalVar%InitialShrimp(Index)                    ,& !64 65
+                    Population%MaxLength , Me%MaxTNField/Factor , Population%nSpawning                            !66, 67, 68
         
                 if (Species%BySizeOutput) then
 

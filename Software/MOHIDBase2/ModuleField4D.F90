@@ -193,6 +193,9 @@ Module ModuleField4D
         logical                                                    :: ExtractPhaseReal  = .false.
         character(Len=WaveNameLength)                              :: ExtractWave       = null_str
         character(Len=StringLength)                                :: FieldNameDim      = null_str
+        logical                                                    :: SlowStartON       = .false.
+        real                                                       :: SlowStartPeriod   = null_real 
+        real                                                       :: DT                = null_real 
     end type T_Harmonics     
 
 
@@ -329,6 +332,7 @@ Module ModuleField4D
         
         type (T_Time)                               :: StartTime
         type (T_Time)                               :: EndTime
+        real                                        :: DT                   = null_real
         type (T_Time)                               :: CurrentTimeExt
         type (T_Time)                               :: CurrentTimeInt
         type (T_ExternalVar)                        :: ExternalVar
@@ -1750,6 +1754,9 @@ wwd1:       if (Me%WindowWithData) then
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR130'    
         
         if (PropField%Harmonics%ON) then
+        
+            PropField%From2Dto3D = .true.
+        
             call GetData(PropField%Harmonics%Extract,                                   &
                          Me%ObjEnterData , iflag,                                       &
                          SearchType   = ExtractType,                                    &
@@ -1809,7 +1816,35 @@ wwd1:       if (Me%WindowWithData) then
                              STAT         = STAT_CALL)                                      
                 if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR190'
             endif 
-
+            
+            call GetData(PropField%Harmonics%SlowStartPeriod,                           &
+                            Me%ObjEnterData , iflag,                                    &
+                            SearchType   = ExtractType,                                 &
+                            keyword      = 'SLOWSTART',                                 &
+                            default      =  FillValueReal,                              &
+                            ClientModule = 'ModuleField4D',                             &
+                            STAT         = STAT_CALL)                                      
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR195'     
+            
+            if (iflag == 1) then
+                PropField%Harmonics%SlowStartON = .true.
+                if (PropField%Harmonics%SlowStartPeriod > Me%EndTime - Me%StartTime) then
+                    write(*,*) 'SlowStartPeriod > RunPeriod'
+                    write(*,*) 'Property name =', trim(PropField%ID%Name)
+                endif
+            else
+                PropField%Harmonics%SlowStartON = .false.  
+            endif
+            
+            call GetData(PropField%Harmonics%DT,                                        &
+                            Me%ObjEnterData , iflag,                                    &
+                            SearchType   = ExtractType,                                 &
+                            keyword      = 'HARMONICS_DT',                              &
+                            default      =  900.,                                       &
+                            ClientModule = 'ModuleField4D',                             &
+                            STAT         = STAT_CALL)                                      
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR197'                 
+            
         endif
         
         if (LastGroupEqualField)                                                        &
@@ -2428,6 +2463,9 @@ flo:            if (Me%File%FileListON) then
                                                 EndTime = Me%EndTime, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR190'
         
+        call GetComputeTimeStep(Me%ObjTime, DT = Me%DT, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR195'
+        
         call GetData(Me%File%LonStagName,                                               &
                      Me%ObjEnterData,  iflag,                                           &
                      SearchType     = ExtractType,                                      &
@@ -2853,6 +2891,13 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             IUB = Me%Size2D%IUB
             JLB = Me%Size2D%JLB
             JUB = Me%Size2D%JUB
+            
+
+            allocate(NewPropField%PreviousField2D (ILB:IUB, JLB:JUB))
+            allocate(NewPropField%NextField2D     (ILB:IUB, JLB:JUB))
+
+            NewPropField%PreviousField2D(:,:) = FillValueReal
+            NewPropField%NextField2D    (:,:) = FillValueReal            
 
             if (.not.Associated(Me%Matrix2D)) then
                 allocate(Me%Matrix2D(ILB:IUB, JLB:JUB))
@@ -2866,8 +2911,21 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
 
             call ReadValues2DHarmonics(NewPropField)
             
+            if (Me%Backtracking) then            
+                stop 'ModuleField4D - ConstructPropertyFieldHarmonics -ERR10'
+            endif
+            
+            NewPropField%PreviousTime = Me%StartTime
+            NewPropField%NextTime     = Me%StartTime + NewPropField%Harmonics%DT
+            
             if (.not.NewPropField%Harmonics%Extract) then
-                call FromHarmonics2Field2D(NewPropField, CurrentTime) 
+            
+                call FromHarmonics2Field2D(NewPropField, CurrentTime = NewPropField%PreviousTime) 
+                NewPropField%PreviousField2D(:,:) = Me%Matrix2D(:,:)
+                
+                call FromHarmonics2Field2D(NewPropField, CurrentTime = NewPropField%NextTime)                 
+                NewPropField%NextField2D    (:,:) = Me%Matrix2D(:,:)
+                !call ModifyInputHarmonics2D(NewPropField)
             endif
 
         else i0
@@ -3789,13 +3847,13 @@ d2:     do N =1, NW
 
         !Arguments-------------------------------------------------------------
         type (T_PropField), pointer             :: NewPropField                
-        type (T_Time)                           :: CurrentTime
+        type (T_Time), optional                 :: CurrentTime
        
         !Local-----------------------------------------------------------------
         real, dimension(:  ),   pointer         :: Amplitude, Phase
         real, dimension(:,:)  , pointer         :: Field
         integer                                 :: STAT_CALL, ILB, IUB, JLB, JUB, NW, i, j, n
-        real                                    :: T1, T2, T3, StateDT
+        real                                    :: T1, T2, T3, StateDT, DT_Run, Coef
 
         !Begin-----------------------------------------------------------------
        
@@ -3826,13 +3884,12 @@ if1:    if (NewPropField%Harmonics%Extract) then
             endif                
         
         else   if1
-        
+            
             do i = ILB,IUB
             do j = JLB,JUB
 
                 Amplitude   => NewPropField%Harmonics%Amplitude2D(i, j, :)
                 Phase       => NewPropField%Harmonics%Phase2D    (i, j, :)   
-                
 
 #ifndef _NOT_IEEE_ARITHMETIC
                 do n=1,NW
@@ -3843,14 +3900,14 @@ if1:    if (NewPropField%Harmonics%Extract) then
                 if (sum(Amplitude(1:NW))>0.) then             
                 
                     
-                    call Task2000Level(WaterLevel       = T2,                                       &
-                                       TimeReference    = NewPropField%Harmonics%TimeReference,     &
-                                       NWaves           = NewPropField%Harmonics%Number,            &
-                                       WaveAmplitude    = Amplitude,                                &
-                                       WavePhase        = Phase,                                    &
-                                       WaveName         = NewPropField%Harmonics%WaveName,          & 
-                                       time_            = CurrentTime,                              &
-                                       STAT             = STAT_CALL)
+                    call Task2000Level(WaterLevel       = T2,                                   &
+                                        TimeReference    = NewPropField%Harmonics%TimeReference,&
+                                        NWaves           = NewPropField%Harmonics%Number,       &
+                                        WaveAmplitude    = Amplitude,                           &
+                                        WavePhase        = Phase,                               &
+                                        WaveName         = NewPropField%Harmonics%WaveName,     & 
+                                        time_            = CurrentTime,                         &
+                                        STAT             = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)stop 'FromHarmonics2Field2D - ModuleField4D - ERR10'  
 
                     Field(i, j) = T2 + NewPropField%Harmonics%Residual2D(i, j)          
@@ -3859,25 +3916,25 @@ if1:    if (NewPropField%Harmonics%Extract) then
                     
                         StateDT = NewPropField%Harmonics%TideStateDT
 
-                        call Task2000Level(WaterLevel       = T1,                                       &
-                                           TimeReference    = NewPropField%Harmonics%TimeReference,     &
-                                           NWaves           = NewPropField%Harmonics%Number,            &
-                                           WaveAmplitude    = Amplitude,                                &
-                                           WavePhase        = Phase,                                    &
-                                           WaveName         = NewPropField%Harmonics%WaveName,          & 
-                                           time_            = CurrentTime - StateDT,                    &
-                                           STAT             = STAT_CALL)
+                        call Task2000Level(WaterLevel       = T1,                                   &
+                                            TimeReference    = NewPropField%Harmonics%TimeReference,&
+                                            NWaves           = NewPropField%Harmonics%Number,       &
+                                            WaveAmplitude    = Amplitude,                           &
+                                            WavePhase        = Phase,                               &
+                                            WaveName         = NewPropField%Harmonics%WaveName,     & 
+                                            time_            = CurrentTime - StateDT,               &
+                                            STAT             = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)stop 'FromHarmonics2Field2D - ModuleField4D - ERR10'  
                         
              
-                        call Task2000Level(WaterLevel       = T3,                                       &
-                                           TimeReference    = NewPropField%Harmonics%TimeReference,     &
-                                           NWaves           = NewPropField%Harmonics%Number,            &
-                                           WaveAmplitude    = Amplitude,                                &
-                                           WavePhase        = Phase,                                    &
-                                           WaveName         = NewPropField%Harmonics%WaveName,          & 
-                                           time_            = CurrentTime + StateDT,                    &
-                                           STAT             = STAT_CALL)
+                        call Task2000Level(WaterLevel       = T3,                                   &
+                                            TimeReference    = NewPropField%Harmonics%TimeReference,&
+                                            NWaves           = NewPropField%Harmonics%Number,       &
+                                            WaveAmplitude    = Amplitude,                           &
+                                            WavePhase        = Phase,                               &
+                                            WaveName         = NewPropField%Harmonics%WaveName,     & 
+                                            time_            = CurrentTime + StateDT,               &
+                                            STAT             = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)stop 'FromHarmonics2Field2D - ModuleField4D - ERR10'  
                     
                         
@@ -3901,46 +3958,72 @@ if1:    if (NewPropField%Harmonics%Extract) then
                     Field(i, j) = FillValueReal
                     
                 endif                
+                
+                nullify(Amplitude)
+                nullify(Phase    )            
+
             enddo
             enddo
             
+            if(NewPropField%HasMultiplyingFactor)then
+                do j = JLB, JUB
+                do i = ILB, IUB
+                    Field(i,j) = Field(i,j) * NewPropField%MultiplyingFactor
+                enddo
+                enddo
+            end if
+
+            if(NewPropField%HasAddingFactor)then
+                do j = JLB, JUB
+                do i = ILB, IUB
+                    Field(i,j) = Field(i,j) + NewPropField%AddingFactor
+                enddo
+                enddo
+            end if
+        
+            if(NewPropField%MinValueON)then
+                do j = JLB, JUB
+                do i = ILB, IUB
+                    if (Field(i,j) < NewPropField%MinValue) then
+                        Field(i,j) = NewPropField%MinValue
+                    endif
+                enddo
+                enddo
+            end if        
+
+            if(NewPropField%MaxValueON)then
+                do j = JLB, JUB
+                do i = ILB, IUB
+                    if (Field(i,j) > NewPropField%MaxValue) then
+                        Field(i,j) = NewPropField%MaxValue
+                    endif
+                enddo
+                enddo
+            end if        
+        
+        
+    iso:    if (NewPropField%Harmonics%SlowStartON) then
+        
+                DT_Run = CurrentTime -  Me%StartTime
+
+                if (DT_Run < NewPropField%Harmonics%SlowStartPeriod) then
+
+                    Coef = (DT_Run / NewPropField%Harmonics%SlowStartPeriod) ** 2. 
+
+                    do j = JLB, JUB
+                    do i = ILB, IUB
+                        Field(i,j) = Field(i,j) * Coef
+                    enddo
+                    enddo
+
+                endif        
+                
+            endif  iso        
+            
+
+            
         endif if1                        
     
-        if(NewPropField%HasMultiplyingFactor)then
-            do j = JLB, JUB
-            do i = ILB, IUB
-                Field(i,j) = Field(i,j) * NewPropField%MultiplyingFactor
-            enddo
-            enddo
-        end if
-
-        if(NewPropField%HasAddingFactor)then
-            do j = JLB, JUB
-            do i = ILB, IUB
-                Field(i,j) = Field(i,j) + NewPropField%AddingFactor
-            enddo
-            enddo
-        end if
-        
-        if(NewPropField%MinValueON)then
-            do j = JLB, JUB
-            do i = ILB, IUB
-                if (Field(i,j) < NewPropField%MinValue) then
-                    Field(i,j) = NewPropField%MinValue
-                endif
-            enddo
-            enddo
-        end if        
-
-        if(NewPropField%MaxValueON)then
-            do j = JLB, JUB
-            do i = ILB, IUB
-                if (Field(i,j) > NewPropField%MaxValue) then
-                    Field(i,j) = NewPropField%MaxValue
-                endif
-            enddo
-            enddo
-        end if        
 
         if (associated(Me%Matrix3D)) then
             Me%Matrix3D(ILB:IUB,JLB:JUB,1) = Field(ILB:IUB,JLB:JUB)
@@ -4921,7 +5004,8 @@ d2:     do N =1, NW
 
                     if      (PropField%SpaceDim == Dim2D) then
                         if (PropField%Harmonics%ON) then
-                            call FromHarmonics2Field2D(PropField, Me%CurrentTimeInt)                        
+                            !call FromHarmonics2Field2D(PropField, Me%CurrentTimeInt)                        
+                            call ModifyInputHarmonics2D(PropField)
                         else
                             call ModifyInput2D        (PropField) 
                         endif                        
@@ -5199,7 +5283,8 @@ CTF:                if (CorrectTimeFrame) then
                         if      (PropField%SpaceDim == Dim2D) then
                         
                             if (PropField%Harmonics%ON) then
-                                call FromHarmonics2Field2D(PropField, Me%CurrentTimeInt)                        
+                                !call FromHarmonics2Field2D(PropField, Me%CurrentTimeInt)                        
+                                call ModifyInputHarmonics2D(PropField)
                             else
                                 call ModifyInput2D        (PropField) 
                             endif                        
@@ -6176,6 +6261,67 @@ dnP:    do nP = 1,nPoints
 
 
     !----------------------------------------------------------------------------
+    
+    
+
+    subroutine ModifyInputHarmonics2D(PropField)
+        
+        !Arguments------------------------------------------------------------
+        type (T_PropField), pointer                     :: PropField
+
+        !Local----------------------------------------------------------------
+        integer                                         :: STAT_CALL
+
+        !Begin----------------------------------------------------------------
+
+        
+if1:    if (PropField%Harmonics%Extract) then    
+
+            call FromHarmonics2Field2D(NewPropField = PropField)
+            
+            
+        else if1      
+        
+            call GetWaterPoints2D(HorizontalMapID   = Me%ObjHorizontalMap,              &
+                                  WaterPoints2D     = Me%ExternalVar%WaterPoints2D,     &
+                                  STAT              = STAT_CALL) 
+
+            if (STAT_CALL/=SUCCESS_) stop 'ModifyInputHarmonics2D - ModuleField4D - ERR10'         
+
+            if (Me%CurrentTimeInt >= PropField%NextTime) then
+
+                PropField%PreviousTime = PropField%NextTime
+                PropField%NextTime     = PropField%NextTime + PropField%Harmonics%DT
+            
+                call FromHarmonics2Field2D(NewPropField = PropField, CurrentTime = PropField%NextTime) 
+            
+                PropField%PreviousField2D(:,:) = PropField%NextField2D(:,:)
+                PropField%NextField2D    (:,:) = Me%Matrix2D          (:,:)
+            
+
+            end if
+             
+            call InterpolateMatrix2DInTime(ActualTime       = Me%CurrentTimeInt,            &
+                                           Size             = Me%WorkSize2D,                &
+                                           Time1            = PropField%PreviousTime,       &
+                                           Matrix1          = PropField%PreviousField2D,    &
+                                           Time2            = PropField%NextTime,           &
+                                           Matrix2          = PropField%NextField2D,        &
+                                           MatrixOut        = Me%Matrix2D,                  &
+                                           PointsToFill2D   = Me%ExternalVar%WaterPoints2D)
+
+            call UnGetHorizontalMap(HorizontalMapID   = Me%ObjHorizontalMap,                &
+                                    Array             = Me%ExternalVar%WaterPoints2D,       &
+                                    STAT              = STAT_CALL) 
+
+            if (STAT_CALL/=SUCCESS_) stop 'ModifyInputHarmonics2D - ModuleField4D - ERR20' 
+
+        endif if1 
+
+    end subroutine ModifyInputHarmonics2D
+
+
+    !--------------------------------------------------------------------------
 
 
 

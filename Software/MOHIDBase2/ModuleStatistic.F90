@@ -291,7 +291,9 @@ Module ModuleStatistic
                 
                 elseif (Rank == 3) then
                 
-                    Me%Methodology = Value3DStat3D_
+                    if (Me%Methodology /= Value3DStatLayers_) then
+                        Me%Methodology = Value3DStat3D_
+                    endif                        
                 
                 endif
             
