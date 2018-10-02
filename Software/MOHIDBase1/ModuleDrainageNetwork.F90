@@ -936,6 +936,7 @@ Module ModuleDrainageNetwork
         integer                                     :: HighestOrder          = 0
         logical                                     :: CheckNodes            = .false.
         logical                                     :: CheckReaches          = .false.
+        logical                                     :: CorrectBanks          = .false.
         integer                                     :: XSCalc                = null_int
         logical                                     :: HasGrid               = .true.
         integer                                     :: CoordType             = null_int
@@ -969,6 +970,8 @@ Module ModuleDrainageNetwork
         logical                                     :: AllowBackwardWater    = .false.
         real                                        :: MinimumSlope          = null_real
         real                                        :: InitialWaterDepth     = null_real
+        real                                        :: InitialWaterLevel     = null_real
+        logical                                     :: InitialWaterLevelON   = .false.
         real                                        :: MinimumWaterDepth     = null_real
         real                                        :: MinimumWaterDepthProcess = null_real
         real                                        :: MinimumWaterDepthAdvection = null_real
@@ -1468,7 +1471,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      SearchType   = FromFile,                                   &
                      Default      = .true.,                                     &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR07'        
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR07'       
+        
+        call GetData(Me%CorrectBanks,                                           &
+                     Me%ObjEnterData, flag,                                     &  
+                     keyword      = 'CORRECT_BANKS',                            &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromFile,                                   &
+                     Default      = .true.,                                     &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR07a'  
 
         call GetData(Me%ComputeOptions%Discharges,                              &
                      Me%ObjEnterData, flag,                                     &
@@ -1665,6 +1677,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 write (*,*)'Invalid Number of Initial Water Level [INITIAL_WATER_DEPTH]'
                 stop 'ModuleDrainageNetwork - ReadDataFile - ERR21'
             end if
+            
+            call GetData(Me%InitialWaterLevel,                                      &
+                         Me%ObjEnterData, flag,                                     &  
+                         keyword      = 'INITIAL_WATER_LEVEL',                      &
+                         ClientModule = 'DrainageNetwork',                          &
+                         SearchType   = FromFile,                                   &
+                         Default      = 0.0,                                        &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleDrainageNetwork - ReadDataFile - ERR21'
+            
+            if(flag == 1)then
+                Me%InitialWaterLevelON = .true. 
+            endif
 
         end if
 
@@ -2031,7 +2056,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      flag,                                                              &
                      SearchType   = FromFile,                                           &
                      keyword      = 'RESTART_FILE_FORMAT',                              &
-                     Default      = BIN_,                                               &
+                     Default      = HDF_,                                               &
                      ClientModule = 'ModuleDrainageNetwork',                            &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleDrainageNetwork - ERR48.5'        
@@ -3102,16 +3127,6 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
 
             endif
             
-            call GetData(NewNode%CrossSection%CorrectBanks,                         &
-                         Me%Files%ObjEnterDataNetwork, flag,                        &
-                         keyword      = 'CORRECT_BANKS',                            &
-                         ClientModule = 'DrainageNetwork',                          &
-                         SearchType   = FromBlock,                                  &
-                         Default      = OFF,                                        &
-                         STAT         = STAT_CALL)                                  
-            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR17'
-
-
             call InitializeTabularCrossSection(NewNode, ComputeElevation)                                   
 
         else !ifXS
@@ -3329,7 +3344,7 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
         do i=1,IBL-1
             if (Elevation(i+1)-Elevation(i) > 0) then
                 write(*,*) 'Left bank elevations must decrease in Node ', CurrNode%ID
-                if(CurrNode%CrossSection%CorrectBanks)then
+                if(Me%CorrectBanks)then
                     write(*,*)"Elevation at station", i, " changed from ",  Elevation(i+1), " to ", Elevation(i)
                     Elevation(i+1) = Elevation(i)
                 else
@@ -3341,7 +3356,7 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
         do i=IBL,N-1
             if (Elevation(i+1)-Elevation(i) < 0) then
                 write(*,*) 'Right bank elevations must increase in Node ', CurrNode%ID
-                if(CurrNode%CrossSection%CorrectBanks)then
+                if(Me%CorrectBanks)then
                     write(*,*)"Elevation at station", i, " changed from ",  Elevation(i+1), " to ", Elevation(i)
                     Elevation(i+1) = Elevation(i)
                 else
@@ -6171,10 +6186,17 @@ cd0:    if (Exist) then
 
         else
 
-            do NodeID = 1, Me%TotalNodes
-                CurrNode => Me%Nodes(NodeID)
-                CurrNode%WaterLevel = CurrNode%WaterDepth + CurrNode%CrossSection%BottomLevel
-            end do
+            if(Me%InitialWaterLevelON)then
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes(NodeID)
+                    CurrNode%WaterLevel = Me%InitialWaterLevel 
+                end do
+            else
+                do NodeID = 1, Me%TotalNodes
+                    CurrNode => Me%Nodes(NodeID)
+                    CurrNode%WaterLevel = CurrNode%WaterDepth + CurrNode%CrossSection%BottomLevel
+                end do
+            endif
 
         end if
 
@@ -19027,6 +19049,7 @@ end module ModuleDrainageNetwork
 !MOHID Water Modelling System.
 !Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
 !----------------------------------------------------------------------------------------------------------
+
 
 
 
