@@ -12488,13 +12488,14 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         DownNode  => Me%Nodes(CurrReach%DownstreamNode)
 
         !Volume greater then volume in pools
-        PoolVolume = UpNode%CrossSection%PoolDepth * UpNode%Length * UpNode%CrossSection%BottomWidth
-        if (UpNode%VolumeNew > PoolVolume) then
-            PoolDepth = UpNode%CrossSection%PoolDepth
-        else
-            PoolDepth = UpNode%VolumeNew / (UpNode%Length * UpNode%CrossSection%BottomWidth)
+        if (UpNode%CrossSection%Form /= Tabular) then
+            PoolVolume = UpNode%CrossSection%PoolDepth * UpNode%Length * UpNode%CrossSection%BottomWidth
+            if (UpNode%VolumeNew > PoolVolume) then
+                PoolDepth = UpNode%CrossSection%PoolDepth
+            else
+                PoolDepth = UpNode%VolumeNew / (UpNode%Length * UpNode%CrossSection%BottomWidth)
+            endif
         endif
-
 
 !        if (Me%AllowBackwardWater .and. UpNode%WaterLevel < DownNode%WaterLevel .and. DownNode%ID /= Me%OutletNodePos) then
 !            CurrReach%VerticalArea    = (UpNode%VerticalArea + DownNode%VerticalArea) / 2.0
@@ -16116,10 +16117,12 @@ if1:        if (Me%Nodes(NodePos)%TimeSerie) then
                 PoolVolume          = CurrNode%CrossSection%PoolDepth * CurrNode%Length * CurrNode%CrossSection%BottomWidth
 
                 !Volume greater then volume in pools
-                if (CurrNode%VolumeNew > PoolVolume) then
-                    PoolDepth = CurrNode%CrossSection%PoolDepth
-                else
-                    PoolDepth = CurrNode%VolumeNew / (CurrNode%Length * CurrNode%CrossSection%BottomWidth)
+                if (Me%Nodes(NodePos)%CrossSection%Form /= Tabular) then
+                    if (CurrNode%VolumeNew > PoolVolume) then
+                        PoolDepth = CurrNode%CrossSection%PoolDepth
+                    else
+                        PoolDepth = CurrNode%VolumeNew / (CurrNode%Length * CurrNode%CrossSection%BottomWidth)
+                    endif
                 endif
             
                 
