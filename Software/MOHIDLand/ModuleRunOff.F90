@@ -322,6 +322,7 @@ Module ModuleRunOff
         real,    dimension(:,:), pointer            :: AreaU, AreaV             => null()
         integer, dimension(:,:), pointer            :: ComputeFaceU             => null()
         integer, dimension(:,:), pointer            :: ComputeFaceV             => null()
+        integer, dimension(:,:), pointer            :: OpenPoints               => null() !Mask for gridcells above min watercolumn
         real,    dimension(:,:), pointer            :: OverLandCoefficient      => null() !Manning or Chezy
         real,    dimension(:,:), pointer            :: OverLandCoefficientDelta => null() !For erosion/deposition
         real,    dimension(:,:), pointer            :: OverLandCoefficientX     => null() !Manning or Chezy
@@ -3072,6 +3073,8 @@ do4:            do di = -1, 1
         
         allocate(Me%myWaterLevel         (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%myWaterColumn        (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        
+        
         allocate(Me%myWaterColumnAfterTransport (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%myWaterVolumePred   (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         Me%myWaterVolumePred = null_real
@@ -3103,6 +3106,7 @@ do4:            do di = -1, 1
         allocate(Me%AreaV                (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%ComputeFaceU         (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%ComputeFaceV         (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%OpenPoints           (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         
         
         
@@ -3118,6 +3122,7 @@ do4:            do di = -1, 1
         Me%AreaV                = 0.0
         Me%ComputeFaceU         = 0
         Me%ComputeFaceV         = 0
+        Me%OpenPoints           = 0
 
         allocate(Me%OverLandCoefficient  (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%OverLandCoefficientDelta (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
@@ -5510,8 +5515,22 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         enddo
         enddo    
         !$OMP END DO NOWAIT
-        !$OMP END PARALLEL
         
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (Me%ExtVar%BasinPoints(i, j) == BasinPoint ) then
+                if(Me%myWaterColumn(i, j) .gt. Me%MinimumWaterColumn)then
+                    Me%OpenPoints(i,j) = 1
+                else
+                    Me%OpenPoints(i,j) = 0
+                endif
+            endif
+        enddo
+        enddo    
+        !$OMP END DO NOWAIT
+        
+        !$OMP END PARALLEL
     
     end subroutine ModifyGeometryAndMapping
 
@@ -7237,15 +7256,15 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !1. MOHID Land calculates the POTENTIAL inflow into the sewer system through the street gutters. values per target gutter 
         !points (matrix StreetGutterPotentialFlow)
         !2. The values of the StreetGutterPotentialFlow are integrated at the nearest "NumberOfSewerStormWaterNodes" grid cells. 
-        !values per gutter points
-        !(matrix StormWaterPotentialFlow)
+        !values per gutter points (matrix StormWaterPotentialFlow)
         !3. This matrix (StormWaterPotentialFlow) is provided to SWMM
         !4. Swmm calculates the EFFECTIVE inflow and returns the efective flow (inflow or outflow) at each interaction point 
         !(matrix StormWaterEffectiveFlow)
         !5. The algorithm below calculates the efective flow in each cell
         !5a  - if the flow in the gutter target point is negative (inflow into the sewer system) the flow at each gutter will be 
         !affected 
-        !      by the ratio of StormWaterEffectiveFlow/StormWaterPotentialFlow (will be reduced in the same ratio as EFFECTIVE/POTENTIAL inflow)
+        !      by the ratio of StormWaterEffectiveFlow/StormWaterPotentialFlow (will be reduced in the same ratio as 
+        !      EFFECTIVE/POTENTIAL inflow)
         !5b  - if the flow in the cell is positive (outflow from the sewer system), the flow flows out ("saltam as tampas"). 
         !6. The Water Column is reduced/increased due to the final flow
         !Remark: as StormWaterEffectiveFlow is inflow or outflow at each cell the two processes below can be separated and 
@@ -9253,7 +9272,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         integer                                     :: ILB, IUB, JLB, JUB
         real, dimension(6)  , target                :: AuxTime
         real, dimension(:)  , pointer               :: TimePointer
-        integer                                     :: dis       
+        integer                                     :: dis, i, j  
 
         if (MonitorPerformance) call StartWatch ("ModuleRunOff", "RunOffOutput")
 
@@ -9286,19 +9305,32 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             !Sets limits for next write operations
             call HDF5SetLimits   (Me%ObjHDF5, ILB, IUB, JLB, JUB, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR30'
-
+            
+            
+                        
+            !Writes mask with grid cells above minimum water column height
+            call HDF5WriteData   (Me%ObjHDF5, "/Grid/OpenPoints",              &
+                                  "OpenPoints", "-",                            &
+                                  Array2D      = Me%OpenPoints,                 &
+                                  OutputNumber = Me%OutPut%NextOutPut,          &
+                                  STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR031'
+            
             !Writes Flow values
             !Writes the Water Column - should be on runoff
-            call HDF5WriteData   (Me%ObjHDF5, "//Results/water column",         &
+            call HDF5WriteData   (Me%ObjHDF5, "/Results/water column",          &
                                   "water column", "m",                          &
                                   Array2D      = Me%MyWaterColumn,              &
                                   OutputNumber = Me%OutPut%NextOutPut,          &
                                   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR040'
+            
+            
+            
 
        
             !Writes the Water Level
-            call HDF5WriteData   (Me%ObjHDF5, "//Results/water level",          &
+            call HDF5WriteData   (Me%ObjHDF5, "/Results/water level",           &
                                   "water level", "m",                           &
                                   Array2D      = Me%MyWaterLevel,               &
                                   OutputNumber = Me%OutPut%NextOutPut,          &

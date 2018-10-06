@@ -6048,8 +6048,8 @@ d2:         do while(associated(Cohort))
 
         !Begin-----------------------------------------------------------------
  
-        !mg/l, assumed as food concentration
-        Phyto       = Me%ExternalVar%Mass(Me%PropIndex%phyto,Index)        
+        !mgC/l, assumed as food concentration
+        Phyto = Me%ExternalVar%Mass(Me%PropIndex%phyto,Index)     
         
         !mg/l assumed as non food concentration if it exists
         if(Me%PropIndex%sediments .eq. null_int)then
@@ -6104,17 +6104,19 @@ d2:         do while(associated(Cohort))
 
                 if (Me%ExternalVar%Mass(M_H,Index) .gt. MHb) then !feeding   
                                       
-                    !total molC per l required by this cohort = molC/d.ind * d
+                    !total molC per l required by this cohort = molC/d.ind
                     FiltrationWish =  Cohort%Processes%f_potential                       &
                                       * PXM_FIX / mu_E * TempCorrection * Vol**(2.0/3.0)              
 
                     if (Me%ComputeOptions%CorrectFiltration .and. Me%LackOfFood == 1.0) then
                         
-                        FiltrationFraction = FiltrationWish * Me%ExternalVar%Mass(Number,Index) / &
-                                             Me%BivalveAux%TotalFiltrationWish
+                        FiltrationFraction = FiltrationWish * C_AtomicMass * Me%ExternalVar%Mass(Number,Index) &
+                                             / Me%BivalveAux%TotalFiltrationWish
+                        
                         
                         !Filtration, molC/d.ind
-                        Cohort%Processes%FilteredFood%C = FiltrationFraction * Phyto / Me%ExternalVar%Mass(Number,Index)
+                        Cohort%Processes%FilteredFood%C = FiltrationFraction * Phyto / C_AtomicMass &
+                                                          / Me%ExternalVar%Mass(Number,Index) / Me%DTDay
                     
                         Cohort%Processes%f_real = Cohort%Processes%FilteredFood%C / &
                                                   (PXM_FIX / mu_E * TempCorrection * Vol**(2.0/3.0))
@@ -6203,7 +6205,7 @@ d2:         do while(associated(Cohort))
         integer                             :: M_H, Number
         real                                :: PXM_FIX, mu_E, YEX
         real                                :: Combined_K,K_Food,K_Sed
-        real                                :: Vol, TempCorrection,MHb
+        real                                :: Vol, TempCorrection,MHb, C_AtomicMass
         real                                :: Sediments, Phyto
         real                                :: CohortPotentialFiltration, TotalFiltration
         real                                :: TotalFiltrationInTimeStep
@@ -6211,7 +6213,9 @@ d2:         do while(associated(Cohort))
         !Begin-----------------------------------------------------------------
  
         !mg/l, assumed as food concentration
-        Phyto       = Me%ExternalVar%Mass(Me%PropIndex%phyto,Index)        
+        Phyto       = Me%ExternalVar%Mass(Me%PropIndex%phyto,Index)
+        
+        Me%LackOfFood = 0.0      
         
         !mg/l assumed as non food concentration if it exists
         if(Me%PropIndex%sediments .eq. null_int)then
@@ -6232,6 +6236,8 @@ d1:     do while(associated(Species))
 
             TempCorrection  = Species%AuxiliarParameters%TempCorrection         
             MHb             = Species%AuxiliarParameters%MHb
+            C_AtomicMass    = Species%AuxiliarParameters%C_AtomicMass        
+
 
             !Compute food limitation factor
             Combined_K  = K_Food * (1 + Sediments / K_Sed)
@@ -6252,8 +6258,9 @@ d2:         do while(associated(Cohort))
                     CohortPotentialFiltration =  Cohort%Processes%f_potential    *  &
                                                  PXM_FIX / mu_E * TempCorrection * Vol**(2.0/3.0)
                     
-                    !total Filtration, molC/d                    
-                    TotalFiltration    = TotalFiltration + CohortPotentialFiltration * Me%ExternalVar%Mass(Number,Index)
+                    !total Filtration, mgC/d                    
+                    TotalFiltration    = TotalFiltration + CohortPotentialFiltration * &
+                                         C_AtomicMass * Me%ExternalVar%Mass(Number,Index)
 
                 end if !(M_H .gt. MHb) feeding
 
@@ -6265,15 +6272,18 @@ d2:         do while(associated(Cohort))
 
         end do d1
 
-        !molC in the time step
+        !total filtration, mgC/d
         Me%BivalveAux%TotalFiltrationWish = TotalFiltration
-   
+        
+        !Check if there is lack of food
+        !Total need in the time step, mgC
         TotalFiltrationInTimeStep = Me%BivalveAux%TotalFiltrationWish * Me%DTDay
-    
+            
         !Is there a lack of food?
         if (Phyto .lt. TotalFiltrationInTimeStep) then
             Me%LackOfFood = 1.0
         end if
+
 
     end subroutine ComputeTotalFiltrationWish
    !--------------------------------------------------------------------------
@@ -6287,7 +6297,6 @@ d2:         do while(associated(Cohort))
         type(T_Species),    pointer     :: Species
 
         !Begin-----------------------------------------------------------------
-
 
         Me%LackOfFood = 0.0      
         
