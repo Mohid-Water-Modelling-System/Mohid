@@ -451,6 +451,7 @@ Module ModuleFillMatrix
         integer                                     :: ObjField4D           = 0
         logical                                     :: Field4D              = .false.
         logical                                     :: HarmonicsON          = .false.
+        real                                        :: HarmonicsDT          = null_real
         logical                                     :: SpatialInterpolON    = .false.
         logical                                     :: InterpolOnlyVertically = .false.        
         logical                                     :: GenericYear          = .false.
@@ -5211,7 +5212,7 @@ i2:     if (Me%Dim == Dim2D) then
         !Local----------------------------------------------------------------
         integer                                         :: STAT_CALL, i
         integer                                         :: iflag, file, column
-        character(len = StringLength), dimension(3)     :: FileName   = " "
+        character(len = StringLength), dimension(3)     :: Filename   = " "
         character(len = StringLength), dimension(3)     :: DataColumn = " "
         type(T_TimeSerie), pointer                      :: CurrentTimeSerie, NewTimeSerie
         integer                                         :: nTimeSeries   = 1
@@ -6102,7 +6103,22 @@ i0:     if(Me%Dim == Dim2D)then
                          default      = .false.,                                            &
                          ClientModule = 'ModuleFillMatrix',                                 &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR310'        
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR310'    
+            
+            if (CurrentHDF%HarmonicsON) then
+        
+                CurrentHDF%From2Dto3D = .true.    
+                
+                call GetData(CurrentHDF%HarmonicsDT,                                        &
+                                Me%ObjEnterData , iflag,                                    &
+                                SearchType   = ExtractType,                                 &
+                                keyword      = 'HARMONICS_DT',                              &
+                                default      =  900.,                                       &
+                                ClientModule = 'ModuleField4D',                             &
+                                STAT         = STAT_CALL)                                      
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR315'    
+            
+            endif
 
             call GetData(CurrentHDF%SpatialInterpolON,                                      &
                          Me%ObjEnterData , iflag,                                           &
@@ -6761,20 +6777,40 @@ d2:      do while(.not. FoundSecondInstant)
         else
         
             icount = 0
-            do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-            do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
-            do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
-                if (PointsToFill3D(i,j,k) == WaterPoint) icount = icount + 1
-            enddo
-            enddo
-            enddo
             
-            Ncells        = icount
-            CurrentHDF%Ncells = Ncells
-        
-            allocate(CurrentHDF%Z(1:NCells))
+            if (CurrentHDF%From2Dto3D) then            
+
+                do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+                do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
+                    if (PointsToFill3D(i,j,Me%WorkSize3D%KUB) == WaterPoint) icount = icount + 1
+                enddo
+                enddo
+                
+                Ncells        = icount
+                CurrentHDF%Ncells = Ncells                
+            
+            else
+            
+                do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+                do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+                do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
+                    if (PointsToFill3D(i,j,k) == WaterPoint) icount = icount + 1
+                enddo
+                enddo
+                enddo
+                
+                Ncells        = icount
+                CurrentHDF%Ncells = Ncells                
+                
+                allocate(CurrentHDF%Z(1:NCells))
          
-            CurrentHDF%Z(1:NCells) = FillValueReal
+                CurrentHDF%Z(1:NCells) = FillValueReal                
+                
+            endif                
+            
+
+        
+
                                                      
         endif                    
             
@@ -6810,21 +6846,41 @@ d2:      do while(.not. FoundSecondInstant)
         
             icount = 0
             
-            do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-            do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
-            do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
+            if (CurrentHDF%From2Dto3D) then            
+
+                do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+                do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
                 
-                if (PointsToFill3D(i,j,k) == WaterPoint) then
+                    if (PointsToFill3D(i,j,Me%WorkSize3D%KUB) == WaterPoint) then
                     
-                    icount           = icount + 1
-                    CurrentHDF%X(icount) = CoordX(i, j)
-                    CurrentHDF%Y(icount) = CoordY(i, j)
+                        icount           = icount + 1
+                        CurrentHDF%X(icount) = CoordX(i, j)
+                        CurrentHDF%Y(icount) = CoordY(i, j)
                 
-                endif                    
+                    endif                    
                 
-            enddo
-            enddo   
-            enddo     
+                enddo
+                enddo   
+            
+            else
+            
+                do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+                do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+                do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
+                
+                    if (PointsToFill3D(i,j,k) == WaterPoint) then
+                    
+                        icount           = icount + 1
+                        CurrentHDF%X(icount) = CoordX(i, j)
+                        CurrentHDF%Y(icount) = CoordY(i, j)
+                
+                    endif                    
+                
+                enddo
+                enddo   
+                enddo     
+                
+            endif                
             
         endif       
     
@@ -7640,65 +7696,100 @@ if2D:   if (Me%Dim == Dim2D) then
             
         
         else if2D
-        
-            call GetGeometryDistances(Me%ObjGeometry, ZCellCenter, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR50' 
-        
-            icount = 0
+                       
+F2D3D:      if (CurrentHDF%From2Dto3D) then            
             
-            do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-            do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
-            do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
+                call ModifyField4DXYZ(Field4DID             = CurrentHDF%ObjField4D,            &
+                                      PropertyIDNumber      = Me%PropertyID%IDNumber,           &
+                                      CurrentTime           = CurrentTime,                      &
+                                      X                     = CurrentHDF%X,                     &
+                                      Y                     = CurrentHDF%Y,                     &
+                                      Field                 = CurrentHDF%Prop,                  &
+                                      NoData                = CurrentHDF%NoData,                &
+                                      Instant               = Instant,                          &                                  
+                                      STAT                  = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR70' 
+            
+                icount = 0
+            
+                do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+                do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
+                    if (Me%PointsToFill3D(i,j,Me%WorkSize3D%KUB) == WaterPoint) then                    
+                        icount           = icount + 1
+                        if (CurrentHDF%NoData(icount)) then
+                            write(*,*) 'No data in 2D cell I=',i + di, 'J=',j + dj
+                            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR80' 
+                        else                        
+                            do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+                                if (Me%PointsToFill3D(i,j,k) == WaterPoint) then                                
+                                    Matrix3D(i, j, k)   = CurrentHDF%Prop(icount)
+                                endif
+                            enddo                                        
+                        endif
+                    endif                    
+                enddo
+                enddo   
+    
+            else F2D3D
+        
+                call GetGeometryDistances(Me%ObjGeometry, ZCellCenter, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR50' 
+        
+                icount = 0
+            
+                do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+                do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+                do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
                 
-                if (Me%PointsToFill3D(i,j,k) == WaterPoint) then
+                    if (Me%PointsToFill3D(i,j,k) == WaterPoint) then
                     
-                    icount           = icount + 1
-                    CurrentHDF%Z(icount) = ZCellCenter(i, j, k)
+                        icount           = icount + 1
+                        CurrentHDF%Z(icount) = ZCellCenter(i, j, k)
                 
-                endif                    
+                    endif                    
                 
-            enddo
-            enddo   
-            enddo            
+                enddo
+                enddo   
+                enddo            
             
-            call UnGetGeometry(Me%ObjGeometry, ZCellCenter, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR60'             
+                call UnGetGeometry(Me%ObjGeometry, ZCellCenter, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR60'             
         
-            call ModifyField4DXYZ(Field4DID             = CurrentHDF%ObjField4D,            &
-                                  PropertyIDNumber      = Me%PropertyID%IDNumber,           &
-                                  CurrentTime           = CurrentTime,                      &
-                                  X                     = CurrentHDF%X,                     &
-                                  Y                     = CurrentHDF%Y,                     &
-                                  Z                     = CurrentHDF%Z,                     &
-                                  Field                 = CurrentHDF%Prop,                  &
-                                  NoData                = CurrentHDF%NoData,                &
-                                  Instant               = Instant,                          &                                  
-                                  STAT                  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR70' 
+                call ModifyField4DXYZ(Field4DID             = CurrentHDF%ObjField4D,            &
+                                      PropertyIDNumber      = Me%PropertyID%IDNumber,           &
+                                      CurrentTime           = CurrentTime,                      &
+                                      X                     = CurrentHDF%X,                     &
+                                      Y                     = CurrentHDF%Y,                     &
+                                      Z                     = CurrentHDF%Z,                     &
+                                      Field                 = CurrentHDF%Prop,                  &
+                                      NoData                = CurrentHDF%NoData,                &
+                                      Instant               = Instant,                          &                                  
+                                      STAT                  = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR70' 
             
-            icount = 0
+                icount = 0
             
-            do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-            do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
-            do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
+                do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+                do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+                do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
                 
-                if (Me%PointsToFill3D(i,j,k) == WaterPoint) then
+                    if (Me%PointsToFill3D(i,j,k) == WaterPoint) then
                     
-                    icount           = icount + 1
-                    if (CurrentHDF%NoData(icount)) then
-                        write(*,*) 'No data in 3D cell I=',i + di, 'J=',j + dj, 'K=',k
-                        stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR80' 
-                    else                        
-                        Matrix3D(i, j, k)   = CurrentHDF%Prop(icount)
-                    endif
+                        icount           = icount + 1
+                        if (CurrentHDF%NoData(icount)) then
+                            write(*,*) 'No data in 3D cell I=',i + di, 'J=',j + dj, 'K=',k
+                            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR80' 
+                        else                        
+                            Matrix3D(i, j, k)   = CurrentHDF%Prop(icount)
+                        endif
                 
-                endif                    
+                    endif                    
                 
-            enddo
-            enddo   
-            enddo            
+                enddo
+                enddo   
+                enddo            
             
-        
+            endif F2D3D        
         endif if2D
         
         if (icount /= CurrentHDF%Ncells) then
@@ -10317,9 +10408,10 @@ i1:     if (.not.(CurrentHDF%Previous4DValue <= Generic_4D_Value_ .and.         
 
     !----------------------------------------------------------------------------
 
-    subroutine ModifyHDFInput2DHarmonics(CurrentHDF)
+    subroutine ModifyHDFInput2DHarmonics(PointsToFill2D, CurrentHDF)
         
         !Arguments------------------------------------------------------------
+        integer,    dimension(:,:), pointer             :: PointsToFill2D
         type(T_Field4D)                                 :: CurrentHDF
         !Local----------------------------------------------------------------
         type (T_Time)                                   :: Now, CurrentTime
@@ -10335,25 +10427,63 @@ i1:     if (.not.(CurrentHDF%Previous4DValue <= Generic_4D_Value_ .and.         
             call BacktrackingTime(Now)
         else   
             Now = CurrentTime
-        endif 
-        
+        endif         
+
+            
         if (CurrentHDF%SpatialInterpolON) then
         
-            call ModifyField4DInterpol(CurrentTime      = Now,                          & 
-                                       Matrix2D         = Me%Matrix2D,                  &
-                                       CurrentHDF       = CurrentHDF)
+            if (Me%BackTracking) then  
+                stop 'ModifyHDFInput2DHarmonics - ModuleFillMatrix - ERR20'
+            endif
+            
+            if (Now == Me%BeginTime) then            
+                
+                CurrentHDF%NextTime =  Me%BeginTime
+                
+                call ModifyField4DInterpol(CurrentTime      = CurrentHDF%NextTime,      & 
+                                            Matrix2D        = CurrentHDF%NextField2D,   &
+                                            CurrentHDF      = CurrentHDF)            
+            
+            endif
+        
+            if (Now >= CurrentHDF%NextTime) then
+
+                CurrentHDF%PreviousTime = CurrentHDF%NextTime
+                CurrentHDF%NextTime     = CurrentHDF%NextTime + CurrentHDF%HarmonicsDT            
+        
+                call ModifyField4DInterpol(CurrentTime      = CurrentHDF%NextTime,      & 
+                                            Matrix2D        = Me%Matrix2D,              &
+                                            CurrentHDF      = CurrentHDF)
+                                               
+                CurrentHDF%PreviousField2D(:,:) = CurrentHDF%NextField2D(:,:)
+                CurrentHDF%NextField2D    (:,:) = Me%Matrix2D           (:,:)                                               
+                    
+            endif                    
+                                           
+            call InterpolateMatrix2DInTime(ActualTime        = Now,                     &
+                                            Size             = Me%WorkSize2D,           &
+                                            Time1            = CurrentHDF%PreviousTime, &
+                                            Matrix1          = CurrentHDF%PreviousField2D,&
+                                            Time2            = CurrentHDF%NextTime,     &
+                                            Matrix2          = CurrentHDF%NextField2D,  &
+                                            MatrixOut        = Me%Matrix2D,             &
+                                            PointsToFill2D   = PointsToFill2D)                                           
         
         else
         
 
             call ModifyField4D(Field4DID        = CurrentHDF%ObjField4D,                &
-                               PropertyIDNumber = Me%PropertyID%IDNumber,               & 
-                               CurrentTime      = Now,                                  & 
-                               Matrix2D         = Me%Matrix2D,                          &
-                               STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ModifyHDFInput2DHarmonics - ModuleFillMatrix - ERR20'  
+                                PropertyIDNumber = Me%PropertyID%IDNumber,              & 
+                                CurrentTime      = Now,                                 & 
+                                Matrix2D         = Me%Matrix2D,                         &
+                                STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ModifyHDFInput2DHarmonics - ModuleFillMatrix - ERR30'  
 
         endif
+
+        
+        
+
 
     end subroutine ModifyHDFInput2DHarmonics
         
@@ -10376,7 +10506,7 @@ i1:     if (.not.(CurrentHDF%Previous4DValue <= Generic_4D_Value_ .and.         
         call GetComputeCurrentTime(Me%ObjTime, Now, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModifyHDFInput2DRainType - ModuleFillMatrix - ERR010'
         
-i3:             if (Now > CurrentHDF%NextTime) then
+i3:     if (Now > CurrentHDF%NextTime) then
             call ActualizeHDFTimes (Now, CurrentHDF)
             call ActualizeHDFValues (CurrentHDF, CurrentHDF%PreviousInstant, CurrentHDF%PreviousField2D)
             call ActualizeHDFValues (CurrentHDF, CurrentHDF%NextInstant, CurrentHDF%NextField2D)
@@ -10597,7 +10727,7 @@ i23:        if (Me%UseOriginalValues .or. Me%InterpolateValues) then
         
 i1:     if (CurrentHDF%Field4D .and. CurrentHDF%HarmonicsOn) then
 
-            call ModifyHDFInput2DHarmonics(CurrentHDF)
+            call ModifyHDFInput2DHarmonics(PointsToFill2D, CurrentHDF)
             
         else i1 
         
@@ -11876,7 +12006,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                             if (CurrentHDF%SpatialInterpolON) then
     
-                                if (Me%Dim == Dim3D) then
+                                if (Me%Dim == Dim3D .and. .not. CurrentHDF%From2Dto3D) then
                                      deallocate(CurrentHDF%Z)
                                 endif                    
                                 
