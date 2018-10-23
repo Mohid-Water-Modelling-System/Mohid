@@ -598,7 +598,6 @@ Module ModuleDrainageNetwork
         real                                        :: CulvertDiameter          = null_real
         real                                        :: CulvertHeight            = null_real
         real                                        :: CulvertWidth             = null_real
-        real                                        :: CulvertInvertLevel       = null_real
        
     end type   T_CrossSection    
 
@@ -3220,7 +3219,7 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
                          STAT         = STAT_CALL)                                      
             if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR18'
 
-            call GetData(NewNode%CrossSection%CulvertInvertLevel,               &
+            call GetData(NewNode%CrossSection%BottomLevel,                      &
                          Me%Files%ObjEnterDataNetwork, flag,                    &  
                          keyword      = 'CULVERT_INVERT_LEVEL',                 &
                          ClientModule = 'DrainageNetwork',                      &
@@ -3404,7 +3403,6 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
 
             elseif (CurrNode%CrossSection%Form == Culvert) then 
                 write (unit, *)"CULVERT_SECTION_TYPE       : ", CurrNode%CrossSection%CulvertSectionType
-                write (unit, *)"CULVERT_INVERT_LEVEL       : ", CurrNode%CrossSection%CulvertInvertLevel
 
 
                 if (CurrNode%CrossSection%CulvertSectionType == circular_area) then
@@ -6484,6 +6482,20 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
                     call TabularGeometry (CurrNode%CrossSection, TopH, Av, Pw, Sw)                    
                     CurrNode%VolumeMin = Av * CurrNode%Length
 
+                elseif (CurrNode%CrossSection%Form .EQ. Culvert) then
+
+                    if (CurrNode%CrossSection%CulvertSectionType == circular_area) then
+                        Av = Pi * (CurrNode%CrossSection%CulvertDiameter/2.)**2.
+                    else
+                        Av = CurrNode%CrossSection%CulvertWidth * CurrNode%CrossSection%CulvertHeight
+                    endif
+
+                    CurrNode%VolumeMax = Av * CurrNode%Length
+
+                    TopH = CurrNode%CrossSection%BottomLevel + Me%MinimumWaterDepth
+                    call CulvertGeometry (CurrNode%CrossSection, TopH, Av, Pw, Sw)                    
+                    CurrNode%VolumeMin = Av * CurrNode%Length
+
                 else                 
                     stop 'Invalid cross section form - InitializeNodes - ModuleDrainageNetwork - ERR01'
                 end if
@@ -6773,14 +6785,19 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
         !Locals----------------------------------------------------------------
         real                                :: Theta, Rh
 
+
         if (CrossSection%CulvertSectionType == circular_area) then
 
-            if (WaterLevel > CrossSection%CulvertInvertLevel + CrossSection%CulvertDiameter) then
+            if (WaterLevel > CrossSection%BottomLevel + CrossSection%CulvertDiameter) then      !Abve Max
                 Av = Pi * (CrossSection%CulvertDiameter/2.)**2.
                 P  = Pi * CrossSection%CulvertDiameter
                 Sw = 0.0
-            else
-                Theta = 2.* acos(1.-2.*(WaterLevel - CrossSection%CulvertInvertLevel)/CrossSection%CulvertDiameter)
+            else if (WaterLevel < CrossSection%BottomLevel + 1e-6) then                         !Almost Zero
+                Av = 0.0
+                P  = 0
+                Sw = 0.0
+            else                                                                                !Normal Case
+                Theta = 2.* acos(1.-2.*(WaterLevel - CrossSection%BottomLevel)/CrossSection%CulvertDiameter)
 
                 Av = (Theta - sin(Theta))* CrossSection%CulvertDiameter**2. / 8.
                 Rh = (Theta - sin(Theta))/(4.0*Theta) * CrossSection%CulvertDiameter
@@ -6790,13 +6807,17 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
 
         else
 
-            if (WaterLevel > CrossSection%CulvertInvertLevel + CrossSection%CulvertHeight) then
+            if (WaterLevel > CrossSection%BottomLevel + CrossSection%CulvertHeight) then        !Above Max
                 Av = CrossSection%CulvertWidth * CrossSection%CulvertHeight
                 P  = 2.0 * CrossSection%CulvertWidth + 2.0 * CrossSection%CulvertHeight
                 Sw = 0.0
-            else
-                Av = (WaterLevel - CrossSection%CulvertInvertLevel) * CrossSection%CulvertWidth
-                P  = 2.0 * (WaterLevel - CrossSection%CulvertInvertLevel) + CrossSection%CulvertWidth
+            else if (WaterLevel < CrossSection%BottomLevel + 1e-6) then                        !Almost Zero
+                Av = 0.0
+                P  = 0
+                Sw = 0.0
+            else                                                                                !Normal Case
+                Av = (WaterLevel - CrossSection%BottomLevel) * CrossSection%CulvertWidth
+                P  = 2.0 * (WaterLevel - CrossSection%BottomLevel) + CrossSection%CulvertWidth
                 Sw = CrossSection%CulvertWidth
            endif
 
@@ -11164,7 +11185,7 @@ if2:        if (Volume > PoolVolume) then
                 elseif (CurrNode%CrossSection%Form == Culvert) then
 
                     call CulvertWaterLevel (CurrNode%CrossSection, Av_New, Level)
-                    Depth = Level - CurrNode%CrossSection%CulvertInvertLevel
+                    Depth = Level - CurrNode%CrossSection%BottomLevel
 
                 else
                     
@@ -12619,7 +12640,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                 elseif (CurrNode%CrossSection%Form == Culvert) then
 
                     call CulvertWaterLevel (CurrNode%CrossSection, Av_New, CurrNode%WaterLevel)
-                    h_New = CurrNode%WaterLevel - CurrNode%CrossSection%CulvertInvertLevel
+                    h_New = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
 
                 else
 
@@ -12760,16 +12781,17 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         real, intent(out)                   :: WaterLevel
 
         !Locals----------------------------------------------------------------
-        real                                :: h, h1, h2, Theta, A
+        real                                :: h, h1, h2, Theta, A, excessArea
 
 
         if (CrossSection%CulvertSectionType == circular_area) then
 
             if (Av >= Pi * (CrossSection%CulvertDiameter/2.)**2.) then
-                if (Av <= Pi * (CrossSection%CulvertDiameter/2.)**2. + 1e-5) then 
-                    WaterLevel = CrossSection%CulvertHeight + CrossSection%CulvertInvertLevel
+                if (Av <= Pi * (CrossSection%CulvertDiameter/2.)**2. + AllmostZero) then 
+                    WaterLevel = CrossSection%CulvertDiameter + CrossSection%BottomLevel
                 else
-                    stop 'Internal Error CulvertWaterLevel'
+                    excessArea = Av - Pi * (CrossSection%CulvertDiameter/2.)**2.
+                    WaterLevel = CrossSection%CulvertDiameter + CrossSection%BottomLevel + excessArea / CrossSection%CulvertDiameter
                 endif
             else
 
@@ -12786,7 +12808,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                 A = (Theta - sin(Theta))* CrossSection%CulvertDiameter**2. / 8.
                 do while (abs(A-Av) > 1e-5)
 
-                    if (A > Av) then
+                    if (A < Av) then
                         h2 = h
                     else
                         h1 = h
@@ -12799,7 +12821,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 
                 enddo
 
-                WaterLevel = h + CrossSection%CulvertInvertLevel
+                WaterLevel = h + CrossSection%BottomLevel
 
             endif
 
@@ -12808,12 +12830,12 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 
             if (Av >= CrossSection%CulvertWidth * CrossSection%CulvertHeight) then
                 if (Av <= CrossSection%CulvertWidth * CrossSection%CulvertHeight + 1e-5) then
-                    WaterLevel = CrossSection%CulvertHeight + CrossSection%CulvertInvertLevel
+                    WaterLevel = CrossSection%CulvertHeight + CrossSection%BottomLevel
                 else
                     stop 'Internal Error CulvertWaterLevel'
                 endif
             else
-                WaterLevel = Av / CrossSection%CulvertWidth + CrossSection%CulvertInvertLevel
+                WaterLevel = Av / CrossSection%CulvertWidth + CrossSection%BottomLevel
             endif
 
         endif
@@ -13346,8 +13368,8 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
             D = UpNode%CrossSection%CulvertHeight
         endif                 
 
-        TopH    =   UpNode%CrossSection%CulvertInvertLevel + D
-        BottomH =   UpNode%CrossSection%CulvertInvertLevel
+        TopH    =   UpNode%CrossSection%BottomLevel + D
+        BottomH =   UpNode%CrossSection%BottomLevel
                 
         H            = UpstreamH - max(DownstreamH, BottomH)
                 
