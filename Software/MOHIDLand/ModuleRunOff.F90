@@ -228,7 +228,8 @@ Module ModuleRunOff
         integer, dimension(:,:), pointer            :: BasinPoints              => null()
         real(8), dimension(:,:), pointer            :: WaterColumn              => null()
         real   , dimension(:,:), pointer            :: GridCellArea             => null()
-        real   , dimension(:,:), pointer            :: DUX, DVY                 => null()
+        real   , dimension(:,:), pointer            :: DUX, DUY                 => null()
+        real   , dimension(:,:), pointer            :: DVX, DVY                 => null()
         real   , dimension(:,:), pointer            :: DXX, DYY                 => null()
         real   , dimension(:,:), pointer            :: DZX, DZY                 => null()
         real   , dimension(:,:), pointer            :: XX2D_Z, YY2D_Z           => null()
@@ -318,9 +319,13 @@ Module ModuleRunOff
         real(8), dimension(:,:), pointer            :: iFlowX, iFlowY           => null() !Integrated    OverLandFlow (AfterSumDT)
         real(8), dimension(:,:), pointer            :: FlowXOld, FlowYOld       => null() !Flow From previous iteration
         real(8), dimension(:,:), pointer            :: InitialFlowX, InitialFlowY => null() !Initial Flow of convergence
+        real(8), dimension(:,:), pointer            :: VelModFaceU, VelModFaceV => null() !Flow From previous iteration
         real,    dimension(:,:), pointer            :: AreaU, AreaV             => null()
         integer, dimension(:,:), pointer            :: ComputeFaceU             => null()
         integer, dimension(:,:), pointer            :: ComputeFaceV             => null()
+        integer, dimension(:,:), pointer            :: ComputeAdvectionU        => null()
+        integer, dimension(:,:), pointer            :: ComputeAdvectionV        => null()
+        real,    dimension(:,:), pointer            :: NoAdvectionPoints        => null()
         integer, dimension(:,:), pointer            :: OpenPoints               => null() !Mask for gridcells above min watercolumn
         real,    dimension(:,:), pointer            :: OverLandCoefficient      => null() !Manning or Chezy
         real,    dimension(:,:), pointer            :: OverLandCoefficientDelta => null() !For erosion/deposition
@@ -354,7 +359,7 @@ Module ModuleRunOff
         integer, dimension(:,:), pointer            :: LowestNeighborJ          => null() !Lowest Neighbor in the surroundings       
         integer, dimension(:,:), pointer            :: DFourSinkPoint           => null() !Point which can't drain with in X/Y only
         integer, dimension(:,:), pointer            :: StabilityPoints          => null() !Points where models check stability
-        type(T_PropertyID)                          :: OverLandCoefficientID
+        type(T_PropertyID)                          :: OverLandCoefficientID, NoAdvectionZonesID
         logical                                     :: StormWaterModel          = .false. !If connected to SWMM
         real,    dimension(:,:), pointer            :: StormWaterEffectiveFlow  => null() !Flow from SWMM (inflow + outflow)
         real,    dimension(:,:), pointer            :: StreetGutterPotentialFlow=> null() !Potential flow to street gutters 
@@ -381,6 +386,9 @@ Module ModuleRunOff
 !        real                                        :: StabilizeHardCutLimit = 0.1
         integer                                     :: HydrodynamicApproximation = DiffusionWave_
         logical                                     :: CalculateAdvection    = .true.
+        logical                                     :: NoAdvectionZones      = .false.
+        logical                                     :: CalculateDiffusion    = .false.
+        real                                        :: Viscosity_Coef        = null_real
         logical                                     :: CalculateCellMargins  = .true.
         logical                                     :: ImposeMaxVelocity     = .false.
         real                                        :: ImposedMaxVelocity    = 0.1
@@ -686,7 +694,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Initial Water Column
         call GetData(dummy,                                                              &
-                     Me%ObjEnterData, iflag,                                                &
+                     Me%ObjEnterData, iflag,                                             &
                      SearchType   = FromFile,                                            &
                      keyword      = 'INITIAL_WATER_COLUMN',                              &
                      default      = 0.0,                                                 & 
@@ -695,7 +703,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR050'
         
         if (iflag /= 0) then
-            write(*,*)'The keyword INITIAL_WATER_COLUMN is obselete.'
+            write(*,*)'The keyword INITIAL_WATER_COLUMN is obsolete.'
             write(*,*)'Please use the block <BeginInitialWaterColumn> / <EndInitialWaterColumn>'
             stop 'ReadDataFile - ModuleRunOff - ERR060'
         endif        
@@ -720,9 +728,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR080'
 
             call KillFillMatrix(InitialWaterColumnID%ObjFillMatrix, STAT = STAT_CALL)
-            if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR090'
+            if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR081'
             
             Me%PresentInitialWaterColumn = .true.
+            
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR090'
+
+            
 
         else
 
@@ -749,6 +762,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
                 Me%PresentInitialWaterLevel = .true.
                 
+                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR094'
+                
             else
                 write(*,*)
                 write(*,*)'Missing Block <BeginInitialWaterColumn> / <EndInitialWaterColumn>' 
@@ -759,7 +775,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
          !Gets Minimum Slope 
         call GetData(Me%MinSlope,                                               &
-                     Me%ObjEnterData, iflag,                                       &
+                     Me%ObjEnterData, iflag,                                    &
                      SearchType   = FromFile,                                   &
                      keyword      = 'MIN_SLOPE',                                &
                      default      = 0.0,                                        &
@@ -805,7 +821,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Gets if advection is to be calculated
             call GetData(Me%CalculateAdvection,                                 &
-                         Me%ObjEnterData, iflag,                                   &
+                         Me%ObjEnterData, iflag,                                &
                          SearchType   = FromFile,                               &
                          keyword      = 'ADVECTION',                            &
                          default      = .true.,                                 &
@@ -818,30 +834,60 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
                 !Minimum Water Column for advection computation
                 call GetData(Me%MinimumWaterColumnAdvection,                                     &
-                             Me%ObjEnterData, iflag,                                                &
+                             Me%ObjEnterData, iflag,                                             &
                              SearchType   = FromFile,                                            &
                              keyword      = 'MIN_WATER_COLUMN_ADVECTION',                        &
                              default      = 0.0,                                                 &
                              ClientModule = 'ModuleRunOff',                                      &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0170'
+                
+
+                call GetData(Me%NoAdvectionZones,                                                &
+                             Me%ObjEnterData, iflag,                                             &
+                             SearchType   = FromFile,                                            &
+                             keyword      = 'NO_ADVECTION_ZONES',                                &
+                             default      = .false.,                                             &
+                             ClientModule = 'ModuleRunOff',                                      &
+                             STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0170a'
+                
+                if(Me%NoAdvectionZones)then
+                    
+                    call ConstructAdvectionZones
+                    
+                else
+                    
+                    call SetMatrixValue(Me%ComputeAdvectionU, Me%Size, 1)
+                    call SetMatrixValue(Me%ComputeAdvectionU, Me%Size, 1)
+                    
+                endif
+                
+            else
+
+                call SetMatrixValue(Me%ComputeAdvectionU, Me%Size, 0)
+                call SetMatrixValue(Me%ComputeAdvectionU, Me%Size, 0)
+             
             endif
+            
         endif
+        
+        
 
         !Method for computing water column in the face (1 - Using max level and max bottom; 
         !2- using max level and average of bottom)
         call GetData(Me%FaceWaterColumn,                                    &
-                     Me%ObjEnterData, iflag,                                   &  
+                     Me%ObjEnterData, iflag,                                &  
                      keyword      = 'WATER_COLUMN_FACE',                    &
                      ClientModule = 'ModuleRunOff',                         &
                      SearchType   = FromFile,                               &
                      Default      = WCMaxBottom_,                           &
                      STAT         = STAT_CALL)                                  
-        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR171'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR175'
         
         if (Me%FaceWaterColumn /= WCMaxBottom_ .and. Me%FaceWaterColumn /= WCAverageBottom_) then
             write(*,*) 'Unknown option for WATER_COLUMN_FACE'
-            stop 'ReadDataFile - ModuleRunOff - ERR172'
+            stop 'ReadDataFile - ModuleRunOff - ERR176'
         endif        
         
         if (Me%FaceWaterColumn == WCMaxBottom_) then
@@ -964,8 +1010,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT         = STAT_CALL)                                  
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR363'  
 
-           
-            call ReadBoundaryConditions(ClientNumber)
+            call ReadBoundaryConditions
             
         endif
         
@@ -1195,14 +1240,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0470'
 
         !Gets Block for OverLand Coef
-        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                 &
-                                    '<BeginOverLandCoefficient>',               &
-                                    '<EndOverLandCoefficient>', BlockFound,     &
+        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                      &
+                                    '<BeginOverLandCoefficient>',                       &
+                                    '<EndOverLandCoefficient>', BlockFound,             &
                                     STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0480'
         if (BlockFound) then
             call ConstructFillMatrix  ( PropertyID       = Me%OverLandCoefficientID,     &
-                                        EnterDataID      = Me%ObjEnterData,                 &
+                                        EnterDataID      = Me%ObjEnterData,              &
                                         TimeID           = Me%ObjTime,                   &
                                         HorizontalGridID = Me%ObjHorizontalGrid,         &
                                         ExtractType      = FromBlock,                    &
@@ -1214,6 +1259,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call KillFillMatrix(Me%OverLandCoefficientID%ObjFillMatrix, STAT = STAT_CALL)
             if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0500'
+            
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0501'
+
 
 
             !Check that manning values entered are not zero or negative
@@ -1267,6 +1316,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call KillFillMatrix(OverLandCoefficientDeltaID%ObjFillMatrix, STAT = STAT_CALL)
             if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0550'
+            
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0551'
+
 
             !Check that final manning values are not zero or negative
             do j = Me%Size%JLB, Me%Size%JUB
@@ -1303,15 +1356,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR570'
 
             !Gets Flag with Sewer Points
-            call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                          &
+            call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                       &
                                         '<BeginStormWaterDrainage>',                         &
                                         '<EndStormWaterDrainage>', BlockFound,               &
                                         STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR580'
 
             if (BlockFound) then
-                call ConstructFillMatrix  ( PropertyID       = StormWaterDrainageID,      &
-                                            EnterDataID      = Me%ObjEnterData,                 &
+                call ConstructFillMatrix  ( PropertyID       = StormWaterDrainageID,         &
+                                            EnterDataID      = Me%ObjEnterData,              &
                                             TimeID           = Me%ObjTime,                   &
                                             HorizontalGridID = Me%ObjHorizontalGrid,         &
                                             ExtractType      = FromBlock,                    &
@@ -1323,6 +1376,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 call KillFillMatrix(StormWaterDrainageID%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR600'
+                
+                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0601'
 
             else
                 write(*,*)'Missing Block <BeginStormWaterDrainage> / <EndStormWaterDrainage>' 
@@ -1340,26 +1396,30 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR620'
 
             !Gets Flag with Sewer Points
-            call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                          &
+            call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                     &
                                         '<BeginBuildingsHeight>',                          &
                                         '<EndBuildingsHeight>', BlockFound,                &
                                         STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR630'
 
             if (BlockFound) then
-                call ConstructFillMatrix  ( PropertyID       = BuildingsHeightID,          &
-                                            EnterDataID      = Me%ObjEnterData,                 &
+                call ConstructFillMatrix  ( PropertyID       = BuildingsHeightID,            &
+                                            EnterDataID      = Me%ObjEnterData,              &
                                             TimeID           = Me%ObjTime,                   &
                                             HorizontalGridID = Me%ObjHorizontalGrid,         &
                                             ExtractType      = FromBlock,                    &
                                             PointsToFill2D   = Me%ExtVar%BasinPoints,        &
-                                            Matrix2D         = Me%BuildingsHeight,         &
+                                            Matrix2D         = Me%BuildingsHeight,           &
                                             TypeZUV          = TypeZ_,                       &
                                             STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR640'
 
                 call KillFillMatrix(BuildingsHeightID%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR650'
+                
+                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0651'
+
 
             else
                 write(*,*)'Missing Block <BeginBuildingsHeight> / <EndBuildingsHeight>' 
@@ -1403,14 +1463,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 call KillFillMatrix(NumberOfSewerStormWaterNodesID%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR692'
+                
+                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0693'
+
 
             else
                 write(*,*)'Missing Block <BeginStormWaterInteraction> / <EndStormWaterInteraction>' 
-                stop      'ReadDataFile - ModuleRunOff - ERR693'
+                stop      'ReadDataFile - ModuleRunOff - ERR694'
             endif
             
             call RewindBuffer (Me%ObjEnterData, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR693'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR695'
             
             !Look for keyword to filter SWMM nodes (regular expresion on node names) that can recieve MOHID Land flow (e.g. pluvial
             !nodes) This can only be used in conjunction with <BeginStormWaterGutterInteraction>/<EndStormWaterGutterInteraction> 
@@ -1509,6 +1573,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 call KillFillMatrix(NumberOfStormWaterNodesID%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR696'
                 
+                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0697'
+
+                
                 !NumberOfStormWaterNodes points can only be <= NumberOfSewerStormWaterNodes points
                 call VerifyStreetGutterInteraction
 
@@ -1550,6 +1618,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 call KillFillMatrix(StreetGutterLengthID%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL  /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR710'
+                
+                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0710.1'
+
 
             else
                 write(*,*)'Missing Block <BeginStreetGutterLength> / <EndStreetGutterLength>' 
@@ -2127,14 +2199,15 @@ do4:            do di = -1, 1
     
     !--------------------------------------------------------------------------   
 
-    subroutine ReadBoundaryConditions(ClientNumber)
+    subroutine ReadBoundaryConditions
         
         !Arguments-------------------------------------------------------------
-        integer                                     :: ClientNumber
 
         !Local-----------------------------------------------------------------
         integer                                     :: iflag, STAT_CALL
         logical                                     :: BlockFound
+        integer                                     :: ClientNumber
+
         !Begin-----------------------------------------------------------------
 
 
@@ -2202,6 +2275,11 @@ do4:            do di = -1, 1
             endif
         
         endif
+        
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadBoundaryConditions - ModuleRunoff - ERR0130'
+        
+        
         
     end subroutine ReadBoundaryConditions
 
@@ -2787,7 +2865,7 @@ do4:            do di = -1, 1
             enddo
         enddo
   
-        Extension = 'fds'
+        Extension = 'srd'
 
         do dis = 1, Me%OutPut%DischargesNumber
         
@@ -2875,9 +2953,12 @@ do4:            do di = -1, 1
         allocate(Me%ComputeFaceU         (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%ComputeFaceV         (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%OpenPoints           (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
-        
-        
-        
+        allocate(Me%NoAdvectionPoints    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%ComputeAdvectionU    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%ComputeAdvectionV    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%VelModFaceU    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        allocate(Me%VelModFaceV    (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+ 
         Me%iFlowX               = 0.0
         Me%iFlowY               = 0.0
         Me%lFlowX               = 0.0
@@ -2886,11 +2967,18 @@ do4:            do di = -1, 1
         Me%FlowYOld             = 0.0
         Me%InitialFlowX         = 0.0
         Me%InitialFlowY         = 0.0
-        Me%AreaU                = 0.0
-        Me%AreaV                = 0.0
+        Me%AreaU                = AlmostZero
+        Me%AreaV                = AlmostZero
         Me%ComputeFaceU         = 0
         Me%ComputeFaceV         = 0
         Me%OpenPoints           = 0
+        
+        Me%NoAdvectionPoints    = 0.0
+        Me%ComputeAdvectionU    = 1
+        Me%ComputeAdvectionV    = 1
+        
+        Me%VelModFaceU          = 0.0
+        Me%VelModFaceV          = 0.0
 
         allocate(Me%OverLandCoefficient  (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         allocate(Me%OverLandCoefficientDelta (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
@@ -2985,6 +3073,115 @@ do4:            do di = -1, 1
 
 
     end subroutine ConstructOverLandCoefficient
+    
+        !--------------------------------------------------------------------------
+
+    subroutine ConstructAdvectionZones
+
+        !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                             :: ILB, IUB, JLB, JUB    
+        integer                                             :: i, j, STAT_CALL, ClientNumber
+        logical                                             :: BlockFound
+        
+        if(Me%NoAdvectionZones)then
+            
+            call RewindBuffer (Me%ObjEnterData, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAdvectionZones - ModuleRunOff - ERR01'
+
+            !Gets Block for OverLand Coef
+            call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,           &
+                                        '<BeginNoAdvectionZones>',               &
+                                        '<EndNoAdvectionZones>', BlockFound,     &
+                                        STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAdvectionZones - ModuleRunOff - ERR02'
+            
+            if (BlockFound) then
+                call ConstructFillMatrix  ( PropertyID       = Me%NoAdvectionZonesID,        &
+                                            EnterDataID      = Me%ObjEnterData,              &
+                                            TimeID           = Me%ObjTime,                   &
+                                            HorizontalGridID = Me%ObjHorizontalGrid,         &
+                                            ExtractType      = FromBlock,                    &
+                                            PointsToFill2D   = Me%ExtVar%BasinPoints,        &
+                                            Matrix2D         = Me%NoAdvectionPoints,         &
+                                            TypeZUV          = TypeZ_,                       &
+                                            STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructAdvectionZones - ModuleRunOff - ERR03'
+
+                call KillFillMatrix(Me%NoAdvectionZonesID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    write(*,*)"STAT_CALL = ", STAT_CALL
+                    stop 'ConstructAdvectionZones - ModuleRunOff - ERR04'
+                endif
+                
+                call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructAdvectionZones - ModuleRunOff - ERR04'
+
+                
+            endif
+            
+            !Check that advection zones are 0 or 1. 
+            do j = Me%Size%JLB, Me%Size%JUB
+            do i = Me%Size%ILB, Me%Size%IUB
+
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                    
+                    if (int(Me%NoAdvectionPoints(i,j)) .lt. 0) then
+                        write(*,*) 'No Advection Zones can only be 0 or 1'
+                        write(*,*) 'in cell', i, j, Me%NoAdvectionPoints(i,j), int(Me%NoAdvectionPoints(i,j))
+                        stop 'ConstructAdvectionZones - ModuleRunoff - ERR05'
+                    endif
+                    
+                    if (int(Me%NoAdvectionPoints(i,j)) .gt. 1) then
+                        write(*,*) 'No Advection Zones can only be 0 or 1'
+                        write(*,*) 'in cell', i, j, Me%NoAdvectionPoints(i,j), int(Me%NoAdvectionPoints(i,j))
+                        stop 'ConstructAdvectionZones - ModuleRunoff - ERR06'
+                    endif
+                
+                endif
+                
+            enddo
+            enddo
+
+        else
+            write(*,*)'Missing Block <BeginAdvectionZones> / <BeginAdvectionZones>' 
+            stop      'ConstructAdvectionZones - ModuleRunoff - ERR07'
+        endif
+        
+
+        !Bounds
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+
+        !TODO: OpenMP - Missing implementation
+        do j = JLB, JUB + 1
+        do i = ILB, IUB
+            if (Me%ExtVar%BasinPoints(i, j) + Me%ExtVar%BasinPoints(i, j-1) == 2) then !Two Basin Points
+                if (int(Me%NoAdvectionPoints(i, j) + Me%NoAdvectionPoints(i, j-1)) == 2) then 
+                    Me%ComputeAdvectionU(i, j) = 0
+                endif
+            endif
+        enddo
+        enddo
+
+        do j = JLB, JUB
+        do i = ILB, IUB + 1
+            if (Me%ExtVar%BasinPoints(i, j) + Me%ExtVar%BasinPoints(i-1, j) == 2) then !Two Basin Points
+                if ((Me%NoAdvectionPoints(i, j) + Me%NoAdvectionPoints(i-1, j)) == 2) then 
+                    Me%ComputeAdvectionV(i, j) = 0
+                endif
+            endif
+        enddo
+        enddo
+
+        deallocate(Me%NoAdvectionPoints)
+        nullify(Me%NoAdvectionPoints)
+
+    end subroutine ConstructAdvectionZones
 
     !--------------------------------------------------------------------------
 
@@ -4631,6 +4828,7 @@ doIter:         do while (iter <= Niter)
                         case (DiffusionWave_)
                             call KinematicWave  ()            !Slope based on surface
                         case (DynamicWave_)
+                            call ComputeFaceVelocityModulus
                             call DynamicWaveXX    (Me%CV%CurrentDT)   !Consider Advection, Friction and Pressure
                             call DynamicWaveYY    (Me%CV%CurrentDT)
                     end select
@@ -5055,7 +5253,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                                         AuxFlowIJ =  (- StabilizeFactor * Me%myWaterVolumeOld(i, j) - DV) / LocalDT
                                     endif                                
                                 endif              
-                                write(*,*) 'Flow in cell',i,j,'was correct from ',AuxFlow,'to ',AuxFlowIJ
+                                write(*,*) 'Flow in cell',i,j,'was corrected from ',AuxFlow,'to ',AuxFlowIJ
                             endif
                         endif                        
                     endif                        
@@ -5087,7 +5285,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                                               AuxFlowIJ =  (  StabilizeFactor * Me%myWaterVolumeOld(ib, jb) + DV) / LocalDT
                                         endif                                
                                     endif  
-                                    write(*,*) 'Flow in cell',i,j,'was correct from ',AuxFlow,'to ',AuxFlowIJ
+                                    write(*,*) 'Flow in cell',i,j,'was corrected from ',AuxFlow,'to ',AuxFlowIJ
                                 endif
                             endif                                
                         endif
@@ -5207,10 +5405,10 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 endif
                 
                 !Water Column Left (above MaxBottom)
-                WCL       = max(Me%myWaterLevel(i, j-1) + Me%BuildingsHeight(i, j-1) - Bottom, dble(0.0))
+                WCL       = max(Me%myWaterLevel(i, j-1) + Me%BuildingsHeight(i, j-1) - Bottom, dble(AlmostZero))
             
                 !Water Column Right (above MaxBottom)
-                WCR       = max(Me%myWaterLevel(i, j  ) + Me%BuildingsHeight(i, j)   - Bottom, dble(0.0))
+                WCR       = max(Me%myWaterLevel(i, j  ) + Me%BuildingsHeight(i, j)   - Bottom, dble(AlmostZero))
 
                 !In the case of kinematic wave, always consider the "upstream" area, otherwise the average above "max bottom"
                 if (Me%HydrodynamicApproximation == KinematicWave_) then
@@ -5260,10 +5458,10 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 endif
                 
                 !Water Column Left
-                WCL       = max(Me%myWaterLevel(i-1, j) + Me%BuildingsHeight(i-1, j) - Bottom, dble(0.0))
+                WCL       = max(Me%myWaterLevel(i-1, j) + Me%BuildingsHeight(i-1, j) - Bottom, dble(AlmostZero))
             
                 !Water Column Right
-                WCR       = max(Me%myWaterLevel(i, j  ) + Me%BuildingsHeight(i, j)   - Bottom, dble(0.0))
+                WCR       = max(Me%myWaterLevel(i, j  ) + Me%BuildingsHeight(i, j)   - Bottom, dble(AlmostZero))
                
                 !In the case of kinematic wave, always consider the "upstream" area, otherwise the average above "max bottom"
                 if (Me%HydrodynamicApproximation == KinematicWave_) then
@@ -5585,6 +5783,62 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
     
     !--------------------------------------------------------------------------
     
+    subroutine ComputeFaceVelocityModulus
+    
+    !Arguments-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                             :: ILB, IUB, JLB, JUB    
+        integer                                             :: i, j
+        real                                                :: Uaverage, Vaverage
+
+        !Bounds
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        
+        !TODO: OpenMP - Missing implementation
+        do j = JLB, JUB
+        do i = ILB, IUB
+
+            if (Me%ComputeFaceU(i, j) == Compute) then
+                
+                Vaverage = (Me%FlowYOld(i,  j  )/Me%AreaV(i,  j  ) + &
+                            Me%FlowYOld(i+1,j  )/Me%AreaV(i+1,j  ) + &
+                            Me%FlowYOld(i+1,j-1)/Me%AreaV(i+1,j-1) + &
+                            Me%FlowYOld(i,  j-1)/Me%AreaV(i,  j-1)) /4.0
+                
+                Me%VelModFaceU(i, j) = sqrt(((Me%FlowXOld(i,j)/Me%AreaU(i,j))**2.0 + Vaverage**2.0))
+                
+            endif
+
+        enddo
+        enddo
+        
+        
+        do j = JLB, JUB 
+        do i = ILB, IUB
+
+            if (Me%ComputeFaceV(i, j) == Compute) then
+                
+                Uaverage = (Me%FlowXOld(i   ,j)/Me%AreaU(i  ,j   ) + &
+                            Me%FlowXOld(i-1,j )/Me%AreaU(i-1,j   ) + &
+                            Me%FlowXOld(i-1,j+1)/Me%AreaU(i-1,j+1) + &
+                            Me%FlowXOld(i  ,j+1)/Me%AreaU(i  ,j+1)) /4.0
+            
+                Me%VelModFaceV(i, j) = sqrt(((Me%FlowYOld(i,j)/Me%AreaV(i,j))**2.0 + Uaverage**2.0))
+                
+            endif
+
+        enddo
+        enddo
+
+       
+    
+    end subroutine ComputeFaceVelocityModulus
+    
     subroutine DynamicWaveXX (LocalDT)
     
         !Arguments-------------------------------------------------------------
@@ -5694,14 +5948,21 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
                 !FRICTION - semi-implicit -----------------------------------------------
                 !   -    =  (s * m.s-2  * m3.s-1 * (s.m(-1/3))^2) / (m2 * m(4/3)) = m(10/3) / m(10/3)
-                Friction = LocalDT * Gravity * abs(Me%FlowXOld(i, j)) * Me%OverlandCoefficientX(i,j)**2. &
-                         / ( Me%AreaU(i, j) * HydraulicRadius ** (4./3.) ) 
-        
-
-
+                !Friction = LocalDT * Gravity * abs(Me%FlowXOld(i, j)) * Me%OverlandCoefficientX(i,j)** 2. &
+                !     / ( Me%AreaU(i, j) * HydraulicRadius ** (4./3.) ) 
+                
+                !Friction = LocalDT * Gravity * &
+                !           sqrt(Me%FlowXOld(i, j)**2. + Me%FlowYOld(i, j)**2.) * Me%OverlandCoefficientX(i,j)** 2. / &
+                !           ( Me%AreaU(i, j) * HydraulicRadius ** (4./3.) ) 
+                
+                Friction = LocalDT * Gravity * &
+                           Me%VelModFaceU(i,j) * Me%OverlandCoefficientX(i,j)** 2. / &
+                           (HydraulicRadius ** (4./3.)) 
+                
                 !Advection (may be limited to water column height)
-                if ((Me%CalculateAdvection) .and. (Me%myWaterColumn(i,j) .gt. Me%MinimumWaterColumnAdvection)   &
-                     .and. (Me%myWaterColumn(i,j-1) .gt. Me%MinimumWaterColumnAdvection)) then
+                if ((Me%ComputeAdvectionU(i,j) == 1) .and. (Me%myWaterColumn(i,j) .gt. Me%MinimumWaterColumnAdvection)  .and.   &
+                    (Me%myWaterColumn(i,j-1) .gt. Me%MinimumWaterColumnAdvection)) then
+                    
                     
                     !Face XU(i,j+1). Z U Faces have to be open
                     if ((Me%ComputeFaceU(i, j) +  Me%ComputeFaceU(i, j+1) == 2)) then 
@@ -5757,21 +6018,31 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                         XLeftAdv = 0.0
                     endif       
                     
-                    !Faces of U(i,j) that were not being accounted (in 2D need to be accounted)
-                    !Face YU(i+1,j)
-!                    if (Me%ComputeFaceV(i+1, j-1) +  Me%ComputeFaceV(i+1, j)     &
-!                        + Me%ComputeFaceU(i, j) +  Me%ComputeFaceU(i+1, j) == 4) then
-                    if (Me%ComputeFaceV(i+1, j-1) +  Me%ComputeFaceV(i+1, j) .ge. 1) then
+                    if (Me%ComputeFaceV(i+1, j-1) +  Me%ComputeFaceV(i+1, j) .gt. 0) then
 
-                       !if flows in same direction, advection is computed                        
+                        !if flows in same direction, advection is computed                        
                         if ((Me%FlowYOld(i+1, j-1) * Me%FlowYOld(i+1, j)).ge. 0.0) then
                             
                             Qf = (Me%FlowYOld(i+1, j-1) + Me%FlowYOld(i+1, j)) / 2.0
                             
-                            if ((Qf > 0.0)) then
+                            if (Qf > 0.0) then
                                 YTopAdv = Qf   * Me%FlowXOld(i, j) / Me%AreaU(i, j)
-                            elseif ((Qf < 0.0) .and. (Me%ComputeFaceU(i+1,j) == Compute)) then
-                                YTopAdv = Qf   * Me%FlowXOld(i+1, j) / Me%AreaU(i+1, j)
+                            elseif (Qf < 0.0) then
+                                if(Me%ComputeFaceU(i+1,j) == Compute) then
+                                    YTopAdv = Qf * Me%FlowXOld(i+1, j) / Me%AreaU(i+1, j)
+                                    !YTopAdv =  (Me%FlowYOld(i+1, j-1) * (Me%FlowXOld(i+1, j-1) / Me%AreaU(i+1, j-1)        + &
+                                    !                                    Me%FlowXOld(i+1,   j) / Me%AreaU(i+1,   j)) / 2.0 + & 
+                                    !           Me%FlowYOld(i+1,   j) * (Me%FlowXOld(i+1,   j) / Me%AreaU(i+1,   j)        + &
+                                    !                                    Me%FlowXOld(i+1, j+1) / Me%AreaU(i+1, j+1)) / 2.0) / 2.0
+                                else
+                                    if(Me%ComputeFaceU(i+1, j-1)== Compute)then
+                                        YTopAdv = Qf * Me%FlowXOld(i+1, j-1) / Me%AreaU(i+1, j-1) 
+                                    elseif(Me%ComputeFaceU(i+1, j+1) == Compute)then
+                                        YTopAdv = Qf * Me%FlowXOld(i+1, j+1) / Me%AreaU(i+1, j+1)
+                                    else
+                                        YTopAdv = 0.0
+                                    endif
+                                endif
                             else
                                 YTopAdv = 0.0
                             endif
@@ -5783,19 +6054,40 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                         YTopAdv = 0.0
                     endif       
                     
-                    !Faces of U(i,j) that were not being accounted (in 2D need to be accounted)
-                    !Face YU(i,j)
-!                    if (Me%ComputeFaceV(i, j-1) +  Me%ComputeFaceV(i, j)      &
-!                        + Me%ComputeFaceU(i, j) +  Me%ComputeFaceU(i-1, j) == 4) then
-                    if (Me%ComputeFaceV(i, j-1) +  Me%ComputeFaceV(i, j) .ge. 1) then
 
-                       !if flows in same direction, advection is computed                        
+                    if (Me%ComputeFaceV(i, j-1) +  Me%ComputeFaceV(i, j) .gt. 0) then
+
+                        !if flows in same direction, advection is computed                        
                         if ((Me%FlowYOld(i, j-1) * Me%FlowYOld(i, j)).ge. 0.0) then
                             
                             Qf = (Me%FlowYOld(i, j-1) + Me%FlowYOld(i, j)) / 2.0
-
-                            if ((Qf > 0.0) .and. (Me%ComputeFaceU(i-1,j) == Compute)) then
-                                YBottomAdv =  Qf   * Me%FlowXOld(i-1, j) / Me%AreaU(i-1, j)
+                            
+                            if (Qf > 0.0)then
+                                if(Me%ComputeFaceU(i-1,j) == Compute) then
+                                    YBottomAdv =  Qf   * Me%FlowXOld(i-1, j) / Me%AreaU(i-1, j)
+                                    
+                                    !YBottomAdv =  (Me%FlowYOld(i, j-1) * (Me%FlowXOld(i-1, j-1) / Me%AreaU(i-1, j-1)       + &
+                                    !                                     Me%FlowXOld(i-1,   j) / Me%AreaU(i-1,   j)) / 2.0 + & 
+                                    !              Me%FlowYOld(i,   j) * (Me%FlowXOld(i-1,   j) / Me%AreaU(i-1,   j)        + &
+                                    !                                     Me%FlowXOld(i-1, j+1) / Me%AreaU(i-1, j+1)) / 2.0) / 2.0
+                                    !
+                                    !YBottomAdv =  (Me%FlowYOld(i, j-1) * (Me%FlowXOld(i-1, j-1) / Me%AreaU(i-1, j-1)       + &
+                                    !                                     Me%FlowXOld(i-1,   j) / Me%AreaU(i-1,   j)) / 2.0 + & 
+                                    !              Me%FlowYOld(i,   j) * (Me%FlowXOld(i-1,   j) / Me%AreaU(i-1,   j)        + &
+                                    !                                     Me%FlowXOld(i-1, j+1) / Me%AreaU(i-1, j+1)) / 2.0) / 2.0
+                                    
+                                    
+                                    
+                                else
+                                    if(Me%ComputeFaceU(i-1, j-1) == Compute)then
+                                        YBottomAdv =  Qf * Me%FlowXOld(i-1, j-1) / Me%AreaU(i-1, j-1) 
+                                    elseif(Me%ComputeFaceU(i-1, j+1) == Compute)then
+                                        YBottomAdv =  Qf * Me%FlowXOld(i-1, j+1) / Me%AreaU(i-1, j+1)
+                                    else
+                                        YBottomAdv =  0.0
+                                    endif
+                                    
+                                endif
                             elseif ((Qf < 0.0)) then
                                 YBottomAdv = Qf   * Me%FlowXOld(i, j) / Me%AreaU(i, j)
                             else
@@ -5808,11 +6100,10 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                     else
                         YBottomAdv = 0.0
                     endif       
-
-                    !Advection = (upAdv - downAdv) * LocalDT / Me%ExtVar%DUX(i, j)
-                    Advection = (XLeftAdv - XRightAdv) * LocalDT / Me%ExtVar%DZX(i, j-1)     &
-                                + (YBottomAdv - YTopAdv) * LocalDT / Me%ExtVar%DYY(i, j)
-
+                    
+                    
+                    Advection = (XLeftAdv - XRightAdv) * LocalDT / Me%ExtVar%DZX(i, j-1) + &
+                                (YBottomAdv - YTopAdv) * LocalDT / Me%ExtVar%DYY(i, j)
                                 
                 else
                 
@@ -6007,13 +6298,20 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
                 !FRICTION - semi-implicit -----------------------------------------------
                 !   -    =  (s * m.s-2  * m3.s-1 * (s.m(-1/3))^2) / (m2 * m(4/3)) = m(10/3) / m(10/3)
-                Friction = LocalDT * Gravity * abs(Me%FlowYOld(i, j)) * Me%OverlandCoefficientY(i,j) ** 2. &
-                         / ( Me%AreaV(i, j) * HydraulicRadius ** (4./3.) ) 
-
+                !Friction = LocalDT * Gravity * abs(Me%FlowYOld(i, j)) * Me%OverlandCoefficientY(i,j) ** 2. &
+                !         / ( Me%AreaV(i, j) * HydraulicRadius ** (4./3.) ) 
+                
+                !Friction = LocalDT * Gravity * &
+                !           sqrt(Me%FlowXOld(i, j)**2. + Me%FlowYOld(i, j)**2.) * Me%OverlandCoefficientY(i,j)** 2. / &
+                !           ( Me%AreaV(i, j) * HydraulicRadius ** (4./3.) ) 
+                
+                Friction = LocalDT * Gravity * &
+                           Me%VelModFaceV(i,j) * Me%OverlandCoefficientY(i,j)** 2. / &
+                           (HydraulicRadius ** (4./3.)) 
         
 
                 !Advection
-                if ((Me%CalculateAdvection) .and. (Me%myWaterColumn(i,j) .gt. Me%MinimumWaterColumnAdvection)  &
+                if ((Me%ComputeAdvectionV(i,j) == 1) .and. (Me%myWaterColumn(i,j) .gt. Me%MinimumWaterColumnAdvection)  &
                      .and. (Me%myWaterColumn(i-1,j) .gt. Me%MinimumWaterColumnAdvection)) then
                     
                     !Face YV(i+1,j)
@@ -6056,21 +6354,35 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                         YBottomAdv = 0.0
                     endif                
         
-                    !Faces of V(i,j) that were not being accounted (in 2D need to be accounted)
-                    !Face XV(i,j+1)
-!                    if (Me%ComputeFaceU(i, j+1) +  Me%ComputeFaceU(i-1, j+1)     &
-!                        + Me%ComputeFaceV(i, j) +  Me%ComputeFaceV(i, j+1) == 4) then
-                    if (Me%ComputeFaceU(i, j+1) +  Me%ComputeFaceU(i-1, j+1) .ge. 1) then
+                    if (Me%ComputeFaceU(i, j+1) +  Me%ComputeFaceU(i-1, j+1) .gt. 0) then
                         
-                       !if flows in same direction, advection is computed                        
+                        !if flows in same direction, advection is computed                        
                         if ((Me%FlowXOld(i, j+1) * Me%FlowXOld(i-1, j+1)).ge. 0.0) then
                             
                             Qf = (Me%FlowXOld(i, j+1) + Me%FlowXOld(i-1, j+1)) / 2.0
-
-                            if ((Qf > 0.0)) then
+                            
+                            if (Qf > 0.0) then
+                                
                                 XRightAdv = Qf   * Me%FlowYOld(i, j) / Me%AreaV(i, j)
-                            elseif ((Qf < 0.0) .and. (Me%ComputeFaceV(i,j+1) == Compute)) then
-                                XRightAdv = Qf   * Me%FlowYOld(i, j+1) / Me%AreaV(i, j+1)
+                                
+                            elseif (Qf < 0.0)then
+                                
+                                if(Me%ComputeFaceV(i,j+1) == Compute) then
+                                    XRightAdv = Qf   * Me%FlowYOld(i, j+1) / Me%AreaV(i, j+1)
+                                    !XRightAdv =  (Me%FlowXOld(i,   j) * (Me%FlowYOld(i+1, j-1) / Me%AreaV(i+1, j-1)        + &
+                                    !                                    Me%FlowYOld(i,   j-1) / Me%AreaV(i,   j-1)) / 2.0 + & 
+                                    !             Me%FlowXOld(i-1, j) * (Me%FlowYOld(i,   j-1) / Me%AreaV(i,   j-1)        + &
+                                    !                                    Me%FlowYOld(i-1, j-1) / Me%AreaV(i-1, j-1)) / 2.0)/2.0
+                                else
+                                    if(Me%ComputeFaceV(i-1, j+1) == Compute)then
+                                        XRightAdv = Qf   *  Me%FlowYOld(i-1, j+1) / Me%AreaV(i-1, j+1)
+                                    elseif(Me%ComputeFaceV(i+1, j+1) == Compute)then
+                                        XRightAdv = Qf   * Me%FlowYOld(i+1, j+1) / Me%AreaV(i+1, j+1) 
+                                    else
+                                        XRightAdv = 0.0
+                                    endif
+                                endif
+                                
                             else 
                                 XRightAdv = 0.0
                             endif
@@ -6082,20 +6394,34 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                         XRightAdv = 0.0
                     endif       
 
-                    !Faces of V(i,j) that were not being accounted (in 2D need to be accounted)
-                    !Face XV(i,j)
-!                    if (Me%ComputeFaceU(i, j) +  Me%ComputeFaceU(i-1, j)      &
-!                        + Me%ComputeFaceV(i, j) +  Me%ComputeFaceV(i, j-1) == 4) then
-                    if (Me%ComputeFaceU(i, j) +  Me%ComputeFaceU(i-1, j) .ge. 1) then
+                    if (Me%ComputeFaceU(i, j) +  Me%ComputeFaceU(i-1, j) .gt. 0) then
                         
-                       !if flows in same direction, advection is computed                        
+                        !if flows in same direction, advection is computed                        
                         if ((Me%FlowXOld(i, j) * Me%FlowXOld(i-1, j)).ge. 0.0) then
                             
                             Qf = (Me%FlowXOld(i, j) + Me%FlowXOld(i-1, j)) / 2.0
-
-                            if ((Qf > 0.0) .and. (Me%ComputeFaceV(i,j-1) == Compute)) then
-                                XLeftAdv = Qf   * Me%FlowYOld(i, j-1) / Me%AreaV(i, j-1)
-                            elseif ((Qf < 0.0)) then
+                            
+                            if (Qf > 0.0)then
+                                if(Me%ComputeFaceV(i,j-1) == Compute) then
+                                    XLeftAdv = Qf   * Me%FlowYOld(i, j-1) / Me%AreaV(i, j-1)
+                                    
+                                    !XLeftAdv =  (Me%FlowXOld(i,   j) * (Me%FlowYOld(i+1, j-1) / Me%AreaV(i+1, j-1)        + &
+                                    !                                   Me%FlowYOld(i,   j-1) / Me%AreaV(i,   j-1)) / 2.0 + & 
+                                    !            Me%FlowXOld(i-1, j) * (Me%FlowYOld(i,   j-1) / Me%AreaV(i,   j-1)        + &
+                                    !                                   Me%FlowYOld(i-1, j-1) / Me%AreaV(i-1, j-1)) / 2.0)/2.0
+                                    
+                                else
+                                    
+                                    if(Me%ComputeFaceV(i+1, j-1) == Compute)then
+                                        XLeftAdv = Qf * Me%FlowYOld(i+1, j-1) / Me%AreaV(i+1, j-1) 
+                                    elseif(Me%ComputeFaceV(i-1, j-1) == Compute)then
+                                        XLeftAdv = Qf * Me%FlowYOld(i-1, j-1) / Me%AreaV(i-1, j-1)
+                                    else
+                                        XLeftAdv = 0.0
+                                    endif
+                                   
+                                endif
+                            elseif (Qf < 0.0) then
                                 XLeftAdv = Qf   * Me%FlowYOld(i, j) / Me%AreaV(i, j)
                             else
                                 XLeftAdv = 0.0
@@ -10361,6 +10687,7 @@ cd1:    if (RunOffID > 0) then
         !Gets Horizontal Grid
         call GetHorizontalGrid(Me%ObjHorizontalGrid,                                     &
                                DUX    = Me%ExtVar%DUX,    DVY    = Me%ExtVar%DVY,        &
+                               DUY    = Me%ExtVar%DUY,    DVX    = Me%ExtVar%DVX,        &
                                DXX    = Me%ExtVar%DXX,    DYY    = Me%ExtVar%DYY,        &
                                DZX    = Me%ExtVar%DZX,    DZY    = Me%ExtVar%DZY,        &
                                XX2D_Z = Me%ExtVar%XX2D_Z, YY2D_Z = Me%ExtVar%YY2D_Z,     &
@@ -10411,9 +10738,16 @@ cd1:    if (RunOffID > 0) then
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%DUX, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleRunOff - ERR03'
 
-        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%DVY, STAT = STAT_CALL)
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%DUY, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleRunOff - ERR04'
+        
+        !Unget Horizontal Grid
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%DVX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleRunOff - ERR03a'
 
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%DVY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleRunOff - ERR04a'
+        
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExtVar%DXX, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleRunOff - ERR05'
 
