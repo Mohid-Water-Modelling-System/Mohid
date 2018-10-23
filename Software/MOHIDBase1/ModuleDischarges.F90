@@ -2310,11 +2310,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
                 stop       'Subroutine GetDischargesGridLocalization - ModuleDischarges. ERR01.'
             endif
 
-            if (.not. DischargeX%Localization%Location2D) then
-                write(*,*)'Discharge location not given in Grid Coordinates'
-                write(*,*)trim(adjustl(DischargeX%ID%Name))
-                stop 'GetDischargesGridLocalization - ModuleDischarges - ERR01a'
-            endif
+            !if (.not. DischargeX%Localization%Location2D) then
+            !    write(*,*)'Discharge location not given in Grid Coordinates'
+            !    write(*,*)trim(adjustl(DischargeX%ID%Name))
+            !    stop 'GetDischargesGridLocalization - ModuleDischarges - ERR01a'
+            !endif
             
             if (DischargeX%Localization%VariableX .and. present(TimeX)) then
                 DischargeX%Localization%CoordinateX  =                                  &
@@ -2910,11 +2910,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
                 stop       'GetDischargesNodeID - ModuleDischarges - ERR01'
             endif
 
-            if (DischargeX%Localization%Location2D) then
-                write(*,*)'Discharge location not given as Node ID'
-                write(*,*)trim(adjustl(DischargeX%ID%Name))
-                stop 'GetDischargesNodeID - ModuleDischarges - ERR01a'
-            endif
+            !Code below does not makes sense for drainage network. 
+            !If you want to impose discharge in Drainage Network and RunOff the code will not allow you to run.
+            !Can be deleted in 2019 - Frank
+            !if (DischargeX%Localization%Location2D) then
+            !    write(*,*)'Discharge location not given as Node ID'
+            !    write(*,*)trim(adjustl(DischargeX%ID%Name))
+            !    stop 'GetDischargesNodeID - ModuleDischarges - ERR01a'
+            !endif
 
             NodeID = DischargeX%Localization%NodeID
 

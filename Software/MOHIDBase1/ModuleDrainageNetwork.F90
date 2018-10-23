@@ -131,6 +131,9 @@
 !       N_STATIONS          : integer           -           !number os stations that define the cross section
 !       STATION             : real real ...     -           !station values
 !       ELEVATION/LEVEL     : real real ...     -           !elevation values        
+!   4 - Culvert
+!       INVERT_LEVEL        : real              -           !Invert Level of the Culvert
+!       DIAMETER            : real
 !<EndNode>    
 !<BeginReach>
 !   ID                      : int               -           !Reach ID Number
@@ -382,7 +385,13 @@ Module ModuleDrainageNetwork
     integer, parameter                              :: Trapezoidal          = 1
     integer, parameter                              :: TrapezoidalFlood     = 2
     integer, parameter                              :: Tabular              = 3
+    integer, parameter                              :: Culvert              = 4
+
+    !Culvert - section type
+    integer, parameter                              :: circular_area     = 1
+    integer, parameter                              :: rectangular_area  = 2
     
+
     !DownstreamBoundary
     integer, parameter                              :: Dam                  = 0
     integer, parameter                              :: ZeroDepthGradient    = 1
@@ -553,6 +562,7 @@ Module ModuleDrainageNetwork
         integer                                     :: ObjEnterDataInitial   = 0
     end type T_Files
 
+   
     type T_CrossSection
         integer                                     :: Form                     = null_int        
         real                                        :: BottomWidth              = null_real        
@@ -582,6 +592,13 @@ Module ModuleDrainageNetwork
         real, dimension(:), pointer                 :: LevelVerticalArea        => null() !length NLevels
         real, dimension(:), pointer                 :: LevelWetPerimeter        => null() !length NLevels       
         real, dimension(:), pointer                 :: LevelSurfaceWidth        => null() !length NLevels       
+
+        !Culvert
+        integer                                     :: CulvertSectionType       = null_int
+        real                                        :: CulvertDiameter          = null_real
+        real                                        :: CulvertHeight            = null_real
+        real                                        :: CulvertWidth             = null_real
+        real                                        :: CulvertInvertLevel       = null_real
        
     end type   T_CrossSection    
 
@@ -612,8 +629,13 @@ Module ModuleDrainageNetwork
         real                                        :: SurfaceArea              = null_real
         real                                        :: SurfaceWidth             = null_real
         logical                                     :: HasGrid                  = .FALSE.
+        logical                                     :: HasTwoGridPoints         = .FALSE.
         integer                                     :: GridI                    = null_int
         integer                                     :: GridJ                    = null_int
+        integer                                     :: LeftGridI                = null_int
+        integer                                     :: LeftGridJ                = null_int
+        integer                                     :: RightGridI               = null_int
+        integer                                     :: RightGridJ               = null_int
         integer                                     :: nUpstreamReaches         = 0
         integer                                     :: nDownstreamReaches       = 0
         integer                                     :: Order                    = null_int
@@ -622,7 +644,7 @@ Module ModuleDrainageNetwork
         logical                                     :: TimeSerie                = .FALSE.
         character(LEN = StringLength)               :: TimeSerieName            = ''
         logical                                     :: Discharges               = .FALSE.
-        type (T_CrossSection)                       :: CrossSection                             
+        type (T_CrossSection)                       :: CrossSection
         character(len=StringLength)                 :: StationName              = ''
         real                                        :: SingCoef                 = 1.0
         type(T_MaxValues)                           :: Max
@@ -2803,8 +2825,6 @@ if2:            if (BlockFound) then
         integer                                     :: flag, NStations
         real, dimension (2)                         :: AuxCoord 
         logical                                     :: ComputeElevation
-        real                                        :: heightDif
-        character (len = StringLength)              :: AuxString
 
         !Local------------------------------------------------------------------
      
@@ -2857,47 +2877,86 @@ if2:            if (BlockFound) then
             stop 'ModuleDrainageNetwork - ConstructNode - ERR05'
         end if
 
-        !Gets associated Grid Point I
-        call GetData(NewNode%GridI,                                             &
-                     Me%Files%ObjEnterDataNetwork, flag,                        &
-                     keyword      = 'GRID_I',                                   &
-                     ClientModule = 'DrainageNetwork',                          &
-                     SearchType   = FromBlock,                                  &
-                     default      = null_int,                                   &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR06'
+        
+        if (Me%HasGrid) then
+        
+            !Gets associated Grid Point I
+            call GetData(NewNode%GridI,                                             &
+                         Me%Files%ObjEnterDataNetwork, flag,                        &
+                         keyword      = 'GRID_I',                                   &
+                         ClientModule = 'DrainageNetwork',                          &
+                         SearchType   = FromBlock,                                  &
+                         default      = null_int,                                   &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR06'
                                                                                 
-        !Gets associated Grid Point J
-        call GetData(NewNode%GridJ,                                             &
-                     Me%Files%ObjEnterDataNetwork, flag,                        &
-                     keyword      = 'GRID_J',                                   &
-                     ClientModule = 'DrainageNetwork',                          &
-                     SearchType   = FromBlock,                                  &
-                     default      = null_int,                                   &
-                     STAT         = STAT_CALL)                                  
-        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR07'
+            !Gets associated Grid Point J
+            call GetData(NewNode%GridJ,                                             &
+                         Me%Files%ObjEnterDataNetwork, flag,                        &
+                         keyword      = 'GRID_J',                                   &
+                         ClientModule = 'DrainageNetwork',                          &
+                         SearchType   = FromBlock,                                  &
+                         default      = null_int,                                   &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR07'
         
-        if(NewNode%GridI .ne. null_int .AND. NewNode%GridJ .ne. null_int)then
-            NewNode%HasGrid = .TRUE.    
-        endif
-        
-        if(.not. Me%HasGrid)then
-            NewNode%HasGrid = .FALSE. 
-        endif
-        
+            if(NewNode%GridI .ne. null_int .AND. NewNode%GridJ .ne. null_int) then
+                NewNode%HasGrid = .TRUE.
+            endif
+      
+            
+            !I Left Bank
+            call GetData(NewNode%LeftGridI,                                        &
+                            Me%Files%ObjEnterDataNetwork, flag,                    &  
+                            keyword      = 'LEFT_GRID_I',                          &
+                            ClientModule = 'DrainageNetwork',                      &
+                            SearchType   = FromBlock,                              &
+                            default      = null_int,                               &
+                            STAT         = STAT_CALL)                                      
+            if (STAT_CALL .NE. SUCCESS_)                                           &
+                stop 'ModuleDrainageNetwork - ConstructNode - ERR60b'
 
-        !TerrainLevel (before InitializeTabularCrossSection)
-        call GetData(NewNode%CrossSection%TerrainLevel,                         &
-                     Me%Files%ObjEnterDataNetwork, flag,                        &  
-                     keyword      = 'TERRAIN_LEVEL',                            &
-                     ClientModule = 'DrainageNetwork',                          &
-                     SearchType   = FromBlock,                                  &
-                     STAT         = STAT_CALL)                                      
-        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR08'
-        if (flag /= 1) then
-            write (*,*)'Invalid Node Terrain Level [TERRAIN_LEVEL]'
-            stop 'ModuleDrainageNetwork - ConstructNode - ERR21'
-        endif
+            !J Left Bank
+            call GetData(NewNode%LeftGridJ,                                        &
+                            Me%Files%ObjEnterDataNetwork, flag,                    &  
+                            keyword      = 'LEFT_GRID_J',                          &
+                            ClientModule = 'DrainageNetwork',                      &
+                            default      = null_int,                               &
+                            SearchType   = FromBlock,                              &
+                            STAT         = STAT_CALL)                                      
+            if (STAT_CALL .NE. SUCCESS_)                                          &
+                stop 'ModuleDrainageNetwork - ConstructNode - ERR60c'
+            
+            !I Right Bank
+            call GetData(NewNode%RightGridI,                                       &
+                            Me%Files%ObjEnterDataNetwork, flag,                    &  
+                            keyword      = 'RIGHT_GRID_I',                         &
+                            ClientModule = 'DrainageNetwork',                      &
+                            default      = null_int,                               &
+                            SearchType   = FromBlock,                              &
+                            STAT         = STAT_CALL)                                      
+            if (STAT_CALL .NE. SUCCESS_ )                                          &
+                stop 'ModuleDrainageNetwork - ConstructNode - ERR60d'
+
+            !J Left Bank
+            call GetData(NewNode%RightGridJ,                                       &
+                            Me%Files%ObjEnterDataNetwork, flag,                    &  
+                            keyword      = 'RIGHT_GRID_J',                         &
+                            ClientModule = 'DrainageNetwork',                      &
+                            default      = null_int,                               &
+                            SearchType   = FromBlock,                              &
+                            STAT         = STAT_CALL)                                      
+            if (STAT_CALL .NE. SUCCESS_)                                           &
+                stop 'ModuleDrainageNetwork - ConstructNode - ERR60e'
+
+            if(NewNode%LeftGridI .ne. null_int .AND. NewNode%LeftGridJ .ne. null_int .AND. &
+                NewNode%RightGridI .ne. null_int .AND. NewNode%RightGridJ .ne. null_int ) then
+                
+                NewNode%HasTwoGridPoints = .TRUE.
+
+            endif
+
+        endif    
         
         !Singularity Coef - % available vertical area = 1 - % reduction Av by singularity
         call GetData(NewNode%SingCoef,                                          &
@@ -2972,30 +3031,51 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
                 stop 'ModuleDrainageNetwork - ConstructNode - ERR12a'
             endif
 
+            if (.not. NewNode%HasGrid) then
+                call GetData(NewNode%CrossSection%TerrainLevel,                         &
+                             Me%Files%ObjEnterDataNetwork, flag,                        &  
+                             keyword      = 'TERRAIN_LEVEL',                            &
+                             ClientModule = 'DrainageNetwork',                          &
+                             SearchType   = FromBlock,                                  &
+                             STAT         = STAT_CALL)                                      
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR08'
+                if (flag /= 1) then
+                    write (*,*)'Invalid Node Terrain Level [TERRAIN_LEVEL]'
+                    stop 'ModuleDrainageNetwork - ConstructNode - ERR21'
+                endif
+            endif            
+            
+            !
+            !Commented logic below. Now the Node has either:
+            ! - a given terrain level if we run without DTM or if the node lies outside the DTM
+            ! - the terrain level from the DTM.
+            
             !if DN was imposed over DTM (if associated(Me%ExtVar%Topography)) 
             !meaning that drainage network may have been built from DTM different than currently used (e.g. with depressions removed), 
             !need to check terrain level and height to be consistent with DTM used
             if (associated(Me%ExtVar%Topography) .AND. NewNode%HasGrid) then
-                
-                if (Me%ExtVar%Topography(NewNode%GridI, NewNode%GridJ) /= NewNode%CrossSection%TerrainLevel) then
-                    
-                    heightDif = Me%ExtVar%Topography(NewNode%GridI, NewNode%GridJ) - NewNode%CrossSection%TerrainLevel
-                    
-                    NewNode%CrossSection%TerrainLevel = Me%ExtVar%Topography(NewNode%GridI, NewNode%GridJ)
-                    NewNode%CrossSection%Height = NewNode%CrossSection%Height + heightDif
-                    
-                    if (NewNode%CrossSection%Height < 0) then
-                        write(*,*)'Negative node cross section height after Topography check'
-                        write(*,*)'in node ', NewNode%ID
-                        stop 'ModuleDrainageNetwork - ConstructNode - ERR12b'
-                    endif
-                    
-                    Me%ChangedNodes = .true.
-                    write(AuxString,*) 'Forcing river points from DN, Node changed to fit DTM ', NewNode%ID
-                    call SetError (WARNING_, INTERNAL_, AuxString , OFF)
-                    
-                endif        
-            endif            
+                NewNode%CrossSection%TerrainLevel = Me%ExtVar%Topography(NewNode%GridI, NewNode%GridJ)
+            endif
+            !    
+            !    if (Me%ExtVar%Topography(NewNode%GridI, NewNode%GridJ) /= NewNode%CrossSection%TerrainLevel) then
+            !        
+            !        heightDif = Me%ExtVar%Topography(NewNode%GridI, NewNode%GridJ) - NewNode%CrossSection%TerrainLevel
+            !        
+            !        NewNode%CrossSection%TerrainLevel = Me%ExtVar%Topography(NewNode%GridI, NewNode%GridJ)
+            !        NewNode%CrossSection%Height = NewNode%CrossSection%Height + heightDif
+            !        
+            !        if (NewNode%CrossSection%Height < 0) then
+            !            write(*,*)'Negative node cross section height after Topography check'
+            !            write(*,*)'in node ', NewNode%ID
+            !            stop 'ModuleDrainageNetwork - ConstructNode - ERR12b'
+            !        endif
+            !        
+            !        Me%ChangedNodes = .true.
+            !        write(AuxString,*) 'Forcing river points from DN, Node changed to fit DTM ', NewNode%ID
+            !        call SetError (WARNING_, INTERNAL_, AuxString , OFF)
+            !        
+            !    endif        
+            !endif            
             
             NewNode%CrossSection%Slope = (( NewNode%CrossSection%TopWidth        &
                                           - NewNode%CrossSection%BottomWidth )   &
@@ -3129,6 +3209,74 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
             
             call InitializeTabularCrossSection(NewNode, ComputeElevation)                                   
 
+        elseif (NewNode%CrossSection%Form == Culvert) then !ifXS
+
+            call GetData(NewNode%CrossSection%CulvertSectionType,               &
+                         Me%Files%ObjEnterDataNetwork, flag,                    &  
+                         keyword      = 'CULVERT_SECTION_TYPE',                 &
+                         ClientModule = 'DrainageNetwork',                      &
+                         SearchType   = FromBlock,                              &
+                         Default      = circular_area,                          &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR18'
+
+            call GetData(NewNode%CrossSection%CulvertInvertLevel,               &
+                         Me%Files%ObjEnterDataNetwork, flag,                    &  
+                         keyword      = 'CULVERT_INVERT_LEVEL',                 &
+                         ClientModule = 'DrainageNetwork',                      &
+                         SearchType   = FromBlock,                              &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR18'
+            if (flag /= 1) then
+                write(*,*) 'Invalid Node Culvert Invert Level [CULVERT_INVERT_LEVEL]'
+                stop 'ModuleDrainageNetwork - ConstructNode - ERR17a'
+            end if 
+
+
+            if (NewNode%CrossSection%CulvertSectionType == circular_area) then
+
+                call GetData(NewNode%CrossSection%CulvertDiameter,               &
+                             Me%Files%ObjEnterDataNetwork, flag,                    &  
+                             keyword      = 'CULVERT_DIAMETER',                     &
+                             ClientModule = 'DrainageNetwork',                      &
+                             SearchType   = FromBlock,                              &
+                             STAT         = STAT_CALL)                                      
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR18a'
+                if (flag /= 1) then
+                    write(*,*) 'Invalid Node Culvert Diameter [CULVERT_DIAMETER]'
+                    stop 'ModuleDrainageNetwork - ConstructNode - ERR17a'
+                end if 
+
+            else
+
+                call GetData(NewNode%CrossSection%CulvertHeight,               &
+                                Me%Files%ObjEnterDataNetwork, flag,                    &  
+                                keyword      = 'CULVERT_HEIGHT',                     &
+                                ClientModule = 'DrainageNetwork',                      &
+                                SearchType   = FromBlock,                              &
+                                STAT         = STAT_CALL)                                      
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR18a'
+                if (flag /= 1) then
+                    write(*,*) 'Invalid Node Culvert Diameter [CULVERT_DIAMETER]'
+                    stop 'ModuleDrainageNetwork - ConstructNode - ERR17a'
+                end if 
+
+                call GetData(NewNode%CrossSection%CulvertWidth,               &
+                            Me%Files%ObjEnterDataNetwork, flag,                    &  
+                            keyword      = 'CULVERT_WIDTH',                     &
+                            ClientModule = 'DrainageNetwork',                      &
+                            SearchType   = FromBlock,                              &
+                            STAT         = STAT_CALL)                                      
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR18a'
+                if (flag /= 1) then
+                    write(*,*) 'Invalid Node Culvert Diameter [CULVERT_DIAMETER]'
+                    stop 'ModuleDrainageNetwork - ConstructNode - ERR17a'
+                end if 
+
+
+            endif
+
+
         else !ifXS
                     
             write (*,*)'Invalid Cross Section Form in Node', NodePos
@@ -3136,6 +3284,8 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
 
         end if ifXS
            
+       
+        
         !Pool Depth
         call GetData(NewNode%CrossSection%PoolDepth,                        &
                      Me%Files%ObjEnterDataNetwork, flag,                    &  
@@ -3233,7 +3383,6 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
             write (unit, *)"GRID_I             : ", CurrNode%GridI
             write (unit, *)"GRID_J             : ", CurrNode%GridJ            
             write (unit, *)"CROSS_SECTION_TYPE : ", CurrNode%CrossSection%Form 
-            write (unit, *)"TERRAIN_LEVEL      : ", CurrNode%CrossSection%TerrainLevel            
             write (unit, *)"BOTTOM_LEVEL       : ", CurrNode%CrossSection%BottomLevel
             
             if (CurrNode%CrossSection%Form == Trapezoidal .or.                       &
@@ -3241,6 +3390,7 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
                 write (unit, *)"BOTTOM_WIDTH       : ", CurrNode%CrossSection%BottomWidth
                 write (unit, *)"TOP_WIDTH          : ", CurrNode%CrossSection%TopWidth
                 write (unit, *)"HEIGHT             : ", CurrNode%CrossSection%Height
+                write (unit, *)"TERRAIN_LEVEL      : ", CurrNode%CrossSection%TerrainLevel            
                 
                 if (CurrNode%CrossSection%Form == TrapezoidalFlood) then
                     write (unit, *)"MIDDLE_WIDTH       : ", CurrNode%CrossSection%MiddleWidth
@@ -3251,6 +3401,19 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
                 write (unit, *)"N_STATIONS         : ", CurrNode%CrossSection%NStations
                 write (unit, *)"STATION            : ", (CurrNode%CrossSection%Station(i), i=1, CurrNode%CrossSection%NStations)
                 write (unit, *)"ELEVATION          : ", (CurrNode%CrossSection%Elevation(i), i=1, CurrNode%CrossSection%NStations)
+
+            elseif (CurrNode%CrossSection%Form == Culvert) then 
+                write (unit, *)"CULVERT_SECTION_TYPE       : ", CurrNode%CrossSection%CulvertSectionType
+                write (unit, *)"CULVERT_INVERT_LEVEL       : ", CurrNode%CrossSection%CulvertInvertLevel
+
+
+                if (CurrNode%CrossSection%CulvertSectionType == circular_area) then
+                    write (unit, *)"CULVERT_DIAMETER          : ", CurrNode%CrossSection%CulvertDiameter
+                else
+                    write (unit, *)"CULVERT_HEIGHT            : ", CurrNode%CrossSection%CulvertHeight
+                    write (unit, *)"CULVERT_WIDTH             : ", CurrNode%CrossSection%CulvertWidth
+                endif
+
             endif
             
             if (CurrNode%CrossSection%PoolDepth > 0.0) then
@@ -3869,6 +4032,19 @@ if2:              if (BlockFound) then
             stop 'ModuleDrainageNetwork - ConstructReach - ERR02'
         endif
 
+        !Gets Length
+        call GetData(NewReach%Length,                                           &
+                     Me%Files%ObjEnterDataNetwork, flag,                        &  
+                     keyword      = 'LENGTH',                                   &
+                     ClientModule = 'DrainageNetwork',                          &
+                     SearchType   = FromBlock,                                  &
+                     STAT         = STAT_CALL)                                  
+        if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructReach - ERR02'
+        if (flag /= 1) then
+            NewReach%Length        = null_real
+        endif
+
+
         call FindNodePosition (DownNodeID, NewReach%DownstreamNode, Found)     
 
         if (.NOT.Found) then
@@ -4110,11 +4286,14 @@ if2:              if (BlockFound) then
             DownstreamNode => Me%Nodes (CurrReach%DownstreamNode)
             UpstreamNode   => Me%Nodes (CurrReach%UpstreamNode  )
 
-            if (Me%CoordType == 1) then
-                CurrReach%Length = DistanceBetweenTwoGPSPoints(DownstreamNode%X, DownstreamNode%Y, UpstreamNode%X, UpstreamNode%Y)
-            else
-                CurrReach%Length = sqrt( (DownstreamNode%X - UpstreamNode%X) ** 2. +         &
-                                         (DownstreamNode%Y - UpstreamNode%Y) ** 2.)         
+            if (CurrReach%Length < 0) then  !Not read from file.
+                if (Me%CoordType == 1) then
+                    CurrReach%Length = DistanceBetweenTwoGPSPoints(DownstreamNode%X, DownstreamNode%Y, &
+                                                                   UpstreamNode%X, UpstreamNode%Y)
+                else
+                    CurrReach%Length = sqrt( (DownstreamNode%X - UpstreamNode%X) ** 2. +         &
+                                             (DownstreamNode%Y - UpstreamNode%Y) ** 2.)         
+                endif   
             endif
             
             CurrReach%Slope  = (UpstreamNode%CrossSection%BottomLevel -                  &
@@ -5720,9 +5899,8 @@ cd2 :           if (BlockFound) then
 
         !Local------------------------------------------------------------------
         type (T_Node), pointer                      :: CurrNode        
-        integer                                     :: NodeID, iUp, iDown, NLevels
+        integer                                     :: NodeID, iUp, iDown
         type (T_Reach), pointer                     :: UpReach, DownReach
-        real                                        :: Av, P, Sw, m, TopH
 
         allocate (Me%RunOffVector       (Me%TotalNodes))
         allocate (Me%GroundVector       (Me%TotalNodes))
@@ -5840,70 +6018,14 @@ if1:    if (Me%HasGrid) then
 
                 CurrNode => Me%Nodes (NodeID)      
                 
-                if(CurrNode%HasGrid)then
+                if (CurrNode%HasTwoGridPoints) then 
 
-                    Me%ChannelsID          (CurrNode%GridI, CurrNode%GridJ) = CurrNode%ID
-                       
-                    Me%ChannelsBottomLevel  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%BottomLevel
-                    Me%ChannelsNodeLength   (CurrNode%GridI, CurrNode%GridJ) = CurrNode%Length
-                    Me%ChannelsTopArea      (CurrNode%GridI, CurrNode%GridJ) = CurrNode%Length * CurrNode%CrossSection%TopWidth
+                    call SetVariablesOnGridPoint(CurrNode, CurrNode%RightGridI, CurrNode%RightGridJ)
+                    call SetVariablesOnGridPoint(CurrNode, CurrNode%LeftGridI, CurrNode%LeftGridJ)
 
-                    Me%ChannelsActiveState  (CurrNode%GridI, CurrNode%GridJ) = 0
-                    do iUp = 1, CurrNode%nUpStreamReaches
-                        if (Me%Reaches (CurrNode%UpstreamReaches(iUp))%Active) then
-                            Me%ChannelsActiveState  (CurrNode%GridI, CurrNode%GridJ) = 1
-                        endif
-                    enddo
-                
-                    do iDown = 1, CurrNode%nDownStreamReaches
-                        if (Me%Reaches (CurrNode%DownStreamReaches(iDown))%Active) then
-                            Me%ChannelsActiveState  (CurrNode%GridI, CurrNode%GridJ) = 1
-                        endif
-                    enddo
-
-
-                    if (CurrNode%CrossSection%Form == Trapezoidal) then
-
-                        call TrapezoidGeometry (b  = CurrNode%CrossSection%BottomWidth, &
-                                                mR = CurrNode%CrossSection%Slope,       &
-                                                mL = CurrNode%CrossSection%Slope,       &
-                                                h  = CurrNode%CrossSection%Height,      &
-                                                Av = Av,                                &
-                                                P  = P,                                 &
-                                                Sw = Sw)
-
-                        Me%ChannelsBottomWidth  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%BottomWidth
-                        Me%ChannelsSurfaceWidth (CurrNode%GridI, CurrNode%GridJ) = Sw
-                        Me%ChannelsBankSlope    (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%Slope
-
-                    elseif (CurrNode%CrossSection%Form == TrapezoidalFlood) then
-
-                        TopH = CurrNode%CrossSection%Height - CurrNode%CrossSection%MiddleHeight
-
-                        call TrapezoidGeometry (b  = CurrNode%CrossSection%MiddleWidth, &
-                                                mR = CurrNode%CrossSection%SlopeTop,    &
-                                                mL = CurrNode%CrossSection%SlopeTop,    &
-                                                h  = TopH,                              &
-                                                Av = Av,                                &
-                                                P  = P,                                 &
-                                                Sw = Sw)
-
-                        Me%ChannelsBottomWidth  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%BottomWidth
-                        Me%ChannelsSurfaceWidth (CurrNode%GridI, CurrNode%GridJ) = Sw
-                        Me%ChannelsBankSlope    (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%SlopeTop
-
-                    elseif (CurrNode%CrossSection%Form == Tabular) then
-                    
-                        NLevels = CurrNode%CrossSection%NLevels    
-
-                        m = 0.5 * ( abs(CurrNode%CrossSection%LevelSlopeLeft(NLevels))  &
-                                +  CurrNode%CrossSection%LevelSlopeRight(NLevels) )
-
-                        Me%ChannelsBottomWidth  (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%LevelWetPerimeter(NLevels)
-                        Me%ChannelsSurfaceWidth (CurrNode%GridI, CurrNode%GridJ) = CurrNode%CrossSection%LevelSurfaceWidth(NLevels)
-                        Me%ChannelsBankSlope    (CurrNode%GridI, CurrNode%GridJ) = m
-        
-                    endif
+                else if (CurrNode%HasGrid) then
+                        
+                    call SetVariablesOnGridPoint(CurrNode, CurrNode%GridI, CurrNode%GridJ)
                     
                 endif
 
@@ -5912,6 +6034,99 @@ if1:    if (Me%HasGrid) then
         endif if1
                             
     end subroutine InitializeVariables
+
+    !---------------------------------------------------------------------------
+
+    subroutine SetVariablesOnGridPoint(CurrNode, i, j)
+
+        !Arguments--------------------------------------------------------------
+        type (T_Node), pointer                      :: CurrNode 
+        integer                                     :: i, j       
+
+        !Local------------------------------------------------------------------
+        integer                                     :: iUp, iDown, NLevels
+        real                                        :: Av, P, Sw, m, TopH
+
+        Me%ChannelsID           (i, j) = CurrNode%ID
+                       
+        Me%ChannelsBottomLevel  (i, j) = CurrNode%CrossSection%BottomLevel
+        Me%ChannelsNodeLength   (i, j) = CurrNode%Length
+        Me%ChannelsTopArea      (i, j) = CurrNode%Length * CurrNode%CrossSection%TopWidth
+
+        Me%ChannelsActiveState  (i, j) = 0
+        do iUp = 1, CurrNode%nUpStreamReaches
+            if (Me%Reaches (CurrNode%UpstreamReaches(iUp))%Active) then
+                Me%ChannelsActiveState  (i, j) = 1
+            endif
+        enddo
+                
+        do iDown = 1, CurrNode%nDownStreamReaches
+            if (Me%Reaches (CurrNode%DownStreamReaches(iDown))%Active) then
+                Me%ChannelsActiveState  (i, j) = 1
+            endif
+        enddo
+
+
+        if (CurrNode%CrossSection%Form == Trapezoidal) then
+
+            call TrapezoidGeometry (b  = CurrNode%CrossSection%BottomWidth, &
+                                    mR = CurrNode%CrossSection%Slope,       &
+                                    mL = CurrNode%CrossSection%Slope,       &
+                                    h  = CurrNode%CrossSection%Height,      &
+                                    Av = Av,                                &
+                                    P  = P,                                 &
+                                    Sw = Sw)
+
+            Me%ChannelsBottomWidth  (i, j) = CurrNode%CrossSection%BottomWidth
+            Me%ChannelsSurfaceWidth (i, j) = Sw
+            Me%ChannelsBankSlope    (i, j) = CurrNode%CrossSection%Slope
+
+        elseif (CurrNode%CrossSection%Form == TrapezoidalFlood) then
+
+            TopH = CurrNode%CrossSection%Height - CurrNode%CrossSection%MiddleHeight
+
+            call TrapezoidGeometry (b  = CurrNode%CrossSection%MiddleWidth, &
+                                    mR = CurrNode%CrossSection%SlopeTop,    &
+                                    mL = CurrNode%CrossSection%SlopeTop,    &
+                                    h  = TopH,                              &
+                                    Av = Av,                                &
+                                    P  = P,                                 &
+                                    Sw = Sw)
+
+            Me%ChannelsBottomWidth  (i, j) = CurrNode%CrossSection%BottomWidth
+            Me%ChannelsSurfaceWidth (i, j) = Sw
+            Me%ChannelsBankSlope    (i, j) = CurrNode%CrossSection%SlopeTop
+
+        elseif (CurrNode%CrossSection%Form == Tabular) then
+                    
+            NLevels = CurrNode%CrossSection%NLevels    
+
+            m = 0.5 * ( abs(CurrNode%CrossSection%LevelSlopeLeft(NLevels))  &
+                    +  CurrNode%CrossSection%LevelSlopeRight(NLevels) )
+
+            Me%ChannelsBottomWidth  (i, j) = CurrNode%CrossSection%LevelWetPerimeter(NLevels)
+            Me%ChannelsSurfaceWidth (i, j) = CurrNode%CrossSection%LevelSurfaceWidth(NLevels)
+            Me%ChannelsBankSlope    (i, j) = m
+
+        elseif (CurrNode%CrossSection%Form == Culvert) then
+
+            if (CurrNode%CrossSection%CulvertSectionType == circular_area) then
+
+                Me%ChannelsBottomWidth  (i, j) = 0.0
+                Me%ChannelsSurfaceWidth (i, j) = 0.0
+                Me%ChannelsBankSlope    (i, j) = null_real
+
+            else
+
+                Me%ChannelsBottomWidth  (i, j) = CurrNode%CrossSection%CulvertWidth
+                Me%ChannelsSurfaceWidth (i, j) = CurrNode%CrossSection%CulvertWidth
+                Me%ChannelsBankSlope    (i, j) = null_real
+
+            endif
+
+        endif
+
+    end subroutine SetVariablesOnGridPoint
 
     !---------------------------------------------------------------------------
 
@@ -6190,6 +6405,7 @@ cd0:    if (Exist) then
                 do NodeID = 1, Me%TotalNodes
                     CurrNode => Me%Nodes(NodeID)
                     CurrNode%WaterLevel = Me%InitialWaterLevel 
+                    CurrNode%WaterDepth = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
                 end do
             else
                 do NodeID = 1, Me%TotalNodes
@@ -6425,6 +6641,14 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
                                       CurrNode%WetPerimeter,   &
                                       CurrNode%SurfaceWidth)
 
+            elseif (CurrNode%CrossSection%Form == Culvert) then
+
+                call CulvertGeometry (CurrNode%CrossSection,   &
+                                      CurrNode%WaterLevel,     &
+                                      CurrNode%VerticalArea,   & 
+                                      CurrNode%WetPerimeter,   &
+                                      CurrNode%SurfaceWidth)
+
             else                 
                 stop 'Invalid cross section form - ComputeXSFromWaterDepth - ModuleDrainageNetwork - ERR01'
             end if
@@ -6537,6 +6761,50 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
     end subroutine TabularGeometry
 
     !---------------------------------------------------------------------------
+    !---------------------------------------------------------------------------
+
+    subroutine CulvertGeometry (CrossSection, WaterLevel, Av, P, Sw)
+
+        !Arguments--------------------------------------------------------------
+        type(T_CrossSection)                :: CrossSection
+        real, intent(in)                    :: WaterLevel
+        real, intent(out)                   :: Av, P, Sw
+
+        !Locals----------------------------------------------------------------
+        real                                :: Theta, Rh
+
+        if (CrossSection%CulvertSectionType == circular_area) then
+
+            if (WaterLevel > CrossSection%CulvertInvertLevel + CrossSection%CulvertDiameter) then
+                Av = Pi * (CrossSection%CulvertDiameter/2.)**2.
+                P  = Pi * CrossSection%CulvertDiameter
+                Sw = 0.0
+            else
+                Theta = 2.* acos(1.-2.*(WaterLevel - CrossSection%CulvertInvertLevel)/CrossSection%CulvertDiameter)
+
+                Av = (Theta - sin(Theta))* CrossSection%CulvertDiameter**2. / 8.
+                Rh = (Theta - sin(Theta))/(4.0*Theta) * CrossSection%CulvertDiameter
+                P  = Av / Rh
+                Sw = sin(Theta/2)*CrossSection%CulvertDiameter
+           endif
+
+        else
+
+            if (WaterLevel > CrossSection%CulvertInvertLevel + CrossSection%CulvertHeight) then
+                Av = CrossSection%CulvertWidth * CrossSection%CulvertHeight
+                P  = 2.0 * CrossSection%CulvertWidth + 2.0 * CrossSection%CulvertHeight
+                Sw = 0.0
+            else
+                Av = (WaterLevel - CrossSection%CulvertInvertLevel) * CrossSection%CulvertWidth
+                P  = 2.0 * (WaterLevel - CrossSection%CulvertInvertLevel) + CrossSection%CulvertWidth
+                Sw = CrossSection%CulvertWidth
+           endif
+
+        endif
+
+
+    end subroutine CulvertGeometry
+
     !---------------------------------------------------------------------------
 
     subroutine InitializeReaches
@@ -10182,7 +10450,11 @@ do2 :   do while (associated(PropertyX))
             !Update RunOff and GW Fluxes
             do NodeID = 1, Me%TotalNodes            
                 CurrNode => Me%Nodes (NodeID)
-                if(CurrNode%HasGrid)then
+
+                if (CurrNode%HasTwoGridPoints) then
+                    Me%RunOffVector(NodeID) = OLFlowToChannels(CurrNode%RightGridI, CurrNode%RightGridJ) + &
+                                                OLFlowToChannels(CurrNode%LeftGridI, CurrNode%LeftGridJ)
+                else if (CurrNode%HasGrid) then
                      
                     Me%RunOffVector(NodeID) = OLFlowToChannels(CurrNode%GridI, CurrNode%GridJ)
                 
@@ -10889,6 +11161,11 @@ if2:        if (Volume > PoolVolume) then
                     call TabularWaterLevel (CurrNode%CrossSection, Av_New, Level)
                     Depth = Level - CurrNode%CrossSection%BottomLevel
 
+                elseif (CurrNode%CrossSection%Form == Culvert) then
+
+                    call CulvertWaterLevel (CurrNode%CrossSection, Av_New, Level)
+                    Depth = Level - CurrNode%CrossSection%CulvertInvertLevel
+
                 else
                     
                     stop 'Invalid cross section form - ComputeCrossSection - ModuleDrainageNetwork - ERR01'
@@ -11446,7 +11723,7 @@ if2:        if (Volume > PoolVolume) then
                 if (iter == 1) then
                     call GetDischargeWaterFlow(Me%ObjDischarges,                                &
                                             Me%CurrentTime, iDis,                               &
-                                            Me%Nodes(NodePos)%WaterDepth,                       &
+                                            Me%Nodes(NodePos)%WaterLevel,                       &
                                             Me%DischargesFlow(iDis), STAT = STAT_CALL)
                     if (STAT_CALL/=SUCCESS_) stop 'ModuleDrainageNetwork - ModifyWaterDischarges - ERR04'
                 endif
@@ -12235,24 +12512,32 @@ if1:        if (DownNode%nDownstreamReaches .EQ. 0) then
                 end select
 
             else
-            
-                if (Me%HydrodynamicApproximation == KinematicWave) then !if1                      
-                    
-                    call ComputeKinematicWave (CurrReach)
-                
-                else if (Me%HydrodynamicApproximation == DiffusionWave) then
-            
-                    !Update Slope based on water level
-                    CurrReach%Slope = (Me%Nodes(CurrReach%UpstreamNode)%Waterlevel -            &
-                                       Me%Nodes(CurrReach%DownstreamNode)%Waterlevel) /         &
-                                       CurrReach%Length
-                
-                    call ComputeKinematicWave (CurrReach)
+
+                if (Me%Nodes(CurrReach%UpstreamNode)%CrossSection%Form == Culvert) then
+
+                    call ComputeFlowThroughCulvert(CurrReach)
 
                 else
 
-                    call ComputeStVenant (CurrReach, DT)
+                    if (Me%HydrodynamicApproximation == KinematicWave) then !if1                      
                     
+                        call ComputeKinematicWave (CurrReach)
+                
+                    else if (Me%HydrodynamicApproximation == DiffusionWave) then
+            
+                        !Update Slope based on water level
+                        CurrReach%Slope = (Me%Nodes(CurrReach%UpstreamNode)%Waterlevel -            &
+                                           Me%Nodes(CurrReach%DownstreamNode)%Waterlevel) /         &
+                                           CurrReach%Length
+                
+                        call ComputeKinematicWave (CurrReach)
+
+                    else
+
+                        call ComputeStVenant (CurrReach, DT)
+                    
+                    endif
+
                 endif
         
             end if if1
@@ -12331,7 +12616,14 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                     call TabularWaterLevel (CurrNode%CrossSection, Av_New, CurrNode%WaterLevel)
                     h_New = CurrNode%WaterLevel - CurrNode%CrossSection%BottomLevel
 
+                elseif (CurrNode%CrossSection%Form == Culvert) then
+
+                    call CulvertWaterLevel (CurrNode%CrossSection, Av_New, CurrNode%WaterLevel)
+                    h_New = CurrNode%WaterLevel - CurrNode%CrossSection%CulvertInvertLevel
+
                 else
+
+
                     
                     stop 'Invalid cross section form - ComputeCrossSection - ModuleDrainageNetwork - ERR01'
                 end if
@@ -12456,6 +12748,78 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         endif
 
     end subroutine TabularWaterLevel
+
+    !---------------------------------------------------------------------------            
+    !---------------------------------------------------------------------------            
+
+    subroutine CulvertWaterLevel (CrossSection, Av, WaterLevel)
+
+        !Arguments--------------------------------------------------------------
+        type(T_CrossSection)                :: CrossSection
+        real, intent(in)                    :: Av
+        real, intent(out)                   :: WaterLevel
+
+        !Locals----------------------------------------------------------------
+        real                                :: h, h1, h2, Theta, A
+
+
+        if (CrossSection%CulvertSectionType == circular_area) then
+
+            if (Av >= Pi * (CrossSection%CulvertDiameter/2.)**2.) then
+                if (Av <= Pi * (CrossSection%CulvertDiameter/2.)**2. + 1e-5) then 
+                    WaterLevel = CrossSection%CulvertHeight + CrossSection%CulvertInvertLevel
+                else
+                    stop 'Internal Error CulvertWaterLevel'
+                endif
+            else
+
+                if (Av > 0.5 * (Pi * (CrossSection%CulvertDiameter/2.)**2.)) then
+                    h1 = CrossSection%CulvertDiameter
+                    h2 = CrossSection%CulvertDiameter / 2.0
+                else
+                    h1 = CrossSection%CulvertDiameter / 2.0
+                    h2 = 0.0
+                endif
+
+                h = (h1+h2) / 2.0
+                Theta = 2.* acos(1.-2.*(h)/CrossSection%CulvertDiameter)
+                A = (Theta - sin(Theta))* CrossSection%CulvertDiameter**2. / 8.
+                do while (abs(A-Av) > 1e-5)
+
+                    if (A > Av) then
+                        h2 = h
+                    else
+                        h1 = h
+                    endif
+
+                    h = (h1+h2) / 2.0
+                    Theta = 2.* acos(1.-2.*(h)/CrossSection%CulvertDiameter)
+                    A = (Theta - sin(Theta))* CrossSection%CulvertDiameter**2. / 8.
+                        
+
+                enddo
+
+                WaterLevel = h + CrossSection%CulvertInvertLevel
+
+            endif
+
+
+        else
+
+            if (Av >= CrossSection%CulvertWidth * CrossSection%CulvertHeight) then
+                if (Av <= CrossSection%CulvertWidth * CrossSection%CulvertHeight + 1e-5) then
+                    WaterLevel = CrossSection%CulvertHeight + CrossSection%CulvertInvertLevel
+                else
+                    stop 'Internal Error CulvertWaterLevel'
+                endif
+            else
+                WaterLevel = Av / CrossSection%CulvertWidth + CrossSection%CulvertInvertLevel
+            endif
+
+        endif
+
+
+    end subroutine CulvertWaterLevel
 
 
     !---------------------------------------------------------------------------
@@ -12607,6 +12971,17 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                                       CurrReach%VerticalArea,   & 
                                       WetPerimiter,             &
                                       aux2)
+
+        elseif (UpNode%CrossSection%Form == Culvert) then
+
+                WaterLevel = UpNode%CrossSection%BottomLevel + WaterDepth
+                
+                call CulvertGeometry (UpNode%CrossSection,      &
+                                      UpNode%WaterLevel,        &
+                                      CurrReach%VerticalArea,   & 
+                                      WetPerimiter,             &
+                                      aux2)
+
 
         else                 
             stop 'Invalid cross section form - UpdateReachCrossSection - ModuleDrainageNetwork - ERR01'
@@ -12938,6 +13313,119 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
     end subroutine ComputeCriticalFlow
 
     !---------------------------------------------------------------------------
+
+    subroutine ComputeFlowThroughCulvert(CurrReach)
+
+        !Arguments--------------------------------------------------------------        
+        type (T_Reach), pointer                 :: CurrReach        
+        
+        !Internal---------------------------------------------------------------
+        type (T_Node ), pointer                 :: UpNode, DownNode 
+        real                                    :: UpstreamH, DownstreamH, FlowDir
+        real                                    :: C, D, TopH, BottomH, PipeFriction
+        real                                    :: H, A, P, Rh, Flow, Haux, Theta
+
+        UpNode   => Me%Nodes (CurrReach%UpstreamNode  )
+        DownNode => Me%Nodes (CurrReach%DownstreamNode)
+
+        !Q = C * A * sqrt(2*g) * sqrt(H)
+        if (UpNode%WaterLevel > DownNode%WaterLevel) then
+            UpstreamH    = UpNode%WaterLevel
+            DownstreamH  = DownNode%WaterLevel
+            FlowDir      = 1.0
+        else
+            UpstreamH    = DownNode%WaterLevel
+            DownstreamH  = UpNode%WaterLevel
+            FlowDir      = -1.0
+        endif
+                
+                
+        if      (UpNode%CrossSection%CulvertSectionType == circular_area) then
+            D  = UpNode%CrossSection%CulvertDiameter                
+        elseif  (UpNode%CrossSection%CulvertSectionType == rectangular_area) then
+            D = UpNode%CrossSection%CulvertHeight
+        endif                 
+
+        TopH    =   UpNode%CrossSection%CulvertInvertLevel + D
+        BottomH =   UpNode%CrossSection%CulvertInvertLevel
+                
+        H            = UpstreamH - max(DownstreamH, BottomH)
+                
+        C            = 0.4 !DischargeX%Valve%DischargeCoeficient                
+
+        !if the axis valve minus the radius is above the water level in both sides than there is no flow
+        if ( UpstreamH <= BottomH) then
+            H    =  0.
+            Flow =  0.
+        else
+            !pressure conditions    
+            if (UpstreamH >= TopH) then
+                if      (UpNode%CrossSection%CulvertSectionType == circular_area) then
+                    A    = Pi * (D/2.)**2.
+                    P    = Pi * D
+                elseif (UpNode%CrossSection%CulvertSectionType == rectangular_area) then
+                    A    = D * UpNode%CrossSection%CulvertWidth
+                    P    = 2. * (D + UpNode%CrossSection%CulvertWidth)
+                endif                                     
+            !free surface
+            else
+                    
+                Haux  = UpstreamH - BottomH
+                        
+                if      (UpNode%CrossSection%CulvertSectionType == circular_area) then
+                        
+                    Theta = 2.* acos(1.-2.*Haux/D)
+                    A     = (Theta - sin(Theta))* D**2. / 8.
+                    P     = Theta * D
+                            
+                elseif  (UpNode%CrossSection%CulvertSectionType == rectangular_area) then
+
+                    A    = Haux * UpNode%CrossSection%CulvertWidth
+                    P    = 2 * Haux + UpNode%CrossSection%CulvertWidth
+                        
+                endif                         
+                        
+                        
+                if (Haux < 0.01) then
+                    !no flow in the pipe is assumed
+                    C = 0.
+                endif                    
+                        
+                    
+            endif
+                    
+            if (P > 0.) then
+                Rh  = A / P
+            else
+                Rh  = 0. 
+            endif                        
+                    
+                    
+            if (CurrReach%Length > 0.) then
+                if (Rh > 0.) then
+                    !based in BASIC HYDRAULIC PRINCIPLES OF OPEN-CHANNEL FLOW By Harvey E. Jobson and David C. Froehlich
+                    !U.S. GEOLOGICAL SURVEY Open-File Report 88-707
+
+                    ![ ]     =  [m/s2] * [s/m^0.333]^2 * [m] / [m]^1.333] = [m] / [m^0.6667] * [m] / [m]^1.333 =
+                    !          [m]^(1 -0.6667 + 1 - 1.333] = [m]^0= [ ]
+                    PipeFriction = 2. * Gravity * C**2. * CurrReach%Manning ** 2. * &
+                                    CurrReach%Length / Rh**1.3333
+                    H = H / (1. + PipeFriction)
+                endif                            
+            endif    
+
+            Flow = sqrt(2.* Gravity) * C * A * sqrt(H)
+
+        endif
+                    
+        CurrReach%FlowNew = Flow * FlowDir
+
+        CurrReach%Velocity = CurrReach%FlowNew / (CurrReach%VerticalArea)
+
+
+    end subroutine ComputeFlowThroughCulvert
+    
+!---------------------------------------------------------------------------
                 
     subroutine ModifyNode (NodeID, DT)
 
@@ -13451,9 +13939,23 @@ do2:        do NodeID = 1, Me%TotalNodes
             
             CurrNode => Me%Nodes (NodeID)    
             
-            if(CurrNode%HasGrid)then
+            if (CurrNode%HasTwoGridPOints) then 
+
+                Me%ChannelsWaterLevel(CurrNode%RightGridI, CurrNode%RightGridJ) = CurrNode%WaterLevel
+                Me%ChannelsWaterLevel(CurrNode%LeftGridI, CurrNode%LeftGridJ)   = CurrNode%WaterLevel
+
+                Me%ChannelsVolume    (CurrNode%RightGridI, CurrNode%RightGridJ) = CurrNode%VolumeNew
+                Me%ChannelsVolume    (CurrNode%LeftGridI, CurrNode%LeftGridJ) = CurrNode%VolumeNew
+
+                Me%ChannelsMaxVolume (CurrNode%RightGridI, CurrNode%RightGridJ) = CurrNode%VolumeMax
+                Me%ChannelsMaxVolume (CurrNode%LeftGridI, CurrNode%LeftGridJ) = CurrNode%VolumeMax
+
+
+
+            elseif (CurrNode%HasGrid)then
                 
                 Me%ChannelsWaterLevel       (CurrNode%GridI, CurrNode%GridJ) = CurrNode%WaterLevel
+
                 Me%ChannelsVolume           (CurrNode%GridI, CurrNode%GridJ) = CurrNode%VolumeNew
                 Me%ChannelsMaxVolume        (CurrNode%GridI, CurrNode%GridJ) = CurrNode%VolumeMax
             
