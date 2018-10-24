@@ -12534,11 +12534,11 @@ if1:        if (DownNode%nDownstreamReaches .EQ. 0) then
 
             else
 
-                if (Me%Nodes(CurrReach%UpstreamNode)%CrossSection%Form == Culvert) then
+!                if (Me%Nodes(CurrReach%UpstreamNode)%CrossSection%Form == Culvert) then
 
-                    call ComputeFlowThroughCulvert(CurrReach)
+!                    call ComputeFlowThroughCulvert(CurrReach, DT)
 
-                else
+!                else
 
                     if (Me%HydrodynamicApproximation == KinematicWave) then !if1                      
                     
@@ -12559,7 +12559,7 @@ if1:        if (DownNode%nDownstreamReaches .EQ. 0) then
                     
                     endif
 
-                endif
+!                endif
         
             end if if1
                         
@@ -12806,7 +12806,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                 h = (h1+h2) / 2.0
                 Theta = 2.* acos(1.-2.*(h)/CrossSection%CulvertDiameter)
                 A = (Theta - sin(Theta))* CrossSection%CulvertDiameter**2. / 8.
-                do while (abs(A-Av) > 1e-5)
+                do while (abs(A-Av) > 1e-8)
 
                     if (A < Av) then
                         h2 = h
@@ -13108,6 +13108,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 
         UpNode   => Me%Nodes (CurrReach%UpstreamNode  )
         DownNode => Me%Nodes (CurrReach%DownstreamNode)
+
                             
         !PRESSURE - explicit ----------------------------------------------------
         
@@ -13120,7 +13121,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         !FRICTION - semi-implicit -----------------------------------------------
         !   -    =  (s * m.s-2  * m3.s-1 * s.m(-1/3)) / (m2 * m(4/3)) = m(10/3) / m(10/3)
         Friction = DT * Gravity * abs(CurrReach%FlowOld) * CurrReach%Manning ** 2. &
-                 / ( CurrReach%VerticalArea * CurrReach%HydraulicRadius ** (4./3.) ) 
+                    / ( CurrReach%VerticalArea * CurrReach%HydraulicRadius ** (4./3.) ) 
 
         !ADVECTION - upwind (in - out)-------------------------------------------
         !positive direction is downstream
@@ -13133,7 +13134,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 
         !FLOW---------------------------------------------------------------
         FlowNew = ( CurrReach%FlowOld + Advection + Pressure )    &
-                          / ( 1. + Friction )
+                            / ( 1. + Friction )
         
         if (Me%ComputeOptions%LimitToCriticalFlow) then
             !Limit to critical flow. Using the critical flow limitation in all cells assumes "slow" flow or
@@ -13184,6 +13185,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
         !Velocity
         CurrReach%Velocity = CurrReach%FlowNew / (CurrReach%VerticalArea + CurrReach%PoolVerticalArea)
 
+    
     
     end subroutine ComputeStVenant
 
@@ -13336,11 +13338,12 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
 
     !---------------------------------------------------------------------------
 
-    subroutine ComputeFlowThroughCulvert(CurrReach)
+    subroutine ComputeFlowThroughCulvert(CurrReach, DT)
 
         !Arguments--------------------------------------------------------------        
         type (T_Reach), pointer                 :: CurrReach        
-        
+        real, intent(in)                        :: DT        
+
         !Internal---------------------------------------------------------------
         type (T_Node ), pointer                 :: UpNode, DownNode 
         real                                    :: UpstreamH, DownstreamH, FlowDir
@@ -13427,7 +13430,7 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                 if (Rh > 0.) then
                     !based in BASIC HYDRAULIC PRINCIPLES OF OPEN-CHANNEL FLOW By Harvey E. Jobson and David C. Froehlich
                     !U.S. GEOLOGICAL SURVEY Open-File Report 88-707
-
+        
                     ![ ]     =  [m/s2] * [s/m^0.333]^2 * [m] / [m]^1.333] = [m] / [m^0.6667] * [m] / [m]^1.333 =
                     !          [m]^(1 -0.6667 + 1 - 1.333] = [m]^0= [ ]
                     PipeFriction = 2. * Gravity * C**2. * CurrReach%Manning ** 2. * &
@@ -13435,11 +13438,13 @@ if2:        if (CurrNode%VolumeNew > PoolVolume) then
                     H = H / (1. + PipeFriction)
                 endif                            
             endif    
-
+        
             Flow = sqrt(2.* Gravity) * C * A * sqrt(H)
-
+        
         endif
-                    
+
+        Flow = min(Flow, (UpstreamH - DownstreamH) / 2.0 * D * CurrReach%Length / DT)
+
         CurrReach%FlowNew = Flow * FlowDir
 
         CurrReach%Velocity = CurrReach%FlowNew / (CurrReach%VerticalArea)

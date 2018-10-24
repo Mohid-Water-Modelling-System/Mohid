@@ -8041,39 +8041,18 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                             dh = Me%myWaterColumn (i, j)
                             !Weir equation with 0.4 as coeficient.
                             Flow  = 0.4 * cellwidth  * sqrt(2.0 * Gravity) * dh ** 1.5
+
+                            !Maximum empty cell
+                            Flow     = min(Flow, (Me%myWaterColumn (i, j) - Me%MinimumWaterColumn) * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT)
+
                         else
                             area  = width * (ChannelsWaterLevel(i, j) - Me%ExtVar%Topography(i, j)) + (Me%myWaterLevel (i, j) - Me%ExtVar%Topography(i, j)) / 2.0
-                            Flow  = area *  width ** (2./3.) * sqrt((Me%myWaterLevel(i, j) - ChannelsWaterLevel(i, j)/cellwidth)) / Me%OverlandCoefficient(i, j)
+                            Flow  = area *  width ** (2./3.) * sqrt((Me%myWaterLevel(i, j) - ChannelsWaterLevel(i, j))/cellwidth) / Me%OverlandCoefficient(i, j)
+                
+                            !Maximum equal levels
+                            Flow = min(Flow, (Me%myWaterLevel (i, j) - ChannelsWaterLevel(i, j)) / 2.0 * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT)
+
                        endif
-
-                        !Maximum empty cell
-                        Flow     = min(Flow, (Me%myWaterColumn (i, j) - Me%MinimumWaterColumn) * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT)
-
-                        !!Estimation of new height
-                        !newHLand  = Me%myWaterLevel   (i, j) - Flow * Me%ExtVar%DT / Me%ExtVar%GridCellArea(i,j)
-                        !newHRiver = ChannelsWaterLevel(i, j) + Flow * Me%ExtVar%DT /                    &
-                        !            (ChannelsNodeLength(i, j) * ChannelsSurfaceWidth(i,j))
-                        !
-                        !
-                        !if (newHLand < newHRiver) then
-                        !    write(*,*)'Land to River', newHLand, newHRiver
-                        !    write(*,*)'i, j', i,j
-                        !    write(*,*)'Me%myWaterLevel (i, j)', Me%myWaterLevel (i, j)
-                        !    write(*,*)'ChannelsWaterLevel(i, j)', ChannelsWaterLevel(i, j)
-                        !    write(*,*)'Me%ExtVar%Topography(i, j', Me%ExtVar%Topography(i, j)
-                        !    write(*,*)'Flow, area, width', Flow, area, width
-                        !    write(*,*)'ChannelsNodeLength(i, j), ChannelsSurfaceWidth(i,j)', ChannelsNodeLength(i, j), ChannelsSurfaceWidth(i,j)
-                        !endif
-                        !
-                        !
-                        !!Correct Flow so the direction of the gradient remains the same
-                        !do while (newHLand < newHRiver)
-                        !    Flow = Flow * 0.9
-                        !    newHLand  = Me%myWaterLevel   (i, j) - Flow * Me%ExtVar%DT / Me%ExtVar%GridCellArea(i,j)
-                        !    newHRiver = ChannelsWaterLevel(i, j) + Flow * Me%ExtVar%DT /                    &
-                        !                (ChannelsNodeLength(i, j) * ChannelsSurfaceWidth(i,j))
-                        !   ! Write(*,*)'Correcting flow', i, j
-                        !end do
 
                     else
                     
@@ -8132,29 +8111,9 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                             area  = cellwidth * (ChannelsWaterLevel(i, j) - Me%ExtVar%Topography(i, j)) + (Me%myWaterLevel (i, j) - Me%ExtVar%Topography(i, j)) / 2.0
                             Flow  = area *  cellwidth ** (2./3.) * sqrt((ChannelsWaterLevel(i, j)-Me%myWaterLevel(i, j))/cellwidth) / Me%OverlandCoefficient(i, j)
 
-                            !!Estimation of new height
-                            !newHLand  = Me%myWaterLevel   (i, j) + Flow * Me%ExtVar%DT / Me%ExtVar%GridCellArea(i,j)
-                            !newHRiver = ChannelsWaterLevel(i, j) - Flow * Me%ExtVar%DT / (ChannelsNodeLength(i, j) * ChannelsSurfaceWidth(i,j))
-                            !
-                            !if (newHRiver < newHLand) then
-                            !    write(*,*)'River to land', newHRiver, newHLand
-                            !    write(*,*)'i, j', i,j
-                            !    write(*,*)'Me%myWaterLevel (i, j)', Me%myWaterLevel (i, j)
-                            !    write(*,*)'ChannelsWaterLevel(i, j)', ChannelsWaterLevel(i, j)
-                            !    write(*,*)'Me%ExtVar%Topography(i, j', Me%ExtVar%Topography(i, j)
-                            !    write(*,*)'Flow, area, width', Flow, area, width
-                            !    write(*,*)'ChannelsNodeLength(i, j), ChannelsSurfaceWidth(i,j)', ChannelsNodeLength(i, j), ChannelsSurfaceWidth(i,j)
-                            !endif
-                            !
-                            !!Correct Flow so the direction of the gradient remains the same
-                            !do while (newHRiver <  newHLand)
-                            !    Flow = Flow * 0.9
-                            !    newHLand  = Me%myWaterLevel   (i, j) + Flow * Me%ExtVar%DT / Me%ExtVar%GridCellArea(i,j)
-                            !    newHRiver = ChannelsWaterLevel(i, j) - Flow * Me%ExtVar%DT / (ChannelsNodeLength(i, j) * ChannelsSurfaceWidth(i,j))
-                            !  !  Write(*,*)'Correcting flow', i, j
-                            !end do
-
-                            !Invert Flow, so it can be integrated into Flow To Channels
+                            !Maximum equal levels
+                            Flow = min(Flow, (ChannelsWaterLevel(i, j) - Me%myWaterLevel(i, j)) / 2.0 * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT)
+                            
  
                             !!Important!! flow to channel may have other sources than this, so a sum is needed
                             Me%iFlowToChannels(i, j) = Me%iFlowToChannels(i, j) - Flow
