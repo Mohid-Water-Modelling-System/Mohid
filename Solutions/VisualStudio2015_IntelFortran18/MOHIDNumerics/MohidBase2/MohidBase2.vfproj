@@ -126,6 +126,5 @@
 			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release OpenMP|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug MPI|x64" ExcludedFromBuild="true"/></File>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleStatistic.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleTwoWay.F90"/></Filter></Files>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleStatistic.F90"/></Filter></Files>
 	<Globals/></VisualStudioProject>

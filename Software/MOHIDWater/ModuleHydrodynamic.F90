@@ -29901,7 +29901,7 @@ ifc:    if  (Me%ComputeOptions%LocalSolution == NoLocalSolution_) then
         !$OMP PRIVATE(Wave_Celerity,FluxXY_E,FluxYX_E,LocalWLa,LocalWLb,LocalWave) &
         !$OMP PRIVATE(FluxXY_T,FluxYX_T,FluxXY_L,FluxYX_L,FluxMod_L,LeavingVelocity) &
         !$OMP PRIVATE(XY_Component_L,WaterFluxBoundary,LocalBoundaryFlux,A_aux,T3) &
-        !$OMP PRIVATE(B_aux,D1,D2,E1,E2,E3,E4,F1,F2,T1,T4)
+        !$OMP PRIVATE(B_aux,D1,D2,E1,E2,E3,E4,F1,F2,T1,T4) &
         !$OMP PRIVATE(dx1,dx2,dx3)
 
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
