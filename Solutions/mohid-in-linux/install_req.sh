@@ -114,7 +114,9 @@ OPT_REQ(){
     if ! exist="$(type -p "automake")" || [ -z "$exist" ]; then
       $sudo $PACKMANAG install automake
     fi
-
+    if ! exist="$(type -p "make")" || [ -z "$exist" ]; then
+      $sudo $PACKMANAG install make
+    fi
     if ! exist="$(type -p "gcc")" || [ -z "$exist" ]; then
       $sudo $PACKMANAG install gcc gcc-c++ gcc-gfortran
     fi
