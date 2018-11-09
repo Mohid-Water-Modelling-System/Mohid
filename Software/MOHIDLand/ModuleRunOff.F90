@@ -5790,8 +5790,9 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !Local-----------------------------------------------------------------
         integer                                             :: ILB, IUB, JLB, JUB    
         integer                                             :: i, j
-        real                                                :: Uaverage, Vaverage
-
+        real                                                :: U, V, Uaverage, Vaverage
+        integer                                             :: CHUNK
+        
         !Bounds
         ILB = Me%WorkSize%ILB
         IUB = Me%WorkSize%IUB
@@ -5799,7 +5800,10 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         JLB = Me%WorkSize%JLB
         JUB = Me%WorkSize%JUB
         
-        !TODO: OpenMP - Missing implementation
+        CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        
+        !$OMP PARALLEL PRIVATE(I,J, U, Vaverage)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do j = JLB, JUB
         do i = ILB, IUB
 
@@ -5810,14 +5814,20 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                             Me%FlowYOld(i+1,j-1)/Me%AreaV(i+1,j-1) + &
                             Me%FlowYOld(i,  j-1)/Me%AreaV(i,  j-1)) /4.0
                 
-                Me%VelModFaceU(i, j) = sqrt(((Me%FlowXOld(i,j)/Me%AreaU(i,j))**2.0 + Vaverage**2.0))
+                U = Me%FlowXOld(i,j)/Me%AreaU(i,j)
+                
+                !Me%VelModFaceU(i, j) = sqrt(U**2.0 + Vaverage**2.0)
+                Me%VelModFaceU(i, j) = abs(cmplx(U, Vaverage))
                 
             endif
 
         enddo
         enddo
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
         
-        
+        !$OMP PARALLEL PRIVATE(I,J, V, Vaverage)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do j = JLB, JUB 
         do i = ILB, IUB
 
@@ -5827,15 +5837,19 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                             Me%FlowXOld(i-1,j )/Me%AreaU(i-1,j   ) + &
                             Me%FlowXOld(i-1,j+1)/Me%AreaU(i-1,j+1) + &
                             Me%FlowXOld(i  ,j+1)/Me%AreaU(i  ,j+1)) /4.0
-            
-                Me%VelModFaceV(i, j) = sqrt(((Me%FlowYOld(i,j)/Me%AreaV(i,j))**2.0 + Uaverage**2.0))
+                
+                V = Me%FlowYOld(i,j)/Me%AreaV(i,j)
+                
+                !Me%VelModFaceV(i, j) = sqrt(V**2.0 + Uaverage**2.0)
+                Me%VelModFaceU(i, j) = abs(cmplx(Uaverage, V))
                 
             endif
 
         enddo
         enddo
-
-       
+        
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
     
     end subroutine ComputeFaceVelocityModulus
     
