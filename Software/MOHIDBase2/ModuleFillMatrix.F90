@@ -4964,7 +4964,7 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
         !Local-----------------------------------------------------------------            
         integer                                         :: i1, j1
         real                                            :: T
-        real                                            :: CellRotation, dr1, dr2
+        real                                            :: CellRotationX, dr1, dr2
         real                                            :: dx1, dy1, dx2, dy2, dt1, dt2, NewTime
         real                                            :: wc1, wc2
         integer                                         :: STAT_CALL
@@ -4984,13 +4984,13 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
         dy1 = Me%AnalyticWave%EnteringCell%dy(i1, j1) / 2.      
         wc1 = Me%AnalyticWave%Celerity       (i1, j1)
         
-        call GetCellRotation(Me%ObjHorizontalGrid, i1, j1, CellRotation, STAT = STAT_CALL)
+        call GetCellRotation(Me%ObjHorizontalGrid, i1, j1, CellRotationX, STAT = STAT_CALL)
         
         if (STAT_CALL /= SUCCESS_) then
             stop 'ComputeTimeLag - ModuleFillMatrix - ERR10'
         endif
 
-        dr1 = Me%AnalyticWave%Direction - CellRotation
+        dr1 = Me%AnalyticWave%Direction - CellRotationX
         
         !North
         in = i1 + 1
@@ -4999,13 +4999,13 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
         if (Me%AnalyticWave%CellType    (in, jn) == EnteringWaveCell_ .and.             &
             Me%AnalyticWave%TlagMissing (in, jn) == 0) then
             
-            call GetCellRotation(Me%ObjHorizontalGrid, in, jn, CellRotation, STAT = STAT_CALL)
+            call GetCellRotation(Me%ObjHorizontalGrid, in, jn, CellRotationX, STAT = STAT_CALL)
             
             if (STAT_CALL /= SUCCESS_) then
                 stop 'ComputeTimeLag - ModuleFillMatrix - ERR20'
             endif
             
-            dr2 = Me%AnalyticWave%Direction - CellRotation                 
+            dr2 = Me%AnalyticWave%Direction - CellRotationX                 
                  
             dy2 = Me%AnalyticWave%EnteringCell%dy(in, jn) / 2.      
             wc2 = Me%AnalyticWave%Celerity       (in, jn)
@@ -5035,13 +5035,13 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
             Me%AnalyticWave%TlagMissing (is, js) == 0) then
 
             
-            call GetCellRotation(Me%ObjHorizontalGrid, is, js, CellRotation, STAT = STAT_CALL)
+            call GetCellRotation(Me%ObjHorizontalGrid, is, js, CellRotationX, STAT = STAT_CALL)
             
             if (STAT_CALL /= SUCCESS_) then
                 stop 'ComputeTimeLag - ModuleFillMatrix - ERR30'
             endif
             
-            dr2 = Me%AnalyticWave%Direction - CellRotation                 
+            dr2 = Me%AnalyticWave%Direction - CellRotationX                 
                  
             dy2 = Me%AnalyticWave%EnteringCell%dy(is, js) / 2.      
             wc2 = Me%AnalyticWave%Celerity       (is, js)
@@ -5070,13 +5070,13 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
         if (Me%AnalyticWave%CellType    (iw, jw) == EnteringWaveCell_ .and.             &
             Me%AnalyticWave%TlagMissing (iw, jw) == 0) then
         
-            call GetCellRotation(Me%ObjHorizontalGrid, iw, jw, CellRotation, STAT = STAT_CALL)
+            call GetCellRotation(Me%ObjHorizontalGrid, iw, jw, CellRotationX, STAT = STAT_CALL)
             
             if (STAT_CALL /= SUCCESS_) then
                 stop 'ComputeTimeLag - ModuleFillMatrix - ERR40'
             endif
             
-            dr2 = Me%AnalyticWave%Direction - CellRotation                 
+            dr2 = Me%AnalyticWave%Direction - CellRotationX                 
                  
             dx2 = Me%AnalyticWave%EnteringCell%dx(iw, jw) / 2.      
             wc2 = Me%AnalyticWave%Celerity       (iw, jw)
@@ -5106,13 +5106,13 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
         if (Me%AnalyticWave%CellType    (ie, je) == EnteringWaveCell_ .and.             &
             Me%AnalyticWave%TlagMissing (ie, je) == 0) then
         
-            call GetCellRotation(Me%ObjHorizontalGrid, ie, je, CellRotation, STAT = STAT_CALL)
+            call GetCellRotation(Me%ObjHorizontalGrid, ie, je, CellRotationX, STAT = STAT_CALL)
             
             if (STAT_CALL /= SUCCESS_) then
                 stop 'ComputeTimeLag - ModuleFillMatrix - ERR50'
             endif
             
-            dr2 = Me%AnalyticWave%Direction - CellRotation                 
+            dr2 = Me%AnalyticWave%Direction - CellRotationX                 
                  
             dx2 = Me%AnalyticWave%EnteringCell%dx(ie, je) / 2.      
             wc2 = Me%AnalyticWave%Celerity       (ie, je)
@@ -7792,7 +7792,9 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
             endif F2D3D        
         endif if2D
         
-        if (icount /= CurrentHDF%Ncells) then
+        if (icount > CurrentHDF%Ncells) then
+            write(*,*) 'icount =', icount
+            write(*,*) 'CurrentHDF%Ncells =', CurrentHDF%Ncells
             stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR90' 
         endif         
         
