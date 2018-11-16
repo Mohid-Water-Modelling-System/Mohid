@@ -324,13 +324,14 @@ Module ModuleModel
     !In this subroutine is read the model structure (number of parallel models and their sub-models)
     ! and the necessary memory is allocate and store in a structure of pointer lists
 
-    subroutine ConstructModel (LagInstance, ModelNames, NumberOfModels,                 &
+    subroutine ConstructModel (LagInstance, ModelNames, ModelPaths, NumberOfModels,		&
                                ObjLagrangianGlobal, ModelID, InitialSystemTime,         &
                                MPI_ID, MasterID, LastSlaveID, ModelPath, STAT)
 
         !Arguments-------------------------------------------------------------
         integer         , dimension(:,:), pointer           :: LagInstance
         character(len=*), dimension(:  ), pointer           :: ModelNames
+        character(len=*), dimension(:  ), pointer           :: ModelPaths		
         integer                                             :: NumberOfModels, ObjLagrangianGlobal, ModelID
         type (T_Time)                                       :: InitialSystemTime
         integer, intent(IN ), optional                      :: MPI_ID
@@ -913,6 +914,7 @@ il:         if (Me%RunLagrangian) then
                     call ConstructLagrangianGlobal(LagrangianID = Me%ObjLagrangianGlobal,&
                                                    Nmodels      = Me%NumberOfModels,    &
                                                    ModelNames   = ModelNames,           &
+												   ModelPaths   = ModelPaths,			&
                                                    FileNomfich  = LagNomfich,           &
                                                    LagInstance  = LagInstance,          &             
                                                    STAT         = STAT_CALL)

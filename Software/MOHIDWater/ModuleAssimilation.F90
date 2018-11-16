@@ -1016,22 +1016,22 @@ cd2 :           if (BlockFound) then
         call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL) 
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR10'
 
-        call GetWaterFaces2D(Me%ObjHorizontalMap,                                               &
-                               WaterFaces2DU = WaterFaces2D_U,      &
-                               WaterFaces2DV = WaterFaces2D_V,      &
+        call GetWaterFaces2D(Me%ObjHorizontalMap,                                       &
+                               WaterFaces2DU = WaterFaces2D_U,                          &
+                               WaterFaces2DV = WaterFaces2D_V,                          &
                                STAT            = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR20'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR20'
 
-        call GetWaterFaces3D(Me%ObjMap,                                               &
-                               WaterFacesU3D = WaterFaces3D_U,                      &
-                               WaterFacesV3D = WaterFaces3D_V,                      &
+        call GetWaterFaces3D(Me%ObjMap,                                                 &
+                               WaterFacesU3D = WaterFaces3D_U,                          &
+                               WaterFacesV3D = WaterFaces3D_V,                          &
                                STAT            = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR30'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR30'
 
         call GetWaterPoints3D(Me%ObjMap,WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR40'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR40'
 
 
         !Initial value of NewProperty%LastActualization = =-9999999

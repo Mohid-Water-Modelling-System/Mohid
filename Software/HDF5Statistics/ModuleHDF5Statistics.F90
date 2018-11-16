@@ -1195,7 +1195,7 @@ cd2 :           if (BlockFound) then
 
         allocate(TimeVector(6))
 
-        call HDF5ReadData   (HDF5ID         = ObjHDF5File%HDFID,        &
+        call HDF5ReadWindow   (HDF5ID         = ObjHDF5File%HDFID,        &
                              GroupName      = "/Time",                  &
                              Name           = "Time",                   &
                              Array1D        = TimeVector,               &
@@ -1721,10 +1721,19 @@ cd2 :           if (BlockFound) then
             stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR30'
 
         !Get file dimensions
-        Me%WorkSize%ILB = 1
-        Me%WorkSize%IUB = Dimensions(1)
-        Me%WorkSize%JLB = 1
-        Me%WorkSize%JUB = Dimensions(2)
+        !if (Me%SubSetanalysisON) then
+        !    Me%WorkSize%ILB = ILBout
+        !    Me%WorkSize%IUB = IUBout
+        !    Me%WorkSize%JLB = JLBout
+        !    Me%WorkSize%JUB = JUBout
+        !
+        !else                    
+            Me%WorkSize%ILB = 1  
+            Me%WorkSize%IUB = Dimensions(1)
+            Me%WorkSize%JLB = 1
+            Me%WorkSize%JUB = Dimensions(2)
+        !endif            
+            
         if (Me%File3D) then           
             Me%WorkSize%KLB = 1
         else 
@@ -1784,7 +1793,7 @@ cd2 :           if (BlockFound) then
         
         if (Me%ConnectionX%Exist) then
 
-            call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                                 &
+            call HDF5ReadWindow(HDF5FileX%HDFID, "/Grid",                                 &
                               trim(Me%ConnectionX%Name),                                &
                               Array2D      = Me%ConnectionX%RealValues2D,               &
                               STAT         = STAT_CALL)
@@ -1803,7 +1812,7 @@ cd2 :           if (BlockFound) then
         
         if (Me%ConnectionY%Exist) then                 
 
-            call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                                 &
+            call HDF5ReadWindow(HDF5FileX%HDFID, "/Grid",                                 &
                               trim(Me%ConnectionY%Name),                                &
                               Array2D      = Me%ConnectionY%RealValues2D,               &
                               STAT         = STAT_CALL)
@@ -1812,14 +1821,14 @@ cd2 :           if (BlockFound) then
 
         endif
 
-        call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                                     &
+        call HDF5ReadWindow(HDF5FileX%HDFID, "/Grid",                                     &
                           trim(Me%Latitude%Name),                                       &
                           Array2D      = Me%Latitude%RealValues2D,                      &
                           STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                    &
         stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR90'
 
-        call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                                     &
+        call HDF5ReadWindow(HDF5FileX%HDFID, "/Grid",                                     &
                           trim(Me%Longitude%Name),                                      &
                           Array2D      = Me%Longitude%RealValues2D,                     &
                           STAT = STAT_CALL)
@@ -1833,7 +1842,7 @@ cd2 :           if (BlockFound) then
         if (STAT_CALL .NE. SUCCESS_)                                                    & 
         stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR110'
 
-        call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                                     &
+        call HDF5ReadWindow(HDF5FileX%HDFID, "/Grid",                                     &
                           trim(Me%Bathymetry%Name),                                     &
                           Array2D      = Me%Bathymetry%RealValues2D,                    &
                           STAT = STAT_CALL)
@@ -1850,7 +1859,7 @@ cd2 :           if (BlockFound) then
             if (STAT_CALL .NE. SUCCESS_)                                                & 
             stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR130'
             
-            call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                                 &
+            call HDF5ReadWindow(HDF5FileX%HDFID, "/Grid",                                 &
                               trim(Me%Mapping%Name),                                    &
                               Array3D      = Me%Mapping%IntegerValues3D,                &
                               STAT = STAT_CALL)
@@ -1885,9 +1894,10 @@ cd2 :           if (BlockFound) then
                 endif                    
 
                 
-                call HDF5ReadData(HDF5FileX%HDFID, "/Grid/VerticalZ",                   &
+                call HDF5ReadWindow(HDF5FileX%HDFID, "/Grid/VerticalZ",                   &
                                   "Vertical_00001",                                     &
                                   Array3D      = VerticalZ,                             &
+                                  OffSet3       = 0,                                  &
                                   STAT = STAT_CALL) 
 
                 if (STAT_CALL /= SUCCESS_)  then
@@ -1953,7 +1963,7 @@ do2 :       do while(associated(ObjParameter))
 
         else 
 
-            call HDF5ReadData(HDF5FileX%HDFID, "/Grid",                             &
+            call HDF5ReadWindow(HDF5FileX%HDFID, "/Grid",                             &
                               trim(Me%Mapping%Name),                                &
                               Array2D      = Me%Mapping%IntegerValues2D,            &
                               STAT = STAT_CALL)
@@ -2360,7 +2370,7 @@ do2 :       do while(associated(ObjParameter))
                     stop 'ReadParameterFields - ModuleHDF5Statistics - ERR02'
         
                     !read field
-                    call HDF5ReadData(ObjHDF5File%HDFID, ObjParameter%Group,            &
+                    call HDF5ReadWindow(ObjHDF5File%HDFID, ObjParameter%Group,            &
                                       trim(NewField%Name),                              &
                                       Array2D      = NewField%Values2D,                 &
                                       STAT = STAT_CALL)
@@ -2384,7 +2394,7 @@ do2 :       do while(associated(ObjParameter))
                     stop 'ReadParameterFields - ModuleHDF5Statistics - ERR04'
         
                     !read field
-                    call HDF5ReadData(ObjHDF5File%HDFID, ObjParameter%Group,            &
+                    call HDF5ReadWindow(ObjHDF5File%HDFID, ObjParameter%Group,            &
                                       trim(NewField%Name),                              &
                                       Array3D      = NewField%Values3D,                 &
                                       STAT = STAT_CALL)
