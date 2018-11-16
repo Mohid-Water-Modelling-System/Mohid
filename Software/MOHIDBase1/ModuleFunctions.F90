@@ -5625,7 +5625,8 @@ d5:     do k = klast + 1,KUB
                                 IgnoreOBCells)
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)      :: SizeSon, SizeFather
-        real,    dimension(:,:  ), pointer, intent(IN)      :: SonMatrix2D, VolumeFather2D, VolumeSon2D
+        real(8), dimension(:,:  ), pointer, intent(IN)      :: VolumeFather2D, VolumeSon2D
+        real,    dimension(:,:  ), pointer, intent(IN)      :: SonMatrix2D
         integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather, Open3DSon
         real,    dimension(:,:  ), pointer, intent(INOUT)   :: FatherMatrix2D
         integer, dimension(:,:  ), pointer, intent(IN)      :: ILink, JLink, IgnoreOBCells
@@ -5683,7 +5684,8 @@ d5:     do k = klast + 1,KUB
                                 SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells)
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
-        real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix, VolumeSon, VolumeFather
+        real(8), dimension(:,:,:), pointer, intent(IN)    :: VolumeSon, VolumeFather
+        real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
         real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
         integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink, IgnoreOBCells
         integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon
@@ -5793,7 +5795,8 @@ d5:     do k = klast + 1,KUB
                              JLink, DecayTime, DT, SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells)
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
-        real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix, VolumeSon, VolumeFather
+        real(8), dimension(:,:,:), pointer, intent(IN)    :: VolumeSon, VolumeFather
+        real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
         real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
         integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink, IgnoreOBCells
         integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, Open3DSon
