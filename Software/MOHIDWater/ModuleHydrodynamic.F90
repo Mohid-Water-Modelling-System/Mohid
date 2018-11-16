@@ -167,7 +167,8 @@ Module ModuleHydrodynamic
                                        GetComputeFaces3D, GetImposedTangentialFaces,     &
                                        GetImposedNormalFaces, UnGetMap,                  &
                                        UpdateComputeFaces3D, SetComputesFaces3D,         &
-                                       GetLandBoundaryFaces3D, GetWetFaces
+                                       GetLandBoundaryFaces3D, GetWetFaces,              &
+                                       GetWaterFaces3D
     use ModuleBoxDif,           only : StartBoxDif, GetBoxes, BoxDif, UngetBoxDif,       &
                                        KillBoxDif
     use ModuleOpenBoundary,     only : ConstructOpenBoundary, Modify_OpenBoundary,       &
@@ -2641,6 +2642,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
         !Local-----------------------------------------------------------------
         real,    dimension(:,:,:), pointer :: Matrix3D
         integer, dimension(:,:,:), pointer :: PointsToFill3D
+        integer, dimension(:,:,:), pointer :: WaterFaces3D_U, WaterFaces3D_V        
         character(len = StringLength)      :: BeginBlock, EndBlock, Char_TypeZUV
         integer                            :: STAT_CALL, ClientNumber, i, j, k, iflag
         logical                            :: BlockFound
@@ -2648,7 +2650,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
         real                               :: MinWaterColumn
         real,    dimension(:,:),   pointer :: Bathymetry
 
-        !----------------------------------------------------------------------
+        !Begin-----------------------------------------------------------------
 
 
         BeginBlock = "<begin_waterlevel>"
@@ -2777,7 +2779,7 @@ cd2:                if (Me%WaterLevel%New(i, j) < (- Bathymetry(i, j) + MinWater
 
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR120'
 
-        call GetOpenPoints3D(Me%ObjMap, Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
+        call GetWaterPoints3D(Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR130'
 
         RotateX = .false.
@@ -2807,13 +2809,19 @@ cd2:                if (Me%WaterLevel%New(i, j) < (- Bathymetry(i, j) + MinWater
             Me%Velocity%Horizontal%U%InTypeZUV = TranslateTypeZUV(Char_TypeZUV)
 
             if      (Me%Velocity%Horizontal%U%InTypeZUV == TypeU_) then
+            
+                call GetWaterFaces3D(Me%ObjMap,                                         &
+                                     WaterFacesU3D = WaterFaces3D_U,                    &
+                                     WaterFacesV3D = WaterFaces3D_V,                    &
+                                     STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR155'
 
-                PointsToFill3D => Me%External_Var%ComputeFaces3D_U
+                PointsToFill3D => WaterFaces3D_U
                 Matrix3D       => Me%Velocity%Horizontal%U%New
 
             else if (Me%Velocity%Horizontal%U%InTypeZUV == TypeZ_) then
 
-                PointsToFill3D => Me%External_Var%OpenPoints3D
+                PointsToFill3D => Me%External_Var%WaterPoints3D
 
                 allocate (Matrix3D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
                 Matrix3D(:,:,:) = FillValueReal
@@ -2842,6 +2850,16 @@ cd2:                if (Me%WaterLevel%New(i, j) < (- Bathymetry(i, j) + MinWater
                                        ClientID             = ClientNumber,                     &
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR180'
+            
+            if      (Me%Velocity%Horizontal%U%InTypeZUV == TypeU_) then
+            
+                call UnGetMap(Me%ObjMap, WaterFaces3D_U, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR185'
+                
+                call UnGetMap(Me%ObjMap, WaterFaces3D_V, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR186'
+                
+            endif                
 
             if (Me%Velocity%Horizontal%U%ID%SolutionFromFile .and.                      &
                 Me%ComputeOptions%Evolution /= ImposedSolution_) then
@@ -2927,13 +2945,20 @@ cd2:                if (Me%WaterLevel%New(i, j) < (- Bathymetry(i, j) + MinWater
             Me%Velocity%Horizontal%V%InTypeZUV = TranslateTypeZUV(Char_TypeZUV)
 
             if      (Me%Velocity%Horizontal%V%InTypeZUV == TypeV_) then
+            
+                call GetWaterFaces3D(Me%ObjMap,                                         &
+                                     WaterFacesU3D = WaterFaces3D_U,                    &
+                                     WaterFacesV3D = WaterFaces3D_V,                    &
+                                     STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR155'
 
-                PointsToFill3D => Me%External_Var%ComputeFaces3D_V
+                PointsToFill3D => WaterFaces3D_V            
+
                 Matrix3D       => Me%Velocity%Horizontal%V%New
 
             else if (Me%Velocity%Horizontal%V%InTypeZUV == TypeZ_) then
 
-                PointsToFill3D => Me%External_Var%OpenPoints3D
+                PointsToFill3D => Me%External_Var%WaterPoints3D
 
                 allocate (Matrix3D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
                 Matrix3D(:,:,:) = FillValueReal
@@ -2963,6 +2988,16 @@ cd2:                if (Me%WaterLevel%New(i, j) < (- Bathymetry(i, j) + MinWater
                                        ClientID             = ClientNumber,                     &
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR260'
+            
+            if      (Me%Velocity%Horizontal%V%InTypeZUV == TypeV_) then
+            
+                call UnGetMap(Me%ObjMap, WaterFaces3D_U, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR265'
+                
+                call UnGetMap(Me%ObjMap, WaterFaces3D_V, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR266'
+                
+            endif             
 
             if (Me%Velocity%Horizontal%V%ID%SolutionFromFile .and.                      &
                 Me%ComputeOptions%Evolution /= ImposedSolution_) then
@@ -3093,7 +3128,7 @@ Cov2:       if ( Me%External_Var%ComputeFaces3D_V(I, J, K) == Covered) then
 
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR360'
 
-        call UnGetMap(Me%ObjMap, Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
+        call UnGetMap(Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR370'
 
         call UnGetGeometry(Me%ObjGeometry, Me%External_Var%Area_U, STAT = STAT_CALL)
@@ -22160,7 +22195,7 @@ cd1:    if (Evolution == Solve_Equations_) then
 
             else if (Me%Velocity%Horizontal%U%InTypeZUV == TypeZ_) then
 
-                PointsToFill3D => Me%External_Var%OpenPoints3D
+                PointsToFill3D => Me%External_Var%WaterPoints3D
 
                 allocate (Matrix3D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
 
@@ -22221,7 +22256,7 @@ cd1:    if (Evolution == Solve_Equations_) then
 
             else if (Me%Velocity%Horizontal%V%InTypeZUV == TypeZ_) then
 
-                PointsToFill3D => Me%External_Var%OpenPoints3D
+                PointsToFill3D => Me%External_Var%WaterPoints3D
                 allocate (Matrix3D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
 
                 Matrix3D(:,:,:) = FillValueReal
@@ -28651,7 +28686,7 @@ do6:               do k = KLB, KUB + 1
                                                WaterFluxBoundary,               &
                                                LeavingVelocity
 
-        real                                :: CellRotation, EnteringWaveDirection, WaveCellDir
+        real                                :: CellRotationX, EnteringWaveDirection, WaveCellDir
 
 
         real                                :: MinLeavingComponent,  MinLeavingVelocity
@@ -28873,7 +28908,7 @@ cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_) then
         !$OMP PRIVATE(WaveEntering,OldWaveEntering,i_int,j_int,Wave_Celerity,XY_Component_Cart_E)   &
         !$OMP PRIVATE(YX_Component_Cart_E,FluxXY_E,FluxYX_E,FluxXY_T,FluxYX_T,FluxXY_L,FluxYX_L)    &
         !$OMP PRIVATE(FluxMod_L,LeavingVelocity,XY_Component_L,XY_Component_E)                      &
-        !$OMP PRIVATE(WaveCellDir, EnteringWaveDirection, CellRotation)                             &
+        !$OMP PRIVATE(WaveCellDir, EnteringWaveDirection, CellRotationX)                             &
         !$OMP PRIVATE(A_aux,T3,B_aux,D1,D2,E1,E2,E3,E4,F1,F2,T1,T2,T4)
 
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -29072,13 +29107,13 @@ cd5:            if (ComputeFaces3D_VU(i4, j4, KUB) == Covered) then
                !If was defined a entering wave then
 cd15:           if (Me%ComputeOptions%ComputeEnteringWave) then
 
-                    call GetCellRotation(Me%ObjHorizontalGrid, ib, jb, CellRotation, STAT = status)
+                    call GetCellRotation(Me%ObjHorizontalGrid, ib, jb, CellRotationX, STAT = status)
 
                     if (status /= SUCCESS_) then
                         call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR95")
                     endif
 
-                    WaveCellDir = EnteringWaveDirection - CellRotation
+                    WaveCellDir = EnteringWaveDirection - CellRotationX
 
                     !Direction - Entering wave - Cartesian referencial
                     XY_Component_Cart_E  = real(dj) * cos(WaveCellDir) +                &
@@ -29901,7 +29936,7 @@ ifc:    if  (Me%ComputeOptions%LocalSolution == NoLocalSolution_) then
         !$OMP PRIVATE(Wave_Celerity,FluxXY_E,FluxYX_E,LocalWLa,LocalWLb,LocalWave) &
         !$OMP PRIVATE(FluxXY_T,FluxYX_T,FluxXY_L,FluxYX_L,FluxMod_L,LeavingVelocity) &
         !$OMP PRIVATE(XY_Component_L,WaterFluxBoundary,LocalBoundaryFlux,A_aux,T3) &
-        !$OMP PRIVATE(B_aux,D1,D2,E1,E2,E3,E4,F1,F2,T1,T4)
+        !$OMP PRIVATE(B_aux,D1,D2,E1,E2,E3,E4,F1,F2,T1,T4) &
         !$OMP PRIVATE(dx1,dx2,dx3)
 
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)

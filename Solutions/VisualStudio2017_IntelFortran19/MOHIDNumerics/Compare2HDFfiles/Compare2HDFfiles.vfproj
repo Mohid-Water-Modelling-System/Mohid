@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VisualStudioProject ProjectCreator="Intel Fortran" Keyword="Console Application" Version="11.0" ProjectIdGuid="{A2362933-01EF-4E31-914B-C4316A54E065}">
+	<Platforms>
+		<Platform Name="Win32"/>
+		<Platform Name="x64"/></Platforms>
+	<Configurations>
+		<Configuration Name="Debug|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" WarnInterfaces="true" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtMultiThreadedDebugDLL"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" GenerateDebugInformation="true" SubSystem="subSystemConsole"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" RuntimeLibrary="rtMultiThreadedDLL"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" SubSystem="subSystemConsole"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64" WarnInterfaces="true" RealKIND="realKIND8" Traceback="true" BoundsCheck="true" StackFrameCheck="true" RuntimeLibrary="rtMultiThreadedDebugDLL"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\lib;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\..\..\..\ExternalLibs\NumericalRecipes\x64" IgnoreDefaultLibraryNames="LIBCMT.lib;libifcoremt.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="128000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="hdf5.lib  hdf5_f90cstub.lib hdf5_fortran.lib hdf5_tools.lib libhdf5.lib libhdf5_f90cstub.lib libhdf5_fortran.lib libhdf5_tools.lib libszip.lib libzlib.lib zlib.lib netcdf.lib netcdff.lib NumericalRecipes.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64" RealKIND="realKIND8" Traceback="true" RuntimeLibrary="rtMultiThreadedDLL"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\lib;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\..\..\..\ExternalLibs\NumericalRecipes\x64" IgnoreDefaultLibraryNames="LIBCMT.LIB, MSVCRTD.lib" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="128000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="hdf5.lib  hdf5_f90cstub.lib hdf5_fortran.lib hdf5_tools.lib libhdf5.lib libhdf5_f90cstub.lib libhdf5_fortran.lib libhdf5_tools.lib libszip.lib libzlib.lib zlib.lib netcdf.lib netcdff.lib NumericalRecipes.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
+	<Files>
+		<Filter Name="Header Files" Filter="fi;fd;h;inc"/>
+		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
+		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
+		<Filter Name="MohidBase1">
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleDrawing.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleEnterData.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleFunctions.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleGlobalData.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleHDF5.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleStopWatch.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTask2000.F"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTime.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTimeSerie.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase1\ModuleTriangulation.F90"/></Filter>
+		<Filter Name="MohidBase2">
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleBoxDif.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleField4D.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleFillMatrix.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleGeometry.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleGridData.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleHorizontalGrid.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleHorizontalMap.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleMap.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleNETCDF.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDBase2\ModuleStatistic.F90"/></Filter>
+		<Filter Name="NumericalRecipes">
+		<File RelativePath="..\..\..\..\Software\SmallTools\Numerical_recipes_f90\nr.f90"/>
+		<File RelativePath="..\..\..\..\Software\SmallTools\Numerical_recipes_f90\nrtype.f90"/>
+		<File RelativePath="..\..\..\..\Software\SmallTools\Numerical_recipes_f90\nrutil.f90"/></Filter>
+		<File RelativePath="..\..\..\..\Software\SmallTools\Compare2HDFfiles\MainCompare2HDFfiles.F90"/>
+		<File RelativePath="..\..\..\..\Software\SmallTools\Compare2HDFfiles\ModuleCompare2HDFfiles.F90"/></Filter></Files>
+	<Globals/></VisualStudioProject>
