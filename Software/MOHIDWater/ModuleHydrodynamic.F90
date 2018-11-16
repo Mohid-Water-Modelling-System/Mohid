@@ -149,7 +149,7 @@ Module ModuleHydrodynamic
                                        GetDDecompWorkSize2D, WriteHorizontalGrid_UV,     &
                                        GetCellRotation, GetGridCellArea
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
-                                       Allocate2WayAuxiliars_Hydrodynamic, PrepTwoWay,   &
+                                       Alloc2WayAux_Hydro, PrepTwoWay,   &
                                        UngetTwoWayExternal_Vars
 #ifdef _USE_MPI
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
@@ -15794,7 +15794,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
                 call GetComputeTimeStep             (ObjHydrodynamicFather%ObjTime, DT_Father)
 
                 if (Me%ComputeOptions%TwoWay)then
-                    call Allocate2WayAuxiliars_Hydrodynamic(HydrodynamicFatherID, HydrodynamicID)
+                    call Alloc2WayAux_Hydro(HydrodynamicFatherID, HydrodynamicID)
                 endif
 
 
