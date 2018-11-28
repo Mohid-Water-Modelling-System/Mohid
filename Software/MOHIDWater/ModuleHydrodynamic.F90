@@ -149,7 +149,7 @@ Module ModuleHydrodynamic
                                        GetDDecompWorkSize2D, WriteHorizontalGrid_UV,     &
                                        GetCellRotation, GetGridCellArea
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
-                                       Allocate2WayAuxiliars_Hydrodynamic, PrepTwoWay,   &
+                                       Alloc2WayAux_Hydro, PrepTwoWay,   &
                                        UngetTwoWayExternal_Vars
 #ifdef _USE_MPI
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
@@ -167,7 +167,8 @@ Module ModuleHydrodynamic
                                        GetComputeFaces3D, GetImposedTangentialFaces,     &
                                        GetImposedNormalFaces, UnGetMap,                  &
                                        UpdateComputeFaces3D, SetComputesFaces3D,         &
-                                       GetLandBoundaryFaces3D, GetWetFaces
+                                       GetLandBoundaryFaces3D, GetWetFaces,              &
+                                       GetWaterFaces3D
     use ModuleBoxDif,           only : StartBoxDif, GetBoxes, BoxDif, UngetBoxDif,       &
                                        KillBoxDif
     use ModuleOpenBoundary,     only : ConstructOpenBoundary, Modify_OpenBoundary,       &
@@ -188,7 +189,7 @@ Module ModuleHydrodynamic
                                        KillAssimilation, GetAssimilationAltimetry,       &
                                        GetAssimilationAltimetryDT, GetAltimetryDecayTime,&
                                        GetAltimSigmaDensAnalyzed, GetAssimilationVectorField, &
-                                       GetWaveCelerityField
+                                       GetWaveCelerityField, GetNumberOfFields
     use ModuleStopWatch,        only : StartWatch, StopWatch
     use ModuleStatistic,        only : ConstructStatistic, GetStatisticMethod,           &
                                        GetStatisticParameters, GetStatisticLayersNumber, &
@@ -363,8 +364,6 @@ Module ModuleHydrodynamic
     private ::                  WaterLevel_OpenBoundary
     private ::                      WaterLevel_ImposedWave
     private ::                      WaterLevel_FlatherWindWave
-    private ::                      WaterLevel_FlatherWindWaveV2
-    private ::                      WaterLevel_FlatherWindWaveV3
     private ::                      WaterLevel_FlatherLocalSolution
     private ::                      WaterLevel_BlumbergKantha
     private ::                  WaterLevelDischarges
@@ -2643,6 +2642,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
         !Local-----------------------------------------------------------------
         real,    dimension(:,:,:), pointer :: Matrix3D
         integer, dimension(:,:,:), pointer :: PointsToFill3D
+        integer, dimension(:,:,:), pointer :: WaterFaces3D_U, WaterFaces3D_V        
         character(len = StringLength)      :: BeginBlock, EndBlock, Char_TypeZUV
         integer                            :: STAT_CALL, ClientNumber, i, j, k, iflag
         logical                            :: BlockFound
@@ -2650,7 +2650,7 @@ cd11:   if (Me%ComputeOptions%Recording) then
         real                               :: MinWaterColumn
         real,    dimension(:,:),   pointer :: Bathymetry
 
-        !----------------------------------------------------------------------
+        !Begin-----------------------------------------------------------------
 
 
         BeginBlock = "<begin_waterlevel>"
@@ -2779,7 +2779,7 @@ cd2:                if (Me%WaterLevel%New(i, j) < (- Bathymetry(i, j) + MinWater
 
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR120'
 
-        call GetOpenPoints3D(Me%ObjMap, Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
+        call GetWaterPoints3D(Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR130'
 
         RotateX = .false.
@@ -2809,13 +2809,19 @@ cd2:                if (Me%WaterLevel%New(i, j) < (- Bathymetry(i, j) + MinWater
             Me%Velocity%Horizontal%U%InTypeZUV = TranslateTypeZUV(Char_TypeZUV)
 
             if      (Me%Velocity%Horizontal%U%InTypeZUV == TypeU_) then
+            
+                call GetWaterFaces3D(Me%ObjMap,                                         &
+                                     WaterFacesU3D = WaterFaces3D_U,                    &
+                                     WaterFacesV3D = WaterFaces3D_V,                    &
+                                     STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR155'
 
-                PointsToFill3D => Me%External_Var%ComputeFaces3D_U
+                PointsToFill3D => WaterFaces3D_U
                 Matrix3D       => Me%Velocity%Horizontal%U%New
 
             else if (Me%Velocity%Horizontal%U%InTypeZUV == TypeZ_) then
 
-                PointsToFill3D => Me%External_Var%OpenPoints3D
+                PointsToFill3D => Me%External_Var%WaterPoints3D
 
                 allocate (Matrix3D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
                 Matrix3D(:,:,:) = FillValueReal
@@ -2844,6 +2850,16 @@ cd2:                if (Me%WaterLevel%New(i, j) < (- Bathymetry(i, j) + MinWater
                                        ClientID             = ClientNumber,                     &
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR180'
+            
+            if      (Me%Velocity%Horizontal%U%InTypeZUV == TypeU_) then
+            
+                call UnGetMap(Me%ObjMap, WaterFaces3D_U, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR185'
+                
+                call UnGetMap(Me%ObjMap, WaterFaces3D_V, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR186'
+                
+            endif                
 
             if (Me%Velocity%Horizontal%U%ID%SolutionFromFile .and.                      &
                 Me%ComputeOptions%Evolution /= ImposedSolution_) then
@@ -2929,13 +2945,20 @@ cd2:                if (Me%WaterLevel%New(i, j) < (- Bathymetry(i, j) + MinWater
             Me%Velocity%Horizontal%V%InTypeZUV = TranslateTypeZUV(Char_TypeZUV)
 
             if      (Me%Velocity%Horizontal%V%InTypeZUV == TypeV_) then
+            
+                call GetWaterFaces3D(Me%ObjMap,                                         &
+                                     WaterFacesU3D = WaterFaces3D_U,                    &
+                                     WaterFacesV3D = WaterFaces3D_V,                    &
+                                     STAT          = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR155'
 
-                PointsToFill3D => Me%External_Var%ComputeFaces3D_V
+                PointsToFill3D => WaterFaces3D_V            
+
                 Matrix3D       => Me%Velocity%Horizontal%V%New
 
             else if (Me%Velocity%Horizontal%V%InTypeZUV == TypeZ_) then
 
-                PointsToFill3D => Me%External_Var%OpenPoints3D
+                PointsToFill3D => Me%External_Var%WaterPoints3D
 
                 allocate (Matrix3D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
                 Matrix3D(:,:,:) = FillValueReal
@@ -2965,6 +2988,16 @@ cd2:                if (Me%WaterLevel%New(i, j) < (- Bathymetry(i, j) + MinWater
                                        ClientID             = ClientNumber,                     &
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR260'
+            
+            if      (Me%Velocity%Horizontal%V%InTypeZUV == TypeV_) then
+            
+                call UnGetMap(Me%ObjMap, WaterFaces3D_U, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR265'
+                
+                call UnGetMap(Me%ObjMap, WaterFaces3D_V, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR266'
+                
+            endif             
 
             if (Me%Velocity%Horizontal%V%ID%SolutionFromFile .and.                      &
                 Me%ComputeOptions%Evolution /= ImposedSolution_) then
@@ -3095,7 +3128,7 @@ Cov2:       if ( Me%External_Var%ComputeFaces3D_V(I, J, K) == Covered) then
 
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR360'
 
-        call UnGetMap(Me%ObjMap, Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
+        call UnGetMap(Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR370'
 
         call UnGetGeometry(Me%ObjGeometry, Me%External_Var%Area_U, STAT = STAT_CALL)
@@ -7628,17 +7661,6 @@ cd21:   if (Baroclinic) then
 
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1130')
-
-        call GetData(Me%ComputeOptions%ExternalBarotropicVel2D,                &
-                     Me%ObjEnterData, iflag,                                   &
-                     Keyword    = 'EXTERNAL_BAROTROPIC_2D',                    &
-                     Default    = .true.,                                      &
-                     SearchType = FromFile,                                    &
-                     ClientModule ='ModuleHydrodynamic',                       &
-                     STAT       = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1140')
 
 
         !<BeginKeyword>
@@ -15772,7 +15794,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
                 call GetComputeTimeStep             (ObjHydrodynamicFather%ObjTime, DT_Father)
 
                 if (Me%ComputeOptions%TwoWay)then
-                    call Allocate2WayAuxiliars_Hydrodynamic(HydrodynamicFatherID, HydrodynamicID)
+                    call Alloc2WayAux_Hydro(HydrodynamicFatherID, HydrodynamicID)
                 endif
 
 
@@ -22173,7 +22195,7 @@ cd1:    if (Evolution == Solve_Equations_) then
 
             else if (Me%Velocity%Horizontal%U%InTypeZUV == TypeZ_) then
 
-                PointsToFill3D => Me%External_Var%OpenPoints3D
+                PointsToFill3D => Me%External_Var%WaterPoints3D
 
                 allocate (Matrix3D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
 
@@ -22234,7 +22256,7 @@ cd1:    if (Evolution == Solve_Equations_) then
 
             else if (Me%Velocity%Horizontal%V%InTypeZUV == TypeZ_) then
 
-                PointsToFill3D => Me%External_Var%OpenPoints3D
+                PointsToFill3D => Me%External_Var%WaterPoints3D
                 allocate (Matrix3D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
 
                 Matrix3D(:,:,:) = FillValueReal
@@ -26207,31 +26229,6 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
 
         endif
 
-!
-!        if (Me%ComputeOptions%BarotropicRadia  == FlatherWindWave_) then
-!
-!
-!             !Compute radiation in the boundary faces with explicit flux
-!             call WaterLevel_FlatherWindWaveV3 (                                               &
-!                                        WaterFlux_XY      = Me%WaterFluxes%YX,                 &
-!                                        WaterFlux_YX      = Me%WaterFluxes%XY,                 &
-!                                        WaterColumnUV     = Me%External_Var%WaterColumnVU,     &
-!                                        DUX_VY            = Me%External_Var%DVY_UX,            &
-!                                        DVY_UX            = Me%External_Var%DUX_VY,            &
-!                                        DYY_XX            = Me%External_Var%DXX_YY,            &
-!                                        ComputeFaces3D_UV = Me%External_Var%ComputeFaces3D_VU, &
-!                                        ComputeFaces3D_VU = Me%External_Var%ComputeFaces3D_UV, &
-!                                        BoundaryFacesUV   = Me%External_Var%BoundaryFacesVU,   &
-!                                        Kfloor_UV         = Me%External_Var%Kfloor_VU,         &
-!                                        Kfloor_VU         = Me%External_Var%Kfloor_UV,         &
-!                                        di                = Me%Direction%dj,                   &
-!                                        dj                = Me%Direction%di,                   &
-!                                        DirectionXY       = Me%Direction%YX,                   &
-!                                        ImplicitFaces     = .false.)
-!
-!        endif
-
-
 
         if (Me%Tsunami%ON) then
             if (Me%Tsunami%Fault%T0 <= Me%CurrentTime) then
@@ -27495,7 +27492,7 @@ cd1:        if (OpenPoints3D(i, j, KUB) == OpenPoint) then
         else if (BarotropicRadia == FlatherWindWave_) then
 
             !Compute radiation in the boundary faces with implicit flux
-            call WaterLevel_FlatherWindWaveV3 (                                              &
+            call WaterLevel_FlatherWindWave    (                                              &
                                        WaterFlux_XY      = Me%WaterFluxes%XY,                 &
                                        WaterFlux_YX      = Me%WaterFluxes%YX,                 &
                                        WaterColumnUV     = Me%External_Var%WaterColumnUV,     &
@@ -27511,26 +27508,6 @@ cd1:        if (OpenPoints3D(i, j, KUB) == OpenPoint) then
                                        dj                = Me%Direction%dj,                   &
                                        DirectionXY       = Me%Direction%XY,                   &
                                        ImplicitFaces     = .true.)
-!
-!            !Compute radiation in the boundary faces with explicit flux
-!             call WaterLevel_FlatherWindWaveV3 (                                              &
-!                                        WaterFlux_XY      = Me%WaterFluxes%YX,                 &
-!                                        WaterFlux_YX      = Me%WaterFluxes%XY,                 &
-!                                        WaterColumnUV     = Me%External_Var%WaterColumnVU,     &
-!                                        DUX_VY            = Me%External_Var%DVY_UX,            &
-!                                        DVY_UX            = Me%External_Var%DUX_VY,            &
-!                                        DYY_XX            = Me%External_Var%DXX_YY,            &
-!                                        ComputeFaces3D_UV = Me%External_Var%ComputeFaces3D_VU, &
-!                                        ComputeFaces3D_VU = Me%External_Var%ComputeFaces3D_UV, &
-!                                        BoundaryFacesUV   = Me%External_Var%BoundaryFacesVU,   &
-!                                        Kfloor_UV         = Me%External_Var%Kfloor_VU,         &
-!                                        Kfloor_VU         = Me%External_Var%Kfloor_UV,         &
-!                                        di                = Me%Direction%dj,                   &
-!                                        dj                = Me%Direction%di,                   &
-!                                        DirectionXY       = Me%Direction%YX,                   &
-!                                        ImplicitFaces     = .false.)
-
-!            call WaterLevel_FlatherWindWaveV2 ()
 
         else if  (BarotropicRadia == FlatherLocalSolution_) then
 
@@ -28656,19 +28633,19 @@ do6:               do k = KLB, KUB + 1
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    Subroutine WaterLevel_FlatherWindWave ( WaterFlux_XY, WaterFlux_YX,                 &
+    Subroutine WaterLevel_FlatherWindWave   ( WaterFlux_XY, WaterFlux_YX,               &
                                      WaterColumnUV, DUX_VY, DVY_UX, DYY_XX,             &
                                      ComputeFaces3D_UV, ComputeFaces3D_VU,              &
                                      BoundaryFacesUV, kfloor_UV, kfloor_VU,             &
-                                     di, dj, ImplicitFaces)
+                                     di, dj, DirectionXY, ImplicitFaces)
 
         !Arguments------------------------------------------------------------
 
         real(8), dimension (:,:,:), pointer :: WaterFlux_XY, WaterFlux_YX
         real,    dimension (:,:  ), pointer :: WaterColumnUV, DUX_VY, DVY_UX, DYY_XX
         integer, dimension (:,:,:), pointer :: ComputeFaces3D_UV, ComputeFaces3D_VU
-        integer, dimension (:,:  ), pointer :: BoundaryFacesUV, kfloor_UV, kfloor_VU
-        integer                             :: di, dj
+        integer, dimension (:,:  ), pointer :: BoundaryFacesUV, Kfloor_UV, kfloor_VU
+        integer                             :: di, dj, DirectionXY
         logical                             :: ImplicitFaces
 
 
@@ -28687,13 +28664,13 @@ do6:               do k = KLB, KUB + 1
 
         real,    dimension(:,:,:), pointer  :: SZZ
 
-        real,    dimension(:,:  ), pointer  :: WaveCelerityField
+        real,    dimension(:,:  ), pointer  :: WaveCelerityField, Bathymetry
 
-        real                                :: WaveDirection
+        real                                :: WaveDirection, AverageValue
 
 
-        real                                :: D1, D2, E1, E2, E3, E4, F1, F2,  &
-                                               T1, T2, T3, T4, A_Aux, B_Aux,    &
+        real                                :: D1, D2, E1, E2, E3, E4, E5, F1,  &
+                                               F2, T1, T2, T3, T4, A_Aux, B_Aux,&
                                                HT_boundary, Wave_Celerity,      &
                                                DT_Elevation, WaveEntering,      &
                                                OldWaveEntering, ReferenceLevel
@@ -28707,8 +28684,10 @@ do6:               do k = KLB, KUB + 1
                                                XY_Component_Cart_E,             &
                                                YX_Component_Cart_E,             &
                                                WaterFluxBoundary,               &
-                                               EnteringWaveDirection,           &
-                                               LeavingVelocity !, LeavingVelocityXY
+                                               LeavingVelocity
+
+        real                                :: CellRotationX, EnteringWaveDirection, WaveCellDir
+
 
         real                                :: MinLeavingComponent,  MinLeavingVelocity
 
@@ -28727,7 +28706,8 @@ do6:               do k = KLB, KUB + 1
 
         integer                             :: CHUNK
 
-        real                                :: dx1, dx2, dx3
+        real                                :: dx1, dx2, dx3, AbsorbCoef
+
 
         !Begin----------------------------------------------------------------
 
@@ -28784,11 +28764,11 @@ do6:               do k = KLB, KUB + 1
 
         Compute_Tide          = Me%ComputeOptions%Compute_Tide
 
-        if      (Me%Direction%XY == DirectionX_) then
+        if      (DirectionXY == DirectionX_) then
 
             DirBound = DirX
 
-        else if (Me%Direction%XY == DirectionY_) then
+        else if (DirectionXY == DirectionY_) then
 
             DirBound = DirY
 
@@ -28796,6 +28776,12 @@ do6:               do k = KLB, KUB + 1
 
 
         !End   - Shorten variables name
+
+        !Gets Bathymetry
+        call GetGridData(Me%ObjGridData, Bathymetry, STAT = status)
+
+        if (status /= SUCCESS_)                                                         &
+            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR005")
 
 cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
@@ -28893,12 +28879,15 @@ cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_) then
                                           ID              = WaterLevel_,                &
                                           WaveCelerity    = WaveCelerityField,          &
                                           WaveDirection   = WaveDirection,              &
+                                          AverageValue    = AverageValue,               &
                                           STAT            = status)
 
                 if (status /= SUCCESS_)                                                 &
                     call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR90")
 
                 EnteringWaveDirection  = WaveDirection
+
+                BoundaryReferenceLevel(:,:) = AverageValue
 
             else
 
@@ -28914,1563 +28903,12 @@ cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "WaterLevel_FlatherWindWave")
 
-        !$OMP PARALLEL PRIVATE(i,j,kbottom,HT_Boundary,db,i1,i2,i3,i4,j1,j2,j3,j4,Flux_WestSouth) &
-        !$OMP PRIVATE(Flux_EastNorth,Flux_SouthWest,Flux_NorthEast,ib,jb,ReferenceLevel) &
-        !$OMP PRIVATE(WaveEntering,OldWaveEntering,i_int,j_int,Wave_Celerity,XY_Component_Cart_E) &
-        !$OMP PRIVATE(YX_Component_Cart_E,FluxXY_E,FluxYX_E,FluxXY_T,FluxYX_T,FluxXY_L,FluxYX_L) &
-        !$OMP PRIVATE(FluxMod_L,LeavingVelocity,XY_Component_L,XY_Component_E,WaterFluxBoundary) &
-        !$OMP PRIVATE(A_aux,T3,B_aux,D1,D2,E1,E2,E3,E4,F1,F2,T1,T2,T4)
-
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        do  j = JLB, JUB
-        do  i = ILB, IUB
-
-
-            !In this way if in a boundary point the elevation is not change
-            !due to the radiation condition then
-            !the old elevation is maintain
-!cd9:        if (BoundaryPoints(i, j) == Boundary) then
-
-                !TiCoef_2D(i, j) = WaterLevel_New(i, j)
-
-                !DCoef_2D (i, j) = 0.
-
-                !ECoef_2D (i, j) = 1.
-
-                !FCoef_2D (i, j) = 0.
-
-
-            !endif cd9
-
-cd1:        if  (BoundaryFacesUV  (i, j     )  == Boundary     .and.                     &
-                 ComputeFaces3D_UV(i, j, KUB)  == Covered      .and.                     &
-                (BoundaryPoints   (i, j)       == Not_Boundary .or.                      &
-                 BoundaryPoints   (i-di, j-dj) == Not_Boundary)) then
-
-
-                kbottom = kfloor_UV(i, j)
-
-               ![m] = [m^2]/[m]
-                HT_boundary = WaterColumnUV(i, j)
-
-
-                !Direction - Leaving wave
-                if (BoundaryPoints(i, j) == Boundary) then
-
-                    !West or South cell is interior and
-                    !the East or North cell is boundary
-                    db = 1
-
-                    i1 = i - di
-                    i2 = i
-                    i3 = i - di
-                    i4 = i + dj - di
-                    j1 = j - dj
-                    j2 = j
-                    j3 = j - dj
-                    j4 = j - dj + di
-
-
-                else
-
-                    !West or South cell is boundary and
-                    !the East or North cell is interior
-                    db = 0
-
-                    i1 = i
-                    i2 = i + di
-                    i3 = i
-                    i4 = i + dj
-                    j1 = j
-                    j2 = j + dj
-                    j3 = j
-                    j4 = j + di
-
-
-                endif
-
-                !total West or South face water flux
-                Flux_WestSouth = 0.
-
-cd2:            if (ComputeFaces3D_UV(i1, j1, KUB) == Covered) then
-
-                    kbottom = kfloor_UV(i1, j1)
-
-                    do  k = kbottom, KUB
-
-                        Flux_WestSouth = Flux_WestSouth + WaterFlux_XY(i1, j1, k)
-
-                    enddo
-
-                endif cd2
-
-
-                !total East or North face water flux
-                Flux_EastNorth = 0.
-
-cd3:            if (ComputeFaces3D_UV(i2, j2, KUB) == Covered) then
-
-                    kbottom = kfloor_UV(i2, j2)
-
-                    do  k = kbottom, KUB
-
-                        Flux_EastNorth = Flux_EastNorth + WaterFlux_XY(i2, j2, k)
-
-                    enddo
-
-                endif cd3
-
-
-                !total South or West face water flux
-                Flux_SouthWest = 0.
-
-cd4:            if (ComputeFaces3D_VU(i3, j3, KUB) == Covered) then
-
-                    kbottom = kfloor_VU(i3, j3)
-
-                    do  k = kbottom, KUB
-
-                        Flux_SouthWest = Flux_SouthWest + WaterFlux_YX(i3, j3, k)
-
-                    enddo
-
-                endif cd4
-
-
-                !total North or East face water flux
-
-                Flux_NorthEast = 0.
-
-cd5:            if (ComputeFaces3D_VU(i4, j4, KUB) == Covered) then
-
-                    kbottom = kfloor_VU(i4, j4)
-
-                    do  k = kbottom, KUB
-
-                        Flux_NorthEast = Flux_NorthEast + WaterFlux_YX(i4, j4, k)
-
-                    enddo
-
-                endif cd5
-
-                !Boundary cell
-                !X direction (di=0,dj=1) - boundary West  cell (db=0) => (ib,jb)=(i, j-1)
-                !X direction (di=0,dj=1) - boundary East  cell (db=1) => (ib,jb)=(i, j)
-                !Y direction (di=1,dj=0) - boundary South cell (db=0) => (ib,jb)=(i-1, j)
-                !Y direction (di=1,dj=0) - boundary North cell (db=1) => (ib,jb)=(i, j)
-
-                ib    = i - di * (1 - db)
-                jb    = j - dj * (1 - db)
-
-                ReferenceLevel   = BoundaryReferenceLevel (ib, jb)
-                WaveEntering     = ImposedElevation       (ib, jb) - ReferenceLevel
-
-                !Interior cell next to a boundary face
-                !X direction (di=0,dj=1) - Interior East  cell (db=0) => (ib,jb)=(i, j)
-                !X direction (di=0,dj=1) - Interior West  cell (db=1) => (ib,jb)=(i, j-1)
-                !Y direction (di=1,dj=0) - Interior North cell (db=0) => (ib,jb)=(i, j)
-                !Y direction (di=1,dj=0) - Interior South cell (db=1) => (ib,jb)=(i-1, j)
-
-                i_int = i - di * db
-                j_int = j - dj * db
-
-                !The wave Celerity compute in the boundary face
-                ![m/s] = [m/s^2*m]^.5 = [m/s]
-
-                if      (Me%WindWaves%CelerityType == LongWaves_) then
-
-                    Wave_Celerity = sqrt(Gravity * HT_Boundary)
-
-                elseif  (Me%WindWaves%CelerityType == Constant_ ) then
-
-                    Wave_Celerity = Me%WindWaves%CelerityConstant
-
-                elseif  (Me%WindWaves%CelerityType == AnalyticWaves_) then
-
-                    dx1 = DUX_VY(i_int, j_int)
-                    dx2 = DUX_VY(ib,    jb   )
-                    dx3 = dx1 + dx2
-
-                    Wave_Celerity = (WaveCelerityField(ib,    jb   ) * dx1 +            &
-                                     WaveCelerityField(i_int, j_int) * dx2 ) / dx3
-
-                endif
-
-                !If was defined a entering wave then
-cd15:           if (Me%ComputeOptions%ComputeEnteringWave) then
-
-
-                    !Direction - Entering wave - Cartesian referencial
-                    XY_Component_Cart_E  = dj * cos(EnteringWaveDirection) +  &
-                                           di * sin(EnteringWaveDirection)
-                    YX_Component_Cart_E  = dj * sin(EnteringWaveDirection) +  &
-                                           di * cos(EnteringWaveDirection)
-
-                    if (abs(XY_Component_Cart_E) < MinLeavingComponent) XY_Component_Cart_E = 0.
-                    if (abs(YX_Component_Cart_E) < MinLeavingComponent) YX_Component_Cart_E = 1.
-
-
-
-                    !If the flow of the entering wave is going from the inside the domain to the
-                    !outside then the entering flow is consider be zero
-
-                    if ((XY_Component_Cart_E <= 0 .and. db == 0) .or.  &  !West or South cell boundary
-                        (XY_Component_Cart_E >= 0 .and. db == 1)) then    !East or North cell boundary
-
-                        XY_Component_Cart_E  = 0.
-
-                        WaveEntering         = 0.
-                        OldWaveEntering      = 0.
-
-                    endif
-
-
-                    !Flow - Entering wave - Cartesian referencial. In necessary to compute
-                    !the entering fluxes in cartesian referencial to be consistent witht the
-                    !total fluxes
-
-                    ![m^3/s] = [m] * [m/s] * [ ] * [m]
-                    FluxXY_E = WaveEntering * Wave_Celerity *  &
-                               XY_Component_Cart_E * DVY_UX(i, j)
-
-                    ![m^3/s] = [m] * [m/s] * [ ] * [m]
-                    FluxYX_E = WaveEntering * Wave_Celerity *  &
-                               YX_Component_Cart_E * DUX_VY(i, j)
-
-                else cd15
-
-                    XY_Component_Cart_E  = 0.
-
-                    WaveEntering         = 0.
-                    OldWaveEntering      = 0.
-
-                    FluxXY_E             = 0.
-                    FluxYX_E             = 0.
-
-                endif cd15
-
-
-                !The leaving wave direction is compute in the center of the
-                !first interior cell
-                !if      (BoundaryPoints(i   , j   ) == Boundary_) then
-                !    FluxXY_T =  Flux_WestSouth
-                !elseif  (BoundaryPoints(i-di, j-dj) == Boundary_) then
-                !    FluxXY_T = Flux_EastNorth
-                !else
-                    FluxXY_T = (Flux_WestSouth + Flux_EastNorth) / 2.
-                !endif
-                !if      (BoundaryPoints(i   , j   ) == Boundary_) then
-
-                !elseif  (BoundaryPoints(i-dj, j-di) == Boundary_) then
-
-                !else
-                    FluxYX_T = (Flux_SouthWest + Flux_NorthEast) / 2.
-                !endif
-
-
-
-
-                !Flow - Leaving wave - Cartesian referencial
-                FluxXY_L = FluxXY_T - FluxXY_E
-                FluxYX_L = FluxYX_T - FluxYX_E
-
-                FluxMod_L = pythag (FluxXY_L, FluxYX_L)
-
-                LeavingVelocity   = abs(FluxXY_L)  / DYY_XX(i, j)  / HT_Boundary
-
-
-                if (LeavingVelocity < MinLeavingVelocity)    then
-
-                    XY_Component_L = 1.
-
-                    !Null gradient
-cd71:               if (ImplicitFaces) then
-
-                        ECoef_2D (ib, jb) = 1
-                        TiCoef_2D(ib, jb) = 0
-
-                        !west and south boundary
-                        if      (db == 0) then
-                            DCoef_2D (ib, jb) = 0.
-                            FCoef_2D (ib, jb) = -1.
-                        !East and North boundary
-                        elseif  (db == 1) then
-                            DCoef_2D (ib, jb) = -1.
-                            FCoef_2D (ib, jb) = 0.
-                        else
-                            stop "WaterLevel_FlatherWindWave - Hydrodynamic - ERR110"
-                        endif
-
-                    else cd71
-
-                        DCoef_2D (ib, jb) = 0.
-                        ECoef_2D (ib, jb) = 1.
-                        FCoef_2D (ib, jb) = 0.
-                        TiCoef_2D(ib, jb) = TiCoef_2D(i_int, j_int)
-
-                    endif cd71
-
-                    !ends do cycle
-                    cycle
-
-                else
-
-                    XY_Component_L = abs(FluxXY_L) / FluxMod_L
-
-                endif
-                !If the flow of the leaving wave is going from inside the domain to the
-                !outside then the flow must be positive in the oposite condition it must
-                !be negative
-                if (db == 0) then  !West or South cell boundary
-                    ![ ] = [m^3/s] / [m^3/s]
-                    XY_Component_E  =   abs(XY_Component_Cart_E)
-
-                    XY_Component_L  = - abs(XY_Component_L)
-
-                    !The total OLD water flux in the boundary face
-                    WaterFluxBoundary = Flux_WestSouth
-
-
-                else if (db == 1) then !East or North cell boundary
-
-                    ![ ] = [m^3/s] / [m^3/s]
-                    XY_Component_E  = - abs(XY_Component_Cart_E)
-
-                    XY_Component_L  = + abs(XY_Component_L)
-
-                    !The total OLD water flux in the boundary face
-                    WaterFluxBoundary = Flux_EastNorth
-
-
-                endif
-
-
-                if (abs(XY_Component_L)  > 1. )  then
-                    !!!! $OMP CRITICAL (WLFWW1_STOP01)
-                    Stop 'XY_Component_L = 1'
-                    !!!! $OMP END CRITICAL (WLFWW1_STOP01)
-                endif
-
-                if (ImplicitFaces) then
-
-
-                    ![s^-1] = [m^2/s] / [m] / [m]
-                    A_aux = RadCoef_2D(I, J) / DYY_XX(i, j) / HT_Boundary
-
-                    ![m/s]    = [m^3/s] / [m] / [m]
-                    T3        = + TiRadCoef_2D(I, J) / DYY_XX(i, j) / HT_Boundary
-
-
-                else
-
-                    ![s^-1]   = [m^2/s] / [m] / [m]
-                    A_aux     = 0.
-
-                    ![m/s]    = [m^3/s] / [m] / [m]
-                    T3        = WaterFluxBoundary / DYY_XX(i, j) / HT_Boundary
-
-
-                endif
-
-
-                T3            = T3 - ImposedVelocity(ib, jb) * XY_Component_Cart_E
-
-
-                ![m^-1*s^-1] = [m/s] * [ ] * [ ] / [m] / [m]
-                B_aux =  Wave_Celerity * XY_Component_L  &
-                           / (DUX_VY(i - di, j - dj) + DUX_VY(i, j)) / HT_Boundary
-
-
-                ![s^-1]   = [ ] * [s^-1] + [m^-1*s^-1] * [m]
-                D1        = - db * A_aux
-                D2        = + db * B_aux * DUX_VY(i, j)
-
-                E1        = + db * A_Aux
-                E2        = + db * B_aux * DUX_VY(i - di, j - dj)
-                E3        = - (1 - db) * A_aux
-                E4        = + (1 - db) * B_aux * DUX_VY(i, j)
-
-                F1        = + (1 - db) * A_aux
-                F2        = + (1 - db) * B_aux * DUX_VY(i - di, j - dj)
-
-                ! [s^-1] = ([m/s] / [m] )
-                T1        = - Wave_Celerity * XY_Component_E / HT_Boundary
-
-                T2        = + Wave_Celerity * XY_Component_L  / HT_Boundary
-
-
-                T4        = WaveEntering * T1 + T3 + (WaveEntering + ReferenceLevel) * T2
-
-cd7:            if (ImplicitFaces) then
-
-                    DCoef_2D (ib, jb) = D1 + D2
-
-                    ECoef_2D (ib, jb) = E1 + E2 + E3 + E4
-
-                    FCoef_2D (ib, jb) = F1 + F2
-
-                    TiCoef_2D(ib, jb) = T4
-
-                else cd7
-
-
-                    DCoef_2D (ib, jb) = 0.
-
-                    ECoef_2D (ib, jb) = 1.
-
-                    FCoef_2D (ib, jb) = 0.
-
-                    if (abs (E1 + E2 + E3 + E4) > 0) then
-                        TiCoef_2D(ib, jb) =   (T4 - (D1 + D2) * WaterLevel_New(ib - di, jb - dj)   &
-                                                  - (F1 + F2) * WaterLevel_New(ib + di, jb + dj))/ &
-                                                    (E1 + E2 + E3 + E4)
-                    else
-                        TiCoef_2D(ib, jb) = 0.
-                    endif
-                endif cd7
-
-
-
-            endif cd1
-
-        enddo
-        enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
-
-        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "WaterLevel_FlatherWindWave")
-
-
-cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
-
-            call UnGetOpenBoundary(Me%ObjOpenBoundary, ImposedElevation, STAT = status)
-            if (status /= SUCCESS_) &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR120")
-
-            call UnGetOpenBoundary(Me%ObjOpenBoundary, ImposedVelocity, STAT = status)
-            if (status /= SUCCESS_)                                                          &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR130")
-
-
-
-            if (Me%Relaxation%RefBoundWaterLevel) then
-
-                call UnGetAssimilation(Me%ObjAssimilation,                      &
-                                        BoundaryReferenceLevel, STAT = status)
-
-                if (status /= SUCCESS_)                                                      &
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR140")
-
-
-            else
-
-                call UnGetOpenBoundary(Me%ObjOpenBoundary, BoundaryReferenceLevel, STAT = status)
-
-                if (status /= SUCCESS_)                                                      &
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR150")
-
-
-            endif
-
-
-        elseif (Me%ComputeOptions%LocalSolution == AssimilationField_) then cd21
-
-
-            call UnGetAssimilation(Me%ObjAssimilation,                      &
-                                    ImposedElevation, STAT = status)
-
-            if (status /= SUCCESS_)                                                      &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR160")
-
-        endif cd21
-
-        if  (Me%WindWaves%CelerityType == AnalyticWaves_) then
-
-            call UnGetAssimilation(Me%ObjAssimilation,                      &
-                                    WaveCelerityField, STAT = status)
-
-            if (status /= SUCCESS_)                                                      &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR170")
-
-
-        endif
-
-        !Nullify auxiliar variables
-
-        !Linear system equation
-        nullify (DCoef_2D, ECoef_2D, FCoef_2D, TiCoef_2D, RadCoef_2D, TiRadCoef_2D)
-
-        !Mapping
-        nullify (BoundaryPoints)
-
-        !Geometry
-        nullify(SZZ)
-
-        !Hydrodynamic
-        nullify(WaterLevel_New)
-        nullify(WaterLevel_Old)
-
-        if (associated(ImposedVelocity)) then
-            deallocate(ImposedVelocity)
-        endif
-
-
-        if (associated(BoundaryReferenceLevel)) then
-            deallocate(BoundaryReferenceLevel)
-        endif
-
-        !----------------------------------------------------------------------
-
-    End Subroutine WaterLevel_FlatherWindWave
-
-    !--------------------------------------------------------------------------
-
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !                                                                                      !
-    ! This subroutine compute the Sommerfeld radition condition for the open boundary      !
-    !                                                                                      !
-    ! Input : Mapping                                                                      !
-    ! OutPut: Water Level in the open boundary                                             !
-    ! Author: Paulo Chambel (99/6)                                                         !
-    !                                                                                      !
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    Subroutine WaterLevel_FlatherWindWaveV2 ( )
-
-        !Arguments------------------------------------------------------------
-
-        !Local---------------------------------------------------------------------
-
-        real,    dimension (:,:  ), pointer :: WaterColumnUV, DUX_VY, DVY_UX, DYY_XX
-        integer, dimension (:,:,:), pointer :: ComputeFaces3D_UV, ComputeFaces3D_VU
-        integer, dimension (:,:  ), pointer :: BoundaryFacesUV, kfloor_UV, kfloor_VU
-        integer                             :: di, dj
-
-        real(8), dimension (:,:,:), pointer :: WaterFlux_XY, WaterFlux_YX
-        integer                             :: i, j, k
-        integer, pointer, dimension (:,:)   :: BoundaryPoints
-
-
-        real(8), dimension(:,:), pointer    :: ECoef_2D
-        real,    dimension(:,:), pointer    :: DCoef_2D, FCoef_2D, TiCoef_2D,         &
-                                               ImposedElevation,                      &
-                                               ImposedVelocity,                       &
-                                               WaterLevel_New, BoundaryReferenceLevel,&
-                                               RadCoef_2D, TiRadCoef_2D, WaterLevel_Old
-
-
-        real,    dimension(:,:,:), pointer  :: SZZ
-
-        real,    dimension(:,:  ), pointer  :: WaveCelerityField
-
-        real                                :: WaveDirection, AverageValue
-
-
-        real                                :: D1, D2, E1, E2, E3, E4, F1, F2,  &
-                                               T1, T2, T3, T4, A_Aux, B_Aux,    &
-                                               HT_boundary, Wave_Celerity,      &
-                                               DT_Elevation, WaveEntering,      &
-                                               OldWaveEntering, ReferenceLevel
-
-        real(8)                             :: FluxXY_L, FluxYX_L, FluxMod_L,   &
-                                               FluxXY_E, FluxYX_E,              &
-                                               FluxXY_T, FluxYX_T,              &
-                                               Flux_WestSouth, Flux_EastNorth,  &
-                                               Flux_SouthWest, Flux_NorthEast,  &
-                                               XY_Component_L, XY_Component_E,  &
-                                               XY_Component_Cart_E,             &
-                                               YX_Component_Cart_E,             &
-                                               LeavingVelocity
-
-        real                                :: CellRotation, EnteringWaveDirection, WaveCellDir
-
-
-        real                                :: MinLeavingComponent,  MinLeavingVelocity
-
-
-        integer                             :: IUB, ILB, JUB, JLB, KUB,         &
-                                               i1, i2, i3, i4, j1, j2, j3, j4,  &
-                                               db, kbottom,                     &
-                                               ib, jb, i_int, j_int
-
-        logical                             :: Compute_Tide
-
-        integer                             :: status
-
-        integer                             :: DirX, DirY, DirBound
-
-        integer                             :: CHUNK
-
-        real                                :: dx1, dx2, dx3
-
-        !Begin----------------------------------------------------------------
-
-
-        !Begin - Shorten variables name
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-
-        di  = Me%Direction%di
-        dj  = Me%Direction%dj
-
-        DT_Elevation  =  Me%WaterLevel%DT
-
-        DCoef_2D      => Me%Coef%D2%D
-        ECoef_2D      => Me%Coef%D2%E
-        FCoef_2D      => Me%Coef%D2%F
-        TiCoef_2D     => Me%Coef%D2%Ti
-
-        RadCoef_2D    => Me%Coef%D2%Rad
-        TiRadCoef_2D  => Me%Coef%D2%TiRad
-
-        SZZ                  => Me%External_Var%SZZ
-
-        !Geometry
-        WaterColumnUV        => Me%External_Var%WaterColumnUV
-        DUX_VY               => Me%External_Var%DUX_VY
-        DVY_UX               => Me%External_Var%DVY_UX
-        DYY_XX               => Me%External_Var%DYY_XX
-
-        kfloor_UV            => Me%External_Var%kfloor_UV
-        kfloor_VU            => Me%External_Var%kfloor_VU
-
-
-
-        !Flow
-        WaterFlux_XY    => Me%WaterFluxes%XY
-        WaterFlux_YX    => Me%WaterFluxes%YX
-        WaterLevel_New  => Me%WaterLevel%New
-        WaterLevel_Old  => Me%WaterLevel%Old
-
-
-        BoundaryFacesUV   => Me%External_Var%BoundaryFacesUV
-        BoundaryPoints    => Me%External_Var%BoundaryPoints
-
-        ComputeFaces3D_UV =>  Me%External_Var%ComputeFaces3D_UV
-        ComputeFaces3D_VU =>  Me%External_Var%ComputeFaces3D_VU
-
-        EnteringWaveDirection =  Me%ComputeOptions%EnteringWaveDirection
-
-        MinLeavingComponent   =  Me%ComputeOptions%MinLeavingComponent
-        MinLeavingVelocity    =  Me%ComputeOptions%MinLeavingVelocity
-
-
-        Compute_Tide          = Me%ComputeOptions%Compute_Tide
-
-        if      (Me%Direction%XY == DirectionX_) then
-
-            DirBound = DirX
-
-        else if (Me%Direction%XY == DirectionY_) then
-
-            DirBound = DirY
-
-        endif
-
-
-        !End   - Shorten variables name
-
-cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_) then
-
-
-            call Modify_OpenBoundary(Me%ObjOpenBoundary,                                &
-                                     Me%CurrentTime,                                    &
-                                     Me%External_Var%AtmosphericPressure,               &
-                                     Me%ComputeOptions%AtmosphereCoef,                  &
-                                     Me%ComputeOptions%InvertBaroCoef,                  &
-                                     Me%ComputeOptions%AtmSeaLevelReference,            &
-                                     STAT        = status)
-            if (status /= SUCCESS_)                                                     &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR10")
-
-
-            call GetImposedElevation(Me%ObjOpenBoundary,                        &
-                                      ImposedElevation, STAT = status)
-
-
-            if (status /= SUCCESS_)                                                          &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR20")
-
-            call GetOpenBoundParameter(Me%ObjOpenBoundary, DirectionX = DirX,   &
-                                                                        DirectionY = DirY, STAT= status)
-
-            if (status /= SUCCESS_)                                                          &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR30")
-
-
-
-            call GetImposedVelocity   (Me%ObjOpenBoundary, ImposedVelocity,     &
-                                       DirBound, STAT= status)
-
-            if (status /= SUCCESS_)                                                          &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR40")
-
-            !PCL
-
-    cd23:   if (Me%Relaxation%RefBoundWaterLevel) then
-
-                call GetAssimilationField(Me%ObjAssimilation,                           &
-                                          ID              = WaterLevel_,                &
-                                          Field2D         = BoundaryReferenceLevel,     &
-                                          STAT            = status)
-
-                if (status /= SUCCESS_)                                                      &
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR50")
-
-
-            else   cd23
-
-                call GetBoundaryReferenceLevel(Me%ObjOpenBoundary,              &
-                                               BoundaryReferenceLevel, STAT = status)
-
-                if (status /= SUCCESS_)                                                      &
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR60")
-
-
-            endif cd23
-
-        elseif (Me%ComputeOptions%LocalSolution == AssimilationField_) then cd0
-
-
-            call GetAssimilationField(Me%ObjAssimilation,                           &
-                                      ID              = WaterLevel_,                &
-                                      Field2D         = ImposedElevation,           &
-                                      STAT            = status)
-
-            if (status /= SUCCESS_)                                                      &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR70")
-
-
-            if (.not.associated(ImposedVelocity)) then
-                allocate(ImposedVelocity(ILB:IUB,JLB:JUB))
-            endif
-
-            ImposedVelocity(:,:)        = 0.
-
-            if (.not.associated(BoundaryReferenceLevel)) then
-                allocate(BoundaryReferenceLevel(ILB:IUB,JLB:JUB))
-            endif
-            BoundaryReferenceLevel(:,:) = 0.
-
-        else  cd0
-
-            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR80")
-
-        endif cd0
-
-        if  (Me%WindWaves%CelerityType == AnalyticWaves_) then
-
-            if (Me%ComputeOptions%LocalSolution == AssimilationField_) then
-
-                call GetWaveCelerityField(AssimilationID = Me%ObjAssimilation,          &
-                                          ID              = WaterLevel_,                &
-                                          WaveCelerity    = WaveCelerityField,          &
-                                          WaveDirection   = WaveDirection,              &
-                                          AverageValue    = AverageValue,               &
-                                          STAT            = status)
-
-                if (status /= SUCCESS_)                                                 &
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR90")
-
-                EnteringWaveDirection  = WaveDirection
-
-                BoundaryReferenceLevel(:,:) = AverageValue
-
-            else
-
-                write(*,*) 'Define the analytic celerity in assimilation_x.dat for property WaterLevel_'
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR100")
-
-            endif
-
-
-        endif
-
-        CHUNK = CHUNK_J(JLB, JUB)
-
-        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "WaterLevel_FlatherWindWaveV2")
-
         !$OMP PARALLEL PRIVATE(i,j,kbottom,HT_Boundary,db,i1,i2,i3,i4,j1,j2,j3,j4,Flux_WestSouth)   &
         !$OMP PRIVATE(Flux_EastNorth,Flux_SouthWest,Flux_NorthEast,ib,jb,ReferenceLevel)            &
         !$OMP PRIVATE(WaveEntering,OldWaveEntering,i_int,j_int,Wave_Celerity,XY_Component_Cart_E)   &
         !$OMP PRIVATE(YX_Component_Cart_E,FluxXY_E,FluxYX_E,FluxXY_T,FluxYX_T,FluxXY_L,FluxYX_L)    &
         !$OMP PRIVATE(FluxMod_L,LeavingVelocity,XY_Component_L,XY_Component_E)                      &
-        !$OMP PRIVATE(WaveCellDir, EnteringWaveDirection, CellRotation)                             &
-        !$OMP PRIVATE(A_aux,T3,B_aux,D1,D2,E1,E2,E3,E4,F1,F2,T1,T2,T4)
-
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        do  j = JLB, JUB
-        do  i = ILB, IUB
-
-
-            !In this way if in a boundary point the elevation is not change
-            !due to the radiation condition then
-            !the old elevation is maintain
-cd9:        if (BoundaryPoints(i, j) == Boundary) then
-
-                TiCoef_2D(i, j) = WaterLevel_New(i, j)
-
-                DCoef_2D (i, j) = 0.
-
-                ECoef_2D (i, j) = 1.
-
-                FCoef_2D (i, j) = 0.
-
-
-            endif cd9
-
-cd1:        if  (BoundaryFacesUV  (i, j     )  == Boundary     .and.                     &
-                 ComputeFaces3D_UV(i, j, KUB)  == Covered      .and.                     &
-                (BoundaryPoints   (i, j)       == Not_Boundary .or.                      &
-                 BoundaryPoints   (i-di, j-dj) == Not_Boundary)) then
-
-
-                kbottom = kfloor_UV(i, j)
-
-               ![m] = [m^2]/[m]
-                HT_boundary = WaterColumnUV(i, j)
-
-
-                !Direction - Leaving wave
-                if (BoundaryPoints(i, j) == Boundary) then
-
-                    !West or South cell is interior and
-                    !the East or North cell is boundary
-                    db = 1
-
-                    i1 = i - di
-                    i2 = i
-                    i3 = i - di
-                    i4 = i + dj - di
-                    j1 = j - dj
-                    j2 = j
-                    j3 = j - dj
-                    j4 = j - dj + di
-
-
-                else
-
-                    !West or South cell is boundary and
-                    !the East or North cell is interior
-                    db = 0
-
-                    i1 = i
-                    i2 = i + di
-                    i3 = i
-                    i4 = i + dj
-                    j1 = j
-                    j2 = j + dj
-                    j3 = j
-                    j4 = j + di
-
-
-                endif
-
-
-                !Boundary cell
-                !X direction (di=0,dj=1) - boundary West  cell (db=0) => (ib,jb)=(i, j-1)
-                !X direction (di=0,dj=1) - boundary East  cell (db=1) => (ib,jb)=(i, j)
-                !Y direction (di=1,dj=0) - boundary South cell (db=0) => (ib,jb)=(i-1, j)
-                !Y direction (di=1,dj=0) - boundary North cell (db=1) => (ib,jb)=(i, j)
-
-                ib    = i - di * (1 - db)
-                jb    = j - dj * (1 - db)
-
-                !Interior cell next to a boundary face
-                !X direction (di=0,dj=1) - Interior East  cell (db=0) => (ib,jb)=(i, j)
-                !X direction (di=0,dj=1) - Interior West  cell (db=1) => (ib,jb)=(i, j-1)
-                !Y direction (di=1,dj=0) - Interior North cell (db=0) => (ib,jb)=(i, j)
-                !Y direction (di=1,dj=0) - Interior South cell (db=1) => (ib,jb)=(i-1, j)
-
-                i_int = i - di * db
-                j_int = j - dj * db
-
-
-                !total West or South face water flux
-                Flux_WestSouth      = 0.
-
-cd2:            if (ComputeFaces3D_UV(i1, j1, KUB) == Covered) then
-
-                    kbottom = kfloor_UV(i1, j1)
-
-                    do  k = kbottom, KUB
-
-                        Flux_WestSouth = Flux_WestSouth + WaterFlux_XY(i1, j1, k)
-
-                    enddo
-
-                endif cd2
-
-
-                !total East or North face water flux
-                Flux_EastNorth      = 0.
-
-cd3:            if (ComputeFaces3D_UV(i2, j2, KUB) == Covered) then
-
-                    kbottom = kfloor_UV(i2, j2)
-
-                    do  k = kbottom, KUB
-
-                        Flux_EastNorth = Flux_EastNorth + WaterFlux_XY(i2, j2, k)
-
-                    enddo
-
-                endif cd3
-
-
-                !total South or West face water flux
-                Flux_SouthWest      = 0.
-
-cd4:            if (ComputeFaces3D_VU(i3, j3, KUB) == Covered) then
-
-                    kbottom = kfloor_VU(i3, j3)
-
-                    do  k = kbottom, KUB
-
-                        Flux_SouthWest = Flux_SouthWest + WaterFlux_YX(i3, j3, k)
-
-                    enddo
-
-                endif cd4
-
-
-                !total North or East face water flux
-
-                Flux_NorthEast      = 0.
-
-cd5:            if (ComputeFaces3D_VU(i4, j4, KUB) == Covered) then
-
-                    kbottom = kfloor_VU(i4, j4)
-
-                    do  k = kbottom, KUB
-
-                        Flux_NorthEast = Flux_NorthEast + WaterFlux_YX(i4, j4, k)
-
-                    enddo
-
-                endif cd5
-
-                dx1 = DUX_VY(i_int, j_int)
-                dx2 = DUX_VY(ib,    jb   )
-                dx3 = dx1 + dx2
-
-                !boundary condition is done for the cell face so the water level
-                !need to be interpolated form the cell centers to the boundary face
-                ReferenceLevel = (BoundaryReferenceLevel(ib,    jb   ) * dx1 +            &
-                                  BoundaryReferenceLevel(i_int, j_int) * dx2 ) / dx3
-
-
-                WaveEntering   = (ImposedElevation(ib,    jb   ) * dx1 +            &
-                                  ImposedElevation(i_int, j_int) * dx2 ) / dx3
-
-                WaveEntering   = WaveEntering - ReferenceLevel
-
-                !The local solution Gauge_ only have data for water level boundary cell
-                !Gauge_ local solution does not provide a water level field like the assimilation and submodel local solutions
-                !This problem need to be solved in the future.
-                if (Me%ComputeOptions%LocalSolution == Gauge_) then
-                    WaveEntering = ImposedElevation(ib, jb) - ReferenceLevel
-                endif
-
-                !The wave Celerity compute in the boundary face
-                ![m/s] = [m/s^2*m]^.5 = [m/s]
-                if      (Me%WindWaves%CelerityType == LongWaves_) then
-
-                    Wave_Celerity = sqrt(Gravity * HT_Boundary)
-
-                elseif  (Me%WindWaves%CelerityType == Constant_ ) then
-
-                    Wave_Celerity = Me%WindWaves%CelerityConstant
-
-                elseif  (Me%WindWaves%CelerityType == AnalyticWaves_) then
-
-
-                    Wave_Celerity = (WaveCelerityField(ib,    jb   ) * dx1 +            &
-                                     WaveCelerityField(i_int, j_int) * dx2 ) / dx3
-
-                endif
-
-               !If was defined a entering wave then
-cd15:           if (Me%ComputeOptions%ComputeEnteringWave) then
-
-                    call GetCellRotation(Me%ObjHorizontalGrid, ib, jb, CellRotation, STAT = status)
-
-                    if (status /= SUCCESS_) then
-                        call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR95")
-                    endif
-
-                    WaveCellDir = EnteringWaveDirection - CellRotation
-
-                    !Direction - Entering wave - Cartesian referencial
-                    XY_Component_Cart_E  = dj * cos(WaveCellDir) +                      &
-                                           di * sin(WaveCellDir)
-                    YX_Component_Cart_E  = dj * sin(WaveCellDir) +                      &
-                                           di * cos(WaveCellDir)
-
-                    if (abs(XY_Component_Cart_E) < MinLeavingComponent) then
-                        XY_Component_Cart_E = 0.
-                        if (YX_Component_Cart_E > 0) then
-                            YX_Component_Cart_E =  1.
-                        else
-                            YX_Component_Cart_E = -1.
-                        endif
-                    endif
-                    if (abs(YX_Component_Cart_E) < MinLeavingComponent) then
-                        YX_Component_Cart_E = 0.
-                        if (XY_Component_Cart_E > 0) then
-                            XY_Component_Cart_E =  1.
-                        else
-                            XY_Component_Cart_E = -1.
-                        endif
-                    endif
-
-
-
-
-                    !If the flow of the entering wave is going from the inside the domain to the
-                    !outside then the entering flow is consider be zero
-
-                    if ((XY_Component_Cart_E <= 0 .and. db == 0) .or.  &  !West or South cell boundary
-                        (XY_Component_Cart_E >= 0 .and. db == 1)) then    !East or North cell boundary
-
-                        XY_Component_Cart_E  = 0.
-
-                        WaveEntering         = 0.
-                        OldWaveEntering      = 0.
-
-                    endif
-
-                    !Flow - Entering wave - Cartesian referencial. In necessary to compute
-                    !the entering fluxes in cartesian referencial to be consistent witht the
-                    !total fluxes
-
-                    ![m^3/s] = [m] * [m/s] * [ ] * [m]
-                    FluxXY_E = WaveEntering * Wave_Celerity *  &
-                               XY_Component_Cart_E * DVY_UX(i, j)
-
-                    ![m^3/s] = [m] * [m/s] * [ ] * [m]
-                    FluxYX_E = WaveEntering * Wave_Celerity *  &
-                               YX_Component_Cart_E * DUX_VY(i, j)
-
-                else cd15
-
-                    XY_Component_Cart_E  = 0.
-
-                    WaveEntering         = 0.
-                    OldWaveEntering      = 0.
-
-                    FluxXY_E  = 0.
-                    FluxYX_E  = 0.
-
-                endif cd15
-
-                !The leaving wave direction is compute in the center of the
-                !first interior cell
-                FluxXY_T = (Flux_WestSouth + Flux_EastNorth) / 2.
-                FluxYX_T = (Flux_SouthWest + Flux_NorthEast) / 2.
-
-
-                !Flow - Leaving wave - Cartesian referencial
-                FluxXY_L = FluxXY_T - FluxXY_E
-                FluxYX_L = FluxYX_T - FluxYX_E
-
-                FluxMod_L = pythag (FluxXY_L, FluxYX_L)
-
-                LeavingVelocity   = FluxMod_L / DYY_XX(i, j) / HT_Boundary
-
-                if (LeavingVelocity < MinLeavingVelocity)    then
-
-                    !Null gradient
-                    ECoef_2D (ib, jb) = 1
-                    TiCoef_2D(ib, jb) = 0
-
-                    !west and south boundary
-                    if      (db == 0) then
-                        DCoef_2D (ib, jb) = 0.
-                        FCoef_2D (ib, jb) = -1.
-                    !East and North boundary
-                    elseif  (db == 1) then
-                        DCoef_2D (ib, jb) = -1.
-                        FCoef_2D (ib, jb) = 0.
-                    else
-                        stop "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR110"
-                    endif
-
-                    !ends do cycle
-                    cycle
-
-                else
-
-                    if (FluxMod_L>0) then
-                        XY_Component_L = abs(FluxXY_L) / FluxMod_L
-                    else
-                        XY_Component_L = 0.
-                    endif
-
-                endif
-
-                !If the flow of the leaving wave is going from inside the domain to the
-                !outside then the flow must be positive in the oposite condition it must
-                !be negative
-                if (db == 0) then  !West or South cell boundary
-                    ![ ] = [m^3/s] / [m^3/s]
-                    XY_Component_E  = + abs(XY_Component_Cart_E)
-
-                    XY_Component_L  = - abs(XY_Component_L)
-
-                else if (db == 1) then !East or North cell boundary
-
-                    ![ ] = [m^3/s] / [m^3/s]
-                    XY_Component_E  = - abs(XY_Component_Cart_E)
-
-                    XY_Component_L  = + abs(XY_Component_L)
-
-                endif
-
-
-                if (abs(XY_Component_L)  > 1. )  then
-                    !!!! $OMP CRITICAL (WLFWW1_STOP01)
-                    Stop 'XY_Component_L = 1'
-                    !!!! $OMP END CRITICAL (WLFWW1_STOP01)
-                endif
-
-
-                ![s^-1] = [m^2/s] / [m] / [m]
-                A_aux     = RadCoef_2D    (I, J) / DYY_XX(i, j) / HT_Boundary
-
-                ![m/s]    = [m^3/s] / [m] / [m]
-                T3        = TiRadCoef_2D(I, J) / DYY_XX(i, j) / HT_Boundary
-
-                ![m/s]    = [m/s] - [m/s] * [-]
-                T3        = T3 - ImposedVelocity(ib, jb) * XY_Component_Cart_E
-
-                ![1/(m*s)] = [m/s] * [ ] / [m] / [m]
-                B_aux =  + Wave_Celerity * XY_Component_L   &
-                           / (DUX_VY(i - di, j - dj) + DUX_VY(i, j)) / HT_Boundary
-
-
-                ![s^-1]   = [ ] * [s^-1]
-                D1        = - db * A_aux
-
-                ![s^-1]   = [ ] * [1/(m*s)] * [m]
-                D2        = + db * B_aux * DUX_VY(i, j)
-
-                ![s^-1]   = [ ] * [s^-1]
-                E1        = + db * A_Aux
-                ![s^-1]   = [ ] * [1/(m*s)] * [m]
-                E2        = + db * B_aux * DUX_VY(i - di, j - dj)
-
-                ![s^-1]   = [ ] * [s^-1]
-                E3        = - (1 - db) * A_aux
-                ![s^-1]   = [ ] * [1/(m*s)] * [m]
-                E4        = + (1 - db) * B_aux * DUX_VY(i, j)
-
-                ![s^-1]   = [ ] * [s^-1]
-                F1        = + (1 - db) * A_aux
-                ![s^-1]   = [ ] * [1/(m*s)] * [m]
-                F2        = + (1 - db) * B_aux * DUX_VY(i - di, j - dj)
-
-                ! [s^-1] = ([m/s] / [m] )
-                T1        = - Wave_Celerity * XY_Component_E / HT_Boundary
-
-                ! [s^-1] = ([m/s] / [m] )
-                T2        = + Wave_Celerity * XY_Component_L / HT_Boundary
-
-                ! [m/s] = ([m] * [s^-1] + [m/s] + [m] * [s^-1]
-                T4        = WaveEntering * T1 + T3 + (WaveEntering + ReferenceLevel) * T2
-
-                DCoef_2D (ib, jb) = D1 + D2
-
-                ECoef_2D (ib, jb) = E1 + E2 + E3 + E4
-
-                FCoef_2D (ib, jb) = F1 + F2
-
-                TiCoef_2D(ib, jb) = T4
-
-            endif cd1
-
-        enddo
-        enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
-
-        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "WaterLevel_FlatherWindWaveV2")
-
-
-cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
-
-            call UnGetOpenBoundary(Me%ObjOpenBoundary, ImposedElevation, STAT = status)
-            if (status /= SUCCESS_) &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR120")
-
-            call UnGetOpenBoundary(Me%ObjOpenBoundary, ImposedVelocity, STAT = status)
-            if (status /= SUCCESS_)                                                          &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR130")
-
-
-
-            if (Me%Relaxation%RefBoundWaterLevel) then
-
-                call UnGetAssimilation(Me%ObjAssimilation,                      &
-                                        BoundaryReferenceLevel, STAT = status)
-
-                if (status /= SUCCESS_)                                                      &
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR140")
-
-
-            else
-
-                call UnGetOpenBoundary(Me%ObjOpenBoundary, BoundaryReferenceLevel, STAT = status)
-
-                if (status /= SUCCESS_)                                                      &
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR150")
-
-
-            endif
-
-
-        elseif (Me%ComputeOptions%LocalSolution == AssimilationField_) then cd21
-
-
-            call UnGetAssimilation(Me%ObjAssimilation,                      &
-                                    ImposedElevation, STAT = status)
-
-            if (status /= SUCCESS_)                                                      &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR160")
-
-        endif cd21
-
-        if  (Me%WindWaves%CelerityType == AnalyticWaves_) then
-
-            call UnGetAssimilation(Me%ObjAssimilation,                      &
-                                    WaveCelerityField, STAT = status)
-
-            if (status /= SUCCESS_)                                                      &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV2 - Hydrodynamic - ERR170")
-
-
-        endif
-
-        !Nullify auxiliar variables
-
-        !Linear system equation
-        nullify (DCoef_2D, ECoef_2D, FCoef_2D, TiCoef_2D, RadCoef_2D, TiRadCoef_2D)
-
-        !Mapping
-        nullify (BoundaryPoints)
-
-        !Geometry
-        nullify(SZZ)
-
-        !Hydrodynamic
-        nullify(WaterLevel_New)
-        nullify(WaterLevel_Old)
-
-        if (associated(ImposedVelocity)) then
-            deallocate(ImposedVelocity)
-        endif
-
-
-        if (associated(BoundaryReferenceLevel)) then
-            deallocate(BoundaryReferenceLevel)
-        endif
-
-        !----------------------------------------------------------------------
-
-    End Subroutine WaterLevel_FlatherWindWaveV2
-
-    !--------------------------------------------------------------------------
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    !                                                                                      !
-    ! This subroutine compute the Sommerfeld radition condition for the open boundary      !
-    !                                                                                      !
-    ! Input : Mapping                                                                      !
-    ! OutPut: Water Level in the open boundary                                             !
-    ! Author: Paulo Chambel (99/6)                                                         !
-    !                                                                                      !
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    Subroutine WaterLevel_FlatherWindWaveV3 ( WaterFlux_XY, WaterFlux_YX,               &
-                                     WaterColumnUV, DUX_VY, DVY_UX, DYY_XX,             &
-                                     ComputeFaces3D_UV, ComputeFaces3D_VU,              &
-                                     BoundaryFacesUV, kfloor_UV, kfloor_VU,             &
-                                     di, dj, DirectionXY, ImplicitFaces)
-
-        !Arguments------------------------------------------------------------
-
-        real(8), dimension (:,:,:), pointer :: WaterFlux_XY, WaterFlux_YX
-        real,    dimension (:,:  ), pointer :: WaterColumnUV, DUX_VY, DVY_UX, DYY_XX
-        integer, dimension (:,:,:), pointer :: ComputeFaces3D_UV, ComputeFaces3D_VU
-        integer, dimension (:,:  ), pointer :: BoundaryFacesUV, Kfloor_UV, kfloor_VU
-        integer                             :: di, dj, DirectionXY
-        logical                             :: ImplicitFaces
-
-
-        !Local---------------------------------------------------------------------
-        integer                             :: i, j, k
-        integer, pointer, dimension (:,:)   :: BoundaryPoints
-
-
-        real(8), dimension(:,:), pointer    :: ECoef_2D
-        real,    dimension(:,:), pointer    :: DCoef_2D, FCoef_2D, TiCoef_2D,         &
-                                               ImposedElevation,                      &
-                                               ImposedVelocity,                       &
-                                               WaterLevel_New, BoundaryReferenceLevel,&
-                                               RadCoef_2D, TiRadCoef_2D, WaterLevel_Old
-
-
-        real,    dimension(:,:,:), pointer  :: SZZ
-
-        real,    dimension(:,:  ), pointer  :: WaveCelerityField, Bathymetry
-
-        real                                :: WaveDirection, AverageValue
-
-
-        real                                :: D1, D2, E1, E2, E3, E4, E5, F1,  &
-                                               F2, T1, T2, T3, T4, A_Aux, B_Aux,&
-                                               HT_boundary, Wave_Celerity,      &
-                                               DT_Elevation, WaveEntering,      &
-                                               OldWaveEntering, ReferenceLevel
-
-        real(8)                             :: FluxXY_L, FluxYX_L, FluxMod_L,   &
-                                               FluxXY_E, FluxYX_E,              &
-                                               FluxXY_T, FluxYX_T,              &
-                                               Flux_WestSouth, Flux_EastNorth,  &
-                                               Flux_SouthWest, Flux_NorthEast,  &
-                                               XY_Component_L, XY_Component_E,  &
-                                               XY_Component_Cart_E,             &
-                                               YX_Component_Cart_E,             &
-                                               WaterFluxBoundary,               &
-                                               LeavingVelocity
-
-        real                                :: CellRotation, EnteringWaveDirection, WaveCellDir
-
-
-        real                                :: MinLeavingComponent,  MinLeavingVelocity
-
-
-        integer                             :: IUB, ILB, JUB, JLB, KUB,         &
-                                               i1, i2, i3, i4, j1, j2, j3, j4,  &
-                                               db, kbottom,                     &
-                                               ib, jb, i_int, j_int
-
-        logical                             :: Compute_Tide
-
-        integer                             :: status
-
-        integer                             :: DirX, DirY, DirBound
-
-        integer                             :: CHUNK
-
-        real                                :: dx1, dx2, dx3, AbsorbCoef
-
-
-        !Begin----------------------------------------------------------------
-
-
-        !Begin - Shorten variables name
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-
-        DT_Elevation  =  Me%WaterLevel%DT
-
-        DCoef_2D      => Me%Coef%D2%D
-        ECoef_2D      => Me%Coef%D2%E
-        FCoef_2D      => Me%Coef%D2%F
-        TiCoef_2D     => Me%Coef%D2%Ti
-
-        RadCoef_2D    => Me%Coef%D2%Rad
-        TiRadCoef_2D  => Me%Coef%D2%TiRad
-
-        SZZ                  => Me%External_Var%SZZ
-
-        !Geometry
-!        WaterColumnUV        => Me%External_Var%WaterColumnUV
-!        DUX_VY               => Me%External_Var%DUX_VY
-!        DVY_UX               => Me%External_Var%DVY_UX
-!        DYY_XX               => Me%External_Var%DYY_XX
-
-!        kfloor_UV            => Me%External_Var%kfloor_UV
-!        kfloor_VU            => Me%External_Var%kfloor_VU
-
-
-
-        !Flow
-!        WaterFlux_XY    => Me%WaterFluxes%XY
-!        WaterFlux_YX    => Me%WaterFluxes%YX
-        WaterLevel_New  => Me%WaterLevel%New
-        WaterLevel_Old  => Me%WaterLevel%Old
-
-
-!        BoundaryFacesUV   => Me%External_Var%BoundaryFacesUV
-        BoundaryPoints    => Me%External_Var%BoundaryPoints
-
-!        ComputeFaces3D_UV =>  Me%External_Var%ComputeFaces3D_UV
-!        ComputeFaces3D_VU =>  Me%External_Var%ComputeFaces3D_VU
-
-        EnteringWaveDirection =  Me%ComputeOptions%EnteringWaveDirection
-
-        MinLeavingComponent   =  Me%ComputeOptions%MinLeavingComponent
-        MinLeavingVelocity    =  Me%ComputeOptions%MinLeavingVelocity
-
-
-        Compute_Tide          = Me%ComputeOptions%Compute_Tide
-
-        if      (DirectionXY == DirectionX_) then
-
-            DirBound = DirX
-
-        else if (DirectionXY == DirectionY_) then
-
-            DirBound = DirY
-
-        endif
-
-
-        !End   - Shorten variables name
-
-        !Gets Bathymetry
-        call GetGridData(Me%ObjGridData, Bathymetry, STAT = status)
-
-        if (status /= SUCCESS_)                                                         &
-            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR005")
-
-cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_) then
-
-
-            call Modify_OpenBoundary(Me%ObjOpenBoundary,                                &
-                                     Me%CurrentTime,                                    &
-                                     Me%External_Var%AtmosphericPressure,               &
-                                     Me%ComputeOptions%AtmosphereCoef,                  &
-                                     Me%ComputeOptions%InvertBaroCoef,                  &
-                                     Me%ComputeOptions%AtmSeaLevelReference,            &
-                                     STAT        = status)
-            if (status /= SUCCESS_)                                                     &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR10")
-
-
-            call GetImposedElevation(Me%ObjOpenBoundary,                        &
-                                      ImposedElevation, STAT = status)
-
-
-            if (status /= SUCCESS_)                                                          &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR20")
-
-            call GetOpenBoundParameter(Me%ObjOpenBoundary, DirectionX = DirX,   &
-                                                                        DirectionY = DirY, STAT= status)
-
-            if (status /= SUCCESS_)                                                          &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR30")
-
-
-
-            call GetImposedVelocity   (Me%ObjOpenBoundary, ImposedVelocity,     &
-                                       DirBound, STAT= status)
-
-            if (status /= SUCCESS_)                                                          &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR40")
-
-            !PCL
-
-    cd23:   if (Me%Relaxation%RefBoundWaterLevel) then
-
-                call GetAssimilationField(Me%ObjAssimilation,                           &
-                                          ID              = WaterLevel_,                &
-                                          Field2D         = BoundaryReferenceLevel,     &
-                                          STAT            = status)
-
-                if (status /= SUCCESS_)                                                      &
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR50")
-
-
-            else   cd23
-
-                call GetBoundaryReferenceLevel(Me%ObjOpenBoundary,              &
-                                               BoundaryReferenceLevel, STAT = status)
-
-                if (status /= SUCCESS_)                                                      &
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR60")
-
-
-            endif cd23
-
-        elseif (Me%ComputeOptions%LocalSolution == AssimilationField_) then cd0
-
-
-            call GetAssimilationField(Me%ObjAssimilation,                           &
-                                      ID              = WaterLevel_,                &
-                                      Field2D         = ImposedElevation,           &
-                                      STAT            = status)
-
-            if (status /= SUCCESS_)                                                      &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR70")
-
-
-            if (.not.associated(ImposedVelocity)) then
-                allocate(ImposedVelocity(ILB:IUB,JLB:JUB))
-            endif
-
-            ImposedVelocity(:,:)        = 0.
-
-            if (.not.associated(BoundaryReferenceLevel)) then
-                allocate(BoundaryReferenceLevel(ILB:IUB,JLB:JUB))
-            endif
-            BoundaryReferenceLevel(:,:) = 0.
-
-        else  cd0
-
-            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR80")
-
-        endif cd0
-
-        if  (Me%WindWaves%CelerityType == AnalyticWaves_) then
-
-            if (Me%ComputeOptions%LocalSolution == AssimilationField_) then
-
-                call GetWaveCelerityField(AssimilationID = Me%ObjAssimilation,          &
-                                          ID              = WaterLevel_,                &
-                                          WaveCelerity    = WaveCelerityField,          &
-                                          WaveDirection   = WaveDirection,              &
-                                          AverageValue    = AverageValue,               &
-                                          STAT            = status)
-
-                if (status /= SUCCESS_)                                                 &
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR90")
-
-                EnteringWaveDirection  = WaveDirection
-
-                BoundaryReferenceLevel(:,:) = AverageValue
-
-            else
-
-                write(*,*) 'Define the analytic celerity in assimilation_x.dat for property WaterLevel_'
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR100")
-
-            endif
-
-
-        endif
-
-        CHUNK = CHUNK_J(JLB, JUB)
-
-        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "WaterLevel_FlatherWindWaveV3")
-
-        !$OMP PARALLEL PRIVATE(i,j,kbottom,HT_Boundary,db,i1,i2,i3,i4,j1,j2,j3,j4,Flux_WestSouth)   &
-        !$OMP PRIVATE(Flux_EastNorth,Flux_SouthWest,Flux_NorthEast,ib,jb,ReferenceLevel)            &
-        !$OMP PRIVATE(WaveEntering,OldWaveEntering,i_int,j_int,Wave_Celerity,XY_Component_Cart_E)   &
-        !$OMP PRIVATE(YX_Component_Cart_E,FluxXY_E,FluxYX_E,FluxXY_T,FluxYX_T,FluxXY_L,FluxYX_L)    &
-        !$OMP PRIVATE(FluxMod_L,LeavingVelocity,XY_Component_L,XY_Component_E)                      &
-        !$OMP PRIVATE(WaveCellDir, EnteringWaveDirection, CellRotation)                             &
+        !$OMP PRIVATE(WaveCellDir, EnteringWaveDirection, CellRotationX)                             &
         !$OMP PRIVATE(A_aux,T3,B_aux,D1,D2,E1,E2,E3,E4,F1,F2,T1,T2,T4)
 
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -30649,6 +29087,7 @@ cd5:            if (ComputeFaces3D_VU(i4, j4, KUB) == Covered) then
 
                 !The wave Celerity compute in the boundary face
                 ![m/s] = [m/s^2*m]^.5 = [m/s]
+
                 if      (Me%WindWaves%CelerityType == LongWaves_) then
 
                     Wave_Celerity = sqrt(Gravity * HT_Boundary)
@@ -30668,13 +29107,13 @@ cd5:            if (ComputeFaces3D_VU(i4, j4, KUB) == Covered) then
                !If was defined a entering wave then
 cd15:           if (Me%ComputeOptions%ComputeEnteringWave) then
 
-                    call GetCellRotation(Me%ObjHorizontalGrid, ib, jb, CellRotation, STAT = status)
+                    call GetCellRotation(Me%ObjHorizontalGrid, ib, jb, CellRotationX, STAT = status)
 
                     if (status /= SUCCESS_) then
-                        call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3V2 - Hydrodynamic - ERR95")
+                        call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR95")
                     endif
 
-                    WaveCellDir = EnteringWaveDirection - CellRotation
+                    WaveCellDir = EnteringWaveDirection - CellRotationX
 
                     !Direction - Entering wave - Cartesian referencial
                     XY_Component_Cart_E  = real(dj) * cos(WaveCellDir) +                &
@@ -30786,7 +29225,7 @@ cd15:           if (Me%ComputeOptions%ComputeEnteringWave) then
                         DCoef_2D (ib, jb) = -1.
                         FCoef_2D (ib, jb) = 0.
                     else
-                        stop "WaterLevel_FlatherWindWaveV3V2 - Hydrodynamic - ERR110"
+                        stop "WaterLevel_FlatherWindWave - Hydrodynamic - ERR110"
                     endif
 
                     !ends do cycle
@@ -30803,7 +29242,6 @@ cd15:           if (Me%ComputeOptions%ComputeEnteringWave) then
                     endif
 
                 endif
-
                 !If the flow of the leaving wave is going from inside the domain to the
                 !outside then the flow must be positive in the oposite condition it must
                 !be negative
@@ -30845,36 +29283,6 @@ cd15:           if (Me%ComputeOptions%ComputeEnteringWave) then
                 ! -75   50%
                 ! -80   40%
                 ! -85   10%      
-                !if (db == 1) then
-                !    if      (Bathymetry(ib+di,jb+dj) == -65. ) then
-                !        AbsorbCoef = 0.8
-                !    elseif  (Bathymetry(ib+di,jb+dj) == -70. ) then
-                !        AbsorbCoef = 0.6
-                !    elseif  (Bathymetry(ib+di,jb+dj) == -75. ) then
-                !        AbsorbCoef = 0.5
-                !    elseif  (Bathymetry(ib+di,jb+dj) == -80. ) then
-                !        AbsorbCoef = 0.4
-                !    elseif  (Bathymetry(ib+di,jb+dj) == -85. ) then
-                !        AbsorbCoef = 0.1
-                !    elseif  (Bathymetry(ib+di,jb+dj) == -89. ) then
-                !        AbsorbCoef = 0.0                        
-                !    endif  
-                !else
-                !    if      (Bathymetry(ib-di,jb-dj) == -65. ) then
-                !        AbsorbCoef = 0.8
-                !    elseif  (Bathymetry(ib-di,jb-dj) == -70. ) then
-                !        AbsorbCoef = 0.6
-                !    elseif  (Bathymetry(ib-di,jb-dj) == -75. ) then
-                !        AbsorbCoef = 0.5
-                !    elseif  (Bathymetry(ib-di,jb-dj) == -80. ) then
-                !        AbsorbCoef = 0.4
-                !    elseif  (Bathymetry(ib-di,jb-dj) == -85. ) then
-                !        AbsorbCoef = 0.1
-                !    elseif  (Bathymetry(ib-di,jb-dj) == -89. ) then                        
-                !        AbsorbCoef = 0.0
-                !    endif                
-                !endif
-                
                 if     (Bathymetry(ib-1,jb) == -65. .or. Bathymetry(ib+1,jb) == -65. .or. &
                         Bathymetry(ib,jb-1) == -65. .or. Bathymetry(ib,jb+1) == -65. ) then
                     AbsorbCoef = 0.8
@@ -30976,7 +29384,6 @@ cd7:            if (ImplicitFaces) then
                     if (abs(E5)>0.) then
                         WaterLevel_new(ib, jb) = (T4 - (D2 + F2)* WaterLevel_new(i_int, j_int)) / E5
                     endif
-
                 endif cd7
 
 
@@ -30988,18 +29395,18 @@ cd7:            if (ImplicitFaces) then
         !$OMP END DO
         !$OMP END PARALLEL
 
-        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "WaterLevel_FlatherWindWaveV3")
+        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "WaterLevel_FlatherWindWave")
 
 
 cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
             call UnGetOpenBoundary(Me%ObjOpenBoundary, ImposedElevation, STAT = status)
             if (status /= SUCCESS_) &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR120")
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR120")
 
             call UnGetOpenBoundary(Me%ObjOpenBoundary, ImposedVelocity, STAT = status)
             if (status /= SUCCESS_)                                                          &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR130")
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR130")
 
 
 
@@ -31009,7 +29416,7 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
                                         BoundaryReferenceLevel, STAT = status)
 
                 if (status /= SUCCESS_)                                                      &
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR140")
+                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR140")
 
 
             else
@@ -31017,7 +29424,7 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
                 call UnGetOpenBoundary(Me%ObjOpenBoundary, BoundaryReferenceLevel, STAT = status)
 
                 if (status /= SUCCESS_)                                                      &
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR150")
+                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR150")
 
 
             endif
@@ -31030,7 +29437,7 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
                                     ImposedElevation, STAT = status)
 
             if (status /= SUCCESS_)                                                      &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR160")
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR160")
 
         endif cd21
 
@@ -31040,7 +29447,7 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
                                     WaveCelerityField, STAT = status)
 
             if (status /= SUCCESS_)                                                      &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR170")
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR170")
 
 
         endif
@@ -31048,7 +29455,7 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
         call UnGetGridData(Me%ObjGridData, Bathymetry, STAT = status)
 
         if (status /= SUCCESS_)                                                         &
-            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWaveV3 - Hydrodynamic - ERR180")
+            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR180")
 
         !Nullify auxiliar variables
 
@@ -31076,7 +29483,7 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
         !----------------------------------------------------------------------
 
-    End Subroutine WaterLevel_FlatherWindWaveV3
+    End Subroutine WaterLevel_FlatherWindWave
 
     !--------------------------------------------------------------------------
 
@@ -31099,11 +29506,24 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
 
         !Local---------------------------------------------------------------------
-        real(8), dimension (:,:,:), pointer :: WaterFlux_XY, WaterFlux_YX,               &
+        type T_Matrix3D
+            real,    dimension(:,:,:), pointer :: LocalVel3D_X , LocalVel3D_Y
+        end type T_Matrix3D
+        
+        type T_Matrix2D
+            real,    dimension(:,:),   pointer :: AssimilaWaterLevel
+            real,    dimension(:,:),   pointer :: LocalVel2D_X, LocalVel2D_Y
+        end type T_Matrix2D        
+        
+        type (T_Matrix3D), dimension(:), pointer :: List3D
+        type (T_Matrix2D), dimension(:), pointer :: List2D        
+        
+        real(8), dimension (:,:,:), pointer :: WaterFlux_XY, WaterFlux_YX,              &
                                                LocalFlux3D_XY, LocalFlux3D_YX
-        real,    dimension (:,:,:), pointer :: LocalVel3D_X , LocalVel3D_Y
-        real,    dimension (:,:  ), pointer :: LocalVel2D_XY, LocalVel2D_YX,             &
-                                               LocalVel2D_X , LocalVel2D_Y
+        !real,    dimension (:,:,:), pointer :: LocalVel3D_X , LocalVel3D_Y
+        real,    dimension (:,:  ), pointer :: LocalVel2D_XY, LocalVel2D_YX,            &
+                                               LocalVel2D_X , LocalVel2D_Y,             &
+                                               AssimilaWaterLevel
         real,    dimension (:,:  ), pointer :: WaterColumnUV, DUX_VY, DYY_XX, DXX_YY
 
         integer, dimension (:,:,:), pointer :: ComputeFaces3D_UV, ComputeFaces3D_VU
@@ -31116,7 +29536,7 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
         real(8), dimension(:,:), pointer    :: ECoef_2D
         real,    dimension(:,:), pointer    :: DCoef_2D, FCoef_2D, TiCoef_2D,            &
                                                WaterLevel_New,  GaugeWaterLevel,         &
-                                               AssimilaWaterLevel, SubModelWaterLevel,   &
+                                               SubModelWaterLevel,                       &
                                                RadCoef_2D, TiRadCoef_2D, Bathymetry
         real,    dimension(:,:,:), pointer  :: SZZ
 
@@ -31163,6 +29583,8 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
 
         real                                :: dx1, dx2, dx3
+        
+        integer                             :: iL, NFieldsSSH, NFieldsUV2D, NFieldsUV3D
 
         !Begin----------------------------------------------------------------
 
@@ -31288,94 +29710,88 @@ cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_             .or.          
 ifa:    if (Me%ComputeOptions%LocalSolution == AssimilationField_ .or.                  &
             Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_ .or.               &
             Me%ComputeOptions%LocalSolution == AssimilaGaugeSubModel_) then
+            
+            call GetNumberOfFields(AssimilationID  = Me%ObjAssimilation,                &
+                                   ID              = WaterLevel_,                       &
+                                   NumberOfFields  = NFieldsSSH,                        &
+                                   STAT            = status)
+            if (status /= SUCCESS_)                                                     &
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR050")
+            
+            allocate(List3D(NFieldsSSH))            
+            allocate(List2D(NFieldsSSH))
+            
+            nullify (LocalVel2D_X, LocalVel2D_Y, AssimilaWaterLevel)
+            allocate(LocalVel2D_X      (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(LocalVel2D_Y      (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            allocate(AssimilaWaterLevel(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
 
-            !call GetAssimilationList(WaterLevel = PropertyID)
-            call GetAssimilationField(Me%ObjAssimilation,                               &
-                                      ID              = WaterLevel_,                    &
-                                      Field2D         = AssimilaWaterLevel,             &
-                                      STAT            = status)
+            LocalVel2D_X      (:,:) = 0.
+            LocalVel2D_Y      (:,:) = 0.      
+            AssimilaWaterLevel(:,:) = 0.
+            
+diL:        do iL =1, NFieldsSSH
 
-            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR050")
+                !call GetAssimilationList(WaterLevel = PropertyID)
+                call GetAssimilationField(Me%ObjAssimilation,                           &
+                                          ID      = WaterLevel_,                        &
+                                          N_Field = iL ,                                &
+                                          Field2D = List2D(iL)%AssimilaWaterLevel,      &
+                                          STAT    = status)
 
-            if (Me%ComputeOptions%ExternalBarotropicVel2D) then
+                if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR060")
 
-                !call GetAssimilationField(Me%ObjAssimilation,                       &
-                !                          ID              = BarotropicVelocityU_,   &
-                !                          Field2D         = LocalVel2D_X,           &
-                !                          STAT            = status)
-
-                !if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
-                !    "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR060")
-
-
-                !call GetAssimilationField(Me%ObjAssimilation,                       &
-                !                          ID              = BarotropicVelocityV_,   &
-                !                          Field2D         = LocalVel2D_Y,           &
-                !                          STAT            = status)
-
-                !if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
-                !    "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR070")
+                    do  j = JLB, JUB
+                    do  i = ILB, IUB
+    i55:                if (Me%External_Var%OpenPoints3D(i, j, KUB) == Covered) then
+                            AssimilaWaterLevel(i, j) = AssimilaWaterLevel(i, j) + List2D(iL)%AssimilaWaterLevel(i, j)
+                        endif i55
+                    enddo
+                    enddo
+                    
+            enddo diL        
+            
+            call GetNumberOfFields(AssimilationID  = Me%ObjAssimilation,                &
+                                   ID              = BarotropicVelocityU_,              &
+                                   NumberOfFields  = NFieldsUV2D,                       &
+                                   STAT            = status)
+            if (status /= SUCCESS_)                                                     &
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR070")             
+            
+            
+            call GetNumberOfFields(AssimilationID  = Me%ObjAssimilation,            &
+                                    ID              = VelocityU_,                    &
+                                    NumberOfFields  = NFieldsUV3D,                   &
+                                    STAT            = status)
+            if (status /= SUCCESS_)                                                 &
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR070")      
+                    
+            if (NFieldsUV3D + NFieldsUV2D /= NFieldsSSH) then
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR080")
+            endif                 
+                
+                    
+diL2:       do iL =1, NFieldsUV2D                                    
 
                 !It is important to read vector fields in agreggated way to allow the
                 !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
-                call GetAssimilationVectorField                                     &
-                                     (AssimilationID    = Me%ObjAssimilation,       &
-                                      VectorX_ID        = BarotropicVelocityU_,     &
-                                      VectorY_ID        = BarotropicVelocityV_,     &
-                                      VectorX_2D        = LocalVel2D_X,             &
-                                      VectorY_2D        = LocalVel2D_Y,             &
-                                      STAT              = status)
+                call GetAssimilationVectorField                                         &
+                                        (AssimilationID    = Me%ObjAssimilation,        &
+                                         VectorX_ID        = BarotropicVelocityU_,      &
+                                         VectorY_ID        = BarotropicVelocityV_,      &
+                                         N_Field           = iL ,                       &
+                                         VectorX_2D        = List2D(iL)%LocalVel2D_X,   &
+                                         VectorY_2D        = List2D(iL)%LocalVel2D_Y,   &
+                                         STAT              = status)
 
-                if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
-                    "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR070")
-
-            else
-
-                !call GetAssimilationField(Me%ObjAssimilation,                       &
-                !                          ID              = VelocityU_,             &
-                !                          Field3D         = LocalVel3D_X,           &
-                !                          STAT            = status)
-
-                !if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
-                !    "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR080")
-
-
-                !call GetAssimilationField(Me%ObjAssimilation,                       &
-                !                          ID              = VelocityV_,             &
-                !                          Field3D         = LocalVel3D_Y,           &
-                !                          STAT            = status)
-
-                !if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
-                !    "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR090")
-
-                !It is important to read vector fields in agreggated way to allow the
-                !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
-                call GetAssimilationVectorField                                     &
-                                     (AssimilationID    = Me%ObjAssimilation,       &
-                                      VectorX_ID        = VelocityU_,               &
-                                      VectorY_ID        = VelocityV_,               &
-                                      VectorX_3D        = LocalVel3D_X,             &
-                                      VectorY_3D        = LocalVel3D_Y,             &
-                                      STAT              = status)
-
-                if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_,           &
-                    "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR070")
-
-                nullify (LocalVel2D_X, LocalVel2D_Y)
-                allocate(LocalVel2D_X(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-                allocate(LocalVel2D_Y(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-
-                LocalVel2D_X(:,:) = 0.
-                LocalVel2D_Y(:,:) = 0.
-
+                if (status /= SUCCESS_) then
+                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR090")
+                endif                        
+                        
                 do  j = JLB, JUB
                 do  i = ILB, IUB
 i34:                if (Me%External_Var%ComputeFaces3D_U(i, j, KUB) == Covered) then
-                        kbottom = Me%External_Var%kfloor_U(i, j)
-                        do  k = kbottom, KUB
-                            LocalVel2D_X(i, j) = LocalVel2D_X(i, j) + LocalVel3D_X(i, j, k) * &
-                                                 Me%External_Var%DUZ(i, j, k) / Me%External_Var%WaterColumnU(i, j)
-                        enddo
+                        LocalVel2D_X(i, j) = LocalVel2D_X(i, j) +  List2D(iL)%LocalVel2D_X(i, j)
                     endif i34
                 enddo
                 enddo
@@ -31383,16 +29799,56 @@ i34:                if (Me%External_Var%ComputeFaces3D_U(i, j, KUB) == Covered) 
                 do  j = JLB, JUB
                 do  i = ILB, IUB
 i35:                if (Me%External_Var%ComputeFaces3D_V(i, j, KUB) == Covered) then
-                        kbottom = Me%External_Var%kfloor_V(i, j)
-                        do  k = kbottom, KUB
-                            LocalVel2D_Y(i, j) = LocalVel2D_Y(i, j) + LocalVel3D_Y(i, j, k) * &
-                                                 Me%External_Var%DVZ(i, j, k) / Me%External_Var%WaterColumnV(i, j)
-                        enddo
+                        LocalVel2D_Y(i, j) = LocalVel2D_Y(i, j) + List2D(iL)%LocalVel2D_Y(i, j)
                     endif i35
+                enddo
+                enddo                        
+                    
+            enddo diL2                                    
+
+diL3:       do iL =1, NFieldsUV3D                                                
+
+                !It is important to read vector fields in agreggated way to allow the
+                !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
+                call GetAssimilationVectorField                                         &
+                                        (AssimilationID    = Me%ObjAssimilation,        &
+                                        VectorX_ID        = VelocityU_,                 &
+                                        VectorY_ID        = VelocityV_,                 &
+                                        N_Field           = iL ,                        &                                          
+                                        VectorX_3D        = List3D(iL)%LocalVel3D_X,    &
+                                        VectorY_3D        = List3D(iL)%LocalVel3D_Y,    &
+                                        STAT              = status)
+                if (status /= SUCCESS_) then
+                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR100")
+                endif                        
+
+
+                do  j = JLB, JUB
+                do  i = ILB, IUB
+i94:                if (Me%External_Var%ComputeFaces3D_U(i, j, KUB) == Covered) then
+                        kbottom = Me%External_Var%kfloor_U(i, j)
+                        do  k = kbottom, KUB
+                            LocalVel2D_X(i, j) = LocalVel2D_X(i, j) + List3D(iL)%LocalVel3D_X(i, j, k) * &
+                                                    Me%External_Var%DUZ(i, j, k) / Me%External_Var%WaterColumnU(i, j)
+                        enddo
+                    endif i94
                 enddo
                 enddo
 
-            endif
+                do  j = JLB, JUB
+                do  i = ILB, IUB
+i95:                if (Me%External_Var%ComputeFaces3D_V(i, j, KUB) == Covered) then
+                        kbottom = Me%External_Var%kfloor_V(i, j)
+                        do  k = kbottom, KUB
+                            LocalVel2D_Y(i, j) = LocalVel2D_Y(i, j) + List3D(iL)%LocalVel3D_Y(i, j, k) * &
+                                                    Me%External_Var%DVZ(i, j, k) / Me%External_Var%WaterColumnV(i, j)
+                        enddo
+                    endif i95
+                enddo
+                enddo
+
+            enddo diL3               
+                
 
             DT_RunPeriod = Me%CurrentTime - Me%BeginTime
 
@@ -31452,13 +29908,14 @@ ifc:    if  (Me%ComputeOptions%LocalSolution == NoLocalSolution_) then
                                           WaveDirection   = WaveDirection,              &
                                           STAT            = status)
 
-                if (status /= SUCCESS_)                                                 &
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR90")
+                if (status /= SUCCESS_) then
+                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR110")
+                endif
 
             else
 
                 write(*,*) 'Define the analytic celerity in assimilation_x.dat for property WaterLevel_'
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR100")
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR120")
 
             endif
 
@@ -31479,7 +29936,8 @@ ifc:    if  (Me%ComputeOptions%LocalSolution == NoLocalSolution_) then
         !$OMP PRIVATE(Wave_Celerity,FluxXY_E,FluxYX_E,LocalWLa,LocalWLb,LocalWave) &
         !$OMP PRIVATE(FluxXY_T,FluxYX_T,FluxXY_L,FluxYX_L,FluxMod_L,LeavingVelocity) &
         !$OMP PRIVATE(XY_Component_L,WaterFluxBoundary,LocalBoundaryFlux,A_aux,T3) &
-        !$OMP PRIVATE(B_aux,D1,D2,E1,E2,E3,E4,F1,F2,T1,T4)
+        !$OMP PRIVATE(B_aux,D1,D2,E1,E2,E3,E4,F1,F2,T1,T4) &
+        !$OMP PRIVATE(dx1,dx2,dx3)
 
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do  j = JLB, JUB
@@ -31897,7 +30355,7 @@ cd15:           if (LocalSolution) then
         call UnGetGridData(Me%ObjGridData, Bathymetry, STAT = status)
 
         if (status /= SUCCESS_)                                                         &
-            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR100")
+            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR130")
 
 
 
@@ -31907,7 +30365,7 @@ cd24:   if (Me%ComputeOptions%LocalSolution == Gauge_             .or.          
 
             call UnGetOpenBoundary(Me%ObjOpenBoundary, GaugeWaterLevel, STAT = status)
             if (status /= SUCCESS_) &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR110")
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR140")
 
 
         endif cd24
@@ -31918,58 +30376,65 @@ cd25:   if (Me%ComputeOptions%LocalSolution == AssimilationField_    .or.       
             Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_ .or.               &
             Me%ComputeOptions%LocalSolution == AssimilaGaugeSubmodel_) then
 
-
-            call UnGetAssimilation(Me%ObjAssimilation,                                  &
-                                    AssimilaWaterLevel, STAT = status)
-
-            if (status /= SUCCESS_)                                                     &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR120")
-
-            if (Me%ComputeOptions%ExternalBarotropicVel2D) then
+diL4:       do iL =1, NFieldsSSH
 
                 call UnGetAssimilation(Me%ObjAssimilation,                                  &
-                                        LocalVel2D_X, STAT = status)
+                                        List2D(iL)%AssimilaWaterLevel, STAT = status)
 
+                if (status /= SUCCESS_)                                                     &
+                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR150")
+                    
+            enddo diL4                    
+            
+diL5:       do iL =1, NFieldsUV2D
+
+                call UnGetAssimilation(Me%ObjAssimilation,                                  &
+                                        List2D(iL)%LocalVel2D_X, STAT = status)
                 if (status /= SUCCESS_)                                                     &
                     call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR130")
 
 
 
                 call UnGetAssimilation(Me%ObjAssimilation,                                  &
-                                        LocalVel2D_Y, STAT = status)
-
+                                        List2D(iL)%LocalVel2D_Y, STAT = status)
                 if (status /= SUCCESS_)                                                     &
                     call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR140")
-            else
-
-
-                if (associated(LocalVel2D_X )) deallocate(LocalVel2D_X)
-                if (associated(LocalVel2D_Y )) deallocate(LocalVel2D_Y)
-
+                    
+            enddo diL5       
+            
+diL6:       do iL =1, NFieldsUV3D
+                    
                 call UnGetAssimilation(Me%ObjAssimilation,                                  &
-                                        LocalVel3D_X, STAT = status)
+                                        List3D(iL)%LocalVel3D_X, STAT = status)
                 if (status /= SUCCESS_)                                                     &
                     call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR150")
 
 
 
                 call UnGetAssimilation(Me%ObjAssimilation,                                  &
-                                        LocalVel3D_Y, STAT = status)
+                                        List3D(iL)%LocalVel3D_Y, STAT = status)
                 if (status /= SUCCESS_)                                                     &
                     call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR160")
 
-
-            endif
+            enddo DiL6
+            
+            if (associated(LocalVel2D_X      )) deallocate(LocalVel2D_X      )
+            if (associated(LocalVel2D_Y      )) deallocate(LocalVel2D_Y      )
+            if (associated(AssimilaWaterLevel)) deallocate(AssimilaWaterLevel)
+            
+            deallocate(List2D)
+            deallocate(List3D)
+            
 
         endif cd25
 
 
         if  (Me%WindWaves%CelerityType == AnalyticWaves_) then
 
-            call UnGetAssimilation(Me%ObjAssimilation,                      &
+            call UnGetAssimilation(Me%ObjAssimilation,                                  &
                                     WaveCelerityField, STAT = status)
 
-            if (status /= SUCCESS_)                                                      &
+            if (status /= SUCCESS_)                                                     &
                 call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR170")
 
         endif
@@ -39983,9 +38448,21 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
 
 
         !Local---------------------------------------------------------------------
+        type T_Matrix3D
+            real,    dimension(:,:,:), pointer :: VelAssimilation3D
+        end type T_Matrix3D
+
+        type T_Matrix2D
+            real,    dimension(:,:  ), pointer :: VelAssimilation2D
+        end type T_Matrix2D
+        
+        
+        type (T_Matrix3D), dimension(:), pointer :: List3D
+        type (T_Matrix2D), dimension(:), pointer :: List2D        
+        
         real,    dimension(:,:,:), pointer :: Velocity_UV_New, SubModel_UV_New,          &
                                               Relax_Aceleration, DecayTime,              &
-                                              VelAssimilation, DUZ_VZ
+                                              DUZ_VZ
 
         real,    dimension(:,:  ), pointer :: WaterColumnUV
 
@@ -40001,6 +38478,7 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
         integer                            :: ILB, IUB, JLB, JUB, KUB, kbottom, i, j, k
 
         integer                            :: CHUNK
+        integer                            :: iL, NFieldsUV2D, NFieldsUV3D
 
     !------------initialization----
 
@@ -40042,6 +38520,26 @@ cd1:    if (Me%Relaxation%ReferenceVelocity == TotalVel_   .or.             &
         CurrentTime = Me%CurrentTime
 
         !End - Shorten variables name
+        
+        call GetNumberOfFields(AssimilationID  = Me%ObjAssimilation,                &
+                                ID              = BarotropicVelocityU_,              &
+                                NumberOfFields  = NFieldsUV2D,                       &
+                                STAT            = status)
+        if (status /= SUCCESS_)                                                     &
+            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR070")             
+            
+            
+        call GetNumberOfFields(AssimilationID  = Me%ObjAssimilation,            &
+                                ID              = VelocityU_,                    &
+                                NumberOfFields  = NFieldsUV3D,                   &
+                                STAT            = status)
+        if (status /= SUCCESS_)                                                 &
+            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR070")      
+        
+
+        allocate(List2D(NFieldsUV2D))
+        allocate(List3D(NFieldsUV3D))        
+
 
 
         nullify (SubModel_UV_New)
@@ -40055,15 +38553,33 @@ cd2:    if      (Me%Direction%XY == DirectionX_) then
 
             !It is important to read vector fields in agreggated way to allow the
             !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
-            call GetAssimilationVectorField                                             &
-                                 (AssimilationID    = Me%ObjAssimilation,               &
-                                  VectorX_ID        = VelocityU_,                       &
-                                  VectorY_ID        = VelocityV_,                       &
-                                  VectorX_3D        = VelAssimilation,                  &
-                                  STAT              = status)
-            if (status /= SUCCESS_)                                                     &
-                call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR10")
+                
+            do iL =1, NFieldsUV3D                
 
+                call GetAssimilationVectorField                                         &
+                                     (AssimilationID    = Me%ObjAssimilation,           &
+                                      VectorX_ID        = VelocityU_,                   &
+                                      VectorY_ID        = VelocityV_,                   &
+                                      N_Field           = iL ,                          &
+                                      VectorX_3D        = List3D(iL)%VelAssimilation3D, &
+                                      STAT              = status)
+                if (status /= SUCCESS_)                                                 &
+                    call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR10")
+            enddo
+            
+            do iL =1, NFieldsUV2D                
+
+                call GetAssimilationVectorField                                         &
+                                     (AssimilationID    = Me%ObjAssimilation,           &
+                                      VectorX_ID        = BarotropicVelocityU_,         &
+                                      VectorY_ID        = BarotropicVelocityV_,         &
+                                      N_Field           = iL ,                          &
+                                      VectorX_2D        = List2D(iL)%VelAssimilation2D, &
+                                      STAT              = status)
+                if (status /= SUCCESS_)                                                 &
+                    call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR10")
+            enddo
+            
 
         else if (Me%Direction%XY == DirectionY_) then cd2
 
@@ -40071,38 +38587,45 @@ cd2:    if      (Me%Direction%XY == DirectionX_) then
             if (Me%SubModel%ON)                                                         &
                 SubModel_UV_New => Me%SubModel%V_New
 
-            !It is important to read vector fields in agreggated way to allow the
-            !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
-            call GetAssimilationVectorField                                             &
-                                 (AssimilationID    = Me%ObjAssimilation,               &
-                                  VectorX_ID        = VelocityU_,                       &
-                                  VectorY_ID        = VelocityV_,                       &
-                                  VectorY_3D        = VelAssimilation,                  &
-                                  STAT              = status)
-            if (status /= SUCCESS_)                                                      &
-                call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR15")
+            do iL =1, NFieldsUV3D                   
 
+                !It is important to read vector fields in agreggated way to allow the
+                !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
+                call GetAssimilationVectorField                                         &
+                                     (AssimilationID    = Me%ObjAssimilation,           &
+                                      VectorX_ID        = VelocityU_,                   &
+                                      VectorY_ID        = VelocityV_,                   &
+                                      N_Field           = iL ,                          &
+                                      VectorY_3D        = List3D(iL)%VelAssimilation3D, &
+                                      STAT              = status)
+                if (status /= SUCCESS_)                                                 &
+                    call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR15")
+
+            enddo             
+            
+            do iL =1, NFieldsUV2D                
+
+                call GetAssimilationVectorField                                         &
+                                     (AssimilationID    = Me%ObjAssimilation,           &
+                                      VectorX_ID        = BarotropicVelocityU_,         &
+                                      VectorY_ID        = BarotropicVelocityV_,         &
+                                      N_Field           = iL ,                          &
+                                      VectorY_2D        = List2D(iL)%VelAssimilation2D, &
+                                      STAT              = status)
+                if (status /= SUCCESS_)                                                 &
+                    call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR10")
+            enddo            
 
         endif cd2
 
+        call GetAssimilationCoef (Me%ObjAssimilation,                                   &
+                                  ID              = Vel_ID,                             &
+                                  CoefField3D     = DecayTime,                          &
+                                  ColdRelaxPeriod = ColdPeriod,                         &
+                                  ColdOrder       = ColdOrder,                          &
+                                  STAT            = status)
 
-        !call GetAssimilationField(Me%ObjAssimilation,                   &
-        !                          ID              = Vel_ID,                          &
-        !                          Field3D         = VelAssimilation,                 &
-        !                          STAT            = status)
-
-        !if (status /= SUCCESS_)                                                      &
-        !    call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR10")
-
-
-        call GetAssimilationCoef (Me%ObjAssimilation,                                &
-                                  ID          = Vel_ID,                              &
-                                  CoefField3D = DecayTime,                           &
-                                  ColdRelaxPeriod = ColdPeriod,                      &
-                                  ColdOrder       = ColdOrder,                       &
-                                  STAT        = status)
-
-        if (status /= SUCCESS_)                                                          &
+        if (status /= SUCCESS_)                                                         &
             call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR20")
 
 
@@ -40142,7 +38665,7 @@ cd6:            if (Me%Relaxation%ReferenceVelocity == BarotrVel_) then
 
 do4:                do K=kbottom, KUB
 
-                        VelModel  =  VelModel + Velocity_UV_New(i, j, k) *               &
+                        VelModel  =  VelModel + Velocity_UV_New(i, j, k) *              &
                                      DUZ_VZ(i, j, k) / WaterColumnUV(i, j)
 
                     enddo do4
@@ -40151,13 +38674,21 @@ do4:                do K=kbottom, KUB
 
 do3:            do K=kbottom, KUB
 
-                    if (Me%Relaxation%ReferenceVelocity /= BarotrVel_)      &
+                    if (Me%Relaxation%ReferenceVelocity /= BarotrVel_)                  &
                         VelModel  = Velocity_UV_New(i, j, k)
 
                     if     (Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_  .or.  &
                             Me%ComputeOptions%LocalSolution == AssimilaGaugeSubmodel_) then
-
-                         VelReference = VelAssimilation(i, j, k)  + SubModel_UV_New(i, j, k)
+                        
+                        VelReference = SubModel_UV_New(i, j, k)
+                         
+                        do iL =1, NFieldsUV3D                         
+                            VelReference = VelReference + List3D(iL)%VelAssimilation3D(i, j, k)
+                        enddo                            
+                        
+                        do iL =1, NFieldsUV2D                         
+                            VelReference = VelReference + List2D(iL)%VelAssimilation2D(i, j)
+                        enddo                              
 
                     elseif (Me%ComputeOptions%LocalSolution == Submodel_)             then
 
@@ -40170,7 +38701,15 @@ do3:            do K=kbottom, KUB
                     elseif (Me%ComputeOptions%LocalSolution == NoLocalSolution_ .or.    &
                             Me%ComputeOptions%LocalSolution == AssimilationField_) then
 
-                        VelReference = VelAssimilation(i, j, k)
+                        VelReference = 0.
+                        do iL =1, NFieldsUV3D                         
+                            VelReference = VelReference + List3D(iL)%VelAssimilation3D(i, j, k)
+                        enddo     
+                        
+                        do iL =1, NFieldsUV2D                         
+                            VelReference = VelReference + List2D(iL)%VelAssimilation2D(i, j)
+                        enddo                              
+                            
 
                     elseif (Me%ComputeOptions%LocalSolution == Gauge_) then
 
@@ -40179,7 +38718,16 @@ do3:            do K=kbottom, KUB
                     endif
 
                     if (Me%Relaxation%BrFroceOnlyAssimil) then
-                        VelReference = VelAssimilation(i, j, k)
+
+                        VelReference = 0.
+                        do iL =1, NFieldsUV3D                         
+                            VelReference = VelReference + List3D(iL)%VelAssimilation3D(i, j, k)
+                        enddo     
+
+                        do iL =1, NFieldsUV2D                         
+                            VelReference = VelReference + List2D(iL)%VelAssimilation2D(i, j)
+                        enddo                              
+                        
                     endif
 
                     ![m/s^2]                   = []*([m/s] - [m/s]) / [s]
@@ -40201,14 +38749,25 @@ do3:            do K=kbottom, KUB
 
         call UnGetAssimilation(Me%ObjAssimilation, DecayTime, STAT = status)
 
-        if (status /= SUCCESS_)                                                          &
+        if (status /= SUCCESS_)                                                         &
             call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR50")
 
-        call UnGetAssimilation(Me%ObjAssimilation, VelAssimilation,         &
-                               STAT        = status)
+        do iL =1, NFieldsUV3D              
+            call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%VelAssimilation3D,    &
+                                   STAT        = status)
+            if (status /= SUCCESS_)                                                     &
+                call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR60")
+        enddo
 
-        if (status /= SUCCESS_)                                                          &
-            call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR60")
+        do iL =1, NFieldsUV2D              
+            call UnGetAssimilation(Me%ObjAssimilation, List2D(iL)%VelAssimilation2D,    &
+                                   STAT        = status)
+            if (status /= SUCCESS_)                                                     &
+                call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR60")
+        enddo        
+        
+        deallocate(List3D)
+        deallocate(List2D)
 
         nullify(Relax_Aceleration)
         nullify(ComputeFaces3D_UV)
@@ -41884,7 +40443,7 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
 
                 if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
 
-                    Kbottom = KFloor_UV(i, j)
+                    kbottom = KFloor_UV(i, j)
 
                     do k = Kbottom, KUB
 

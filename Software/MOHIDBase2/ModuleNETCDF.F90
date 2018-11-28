@@ -340,8 +340,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
     !--------------------------------------------------------------------------
 
-    subroutine NETCDFWriteHeader(NCDFID, Title, Convention, Version, History, &
-                                iDate, Source, Institution, References, STAT)
+    subroutine NETCDFWriteHeader(NCDFID, Title, Convention, Version, History,           &
+                                iDate, Source, Institution, References,                 & 
+                                geospatial_lat_min, geospatial_lat_max,                 &
+                                geospatial_lon_min, geospatial_lon_max,                 & 
+                                CoordSysBuilder, contact, field_type, bulletin_date,    &
+                                bulletin_type, comment, STAT)
 
 
         !Arguments-------------------------------------------------------------
@@ -351,7 +355,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                     :: iDate
         character(len=*)                            :: Source, Institution
         character(len=*)                            :: References
-        integer, optional                           :: STAT
+        real            , optional                  :: geospatial_lat_min
+        real            , optional                  :: geospatial_lat_max
+        real            , optional                  :: geospatial_lon_min
+        real            , optional                  :: geospatial_lon_max
+        character(len=*), optional                  :: CoordSysBuilder
+        character(len=*), optional                  :: contact
+        character(len=*), optional                  :: field_type
+        character(len=*), optional                  :: bulletin_date        
+        character(len=*), optional                  :: bulletin_type        
+        character(len=*), optional                  :: comment        
+        integer         , optional                  :: STAT
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
@@ -365,14 +379,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         if (ready_ .EQ. IDLE_ERR_) then
 
-            Me%Title        = trim(Title)
-            Me%Convention   = trim(Convention )
-            Me%Version      = trim(Version    )
-            Me%History      = trim(History    )
-            Me%Source       = trim(Source     )
-            Me%Institution  = trim(Institution)
-            Me%References   = trim(References )
-            Me%iDate        = iDate
+            Me%Title                = trim(Title)
+            Me%Convention           = trim(Convention )
+            Me%Version              = trim(Version    )
+            Me%History              = trim(History    )
+            Me%Source               = trim(Source     )
+            Me%Institution          = trim(Institution)
+            Me%References           = trim(References )
+            Me%iDate                = iDate
+        
             
             !Enter definition mode
             STAT_CALL = nf90_redef(ncid = Me%ncid)
@@ -400,7 +415,58 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR07' 
 
             STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'references',        Me%References) 
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR08' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR08'
+            
+            if (present(geospatial_lat_min)) then
+                STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'geospatial_lat_min', geospatial_lat_min) 
+                if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR100' 
+            endif                
+            
+            
+            if (present(geospatial_lat_max)) then
+                STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'geospatial_lat_max', geospatial_lat_max) 
+                if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR110' 
+            endif
+
+            if (present(geospatial_lon_min)) then
+                STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'geospatial_lon_min', geospatial_lon_min) 
+                if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR120'             
+            endif
+            
+            if (present(geospatial_lon_max)) then
+                STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'geospatial_lon_max', geospatial_lon_max) 
+                if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR130'             
+            endif
+            
+            if (present(CoordSysBuilder))   then
+                STAT_CALL = nf90_put_att(Me%ncid, nf90_global, '_CoordSysBuilder',   CoordSysBuilder) 
+                if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR140'         
+            endif
+            
+            if (present(contact))           then
+                STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'contact',            contact) 
+                if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR150'
+            endif
+            
+            if (present(field_type))        then
+                STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'field_type',         field_type) 
+                if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR160'            
+            endif
+
+            if (present(bulletin_date))     then
+                STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'bulletin_date',      bulletin_date)
+                if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR170'                        
+            endif
+            
+            if (present(bulletin_type))     then
+                STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'bulletin_type',      bulletin_type)
+                if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR180'               
+            endif
+            
+            if (present(comment))           then
+                STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'comment',            comment)
+                if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR180'                           
+            endif
 
             !Exit definition mode
             STAT_CALL = nf90_enddef(Me%ncid) 
@@ -424,9 +490,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                              Calendar, ScaleFactor, FillValue,          &
                                              MissingValue, ValidMin, ValidMax,          &
                                              Maximum, Minimum, Add_Offset, Step,        &
-                                             iFillValue, coordinates, bounds, axis,     &
-                                             reference)
-
+                                             iFillValue, iMissingValue,                 &
+                                             coordinates, bounds, axis, reference,      &
+                                             CoordinateAxisType,  CoordinateZisPositive)
         !Arguments-------------------------------------------------------------
         integer                                     :: VarID
         character(len=*), optional                  :: LongName
@@ -438,6 +504,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         real            , optional                  :: FillValue
         integer         , optional                  :: iFillValue
         real            , optional                  :: MissingValue
+        integer         , optional                  :: iMissingValue        
         real            , optional                  :: ValidMin
         real            , optional                  :: ValidMax
         real            , optional                  :: Minimum
@@ -448,7 +515,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         character(len=*), optional                  :: bounds
         character(len=*), optional                  :: axis
         character(len=*), optional                  :: reference 
-               
+        character(len=*), optional                  :: CoordinateAxisType
+        character(len=*), optional                  :: CoordinateZisPositive               
 
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL, xtype
@@ -469,9 +537,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteAttributes - ModuleNETCDF - ERR02' 
         endif
 
-        if(present(Units))then
-            STAT_CALL = nf90_put_att(Me%ncid, VarID, 'units',         trim(Units))
-            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteAttributes - ModuleNETCDF - ERR03' 
+        if(present(Units)) then
+            if (units/=null_str) then
+                STAT_CALL = nf90_put_att(Me%ncid, VarID, 'units',         trim(Units))
+                if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteAttributes - ModuleNETCDF - ERR03' 
+            endif                
         endif
 
         if(present(ScaleFactor))then
@@ -480,6 +550,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         end if
 
         if(present(FillValue))then
+            if(present(MissingValue))then
+                FillValue = MissingValue
+            end if            
             STAT_CALL = nf90_inquire_variable(ncid = Me%ncid, varid = VarID, xtype = xtype)        
             if (xtype == nf90_double) then
                 !STAT_CALL = nf90_put_att(ncid = Me%ncid, varid = VarID, name = '_FillValue', values = NF90_FILL_DOUBLE) 
@@ -588,9 +661,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         endif
 
         if(present(iFillValue))then
+            if(present(iMissingValue))then
+                iFillValue = iMissingValue
+            end if              
             STAT_CALL = nf90_put_att(Me%ncid, VarID, '_FillValue', iFillValue) 
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteAttributes - ModuleNETCDF - ERR19' 
         end if
+        
+        if(present(iMissingValue))then
+            STAT_CALL = nf90_put_att(Me%ncid, VarID, 'missing_Value', iMissingValue) 
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteAttributes - ModuleNETCDF - ERR20' 
+        end if        
 
 
         if(present(bounds))then
@@ -615,6 +696,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             STAT_CALL = nf90_put_att(Me%ncid, VarID, 'reference', reference) 
             if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteAttributes - ModuleNETCDF - ERR60' 
         end if
+        
+
+        if(present(CoordinateAxisType))then
+            STAT_CALL = nf90_put_att(Me%ncid, VarID, '_CoordinateAxisType', CoordinateAxisType) 
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteAttributes - ModuleNETCDF - ERR70' 
+        end if
+                
+        if(present(CoordinateZisPositive))then
+            STAT_CALL = nf90_put_att(Me%ncid, VarID, '_CoordinateZisPositive', CoordinateZisPositive) 
+            if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteAttributes - ModuleNETCDF - ERR80' 
+        end if
+                
+        
 
     end subroutine NETCDFWriteAttributes
 
@@ -744,7 +838,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer,                      optional          :: STAT
 
         !Local-----------------------------------------------------------------
-        real                                            :: FillValue
+        real                                            :: FillValue, MissingValue_
         character(len=StringLength)                     :: coordinates_
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
@@ -791,7 +885,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 endif
                 
-                FillValue = FillValueReal
+                FillValue       = FillValueReal
+                MissingValue_   = FillValue
+
+                if(present(MissingValue))then
+                    FillValue       = MissingValue
+                    MissingValue_   = MissingValue
+                end if                
+                
 
                 call NETCDFWriteAttributes(VarID          = VarID,                      &
                                            LongName       = trim(LongName),             &
@@ -802,7 +903,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                            ValidMax       = ValidMax,                   &
                                            Minimum        = MinValue,                   &
                                            Maximum        = MaxValue,                   &
-                                           MissingValue   = MissingValue,               &
+                                           MissingValue   = MissingValue_,              &
                                            Positive       = Positive,                   &
                                            coordinates    = "lon lat")
                 !exit definition mode
@@ -867,7 +968,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, optional                               :: STAT
 
         !Local-----------------------------------------------------------------
-        real                                            :: FillValue
+        real                                            :: FillValue, MissingValue_
         character(len=StringLength)                     :: coordinates_
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
@@ -891,7 +992,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 coordinates_="lon lat"
             endif        
             
-            FillValue = FillValueReal
+            FillValue       = FillValueReal
+            MissingValue_   = FillValue
+
+            if(present(MissingValue))then
+                FillValue       = MissingValue
+                MissingValue_   = MissingValue
+            end if                
+                
         
             
             if     (STAT_CALL == nf90_enotvar)then
@@ -923,7 +1031,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                    ValidMax       = ValidMax,                   &
                                                    Minimum        = MinValue,                   &
                                                    Maximum        = MaxValue,                   &
-                                                   MissingValue   = MissingValue,               &
+                                                   MissingValue   = MissingValue_,              &
                                                    Positive       = Positive,                   &
                                                    coordinates    = "lon lat")
                         !exit definition mode
@@ -952,7 +1060,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                ValidMax       = ValidMax,                   &
                                                Minimum        = MinValue,                   &
                                                Maximum        = MaxValue,                   &
-                                               MissingValue   = MissingValue,               &
+                                               MissingValue   = MissingValue_,              &
                                                Positive       = Positive,                   &
                                                coordinates    = "lon lat")
                     !exit definition mode
@@ -1018,7 +1126,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer,                      optional          :: STAT
 
         !Local-----------------------------------------------------------------
-        real                                            :: FillValue
+        real                                            :: FillValue, MissingValue_
         character(len=StringLength)                     :: coordinates_
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
@@ -1042,7 +1150,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 coordinates_="lon lat"
             endif       
             
-            FillValue = FillValueReal 
+            FillValue       = FillValueReal
+            MissingValue_   = FillValue
+
+            if(present(MissingValue))then
+                FillValue       = MissingValue
+                MissingValue_   = MissingValue
+            end if        
             
             if     (STAT_CALL == nf90_enotvar)then
             
@@ -1075,7 +1189,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                            ValidMax       = ValidMax,                   &
                                            Minimum        = MinValue,                   &
                                            Maximum        = MaxValue,                   &
-                                           MissingValue   = MissingValue,               &
+                                           MissingValue   = MissingValue_,              &
                                            coordinates    = "lon lat")
 
                 !exit definition mode
@@ -1139,7 +1253,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, optional                               :: STAT
 
         !Local-----------------------------------------------------------------
-        real                                            :: FillValue
+        real                                            :: FillValue, MissingValue_
         character(len=StringLength)                     :: coordinates_        
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
@@ -1162,7 +1276,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Dims3ID(2) = Me%Dims(2)%ID%Number  !y
             Dims3ID(3) = Me%Dims(3)%ID%Number  !z
             
-            FillValue = FillValueReal
+            FillValue       = FillValueReal
+            MissingValue_   = FillValue
+
+            if(present(MissingValue))then
+                FillValue       = MissingValue
+                MissingValue_   = MissingValue
+            end if        
             
             if (present(coordinates)) then
                 coordinates_=coordinates
@@ -1197,7 +1317,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                            ValidMax       = ValidMax,                   &
                                            Minimum        = MinValue,                   &
                                            Maximum        = MaxValue,                   &
-                                           MissingValue   = MissingValue,               &
+                                           MissingValue   = MissingValue_,              &
                                            coordinates    = "lon lat")
                 !exit definition mode
                 STAT_CALL = nf90_enddef(ncid = Me%ncid)
@@ -1246,6 +1366,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                      ValidMin, ValidMax,  MinValue, MaxValue,           &
                                      MissingValue, coordinates, OutputNumber,           &
                                      Array2D, STAT)
+    
+    
+
                                    
         !Arguments-------------------------------------------------------------
         integer                                         :: NCDFID
@@ -1260,7 +1383,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, optional                               :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                         :: FillValue
+        integer                                         :: FillValue, MissingValue_
         character(len=StringLength)                     :: coordinates_        
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
@@ -1287,7 +1410,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 coordinates_="lon lat"
             endif            
             
-            FillValue = FillValueInt
+            FillValue       = FillValueInt
+            MissingValue_   = FillValue
+
+            if(present(MissingValue))then
+                FillValue       = int(MissingValue)
+                MissingValue_   = int(MissingValue)
+            end if        
         
             if     (STAT_CALL == nf90_enotvar)then
 
@@ -1313,12 +1442,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                            LongName       = trim(LongName),             &
                                            StandardName   = trim(StandardName),         &
                                            Units          = trim(Units),                &
-                                           iFillValue     = FillValueInt,               &
+                                           iFillValue     = FillValue,                  &
                                            ValidMin       = ValidMin,                   &
                                            ValidMax       = ValidMax,                   &
                                            Minimum        = MinValue,                   &
                                            Maximum        = MaxValue,                   &
-                                           MissingValue   = MissingValue,               &
+                                           iMissingValue  = MissingValue_,              &
                                            coordinates    = "lon lat")
                 !exit definition mode
                 STAT_CALL = nf90_enddef(ncid = Me%ncid)
@@ -1385,6 +1514,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                         :: VarID
         integer, dimension(3)                           :: Dims3ID
         integer, dimension(4)                           :: Dims4ID
+        integer                                         :: FillValue, MissingValue_
 
         !Begin-----------------------------------------------------------------
 
@@ -1405,6 +1535,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             else
                 coordinates_="lon lat"
             endif        
+            
+            FillValue       = FillValueInt
+            MissingValue_   = FillValue
+
+            if(present(MissingValue))then
+                FillValue       = int(MissingValue)
+                MissingValue_   = int(MissingValue)
+            end if                    
             
             if     (STAT_CALL == nf90_enotvar)then
 
@@ -1429,12 +1567,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                            LongName       = trim(LongName),             &
                                            StandardName   = trim(StandardName),         &
                                            Units          = trim(Units),                &
-                                           iFillValue     = FillValueInt,               &
+                                           iFillValue     = FillValue,                  &
                                            ValidMin       = ValidMin,                   &
                                            ValidMax       = ValidMax,                   &
                                            Minimum        = MinValue,                   &
                                            Maximum        = MaxValue,                   &
-                                           MissingValue   = MissingValue,               &
+                                           iMissingValue  = MissingValue_,              &
                                            coordinates    = coordinates_)
                 !exit definition mode
                 STAT_CALL = nf90_enddef(ncid = Me%ncid)
@@ -1532,8 +1670,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
                 !write variable attributes
                 call NETCDFWriteAttributes(Me%Dims(4)%VarID, Units          = "seconds since "//InitialDate, &
-                                                             LongName       = trim(Time_Name),                        &
-                                                             StandardName   = trim(Time_Name)) 
+                                                             LongName       = trim(Time_Name),               &
+                                                             StandardName   = trim(Time_Name),               &
+                                                             Calendar       = "standard") 
                 !exit definition mode
                 STAT_CALL = nf90_enddef(ncid = Me%ncid)
                 if(STAT_CALL /= nf90_noerr) stop 'NETCDFWriteTime - ModuleNETCDF - ERR03'
@@ -2098,7 +2237,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                          StandardName = "latitude",     &
                                                          Units        = "degrees_north",&
                                                          ValidMin    = -90.,            &
-                                                         ValidMax    =  90.,            &                                                         
+                                                         ValidMax    =  90.,            &
                                                          axis           ="Y",           &
                                                          reference    = "geographical coordinates, WGS84 projection")
                                                          
@@ -2517,19 +2656,21 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !--------------------------------------------------------------------------    
 
-    subroutine NETCDFWriteVert(NCDFID, Vert, VertCoordinate, OffSet, STAT)
+    subroutine NETCDFWriteVert(NCDFID, Vert, VertCoordinate, SimpleGrid, OffSet, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: NCDFID
         real, dimension(:  ), pointer                   :: Vert
         logical                                         :: VertCoordinate
-        real, intent(in), optional                      :: OffSet
+        logical, intent(in), optional                   :: SimpleGrid
+        real,    intent(in), optional                   :: OffSet
         integer, optional                               :: STAT
         
         !Local-----------------------------------------------------------------
         real                                            :: FillValue, MissingValue
         integer                                         :: STAT_, ready_
         integer                                         :: STAT_CALL
+        logical                                         :: SimpleGrid_
 
         !Begin-----------------------------------------------------------------
 
@@ -2549,35 +2690,57 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             MissingValue    = FillValueReal
             FillValue       = FillValueReal
+            
+
+            if (present(SimpleGrid)) then
+                SimpleGrid_ = SimpleGrid
+            else
+                SimpleGrid_ = .false. 
+            endif                
+
+                
 
             !Is it a sigma grid?
             if(VertCoordinate)then
 
                 call NETCDFWriteAttributes(Me%Dims(3)%VarID, LongName     = depth_Name,          &
-                                                             StandardName = depth_Name,          &
-                                                             Units        = "",                  &
-                                                             Positive     = "down",              &
-                                                             FillValue    = FillValue,           &
-                                                             ValidMin     = 0.,                  &
-                                                             ValidMax     = 1.,                  & 
-                                                             Add_Offset   = OffSet,              &
-                                                             MissingValue = MissingValue,        &
-                                                             bounds       = trim(depth_Stag_Name))
+                                                                StandardName = depth_Name,          &
+                                                                Units        = null_str,            &
+                                                                Positive     = "down",              &
+                                                                FillValue    = MissingValue,        &
+                                                                ValidMin     = 0.,                  &
+                                                                ValidMax     = 1.,                  & 
+                                                                Add_Offset   = OffSet,              &
+                                                                MissingValue = MissingValue,        &
+                                                                bounds       = trim(depth_Stag_Name))
                
-            !No? Then it must be a z-coordinate grid
+                !No? Then it must be a z-coordinate grid
             else
+                
+                if (SimpleGrid_) then
 
-                call NETCDFWriteAttributes(Me%Dims(3)%VarID, LongName     = depth_Name,          &
-                                                             StandardName = depth_Name,          &
-                                                             Units        = "m",                 &
-                                                             Positive     = "down",              &
-                                                             FillValue    = FillValue,           &
-                                                             ValidMin     = -50.,                &
-                                                             ValidMax     = 10000.,              &
-                                                             Add_Offset   = OffSet,              &
-                                                             MissingValue = MissingValue,        &
-                                                             bounds       = trim(depth_Stag_Name))
-                                                                                                
+                    call NETCDFWriteAttributes(Me%Dims(3)%VarID, LongName               = "Depth",      &
+                                                                 StandardName           = depth_Name,   &
+                                                                 Units                  = "m",          &
+                                                                 Positive               = "down",       &
+                                                                 axis                   = "Z",          &
+                                                                 CoordinateAxisType     = "Height",     &
+                                                                 CoordinateZisPositive  = "down",       &    
+                                                                 bounds                 = trim(depth_Stag_Name))                    
+
+                else                    
+                
+                    call NETCDFWriteAttributes(Me%Dims(3)%VarID, LongName     = depth_Name,          &
+                                                                 StandardName = depth_Name,          &
+                                                                 Units        = "m",                 &
+                                                                 Positive     = "down",              &
+                                                                 FillValue    = FillValue,           &
+                                                                 ValidMin     = -50.,                &
+                                                                 ValidMax     = 10000.,              &
+                                                                 Add_Offset   = OffSet,              &
+                                                                 MissingValue = MissingValue,        &
+                                                                 bounds       = trim(depth_Stag_Name))
+                endif                                                                                                
             end if
 
             !exit definition mode

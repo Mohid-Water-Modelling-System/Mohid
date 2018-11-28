@@ -849,6 +849,7 @@ Module ModuleWaterProperties
         real                                    :: scalar       = FillValueReal
         real, pointer, dimension(:,:,:)         :: Field
         real, pointer, dimension(:,:,:)         :: DecayTime
+        character(len=StringLength)             :: GroupOutPutName        
     end type T_LocalAssimila
 
 
@@ -3166,20 +3167,18 @@ cd1 :   if (.not.NewProperty%Old) then
 
             NewProperty%Concentration( IUB, WJLB:WJUB, WKLB:WKUB) = 0.0
 
-            !if (NewProperty%Evolution%DataAssimilation /= NoNudging) then
-                !By default the assimilation field is equal to the initial one
+            !By default the assimilation field is equal to the initial one
 
-do3 :           do K = WKLB, WKUB
-do2 :           do J = JLB, JUB
-do1 :           do I = ILB, IUB
+do3 :       do K = WKLB, WKUB
+do2 :       do J = JLB, JUB
+do1 :       do I = ILB, IUB
 
-                    NewProperty%Assimilation%Field(I, J, K) = NewProperty%Concentration(i,j,k)
+                NewProperty%Assimilation%Field(I, J, K) = NewProperty%Concentration(i,j,k)
 
-                end do do1
-                end do do2
-                end do do3
-
-            !endif
+            end do do1
+            end do do2
+            end do do3
+            
 
             call GetData(BoundaryMethod,                                                &
                          Me%ObjEnterData, iflag,                                        &
@@ -8303,7 +8302,7 @@ case1 : select case(PropertyID)
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR150')
-
+            
         if (NewProperty%Evolution%DataAssimilation /= NoNudging)then
             NewProperty%Evolution%Variable = .true.
         endif
@@ -20261,6 +20260,9 @@ i2 :        if (Actual.GE.Property%Evolution%NextCompute) then
                                        ID              = PropertyID,                    &
                                        NumberOfFields  = NumberOfFields,                &
                                        STAT            = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR15')
+                                       
 
 dnass :         do N_Field = 1, NumberOfFields
 
@@ -20274,7 +20276,7 @@ i4 :                if (Property%SubModel%ON .and. N_Field == 1) then
                         PropAssimilation => Property%Assimilation%Field
 
                         SubModelON = ON
-
+                        
                     else i4
 
                         SubModelON = OFF
@@ -22038,7 +22040,7 @@ First:              if (FirstTime) then
                         if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR30')
 
                         call HDF5WriteData  (ObjHDF5, "/Grid/VerticalZ", "Vertical",    &
-                                             "m", Array3D = Me%ExternalVar%SZZ,            &
+                                             "m", Array3D = Me%ExternalVar%SZZ,         &
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR40')
 
@@ -22088,31 +22090,50 @@ sp:                     if (.not. SimpleOutPut) then
                                        trim(AuxGroup)//PropertyX%ID%Name,               &
                                        PropertyX%ID%Name,                               &
                                        PropertyX%ID%Units,                              &
-                                           Array3D      = Me%Output%Aux3Dreal4,             &
+                                           Array3D      = Me%Output%Aux3Dreal4,         &
                                            OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)                                          &
+                        if (STAT_CALL /= SUCCESS_)                                      &
                             call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR90')
                     else
 
-                        call HDF5WriteData(ObjHDF5,                                         &
-                                           trim(AuxGroup)//PropertyX%ID%Name,               &
-                                           PropertyX%ID%Name,                               &
-                                           PropertyX%ID%Units,                              &
+                        call HDF5WriteData(ObjHDF5,                                     &
+                                           trim(AuxGroup)//PropertyX%ID%Name,           &
+                                           PropertyX%ID%Name,                           &
+                                           PropertyX%ID%Units,                          &
                                        Array3D      = PropertyX%Concentration,          &
                                        OutputNumber = OutPutNumber, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                          &
                         call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR100')
                     endif
 
-                    if (associated(PropertyX%Assimilation%Field) .and. .not. SimpleOutPut) then
+                    if (PropertyX%Evolution%DataAssimilation /= NoNudging .and. .not. SimpleOutPut) then
+                    
+    i4 :                if (PropertyX%SubModel%ON) then
 
-                        call HDF5WriteData(ObjHDF5,                                         &
-                                           trim(AuxGroup)//'Assimila/'//PropertyX%ID%Name,  &
-                                           PropertyX%ID%Name,                               &
-                                           PropertyX%ID%Units,                              &
-                                           Array3D      = PropertyX%Assimilation%Field,     &
+                        
+                            PropertyX%Assimilation%GroupOutPutName = PropertyX%ID%Name                        
+
+                        else i4
+
+                            call GetAssimilationField(AssimilationID  = Me%ObjAssimilation, &
+                                                      ID              = PropertyX%ID%IDNumber,&
+                                                      N_Field         = 1,                  &
+                                                      GroupOutPutName = PropertyX%Assimilation%GroupOutPutName,&
+                                                      STAT            = STAT_CALL)
+
+                            if (STAT_CALL /= SUCCESS_) then
+                                call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR105')
+                            endif
+                        end if i4                    
+                    
+                        call HDF5WriteData(ObjHDF5,                                     &
+                                           trim(AuxGroup)//'Assimila/'//                &
+                                           trim(PropertyX%Assimilation%GroupOutPutName),&
+                                           PropertyX%ID%Name,                           &
+                                           PropertyX%ID%Units,                          &
+                                           Array3D      = PropertyX%Assimilation%Field, &
                                            OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_)                                          &
+                        if (STAT_CALL /= SUCCESS_)                                      &
                             call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR110')
                     endif
 

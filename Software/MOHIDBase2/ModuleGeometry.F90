@@ -176,12 +176,14 @@ Module ModuleGeometry
 
     !Interfaces----------------------------------------------------------------
 
-    private :: UnGetGeometry2Dreal
+    private :: UnGetGeometry2Dreal4
+    private :: UnGetGeometry2Dreal8
     private :: UnGetGeometry3Dreal4
     private :: UnGetGeometry3Dreal8
     private :: UnGetGeometry2Dinteger
     interface  UnGetGeometry
-        module procedure UnGetGeometry2Dreal
+        module procedure UnGetGeometry2Dreal4
+        module procedure UnGetGeometry2Dreal8
         module procedure UnGetGeometry3Dreal4
         module procedure UnGetGeometry3Dreal8
         module procedure UnGetGeometry2Dinteger
@@ -6367,30 +6369,26 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
     !--------------------------------------------------------------------------
 
-    subroutine UnGetGeometry2Dreal(GeometryID, Array, STAT)
+    subroutine UnGetGeometry2Dreal4(GeometryID, Array, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: GeometryID
-        real, pointer, dimension(:,:)               :: Array
+        real(4), pointer, dimension(:,:)            :: Array
         integer, optional, intent(OUT)              :: STAT
-
-
 
         !Local-----------------------------------------------------------------
         integer                                     :: ready_
         integer                                     :: STAT_
-
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
-
 
         call Ready(GeometryID, ready_)
 
 cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
             nullify(Array)
-            call Read_UnLock(mGEOMETRY_, Me%InstanceID, "UnGetGeometry2Dreal")
+            call Read_UnLock(mGEOMETRY_, Me%InstanceID, "UnGetGeometry2Dreal4")
 
             STAT_ = SUCCESS_
         else
@@ -6401,8 +6399,38 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
         !----------------------------------------------------------------------
 
-    end subroutine UnGetGeometry2Dreal
+    end subroutine UnGetGeometry2Dreal4
 
+    !--------------------------------------------------------------------------
+    subroutine UnGetGeometry2Dreal8(GeometryID, Array, STAT)
+        !Arguments-------------------------------------------------------------
+        integer                                     :: GeometryID
+        real(8), pointer, dimension(:,:)            :: Array
+        integer, optional, intent(OUT)              :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_
+        integer                                     :: STAT_
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(GeometryID, ready_)
+
+cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
+
+            nullify(Array)
+            call Read_UnLock(mGEOMETRY_, Me%InstanceID, "UnGetGeometry2Dreal8")
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+    
+    end subroutine UnGetGeometry2Dreal8
+    
     !--------------------------------------------------------------------------
 
     subroutine UnGetGeometry3Dreal4(GeometryID, Array, STAT)

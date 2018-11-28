@@ -9405,12 +9405,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
     !--------------------------------------------------------------------------
 
     !Get cell rotation in radians
-    subroutine GetCellRotation(HorizontalGridID, i, j, CellRotation, STAT)
+    subroutine GetCellRotation(HorizontalGridID, i, j, CellRotationX, CellRotationY, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                 :: HorizontalGridID
         integer                                 :: i, j
-        real                                    :: CellRotation
+        real                                    :: CellRotationX
+        real,    optional                       :: CellRotationY
         integer, optional                       :: STAT
         !Local-----------------------------------------------------------------
         integer                                 :: STAT_, ready_
@@ -9423,17 +9424,21 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
 cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
-            CellRotation = 0.
-
+            
+            CellRotationX = 0.
+            CellRotationY = Pi/2.
+            
             if      (Me%Distortion) then
 
-                !with distortion, the cell trigonometric circle origin is coincident with cell "x plane"
-                !and rotation Y is not accounted
-                CellRotation = Me%RotationX(i, j)
+                CellRotationX = Me%RotationX(i, j)
+                
+                CellRotationY = Me%RotationY(i, j)                
 
             else if (Me%RegularRotation) then
 
-                CellRotation = Me%Grid_Angle * Pi / 180.
+                CellRotationX = Me%Grid_Angle * Pi / 180.
+                
+                CellRotationY = CellRotationX + Pi/2.
 
             endif
 

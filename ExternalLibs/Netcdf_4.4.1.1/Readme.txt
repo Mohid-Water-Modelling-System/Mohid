@@ -1,3 +1,5 @@
+(see for details: http://wiki.mohid.com/index.php?title=Compile/Build_MOHID)
+
 NETCDF: 
 - UNIDATA supports Windows support via CMake. Download and install Cmake [4]. Cmake 
 is used to control the software compilation process using simple platform and compiler independent 
