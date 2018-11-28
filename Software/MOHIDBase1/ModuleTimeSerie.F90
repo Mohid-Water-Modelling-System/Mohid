@@ -239,7 +239,8 @@ Module ModuleTimeSerie
                               TimeSerieDataFile, PropertyList, Extension, WaterPoints3D, &
                               WaterPoints2D, WaterPoints1D, ResultFileName, Instance,    &
                               ModelName, CoordX, CoordY, UseTabulatedData,               &
-                              HavePath, Comment, ModelDomain, STAT)
+                              HavePath, Comment, ModelDomain, ReplacePath, STAT)
+
         !Arguments-------------------------------------------------------------
         integer                                         :: TimeSerieID
         integer                                         :: ObjTime
@@ -258,6 +259,7 @@ Module ModuleTimeSerie
         logical, optional, intent(IN )                  :: HavePath
         character(len=*), optional, intent(IN )         :: Comment
         type (T_Polygon), pointer, optional             :: ModelDomain
+        character(len=*), optional, intent(IN )         :: ReplacePath
         integer, optional, intent(OUT)                  :: STAT
 
         !Local-----------------------------------------------------------------
@@ -290,6 +292,14 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Associates module Time
             Me%ObjTime = AssociateInstance   (mTIME_, ObjTime)
+            
+            if (present(ReplacePath)) then
+                Me%ReplacePath    = ReplacePath
+                Me%ReplacePathON  = .true.
+            else
+                Me%ReplacePathON  = .false.
+            endif
+            
 
             if (present(ModelName)) then
                 Me%ModelName    = ModelName
@@ -338,19 +348,23 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT         = STAT_CALL)        
             if (STAT_CALL .NE. SUCCESS_)                                        &
                 call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerie - ModuleTimeSerie. ERR30") 
+            
+            if (.not. Me%ReplacePathON) then
 
-            call GetData(Me%ReplacePath,                                        &
-                         Me%ObjEnterData,                                       &
-                         flag,                                                  &
-                         SearchType   = FromFile,                               &
-                         keyword      ='REPLACE_PATH',                          &
-                         Default      = '****',                                 &
-                         ClientModule ='ModuleTimeSerie',                       &
-                         STAT         = STAT_CALL)        
-            if (STAT_CALL .NE. SUCCESS_)                                        &
-                call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerie - ModuleTimeSerie. ERR40") 
+                call GetData(Me%ReplacePath,                                    &
+                             Me%ObjEnterData,                                   &
+                             flag,                                              &
+                             SearchType   = FromFile,                           &
+                             keyword      ='REPLACE_PATH',                      &
+                             Default      = '****',                             &
+                             ClientModule ='ModuleTimeSerie',                   &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL .NE. SUCCESS_)                                    &
+                    call SetError(FATAL_, KEYWORD_, "Subroutine StartTimeSerie - ModuleTimeSerie. ERR40") 
 
-            if (flag > 0) Me%ReplacePathON = .true. 
+                if (flag > 0) Me%ReplacePathON = .true. 
+                
+            endif                
 
             !call GetData(Me%IgnoreON,                                           &
             !             Me%ObjEnterData,                                       &

@@ -36,14 +36,14 @@ MODULE ModuleHashTable
     PUBLIC  :: hash_get_next_exists
     PUBLIC  :: hash_get_next_key
     private ::      hash_get_next_key2
-    PUBLIC  :: hash_getDomainSize
-    private ::      hash_getDomainSize2
-    PUBLIC  :: hash_getWindowPosition
-    private ::      hash_getWindowPosition2
+    PUBLIC  :: hash_getDomainSize_f
+    private ::      hash_getDomainSize2_f
+    PUBLIC  :: hash_getWindowPosition_f
+    private ::      hash_getWindowPosition2_f
     PUBLIC  :: hash_getObjID
     private ::      hash_getObjID2
-    PUBLIC  :: hash_getWindowFrame
-    private ::      hash_getWindowFrame2
+    PUBLIC  :: hash_getWindowFrame_f
+    private ::      hash_getWindowFrame2_f
     
     PUBLIC  :: hash_set
     private ::      hash_set2
@@ -88,7 +88,6 @@ MODULE ModuleHashTable
 
         !Local-------------------------------------------------------------------
         type (T_HashTable), pointer                     :: NewObjHashTable
-        INTEGER                                         :: status
 
         !------------------------------------------------------------------------
 
@@ -139,8 +138,6 @@ MODULE ModuleHashTable
         INTEGER     , INTENT(IN)                        :: value_
 
         !Local-------------------------------------------------------------------
-        INTEGER                                         :: local_index
-        LOGICAL                                         :: found
 
         !------------------------------------------------------------------------
 
@@ -188,8 +185,6 @@ if1 :       if (TRIM(HashList%key) == TRIM(key)) then
         INTEGER, dimension(4)  , INTENT(IN)             :: WindowPosition
 
         !Local-------------------------------------------------------------------
-        INTEGER                                         :: local_index
-        LOGICAL                                         :: found
 
         !------------------------------------------------------------------------
 
@@ -232,8 +227,6 @@ if1 :   if (TRIM(HashList%key) == TRIM(key)) then
         INTEGER,      INTENT(IN)                        :: ObjID
 
         !Local-------------------------------------------------------------------
-        INTEGER                                         :: local_index
-        LOGICAL                                         :: found
 
         !------------------------------------------------------------------------
 
@@ -276,8 +269,6 @@ if1 :   if (TRIM(HashList%key) == TRIM(key)) then
         INTEGER, dimension(4)  , INTENT(IN)             :: WindowFrame
 
         !Local-------------------------------------------------------------------
-        INTEGER                                         :: local_index
-        LOGICAL                                         :: found
 
         !------------------------------------------------------------------------
 
@@ -320,8 +311,6 @@ if1 :   if (TRIM(HashList%key) == TRIM(key)) then
         INTEGER, dimension(4)  , INTENT(IN)             :: DomainSize
 
         !Local-------------------------------------------------------------------
-        INTEGER                                         :: local_index
-        LOGICAL                                         :: found
 
         !------------------------------------------------------------------------
 
@@ -399,103 +388,112 @@ if2 :       if (associated(HashList%Next)) then
     END function hash_get2
     !--------------------------------------------------------------------------
 
-    function hash_getDomainSize(Me, key)
+    function hash_getDomainSize_f(Me, key,hash_getDomainSize)
 
         !Function----------------------------------------------------------------
-        integer, dimension(4)                           :: hash_getDomainSize
+        integer                                         :: hash_getDomainSize_f
 
         !External----------------------------------------------------------------
         type (T_HashTable), pointer                     :: Me
         CHARACTER(*), INTENT(IN)                        :: key
-
+        integer, dimension(4)                           :: hash_getDomainSize        
         !------------------------------------------------------------------------
 
 if2 :   if (associated(Me%HashList)) then
-            hash_getDomainSize = hash_getDomainSize2(Me%HashList, key = key)
+             hash_getDomainSize_f = hash_getDomainSize2_f(Me%HashList, key = key, hash_getDomainSize2 = hash_getDomainSize)
         else if2
             hash_getDomainSize =-1 * NOT_FOUND_ERR_
         endif if2
 
         !------------------------------------------------------------------------
 
-    END function hash_getDomainSize
+    END function hash_getDomainSize_f
     
     !--------------------------------------------------------------------------
 
-    recursive function hash_getDomainSize2(HashList, key)
+    recursive function hash_getDomainSize2_f(HashList, key, hash_getDomainSize2)
 
         !Function----------------------------------------------------------------
-        integer, dimension(4)                           :: hash_getDomainSize2
+        integer                                         :: hash_getDomainSize2_f
 
         !External----------------------------------------------------------------
-        type (T_HashList), pointer                      :: HashList
+        type (T_HashList), pointer, INTENT(IN)          :: HashList
         CHARACTER(*), INTENT(IN)                        :: key
+        integer, dimension(4)                           :: hash_getDomainSize2        
+        
+        !Local-------------------------------------------------------------------
+        integer                                         :: status        
 
         !------------------------------------------------------------------------
 
 if1 :   if (adjustl(trim(HashList%key)) .EQ. adjustl(trim(key))) then
             hash_getDomainSize2 = HashList%DomainSize
+            hash_getDomainSize2_f = 0
         else if1
 if2 :       if (associated(HashList%Next)) then
-                hash_getDomainSize2 = hash_getDomainSize2(HashList%Next, key = key)
+                status              = hash_getDomainSize2_f(HashList%Next, key, hash_getDomainSize2)
             else if2
                 hash_getDomainSize2 =-1 * NOT_FOUND_ERR_
+                hash_getDomainSize2_f = NOT_FOUND_ERR_
             endif if2
         endif if1
 
         !------------------------------------------------------------------------
 
-    END function hash_getDomainSize2
+    END function hash_getDomainSize2_f
     
     !--------------------------------------------------------------------------
 
-    function hash_getWindowPosition(Me, key)
+    function hash_getWindowPosition_f(Me, key,hash_getWindowPosition)
 
         !Function----------------------------------------------------------------
-        integer, dimension(4)                           :: hash_getWindowPosition
+        integer                                         :: hash_getWindowPosition_f
 
         !External----------------------------------------------------------------
         type (T_HashTable), pointer                     :: Me
         CHARACTER(*), INTENT(IN)                        :: key
-
+        integer, dimension(4)                           :: hash_getWindowPosition
         !------------------------------------------------------------------------
 
 if2 :   if (associated(Me%HashList)) then
-            hash_getWindowPosition = hash_getWindowPosition2(Me%HashList, key = key)
+            hash_getWindowPosition_f = hash_getWindowPosition2_f(Me%HashList, key = key, hash_getWindowPosition2 = hash_getWindowPosition)
         else if2
-            hash_getWindowPosition =-1 * NOT_FOUND_ERR_
+            hash_getWindowPosition   = -1 * NOT_FOUND_ERR_
+            hash_getWindowPosition_f =      NOT_FOUND_ERR_            
         endif if2
 
         !------------------------------------------------------------------------
 
-    END function hash_getWindowPosition
+    END function hash_getWindowPosition_f
     
     !--------------------------------------------------------------------------
 
-    recursive function hash_getWindowPosition2(HashList, key)
+    recursive function hash_getWindowPosition2_f(HashList, key,hash_getWindowPosition2)
 
         !Function----------------------------------------------------------------
-        integer, dimension(4)                           :: hash_getWindowPosition2
+        integer                                         :: hash_getWindowPosition2_f
 
         !External----------------------------------------------------------------
         type (T_HashList), pointer                      :: HashList
         CHARACTER(*), INTENT(IN)                        :: key
-
+        integer, dimension(4)                           :: hash_getWindowPosition2
         !------------------------------------------------------------------------
 
 if1 :   if (adjustl(trim(HashList%key)) .EQ. adjustl(trim(key))) then
-            hash_getWindowPosition2 = HashList%WindowPosition
+            hash_getWindowPosition2     = HashList%WindowPosition
+            hash_getWindowPosition2_f   = 0 
         else if1
 if2 :       if (associated(HashList%Next)) then
-                hash_getWindowPosition2 = hash_getWindowPosition2(HashList%Next, key = key)
+                hash_getWindowPosition2_f = hash_getWindowPosition2_f(HashList%Next, key = key, hash_getWindowPosition2 = hash_getWindowPosition2)
             else if2
-                hash_getWindowPosition2 =-1 * NOT_FOUND_ERR_
+                hash_getWindowPosition2   = -1 * NOT_FOUND_ERR_
+                hash_getWindowPosition2_f =  NOT_FOUND_ERR_
             endif if2
         endif if1
 
         !------------------------------------------------------------------------
 
-    END function hash_getWindowPosition2
+    END function hash_getWindowPosition2_f
     
     !--------------------------------------------------------------------------
 
@@ -543,53 +541,56 @@ if2 :       if (associated(HashList%Next)) then
 
     !--------------------------------------------------------------------------
 
-    function hash_getWindowFrame(Me, key)
+    function hash_getWindowFrame_f(Me, key,hash_getWindowFrame)
 
         !Function----------------------------------------------------------------
-        integer, dimension(4)                           :: hash_getWindowFrame
+        integer                                         :: hash_getWindowFrame_f
 
         !External----------------------------------------------------------------
         type (T_HashTable), pointer                     :: Me
         CHARACTER(*), INTENT(IN)                        :: key
-
+        integer, dimension(4)                           :: hash_getWindowFrame
         !------------------------------------------------------------------------
 
 if2 :   if (associated(Me%HashList)) then
-            hash_getWindowFrame = hash_getWindowFrame2(Me%HashList, key = key)
+            hash_getWindowFrame_f   = hash_getWindowFrame2_f(Me%HashList, key = key, hash_getWindowFrame2 = hash_getWindowFrame)
         else if2
-            hash_getWindowFrame =-1 * NOT_FOUND_ERR_
+            hash_getWindowFrame     = -1 * NOT_FOUND_ERR_
+            hash_getWindowFrame_f   = NOT_FOUND_ERR_
         endif if2
 
         !------------------------------------------------------------------------
 
-    END function hash_getWindowFrame
+    END function hash_getWindowFrame_f
     
     !--------------------------------------------------------------------------
 
-    recursive function hash_getWindowFrame2(HashList, key)
+    recursive function hash_getWindowFrame2_f(HashList, key,hash_getWindowFrame2)
 
         !Function----------------------------------------------------------------
-        integer, dimension(4)                           :: hash_getWindowFrame2
+        integer                                         :: hash_getWindowFrame2_f
 
         !External----------------------------------------------------------------
         type (T_HashList), pointer                      :: HashList
         CHARACTER(*), INTENT(IN)                        :: key
-
+        integer, dimension(4)                           :: hash_getWindowFrame2
         !------------------------------------------------------------------------
 
 if1 :   if (adjustl(trim(HashList%key)) .EQ. adjustl(trim(key))) then
-            hash_getWindowFrame2 = HashList%WindowFrame
+            hash_getWindowFrame2    = HashList%WindowFrame
+            hash_getWindowFrame2_f  = 0
         else if1
 if2 :       if (associated(HashList%Next)) then
-                hash_getWindowFrame2 = hash_getWindowFrame2(HashList%Next, key = key)
+                hash_getWindowFrame2_f = hash_getWindowFrame2_f(HashList%Next, key = key, hash_getWindowFrame2 = hash_getWindowFrame2)
             else if2
-                hash_getWindowFrame2 =-1 * NOT_FOUND_ERR_
+                hash_getWindowFrame2    =-1 * NOT_FOUND_ERR_
+                hash_getWindowFrame2_f  = NOT_FOUND_ERR_
             endif if2
         endif if1
 
         !------------------------------------------------------------------------
 
-    END function hash_getWindowFrame2
+    END function hash_getWindowFrame2_f
 
     !--------------------------------------------------------------------------
 

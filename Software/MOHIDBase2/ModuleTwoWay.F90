@@ -40,7 +40,7 @@ Module ModuleTwoWay
     
     public  :: ConstructTwoWayHydrodynamic
     private ::  Compute_MatrixFilterOB
-    public  :: Allocate2WayAuxiliars_Hydrodynamic
+    public  :: Alloc2WayAux_Hydro
 
     !Selector
     public  :: GetTwoWayPointer
@@ -92,10 +92,10 @@ Module ModuleTwoWay
         integer, dimension(:, :   ), pointer        :: JU               => null()
         integer, dimension(:, :   ), pointer        :: IZ               => null()
         integer, dimension(:, :   ), pointer        :: JZ               => null()
-        real,    dimension(:, :, :), pointer        :: VolumeU          => null()
-        real,    dimension(:, :, :), pointer        :: VolumeV          => null()
-        real,    dimension(:, :, :), pointer        :: VolumeZ          => null()
-        real,    dimension(:, :   ), pointer        :: VolumeZ_2D       => null()
+        real(8),    dimension(:, :, :), pointer     :: VolumeU          => null()
+        real(8),    dimension(:, :, :), pointer     :: VolumeV          => null()
+        real(8),    dimension(:, :, :), pointer     :: VolumeZ          => null()
+        real(8),    dimension(:, :   ), pointer     :: VolumeZ_2D       => null()
         integer, dimension(:, :, :), pointer        :: Open3D           => null()
         integer, dimension(:, :, :), pointer        :: ComputeFaces3D_U => null()
         integer, dimension(:, :, :), pointer        :: ComputeFaces3D_V => null()
@@ -374,7 +374,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !> Allocates auxiliar matrixes  
     !>@param[in] FatherTwoWayID, TwoWayID   
-    subroutine Allocate2WayAuxiliars_Hydrodynamic(FatherTwoWayID, TwoWayID)
+    subroutine Alloc2WayAux_Hydro(FatherTwoWayID, TwoWayID)
     
         !Arguments-------------------------------------------------------------
         integer                            :: FatherTwoWayID, TwoWayID
@@ -396,13 +396,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                   WorkSize = Me%Father%WorkSize, &
                                   STAT     = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                  &
-                stop 'ModuleTwoWay - Allocate2WayAuxiliars_Hydrodynamic - ERR01'
+                stop 'ModuleTwoWay - Alloc2WayAux_Hydro - ERR01'
             
            call GetHorizontalGridSize (HorizontalGridID = FatherTwoWayID, &
                                        Size             = Me%Father%Size2D,            &
                                        WorkSize         = Me%Father%WorkSize2D,        &
                                        STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - Allocate2WayAuxiliars_Hydrodynamic - ERR02'            
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - Alloc2WayAux_Hydro - ERR02'            
             
             ILB = Me%Father%WorkSize%ILB 
             IUB = Me%Father%WorkSize%IUB 
@@ -434,10 +434,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
 
         else
-            stop 'ModuleTwoWay - Allocate2WayAuxiliars_Hydrodynamic - ERR03'               
+            stop 'ModuleTwoWay - Alloc2WayAux_Hydro - ERR03'               
         endif
 
-    end subroutine Allocate2WayAuxiliars_Hydrodynamic
+    end subroutine Alloc2WayAux_Hydro
     
     !-------------------------------------------------------------------------
 
@@ -791,11 +791,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@param[in] Volume_3D, Volume_2D, VelocityID, InterpolMethod   
     subroutine ComputeAuxMatrixes(Volume_3D, Volume_2D, VelocityID, InterpolMethod, Ilink, Jlink)
         !Arguments-------------------------------------------------------------
-        integer, intent(IN)                         :: interpolMethod
-        real, dimension(:, :, :), pointer, optional :: Volume_3D
-        real, dimension(:, :),    pointer, optional :: Volume_2D
-        integer, dimension(:, :), pointer           :: Ilink, Jlink
-        integer, optional                           :: VelocityID
+        integer, intent(IN)                            :: interpolMethod
+        real(8), dimension(:, :, :), pointer, optional :: Volume_3D
+        real(8), dimension(:, :),    pointer, optional :: Volume_2D
+        integer, dimension(:, :), pointer              :: Ilink, Jlink
+        integer, optional                              :: VelocityID
         !Local-----------------------------------------------------------------
 
         !----------------------------------------------------------------------    
@@ -857,8 +857,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     subroutine ComputeSonVolInFather (Volume_3D, Volume_2D, Ilink, Jlink, SonComputeFaces)
     
         !Arguments--------------------------------------------------------------------------------
-        real, dimension(:, :, :), pointer, optional    :: Volume_3D
-        real, dimension(:, :),    pointer, optional    :: Volume_2D
+        real(8), dimension(:, :, :), pointer, optional :: Volume_3D
+        real(8), dimension(:, :),    pointer, optional :: Volume_2D
         integer, dimension(:, :), pointer              :: Ilink, Jlink
         integer, dimension(:, :, :), pointer, optional :: SonComputeFaces
         !Local variables--------------------------------------------------------------------------

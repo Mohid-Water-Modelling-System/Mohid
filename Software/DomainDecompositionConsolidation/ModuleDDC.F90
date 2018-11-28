@@ -682,6 +682,7 @@ if4 :   if (hash_get_next_exists(hash_map_out, HDFFileOut)) then
         integer                                                 :: JUB  
         integer                                                 :: KLB
         integer                                                 :: KUB 
+        integer                                                 :: status
                
         !------------------------------------------------------------------------
             
@@ -754,9 +755,9 @@ do2 :           do i=1,NumberOfFiles
                     KUB                 = NULL_INT
                     LimitsArray         = NULL_INT
                     
-                    DomainSize      = hash_getDomainSize(hash_map_in, FileArrayIn(i))
-                    WindowPosition  = hash_getWindowPosition(hash_map_in, FileArrayIn(i))
-                    WindowFrame     = hash_getWindowFrame(hash_map_in, FileArrayIn(i))
+                    status  = hash_getDomainSize_f    (hash_map_in, FileArrayIn(i),DomainSize    )
+                    status  = hash_getWindowPosition_f(hash_map_in, FileArrayIn(i),WindowPosition)
+                    status  = hash_getWindowFrame_f   (hash_map_in, FileArrayIn(i),WindowFrame   )
                     
                     !Get Dataset Information
                     call GetHDF5GroupID(HDF5ID = ObjHDF5_InArray(i), FatherGroupName = adjustl(trim(GroupName))//"/",       &
