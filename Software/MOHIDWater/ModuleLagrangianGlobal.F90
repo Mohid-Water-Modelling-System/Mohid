@@ -5265,7 +5265,7 @@ TURB_V:                 if (flag == 1) then
                      ClientModule ='ModuleLagrangianGlobal',                     &  
                      Default      = 0.03,                                        &
                      STAT         = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR840'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR834'
 
         if (flag /=0) Me%State%Wind = .true. 
 
@@ -5278,7 +5278,13 @@ TURB_V:                 if (flag == 1) then
                      ClientModule ='ModuleLagrangianGlobal',                     &  
                      Default      = NoCorrection_,                               &
                      STAT         = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR840'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR835'
+        
+        if (NewOrigin%Movement%WindDriftCorrection /= NoCorrection_ .and.               &
+            NewOrigin%Movement%WindDriftCorrection /= UserDefined_  .and.               &
+            NewOrigin%Movement%WindDriftCorrection /= Computed_Samuels_)    then
+            stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR836'
+        endif            
 
         !WINDDRIFTANGLE
         if (NewOrigin%Movement%WindDriftCorrection .EQ. UserDefined_) then
@@ -15896,22 +15902,29 @@ MF:             if (CurrentPartic%Position%Surface) then
                     UWind_ = CurrentOrigin%Movement%WindTransferCoef * WindX
                     VWind_ = CurrentOrigin%Movement%WindTransferCoef * WindY
                     
-                    If (CurrentOrigin%Movement%WindDriftCorrection .EQ. Computed_Samuels_) then
-                        Wind    = abs(cmplx(WindX, WindY))
+                    if      (CurrentOrigin%Movement%WindDriftCorrection == NoCorrection_) then
+                    
+                        UWind =   UWind_ 
+                        VWind =   VWind_                         
+                        
+                    else 
+                        if (CurrentOrigin%Movement%WindDriftCorrection == Computed_Samuels_) then
+                            Wind    = abs(cmplx(WindX, WindY))
 
-                        !Samuels, 1982 - deflection angle is inversely proportional to wind speed
-                        WindDriftAngle = 25. * exp(-10.e-8 * (Wind**3) / ( WaterCinematicVisc * gravity) )
-                    Else
-                        WindDriftAngle = CurrentOrigin%Movement%WindDriftAngle 
-                    End If
+                            !Samuels, 1982 - deflection angle is inversely proportional to wind speed
+                            WindDriftAngle = 25. * exp(-10.e-8 * (Wind**3) / ( WaterCinematicVisc * gravity) )
+                        elseif (CurrentOrigin%Movement%WindDriftCorrection == UserDefined_) then
+                            WindDriftAngle = CurrentOrigin%Movement%WindDriftAngle 
+                        endif
 
+                        UWind =   UWind_ * cos(WindDriftAngle * (Pi / 180.)) + VWind_ * sin(WindDriftAngle * (Pi / 180.))
+                        VWind = - UWind_ * sin(WindDriftAngle * (Pi / 180.)) + VWind_ * cos(WindDriftAngle * (Pi / 180.))
+                    endif                        
+                    
                     if (Me%ExternalVar%BackTracking) then
                         UWind = - UWind
                         VWind = - VWind
-                    endif                    
-
-                    UWind =   UWind_ * cos(WindDriftAngle * (Pi / 180.)) + VWind_ * sin(WindDriftAngle * (Pi / 180.))
-                    VWind = - UWind_ * sin(WindDriftAngle * (Pi / 180.)) + VWind_ * cos(WindDriftAngle * (Pi / 180.))
+                    endif                          
 
                     !Plume velocity
                     UPlume = 0.
