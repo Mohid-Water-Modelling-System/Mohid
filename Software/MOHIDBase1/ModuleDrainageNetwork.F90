@@ -6730,6 +6730,8 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
 
         if (WaterLevel < CrossSection%BottomLevel) then
             write(*,*)'WaterLevel lower than bottom level'
+            write(*,*)'WaterLevel: ', WaterLevel
+            write(*,*)'BottomLevel: ', CrossSection%BottomLevel
             stop 'TabularGeometry - ModuleDrainageNetwork - ERR01'
         end if
         !if (WaterLevel > CrossSection%Elevation(1)) write(*,*) 'WaterLevel higher than max elevation'
@@ -6883,7 +6885,7 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
         integer                                     :: NodeID, iout, iin, iUp
         type (T_Reach), pointer                     :: DownStreamReach
         type (T_Node), pointer                      :: CurrNode
-        logical                                     :: upStreamActive 
+        logical                                     :: anyUpStreamActive, anyUpstreamInactive
 
         !Counts nodes
         Me%StormWaterModelLink%nOutflowNodes = 0
@@ -6895,20 +6897,27 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
             if (CurrNode%nDownStreamReaches == 1) then
                 DownStreamReach => Me%Reaches (CurrNode%DownstreamReaches (1))
                 
-                upStreamActive = .false.
+                anyUpStreamActive = .false.
+                anyUpstreamInactive = .false.
                 do iUp = 1, CurrNode%nUpStreamReaches
                     if (Me%Reaches (CurrNode%UpstreamReaches(iUp))%Active) then
-                        upStreamActive = .true.
+                        anyUpStreamActive = .true.
+                    else
+                        anyUpstreamInactive = .true.
                     endif
                 enddo
-
+                
+                !TODO: CHECK IF THE CHANGE FROM ALL UPSTREAM INACTIVE TO ANY UPSTREAM INACTIVE CHANGES SOMETHING IN OTHER 
+                !CASES. NEVERTHELESS Flow from Storm Water System WAS NOT USED IN OPENMI BEFORE
                 !Flow to Storm Water System -> In nodes where downstream node is inactive and upstream nodes active
-                if (.not. DownStreamReach%Active .and. upStreamActive) then
+                !if (.not. DownStreamReach%Active .and. upStreamActive) then
+                if (.not. DownStreamReach%Active .and. anyUpStreamActive) then
                     Me%StormWaterModelLink%nOutflowNodes = Me%StormWaterModelLink%nOutflowNodes + 1
                 endif
                 
                 !Flow from Storm Water System -> In nodes where upstream nodes are inactive and downstream nodes are active
-                if (DownStreamReach%Active .and. .not. upStreamActive .and. CurrNode%nUpStreamReaches > 0) then
+                !if (DownStreamReach%Active .and. .not. upStreamActive .and. CurrNode%nUpStreamReaches > 0) then
+                if (DownStreamReach%Active .and. anyUpstreamInactive) then
                     Me%StormWaterModelLink%nInflowNodes = Me%StormWaterModelLink%nInflowNodes + 1
                 endif
                
@@ -6936,22 +6945,26 @@ if1:        if (CurrNode%nDownstreamReaches /= 0) then
             if (CurrNode%nDownStreamReaches == 1) then
                 DownStreamReach => Me%Reaches (CurrNode%DownstreamReaches (1))
                 
-                upStreamActive = .false.
+                anyUpStreamActive = .false.
+                anyUpstreamInactive = .false.
                 do iUp = 1, CurrNode%nUpStreamReaches
                     if (Me%Reaches (CurrNode%UpstreamReaches(iUp))%Active) then
-                        upStreamActive = .true.
+                        anyUpStreamActive = .true.
+                    else
+                        anyUpstreamInactive = .true.                        
                     endif
                 enddo
 
                 !Flow to Storm Water System -> In nodes where downstream node is inactive and upstream nodes active
-                if (.not. DownStreamReach%Active .and. upStreamActive) then
+                if (.not. DownStreamReach%Active .and. anyUpStreamActive) then
                     Me%StormWaterModelLink%OutflowIDs(iout) = NodeID
                     iout = iout + 1
                 endif
                 
                 !Flow from Storm Water System -> In nodes where upstream nodes are inactive and downstream nodes are active
-                if (DownStreamReach%Active .and. .not. upStreamActive .and. CurrNode%nUpStreamReaches > 0) then
-                    Me%StormWaterModelLink%InflowIDs(iout) = NodeID
+                !if (DownStreamReach%Active .and. .not. upStreamActive .and. CurrNode%nUpStreamReaches > 0) then
+                if (DownStreamReach%Active .and. anyUpStreamInactive) then
+                    Me%StormWaterModelLink%InflowIDs(iin) = NodeID
                     iin = iin + 1
                 endif
                
@@ -12231,6 +12244,7 @@ if2:        if (Volume > PoolVolume) then
         do NodeID = 1, Me%StormWaterModelLink%nInflowNodes
             CurrNode                                => Me%Nodes (Me%StormWaterModelLink%InflowIDs(NodeID))
             Me%TotalStormWaterInput                 = Me%TotalStormWaterInput + Me%StormWaterModelLink%Inflow(NodeID)
+            write(*,*)'ML Changing volume : ', Me%StormWaterModelLink%Inflow(NodeID) * LocalDT
             CurrNode%VolumeNew                      = CurrNode%VolumeNew + Me%StormWaterModelLink%Inflow(NodeID) * LocalDT
         enddo        
 
@@ -19297,6 +19311,44 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
     !--------------------------------------------------------------------------
     
     !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetNodeLevel
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETNODELEVEL"::GetNodeLevel
+    !DEC$ ENDIF
+    !Return the Storm Water Outflow
+    logical function GetNodeLevel(DrainageNetworkID, nInflowNodes, Level)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        integer                                     :: nInflowNodes
+        real, dimension(nInflowNodes)                     :: Level
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: iNode
+        integer                                     :: ready_         
+
+        call Ready(DrainageNetworkID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            do iNode = 1, nInflowNodes 
+                !write(*,*)'ML Getting inflow water level: ',Me%Nodes(Me%StormWaterModelLink%InflowIDs(iNode))%WaterLevel
+                Level(iNode) = Me%Nodes(Me%StormWaterModelLink%InflowIDs(iNode))%WaterLevel
+            enddo
+        
+            GetNodeLevel = .true.
+        
+        else 
+        
+            GetNodeLevel = .false.
+        
+        end if
+    
+    end function GetNodeLevel
+    
+    !--------------------------------------------------------------------------    
+    
+    !DEC$ IFDEFINED (VF66)
     !dec$ attributes dllexport::GetStormWaterOutFlowIDs
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_GETSTORMWATEROUTFLOWIDS"::GetStormWaterOutFlowIDs
@@ -19355,7 +19407,7 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
             do iNode = 1, nInflowNodes 
-                write(*,*)StormWaterInflow(iNode)
+                !write(*,*)'ML Setting inflow: ',StormWaterInflow(iNode)
                 Me%StormWaterModelLink%Inflow(iNode) = StormWaterInflow(iNode)
             enddo
             
@@ -19390,7 +19442,9 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
         
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
+            !write(*,*)'Number of Nodes: ',Me%StormWaterModelLink%nInflowNodes
             do iNode = 1, nInflowNodes 
+                !write(*,*)'Id of Node: ',Me%StormWaterModelLink%InflowIDs(iNode)
                 StormWaterInflowIDs(iNode) = Me%StormWaterModelLink%InflowIDs(iNode)
             enddo
         
@@ -19406,6 +19460,44 @@ cd1:    if (ObjDrainageNetwork_ID > 0) then
 
 
     !--------------------------------------------------------------------------
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetNodeIDs
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETNODEIDS"::GetNodeIDs
+    !DEC$ ENDIF
+    !Return the Storm Water Inflow IDs
+    logical function GetNodeIDs(DrainageNetworkID, nNodes, NodeIDs)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: DrainageNetworkID
+        integer                                     :: nNodes
+        integer, dimension(nNodes)                  :: NodeIDs
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: iNode
+        integer                                     :: ready_         
+
+        call Ready(DrainageNetworkID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            do iNode = 1, nNodes 
+                NodeIDs(iNode) = iNode;
+            enddo
+        
+            GetNodeIDs = .true.
+        
+        else 
+        
+            GetNodeIDs = .false.
+        
+        end if
+    
+    end function GetNodeIDs    
+
+
+    !--------------------------------------------------------------------------    
     
     !DEC$ IFDEFINED (VF66)
     !dec$ attributes dllexport::GetNumberOfProperties
