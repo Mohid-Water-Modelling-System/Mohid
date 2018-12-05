@@ -89,6 +89,8 @@ Module ModuleGlobalData
 
     integer, parameter  :: StringLength         = 128
     integer, parameter  :: PathLength           = 256
+    !max http string length 2018
+    integer, parameter  :: LinkLength           = 2000
 
     !Search in Block, file, etc...
     integer, parameter :: FromFile_                = 1

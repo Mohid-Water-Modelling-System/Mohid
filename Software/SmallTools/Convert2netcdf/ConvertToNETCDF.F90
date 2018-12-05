@@ -78,6 +78,7 @@ program Convert2netcdf
         character(len=StringLength)                         :: SizeGroup, SizeDataSet
         character(len=StringLength)                         :: HdfMask          = null_str
         character(len=StringLength)                         :: TimeVar          = null_str
+        character(len=StringLength)                         :: TimeGroupName    = null_str
         character(len=StringLength)                         :: VertVar          = null_str
         logical                                             :: ReadLatLon       = .true.
         logical                                             :: Sigma            = .false.
@@ -108,6 +109,8 @@ program Convert2netcdf
         character(len=StringLength)                         :: bulletin_date        = null_str
         character(len=StringLength)                         :: bulletin_type        = null_str
         character(len=StringLength)                         :: comment              = null_str
+        character(len=StringLength)                         :: MetadataAtt          = null_str        
+        character(len=LinkLength  )                         :: MetadataLink         = null_str
     end type T_NCDFFile
 
     type T_Conv2netcdf
@@ -212,7 +215,7 @@ program Convert2netcdf
                      keyword      = 'NETCDF_FILE',                                      &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR50'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR30'
 
         call GetData(Me%NCDF_File%Title,                                                &
                      Me%ObjEnterData,iflag,                                             &
@@ -220,7 +223,7 @@ program Convert2netcdf
                      keyword      = 'NETCDF_TITLE',                                     &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR60'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR40'
 
         call GetData(Me%NCDF_File%Convention,                                           &
                      Me%ObjEnterData,iflag,                                             &
@@ -229,7 +232,7 @@ program Convert2netcdf
                      Default      = 'CF-1.0',                                           &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR70'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR50'
 
         call GetData(Me%NCDF_File%Version,                                              &
                      Me%ObjEnterData,iflag,                                             &
@@ -238,7 +241,7 @@ program Convert2netcdf
                      Default      = '3.6.1',                                            &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR80'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR60'
 
         call GetData(Me%NCDF_File%History,                                              &
                      Me%ObjEnterData,iflag,                                             &
@@ -246,7 +249,7 @@ program Convert2netcdf
                      keyword      = 'NETCDF_HISTORY',                                   &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR90'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR70'
         
         call GetData(Me%NCDF_File%Source,                                               &
                      Me%ObjEnterData,iflag,                                             &
@@ -254,7 +257,7 @@ program Convert2netcdf
                      keyword      = 'NETCDF_SOURCE',                                    &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR100'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR80'
 
         
         call GetData(Me%NCDF_File%Institution,                                          &
@@ -264,7 +267,7 @@ program Convert2netcdf
                      Default      = 'Instituto Superior Tecnico',                       &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR110'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR90'
         
         call GetData(Me%NCDF_File%References,                                           &
                      Me%ObjEnterData,iflag,                                             &
@@ -273,7 +276,7 @@ program Convert2netcdf
                      Default      = 'http://www.mohid.com',                             &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR120'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR100'
 
         call GetData(Me%NCDF_File%iDate,                                                &
                      Me%ObjEnterData,iflag,                                             &
@@ -281,7 +284,7 @@ program Convert2netcdf
                      keyword      = 'NETCDF_DATE',                                      &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR130'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR110'
         
         
         call GetData(Me%NCDF_File%geospatial_lat_min,                                   &
@@ -291,7 +294,7 @@ program Convert2netcdf
                      Default      = -90.,                                               &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR400'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR120'        
         
         call GetData(Me%NCDF_File%geospatial_lat_max,                                   &
                      Me%ObjEnterData,iflag,                                             &
@@ -300,7 +303,7 @@ program Convert2netcdf
                      Default      = +90.,                                               &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR410'          
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR130'          
   
         call GetData(Me%NCDF_File%geospatial_lon_min,                                   &
                      Me%ObjEnterData,iflag,                                             &
@@ -309,7 +312,7 @@ program Convert2netcdf
                      Default      = -180.,                                              &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR420'           
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR140'           
 
         call GetData(Me%NCDF_File%geospatial_lon_max,                                   &
                      Me%ObjEnterData,iflag,                                             &
@@ -318,7 +321,7 @@ program Convert2netcdf
                      Default      = +180.,                                              &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR430'         
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR150'         
         
         call GetData(Me%NCDF_File%CoordSysBuilder,                                      &
                      Me%ObjEnterData,iflag,                                             &
@@ -327,7 +330,7 @@ program Convert2netcdf
                      Default      = "ucar.nc2.dataset.conv.CF1Convention",              &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR440'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR160'
         
         call GetData(Me%NCDF_File%contact,                                              &
                      Me%ObjEnterData,iflag,                                             &
@@ -336,7 +339,7 @@ program Convert2netcdf
                      Default      = "general@mohid.com",                                &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR450'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR170'        
 
         call GetData(Me%NCDF_File%field_type,                                           &
                      Me%ObjEnterData,iflag,                                             &
@@ -345,7 +348,7 @@ program Convert2netcdf
                      Default      = "mean",                                             &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR460'        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR180'        
                 
         call GetData(Me%NCDF_File%bulletin_date,                                        &
                      Me%ObjEnterData,iflag,                                             &
@@ -354,7 +357,7 @@ program Convert2netcdf
                      Default      = "2018-01-01 00:00:00",                              &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR470'            
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR190'            
 
         call GetData(Me%NCDF_File%bulletin_type,                                        &
                      Me%ObjEnterData,iflag,                                             &
@@ -363,7 +366,7 @@ program Convert2netcdf
                      Default      = "operational",                                      &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR480'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR200'
        
         call GetData(Me%NCDF_File%comment,                                              &
                      Me%ObjEnterData,iflag,                                             &
@@ -372,7 +375,29 @@ program Convert2netcdf
                      Default      = "MOHID product",                                    &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR490'              
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR210'       
+        
+        call GetData(Me%NCDF_File%MetadataAtt,                                          &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'NETCDF_METADATA_ATTRIBUTE',                        &
+                     Default      = trim(null_str),                                     &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR220'           
+        
+        if (iflag /= 0) then
+            
+            call GetData(Me%NCDF_File%MetadataLink,                                     &
+                         Me%ObjEnterData,iflag,                                         &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'NETCDF_METADATA_LINK',                         &
+                         Default      = trim(null_str),                                 &
+                         ClientModule = 'Convert2netcdf',                               &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR230'           
+        
+        endif
 
         call GetData(Me%HDFFile%Name,                                                   &
                      Me%ObjEnterData,iflag,                                             &
@@ -380,7 +405,7 @@ program Convert2netcdf
                      keyword      = 'HDF_FILE',                                         &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR30'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR240'
 
         !Verifies if file exists
         inquire(FILE = trim(Me%HDFFile%Name), EXIST = exist)
@@ -388,7 +413,7 @@ program Convert2netcdf
             call OpenHDF5File
         else
             write(*,*)'HDF5 file does not exist'
-            stop 'ReadKeywords - Convert2netcdf - ERR40'
+            stop 'ReadKeywords - Convert2netcdf - ERR250'
         endif
 
 
@@ -399,7 +424,16 @@ program Convert2netcdf
                      Default      = 'Time',                                             &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR140'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR260'
+        
+        call GetData(Me%HDFFile%TimeGroupName,                                          &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'HDF_TIME_GROUP_NAME',                              &
+                     Default      = trim(Me%HDFFile%TimeVar),                           &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR265'        
 
         call GetData(Me%HDFFile%VertVar,                                                &
                      Me%ObjEnterData,iflag,                                             &
@@ -408,7 +442,7 @@ program Convert2netcdf
                      Default      = 'VerticalZ/Vertical',                               &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR150'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR270'
 
 
         call GetData(Me%HDFFile%SizeGroup,                                              &
@@ -418,7 +452,7 @@ program Convert2netcdf
                      Default      = '/Grid',                                            &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR160'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR280'
 
         call GetData(Me%HDFFile%ImposeMask,                                             &
                      Me%ObjEnterData,iflag,                                             &
@@ -427,7 +461,7 @@ program Convert2netcdf
                      Default      = .false.,                                            &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR170'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR290'
 
         call GetData(Me%HDFFile%HdfMask,                                                &
                      Me%ObjEnterData,iflag,                                             &
@@ -436,14 +470,14 @@ program Convert2netcdf
                      Default      = 'WaterPoints3D',                                    &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR180'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR300'
         
         call GetHDF5DataSetExist (HDF5ID        = Me%HDFFile%ObjHDF5,           &
                                   DataSetName   = trim(Me%HDFFile%SizeGroup)//  &
                                                   "/"//trim(Me%HDFFile%HdfMask),&
                                   Exist         = Exist,                        & 
                                   STAT          = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR190'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR310'
         
         if (.not.Exist) then
         
@@ -452,13 +486,13 @@ program Convert2netcdf
                                                       "/"//"WaterPoints",           &
                                       Exist         = Exist2,                       & 
                                       STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR200'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR320'
             
             if (Exist2) then
                 Me%HDFFile%HdfMask = "WaterPoints"
             else
                 write(*,*) 'Name define in keyword HDF_MASK not valid' 
-                stop 'ReadMask - Convert2netcdf - ERR210'
+                stop 'ReadMask - Convert2netcdf - ERR330'
             endif
 
         endif
@@ -471,7 +505,7 @@ program Convert2netcdf
                      Default      = .true.,                                             &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR220'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR340'
 
         call GetData(Me%HDFFile%ResultsAre2D,                                           &
                      Me%ObjEnterData,iflag,                                             &
@@ -480,7 +514,7 @@ program Convert2netcdf
                      Default      = .false.,                                            &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR230'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR350'
 
         call GetData(Me%HDFFile%OutputIs2D,                                             &
                      Me%ObjEnterData,iflag,                                             &
@@ -489,7 +523,7 @@ program Convert2netcdf
                      Default      = .false.,                                            &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR240'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR360'
 
 
         call GetData(Me%HDFFile%SizeDataSet,                                            &
@@ -499,7 +533,7 @@ program Convert2netcdf
                      Default      = trim(Me%HDFFile%HdfMask),                           &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR250'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR370'
         
         call GetData(Me%HDFFile%ReadLatLon,                                             &
                      Me%ObjEnterData,iflag,                                             &
@@ -508,7 +542,7 @@ program Convert2netcdf
                      Default      = .true.,                                             &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR260'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR380'
 
         call GetData(Me%HDFFile%Sigma,                                                  &
                      Me%ObjEnterData,iflag,                                             &
@@ -517,7 +551,7 @@ program Convert2netcdf
                      Default      = .false.,                                            &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR270'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR390'
 
         call GetData(Me%ConvertEverything,                                              &
                      Me%ObjEnterData,iflag,                                             &
@@ -526,7 +560,7 @@ program Convert2netcdf
                      Default      = .true.,                                             &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR280'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR400'
 
 
         call GetData(Me%DepthAddOffSet,                                                 &
@@ -536,7 +570,7 @@ program Convert2netcdf
                      Default      = 0.,                                                 &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR290'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR410'
 
 
         call GetData(Me%ReferenceTime,                                                  &
@@ -545,7 +579,7 @@ program Convert2netcdf
                      keyword      = 'REFERENCE_TIME',                                   &
                      ClientModule = 'Convert2netcdf',                                   &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR300'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR420'
 
         if(iflag == 0)then
             call SetDate(Me%ReferenceTime, 2004, 1, 1, 0, 0, 0)
@@ -558,15 +592,15 @@ program Convert2netcdf
                      ClientModule = 'Convert2netcdf',                                   &
                      Default      = FillValueInt,                                       &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR310'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR430'
         
         if (iflag /= 0) then
             if (Me%DecimalPlaces < 0) then
-                stop 'ReadKeywords - Convert2netcdf - ERR320'
+                stop 'ReadKeywords - Convert2netcdf - ERR440'
             endif
             
             if (Me%DecimalPlaces > 16) then
-                stop 'ReadKeywords - Convert2netcdf - ERR330'
+                stop 'ReadKeywords - Convert2netcdf - ERR450'
             endif            
             
         endif
@@ -580,7 +614,7 @@ program Convert2netcdf
                      ClientModule = 'Convert2netcdf',                                   &
                      Default      = .true.,                                             &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR340'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR460'
         
         iflag = 0
         
@@ -623,7 +657,7 @@ program Convert2netcdf
                      ClientModule = 'Convert2netcdf',                                   &
                      Default      = 0.,                                                 &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR360'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR470'
         
         call GetData(Me%Multiply_Factor,                                                &
                      Me%ObjEnterData,iflag,                                             &
@@ -632,7 +666,7 @@ program Convert2netcdf
                      ClientModule = 'Convert2netcdf',                                   &
                      Default      = 1.,                                                 &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR370'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR480'
         
         call GetData(Me%SimpleGrid,                                                     &
                      Me%ObjEnterData,iflag,                                             &
@@ -641,7 +675,7 @@ program Convert2netcdf
                      ClientModule = 'Convert2netcdf',                                   &
                      Default      = .false.,                                            &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR370'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR490'
         
      
         if(.not. Me%ConvertEverything)then
@@ -657,8 +691,7 @@ program Convert2netcdf
                      ClientModule = 'Convert2netcdf',                                   &
                      Default      = FillValueReal,                                      &
                      STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR380'
-
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR500'
         
         
                     
@@ -814,25 +847,27 @@ program Convert2netcdf
         call ConstructNETCDF(Me%NCDF_File%ObjNETCDF, Me%NCDF_File%Name, NCDF_CREATE, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OpenNCDFFile - Convert2netcdf - ERR01'
 
-        call NETCDFWriteHeader (NCDFID              = Me%NCDF_File%ObjNETCDF,       &
-                                Title               = Me%NCDF_File%Title,           &
-                                Convention          = Me%NCDF_File%Convention,      &
-                                Version             = Me%NCDF_File%Version,         &
-                                History             = Me%NCDF_File%History,         &
-                                iDate               = Me%NCDF_File%iDate,           &
-                                Source              = Me%NCDF_File%Source,          &
-                                Institution         = Me%NCDF_File%Institution,     &
-                                References          = Me%NCDF_File%References,      &
-                                geospatial_lat_min  = Me%NCDF_File%geospatial_lat_min,& 
-                                geospatial_lat_max  = Me%NCDF_File%geospatial_lat_max,&
-                                geospatial_lon_min  = Me%NCDF_File%geospatial_lon_min,& 
-                                geospatial_lon_max  = Me%NCDF_File%geospatial_lon_max,&
-                                CoordSysBuilder     = Me%NCDF_File%CoordSysBuilder, &
-                                contact             = Me%NCDF_File%contact,         & 
-                                field_type          = Me%NCDF_File%field_type,      &     
-                                bulletin_date       = Me%NCDF_File%bulletin_date,   &
-                                bulletin_type       = Me%NCDF_File%bulletin_type,   & 
-                                comment             = Me%NCDF_File%comment,         &   
+        call NETCDFWriteHeader (NCDFID              = Me%NCDF_File%ObjNETCDF,           &
+                                Title               = Me%NCDF_File%Title,               &
+                                Convention          = Me%NCDF_File%Convention,          &
+                                Version             = Me%NCDF_File%Version,             &
+                                History             = Me%NCDF_File%History,             &
+                                iDate               = Me%NCDF_File%iDate,               &
+                                Source              = Me%NCDF_File%Source,              &
+                                Institution         = Me%NCDF_File%Institution,         &
+                                References          = Me%NCDF_File%References,          &
+                                geospatial_lat_min  = Me%NCDF_File%geospatial_lat_min,  & 
+                                geospatial_lat_max  = Me%NCDF_File%geospatial_lat_max,  &
+                                geospatial_lon_min  = Me%NCDF_File%geospatial_lon_min,  & 
+                                geospatial_lon_max  = Me%NCDF_File%geospatial_lon_max,  &
+                                CoordSysBuilder     = Me%NCDF_File%CoordSysBuilder,     &
+                                contact             = Me%NCDF_File%contact,             & 
+                                field_type          = Me%NCDF_File%field_type,          &     
+                                bulletin_date       = Me%NCDF_File%bulletin_date,       &
+                                bulletin_type       = Me%NCDF_File%bulletin_type,       & 
+                                comment             = Me%NCDF_File%comment,             &   
+                                MetadataAtt         = Me%NCDF_File%MetadataAtt,         &   
+                                MetadataLink        = Me%NCDF_File%MetadataLink,        &   
                                 STAT                = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OpenNCDFFile - Convert2netcdf - ERR02'
         
@@ -868,7 +903,7 @@ program Convert2netcdf
         write(*,*)
 
         !Gets number of time instants
-        call GetHDF5GroupNumberOfItems(Me%HDFFile%ObjHDF5, '/'//trim(Me%HDFFile%TimeVar), &
+        call GetHDF5GroupNumberOfItems(Me%HDFFile%ObjHDF5, '/'//trim(Me%HDFFile%TimeGroupName), &
                                        Me%HDFFile%nInstants, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadWriteTime - Convert2netcdf - ERR01'
 
@@ -2489,7 +2524,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         allocate(TimeVector(6))
 
         call HDF5ReadData   (HDF5ID         = Me%HDFFile%ObjHDF5,                       &
-                             GroupName      = '/'//trim(Me%HDFFile%TimeVar),            &
+                             GroupName      = '/'//trim(Me%HDFFile%TimeGroupName),      &
                              Name           = trim(Me%HDFFile%TimeVar),                 &
                              Array1D        = TimeVector,                               &
                              OutputNumber   = Instant,                                  &

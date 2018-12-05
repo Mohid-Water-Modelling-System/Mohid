@@ -217,7 +217,9 @@ Module ModuleHDF5Statistics
         logical                                             :: AditionalMap = .false.
         character(len=StringLength)                         :: StatisticGroupName
     
-        real,   dimension(:,:,:), pointer                   :: DZ3D        
+        real,   dimension(:,:,:), pointer                   :: DZ3D    
+        logical                                             :: ExistVerticalZ        
+        real,   dimension(:,:,:), pointer                   :: VerticalZ
         
         type(T_HDF5Statistics), pointer                     :: Next                     => null()
     end type  T_HDF5Statistics
@@ -1304,6 +1306,21 @@ cd2 :           if (BlockFound) then
                                STAT         = STAT_CALL)      
             if (STAT_CALL /= SUCCESS_)                                                  &
             stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR10'
+            
+            if (Me%ExistVerticalZ) then
+                                                
+                call HDF5WriteData(HDF5ID       = Me%ObjStatHDF5,                               &
+                                   GroupName    = "/Grid/"//trim(GetPropertyName(VerticalZ_)),  &
+                                   Name         = trim(GetPropertyName(VerticalZ_)),            &
+                                   units        = "m",                                          & 
+                                   Array3D      = Me%VerticalZ,                                 &
+                                   OutputNumber = 1,                                            &
+                                   STAT         = STAT_CALL)      
+                if (STAT_CALL /= SUCCESS_)                                                      &
+                    stop 'OpenOutputFiles - ModuleHDF5Statistics - ERR11'            
+                
+            endif
+            
 
             if (Me%AditionalMap) then
 
@@ -1655,8 +1672,8 @@ cd2 :           if (BlockFound) then
         character(len=StringLength)                 :: GridVariableName
         character(len=StringLength)                 :: GridVariableUnits
         type (T_Parameter), pointer                 :: ObjParameter
-        logical                                     :: ExistVerticalZ
-        real,   dimension(:,:,:), pointer           :: VerticalZ
+        !logical                                     :: ExistVerticalZ
+        !real,   dimension(:,:,:), pointer           :: VerticalZ
         integer                                     :: i, j, k
 
         !Begin-----------------------------------------------------------------
@@ -1868,21 +1885,21 @@ cd2 :           if (BlockFound) then
         
             call GetHDF5DataSetExist (HDF5FileX%HDFID,                                  &
                                   DataSetName ="/Grid/VerticalZ/Vertical_00001",        &
-                                  Exist = ExistVerticalZ, STAT= STAT_CALL) 
+                                  Exist = Me%ExistVerticalZ, STAT= STAT_CALL) 
             if (STAT_CALL /= SUCCESS_)  then
                 stop 'ConstructHDF5Grid - ModuleHDF5Statistics - ERR150'
             endif                                       
                                   
-            if (ExistVerticalZ) then
+            if (Me%ExistVerticalZ) then
             
                 allocate(Me%DZ3D  (Me%Size%ILB:Me%Size%IUB,                             &
                                    Me%Size%JLB:Me%Size%JUB,                             &
                                    Me%Size%KLB:Me%Size%KUB))
-                allocate(VerticalZ(Me%Size%ILB:Me%Size%IUB,                             &
-                                   Me%Size%JLB:Me%Size%JUB,                             &
-                                   Me%Size%KLB:Me%Size%KUB))
+                allocate(Me%VerticalZ(Me%Size%ILB:Me%Size%IUB,                          &
+                                      Me%Size%JLB:Me%Size%JUB,                          &
+                                      Me%Size%KLB:Me%Size%KUB))
                     
-                VerticalZ(:,:,:) = FillValueReal 
+                Me%VerticalZ(:,:,:) = FillValueReal 
                 Me%DZ3D  (:,:,:) = FillValueReal
                 
                 call HDF5SetLimits(HDF5FileX%HDFID, Me%WorkSize%ILB, Me%WorkSize%IUB,   &
@@ -1896,7 +1913,7 @@ cd2 :           if (BlockFound) then
                 
                 call HDF5ReadWindow(HDF5FileX%HDFID, "/Grid/VerticalZ",                   &
                                   "Vertical_00001",                                     &
-                                  Array3D      = VerticalZ,                             &
+                                  Array3D      = Me%VerticalZ,                             &
                                   OffSet3       = 0,                                  &
                                   STAT = STAT_CALL) 
 
@@ -1908,13 +1925,13 @@ cd2 :           if (BlockFound) then
                 do j =  Me%WorkSize%JLB, Me%WorkSize%JUB
                 do i =  Me%WorkSize%ILB, Me%WorkSize%IUB
                     if (Me%Mapping%IntegerValues3D(i, j, k) == WaterPoint) then
-                        Me%DZ3D  (i,j,k)  = VerticalZ(i,j,k-1) - VerticalZ(i,j,k)
+                        Me%DZ3D  (i,j,k)  = Me%VerticalZ(i,j,k-1) - Me%VerticalZ(i,j,k)
                     endif
                 enddo
                 enddo
                 enddo
                 
-                deallocate(VerticalZ)
+                !deallocate(Me%VerticalZ)
                     
             endif
         

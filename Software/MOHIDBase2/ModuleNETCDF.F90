@@ -345,7 +345,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                 geospatial_lat_min, geospatial_lat_max,                 &
                                 geospatial_lon_min, geospatial_lon_max,                 & 
                                 CoordSysBuilder, contact, field_type, bulletin_date,    &
-                                bulletin_type, comment, STAT)
+                                bulletin_type, comment, MetadataAtt, MetadataLink,      & 
+                                STAT)
 
 
         !Arguments-------------------------------------------------------------
@@ -365,6 +366,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         character(len=*), optional                  :: bulletin_date        
         character(len=*), optional                  :: bulletin_type        
         character(len=*), optional                  :: comment        
+        character(len=*), optional                  :: MetadataAtt
+        character(len=*), optional                  :: MetadataLink
         integer         , optional                  :: STAT
 
         !Local-----------------------------------------------------------------
@@ -391,31 +394,31 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             !Enter definition mode
             STAT_CALL = nf90_redef(ncid = Me%ncid)
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR00' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR10' 
 
             STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'Title',             Me%Title)  
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR01' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR20' 
             
             STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'Conventions',       Me%Convention)  
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR02' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR30' 
 
             STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'netcdf_version_id', Me%Version)  
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR03' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR40' 
 
             STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'history',           Me%History)  
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR04' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR50' 
 
             STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'date',              Me%iDate)  
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR05' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR60' 
             
             STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'source',            Me%Source)  
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR06' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR70' 
 
             STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'institution',       Me%Institution)  
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR07' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR80' 
 
             STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'references',        Me%References) 
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR08'
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR90'
             
             if (present(geospatial_lat_min)) then
                 STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'geospatial_lat_min', geospatial_lat_min) 
@@ -465,12 +468,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             if (present(comment))           then
                 STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'comment',            comment)
-                if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR180'                           
+                if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR190'                           
             endif
+            
+            if (present(MetadataAtt) .and. present(MetadataLink))   then
+                if (trim(MetadataAtt) /= trim(null_str)) then
+                    STAT_CALL = nf90_put_att(Me%ncid, nf90_global, trim(MetadataAtt), trim(MetadataLink))
+                    if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR200'                           
+                endif                    
+            endif            
 
             !Exit definition mode
             STAT_CALL = nf90_enddef(Me%ncid) 
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR09' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR210' 
 
             STAT_ = SUCCESS_
 
