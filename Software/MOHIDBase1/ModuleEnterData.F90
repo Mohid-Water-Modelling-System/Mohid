@@ -4658,7 +4658,7 @@ cd3 :           if (ClientNumber .NE. Me%BlockClientIDnumber) then
 
         !Local-----------------------------------------------------------------
         character(len=25)           :: KeyWord_Delimiter = " "
-        character(len=255)          :: Line
+        character(len=255)          :: Line              = " "
         integer                     :: i
         character(10), allocatable, dimension(:) :: CharVectorValues
 
