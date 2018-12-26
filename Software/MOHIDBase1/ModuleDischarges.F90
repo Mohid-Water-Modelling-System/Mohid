@@ -390,7 +390,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%DataFile = DataFile
             else
                 call ReadFileName('DISCHARG', Me%DataFile, Message = "Discharges Data File", STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR10'
+                if (STAT_CALL /= SUCCESS_) write(*,*    ) 'DISCHARG keyword not found in Nomfich'
+                stop 'Construct_Discharges - ModuleDischarges - ERR10'
             endif
         
             ! Construct one instance to use the moduleEnterData
