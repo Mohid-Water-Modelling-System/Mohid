@@ -11776,11 +11776,14 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
                 endif
 
                 if (Me%OutW%OutPutWindows(iW)%KLB < KLB .or.                            &
-                    Me%OutW%OutPutWindows(iW)%KUB > KUB) then
-
-                    write(*,*) 'cell layers out of the model domain for the output window number',iW
-                    stop 'ConstructGlobalOutput - WaterProperties - ERR65'
-
+                    Me%OutW%OutPutWindows(iW)%KUB > KUB .or.                            &
+                    Me%OutW%OutPutWindows(iW)%KLB > KUB .or.                            &
+                    Me%OutW%OutPutWindows(iW)%KUB < KLB) then
+                    write(*,*) 'Cell layers out of the model domain for the output window number',iW
+                    !stop 'ConstructGlobalOutput - WaterProperties - ERR65'
+                    write(*,*) 'All model layers will be assumed for the window output'
+                    Me%OutW%OutPutWindows(iW)%KLB = KLB
+                    Me%OutW%OutPutWindows(iW)%KUB = KUB
                 endif
 
                 if (Me%OutW%OutPutWindows(iW)%ILB < ILB .or.                            &
