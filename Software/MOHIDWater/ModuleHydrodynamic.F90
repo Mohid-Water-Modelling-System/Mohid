@@ -149,8 +149,8 @@ Module ModuleHydrodynamic
                                        GetDDecompWorkSize2D, WriteHorizontalGrid_UV,     &
                                        GetCellRotation, GetGridCellArea
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
-                                       Alloc2WayAux_Hydro, PrepTwoWay,   &
-                                       UngetTwoWayExternal_Vars
+                                       Alloc2WayAux_Hydro, PrepTwoWay, UngetTwoWayExternal_Vars,&
+                                       Construct_TwoWay_Discharges
 #ifdef _USE_MPI
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
@@ -15788,13 +15788,14 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
 
 
             if(InitialField) then
-                Me%FatherInstanceID = HydrodynamicFatherID  ! Joao Sobrinho
+                Me%FatherInstanceID = HydrodynamicFatherID
 
                 call TestSubModelOptionsConsistence (ObjHydrodynamicFather%ComputeOptions%Continuous)
                 call GetComputeTimeStep             (ObjHydrodynamicFather%ObjTime, DT_Father)
 
                 if (Me%ComputeOptions%TwoWay)then
                     call Alloc2WayAux_Hydro(HydrodynamicFatherID, HydrodynamicID)
+                    call Construct_TwoWay_Discharges(HydrodynamicFatherID, HydrodynamicID)
                 endif
 
 
