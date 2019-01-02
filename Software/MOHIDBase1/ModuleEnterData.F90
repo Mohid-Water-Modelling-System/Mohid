@@ -4346,8 +4346,10 @@ cd1:    if (EnterDataID > 0) then
             Me => Me%Next
         enddo
 
-        if (.not. associated(Me))                                          &
+        if (.not. associated(Me)) then
             stop 'ModuleEnterData - LocateObjEnterData - ERR01'
+        endif
+               
 
     end subroutine LocateObjEnterData
 
