@@ -54,7 +54,7 @@ Module ModuleAssimilation
     use ModuleMap,              only: GetWaterPoints3D, GetOpenPoints3D, GetWaterFaces3D, UngetMap
     use ModuleFillMatrix,       only: ConstructFillMatrix, GetDefaultValue, KillFillMatrix, &
                                       ModifyFillMatrix, GetAnalyticCelerityON,              &
-                                      GetAnalyticCelerity, UngetFillMatrix
+                                      GetFilenameHDF, GetAnalyticCelerity, UngetFillMatrix
     use ModuleFunctions,        only: ConstructPropertyID, Density, Sigma, CHUNK_J
 
     implicit none
@@ -183,6 +183,8 @@ Module ModuleAssimilation
         type (T_Time)                           :: LastTimeSerieOutput
         type (T_Property), pointer              :: Next, Prev
         character(len=StringLength)             :: GroupOutPutName      = null_str
+        character(len=PathLength  )             :: FilenameHDF          = null_str
+        logical                                 :: HdfFileExist         = .false.
     end type T_Property
 
     private :: T_Files
@@ -254,6 +256,7 @@ Module ModuleAssimilation
         type(T_Property), pointer               :: FirstAssimilationProp
         type(T_Property), pointer               :: LastAssimilationProp
         integer                                 :: PropertiesNumber            = null_int
+        real                                    :: ColdRelaxPeriodDefault      = null_real 
         
         !Instance of ModuleHDF5     
         integer                                 :: ObjHDF5            = 0
@@ -377,6 +380,8 @@ Module ModuleAssimilation
             !Construct enter data 
             call ConstructEnterData(Me%ObjEnterData, Me%Files%ConstructData, STAT = STAT_CALL) 
             if(STAT_CALL .ne. SUCCESS_)stop 'StartAssimilation - ModuleAssimilation - ERR03'
+            
+            call ConstructDefaultValues            
 
             ! guillaume : aqui le-se os parametros do assimilation.dat
             ! Constructs the property list 
@@ -391,7 +396,7 @@ Module ModuleAssimilation
 
             !Constructs HDF output time
             call ConstructOutPut
-
+            
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)stop 'StartAssimilation - ModuleAssimilation - ERR04'
 
@@ -422,6 +427,25 @@ Module ModuleAssimilation
     end subroutine StartAssimilation
 
     !--------------------------------------------------------------------------
+                                 
+    subroutine ConstructDefaultValues
+
+        !Local-----------------------------------------------------------------
+        integer                                             :: iflag, STAT_CALL
+        
+        !Begin-----------------------------------------------------------------    
+    
+        !Define the default cold relaxation period for all properties
+        call GetData(Me%ColdRelaxPeriodDefault,                                         &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'COLD_RELAX_PERIOD_DEFAULT',                      &
+                     Default        = 0.,                                               &
+                     SearchType     = FromFile,                                         &
+                     ClientModule   = 'ModuleAssimilation',                             &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructDefaultValues - ModuleAssimilation - ERR230'    
+        
+    end subroutine ConstructDefaultValues        
     
     !--------------------------------------------------------------------------
 
@@ -1129,6 +1153,18 @@ cd2 :           if (BlockFound) then
 
                     call GetDefaultValue(NewProperty%ID%ObjFillMatrix, NewProperty%CoefField%DefaultValue, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR100'
+                    
+                    call GetFilenameHDF (FillMatrixID   = NewProperty%ID%ObjFillMatrix, &     
+                                         FilenameHDF    = NewProperty%FilenameHDF,      &
+                                         HdfFileExist   = NewProperty%HdfFileExist,     &
+                                         STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ConstructAssimilationField - ModuleAssimilation - ERR105'
+                    endif                         
+                    
+                    if (.not. NewProperty%HdfFileExist) then
+                        NewProperty%FilenameHDF = null_str
+                    endif                        
 
                     if (NewProperty%Field%TypeZUV == TypeZ_) then
                         if (GetPropertyIDNumber(NewProperty%ID%Name) == BarotropicVelocityU_) then
@@ -1269,6 +1305,18 @@ cd2 :           if (BlockFound) then
 
                     call GetDefaultValue(NewProperty%ID%ObjFillMatrix, NewProperty%Field%DefaultValue, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR180'
+                    
+                    call GetFilenameHDF (FillMatrixID   = NewProperty%ID%ObjFillMatrix, &     
+                                         FilenameHDF    = NewProperty%FilenameHDF,      &
+                                         HdfFileExist   = NewProperty%HdfFileExist,     &
+                                         STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ConstructAssimilationField - ModuleAssimilation - ERR185'
+                    endif                                 
+                    
+                    if (.not. NewProperty%HdfFileExist) then
+                        NewProperty%FilenameHDF = null_str
+                    endif    
 
                     if (NewProperty%Field%TypeZUV == TypeZ_) then
                         if (GetPropertyIDNumber(NewProperty%ID%Name) == VelocityU_) then
@@ -1364,7 +1412,7 @@ cd2 :           if (BlockFound) then
         call GetData(NewProperty%ColdRelaxPeriod,                                       &
                      Me%ObjEnterData, iflag,                                            &
                      Keyword        = 'COLD_RELAX_PERIOD',                              &
-                     Default        = 0.,                                               &
+                     Default        = Me%ColdRelaxPeriodDefault,                        &
                      SearchType     = FromBlock,                                        &
                      ClientModule   = 'ModuleAssimilation',                             &
                      STAT           = STAT_CALL)
@@ -1536,11 +1584,14 @@ cd0:        if (BlockFound) then
                                                PointsToFill2D       = WaterPoints2D,                &
                                                Matrix2D             = NewProperty%CoefField%R2D,    &
                                                TypeZUV              = NewProperty%CoefField%TypeZUV,&
+                                               SpongeFILE_DT        = NewProperty%FilenameHDF,      &
                                                STAT                 = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR05'
 
                     call GetDefaultValue(NewProperty%CoefID%ObjFillMatrix, NewProperty%Field%DefaultValue, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR06'
+                    
+
                     
                     call FindMinimumCoef(NewProperty%CoefField%Minimum,                 &
                                          Field2D       = NewProperty%CoefField%R2D,     &
@@ -1609,6 +1660,7 @@ cd0:        if (BlockFound) then
                                                PointsToFill3D       = PointsToFill3D,               &
                                                Matrix3D             = NewProperty%CoefField%R3D,    &
                                                TypeZUV              = NewProperty%CoefField%TypeZUV,&
+                                               SpongeFILE_DT         = NewProperty%FilenameHDF,      &
                                                STAT                 = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR09'
 
