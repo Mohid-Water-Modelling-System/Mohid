@@ -73,15 +73,15 @@ Module ModuleHorizontalGrid
     public  :: ConstructFatherGridLocation
     private ::      ConstructNewFatherGrid1D
     private ::      ConstructNewFatherGrid2D
-    private ::      ConstructIWDVel
     private ::      DetermineMaxRatio
     private ::      Add_FatherGrid
     private :: CheckGridBorder
     private :: DefineBorderPolygons
     private ::      DefinesBorderPoly
-
-    public  :: ConstructGridConnectionTwoWay
-
+    public  :: ConstructP2C_IWD
+    private ::      ConstructP2C_Avrg
+    private ::      ConstructIWDVel
+    
     !Modifier
     public  :: WriteHorizontalGrid
     public  :: WriteHorizontalGrid_UV
@@ -529,9 +529,9 @@ Module ModuleHorizontalGrid
         integer                                 :: ZoneLat    = null_int
         integer, dimension(2)                   :: Grid_Zone
 
-        integer, dimension(:, :), allocatable   :: ConnectionsU
-        integer, dimension(:, :), allocatable   :: ConnectionsV
-        integer, dimension(:, :), allocatable   :: ConnectionsZ
+        integer, dimension(:, :), allocatable   :: Connections_U
+        integer, dimension(:, :), allocatable   :: Connections_V
+        integer, dimension(:, :), allocatable   :: Connections_Z
         real, pointer, dimension(:)             :: IWD_Distances_U   => null()
         real, pointer, dimension(:)             :: IWD_Distances_V   => null()
         real, pointer, dimension(:)             :: IWD_Distances_Z   => null()
@@ -1894,16 +1894,21 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     end subroutine GetSonWindow
 
     !--------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Gets connections matrixes for the different twoway methods  
+    !>@param[in] HorizontalGridID, Connections_U, Connections_V, Connections_Z, IWD_Distances_U, IWD_Distances_V, &
+    !> IWD_Distances_Z, IWD_Nodes_Z, IWD_Nodes_U, IWD_Nodes_V, STAT 
     subroutine GetConnections (HorizontalGridID, Connections_U, Connections_V, Connections_Z, &
                              IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z, IWD_Nodes_Z, IWD_Nodes_U, &
                              IWD_Nodes_V, STAT)
         !Arguments-------------------------------------------------------------
-        integer                                   :: HorizontalGridID, IWD_Nodes_Z, IWD_Nodes_U, IWD_Nodes_V
-        integer, optional,        intent (OUT)    :: STAT
-        integer,  dimension(:,:), pointer         :: Connections_U, Connections_V, Connections_Z
-        real,     dimension(:  ), pointer         :: IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z
+        integer                                     :: HorizontalGridID, IWD_Nodes_Z, IWD_Nodes_U, IWD_Nodes_V
+        integer, optional,        intent (OUT)      :: STAT
+        integer,  dimension(:,:), pointer, optional :: Connections_U, Connections_V, Connections_Z
+        real,     dimension(:  ), pointer, optional :: IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z
         !Local-----------------------------------------------------------------
-        integer                                   :: STAT_, ready_
+        integer                                     :: STAT_, ready_
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -1914,15 +1919,15 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
             if (present(Connections_U))then
-                Connections_U => Connections_U
+                Connections_U => Me%Connections_U
                 call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
             endif
             if (present(Connections_V))then
-                Connections_V => Connections_V
+                Connections_V => Me%Connections_V
                 call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
             endif
             if (present(Connections_Z))then
-                Connections_Z => Connections_Z
+                Connections_Z => Me%Connections_Z
                 call Read_Lock(mHORIZONTALGRID_, Me%InstanceID)
             endif
             if (present(IWD_Distances_U))then
@@ -1957,15 +1962,20 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
                              end subroutine GetConnections
     !--------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Gets connections matrixes for the different twoway methods  
+    !>@param[in] HorizontalGridID, ConnectionsU, ConnectionsV, ConnectionsZ, IWD_Distances_U, IWD_Distances_V, &
+    !> IWD_Distances_Z, STAT 
     subroutine UnGetConnections(HorizontalGridID, ConnectionsU, ConnectionsV, ConnectionsZ, &
                              IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z, STAT)
         !Arguments-------------------------------------------------------------
-        integer                                   :: HorizontalGridID
-        integer, optional,        intent (OUT)    :: STAT
-        integer,  dimension(:,:), pointer         :: ConnectionsU, ConnectionsV, ConnectionsZ
-        real,     dimension(:  ), pointer         :: IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z
+        integer                                     :: HorizontalGridID
+        integer, optional,        intent (OUT)      :: STAT
+        integer,  dimension(:,:), pointer, optional :: ConnectionsU, ConnectionsV, ConnectionsZ
+        real,     dimension(:  ), pointer           :: IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z
         !Local-----------------------------------------------------------------
-        integer                                   :: STAT_, ready_
+        integer                                     :: STAT_, ready_
         !----------------------------------------------------------------------
         STAT_ = UNKNOWN_
 
@@ -2702,9 +2712,9 @@ do8:       do i = ILBwork, IUBwork
 
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !>Builds connection matrix between son and father grid on a IWD interpolation
+    !>Builds connection matrix between parent and child grid on a IWD interpolation
     !>@param[in] FatherID, SonID
-    subroutine ConstructGridConnectionTwoWay(FatherID, SonID, isIWD)
+    subroutine ConstructP2C_IWD(FatherID, SonID)
 
         !Arguments--------------------------------------------------------------
         type (T_HorizontalGrid), pointer    :: ObjHorizontalFather
@@ -2715,7 +2725,6 @@ do8:       do i = ILBwork, IUBwork
         integer                             :: index, Nbr_Connections, minJ, minI, maxJ, maxI
         integer                             :: i, j, i2, j2, ready_
         integer, dimension (:, :), pointer  :: FatherLinkI, FatherLinkJ
-        logical                             :: isIWD
         !-------------------------------------------------------------------------
         index = 1
         call Ready (SonID, ready_)
@@ -2726,33 +2735,33 @@ do8:       do i = ILBwork, IUBwork
 
         FatherLinkI      => Me%LastFatherGrid%ILinkZ
         FatherLinkJ      => Me%LastFatherGrid%JLinkZ
-
+            
         minJ = min(FatherLinkJ(1,1), FatherLinkJ(1, Me%Size%JUB - 1), &
-                   FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1))
+                    FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1))
         minI = min(FatherLinkI(1,1), FatherLinkI(1, Me%Size%JUB - 1), &
-                   FatherLinkI(Me%Size%IUB - 1, 1), FatherLinkI(Me%Size%IUB - 1, Me%Size%JUB - 1))
+                    FatherLinkI(Me%Size%IUB - 1, 1), FatherLinkI(Me%Size%IUB - 1, Me%Size%JUB - 1))
         maxJ = max(FatherLinkJ(1,1), FatherLinkJ(1, Me%Size%JUB - 1), &
-                   FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1))
+                    FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1))
         maxI = max(FatherLinkI(1,1), FatherLinkI(1, Me%Size%JUB - 1), &
-                   FatherLinkI(Me%Size%IUB - 1, 1), FatherLinkI(Me%Size%IUB - 1, Me%Size%JUB - 1))
-
-        nullify (FatherLinkI)
-        nullify (FatherLinkJ)
+                    FatherLinkI(Me%Size%IUB - 1, 1), FatherLinkI(Me%Size%IUB - 1, Me%Size%JUB - 1))
+        
+        nullify(FatherLinkI)
+        nullify(FatherLinkJ)
+        
         !Uses the maxRatio to avoid allocating too few indexes. 2nd term is to account for search radious
         Nbr_Connections   = (maxJ - minJ + 2) * (maxI - minI + 2) * (MaxRatio + 4 * (int(sqrt(MaxRatio))) + 4)
-
         !Vectorials and scalars
-        allocate (Connections_Z (Nbr_Connections, 4))
+        allocate (Me%Connections_Z (Nbr_Connections, 4))
         allocate (Me%IWD_Distances_Z   (Nbr_Connections))
-        Connections_Z(:, :) = FillValueInt
+        Me%Connections_Z(:, :) = FillValueInt
         Me%IWD_Distances_Z(:)      = FillValueReal
-        allocate (Connections_U(Nbr_Connections, 4))
+        allocate (Me%Connections_U(Nbr_Connections, 4))
         allocate (Me%IWD_Distances_U  (Nbr_Connections))
-        Connections_U(:, :) = FillValueInt
+        Me%Connections_U(:, :) = FillValueInt
         Me%IWD_Distances_U(:)      = FillValueReal
-        allocate (Connections_V (Nbr_Connections, 4))
+        allocate (Me%Connections_V (Nbr_Connections, 4))
         allocate (Me%IWD_Distances_V   (Nbr_Connections))
-        Connections_V(:, :) = FillValueInt
+        Me%Connections_V(:, :) = FillValueInt
         Me%IWD_Distances_V(:)      = FillValueReal
         
         !i and j   -> father cell
@@ -2768,10 +2777,10 @@ do8:       do i = ILBwork, IUBwork
             
             if (isIWD)then
                 SearchRadious = (1.01+(1/(Sqrt(MaxRatio)))) * Sqrt((FatherCenterX - ObjHorizontalFather%XX(j))**2 + &
-                                                                   (FatherCenterY - ObjHorizontalFather%YY(i))**2)
+                                                                    (FatherCenterY - ObjHorizontalFather%YY(i))**2)
             else
                 SearchRadious = Sqrt((FatherCenterX - ObjHorizontalFather%XX(j))**2 + &
-                                     (FatherCenterY - ObjHorizontalFather%YY(i))**2)
+                                        (FatherCenterY - ObjHorizontalFather%YY(i))**2)
             endif
 
                 !Find and build matrix of correspondent son cells
@@ -2785,17 +2794,16 @@ do8:       do i = ILBwork, IUBwork
                 DistanceToFather = Sqrt((SonCenterX - FatherCenterX)**2.0 + &
                                         (SonCenterY - FatherCenterY)**2.0)
                 if (DistanceToFather <= SearchRadious) then
-                    Connections_Z(index, 1) = i
-                    Connections_Z(index, 2) = j
-                    Connections_Z(index, 3) = i2
-                    Connections_Z(index, 4) = j2
+                    Me%Connections_Z(index, 1) = i
+                    Me%Connections_Z(index, 2) = j
+                    Me%Connections_Z(index, 3) = i2
+                    Me%Connections_Z(index, 4) = j2
 
                     if (DistanceToFather == 0)then
                         Me%IWD_Distances_Z(index) = 1.e-5
                     else
                         Me%IWD_Distances_Z(index) = DistanceToFather
                     endif
-
                     index = index + 1
                 endif
             enddo
@@ -2805,11 +2813,9 @@ do8:       do i = ILBwork, IUBwork
         enddo
         Me%IWD_Nodes_Z = index - 1
         
-        if (isIWD == .true.)then
-            call  ConstructIWDVel(ObjHorizontalFather, minI, minJ, maxI, maxJ, MaxRatio)
-        endif
+        call  ConstructIWDVel(ObjHorizontalFather, minI, minJ, maxI, maxJ, MaxRatio)
 
-    end subroutine ConstructGridConnectionTwoWay
+    end subroutine ConstructP2C_IWD
 
     !---------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
@@ -2868,10 +2874,10 @@ do8:       do i = ILBwork, IUBwork
                                           (SonCenterY_V - FatherCenterY_V)**2.0)
 
                 if (DistanceToFather_U <= SearchRadious_U) then
-                    Connections_U(index_U, 1) = i
-                    Connections_U(index_U, 2) = j
-                    Connections_U(index_U, 3) = i2
-                    Connections_U(index_U, 4) = j2
+                    Me%Connections_U(index_U, 1) = i
+                    Me%Connections_U(index_U, 2) = j
+                    Me%Connections_U(index_U, 3) = i2
+                    Me%Connections_U(index_U, 4) = j2
 
                     if (DistanceToFather_U == 0)then
                         !The 0.001 is the reference distance. The if also avoids /0 in module functions
@@ -2884,10 +2890,10 @@ do8:       do i = ILBwork, IUBwork
                 endif
 
                 if (DistanceToFather_V <= SearchRadious_V) then
-                    Connections_V(index_V, 1) = i
-                    Connections_V(index_V, 2) = j
-                    Connections_V(index_V, 3) = i2
-                    Connections_V(index_V, 4) = j2
+                    Me%Connections_V(index_V, 1) = i
+                    Me%Connections_V(index_V, 2) = j
+                    Me%Connections_V(index_V, 3) = i2
+                    Me%Connections_V(index_V, 4) = j2
 
                     if (DistanceToFather_V == 0)then
                         !The 0.001 is the reference distance. The if also avoids /0 in module functions
@@ -2906,7 +2912,73 @@ do8:       do i = ILBwork, IUBwork
         Me%IWD_Nodes_U = index_U - 1
         Me%IWD_Nodes_V = index_V - 1
     end subroutine ConstructIWDVel
+    !---------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>builds Connection matrix for Z cells, which will be used to detect TwoWay momentum discharges
+    !>@param[in] FatherID, SonID     
+    subroutine ConstructP2C_Avrg(FatherID, SonID)
+        !Arguments--------------------------------------------------------------
+        type (T_HorizontalGrid), pointer    :: ObjHorizontalFather
+        !Local------------------------------------------------------------------
+        integer                             :: FatherID, SonID
+        integer                             :: index, Nbr_Connections, minJ, minI, maxJ, maxI
+        integer                             :: i, j, i2, j2, ready_
+        integer, dimension (:, :), pointer  :: FatherLinkI, FatherLinkJ
+        !-------------------------------------------------------------------------
+        index = 1
+        call Ready (SonID, ready_)
 
+        call LocateObjFather        (ObjHorizontalFather, FatherID)
+        
+        FatherLinkI      => Me%LastFatherGrid%ILinkZ
+        FatherLinkJ      => Me%LastFatherGrid%JLinkZ
+            
+        minJ = min(FatherLinkJ(1,1), FatherLinkJ(1, Me%Size%JUB - 1), &
+                    FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1))
+        minI = min(FatherLinkI(1,1), FatherLinkI(1, Me%Size%JUB - 1), &
+                    FatherLinkI(Me%Size%IUB - 1, 1), FatherLinkI(Me%Size%IUB - 1, Me%Size%JUB - 1))
+        maxJ = max(FatherLinkJ(1,1), FatherLinkJ(1, Me%Size%JUB - 1), &
+                    FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1))
+        maxI = max(FatherLinkI(1,1), FatherLinkI(1, Me%Size%JUB - 1), &
+                    FatherLinkI(Me%Size%IUB - 1, 1), FatherLinkI(Me%Size%IUB - 1, Me%Size%JUB - 1))
+        
+        nullify(FatherLinkI)
+        nullify(FatherLinkJ)
+        
+        Nbr_Connections = Me%Size%JUB * Me%Size%IUB + 1
+        
+        allocate (Me%Connections_Z (Nbr_Connections, 4))
+        !i and j   -> father cell
+        !i2 and j2 -> son cell
+        do j = minJ, maxJ
+        do i = minI, maxI
+
+                !Find and build matrix of correspondent son cells
+            do j2 = 1, Me%Size%JUB - 1
+            do i2 = 1, Me%Size%IUB - 1
+
+                if (FatherLinkI(i2, j2) = i) then
+                    if (FatherLinkJ(i2, j2) = j) then
+                        
+                        Me%Connections_Z(index, 1) = i
+                        Me%Connections_Z(index, 2) = j
+                        Me%Connections_Z(index, 3) = i2
+                        Me%Connections_Z(index, 4) = j2
+
+                        index = index + 1
+                    endif
+                endif
+                
+            enddo
+            enddo
+
+        enddo
+        enddo
+        
+    end subroutine ConstructP2C_Avrg
+    
     !---------------------------------------------------------------------------
 
     !>@author Joao Sobrinho Maretec
@@ -15105,18 +15177,18 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 deallocate(Me%AuxPolygon%VerticesF)
                 deallocate(Me%AuxPolygon)
 
-                if (allocated(Connections_U)) then
-                    deallocate(Connections_U)
+                if (allocated(Me%Connections_U)) then
+                    deallocate(Me%Connections_U)
                     deallocate(Me%IWD_Distances_U)
                     nullify   (Me%IWD_Distances_U)
                 endif
-                if (allocated(Connections_V)) then
-                    deallocate(Connections_V)
+                if (allocated(Me%Connections_V)) then
+                    deallocate(Me%Connections_V)
                     deallocate(Me%IWD_Distances_V)
                     nullify   (Me%IWD_Distances_V)
                 endif
-                if (allocated(Connections_Z)) then
-                    deallocate(Connections_Z)
+                if (allocated(Me%Connections_Z)) then
+                    deallocate(Me%Connections_Z)
                     deallocate(Me%IWD_Distances_Z)
                     nullify   (Me%IWD_Distances_Z)
                 endif
