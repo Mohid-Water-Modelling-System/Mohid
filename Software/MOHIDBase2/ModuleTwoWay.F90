@@ -445,40 +445,55 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                            :: FatherTwoWayID, TwoWayID
         !Local-----------------------------------------------------------------
         integer                            :: ready_, ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL
+        logical                            :: Present
+        integer, dimension(:, :), pointer  :: SonLandPoints2D, FatherLandPoints2D
         !----------------------------------------------------------------------
         call Ready (TwoWayID, ready_)
         
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            call GetConnections(HorizontalGridID = TwoWayID,                      &
-                                Connections_Z    = Me%External_Var%Connections_Z, &
-                                STAT             = STAT_CALL)
+            Present = .false.
+            call GetConnections(TwoWayID, Me%External_Var%Connections_Z, STAT             = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR10'
             
             call GetWaterPoints3D(TwoWayID,       Me%External_Var%WaterPoints3D,        STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR01'
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR20'
             
             call GetWaterPoints3D(FatherTwoWayID, Me%Father%External_Var%WaterPoints3D, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR10'            
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR30'
             
-            call BuildDischargesMatrix(Me%External_Var%Connections_Z, Me%External_Var%WaterPoints3D, &
-                                       Me%Father%External_Var%WaterPoints3D, Me%TwoWayMomentumFlow)
+            call GetLandPoints2D(TwoWayID,  SonLandPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR40'
+            
+            call GetLandPoints2D(FatherTwoWayID,  FatherLandPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR50'            
+            
+            
+            call SearchForDischarges(Me%External_Var%Connections_Z, Me%External_Var%WaterPoints3D, &
+                                     Me%Father%External_Var%WaterPoints3D, Me%Size2D, Me%Father%Size2D, &
+                                     SonLandPoints2D, FatherLandPoints2D, Present)
+            
+            if (Present == .true.)then
+                call BuildDischargesMatrix(Me%External_Var%Connections_Z, Me%External_Var%WaterPoints3D, &
+                                           Me%Father%External_Var%WaterPoints3D, Me%Size2D, Me%Father%Size2D)
+            endif
             
             
             call UnGetHorizontalGrid(TwoWayID, Me%External_Var%Connections_Z, STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR40'
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR60'
             
             call UnGetMap(TwoWayID, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
-            if (status /= SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR50'
+            if (status /= SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR70'
             call UnGetMap(TwoWayID, Me%Father%External_Var%WaterPoints3D, STAT = STAT_CALL)
-            if (status /= SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR60'  
+            if (status /= SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR80'  
             
             
             call deallocateConnections_Z ! Adicionar isto no horizontal grid( a matrix já nao deve ser necessaria
                                          ! depois da verificaçao das descargas de quantidade de movimento
             
         else  
-            stop 'ModuleTwoWay - Construct_TwoWay_Discharges - ERR60'               
+            stop 'ModuleTwoWay - Construct_TwoWay_Discharges - ERR90'               
         endif
             
         
