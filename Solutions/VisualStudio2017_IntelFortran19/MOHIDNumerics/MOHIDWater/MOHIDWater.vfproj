@@ -134,8 +134,7 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleFreeVerticalMovement.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleGauge.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleGOTM.F90"/>
-		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleHNS.F90">
-			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/></File>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleHNS.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleHydrodynamic.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleHydrodynamicFile.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleInterfaceSedimentWater.F90"/>
@@ -145,15 +144,13 @@
 			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
-		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleLagrangianGlobal.F90">
-			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/></File>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleLagrangianGlobal.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleModel.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleOil.F90">
 			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
 			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
-		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleOil_0D.F90">
-			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/></File>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleOil_0D.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleOpenBoundary.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleSand.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleSediment.F90"/>
