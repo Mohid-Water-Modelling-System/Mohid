@@ -3957,71 +3957,60 @@ i11:                                if      (Me%River%Dredge == Linear) then
 
         !Local-----------------------------------------------------------------
         real, dimension(:,:), pointer           :: DepthAux
-        integer                                 :: i, iw
-        integer                                 :: j, jw
-        real                                    :: Beta, Counter, AuxSum 
-
+        integer                                 :: i, ii, iw
+        integer                                 :: j, jj, jw
+        integer                                 :: Counter, NValues, I50
+        real,   dimension(:), pointer           :: AuxBat
 
         !Begin-----------------------------------------------------------------
 
         allocate(DepthAux(Me%ExtVar%Size%ILB : Me%ExtVar%Size%IUB,                      &
                           Me%ExtVar%Size%JLB : Me%ExtVar%Size%JUB))
+        
+        NValues = ((Me%FilterRadiusI + 1)*(Me%FilterRadiusJ + 1))**2 
+            
+        allocate (AuxBat (1:NValues))         
 
                                   
 d1:     do i = Me%ExtVar%WorkSize%ILB, Me%ExtVar%WorkSize%IUB
+d2:     do j = Me%ExtVar%WorkSize%JLB, Me%ExtVar%WorkSize%JUB
 
-d2:         do  j = Me%ExtVar%WorkSize%JLB,  Me%ExtVar%WorkSize%JUB
-
-i4:             if (Me%Depth(i,j) /= Me%NoDataPoint.and. Me%Depth(i,j) /= Me%LandPoint) then
-
-                    Beta = .5
-  
-                    Counter = 0
-                    AuxSum  = 0.
-                    do iw = i - Me%FilterRadiusI, i + Me%FilterRadiusI
-                        if (iw >= Me%ExtVar%WorkSize%ILB .and. iw <= Me%ExtVar%WorkSize%IUB .and.  &
-                            Me%Depth(iw,j) /= Me%NoDataPoint.and. Me%Depth(iw,j) /= Me%LandPoint) then
-                            Counter = Counter + 1
-                            AuxSum  = AuxSum + Me%Depth(iw, j)
-                        endif
-
-                    enddo
-
-                    DepthAux(i,j) = Beta * Me%Depth(i,j) + (1. - Beta) * AuxSum / real(Counter)
-                        
+i4:         if (Me%Depth(i,j) /= Me%LandPoint) then
                 
-                endif i4
+                Counter = 0
 
-            enddo d2
+                AuxBat(:) = - FillValueReal                     
+                    
+                do jj = j - Me%FilterRadiusJ, j + Me%FilterRadiusJ
+                do ii = i - Me%FilterRadiusI, i + Me%FilterRadiusI
+                        
+                    iw = max(ii, Me%ExtVar%WorkSize%ILB) 
+                    jw = max(jj, Me%ExtVar%WorkSize%JLB)
+                        
+                    iw = min(iw, Me%ExtVar%WorkSize%IUB) 
+                    jw = min(jw, Me%ExtVar%WorkSize%JUB)  
+                        
+                    if (Me%Depth(iw,jw) /= Me%NoDataPoint.and. Me%Depth(iw,jw) /= Me%LandPoint) then
+                        Counter = Counter + 1
+                        AuxBat(Counter) =  Me%Depth(iw, jw)
+                    endif
 
-        enddo  d1
+                enddo
+                enddo
 
-
-
-d4:     do j = Me%ExtVar%WorkSize%JLB, Me%ExtVar%WorkSize%JUB
-          
-d5:         do  i = Me%ExtVar%WorkSize%ILB,  Me%ExtVar%WorkSize%IUB
-
-                if (Me%Depth(i,j) /= Me%NoDataPoint.and. Me%Depth(i,j) /= Me%LandPoint) then
-
-                    Beta = .5
-  
-                    Counter = 0
-                    AuxSum  = 0.
-                    do jw = j - Me%FilterRadiusJ, j + Me%FilterRadiusJ
-                        if (jw >= Me%ExtVar%WorkSize%JLB .and. jw <= Me%ExtVar%WorkSize%JUB .and.  &
-                            Me%Depth(i,jw) /= Me%NoDataPoint.and. Me%Depth(i,jw) /= Me%LandPoint) then
-                            Counter = Counter + 1
-                            AuxSum  = AuxSum + Me%Depth(i, jw)
-                        endif
-
-                    enddo
-
-                    DepthAux(i,j) = Beta * Me%Depth(i,j) + (1. - Beta) * AuxSum / real(Counter)
-
+                call Insertion_Sort(AuxBat)
+                i50 = int(real(Counter)/2.)
+                if (i50 > 0) then
+                    DepthAux(i, j) = AuxBat(i50)
                 endif
-            enddo d5
-        enddo d4
+            else
+                
+                DepthAux(i, j) = Me%LandPoint
+                
+            endif i4
+
+        enddo d2
+        enddo d1
 
 
         Me%Depth(:,:) = DepthAux(:,:)

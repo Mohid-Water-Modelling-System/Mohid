@@ -3786,15 +3786,15 @@ SP:                     if (NewProperty%SedimentPartition%ON) then
 
                 if (NewOrigin%State%ComputePlume) then
 
-                    call Construct_Jet(JetID       = NewOrigin%Movement%ObjJet,          &
-                                       FileName    = NewOrigin%Movement%JetDataFile,     &
-                                       PositionX   = NewOrigin%Position%X,               & 
-                                       PositionY   = NewOrigin%Position%Y,               & 
-                                       Flow        = NewOrigin%Flow,                     &
-                                       Salinity    = NewOrigin%Movement%JetSalinity,     &
-                                       Temperature = NewOrigin%Movement%JetTemperature,  &
-                                       STAT        = STAT_CALL) 
-
+                    call Construct_Jet(JetID            = NewOrigin%Movement%ObjJet,            &
+                                       FileName         = NewOrigin%Movement%JetDataFile,       &
+                                       HorizontalGridID = Me%ObjHorizontalGrid,                 &
+                                       PositionX        = NewOrigin%Position%X,                 & 
+                                       PositionY        = NewOrigin%Position%Y,                 & 
+                                       Flow             = NewOrigin%Flow,                       &
+                                       Salinity         = NewOrigin%Movement%JetSalinity,       &
+                                       Temperature      = NewOrigin%Movement%JetTemperature,    &
+                                       STAT             = STAT_CALL) 
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangian - ERR1530'
 
                     call UnitsManager(NewOrigin%Movement%JetUnit, OPEN_FILE,             &

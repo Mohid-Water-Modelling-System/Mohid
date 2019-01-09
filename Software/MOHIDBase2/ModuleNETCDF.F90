@@ -345,7 +345,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                 geospatial_lat_min, geospatial_lat_max,                 &
                                 geospatial_lon_min, geospatial_lon_max,                 & 
                                 CoordSysBuilder, contact, field_type, bulletin_date,    &
-                                bulletin_type, comment, STAT)
+                                bulletin_type, comment, MetadataAtt, MetadataLink,      & 
+                                STAT)
 
 
         !Arguments-------------------------------------------------------------
@@ -365,6 +366,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         character(len=*), optional                  :: bulletin_date        
         character(len=*), optional                  :: bulletin_type        
         character(len=*), optional                  :: comment        
+        character(len=*), optional                  :: MetadataAtt
+        character(len=*), optional                  :: MetadataLink
         integer         , optional                  :: STAT
 
         !Local-----------------------------------------------------------------
@@ -391,31 +394,31 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             !Enter definition mode
             STAT_CALL = nf90_redef(ncid = Me%ncid)
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR00' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR10' 
 
             STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'Title',             Me%Title)  
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR01' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR20' 
             
             STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'Conventions',       Me%Convention)  
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR02' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR30' 
 
             STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'netcdf_version_id', Me%Version)  
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR03' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR40' 
 
             STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'history',           Me%History)  
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR04' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR50' 
 
             STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'date',              Me%iDate)  
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR05' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR60' 
             
             STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'source',            Me%Source)  
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR06' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR70' 
 
             STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'institution',       Me%Institution)  
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR07' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR80' 
 
             STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'references',        Me%References) 
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR08'
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR90'
             
             if (present(geospatial_lat_min)) then
                 STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'geospatial_lat_min', geospatial_lat_min) 
@@ -465,12 +468,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             if (present(comment))           then
                 STAT_CALL = nf90_put_att(Me%ncid, nf90_global, 'comment',            comment)
-                if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR180'                           
+                if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR190'                           
             endif
+            
+            if (present(MetadataAtt) .and. present(MetadataLink))   then
+                if (trim(MetadataAtt) /= trim(null_str)) then
+                    STAT_CALL = nf90_put_att(Me%ncid, nf90_global, trim(MetadataAtt), trim(MetadataLink))
+                    if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR200'                           
+                endif                    
+            endif            
 
             !Exit definition mode
             STAT_CALL = nf90_enddef(Me%ncid) 
-            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR09' 
+            if(STAT_CALL /= nf90_noerr) stop 'ModuleNETCDF - NETCDFWriteHeader - ERR210' 
 
             STAT_ = SUCCESS_
 
@@ -1881,17 +1891,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         MissingValue = FillValueReal
         
         call NETCDFWriteAttributes(Me%Dims(1)%VarID, LongName     = "X",                &
-                                                     StandardName = "x direction in the canonical space",   &
-                                                     Units        = "cell index",       &
-                                                     FillValue    = FillValue,          &
-                                                     MissingValue = MissingValue,       &
+                                                     !StandardName = "x direction in the canonical space",   &
+                                                     Units        = " ",       &
+!                                                     FillValue    = FillValue,          &
+!                                                     MissingValue = MissingValue,       &
                                                      axis           ="X")
 
         call NETCDFWriteAttributes(Me%Dims(2)%VarID, LongName     = "Y",                &
-                                                     StandardName = "y direction in the canonical space",   &
-                                                     Units        = "cell index",       &
-                                                     FillValue    = FillValue,          &
-                                                     MissingValue = MissingValue,       &
+                                                     !StandardName = "y direction in the canonical space",   &
+                                                     Units        = " ",       &
+!                                                     FillValue    = FillValue,          &
+!                                                     MissingValue = MissingValue,       &
                                                      axis           ="Y")
                                                      
         allocate(Column(Me%Dims(1)%LB:Me%Dims(1)%UB))
@@ -2005,31 +2015,31 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call NETCDFWriteAttributes(Me%Dims(2)%VarID, LongName     = "latitude",             &
                                                          StandardName = "latitude",             &
                                                          Units        = "degrees_north",        &
-                                                         FillValue    = FillValue,              &
+!                                                         FillValue    = FillValue,              &
                                                          ValidMin     = -90.,                   &
                                                          ValidMax     = 90.,                    &
-                                                         bounds       = trim(Lat_Stag_Name),    &
-                                                         MissingValue = MissingValue)
+                                                         bounds       = trim(Lat_Stag_Name)) !,    &
+!                                                         MissingValue = MissingValue)
            
             call NETCDFWriteAttributes(Me%Dims(1)%VarID, LongName     = "longitude",            &
                                                          StandardName = "longitude",            &
                                                          Units        = "degrees_east",         &
-                                                         FillValue    = FillValue,              &
+!                                                         FillValue    = FillValue,              &
                                                          ValidMin     = -180.,                  &
                                                          ValidMax     = 180.,                   &
-                                                         bounds       = trim(Lon_Stag_Name),    &
-                                                         MissingValue = MissingValue)
+                                                         bounds       = trim(Lon_Stag_Name)) !,    &
+!                                                         MissingValue = MissingValue)
 
             if (present(SphericX)) then
                 if (associated(SphericX)) then
                                                          
                     call NETCDFWriteAttributes(SphericXVarID,    LongName     = "spherical mercator - google maps - x staggered",  &
-                                                                 StandardName = "spherical mercator - google maps - x",            &
-                                                                 Units        = "paper meters",         &
-                                                                 FillValue    = FillValue,              &
+                                                                 !StandardName = "spherical mercator - google maps - x",            &
+                                                                 Units        = "meters",         &
+!                                                                 FillValue    = FillValue,              &
                                                                  ValidMin     = -20037508.34,           &
-                                                                 ValidMax     =  20037508.34,           &
-                                                                 MissingValue = MissingValue)
+                                                                 ValidMax     =  20037508.34)
+!                                                                 MissingValue = MissingValue)
                 endif                    
             endif
             
@@ -2037,12 +2047,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (associated(SphericY)) then
 
                     call NETCDFWriteAttributes(SphericYVarID,    LongName     = "spherical mercator - google maps - y staggered",  &
-                                                                 StandardName = "spherical mercator - google maps - y",            &
-                                                                 Units        = "paper meters",         &
-                                                                 FillValue    = FillValue,              & 
+                                                                 !StandardName = "spherical mercator - google maps - y",            &
+                                                                 Units        = "meters",         &
+!                                                                 FillValue    = FillValue,              & 
                                                                  ValidMin     = -20037508.34,           &
-                                                                 ValidMax     =  20037508.34,           &
-                                                                 MissingValue = MissingValue)
+                                                                 ValidMax     =  20037508.34)
+!                                                                 MissingValue = MissingValue)
                 endif
             endif                
             
@@ -2707,17 +2717,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                                 StandardName = depth_Name,          &
                                                                 Units        = null_str,            &
                                                                 Positive     = "down",              &
-                                                                FillValue    = MissingValue,        &
+!                                                                FillValue    = MissingValue,        &
                                                                 ValidMin     = 0.,                  &
                                                                 ValidMax     = 1.,                  & 
                                                                 Add_Offset   = OffSet,              &
-                                                                MissingValue = MissingValue,        &
+!                                                                MissingValue = MissingValue,        &
                                                                 bounds       = trim(depth_Stag_Name))
                
                 !No? Then it must be a z-coordinate grid
             else
                 
-                if (SimpleGrid_) then
+                !if (SimpleGrid_) then
 
                     call NETCDFWriteAttributes(Me%Dims(3)%VarID, LongName               = "Depth",      &
                                                                  StandardName           = depth_Name,   &
@@ -2728,19 +2738,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                                  CoordinateZisPositive  = "down",       &    
                                                                  bounds                 = trim(depth_Stag_Name))                    
 
-                else                    
-                
-                    call NETCDFWriteAttributes(Me%Dims(3)%VarID, LongName     = depth_Name,          &
-                                                                 StandardName = depth_Name,          &
-                                                                 Units        = "m",                 &
-                                                                 Positive     = "down",              &
-                                                                 FillValue    = FillValue,           &
-                                                                 ValidMin     = -50.,                &
-                                                                 ValidMax     = 10000.,              &
-                                                                 Add_Offset   = OffSet,              &
-                                                                 MissingValue = MissingValue,        &
-                                                                 bounds       = trim(depth_Stag_Name))
-                endif                                                                                                
+!                else                    
+!                
+!                    call NETCDFWriteAttributes(Me%Dims(3)%VarID, LongName     = depth_Name,          &
+!                                                                 StandardName = depth_Name,          &
+!                                                                 Units        = "m",                 &
+!                                                                 Positive     = "down",              &
+!!                                                                 FillValue    = FillValue,           &
+!                                                                 ValidMin     = -50.,                &
+!                                                                 ValidMax     = 10000.,              &
+!                                                                 Add_Offset   = OffSet,              &
+!!                                                                 MissingValue = MissingValue,        &
+!                                                                 bounds       = trim(depth_Stag_Name))
+!                endif                                                                                                
             end if
 
             !exit definition mode
