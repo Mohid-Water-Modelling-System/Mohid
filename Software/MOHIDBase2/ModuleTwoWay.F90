@@ -440,7 +440,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !> Detects and builds matrix with two-way discharges  
     !>@param[in] FatherTwoWayID, TwoWayID    
-    subroutine Construct_TwoWay_Discharges(FatherTwoWayID, TwoWayID)
+    subroutine Construct_Uppscalling_Discharges(FatherTwoWayID, TwoWayID)
         !Arguments-------------------------------------------------------------
         integer                            :: FatherTwoWayID, TwoWayID
         !Local-----------------------------------------------------------------
@@ -470,7 +470,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL .NE. SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR50'            
             
             
-            call SearchForDischarges(Me%External_Var%Connections_Z, Me%External_Var%WaterPoints3D, &
+            call SearchDischargeFace(Me%External_Var%Connections_Z, Me%External_Var%WaterPoints3D, &
                                      Me%Father%External_Var%WaterPoints3D, Me%Size2D, Me%Father%Size2D, &
                                      SonLandPoints2D, FatherLandPoints2D, Present)
             
@@ -497,7 +497,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         endif
             
         
-    end subroutine Construct_TwoWay_Discharges
+    end subroutine Construct_Uppscalling_Discharges
     
     !-------------------------------------------------------------------------
 

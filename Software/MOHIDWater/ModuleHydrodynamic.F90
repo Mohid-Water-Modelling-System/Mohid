@@ -15795,7 +15795,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
 
                 if (Me%ComputeOptions%TwoWay)then
                     call AllocateTwoWayAux(HydrodynamicFatherID, HydrodynamicID)
-                    call Construct_TwoWay_Discharges(HydrodynamicFatherID, HydrodynamicID)
+                    !call Construct_Uppscalling_Discharges(HydrodynamicFatherID, HydrodynamicID)
                 endif
 
 
@@ -47231,7 +47231,7 @@ dk:                 do k=kmin, kmax
 
             !Disposes pointer to the Bathymetry
             call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR200'
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR200'
 
 
         endif cd1

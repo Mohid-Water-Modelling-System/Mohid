@@ -42,12 +42,12 @@ Module ModuleUpscallingDischarges
     !Subroutines-----------------------------------------------------------------
 
     public  :: BuildDischargesMatrix
-    public  :: SearchForDischarges
+    public  :: SearchDischargeFace
     
     !begin-----------------------------------------------------------------------
     contains
     
-    subroutine SearchForDischarges(Connections, SonWaterPoints3D, FatherWaterPoints3D, SonLandPoints2D, &
+    subroutine SearchDischargeFace(Connections, SonWaterPoints3D, FatherWaterPoints3D, SonLandPoints2D, &
                                    FatherLandPoints2D, SizeSon, SizeFather, Present)
         !Arguments-------------------------------------------------------------
         integer, dimension(:, :), pointer   :: Connections
@@ -107,7 +107,7 @@ Module ModuleUpscallingDischarges
         enddo
         
     
-    end subroutine SearchForDischarges
+    end subroutine SearchDischargeFace
 
 
     subroutine BuildDischargesMatrix(Connections, WaterPoints3D, FatherWaterPoints3D, MomentumDischargesMatrix)
