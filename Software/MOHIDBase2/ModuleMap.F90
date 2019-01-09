@@ -398,7 +398,7 @@ iGH:            if (present(GridDataID) .AND. present(HorizontalGridID)) then
                 
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructMap - ModuleMap - ERR100'
                     
-iMS:                if (.not. MasterOrSlave) then
+iMS:                if (.not. MasterOrSlave .and. (JUB-JLB)*(IUB-ILB)>1 ) then
 
                         !Checks the existence of isolated cells which may become endlessly hotter
                         !(cycle the cells and check the WaterPoints)

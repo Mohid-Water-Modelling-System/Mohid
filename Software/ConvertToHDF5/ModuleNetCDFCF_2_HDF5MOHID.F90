@@ -188,6 +188,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         integer                                 :: Dim
         character(len=StringLength)             :: NetCDFName
         real                                    :: Add, Multiply, MinValue
+        real                                    :: UnitsScale
         type (T_ValueIn)                        :: ValueIn        
         real, dimension(:,:),     pointer       :: Value2DOut
         real, dimension(:,:,:),   pointer       :: Value3DOut
@@ -239,6 +240,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         integer                                 :: Unit, ClientNumber
         integer                                 :: FieldInType
         character(len=PathLength)               :: FileName
+        logical                                 :: OnlyOneFile          = .false.
         character(len=PathLength)               :: ReadingFileName
         character(len=PathLength)               :: GridFileName
         character(len=PathLength)               :: OutputFileName
@@ -1595,8 +1597,31 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         integer                                     :: STAT_CALL
         integer                                     :: iflag
         integer, dimension(4)                       :: Aux4
+        logical                                     :: Exists
 
         !Begin-----------------------------------------------------------------
+
+        call GetData(Me%FileName,                                                       &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'FILENAME',                                         &
+                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',                       &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR00'
+        
+        if(iflag > 0)then
+            !Just read one file, otherwise read a block with a list of files
+            Me%OnlyOneFile = .true.
+            
+            inquire(FILE = Me%FileName, EXIST = Exists)
+            if (.not. Exists) then
+                write(*,*)'Netcdf file does not exist:'//trim(Me%FileName)
+                stop 'ReadOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR01'
+            endif
+        endif
+        
+        
+        
 
         call GetData(Me%GridFileName,                                                   &
                      Me%ObjEnterData, iflag,                                            &
@@ -1900,14 +1925,14 @@ BF:         if (BlockFound) then
                 Me%Date%ValueIn%Dim      = 1
           
 
-                !call GetData(Me%Date%UnitsFactor,                                       &
-                !             Me%ObjEnterData, iflag,                                    &
-                !             SearchType   = FromBlock,                                  &
-                !             keyword      = 'UNITS_FACTOR',                             &
-                !             default      = 1.,                                         &
-                !             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
-                !             STAT         = STAT_CALL)        
-                !if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR30'    
+                call GetData(Me%Date%UnitsFactor,                                       &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlock,                                  &
+                             keyword      = 'UNITS_FACTOR',                             &
+                             default      = 3600.,                                      &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR30'    
 
                 call GetData(Me%Date%RefAttribute,                                      &
                              Me%ObjEnterData, iflag,                                    &
@@ -1988,7 +2013,7 @@ BF:         if (BlockFound) then
                                      default      = 3600.,                              &
                                      ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
                                      STAT         = STAT_CALL)        
-                        if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR89'                        
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR89'
                         
                     endif                        
                     
@@ -2518,6 +2543,14 @@ BF:         if (BlockFound) then
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR40'    
 
+                    call GetData(Me%Field(ip)%UnitsScale,                               &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'UNITS_SCALE',                          &
+                                 default      = 1.,                                     &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR45'    
 
                     call GetData(Me%Field(ip)%MinValue,                                 &
                                  Me%ObjEnterData, iflag,                                &
@@ -2569,7 +2602,7 @@ BF:         if (BlockFound) then
                                  default      = .true.,                                 &
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR100'                                        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR100'
                     
                     call ConstructPropertyID (Me%Field(ip)%ID,  Me%ObjEnterData, FromBlockInBlock, check)
                     
@@ -3024,160 +3057,250 @@ BF:         if (BlockFound) then
             endif
         
         enddo
-
-
-               
-        call ExtractBlockFromBlock(Me%ObjEnterData, Me%ClientNumber,                    &
-                                   input_files_begin, input_files_end,                  &
-                                   BlockInBlockFound = BlockFound,                      &
-                                   FirstLine = FirstLine, LastLine = LastLine,          &
-                                   STAT = STAT_CALL)
-
-IS:     if(STAT_CALL .EQ. SUCCESS_) then
-
-            !The block is found to exist before when reading depth
-BF:         if (BlockFound) then            
-
-                iOut              = 0
-
-                Me%Date%TotalInst = 0
-                Me%OutCountProp   = 0
-                call null_time(Me%Date%LasTEndTime)
         
-                do line = FirstLine + 1, LastLine - 1
-
-                    call GetData(InputFile, EnterDataID = Me%ObjEnterData, flag = iflag,    &
-                                 Buffer_Line = line, STAT = STAT_CALL)
-
-                    Me%ReadingFileName=InputFile
+OF:     if(Me%OnlyOneFile)then
+    
+            iOut                = 0
+            Me%Date%TotalInst   = 0
+            Me%OutCountProp     = 0
+            call null_time(Me%Date%LasTEndTime)
+            
+            Me%ReadingFileName  = Me%FileName
                     
-                    !Verifies if file exists
-                    status=NF90_OPEN(trim(InputFile),NF90_NOWRITE,ncid)
-                    if (status /= nf90_noerr) then
-                        write(*,*) 'Not able to open file=',trim(InputFile)
-                        stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
-                    endif
+            !Verifies if file exists
+            status=NF90_OPEN(trim(Me%FileName),NF90_NOWRITE,ncid)
+            if (status /= nf90_noerr) then
+                write(*,*) 'Not able to open file=',trim(Me%FileName)
+                stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+            endif
                     
-                    write(*,*) 'Reading ', trim(InputFile)
+            write(*,*) 'Reading ', trim(Me%FileName)
+        
+            !Time
+            call ReadTotalTime          (ncid)    
                     
-                    if (line == LastLine - 1) then
-                        LastLineON = .true.
-                    else
-                        LastLineON = .false.
-                    endif
+            write(*,*) "Read total time"  
 
-                    !Time
-                    call ReadTotalTime          (ncid)    
-                    
-                    write(*,*) "Read total time"  
-
-                    if (line == FirstLine + 1) then
-!                            !Grid/Bathym and Grid/Longitude and Grid/Latitude
-                             call ReadWriteGrid2D  (ncid) 
-                         !Bathym, mapping
-                             call ReadWriteGrid3D  (ncid)
-
-                             write(*,*) "Grid"                                                   
-                    endif 
-
-                    if (LastLineON) then
-                    
-                        allocate(Me%Date%InstOut(1:Me%Date%TotalInst))
-
-                        Me%Date%InstOut(:)   = -99
-                        Me%Date%TotalInstOut = 1
                         
-                        Me%Date%InstOut(1) = 1
-                        do i=2, Me%Date%TotalInst
-                            if (Me%Date%ValueInTotal(i) > Me%Date%ValueInTotal(i-1)) then
-                                Me%Date%TotalInstOut = Me%Date%TotalInstOut + 1
-                                Me%Date%InstOut(i)   = Me%Date%TotalInstOut
-                            endif
-                        enddo                            
+            !Grid/Bathym and Grid/Longitude and Grid/Latitude
+            call ReadWriteGrid2D  (ncid) 
+            !Bathym, mapping
+            call ReadWriteGrid3D  (ncid)
+
+            write(*,*) "Grid"                                                   
                     
-                        if (Me%OutHDF5  ) call WriteTimeHDF5  
-                        if (Me%OutNetCDF) call WriteTimeNetCDF
+            allocate(Me%Date%InstOut(1:Me%Date%TotalInst))
+
+            Me%Date%InstOut(:)   = -99
+            Me%Date%TotalInstOut = 1
                         
-                    endif
-              
-                    status=NF90_CLOSE(ncid)
-                    if (status /= nf90_noerr)  stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
-
-                
-                enddo
-
-                iOut              = 0
-              
-                call null_time(Me%Date%LasTEndTime)
-                
-                do line = FirstLine + 1, LastLine - 1
-
-                    call GetData(InputFile, EnterDataID = Me%ObjEnterData, flag = iflag,    &
-                                 Buffer_Line = line, STAT = STAT_CALL)
-
+            Me%Date%InstOut(1) = 1
+            do i=2, Me%Date%TotalInst
+                if (Me%Date%ValueInTotal(i) > Me%Date%ValueInTotal(i-1)) then
+                    Me%Date%TotalInstOut = Me%Date%TotalInstOut + 1
+                    Me%Date%InstOut(i)   = Me%Date%TotalInstOut
+                endif
+            enddo                            
                     
-                    !Verifies if file exists
-                    status=NF90_OPEN(trim(InputFile),NF90_NOWRITE,ncid)
-                    if (status /= nf90_noerr) stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
-                    
-                    write(*,*) 'Reading ', trim(InputFile)
+            if (Me%OutHDF5  ) call WriteTimeHDF5  
+            if (Me%OutNetCDF) call WriteTimeNetCDF
+              
+            status=NF90_CLOSE(ncid)
+            if (status /= nf90_noerr)  stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
 
-                    !Time
-                    if (Me%OutCountProp == 0) then
-                        call ReadTimeNetCDF(ncid)
-                        call deallocatevaluein(Me%Date%ValueIn)
-                        !Grid/Vertical Z
-                        if (Me%Depth%Dim3D) then
-                            call WriteDepth    (iOut, ncid)
-                            
-                            write(*,*) 'Write depth'
+            iOut              = 0
+            call null_time(Me%Date%LasTEndTime)
+                
+            !Verifies if file exists
+            status=NF90_OPEN(trim(Me%FileName),NF90_NOWRITE,ncid)
+            if (status /= nf90_noerr) stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+                    
+            write(*,*) 'Reading ', trim(Me%FileName)
+
+            if (Me%OutCountProp == 0) then
+                
+                call ReadTimeNetCDF(ncid)
+                call deallocatevaluein(Me%Date%ValueIn)
+                !Grid/Vertical Z
+                if (Me%Depth%Dim3D) then
+                    call WriteDepth    (iOut, ncid)
+                    write(*,*) 'Write depth'
+                endif
+                    
+            endif
+                    
+            !Results
+            write(*,*) 'Read Write fields'  
+                    
+            call ReadWriteFields    (ncid, iOut) 
+                                        
+            if (Me%OutCountProp == Me%Date%NumberInst * Me%ReadPropNumber) then
+                    
+                iOut = iOut + Me%Date%NumberInst
+                        
+                Me%OutCountProp = 0
+
+            endif
+                    
+            status=NF90_CLOSE(ncid)
+            if (status /= nf90_noerr)  stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+            
+        else OF
+            
+                           
+            call ExtractBlockFromBlock(Me%ObjEnterData, Me%ClientNumber,                    &
+                                       input_files_begin, input_files_end,                  &
+                                       BlockInBlockFound = BlockFound,                      &
+                                       FirstLine = FirstLine, LastLine = LastLine,          &
+                                       STAT = STAT_CALL)
+
+IS:         if(STAT_CALL .EQ. SUCCESS_) then
+
+                !The block is found to exist before when reading depth
+BF:             if (BlockFound) then            
+
+                    iOut              = 0
+
+                    Me%Date%TotalInst = 0
+                    Me%OutCountProp   = 0
+                    call null_time(Me%Date%LasTEndTime)
+        
+                    do line = FirstLine + 1, LastLine - 1
+
+                        call GetData(InputFile, EnterDataID = Me%ObjEnterData, flag = iflag,    &
+                                     Buffer_Line = line, STAT = STAT_CALL)
+
+                        Me%ReadingFileName=InputFile
+                    
+                        !Verifies if file exists
+                        status=NF90_OPEN(trim(InputFile),NF90_NOWRITE,ncid)
+                        if (status /= nf90_noerr) then
+                            write(*,*) 'Not able to open file=',trim(InputFile)
+                            stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
                         endif
+                    
+                        write(*,*) 'Reading ', trim(InputFile)
+                    
+                        if (line == LastLine - 1) then
+                            LastLineON = .true.
+                        else
+                            LastLineON = .false.
+                        endif
+
+                        !Time
+                        call ReadTotalTime          (ncid)    
+                    
+                        write(*,*) "Read total time"  
+
+                        if (line == FirstLine + 1) then
+                            !Grid/Bathym and Grid/Longitude and Grid/Latitude
+                            call ReadWriteGrid2D  (ncid) 
+                            !Bathym, mapping
+                            call ReadWriteGrid3D  (ncid)
+
+                            write(*,*) "Grid"                                                   
+                        endif 
+
+                        if (LastLineON) then
+                    
+                            allocate(Me%Date%InstOut(1:Me%Date%TotalInst))
+
+                            Me%Date%InstOut(:)   = -99
+                            Me%Date%TotalInstOut = 1
+                        
+                            Me%Date%InstOut(1) = 1
+                            do i=2, Me%Date%TotalInst
+                                if (Me%Date%ValueInTotal(i) > Me%Date%ValueInTotal(i-1)) then
+                                    Me%Date%TotalInstOut = Me%Date%TotalInstOut + 1
+                                    Me%Date%InstOut(i)   = Me%Date%TotalInstOut
+                                endif
+                            enddo                            
+                    
+                            if (Me%OutHDF5  ) call WriteTimeHDF5  
+                            if (Me%OutNetCDF) call WriteTimeNetCDF
+                        
+                        endif
+              
+                        status=NF90_CLOSE(ncid)
+                        if (status /= nf90_noerr)  stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+
+                
+                    enddo
+
+                    iOut              = 0
+              
+                    call null_time(Me%Date%LasTEndTime)
+                
+                    do line = FirstLine + 1, LastLine - 1
+
+                        call GetData(InputFile, EnterDataID = Me%ObjEnterData, flag = iflag,    &
+                                     Buffer_Line = line, STAT = STAT_CALL)
+
+                    
+                        !Verifies if file exists
+                        status=NF90_OPEN(trim(InputFile),NF90_NOWRITE,ncid)
+                        if (status /= nf90_noerr) stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+                    
+                        write(*,*) 'Reading ', trim(InputFile)
+
+                        !Time
+                        if (Me%OutCountProp == 0) then
+                            call ReadTimeNetCDF(ncid)
+                            call deallocatevaluein(Me%Date%ValueIn)
+                            !Grid/Vertical Z
+                            if (Me%Depth%Dim3D) then
+                                call WriteDepth    (iOut, ncid)
+                            
+                                write(*,*) 'Write depth'
+                            endif
                         
                         
                     
-                    endif
+                        endif
                     
-                    !Results/XXX  
+                        !Results/XXX  
                     
-                    write(*,*) 'Read Write fields'  
+                        write(*,*) 'Read Write fields'  
                     
-                    call ReadWriteFields    (ncid, iOut) 
+                        call ReadWriteFields    (ncid, iOut) 
                     
 
                                         
-                    if (Me%OutCountProp == Me%Date%NumberInst * Me%ReadPropNumber) then
+                        if (Me%OutCountProp == Me%Date%NumberInst * Me%ReadPropNumber) then
                     
-                        iOut = iOut + Me%Date%NumberInst
+                            iOut = iOut + Me%Date%NumberInst
                         
-                        Me%OutCountProp = 0
+                            Me%OutCountProp = 0
 
-                    endif
+                        endif
                     
-                    status=NF90_CLOSE(ncid)
-                    if (status /= nf90_noerr)  stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                        status=NF90_CLOSE(ncid)
+                        if (status /= nf90_noerr)  stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
 
                 
-                enddo
+                    enddo
 
                 
-            else  BF
-                stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
-            endif BF
+                else  BF
+                    stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
+                endif BF
 
-            call Block_Unlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL) 
+                call Block_Unlock(Me%ObjEnterData, Me%ClientNumber, STAT = STAT_CALL) 
 
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR70'
+                if (STAT_CALL /= SUCCESS_)                                                  &
+                    stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR70'
 
-        else   IS
+            else   IS
 
-            stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
+                stop 'ReadNetCDFCF_WriteHDF5MOHID - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
 
-        end if IS
+            end if IS
+
+            
+        endif OF
 
 
     end subroutine ReadNetCDFCF_WriteHDF5MOHID
-
     
     !------------------------------------------------------------------------
        
@@ -3285,8 +3408,8 @@ BF:         if (BlockFound) then
         
         !Local-----------------------------------------------------------------
         integer                                         :: status, numDims, i, j
-        integer                                         :: RhVarIdLat, RhVarIdLong
-        integer, dimension(nf90_max_var_dims)           :: rhDimIdsLat, rhDimIdsLong
+        integer                                         :: RhVarIdLong
+        integer, dimension(nf90_max_var_dims)           :: rhDimIdsLong
         
         !Begin-----------------------------------------------------------------        
 
@@ -3882,11 +4005,13 @@ if13:               if (Me%Depth%GeoVert == sigma_) then
                         TopDepth = - GetNetCDFValue(Me%Depth%WLValueIn, Dim1 = j+1, Dim2 = i+1, Dim3 = 1) 
 
 if20:                   if (k==Me%WorkSize%KUB) then
-                            Me%Depth%Value3DOut(i, j, k) = GetCellInDepth(i, j, k+1,Me%WorkSize%KUB,iT, CellFace = .true., Topdepth = Topdepth)
+                            Me%Depth%Value3DOut(i, j, k) = GetCellInDepth(i, j, k+1,Me%WorkSize%KUB,iT, &
+                                                            CellFace = .true., Topdepth = Topdepth)
                             SumDepth                     = 0.
                         endif if20
 
-                        Me%Depth%Value3DOut(i, j, k-1) = GetCellInDepth(i, j, k,Me%WorkSize%KUB,iT, CellFace = .true., Topdepth = Topdepth)
+                        Me%Depth%Value3DOut(i, j, k-1) = GetCellInDepth(i, j, k,Me%WorkSize%KUB,iT,     &
+                                                            CellFace = .true., Topdepth = Topdepth)
                         
                     else if13
                 
@@ -4125,7 +4250,9 @@ i5:         if (Me%OutHDF5) then
                                                                               
                         Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%Add +           &
                             Me%Field(iP)%Value3DOut(i, j, k)* Me%Field(iP)%Multiply
-                            
+                        
+                        Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%Value3DOut(i, j, k) * Me%Field(iP)%UnitsScale
+                        
                         if (Me%Field(iP)%Value3DOut(i, j, k) < Me%Field(iP)%MinValue) then
                             Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%MinValue
                         endif                                     
@@ -4158,7 +4285,9 @@ i5:         if (Me%OutHDF5) then
                             Me%Field(iP)%Value2DOut(i, j) = GetNetCDFValue(Me%Field(iP)%ValueIn,  &
                                                                 Dim1 = j+1, Dim2 = i+1, Dim3 = 1, Dim4 = 1)
                         endif
-                        Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%Value2DOut(i, j)* Me%Field(iP)%Multiply + Me%Field(iP)%Add
+                        Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%Value2DOut(i, j) * Me%Field(iP)%Multiply + Me%Field(iP)%Add
+                        
+                        Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%Value2DOut(i, j) * Me%Field(iP)%UnitsScale
                         
                         if (Me%Field(iP)%Value2DOut(i, j) < Me%Field(iP)%MinValue) then
                             Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%MinValue
@@ -4827,6 +4956,7 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         write(*,*)
         write(*,*)'Read Time NetCDF file...'
 
+        write(*,*)'Reading ', trim(Me%Date%NetCDFDimName)
 
         status=NF90_INQ_DIMID(ncid,trim(Me%Date%NetCDFDimName),dimid)
         if (status /= nf90_noerr) then
@@ -5058,8 +5188,8 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         character(Len=StringLength)             :: aux_str
         real                                    :: Year, Month, Day, Hour, Minute, Second
         real(8)                                 :: Aux
-        integer                                 :: n, status, dimid, i, numDims
-        integer                                 :: stat, STAT_CALL, StringLength, k
+        integer                                 :: status, dimid, i, numDims
+        integer                                 :: StringLength
         type (T_Time)                           :: CurrentTime
         integer, dimension(nf90_max_var_dims)   :: DimidArray
 
@@ -5723,6 +5853,8 @@ i2:                 if (Me%Depth%Interpolate) then
         integer                                 :: status, pn, numDims, Layer
         !Begin-----------------------------------------------------------------
         pn = 0
+        write(*,*) '  Reading= ', trim(Me%Field(iP)%NetCDFName), inst
+        
         status = nf90_inq_varid(ncid, trim(Me%Field(iP)%NetCDFName), pn)
 
         if (status == nf90_noerr) then
@@ -5755,7 +5887,7 @@ i2:                 if (Me%Depth%Interpolate) then
                                                            Dim4 = 1)
             elseif (Me%Field(iP)%ValueIn%Dim  == 2) then
                 call AllocateValueIn(Me%Field(iP)%ValueIn, Dim1 = Me%LongLat%jmax,      &
-                                                           Dim2 = Me%LongLat%imax)                                                           
+                                                           Dim2 = Me%LongLat%imax)
             else
                 stop 'ReadFieldNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
             endif
@@ -6909,7 +7041,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         integer                                         :: iP, iFinal
 
         !Local-----------------------------------------------------------------
-        real,   pointer, dimension(:,:,:)               :: Aux3D, Aux3DOld
+        real,   pointer, dimension(:,:,:)               :: Aux3D
         real,   pointer, dimension(:,:)                 :: Aux2D, Aux2DV, Aux2DAcc
         integer                                         :: STAT_CALL
         integer                                         :: WorkILB, WorkJLB, WorkKLB
