@@ -1605,7 +1605,7 @@ wwd1:       if (Me%WindowWithData) then
         integer                                         :: iflag
         logical                                         :: LastGroupEqualField
         integer                                         :: ExtractTypeBlock
-
+        real                                            :: DT       
         !---------------------------------------------------------------------
         
         !Property ValuesType (Interpolated, accumulate, original value) 
@@ -1843,7 +1843,14 @@ wwd1:       if (Me%WindowWithData) then
                             default      =  900.,                                       &
                             ClientModule = 'ModuleField4D',                             &
                             STAT         = STAT_CALL)                                      
-            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR197'                 
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR197'  
+            
+            call GetComputeTimeStep(TimeID = Me%ObjTime, DT = DT, STAT = STAT_CALL)                                      
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR199'
+                
+            if (PropField%Harmonics%DT < DT) then
+                PropField%Harmonics%DT = DT
+            endif            
             
         endif
         

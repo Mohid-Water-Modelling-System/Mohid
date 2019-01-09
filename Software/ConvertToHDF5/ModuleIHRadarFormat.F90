@@ -265,22 +265,9 @@ Module ModuleIHRadarFormat
 
         !Begin-----------------------------------------------------------------
 
-        !Read output filename
-        call GetData(Me%OutputHDF5FileName,                                                &
-                     Me%ObjEnterData, iflag,                                           &
-                     SearchType   = FromBlock,                                         &
-                     keyword      = 'OUTPUTFILENAME',                                 &
-                     ClientModule = 'ModuleIHRadarFormat',                             &
-                     STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleIHRadarFormat - ERR10'
-        if (iflag) then
-            Me%OutputHDF5 = .true.
-        else
-            Me%OutputHDF5 = .false.
-        endif
 
         !Read output filename
-        call GetData(Me%OutputHDF5FileName,                                                &
+        call GetData(Me%OutputHDF5FileName,                                            &
                      Me%ObjEnterData, iflag,                                           &
                      SearchType   = FromBlock,                                         &
                      keyword      = 'OUTPUT_HDF5_FILENAME',                            &
@@ -307,7 +294,7 @@ Module ModuleIHRadarFormat
             Me%OutputNetcdf = .false.
         endif
         
-        if (.not.Me%OutputNetcdf .or. .not.Me%OutputHDF5) then
+        if (.not.Me%OutputNetcdf .and. .not.Me%OutputHDF5) then
             write(*,*) 'Please define one of OUTPUT_NETCDF_FILENAME or OUTPUT_HDF5_FILENAME (aka OUTPUTFILENAME) keywords.'
             stop 'ReadOptions - ModuleIHRadarFormat - ERR13'        
         endif  
@@ -528,7 +515,7 @@ Module ModuleIHRadarFormat
 i1:     if (exist) then
 
             !Loads grid from file          
-            call ConstructHorizontalGrid(Me%ObjHorizontalGrid, Me%InputGridFile, STAT_CALL)
+            call ConstructHorizontalGrid(Me%ObjHorizontalGrid, Me%InputGridFile, STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)stop 'LoadIHRadarGrid - ModuleIHRadarFormat - ERR10'
             
             !Reads size of grid
@@ -678,6 +665,8 @@ i1:                 if (exist) then
         real, dimension(:), pointer             :: axis_ptr
 
         !Begin-----------------------------------------------------------------
+
+        ObjEnterData = 0
 
         !Griflet: Let's read the IH Radar ascii file
         call ConstructEnterData (ObjEnterData, InputFile, STAT = STAT_CALL)
@@ -947,13 +936,12 @@ i1:                 if (exist) then
 
         !Local-----------------------------------------------------------------
         integer                                     :: HDF5_CREATE
-        integer                                     :: HDF5_IO_CODE
         integer                                     :: STAT_CALL
 
         call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
 
         !Opens HDF5 File
-        call ConstructHDF5(Me%ObjHDF5, Me%OutputHDF5FileName, HDF5_IO_CODE, STAT = STAT_CALL)
+        call ConstructHDF5(Me%ObjHDF5, Me%OutputHDF5FileName, HDF5_CREATE, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'Open_HDF5_Output_File - ModuleMecatorFormat - ERR01'
 
         call WriteHDF5GridData

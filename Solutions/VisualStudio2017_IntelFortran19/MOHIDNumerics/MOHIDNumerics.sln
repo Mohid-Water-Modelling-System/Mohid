@@ -63,6 +63,10 @@ Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "Convert2Hdf5", "Convert2Hdf
 	EndProjectSection
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "Convert2netcdf", "Convert2netcdf\Convert2netcdf.vfproj", "{F8708A1A-EF60-4639-BD43-777C769C7864}"
+	ProjectSection(ProjectDependencies) = postProject
+		{98ABA093-7927-4BCD-B011-BF409B5BBB78} = {98ABA093-7927-4BCD-B011-BF409B5BBB78}
+		{0056F7D7-347A-40DE-98B8-843CF05B5488} = {0056F7D7-347A-40DE-98B8-843CF05B5488}
+	EndProjectSection
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "ConvertToTimeSerie", "ConvertToTimeSerie\ConvertToTimeSerie.vfproj", "{D9A8E2CF-4DA2-4210-BDF7-05F2A281FCA6}"
 EndProject
@@ -71,6 +75,9 @@ EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "DDCWorker", "DDCWorker\DDCWorker.vfproj", "{DC527F50-5495-4C75-99DF-82B2CBA215AF}"
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "DomainConsolidation", "DomainConsolidation\DomainConsolidation.vfproj", "{8C4AD1E5-2DA6-4B02-9D25-3827BD0DEC20}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0056F7D7-347A-40DE-98B8-843CF05B5488} = {0056F7D7-347A-40DE-98B8-843CF05B5488}
+	EndProjectSection
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "GlueWW3_OBC", "GlueWW3_OBC\GlueWW3_OBC.vfproj", "{8191DDA9-7477-48B2-BF5B-BA58EB81D76E}"
 EndProject
