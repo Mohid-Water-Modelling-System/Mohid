@@ -149,8 +149,8 @@ Module ModuleHydrodynamic
                                        GetDDecompWorkSize2D, WriteHorizontalGrid_UV,     &
                                        GetCellRotation, GetGridCellArea
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
-                                       Alloc2WayAux_Hydro, PrepTwoWay,   &
-                                       UngetTwoWayExternal_Vars
+                                       AllocateTwoWayAux, PrepTwoWay, UngetTwoWayExternal_Vars,&
+                                       Construct_TwoWay_Discharges
 #ifdef _USE_MPI
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
@@ -16425,13 +16425,14 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
 
 
             if(InitialField) then
-                Me%FatherInstanceID = HydrodynamicFatherID  ! Joao Sobrinho
+                Me%FatherInstanceID = HydrodynamicFatherID
 
                 call TestSubModelOptionsConsistence (ObjHydrodynamicFather%ComputeOptions%Continuous)
                 call GetComputeTimeStep             (ObjHydrodynamicFather%ObjTime, DT_Father)
 
                 if (Me%ComputeOptions%TwoWay)then
-                    call Alloc2WayAux_Hydro(HydrodynamicFatherID, HydrodynamicID)
+                    call AllocateTwoWayAux(HydrodynamicFatherID, HydrodynamicID)
+                    !call Construct_Uppscalling_Discharges(HydrodynamicFatherID, HydrodynamicID)
                 endif
 
 
@@ -44539,7 +44540,7 @@ dok:            do k = kbottom + 1, KUB
 
         !Gets a pointer to Bathymetry
         call GetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR20a'
+        if (STAT_CALL /= SUCCESS_) stop 'Compute_BottomStokesVertVel - ModuleHydrodynamic - ERR10'
 
         ! Allocate variables
         allocate( Ubot ( ILB:IUB, JLB:JUB ) )
@@ -44599,7 +44600,7 @@ dok:            do k = kbottom + 1, KUB
 
 
         call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
+        if (STAT_CALL /= SUCCESS_) stop 'Compute_BottomStokesVertVel - ModuleHydrodynamic - ERR20'
 
         nullify(IUB)
         nullify(ILB)
@@ -48293,7 +48294,7 @@ dk:                 do k=kmin, kmax
 
             !Disposes pointer to the Bathymetry
             call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR200'
+            if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR200'
 
 
         endif cd1

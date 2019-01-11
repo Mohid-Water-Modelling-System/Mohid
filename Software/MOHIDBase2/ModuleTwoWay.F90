@@ -3,12 +3,12 @@
 !------------------------------------------------------------------------------
 !
 ! TITLE         : Mohid TwoWay nesting
-! PROJECT       : Mohid Base 1
+! PROJECT       : Mohid Base 2
 ! MODULE        : TwoWay
 ! URL           : http://www.mohid.com
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
 ! DATE          : Jul 2018
-! REVISION      : Joao Sobrinho - v1.0
+! REVISION      : Joao Sobrinho - v2.0 - Dec 2018
 !>  DESCRIPTION : Module that computes twoway operations for MohidWater and MohidLand
 !
 !> @author
@@ -20,12 +20,13 @@ Module ModuleTwoWay
 
     use ModuleGlobalData
     use ModuleGeometry,         only : GetGeometryVolumes, UnGetGeometry, GetGeometrySize
-    use ModuleHorizontalGrid,   only : GetHorizontalGrid, UngetHorizontalGrid, GetHorizontalGridSize, GetTwoWayAux, &
-                                       UnGetTwoWayAux, ConstructIWDTwoWay
+    use ModuleHorizontalGrid,   only : GetHorizontalGrid, UngetHorizontalGrid, GetHorizontalGridSize, GetConnections, &
+                                       UnGetConnections, ConstructGridConnectionP2C_IWD, ConstructP2C_Avrg
     use ModuleHorizontalMap,    only : GetBoundaries, UnGetHorizontalMap
     use ModuleFunctions
     use ModuleMap,              only : GetComputeFaces3D, GetOpenPoints3D, UnGetMap
     use ModuleStopWatch,        only : StartWatch, StopWatch
+    use ModuleTwoWayDischarges
     
     implicit none
 
@@ -40,12 +41,9 @@ Module ModuleTwoWay
     
     public  :: ConstructTwoWayHydrodynamic
     private ::  Compute_MatrixFilterOB
-    public  :: Alloc2WayAux_Hydro
+    public  :: AllocateTwoWayAux
 
-    !Selector
-    public  :: GetTwoWayPointer
-    public  :: GetTwoWayInteger
-    public  :: UnGetTwoWay                  
+    !Selector                
     
     !Modifier
     public  :: ModifyTwoWay
@@ -66,12 +64,6 @@ Module ModuleTwoWay
     private ::          LocateObjTwoWay 
     
     !Interfaces----------------------------------------------------------------
-    private :: UnGetTwoWay3D_I
-    private :: UnGetTwoWay3D_R8
-    interface  UnGetTwoWay
-        module procedure UnGetTwoWay3D_I
-        module procedure UnGetTwoWay3D_R8
-    end interface  UnGetTwoWay
 
     !Types---------------------------------------------------------------------
     
@@ -97,6 +89,7 @@ Module ModuleTwoWay
         real(8),    dimension(:, :, :), pointer     :: VolumeZ          => null()
         real(8),    dimension(:, :   ), pointer     :: VolumeZ_2D       => null()
         integer, dimension(:, :, :), pointer        :: Open3D           => null()
+        integer, dimension(:, :, :), pointer        :: WaterPoints3D    => null()
         integer, dimension(:, :, :), pointer        :: ComputeFaces3D_U => null()
         integer, dimension(:, :, :), pointer        :: ComputeFaces3D_V => null()
         integer, dimension(:, :   ), pointer        :: BoundaryPoints2D => null()
@@ -109,6 +102,7 @@ Module ModuleTwoWay
         integer                                     :: IWD_Nodes_Z       = null_int
         integer                                     :: IWD_Nodes_U       = null_int
         integer                                     :: IWD_Nodes_V       = null_int
+        integer, dimension(:, :   ), pointer        :: Connections_Z     => null()
     end type T_External    
     
     private :: T_FatherDomain
@@ -374,12 +368,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !> Allocates auxiliar matrixes  
     !>@param[in] FatherTwoWayID, TwoWayID   
-    subroutine Alloc2WayAux_Hydro(FatherTwoWayID, TwoWayID)
+    subroutine AllocateTwoWayAux(FatherTwoWayID, TwoWayID)
     
         !Arguments-------------------------------------------------------------
         integer                            :: FatherTwoWayID, TwoWayID
         !Local-----------------------------------------------------------------
         integer                            :: ready_, ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL
+        logical                            :: isIWD
         !----------------------------------------------------------------------
             
         call Ready (TwoWayID, ready_)
@@ -387,7 +382,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            !call Read_Lock(mTwoWay_, Me%InstanceID)
+            isIWD = .false.
             
             Me%Father%InstanceID = FatherTwoWayID
             
@@ -396,23 +391,22 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                   WorkSize = Me%Father%WorkSize, &
                                   STAT     = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                  &
-                stop 'ModuleTwoWay - Alloc2WayAux_Hydro - ERR01'
+                stop 'ModuleTwoWay - AllocateTwoWayAux - ERR10'
             
            call GetHorizontalGridSize (HorizontalGridID = FatherTwoWayID, &
                                        Size             = Me%Father%Size2D,            &
                                        WorkSize         = Me%Father%WorkSize2D,        &
                                        STAT             = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - Alloc2WayAux_Hydro - ERR02'            
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - AllocateTwoWayAux - ERR20'            
             
             ILB = Me%Father%WorkSize%ILB 
             IUB = Me%Father%WorkSize%IUB 
             JLB = Me%Father%WorkSize%JLB 
             JUB = Me%Father%WorkSize%JUB 
             KLB = Me%Father%WorkSize%KLB 
-            KUB = Me%Father%WorkSize%KUB          
+            KUB = Me%Father%WorkSize%KUB
             
             if (Me%Hydro%InterpolationMethod == 1)then
-            
                 allocate(Me%Father%TotSonVolIn(ILB:IUB, JLB:JUB, KLB:KUB))
                 Me%Father%TotSonVolIn(:,:,:) = 0.0
             
@@ -424,20 +418,86 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
                 allocate(Me%Father%AuxMatrix2D(ILB:IUB, JLB:JUB))
                 Me%Father%AuxMatrix2D(:,:) = 0.0
+                
+                !construct connection matrix of father-son for use in two-way discharges
+                call ConstructP2C_Avrg(FatherTwoWayID, TwoWayID)
             else
-                call ConstructIWDTwoWay(FatherTwoWayID, TwoWayID)
+                call ConstructP2C_IWD(FatherTwoWayID, TwoWayID)
                 
                 allocate(Me%Father%IWDNom(ILB:IUB, JLB:JUB, KLB:KUB))
                 Me%Father%IWDNom(:,:,:) = 0.0
                 allocate(Me%Father%IWDDenom(ILB:IUB, JLB:JUB, KLB:KUB))
                 Me%Father%IWDDenom(:,:,:) = 0.0
             endif
-
         else
-            stop 'ModuleTwoWay - Alloc2WayAux_Hydro - ERR03'               
+            stop 'ModuleTwoWay - AllocateTwoWayAux - ERR30'               
         endif
 
-    end subroutine Alloc2WayAux_Hydro
+    end subroutine AllocateTwoWayAux
+    
+    ! ------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Detects and builds matrix with two-way discharges  
+    !>@param[in] FatherTwoWayID, TwoWayID    
+    subroutine Construct_Uppscalling_Discharges(FatherTwoWayID, TwoWayID)
+        !Arguments-------------------------------------------------------------
+        integer                            :: FatherTwoWayID, TwoWayID
+        !Local-----------------------------------------------------------------
+        integer                            :: ready_, ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL
+        logical                            :: Present
+        integer, dimension(:, :), pointer  :: SonLandPoints2D, FatherLandPoints2D
+        !----------------------------------------------------------------------
+        call Ready (TwoWayID, ready_)
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            Present = .false.
+            call GetConnections(TwoWayID, Me%External_Var%Connections_Z, STAT             = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR10'
+            
+            call GetWaterPoints3D(TwoWayID,       Me%External_Var%WaterPoints3D,        STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR20'
+            
+            call GetWaterPoints3D(FatherTwoWayID, Me%Father%External_Var%WaterPoints3D, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR30'
+            
+            call GetLandPoints2D(TwoWayID,  SonLandPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR40'
+            
+            call GetLandPoints2D(FatherTwoWayID,  FatherLandPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR50'            
+            
+            
+            call SearchDischargeFace(Me%External_Var%Connections_Z, Me%External_Var%WaterPoints3D, &
+                                     Me%Father%External_Var%WaterPoints3D, Me%Size2D, Me%Father%Size2D, &
+                                     SonLandPoints2D, FatherLandPoints2D, Present)
+            
+            if (Present == .true.)then
+                call BuildDischargesMatrix(Me%External_Var%Connections_Z, Me%External_Var%WaterPoints3D, &
+                                           Me%Father%External_Var%WaterPoints3D, Me%Size2D, Me%Father%Size2D)
+            endif
+            
+            
+            call UnGetHorizontalGrid(TwoWayID, Me%External_Var%Connections_Z, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR60'
+            
+            call UnGetMap(TwoWayID, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
+            if (status /= SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR70'
+            call UnGetMap(TwoWayID, Me%Father%External_Var%WaterPoints3D, STAT = STAT_CALL)
+            if (status /= SUCCESS_) stop 'Construct_TwoWay_Discharges - ModuleTwoWay - ERR80'  
+            
+            
+            call deallocateConnections_Z ! Adicionar isto no horizontal grid( a matrix já nao deve ser necessaria
+                                         ! depois da verificaçao das descargas de quantidade de movimento
+            
+        else  
+            stop 'ModuleTwoWay - Construct_TwoWay_Discharges - ERR90'               
+        endif
+            
+        
+    end subroutine Construct_Uppscalling_Discharges
     
     !-------------------------------------------------------------------------
 
@@ -450,135 +510,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
     !--------------------------------------------------------------------------
-    subroutine GetTwoWayPointer (ObjTwoWayID, Matrix, STAT)
-
-        !Arguments-------------------------------------------------------------
-        integer                                         :: ObjTwoWayID
-        real(8), dimension(:, :, :),  pointer           :: Matrix
-        integer, intent(OUT), optional                  :: STAT
-
-        !Local-----------------------------------------------------------------
-        integer                                         :: STAT_, ready_
-        !----------------------------------------------------------------------
-
-        STAT_ = UNKNOWN_
-
-        call Ready(ObjTwoWayID, ready_)
-
-        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
-            (ready_ .EQ. READ_LOCK_ERR_)) then
-
-            call Read_Lock(mTwoWay_, Me%InstanceID)
-
-            Matrix => Me%Matrix
-
-            STAT_ = SUCCESS_
-
-        else 
-            STAT_ = ready_
-        end if
-
-        if (present(STAT)) STAT = STAT_
-
-    end subroutine GetTwoWayPointer
-    
-    !--------------------------------------------------------------------------
-    
-    subroutine GetTwoWayInteger (ObjTwoWayID, Int, STAT)
-
-        !Arguments-------------------------------------------------------------
-        integer                                         :: ObjTwoWayID
-        real                                            :: Int
-        integer, intent(OUT), optional                  :: STAT
-
-        !Local-----------------------------------------------------------------
-        integer                                         :: STAT_, ready_
-
-        !----------------------------------------------------------------------
-
-        STAT_ = UNKNOWN_
-
-        call Ready(ObjTwoWayID, ready_)
-
-        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
-            (ready_ .EQ. READ_LOCK_ERR_)) then
-
-            Int = Me%InstanceID
-
-            STAT_ = SUCCESS_
-
-        else 
-            STAT_ = ready_
-        end if
-
-        if (present(STAT)) STAT = STAT_
-
-    end subroutine GetTwoWayInteger
-
-    !--------------------------------------------------------------------------
-
-    subroutine UnGetTwoWay3D_I(ObjTwoWayID, Array, STAT)
-
-        !Arguments-------------------------------------------------------------
-        integer                                         :: ObjTwoWayID
-        integer, dimension(:, :, :), pointer            :: Array
-        integer, intent(OUT), optional                  :: STAT
-
-        !Local-----------------------------------------------------------------
-        integer                                         :: STAT_, ready_
-
-        !----------------------------------------------------------------------
-
-        STAT_ = UNKNOWN_
-
-        call Ready(ObjTwoWayID, ready_)
-
-        if (ready_ .EQ. READ_LOCK_ERR_) then
-
-            nullify(Array)
-            call Read_Unlock(mTwoWay_, Me%InstanceID, "UnGetTwoWay3D_I")
-
-            STAT_ = SUCCESS_
-        else               
-            STAT_ = ready_
-        end if
-
-        if (present(STAT)) STAT = STAT_
-
-    end subroutine UnGetTwoWay3D_I
-
-    !--------------------------------------------------------------------------
-
-    subroutine UnGetTwoWay3D_R8(ObjTwoWayID, Array, STAT)
-
-        !Arguments-------------------------------------------------------------
-        integer                                         :: ObjTwoWayID
-        real(8), dimension(:, :, :), pointer            :: Array
-        integer, intent(OUT), optional                  :: STAT
-
-        !Local-----------------------------------------------------------------
-        integer                                         :: STAT_, ready_
-
-        !----------------------------------------------------------------------
-
-        STAT_ = UNKNOWN_
-
-        call Ready(ObjTwoWayID, ready_)
-
-        if (ready_ .EQ. READ_LOCK_ERR_) then
-
-            nullify(Array)
-            call Read_Unlock(mTwoWay_, Me%InstanceID,  "UnGetTwoWay3D_R8")
-
-
-            STAT_ = SUCCESS_
-        else               
-            STAT_ = ready_
-        end if
-
-        if (present(STAT)) STAT = STAT_
-
-    end subroutine UnGetTwoWay3D_R8
 
     !--------------------------------------------------------------------------
 
@@ -740,17 +671,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             if (Me%Hydro%InterpolationMethod == 2) then
                 
-                call GetTwoWayAux (HorizontalGridID       = SonID,   &
-                                   IWD_Connections_U      = Me%External_Var%IWD_Connections_U, &
-                                   IWD_Distances_U        = Me%External_Var%IWD_Distances_U,   &
-                                   IWD_Connections_V      = Me%External_Var%IWD_Connections_V, &
-                                   IWD_Distances_V        = Me%External_Var%IWD_Distances_V,   &
-                                   IWD_Connections_Z      = Me%External_Var%IWD_Connections_Z, &
-                                   IWD_Distances_Z        = Me%External_Var%IWD_Distances_Z,   &
-                                   IWD_Nodes_Z            = Me%External_Var%IWD_Nodes_Z,       &
-                                   IWD_Nodes_U            = Me%External_Var%IWD_Nodes_U,       &
-                                   IWD_Nodes_V            = Me%External_Var%IWD_Nodes_V,       &
-                                   STAT                   = STAT_CALL)
+                call GetConnections (HorizontalGridID       = SonID,   &
+                                     Connections_U          = Me%External_Var%IWD_Connections_U, &
+                                     IWD_Distances_U        = Me%External_Var%IWD_Distances_U,   &
+                                     Connections_V          = Me%External_Var%IWD_Connections_V, &
+                                     IWD_Distances_V        = Me%External_Var%IWD_Distances_V,   &
+                                     Connections_Z          = Me%External_Var%IWD_Connections_Z, &
+                                     IWD_Distances_Z        = Me%External_Var%IWD_Distances_Z,   &
+                                     IWD_Nodes_Z            = Me%External_Var%IWD_Nodes_Z,       &
+                                     IWD_Nodes_U            = Me%External_Var%IWD_Nodes_U,       &
+                                     IWD_Nodes_V            = Me%External_Var%IWD_Nodes_V,       &
+                                     STAT                   = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR05'
 
             endif                           
@@ -1175,8 +1106,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            !call Read_Lock(mTwoWay_, Me%InstanceID) 
-            
             if (callerID == 1) then
                 !For future developments (when other modules call for twoway)
             endif            
@@ -1184,59 +1113,72 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call UngetHorizontalGrid(SonID, Me%External_Var%IV,    STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR01'
             call UngetHorizontalGrid(SonID, Me%External_Var%JV,    STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR02'
-            call UngetHorizontalGrid(SonID, Me%External_Var%IU,    STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR03'
-            call UngetHorizontalGrid(SonID, Me%External_Var%JU,    STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR04'
-            call UngetHorizontalGrid(SonID, Me%External_Var%IZ,    STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR05'
-            call UngetHorizontalGrid(SonID, Me%External_Var%JZ,    STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR06'
-            call UnGetGeometry(SonID, Me%External_Var%VolumeU,     STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR07'
-            call UnGetGeometry(SonID, Me%External_Var%VolumeV,     STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR08'
-            call UnGetGeometry(SonID, Me%External_Var%VolumeZ,     STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR09'
-            call UnGetGeometry(SonID, Me%External_Var%VolumeZ_2D,  STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR10'
+            call UngetHorizontalGrid(SonID, Me%External_Var%IU,    STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR20'
+            call UngetHorizontalGrid(SonID, Me%External_Var%JU,    STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR30'
+            call UngetHorizontalGrid(SonID, Me%External_Var%IZ,    STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR40'
+            call UngetHorizontalGrid(SonID, Me%External_Var%JZ,    STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR50'
+            call UnGetGeometry(SonID, Me%External_Var%VolumeU,     STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR60'
+            call UnGetGeometry(SonID, Me%External_Var%VolumeV,     STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR70'
+            call UnGetGeometry(SonID, Me%External_Var%VolumeZ,     STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR80'
+            call UnGetGeometry(SonID, Me%External_Var%VolumeZ_2D,  STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR90'
             call UnGetMap(SonID, Me%External_Var%Open3D,           STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR11'
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR100'
             call UnGetMap(SonID, Me%External_Var%ComputeFaces3D_U, STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR12'
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR110'
             call UnGetMap(SonID, Me%External_Var%ComputeFaces3D_V, STAT = status)
-            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR13'
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR120'
             
             if (Me%Hydro%InterpolationMethod == 2) then
                 
-                call UnGetTwoWayAux (HorizontalGridID = SonID,   &
-                                     IWD_Connections_U = Me%External_Var%IWD_Connections_U, &
-                                     IWD_Distances_U   = Me%External_Var%IWD_Distances_U,   &
-                                     IWD_Connections_V = Me%External_Var%IWD_Connections_V, &
-                                     IWD_Distances_V   = Me%External_Var%IWD_Distances_V,   &
-                                     IWD_Connections_Z = Me%External_Var%IWD_Connections_Z, &
-                                     IWD_Distances_Z   = Me%External_Var%IWD_Distances_Z,   &
-                                     STAT              = status)
-                if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR014'
-
+                !call UnGetConnections (HorizontalGridID = SonID,   &
+                !                     Connections_U     = Me%External_Var%IWD_Connections_U, &
+                !                     IWD_Distances_U   = Me%External_Var%IWD_Distances_U,   &
+                !                     Connections_V     = Me%External_Var%IWD_Connections_V, &
+                !                     IWD_Distances_V   = Me%External_Var%IWD_Distances_V,   &
+                !                     Connections_Z     = Me%External_Var%IWD_Connections_Z, &
+                !                     IWD_Distances_Z   = Me%External_Var%IWD_Distances_Z,   &
+                !                     STAT              = status)
+                !if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR014'
+                
+                call UnGetHorizontalGrid(SonID, Me%External_Var%Connections_U, status)
+                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR130'
+                call UnGetHorizontalGrid(SonID, Me%External_Var%Connections_V, status)
+                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR140'
+                call UnGetHorizontalGrid(SonID, Me%External_Var%Connections_Z, status)
+                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR150'
+                call UnGetHorizontalGrid(SonID, Me%External_Var%IWD_Distances_U, status)
+                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR160'
+                call UnGetHorizontalGrid(SonID, Me%External_Var%IWD_Distances_V, status)
+                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR170'
+                call UnGetHorizontalGrid(SonID, Me%External_Var%IWD_Distances_Z, status)
+                if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR180'
+                
             endif             
             
             !Unget father
             call UnGetMap(FatherID, Me%Father%External_Var%Open3D,           STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR15'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR190'
             call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ,     STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR16'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR200'
             call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeU,     STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR17'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR210'
             call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeV,     STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR18'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR220'
             call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ_2D,  STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR19'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR230'
             call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_U, STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR20'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR240'
             call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_V, STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR21'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR250'
             
             STAT_ = SUCCESS_
         else
@@ -1296,7 +1238,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 ObjTwoWayID = 0
                 
-                
                 STAT_      = SUCCESS_
 
             end if
@@ -1329,7 +1270,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         if (allocated(Me%IgnoreOBCells)) then
             deallocate(Me%IgnoreOBCells)
         endif
-        
         if (allocated(Me%Father%IWDNom)) then
             deallocate(Me%Father%IWDNom)
         endif
@@ -1337,8 +1277,6 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             deallocate(Me%Father%IWDDenom)
         endif
 
-        
-    
     end subroutine DeallocateVariables
     
     !-------------------------------------------------------------------------
@@ -1389,9 +1327,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !Arguments-------------------------------------------------------------
         integer                                     :: ObjTwoWay_ID
         integer                                     :: ready_
-
         !----------------------------------------------------------------------
-
         nullify (Me)
 
 cd1:    if (ObjTwoWay_ID > 0) then
@@ -1400,8 +1336,6 @@ cd1:    if (ObjTwoWay_ID > 0) then
         else
             ready_ = OFF_ERR_
         end if cd1
-
-        !----------------------------------------------------------------------
 
     end subroutine Ready
 
