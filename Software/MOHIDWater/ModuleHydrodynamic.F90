@@ -9972,6 +9972,15 @@ i2:          if (DischargesID == 0) then
 
 
 d1:             do dn = 1, DischargesNumber
+    
+                    if (IsUpscaling(Me%ObjDischarges, dn))then
+                        if (Me%ComputeOptions%MomentumDischarge == .false.)then
+                            write(*,*) 'If an upscaling discharge is set, then keyword MOMENTUM_DISCHARGE must be'
+                            write(*,*) 'active in module Hydrodynamic.dat'
+                            stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR40'
+                        endif
+                    endif
+                    
 
                     call GetDischargesGridLocalization(Me%ObjDischarges, dn,            &
                                                        DischVertical = DischVertical,   &
@@ -21953,7 +21962,7 @@ cd12:   if (Me%SubModel%InterPolTime .and. InitialField) then
 
     !--------------------------------------------------------------------------
     subroutine AddSubmodelWaterLevel
-    !Arguments------------------------------------------------------------- Teste WaterLevelIncrease
+    !Arguments-------------------------------------------------------------
     integer                         :: i, j, STAT_CALL
 
         call GetWaterPoints2D(Me%ObjHorizontalMap, &
@@ -37930,10 +37939,7 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     Subroutine ModifyMomentumDischarge
 
-
         !Arguments------------------------------------------------------------
-
-
 
         !Local---------------------------------------------------------------------
         real(8), dimension(:,:,:), pointer :: Horizontal_Transport
@@ -37949,20 +37955,14 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         integer                            :: DirectionXY, DischargesNumber, DischargeID
         integer                            :: i, j, k, kd, kmin, kmax, di, dj, STAT_CALL, iNorth, jEast, KUB, n
         integer                            :: ib, jb !, kbottom, k1
-
         integer                            :: FlowDistribution, nCells, SpatialEmission
         integer, dimension(:    ), pointer :: VectorI, VectorJ, VectorK
-
         logical                            :: ByPassON, IgnoreOK, CoordinatesON
-
         integer                            :: DischVertical
-
         real                               :: InterceptionRatio
-
         integer                            :: CHUNK
 
         !Begin----------------------------------------------------------------
-
 
         !Begin - Shorten variables name
 
@@ -37976,12 +37976,12 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         WaterColumnUV        => Me%External_Var%WaterColumnUV
         DUZ_VZ               => Me%External_Var%DUZ_VZ
 
-
-
         !End - Shorten variables name
+        
+        UpscalingDischarge  = .false.
+        
         call GetDischargesNumber(Me%ObjDischarges, DischargesNumber, STAT = STAT_CALL)
         if (STAT_CALL/=SUCCESS_)stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR10'
-
 
         !Gets a pointer to Bathymetry
         call GetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
@@ -38014,6 +38014,8 @@ do1:    do DischargeID = 1, DischargesNumber
                                                STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR30'
+            
+            UpscalingDischarge = IsUpscaling(Me%ObjDischarges, DischargesNumber) ! Joao Sobrinho
 
             !Check if this is a bypass discharge. If it is gives the water level of the bypass end cell
             call GetByPassON(Me%ObjDischarges, DischargeID, ByPassON, STAT = STAT_CALL)
@@ -38043,271 +38045,288 @@ do1:    do DischargeID = 1, DischargesNumber
             else
                 WaterLevelByPass = FillValueReal
             endif
+            
+            if (UpscalingDischarge )then! joao Sobrinho
+                
+                call ModifyUpscalingDischarge(FatherID                   = Me%InstanceID,     &
+                                              DischargeNumber            = DischargeID,       &
+                                              UpscalingMomentum          = UpscalingMomentum, &
+                                              ComputeFaces3D             = ComputeFaces3D_UV, &
+                                              Velocity_UV                = Velocity_UV_Old,   &
+                                              Kfloor                     = KFloor_UV,         &
+                                              DischargesVelUV            = Me%WaterFluxes%DischargesVelUV, &
+                                              di                         = Me%Direction%di,   &
+                                              dj                         = Me%Direction%dj,   &
+                                              I                          = I,                 &
+                                              J                          = J,                 &
+                                              STAT                       = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR455'
 
-            call GetDischargeWaterFlow(Me%ObjDischarges,                    &
-                                       Me%CurrentTime, DischargeID,         &
-                                       Me%WaterLevel%Old(I, J),             &
-                                       DischargeFlow,                       &
-                                       SurfaceElevation2 = WaterLevelByPass,&
-                                       STAT = STAT_CALL)
+            else
+                
+                call GetDischargeWaterFlow(Me%ObjDischarges,                    &
+                                            Me%CurrentTime, DischargeID,         &
+                                            Me%WaterLevel%Old(I, J),             &
+                                            DischargeFlow,                       &
+                                            SurfaceElevation2 = WaterLevelByPass,&
+                                            STAT = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR60'
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR60'                
 
-            if (DirectionXY == DirectionX_) then
+                if (DirectionXY == DirectionX_) then
+                
+                    call GetDischargeFlowVelocity(Me%ObjDischarges,                       &
+                                                    Me%CurrentTime, DischargeID,            &
+                                                    VelocityU = DischargeVelocity,          &
+                                                    STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR70'
 
-                call GetDischargeFlowVelocity(Me%ObjDischarges,                 &
-                                           Me%CurrentTime, DischargeID,         &
-                                           VelocityU = DischargeVelocity, STAT = STAT_CALL)
+                else if (DirectionXY == DirectionY_) then
 
-            if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR70'
+                        call GetDischargeFlowVelocity(Me%ObjDischarges,                       &
+                                                      Me%CurrentTime, DischargeID,            &
+                                                      VelocityU = DischargeVelocity,          &
+                                                      STAT = STAT_CALL)
+                        if (STAT_CALL/=SUCCESS_) stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR80'
+                endif
+                
+                di  = Me%Direction%di
+                dj  = Me%Direction%dj
 
-            else if (DirectionXY == DirectionY_) then
 
-
-                call GetDischargeFlowVelocity(Me%ObjDischarges,                 &
-                                           Me%CurrentTime, DischargeID,         &
-                                           VelocityV = DischargeVelocity, STAT = STAT_CALL)
+                call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, FlowDistribution, &
+                                                    VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
 
                 if (STAT_CALL/=SUCCESS_)                                                     &
-                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR80'
+                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR90'
+                
+i1:             if (nCells > 1) then
+    
+                    allocate(DistributionCoef(1:nCells))
 
-            endif
+i2:                 if      (FlowDistribution == DischByCell_       ) then
 
+                        call GetDischargeSpatialType (Me%ObjDischarges, DischargeID, SpatialEmission, STAT = STAT_CALL)
 
-            di  = Me%Direction%di
-            dj  = Me%Direction%dj
+                        if (STAT_CALL/=SUCCESS_) then
+                            stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR100'
+                        endif
 
+                        call GetDischargeInterceptionRatio(Me%ObjDischarges, DischargeID, InterceptionRatio,  &
+                                                            STAT = STAT_CALL)
+                        if (STAT_CALL/=SUCCESS_) then
+                            stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR105'
+                        endif
 
-            call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, FlowDistribution, &
-                                              VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
+                    
+                        call DischargeDistributionPerCell (VectorI          = VectorI,      &
+                                                            VectorJ          = VectorJ,      &
+                                                            nCells           = nCells,       &
+                                                            SpatialEmission  = SpatialEmission,&
+                                                            Mapping          = Me%External_Var%ComputeFaces3D_UV,&
+                                                            Property         = MomentumHorizontal_, &
+                                                            InterceptionRatio= InterceptionRatio, &
+                                                            DistributionCoef = DistributionCoef)
 
-            if (STAT_CALL/=SUCCESS_)                                                     &
-                stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR90'
+                    
+                    else  i2
 
+                        stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR110'
 
-i1:         if (nCells > 1) then
-                allocate(DistributionCoef(1:nCells))
+                    endif i2
 
-i2:             if      (FlowDistribution == DischByCell_       ) then
+                endif i1
+            
+                AuxFlowIJ = DischargeFlow
 
-                    call GetDischargeSpatialType (Me%ObjDischarges, DischargeID, SpatialEmission, STAT = STAT_CALL)
+                CHUNK = CHUNK_K(kmin,kmax)
 
-                    if (STAT_CALL/=SUCCESS_) then
-                        stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR100'
-                    endif
-
-                    call GetDischargeInterceptionRatio(Me%ObjDischarges, DischargeID, InterceptionRatio,  &
-                                                       STAT = STAT_CALL)
-                    if (STAT_CALL/=SUCCESS_) then
-                        stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR105'
-                    endif
-
-
-                    call DischargeDistributionPerCell (VectorI          = VectorI,      &
-                                                       VectorJ          = VectorJ,      &
-                                                       nCells           = nCells,       &
-                                                       SpatialEmission  = SpatialEmission,&
-                                                       Mapping          = Me%External_Var%ComputeFaces3D_UV,&
-                                                       Property         = MomentumHorizontal_, &
-                                                       InterceptionRatio= InterceptionRatio, &
-                                                       DistributionCoef = DistributionCoef)
-                else  i2
-
-                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR110'
-
-                endif i2
-
-            endif i1
-
-            AuxFlowIJ = DischargeFlow
-
-            CHUNK = CHUNK_K(kmin,kmax)
-
-            if (MonitorPerformance) then
-                call StartWatch ("ModuleHydrodynamic", "ModifyMomentumDischarge")
-            endif
-
-
-            if (Me%OutPut%TimeSerieDischON) then
-                if (dj==1) then
-                    Me%OutPut%TimeSerieDischProp(DischargeID,2) = 0.
-                else
-                    Me%OutPut%TimeSerieDischProp(DischargeID,3) = 0.
-                endif
-            endif
-
-
-            !$OMP PARALLEL PRIVATE(k,AuxFlowK,MomentumDischarge,SectionHeight)
-
-dn:         do n=1, nCells
-                !$OMP MASTER
-                if (nCells > 1) then
-                    i         = VectorI(n)
-                    j         = VectorJ(n)
-                    kd        = VectorK(n)
-
-                    call GetDischargeWaterFlow(Me%ObjDischarges,                        &
-                                               Me%CurrentTime, DischargeID,             &
-                                               Me%WaterLevel%Old(I, J),                 &
-                                               AuxFlowIJ,                               &
-                                               SurfaceElevation2 = WaterLevelByPass,    &
-                                               FlowDistribution  = DistributionCoef(n), &
-                                               STAT              = STAT_CALL)
-
-                    if (STAT_CALL/=SUCCESS_)                                            &
-                        stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
-
+                if (MonitorPerformance) then
+                    call StartWatch ("ModuleHydrodynamic", "ModifyMomentumDischarge")
                 endif
 
-                iNorth = i+di
-                jEast =  j+dj
 
-                if (DischVertical == DischUniform_) then
-
-                    if (kmin == FillValueInt) then
-                        if      (ComputeFaces3D_UV(i     , j    , KUB) == Covered) then
-                            kmin = KFloor_UV(i     , j    )
-                        else if (ComputeFaces3D_UV(iNorth, jEast, KUB) == Covered) then
-                            kmin = KFloor_UV(iNorth, jEast)
-                        else
-                            kmin  = KUB
-                        endif
-                    endif
-
-                    if (kmax == FillValueInt) kmax = KUB
-
-                    SectionHeight = 0
-                    if      (ComputeFaces3D_UV(i     , j    , KUB) == Covered) then
-                        do k=kmin, kmax
-                            SectionHeight = SectionHeight + DUZ_VZ(i,j,k)
-                        enddo
-                    else if (ComputeFaces3D_UV(iNorth, jEast, KUB) == Covered) then
-                        do k=kmin, kmax
-                            SectionHeight = SectionHeight + DUZ_VZ(iNorth, jEast,k)
-                        enddo
-                    endif
-                else
-
-                    kmin = kd; kmax = kd
-
-                endif
-
-                MomentumDischarge = 0.
-                !$OMP END MASTER
-                !$OMP BARRIER
-
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-dk:             do k = kmin,kmax
-
-                    AuxFlowK = AuxFlowIJ
-
-                    if (ComputeFaces3D_UV(i, j, k) == Covered) then
-
-                        if (DischVertical == DischUniform_) AuxFlowK = DUZ_VZ(i,j,k) / SectionHeight * AuxFlowIJ
-
-                        ![m/s*m^3/s]                  = [m^3] * [m/s] / [s]
-                        if (AuxFlowK >= 0.) then
-
-                            MomentumDischarge  = AuxFlowK * DischargeVelocity
-
-                            Me%WaterFluxes%DischargesVelUV(iNorth, jEast, k) = DischargeVelocity
-
-                        else
-
-                            MomentumDischarge  = AuxFlowK * Velocity_UV_Old(i, j, k)
-
-                            Me%WaterFluxes%DischargesVelUV(iNorth, jEast, k) = Velocity_UV_Old(i, j, k)
-
-                        endif
-
-
-                        Horizontal_Transport(i     , j    , k) =                                 &
-                            Horizontal_Transport(i     , j    , k)   +   MomentumDischarge
-
-                    else if (ComputeFaces3D_UV(iNorth, jEast, k) == Covered) then
-
-                        if (DischVertical == DischUniform_)                                      &
-                                    AuxFlowK = DUZ_VZ(iNorth, jEast,k) / SectionHeight * AuxFlowIJ
-
-                        ![m/s*m^3/s]                  = [m^3] * [m/s] / [s]
-                        if (AuxFlowK >= 0.) then
-
-                            MomentumDischarge  = AuxFlowK * DischargeVelocity
-
-                            Me%WaterFluxes%DischargesVelUV(i, j, k) = DischargeVelocity
-
-                        else
-
-                            MomentumDischarge  = AuxFlowK * Velocity_UV_Old(iNorth, jEast, k)
-
-                            Me%WaterFluxes%DischargesVelUV(i, j, k) = Velocity_UV_Old(iNorth, jEast, k)
-
-                        endif
-
-                        Horizontal_Transport(iNorth, jEast, k) =                                 &
-                            Horizontal_Transport(iNorth, jEast, k)   +   MomentumDischarge
-
-
-                    else if (abs(MomentumDischarge) > AllmostZero) then
-                        !!! $OMP CRITICAL (MMD1_WARN01)
-                        write(*,*) 'WARNING_ - The Model is trying to discharge Momentum in a No Compute Face'
-                        write(*,*) 'WARNING_ - ModifyMomentumDischarge - ModuleHydrodynamic - WARN01'
-                        !!! $OMP END CRITICAL (MMD1_WARN01)
-                    endif
-
-                    if (Me%OutPut%TimeSerieDischON) then
-                        if (dj==1) then
-                            Me%OutPut%TimeSerieDischProp(DischargeID,2) = Me%OutPut%TimeSerieDischProp(DischargeID,2) + &
-                                                                          MomentumDischarge
-                        else
-                            Me%OutPut%TimeSerieDischProp(DischargeID,3) = Me%OutPut%TimeSerieDischProp(DischargeID,3) + &
-                                                                          MomentumDischarge
-                        endif
-                    endif
-
-                enddo dk
-                !$OMP END DO
-
-            enddo dn
-            !$OMP END PARALLEL
-
-            if (MonitorPerformance) then
-                call StopWatch ("ModuleHydrodynamic", "ModifyMomentumDischarge")
-            endif
-
-            if (Me%OutPut%TimeSerieDischON) then
-                if (dj==1) then
-                    if (Me%OutPut%TimeSerieDischProp(DischargeID,1) /=0) then
-                        Me%OutPut%TimeSerieDischProp(DischargeID,2) = Me%OutPut%TimeSerieDischProp(DischargeID,2)/ &
-                                                                      Me%OutPut%TimeSerieDischProp(DischargeID,1)
-                    else
+                if (Me%OutPut%TimeSerieDischON) then
+                    if (dj==1) then
                         Me%OutPut%TimeSerieDischProp(DischargeID,2) = 0.
-                    endif
-                else
-                   if (Me%OutPut%TimeSerieDischProp(DischargeID,1) /=0) then
-                        Me%OutPut%TimeSerieDischProp(DischargeID,3) = Me%OutPut%TimeSerieDischProp(DischargeID,3)/ &
-                                                                      Me%OutPut%TimeSerieDischProp(DischargeID,1)
                     else
                         Me%OutPut%TimeSerieDischProp(DischargeID,3) = 0.
                     endif
                 endif
+
+
+                !$OMP PARALLEL PRIVATE(k,AuxFlowK,MomentumDischarge,SectionHeight)
+
+ dn:            do n=1, nCells
+                    !$OMP MASTER
+                    if (nCells > 1) then
+                        i         = VectorI(n)
+                        j         = VectorJ(n)
+                        kd        = VectorK(n)
+
+                        call GetDischargeWaterFlow(Me%ObjDischarges,                        &
+                                                    Me%CurrentTime, DischargeID,             &
+                                                    Me%WaterLevel%Old(I, J),                 &
+                                                    AuxFlowIJ,                               &
+                                                    SurfaceElevation2 = WaterLevelByPass,    &
+                                                    FlowDistribution  = DistributionCoef(n), &
+                                                    STAT              = STAT_CALL)
+
+                        if (STAT_CALL/=SUCCESS_)                                            &
+                            stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
+
+                    endif
+
+                    iNorth = i+di
+                    jEast =  j+dj
+
+                    if (DischVertical == DischUniform_) then
+
+                        if (kmin == FillValueInt) then
+                            if      (ComputeFaces3D_UV(i     , j    , KUB) == Covered) then
+                                kmin = KFloor_UV(i     , j    )
+                            else if (ComputeFaces3D_UV(iNorth, jEast, KUB) == Covered) then
+                                kmin = KFloor_UV(iNorth, jEast)
+                            else
+                                kmin  = KUB
+                            endif
+                        endif
+
+                        if (kmax == FillValueInt) kmax = KUB
+
+                        SectionHeight = 0
+                        if      (ComputeFaces3D_UV(i     , j    , KUB) == Covered) then
+                            do k=kmin, kmax
+                                SectionHeight = SectionHeight + DUZ_VZ(i,j,k)
+                            enddo
+                        else if (ComputeFaces3D_UV(iNorth, jEast, KUB) == Covered) then
+                            do k=kmin, kmax
+                                SectionHeight = SectionHeight + DUZ_VZ(iNorth, jEast,k)
+                            enddo
+                        endif
+                    else
+
+                        kmin = kd; kmax = kd
+
+                    endif
+
+                    MomentumDischarge = 0.
+                    !$OMP END MASTER
+                    !$OMP BARRIER
+
+                    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+dk:                  do k = kmin,kmax
+
+                        AuxFlowK = AuxFlowIJ
+
+                        if (ComputeFaces3D_UV(i, j, k) == Covered) then
+
+                            if (DischVertical == DischUniform_) AuxFlowK = DUZ_VZ(i,j,k) / SectionHeight * AuxFlowIJ
+
+                            ![m/s*m^3/s]                  = [m^3] * [m/s] / [s]
+                            if (AuxFlowK >= 0.) then
+
+                                MomentumDischarge  = AuxFlowK * DischargeVelocity
+
+                                Me%WaterFluxes%DischargesVelUV(iNorth, jEast, k) = DischargeVelocity
+
+                            else
+
+                                MomentumDischarge  = AuxFlowK * Velocity_UV_Old(i, j, k)
+
+                                Me%WaterFluxes%DischargesVelUV(iNorth, jEast, k) = Velocity_UV_Old(i, j, k)
+
+                            endif
+
+
+                            Horizontal_Transport(i     , j    , k) =                                 &
+                                Horizontal_Transport(i     , j    , k)   +   MomentumDischarge
+
+                        else if (ComputeFaces3D_UV(iNorth, jEast, k) == Covered) then
+
+                            if (DischVertical == DischUniform_)                                      &
+                                        AuxFlowK = DUZ_VZ(iNorth, jEast,k) / SectionHeight * AuxFlowIJ
+
+                            ![m/s*m^3/s]                  = [m^3] * [m/s] / [s]
+                            if (AuxFlowK >= 0.) then
+
+                                MomentumDischarge  = AuxFlowK * DischargeVelocity
+
+                                Me%WaterFluxes%DischargesVelUV(i, j, k) = DischargeVelocity
+
+                            else
+
+                                MomentumDischarge  = AuxFlowK * Velocity_UV_Old(iNorth, jEast, k)
+
+                                Me%WaterFluxes%DischargesVelUV(i, j, k) = Velocity_UV_Old(iNorth, jEast, k)
+
+                            endif
+
+                            Horizontal_Transport(iNorth, jEast, k) =                                 &
+                                Horizontal_Transport(iNorth, jEast, k)   +   MomentumDischarge
+
+
+                        else if (abs(MomentumDischarge) > AllmostZero) then
+                            !!! $OMP CRITICAL (MMD1_WARN01)
+                            write(*,*) 'WARNING_ - The Model is trying to discharge Momentum in a No Compute Face'
+                            write(*,*) 'WARNING_ - ModifyMomentumDischarge - ModuleHydrodynamic - WARN01'
+                            !!! $OMP END CRITICAL (MMD1_WARN01)
+                        endif
+
+                        if (Me%OutPut%TimeSerieDischON) then
+                            if (dj==1) then
+                                Me%OutPut%TimeSerieDischProp(DischargeID,2) = Me%OutPut%TimeSerieDischProp(DischargeID,2) + &
+                                                                                MomentumDischarge
+                            else
+                                Me%OutPut%TimeSerieDischProp(DischargeID,3) = Me%OutPut%TimeSerieDischProp(DischargeID,3) + &
+                                                                                MomentumDischarge
+                            endif
+                        endif
+
+                    enddo dk
+                    !$OMP END DO
+
+                enddo dn
+                !$OMP END PARALLEL
+
+                if (MonitorPerformance) then
+                    call StopWatch ("ModuleHydrodynamic", "ModifyMomentumDischarge")
+                endif
+
+                if (Me%OutPut%TimeSerieDischON) then
+                    if (dj==1) then
+                        if (Me%OutPut%TimeSerieDischProp(DischargeID,1) /=0) then
+                            Me%OutPut%TimeSerieDischProp(DischargeID,2) = Me%OutPut%TimeSerieDischProp(DischargeID,2)/ &
+                                                                            Me%OutPut%TimeSerieDischProp(DischargeID,1)
+                        else
+                            Me%OutPut%TimeSerieDischProp(DischargeID,2) = 0.
+                        endif
+                    else
+                        if (Me%OutPut%TimeSerieDischProp(DischargeID,1) /=0) then
+                            Me%OutPut%TimeSerieDischProp(DischargeID,3) = Me%OutPut%TimeSerieDischProp(DischargeID,3)/ &
+                                                                            Me%OutPut%TimeSerieDischProp(DischargeID,1)
+                        else
+                            Me%OutPut%TimeSerieDischProp(DischargeID,3) = 0.
+                        endif
+                    endif
+                endif
+
+                if (nCells>1) deallocate(DistributionCoef)
+
+                call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)
+                if (STAT_CALL/=SUCCESS_)                                                    &
+                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR130'
+
+                call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)
+                if (STAT_CALL/=SUCCESS_)                                                    &
+                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR140'
+
+                call UnGetDischarges(Me%ObjDischarges, VectorK, STAT = STAT_CALL)
+                if (STAT_CALL/=SUCCESS_)                                                    &
+                    stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR150'
             endif
-
-            if (nCells>1) deallocate(DistributionCoef)
-
-            call UnGetDischarges(Me%ObjDischarges, VectorI, STAT = STAT_CALL)
-            if (STAT_CALL/=SUCCESS_)                                                    &
-                stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR130'
-
-            call UnGetDischarges(Me%ObjDischarges, VectorJ, STAT = STAT_CALL)
-            if (STAT_CALL/=SUCCESS_)                                                    &
-                stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR140'
-
-            call UnGetDischarges(Me%ObjDischarges, VectorK, STAT = STAT_CALL)
-            if (STAT_CALL/=SUCCESS_)                                                    &
-                stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR150'
-
-        enddo do1
+            
+    enddo do1
 
         !Nullify auxiliar pointers
         nullify (Horizontal_Transport)
@@ -38325,8 +38344,7 @@ dk:             do k = kmin,kmax
 
     End Subroutine ModifyMomentumDischarge
 
-
-    !End ----------------------------------------------------------------------
+    !End -------------------------------------------------------------------------
 
     Subroutine ModifyMomentumDischargeVert
 

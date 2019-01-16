@@ -624,10 +624,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
         !Arguments--------------------------------------------------------------
         integer, intent(IN)                         :: SonID, FatherID, CallerID
-        integer                                     :: STAT_
         integer, optional                           :: STAT
         !Locals-----------------------------------------------------------------
-        integer                                     :: STAT_CALL, ready_
+        integer                                     :: STAT_CALL, ready_, STAT_
         !Begin------------------------------------------------------------------
         STAT_ = UNKNOWN_      
         
@@ -1084,6 +1083,78 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !----------------------------------------------------------------------    
     end subroutine Nudging_IWD
+
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Computes momentum discharges provided by a nested domain
+    !>@param[in] FatherID, UpscalingMomentum, ComputeFaces3D, Velocity, KFloor, DischargesVelUV, di, dj
+    subroutine ModifyUpscalingDischarge(FatherID, UpscalingMomentum, ComputeFaces3D, Velocity, KFloor, &
+                                        DischargesVelUV, di, dj, I, J, STAT)
+        !Arguments-------------------------------------------------------------
+        integer                                        :: FatherID, di, dj, STAT, nCells, I, J
+        real, dimension(:, :, :), pointer,             :: Velocity, AreaU, AreaV
+        real, dimension(:, :, :), pointer, intent(OUT) :: UpscalingMomentum, DischargesVelUV
+        integer, dimension(:, :, :), pointer,          :: ComputeFaces3D
+        integer, dimension(:, :),    pointer,          :: KFloor
+        !Local-----------------------------------------------------------------
+        integer                                        :: ready_
+        
+        STAT = UNKNOWN_
+        
+        call Ready(FatherID, ready_)
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeNumber, nCells, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ModifyUpscalingDischarge - ERR01'
+            
+            if (nCells == 1)then
+                
+                !Buscar a velocidade proveniente da média ponderada do filho : ChildVelocity
+                
+                DischargeVelocity => Me%Son%DischargeVelocity
+                
+                if (di == 1)then
+                    Call GetGeometryAreas(FatherID, AreaV, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ModifyUpscalingDischarge - ERR10'
+                
+                    !Child velocity => Me%Son%DischargeVelocityU
+                    Call ComputeMomentumFlux(UpscalingMomentum, ComputeFaces3D, KFloor, Velocity, Me%Size, AreaV, DischargeVelocity, di, dj, I, J)
+                    
+                    Call UpdateDischargesVelocity
+                    
+                elseif (dj == 1) then
+                    
+                    Call GetGeometryAreas(FatherID, AreaU, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ModifyUpscalingDischarge - ERR20'
+                
+                    !Child velocity => Me%Son%DischargeVelocityV
+                    Call ComputeMomentumFlux(UpscalingMomentum, ComputeFaces3D, KFloor, Velocity, Me%Size, AreaU, DischargeVelocity, di, dj, I, J)
+                    
+                    Call UpdateDischargesVelocity
+                endif
+            else
+                write(*,*)'Model is not yet ready to accept any other discharge type than a point discharge'
+                stop 'ModuleTwoWay - ModifyUpscalingDischarge - ERR20'
+            endif
+            
+            iNorth = i+di
+            jEast =  j+dj
+                    
+            
+            
+            
+            STAT = SUCCESS_
+        else
+            STAT = ready_
+            
+        endif
+        
+  
+    
+  
+    
+    end subroutine ModifyUpscalingDischarge
     
     !---------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
