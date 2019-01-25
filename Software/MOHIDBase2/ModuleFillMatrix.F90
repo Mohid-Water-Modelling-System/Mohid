@@ -120,6 +120,7 @@ Module ModuleFillMatrix
     public  :: GetVectorialField
     public  :: GetAnalyticCelerityON
     public  :: GetAnalyticCelerity
+    public  :: GetFilenameHDF
                      
     
     !Modifier
@@ -547,6 +548,7 @@ Module ModuleFillMatrix
         integer                                     :: nHDFs            = null_int
         
         logical                                     :: CheckDates = .true.
+        character(len=PathLength)                   :: SpongeFILE_DT    = null_str
 
         !Initialization Methods
         type (T_Layers   )                          :: Layers
@@ -589,7 +591,7 @@ Module ModuleFillMatrix
                                      ObjFillMatrix, OverrideValueKeyword, ClientID,     &
                                      PredictDTMethod, MinForDTDecrease,                 &
                                      ValueIsUsedForDTPrediction, CheckDates,            &
-                                     RotateAngleToGrid, STAT)
+                                     RotateAngleToGrid, SpongeFILE_DT, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                         :: EnterDataID
@@ -610,6 +612,7 @@ Module ModuleFillMatrix
         real,         optional, intent(IN )             :: MinForDTDecrease  
         logical,      optional, intent(IN )             :: ValueIsUsedForDTPrediction
         logical,      optional, intent(IN )             :: RotateAngleToGrid
+        character(*), optional, intent(IN )             :: SpongeFILE_DT
 
         !Local-------------------------------------------------------------------
         integer                                         :: ready_, STAT_, STAT_CALL, nUsers, ObjFillMatrix_
@@ -648,6 +651,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             if (present(CheckDates)) then
                 Me%CheckDates = CheckDates
+            endif
+            
+            if (present(SpongeFILE_DT)) then
+                Me%SpongeFILE_DT = trim(SpongeFILE_DT)
+            else
+                Me%SpongeFILE_DT = null_str
             endif
             
 !~             if (Check_Vectorial_Property(PropertyID%IDNumber)) then
@@ -1045,7 +1054,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                      ObjFillMatrix, OverrideValueKeyword, ClientID,     &
                                      predictDTMethod, MinForDTDecrease,                 &
                                      ValueIsUsedForDTPrediction, CheckDates,            &
-                                     RotateAngleToGrid, STAT)
+                                     RotateAngleToGrid, SpongeFILE_DT, STAT)
 
         !Arguments---------------------------------------------------------------
         type (T_PropertyID)                             :: PropertyID
@@ -1068,7 +1077,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         real,         optional, intent(IN )             :: MinForDTDecrease 
         logical,      optional, intent(IN )             :: ValueIsUsedForDTPrediction 
         logical,      optional, intent(IN )             :: RotateAngleToGrid
-
+        character(*), optional, intent(IN )             :: SpongeFILE_DT
         !Local-------------------------------------------------------------------
         real                                            :: FillMatrix_
         integer                                         :: ready_, STAT_, STAT_CALL, nUsers, ObjFillMatrix_
@@ -1108,6 +1117,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(CheckDates)) then
                 Me%CheckDates = CheckDates
             endif
+            
+            if (present(SpongeFILE_DT)) then
+                Me%SpongeFILE_DT = trim(SpongeFILE_DT)
+            else
+                Me%SpongeFILE_DT = null_str
+            endif            
 
 !~             if (Check_Vectorial_Property(PropertyID%IDNumber)) then
             if (PropertyID%IsVectorial) then
@@ -4149,6 +4164,7 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
         integer                                     :: STAT_CALL, i, j, k, l, sp
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: iflag
+        real                                        :: DefaultOutVal     
 
         !Begin----------------------------------------------------------------
 
@@ -4173,13 +4189,22 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
             KUB = Me%Worksize3D%KUB
             
         endif
+        
+        DefaultOutVal = 1e5
+        if      (present(PointsToFill2D)) then
+            call CheckViscSpongeOption(ExtractType = ExtractType, PointsToFill2D = PointsToFill2D, DefaultOutVal = DefaultOutVal)
+        else if (present(PointsToFill3D)) then
+            call CheckViscSpongeOption(ExtractType = ExtractType, PointsToFill3D = PointsToFill3D, DefaultOutVal = DefaultOutVal)
+        endif
+        
+        call CheckReferenceSolDT(ExtractType = ExtractType, DefaultOutVal = DefaultOutVal)
 
         !Gets the sponge value in the model open boundary
         call GetData(Me%Sponge%OutValue,                                                &
                      Me%ObjEnterData , iflag,                                           &
                      SearchType   = ExtractType,                                        &
                      keyword      = 'SPONGE_OUT',                                       &
-                     Default      = 1.e5,                                               &
+                     Default      = DefaultOutVal,                                      &
                      ClientModule = 'ModuleFillMatrix',                                 &
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSponge - ModuleFillMatrix - ERR20'
@@ -4191,16 +4216,12 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
                      Me%ObjEnterData , iflag,                                           &
                      SearchType   = ExtractType,                                        &
                      keyword      = 'SPONGE_CELLS',                                     &
-                     Default      = 10,                                                 &
+                     Default      = 10,                                                  &
                      ClientModule = 'ModuleFillMatrix',                                 &
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructSponge - ModuleFillMatrix - ERR30'
         
-        if (Me%Sponge%Cells > IUB - ILB + 1) then
-            stop 'ConstructSponge - ModuleFillMatrix - ERR35'
-        endif            
-
-        if (Me%Sponge%Cells > JUB - JLB + 1) then
+        if (Me%Sponge%Cells > IUB - ILB + 1 .and. Me%Sponge%Cells > JUB - JLB + 1) then
             stop 'ConstructSponge - ModuleFillMatrix - ERR36'
         endif        
 
@@ -4290,16 +4311,17 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
 
 dsp:    do sp = 1, Me%Sponge%Cells
             
-            AuxI(1) = ILB + sp - 1
-            AuxI(2) = IUB - sp + 1
-            AuxI(3) = JLB + sp - 1
-            AuxI(4) = JUB - sp + 1
+            AuxI(1) = min(ILB + sp - 1, IUB)
+            AuxI(2) = max(IUB - sp + 1, ILB)
+            AuxI(3) = min(JLB + sp - 1, JUB)
+            AuxI(4) = max(JUB - sp + 1, JLB)
             
             
-            dij(1,1) = 1 - sp
-            dij(2,2) = sp - 1
-            dij(3,3) = 1 - sp
-            dij(4,4) = sp - 1
+            
+            dij(1,1) = max (1 - sp, 1 - (IUB - ILB))
+            dij(2,2) = min (sp - 1, (IUB - ILB) - 1)
+            dij(3,3) = max (1 - sp, 1 - (JUB - JLB))
+            dij(4,4) = min (sp - 1, (JUB - JLB) - 1)
             
             
             Aux     = AuxT(sp)
@@ -4352,10 +4374,188 @@ di:                 do i = ILB, IUB
         deallocate(AuxT)
 
     end subroutine ConstructSponge
-
+    
     !--------------------------------------------------------------------------
+    
+    subroutine CheckViscSpongeOption (ExtractType, PointsToFill2D, PointsToFill3D, DefaultOutVal)
 
-  
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ExtractType
+        integer, dimension(:, :),    pointer, optional  :: PointsToFill2D
+        integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
+        real                                            :: DefaultOutVal
+
+        !Local----------------------------------------------------------------
+        integer                                         :: iflag, STAT_CALL
+        real,   dimension(:,:), pointer                 :: DUX, DVY
+        real                                            :: DX, DT, ViscOut, ViscIn 
+        logical                                         :: ViscTurbSponge
+
+        !Begin----------------------------------------------------------------
+
+    
+    
+        !Check ifa default viscosity want to be assumed
+        call GetData(ViscTurbSponge,                                                    &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'VISC_TURB_SPONGE',                                 &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'CheckViscSpongeOption - ModuleFillMatrix - ERR10'  
+        endif            
+        
+        if (ViscTurbSponge) then
+            
+            call GetComputeTimeStep(Me%ObjTime, DT = DT, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'CheckViscSpongeOption - ModuleFillMatrix - ERR20'  
+            endif
+            
+            call GetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,             &
+                                   DUX              = DUX,                              &
+                                   DVY              = DVY,                              &
+                                   STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'CheckViscSpongeOption - ModuleFillMatrix - ERR30'  
+            endif             
+           
+            DX = max(DUX(1,1), DVY(1,1))
+            
+            !dx / 100
+            ViscIn = DX/100.
+            
+            ! 0.1 * dx^2/dt -> stability limit 0.5 * dx^2/dt
+            ViscOut       = 0.1*DX**2/DT
+            DefaultOutVal = ViscOut
+            
+            if (present(PointsToFill2D)) then
+                where (PointsToFill2D == WaterPoint) Me%Matrix2D = ViscIn
+            endif                
+            if (present(PointsToFill3D)) then
+                where (PointsToFill3D == WaterPoint) Me%Matrix3D = ViscIn
+            endif  
+            
+            call UnGetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                     Array            = DUX,                            &
+                                     STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'CheckViscSpongeOption - ModuleFillMatrix - ERR40'  
+            endif     
+            
+            call UnGetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,           &
+                                     Array            = DVY,                            &
+                                     STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'CheckViscSpongeOption - ModuleFillMatrix - ERR50'  
+            endif              
+        endif
+            
+    end subroutine CheckViscSpongeOption
+    
+    !--------------------------------------------------------------------------    
+    subroutine CheckReferenceSolDT (ExtractType, DefaultOutVal)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: ExtractType
+        real                                            :: DefaultOutVal
+
+        !Local----------------------------------------------------------------
+        integer                                         :: iflag, STAT_CALL
+        logical                                         :: FILE_DT, exist
+        integer, save                                   :: ObjHDF5
+        integer                                         :: HDF5_READ        
+        real,   dimension(:), pointer                   :: TimeVector
+        type (T_Time)                                   :: StartDate, EndDate
+
+        !Begin----------------------------------------------------------------
+
+        !Check ifa default viscosity want to be assumed
+        call GetData(FILE_DT,                                                           &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'FILE_DT',                                          &
+                     Default      = .false.,                                            &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'CheckReferenceSolDT - ModuleFillMatrix - ERR10'  
+        endif            
+        
+        if (FILE_DT) then
+            
+            if (Me%SpongeFILE_DT == null_str) then
+                stop 'CheckReferenceSolDT - ModuleFillMatrix - ERR20'  
+            endif 
+
+            inquire (file=trim(Me%SpongeFILE_DT), exist = exist)
+            if (.not. exist) then
+                write(*,*)'Could not find file '//trim(Me%SpongeFILE_DT)
+                stop 'CheckReferenceSolDT - ModuleFillMatrix - ERR30'
+            endif  
+            
+            call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)            
+            
+            call ConstructHDF5 (ObjHDF5, trim(Me%SpongeFILE_DT), HDF5_READ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'CheckReferenceSolDT - ModuleFillMatrix - ERR40'  
+            endif  
+
+            call HDF5SetLimits  (ObjHDF5, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'CheckReferenceSolDT - ModuleFillMatrix - ERR50'  
+            endif  
+
+            allocate(TimeVector(6))
+
+            call HDF5ReadData   (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Time",                              &
+                                 Name           = "Time",                               &
+                                 Array1D        = TimeVector,                           &
+                                 OutputNumber   = 1,                                    &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'CheckReferenceSolDT - ModuleFillMatrix - ERR60'
+            endif                
+
+            call SetDate(StartDate, Year     = TimeVector(1), Month  = TimeVector(2),   &
+                                    Day      = TimeVector(3), Hour   = TimeVector(4),   &
+                                    Minute   = TimeVector(5), Second = TimeVector(6))
+            
+
+            call HDF5ReadData   (HDF5ID         = ObjHDF5,                              &
+                                 GroupName      = "/Time",                              &
+                                 Name           = "Time",                               &
+                                 Array1D        = TimeVector,                           &
+                                 OutputNumber   = 2,                                    &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'CheckReferenceSolDT - ModuleFillMatrix - ERR70'
+            endif        
+
+            call SetDate(EndDate, Year     = TimeVector(1), Month  = TimeVector(2),     &
+                                  Day      = TimeVector(3), Hour   = TimeVector(4),     &
+                                  Minute   = TimeVector(5), Second = TimeVector(6))
+                                     
+            deallocate(TimeVector)
+            
+            
+            DefaultOutVal = EndDate - StartDate
+            
+            call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'CheckReferenceSolDT - ModuleFillMatrix - ERR80'  
+            endif              
+            
+        endif            
+            
+    end subroutine CheckReferenceSolDT
+    
+    !--------------------------------------------------------------------------    
+
+    
     subroutine FillSponge(PointsToFill2D, PointsToFill3D, Aux, i, j, k)
     
         !Arguments-------------------------------------------------------------
@@ -4964,7 +5164,7 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
         !Local-----------------------------------------------------------------            
         integer                                         :: i1, j1
         real                                            :: T
-        real                                            :: CellRotation, dr1, dr2
+        real                                            :: CellRotationX, dr1, dr2
         real                                            :: dx1, dy1, dx2, dy2, dt1, dt2, NewTime
         real                                            :: wc1, wc2
         integer                                         :: STAT_CALL
@@ -4984,13 +5184,13 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
         dy1 = Me%AnalyticWave%EnteringCell%dy(i1, j1) / 2.      
         wc1 = Me%AnalyticWave%Celerity       (i1, j1)
         
-        call GetCellRotation(Me%ObjHorizontalGrid, i1, j1, CellRotation, STAT = STAT_CALL)
+        call GetCellRotation(Me%ObjHorizontalGrid, i1, j1, CellRotationX, STAT = STAT_CALL)
         
         if (STAT_CALL /= SUCCESS_) then
             stop 'ComputeTimeLag - ModuleFillMatrix - ERR10'
         endif
 
-        dr1 = Me%AnalyticWave%Direction - CellRotation
+        dr1 = Me%AnalyticWave%Direction - CellRotationX
         
         !North
         in = i1 + 1
@@ -4999,13 +5199,13 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
         if (Me%AnalyticWave%CellType    (in, jn) == EnteringWaveCell_ .and.             &
             Me%AnalyticWave%TlagMissing (in, jn) == 0) then
             
-            call GetCellRotation(Me%ObjHorizontalGrid, in, jn, CellRotation, STAT = STAT_CALL)
+            call GetCellRotation(Me%ObjHorizontalGrid, in, jn, CellRotationX, STAT = STAT_CALL)
             
             if (STAT_CALL /= SUCCESS_) then
                 stop 'ComputeTimeLag - ModuleFillMatrix - ERR20'
             endif
             
-            dr2 = Me%AnalyticWave%Direction - CellRotation                 
+            dr2 = Me%AnalyticWave%Direction - CellRotationX                 
                  
             dy2 = Me%AnalyticWave%EnteringCell%dy(in, jn) / 2.      
             wc2 = Me%AnalyticWave%Celerity       (in, jn)
@@ -5035,13 +5235,13 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
             Me%AnalyticWave%TlagMissing (is, js) == 0) then
 
             
-            call GetCellRotation(Me%ObjHorizontalGrid, is, js, CellRotation, STAT = STAT_CALL)
+            call GetCellRotation(Me%ObjHorizontalGrid, is, js, CellRotationX, STAT = STAT_CALL)
             
             if (STAT_CALL /= SUCCESS_) then
                 stop 'ComputeTimeLag - ModuleFillMatrix - ERR30'
             endif
             
-            dr2 = Me%AnalyticWave%Direction - CellRotation                 
+            dr2 = Me%AnalyticWave%Direction - CellRotationX                 
                  
             dy2 = Me%AnalyticWave%EnteringCell%dy(is, js) / 2.      
             wc2 = Me%AnalyticWave%Celerity       (is, js)
@@ -5070,13 +5270,13 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
         if (Me%AnalyticWave%CellType    (iw, jw) == EnteringWaveCell_ .and.             &
             Me%AnalyticWave%TlagMissing (iw, jw) == 0) then
         
-            call GetCellRotation(Me%ObjHorizontalGrid, iw, jw, CellRotation, STAT = STAT_CALL)
+            call GetCellRotation(Me%ObjHorizontalGrid, iw, jw, CellRotationX, STAT = STAT_CALL)
             
             if (STAT_CALL /= SUCCESS_) then
                 stop 'ComputeTimeLag - ModuleFillMatrix - ERR40'
             endif
             
-            dr2 = Me%AnalyticWave%Direction - CellRotation                 
+            dr2 = Me%AnalyticWave%Direction - CellRotationX                 
                  
             dx2 = Me%AnalyticWave%EnteringCell%dx(iw, jw) / 2.      
             wc2 = Me%AnalyticWave%Celerity       (iw, jw)
@@ -5106,13 +5306,13 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
         if (Me%AnalyticWave%CellType    (ie, je) == EnteringWaveCell_ .and.             &
             Me%AnalyticWave%TlagMissing (ie, je) == 0) then
         
-            call GetCellRotation(Me%ObjHorizontalGrid, ie, je, CellRotation, STAT = STAT_CALL)
+            call GetCellRotation(Me%ObjHorizontalGrid, ie, je, CellRotationX, STAT = STAT_CALL)
             
             if (STAT_CALL /= SUCCESS_) then
                 stop 'ComputeTimeLag - ModuleFillMatrix - ERR50'
             endif
             
-            dr2 = Me%AnalyticWave%Direction - CellRotation                 
+            dr2 = Me%AnalyticWave%Direction - CellRotationX                 
                  
             dx2 = Me%AnalyticWave%EnteringCell%dx(ie, je) / 2.      
             wc2 = Me%AnalyticWave%Celerity       (ie, je)
@@ -5739,6 +5939,7 @@ i0:     if(Me%Dim == Dim2D)then
         type(T_Field4D), pointer                        :: NewHDF, CurrentHDF
         integer                                         :: nHDFs           = 1
         logical                                         :: exist
+        real                                            :: DT           
         !Begin-----------------------------------------------------------------           
         
         FileName(:) = " "
@@ -6116,8 +6317,15 @@ i0:     if(Me%Dim == Dim2D)then
                                 default      =  900.,                                       &
                                 ClientModule = 'ModuleField4D',                             &
                                 STAT         = STAT_CALL)                                      
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR315'    
-            
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR315'   
+                
+                call GetComputeTimeStep(TimeID = Me%ObjTime, DT = DT, STAT = STAT_CALL)                                      
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR317' 
+                
+                if (CurrentHDF%HarmonicsDT < DT) then
+                    CurrentHDF%HarmonicsDT = DT
+                endif
+                
             endif
 
             call GetData(CurrentHDF%SpatialInterpolON,                                      &
@@ -7708,7 +7916,7 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                                       NoData                = CurrentHDF%NoData,                &
                                       Instant               = Instant,                          &                                  
                                       STAT                  = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR70' 
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR50' 
             
                 icount = 0
             
@@ -7718,7 +7926,7 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                         icount           = icount + 1
                         if (CurrentHDF%NoData(icount)) then
                             write(*,*) 'No data in 2D cell I=',i + di, 'J=',j + dj
-                            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR80' 
+                            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR60' 
                         else                        
                             do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
                                 if (Me%PointsToFill3D(i,j,k) == WaterPoint) then                                
@@ -7733,7 +7941,7 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
             else F2D3D
         
                 call GetGeometryDistances(Me%ObjGeometry, ZCellCenter, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR50' 
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR70' 
         
                 icount = 0
             
@@ -7753,7 +7961,7 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                 enddo            
             
                 call UnGetGeometry(Me%ObjGeometry, ZCellCenter, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR60'             
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR80'             
         
                 call ModifyField4DXYZ(Field4DID             = CurrentHDF%ObjField4D,            &
                                       PropertyIDNumber      = Me%PropertyID%IDNumber,           &
@@ -7765,7 +7973,7 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                                       NoData                = CurrentHDF%NoData,                &
                                       Instant               = Instant,                          &                                  
                                       STAT                  = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR70' 
+                if (STAT_CALL /= SUCCESS_) stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR90' 
             
                 icount = 0
             
@@ -7778,7 +7986,7 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                         icount           = icount + 1
                         if (CurrentHDF%NoData(icount)) then
                             write(*,*) 'No data in 3D cell I=',i + di, 'J=',j + dj, 'K=',k
-                            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR80' 
+                            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR100' 
                         else                        
                             Matrix3D(i, j, k)   = CurrentHDF%Prop(icount)
                         endif
@@ -7792,8 +8000,10 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
             endif F2D3D        
         endif if2D
         
-        if (icount /= CurrentHDF%Ncells) then
-            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR90' 
+        if (icount > CurrentHDF%Ncells) then
+            write(*,*) 'icount =', icount
+            write(*,*) 'CurrentHDF%Ncells =', CurrentHDF%Ncells
+            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR110' 
         endif         
         
 
@@ -8714,6 +8924,52 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
     end subroutine GetAnalyticCelerity
 
     !--------------------------------------------------------------------------        
+    
+    
+
+
+    !--------------------------------------------------------------------------  
+        
+    !Get hdf filename
+    subroutine GetFilenameHDF (FillMatrixID, FilenameHDF, HdfFileExist, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                         :: FillMatrixID
+        character(len=*)                                :: FilenameHDF
+        logical                                         :: HdfFileExist
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_, ready_
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(FillMatrixID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_ )) then
+            
+            if (associated(Me%FirstHDF)) then
+                FilenameHDF     = Me%FirstHDF%FileName
+                HdfFileExist    = .true.
+            else
+                FilenameHDF     = null_str
+                HdfFileExist    = .false.                
+            endif
+
+            STAT_ = SUCCESS_
+
+        else 
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetFilenameHDF
+
+    !--------------------------------------------------------------------------    
    
     
     subroutine UngetFillMatrix2D(FillMatrixID, Array, STAT)

@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VisualStudioProject ProjectCreator="Intel Fortran" Keyword="Console Application" Version="11.0" ProjectIdGuid="{E7F5B24F-13BA-4864-82FF-4BFBBD13A8B5}">
+	<Platforms>
+		<Platform Name="Win32"/>
+		<Platform Name="x64"/></Platforms>
+	<Configurations>
+		<Configuration Name="Debug|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include;..\..\..\..\ExternalLibs\Proj4\Include;..\..\..\..\ExternalLibs\NetCDF\Include;..\MohidBase1\Debug;..\MohidBase2\Debug" PreprocessorDefinitions="_LAGRANGIAN_GLOBAL_,_GOOGLEMAPS" WarnInterfaces="true" RealKIND="realKIND8" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Proj4\lib;..\..\..\..\ExternalLibs\NetCDF\Lib;..\MohidBase1\Debug;..\MohidBase2\Debug" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="128000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib libfproj4.lib netcdf.lib netcdf90.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\win32;..\MohidBase1\Release;..\MohidBase2\Release" PreprocessorDefinitions="_LAGRANGIAN_GLOBAL_;NO_NETCDF" RealKIND="realKIND8" RuntimeChecks="rtChecksNone"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\Lib;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\win32;..\MohidBase1\Release;..\MohidBase2\Release" IgnoreDefaultLibraryNames="MSVCRTD" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="128000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib  hdf5.lib  hdf5_f90cstub.lib hdf5_fortran.lib hdf5_tools.lib libhdf5.lib libhdf5_f90cstub.lib libhdf5_fortran.lib libhdf5_tools.lib libszip.lib libzlib.lib zlib.lib netcdf.lib netcdff.lib "/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\..\..\..\ExternalLibs\MPI_x64\Microsoft;..\MohidBase1\x64\Debug;..\MohidBase2\x64\Debug" PreprocessorDefinitions="_INCREASE_MAXINSTANCES;_LAGRANGIAN_GLOBAL_;_BIG_LINE_LENGTH" WarnDeclarations="true" WarnUnusedVariables="true" WarnInterfaces="true" RealKIND="realKIND8" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\lib;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\..\..\..\ExternalLibs\MPI_x64\Microsoft;..\MohidBase1\x64\Debug;..\MohidBase2\x64\Debug" IgnoreDefaultLibraryNames="msvcrtd.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="128000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib  hdf5.lib  hdf5_f90cstub.lib hdf5_fortran.lib hdf5_tools.lib libhdf5.lib libhdf5_f90cstub.lib libhdf5_fortran.lib libhdf5_tools.lib libszip.lib libzlib.lib zlib.lib netcdf.lib netcdff.lib msmpi.lib msmpifec.lib msmpifmc.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Optimization="optimizeFull" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\..\..\..\ExternalLibs\MPI_x64\Microsoft;..\MohidBase1\x64\Release;..\MohidBase2\x64\Release" PreprocessorDefinitions="_INCREASE_MAXINSTANCES;_BIG_LINE_LENGTH;_LAGRANGIAN_GLOBAL_" OpenMPConditionalCompilation="false" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" RealKIND="realKIND8" OutputCarriageControl="outputCCNone" RuntimeChecks="rtChecksNone" Interfaces="true"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\lib;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\..\..\..\ExternalLibs\MPI_x64\Microsoft;..\MohidBase1\x64\Release;..\MohidBase2\x64\Release" IgnoreDefaultLibraryNames="msvcrtd.lib" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="1280000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib  hdf5.lib  hdf5_f90cstub.lib hdf5_fortran.lib hdf5_tools.lib libhdf5.lib libhdf5_f90cstub.lib libhdf5_fortran.lib libhdf5_tools.lib libszip.lib libzlib.lib zlib.lib netcdf.lib netcdff.lib "/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release MPI|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include;..\..\..\..\ExternalLibs\Proj4\Include;..\..\..\..\ExternalLibs\NetCDF\Include;..\MohidBase1\Release;..\MohidBase2\Release" RealKIND="realKIND8"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Proj4\lib;..\..\..\..\ExternalLibs\NetCDF\Lib;..\MohidBase1\Release;..\MohidBase2\Release" SubSystem="subSystemConsole" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib libfproj4.lib netcdf.lib netcdf90.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release MPI|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Optimization="optimizeFull" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\..\..\..\ExternalLibs\MPI_x64\Microsoft;..\MohidBase1\x64\Release MPI;..\MohidBase2\x64\Release MPI" PreprocessorDefinitions="_USE_MPI;_LAGRANGIAN_GLOBAL_;_INCREASE_MAXINSTANCES;_BIG_LINE_LENGTH" StandardWarnings="standardWarningsF03" WarnUnusedVariables="true" RealKIND="realKIND8" OutputCarriageControl="outputCCNone" RuntimeChecks="rtChecksNone"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\lib;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\..\..\..\ExternalLibs\MPI_x64\Microsoft;..\MohidBase1\x64\Release MPI;..\MohidBase2\x64\Release MPI" IgnoreDefaultLibraryNames="msvcrtd.lib" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="128000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib  hdf5.lib  hdf5_f90cstub.lib hdf5_fortran.lib hdf5_tools.lib libhdf5.lib libhdf5_f90cstub.lib libhdf5_fortran.lib libhdf5_tools.lib libszip.lib libzlib.lib zlib.lib netcdf.lib netcdff.lib msmpi.lib msmpifec.lib msmpifmc.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release OpenMP|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include;..\..\..\..\ExternalLibs\Proj4\Include;..\..\..\..\ExternalLibs\NetCDF\Include;..\MohidBase1\Release OpenMP;..\MohidBase2\Release OpenMP" PreprocessorDefinitions="_LAGRANGIAN_GLOBAL_,_GOOGLEMAPS" OpenMP="OpenMPParallelCode" RealKIND="realKIND8"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Proj4\lib;..\..\..\..\ExternalLibs\NetCDF\Lib;..\MohidBase1\Release OpenMP;..\MohidBase2\Release OpenMP;..\..\..\..\ExternalLibs\OpenMP\IntelFortran11\ia32" IgnoreDefaultLibraryNames="libc.lib" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="128000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib libfproj4.lib netcdf.lib netcdf90.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release OpenMP|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Optimization="optimizeFull" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\..\..\..\ExternalLibs\MPI_x64\Microsoft;..\MohidBase1\x64\Release OpenMP;..\MohidBase2\x64\Release OpenMP" PreprocessorDefinitions="_LAGRANGIAN_GLOBAL_;_INCREASE_MAXINSTANCES;_BIG_LINE_LENGTH" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF03" RealKIND="realKIND8" RuntimeChecks="rtChecksNone"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\lib;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\..\..\..\ExternalLibs\MPI_x64\Microsoft;..\MohidBase1\x64\Release OpenMP;..\MohidBase2\x64\Release OpenMP" IgnoreDefaultLibraryNames="msvcrtd.lib" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="128000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib  hdf5.lib  hdf5_f90cstub.lib hdf5_fortran.lib hdf5_tools.lib libhdf5.lib libhdf5_f90cstub.lib libhdf5_fortran.lib libhdf5_tools.lib libszip.lib libzlib.lib zlib.lib netcdf.lib netcdff.lib msmpi.lib msmpifec.lib msmpifmc.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug MPI|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include;..\..\..\..\ExternalLibs\Proj4\Include;..\..\..\..\ExternalLibs\NetCDF\Include;..\MohidBase1\Debug;..\MohidBase2\Debug" PreprocessorDefinitions="_LAGRANGIAN_GLOBAL_,_GOOGLEMAPS" WarnInterfaces="true" RealKIND="realKIND8" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Proj4\lib;..\..\..\..\ExternalLibs\NetCDF\Lib;..\MohidBase1\Debug;..\MohidBase2\Debug" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="128000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib libfproj4.lib netcdf.lib netcdf90.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug MPI|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\..\..\..\ExternalLibs\MPI_x64\Microsoft;..\MohidBase1\x64\Debug MPI;..\MohidBase2\x64\Debug MPI" PreprocessorDefinitions="_LAGRANGIAN_;_USE_MPI" WarnInterfaces="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\lib;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\..\..\..\ExternalLibs\MPI_x64\Microsoft;..\MohidBase1\x64\Debug MPI;..\MohidBase2\x64\Debug MPI" IgnoreDefaultLibraryNames="msvcrtd.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="128000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib  hdf5.lib  hdf5_f90cstub.lib hdf5_fortran.lib hdf5_tools.lib libhdf5.lib libhdf5_f90cstub.lib libhdf5_fortran.lib libhdf5_tools.lib libszip.lib libzlib.lib zlib.lib netcdf.lib netcdff.lib msmpi.lib msmpifec.lib msmpifmc.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug OpenMP|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Include;..\..\..\..\ExternalLibs\Proj4\Include;..\..\..\..\ExternalLibs\NetCDF\Include;..\MohidBase1\Release OpenMP;..\MohidBase2\Release OpenMP" PreprocessorDefinitions="_LAGRANGIAN_GLOBAL_,_GOOGLEMAPS" OpenMP="OpenMPParallelCode"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF_1.6.8\IntelFortran11\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Proj4\lib;..\..\..\..\ExternalLibs\NetCDF\Lib;..\MohidBase1\Release OpenMP;..\MohidBase2\Release OpenMP;..\..\..\..\ExternalLibs\OpenMP\IntelFortran11\ia32" IgnoreDefaultLibraryNames="libc.lib" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="128000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib libfproj4.lib netcdf.lib netcdf90.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug OpenMP|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\..\..\..\ExternalLibs\MPI_x64\Microsoft;..\MohidBase1\x64\Release OpenMP;..\MohidBase2\x64\Release OpenMP" PreprocessorDefinitions="_LAGRANGIAN_GLOBAL_;_INCREASE_MAXINSTANCES;_BIG_LINE_LENGTH" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF03" RuntimeChecks="rtChecksNone"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\lib;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\..\..\..\ExternalLibs\MPI_x64\Microsoft;..\MohidBase1\x64\Release OpenMP;..\MohidBase2\x64\Release OpenMP" IgnoreDefaultLibraryNames="msvcrtd.lib" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="128000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib  hdf5.lib  hdf5_f90cstub.lib hdf5_fortran.lib hdf5_tools.lib libhdf5.lib libhdf5_f90cstub.lib libhdf5_fortran.lib libhdf5_tools.lib libszip.lib libzlib.lib zlib.lib netcdf.lib netcdff.lib msmpi.lib msmpifec.lib msmpifmc.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
+	<Files>
+		<Filter Name="Header Files" Filter="fi;fd"/>
+		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
+		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\Main.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleAssimilation.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleConsolidation.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleFreeVerticalMovement.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleGauge.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleGOTM.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleHNS.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleHydrodynamic.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleHydrodynamicFile.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleInterfaceSedimentWater.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleInterfaceWaterAir.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleJet.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleLagrangian.F90">
+			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleLagrangianGlobal.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleModel.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleOil.F90">
+			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/></File>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleOil_0D.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleOpenBoundary.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleSand.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleSediment.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleSedimentProperties.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleSequentialAssimilation.F90">
+			<FileConfiguration Name="Release MPI|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug OpenMP|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release OpenMP|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Debug MPI|x64" ExcludedFromBuild="true"/>
+			<FileConfiguration Name="Release|Win32" ExcludedFromBuild="true"/></File>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleToga.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleTurbGOTM.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleTurbine.f90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleTurbulence.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleWaterProperties.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDWater\ModuleWaves.F90"/></Filter></Files>
+	<Globals/></VisualStudioProject>

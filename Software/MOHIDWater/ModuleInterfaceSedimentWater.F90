@@ -2657,7 +2657,7 @@ cd2 :           if (BlockFound) then
         call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
 
         !Opens HDF5 File
-        call ConstructHDF5(Me%ObjHDF5, trim(Me%Files%Results)//"5", HDF5_CREATE, STAT = STAT_CALL)
+        call ConstructHDF5(Me%ObjHDF5, trim(Me%Files%Results), HDF5_CREATE, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                  &
            stop 'Open_HDF5_OutPut_File - ModuleInterfaceSedimentWater - ERR01'
 
@@ -4093,12 +4093,12 @@ do1 :   do while (associated(PropertyX))
 
         ObjHDF5 = 0
 
-        inquire(File = trim(Me%Files%Initial)//"5", Exist = exist)
+        inquire(File = trim(Me%Files%Initial), Exist = exist)
         
         if(.not. exist)then
             write(*,*) 
             write(*,*)     'Could not find the final InterfaceSedimentWater file.'
-            write(*,'(A)') 'BoxFileName = ', trim(Me%Files%Initial)//"5"
+            write(*,'(A)') 'BoxFileName = ', trim(Me%Files%Initial)
             stop           'Read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR10'    
         end if
 
@@ -4106,7 +4106,7 @@ do1 :   do while (associated(PropertyX))
         call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
 
         !Opens HDF5 File
-        call ConstructHDF5 (ObjHDF5, trim(Me%Files%Initial)//"5", HDF5_READ, STAT = STAT_CALL)
+        call ConstructHDF5 (ObjHDF5, trim(Me%Files%Initial), HDF5_READ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR20'
         
         call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,          &
@@ -10316,7 +10316,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         ObjHDF5 = 0
 
         !Opens HDF5 File
-        call ConstructHDF5 (ObjHDF5,trim(filename)//"5", HDF5_CREATE, STAT = STAT_CALL)
+        call ConstructHDF5 (ObjHDF5,trim(filename), HDF5_CREATE, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR01'
         
         !Write the Horizontal Grid

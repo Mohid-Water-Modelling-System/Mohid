@@ -168,6 +168,7 @@ Module ModuleStatistic
 
     type T_ExternalVar
         type (T_Time    )                           :: Now
+        type (T_Time)                               :: BeginTime, EndTime        
         type (T_Size3D  )                           :: Size
         type (T_Size3D  )                           :: WorkSize
         real,    dimension(:, :, :), pointer        :: Value3D     => null() !inicialization: Carina
@@ -276,6 +277,12 @@ Module ModuleStatistic
             call GetComputeCurrentTime(Me%ObjTime,                              &
                                        Me%ExternalVar%Now, STAT = STAT_CALL)                    
             if (STAT_CALL /= SUCCESS_) stop 'ConstructStatistic - ModuleStatistic - ERR03'
+                                                
+            call GetComputeTimeLimits(TimeID    = Me%ObjTime,                           &
+                                      EndTime   = Me%ExternalVar%EndTime,               &
+                                      BeginTime = Me%ExternalVar%BeginTime,             &
+                                      STAT      = STAT_CALL)                    
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructStatistic - ModuleStatistic - ERR05'            
 
             !Sets Size
             Me%ExternalVar%Size     = Size
@@ -3579,6 +3586,10 @@ doClass:        do iClass = 1, Me%Classification%nClasses
         real(8), dimension(:), allocatable          :: P,C
         real(8)                                     :: Px,Cx, sumFreq
         integer                                     :: nc, n
+        real,    dimension(:), pointer              :: TimePtr
+        real,    dimension(6), target               :: AuxTime        
+        
+        !Begin-----------------------------------------------------------------        
 
         !Shorten
         ILB = Me%ExternalVar%WorkSize%ILB
@@ -3611,14 +3622,14 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 Me%Methodology==Value3DStatLayers_) then
             
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Global"//"/Minimum", &
-                                      "Minimum","-", Array3D = Me%Global%Minimum,                           &
+                                      trim(Me%Name),"-", Array3D = Me%Global%Minimum,                           &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR02'
 
             else if (Me%Methodology==Value2DStat2D_) then
 
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Global"//"/Minimum", &
-                                      "Minimum","-", Array2D = Me%Global%Minimum2D,                         &
+                                      trim(Me%Name),"-", Array2D = Me%Global%Minimum2D,                         &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR03'
 
@@ -3629,14 +3640,14 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 Me%Methodology==Value3DStatLayers_) then
             
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Global"//"/Maximum", &
-                                      "Maximum","-", Array3D = Me%Global%Maximum,                           &
+                                      trim(Me%Name),"-", Array3D = Me%Global%Maximum,                           &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR04'
 
             else if (Me%Methodology==Value2DStat2D_) then
 
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Global"//"/Maximum", &
-                                      "Maximum","-", Array2D = Me%Global%Maximum2D,                         &
+                                      trim(Me%Name),"-", Array2D = Me%Global%Maximum2D,                         &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR05'
 
@@ -3647,14 +3658,14 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 Me%Methodology==Value3DStatLayers_) then
             
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Global"//"/Average", &
-                                      "Average", "-", Array3D = Me%Global%Average,                          &
+                                      trim(Me%Name), "-", Array3D = Me%Global%Average,                          &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR06'
 
             else if (Me%Methodology==Value2DStat2D_) then
 
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Global"//"/Average", &
-                                      "Average","-", Array2D = Me%Global%Average2D,                         &
+                                      trim(Me%Name),"-", Array2D = Me%Global%Average2D,                         &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR07'
 
@@ -3665,14 +3676,14 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 Me%Methodology==Value3DStatLayers_) then
             
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Global"//"/StandDev",&
-                                      "StandDev", "-", Array3D = Me%Global%StandardDeviation,               &
+                                      trim(Me%Name), "-", Array3D = Me%Global%StandardDeviation,               &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR08'
 
             else if (Me%Methodology==Value2DStat2D_) then
 
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Global"//"/StandDev",&
-                                      "StandDev","-", Array2D = Me%Global%StandardDeviation2D,              &
+                                      trim(Me%Name),"-", Array2D = Me%Global%StandardDeviation2D,              &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR09'
 
@@ -3685,14 +3696,14 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                     Me%Methodology==Value3DStatLayers_) then
             
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Global"//"/Accumulated", &
-                                            "Accumulated", "-", Array3D = Me%Global%Accumulated,                    &
+                                            trim(Me%Name), "-", Array3D = Me%Global%Accumulated,                    &
                                             STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR10'
 
                 else if (Me%Methodology==Value2DStat2D_) then
 
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Global"//"/Accumulated", &
-                                            "Accumulated","-", Array2D = Me%Global%Accumulated2D,                   &
+                                            trim(Me%Name),"-", Array2D = Me%Global%Accumulated2D,                   &
                                             STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR11'
 
@@ -3707,7 +3718,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                     Me%Methodology==Value3DStatLayers_) then
         
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Global"//"/GeomAverage", &
-                                          "GeomAverage",                                                    & 
+                                          trim(Me%Name),                                                    & 
                                           "-", Array3D = Me%Global%GeomAverage,                             &
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR10'
@@ -3715,7 +3726,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 else if (Me%Methodology==Value2DStat2D_) then
 
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Global"//"/GeomAverage", & 
-                                          "GeomAverage",                                                    &
+                                          trim(Me%Name),                                                    &
                                           "-", Array2D = Me%Global%GeomAverage2D,                           &
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR11'
@@ -3727,7 +3738,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                     Me%Methodology==Value3DStatLayers_) then
         
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Global"//"/GeomStandDev",& 
-                                          "GeomStandDev",                                                   &
+                                          trim(Me%Name),                                                   &
                                           "-", Array3D = Me%Global%GeomStandardDeviation,                   &
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR12'
@@ -3735,7 +3746,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 else if (Me%Methodology==Value2DStat2D_) then
 
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Global"//"/GeomStandDev",& 
-                                          "GeomStandDev",                                                   &
+                                          trim(Me%Name),                                                   &
                                           "-", Array2D = Me%Global%GeomStandardDeviation2D,                 &
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR13'
@@ -3751,7 +3762,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                     Me%Methodology==Value3DStatLayers_) then
         
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Global"//"/CriticalValue", &
-                                          "CriticalValue",                                                    & 
+                                          trim(Me%Name),                                                    & 
                                           "-", Array3D = Me%Global%PercentBelowCriticalValue,                             &
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR10a'
@@ -3759,7 +3770,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 else if (Me%Methodology==Value2DStat2D_) then
 
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Global"//"/CriticalValue", & 
-                                          "CriticalValue",                                                    &
+                                          trim(Me%Name),                                                    &
                                           "-", Array2D = Me%Global%PercentBelowCriticalValue2D,                           &
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR11a'
@@ -3789,7 +3800,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
             if (Me%Methodology==Value3DStat3D_ .or.                                                         &
                 Me%Methodology==Value3DStatLayers_) then
             
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/Minimum", "Minimum",   &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/Minimum", trim(Me%Name),   &
                                       "-", Array3D = Me%Daily%Minimum,                                      &
                                       OutputNumber = Me%Daily%OutputNumber,                                 &
                                       STAT = STAT_CALL)
@@ -3797,7 +3808,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
             else if (Me%Methodology==Value2DStat2D_) then
 
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/Minimum", "Minimum",   &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/Minimum", trim(Me%Name),   &
                                       "-", Array2D = Me%Daily%Minimum2D,                                    &
                                       OutputNumber = Me%Daily%OutputNumber,                                 &
                                       STAT = STAT_CALL)
@@ -3809,7 +3820,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
             if (Me%Methodology==Value3DStat3D_ .or. &
                 Me%Methodology==Value3DStatLayers_) then
             
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/Maximum", "Maximum",   &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/Maximum", trim(Me%Name),   &
                                       "-", Array3D = Me%Daily%Maximum,                                      &
                                       OutputNumber = Me%Daily%OutputNumber,                                 &
                                       STAT = STAT_CALL)
@@ -3817,7 +3828,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
             else if (Me%Methodology==Value2DStat2D_) then
 
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/Maximum", "Maximum",   &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/Maximum", trim(Me%Name),   &
                                       "-", Array2D = Me%Daily%Maximum2D,                                    &
                                       OutputNumber = Me%Daily%OutputNumber,                                 &
                                       STAT = STAT_CALL)
@@ -3831,7 +3842,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
             if (Me%Methodology==Value3DStat3D_ .or.                                                         &
                 Me%Methodology==Value3DStatLayers_) then
             
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/Average", "Average",   &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/Average", trim(Me%Name),   &
                                       "-", Array3D = Me%Daily%Average,                                      &
                                       OutputNumber = Me%Daily%OutputNumber,                                 &
                                       STAT = STAT_CALL)
@@ -3839,7 +3850,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
             else if (Me%Methodology==Value2DStat2D_) then
 
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/Average", "Average",   &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/Average", trim(Me%Name),   &
                                       "-", Array2D = Me%Daily%Average2D,                                    &
                                       OutputNumber = Me%Daily%OutputNumber,                                 &
                                       STAT = STAT_CALL)
@@ -3851,7 +3862,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
             if (Me%Methodology==Value3DStat3D_ .or. &
                 Me%Methodology==Value3DStatLayers_) then
             
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/StandDev", "StandDev",  &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/StandDev", trim(Me%Name),  &
                                       "-", Array3D = Me%Daily%StandardDeviation,                            &
                                       OutputNumber = Me%Daily%OutputNumber,                                 &
                                       STAT = STAT_CALL)
@@ -3859,7 +3870,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
             else if (Me%Methodology==Value2DStat2D_) then
 
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/StandDev", "StandDev",  &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/StandDev", trim(Me%Name),  &
                                       "-", Array2D = Me%Daily%StandardDeviation2D,                          &
                                       OutputNumber = Me%Daily%OutputNumber,                                 &
                                       STAT = STAT_CALL)
@@ -3873,7 +3884,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                     Me%Methodology==Value3DStatLayers_) then
             
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/Accumulated",  &
-                                          "Accumulated",  "-", Array3D = Me%Daily%Accumulated,                      &
+                                          trim(Me%Name),  "-", Array3D = Me%Daily%Accumulated,                      &
                                           OutputNumber = Me%Daily%OutputNumber,                                     &
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR20'
@@ -3881,7 +3892,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 else if (Me%Methodology==Value2DStat2D_) then
 
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/Accumulated",  &
-                                          "Accumulated", "-", Array2D = Me%Daily%Accumulated2D,                     &
+                                          trim(Me%Name), "-", Array2D = Me%Daily%Accumulated2D,                     &
                                           OutputNumber = Me%Daily%OutputNumber,                                     &
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR21'
@@ -3896,7 +3907,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                     Me%Methodology==Value3DStatLayers_) then
         
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/GeomAverage",          &
-                                          "GeomAverage",                                                    & 
+                                          trim(Me%Name),                                                    & 
                                           "-", Array3D = Me%Daily%GeomAverage,                              &
                                           OutputNumber = Me%Daily%OutputNumber,                             &
                                           STAT = STAT_CALL)
@@ -3905,7 +3916,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 else if (Me%Methodology==Value2DStat2D_) then
 
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/GeomAverage",          & 
-                                          "GeomAverage",                                                    &
+                                          trim(Me%Name),                                                    &
                                           "-", Array2D = Me%Daily%GeomAverage2D,                            &
                                           OutputNumber = Me%Daily%OutputNumber,                             &
                                           STAT = STAT_CALL)
@@ -3918,7 +3929,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                     Me%Methodology==Value3DStatLayers_) then
         
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/GeomStandDev",          & 
-                                          "GeomStandDev",                                                   &
+                                          trim(Me%Name),                                                   &
                                           "-", Array3D = Me%Daily%GeomStandardDeviation,                    &
                                           OutputNumber = Me%Daily%OutputNumber,                             &
                                           STAT = STAT_CALL)
@@ -3927,7 +3938,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 else if (Me%Methodology==Value2DStat2D_) then
 
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/GeomStandDev",          & 
-                                          "GeomStandDev",                                                   &
+                                          trim(Me%Name),                                                   &
                                           "-", Array2D = Me%Daily%GeomStandardDeviation2D,                  &
                                           OutputNumber = Me%Daily%OutputNumber,                             &
                                           STAT = STAT_CALL)
@@ -3945,7 +3956,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                     Me%Methodology==Value3DStatLayers_) then
         
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/CriticalValue", &
-                                          "CriticalValue",                                                    & 
+                                          trim(Me%Name),                                                    & 
                                           "-", Array3D = Me%Daily%PercentBelowCriticalValue,                             &
                                           OutputNumber = Me%Daily%OutputNumber,                             &
                                           STAT = STAT_CALL)
@@ -3954,7 +3965,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 else if (Me%Methodology==Value2DStat2D_) then
 
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Daily"//"/CriticalValue", & 
-                                          "CriticalValue",                                                    &
+                                          trim(Me%Name),                                                    &
                                           "-", Array2D = Me%Daily%PercentBelowCriticalValue2D,                           &
                                           OutputNumber = Me%Daily%OutputNumber,                             &
                                           STAT = STAT_CALL)
@@ -3980,12 +3991,32 @@ doClass:        do iClass = 1, Me%Classification%nClasses
         endif
 
         if (Me%Monthly%On .and. WriteMonthly) then
+            
+            call ExtractDate (Me%ExternalVar%EndTime, Year = AuxTime(1))            
+            
+            AuxTime(2) = 1
+            AuxTime(3) = Me%Monthly%OutputNumber
+            AuxTime(4) = 0
+            AuxTime(5) = 0
+            AuxTime(6) = 0
+
+            TimePtr => AuxTime
+
+            call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR25b'
+
+            call HDF5WriteData  (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/Time",   &
+                        "Time", "YYYY/MM/DD HH:MM:SS",                                  &
+                        Array1D = TimePtr,                                              &
+                        OutputNumber = Me%Monthly%OutputNumber, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR25c'
+        
 
             !Minimum
             if (Me%Methodology==Value3DStat3D_ .or.  &
                 Me%Methodology==Value3DStatLayers_) then
             
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/Minimum", "Minimum", &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/Minimum", trim(Me%Name), &
                                       "-", Array3D = Me%Monthly%Minimum,                                    &
                                       OutputNumber = Me%Monthly%OutputNumber,                               &
                                       STAT = STAT_CALL)
@@ -3993,7 +4024,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
             else if (Me%Methodology==Value2DStat2D_) then
             
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/Minimum", "Minimum", &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/Minimum", trim(Me%Name), &
                                       "-", Array2D = Me%Monthly%Minimum2D,                                  &
                                       OutputNumber = Me%Monthly%OutputNumber,                               &
                                       STAT = STAT_CALL)
@@ -4005,7 +4036,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
             if (Me%Methodology==Value3DStat3D_ .or. &
                 Me%Methodology==Value3DStatLayers_) then
             
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/Maximum", "Maximum", &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/Maximum", trim(Me%Name), &
                                       "-", Array3D = Me%Monthly%Maximum,                                    &
                                       OutputNumber = Me%Monthly%OutputNumber,                               &
                                       STAT = STAT_CALL)
@@ -4013,7 +4044,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
             else if (Me%Methodology==Value2DStat2D_) then
             
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/Maximum", "Maximum", &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/Maximum", trim(Me%Name), &
                                       "-", Array2D = Me%Monthly%Maximum2D,                                  &
                                       OutputNumber = Me%Monthly%OutputNumber,                               &
                                       STAT = STAT_CALL)
@@ -4025,7 +4056,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
             if (Me%Methodology==Value3DStat3D_ .or. &
                 Me%Methodology==Value3DStatLayers_) then
             
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/Average", "Average", &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/Average", trim(Me%Name), &
                                       "-", Array3D = Me%Monthly%Average,                                    &
                                       OutputNumber = Me%Monthly%OutputNumber,                               &
                                       STAT = STAT_CALL)
@@ -4033,7 +4064,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
             else if (Me%Methodology==Value2DStat2D_) then
             
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/Average", "Average", &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/Average", trim(Me%Name), &
                                       "-", Array2D = Me%Monthly%Average2D,                                  &
                                       OutputNumber = Me%Monthly%OutputNumber,                               &
                                       STAT = STAT_CALL)
@@ -4046,7 +4077,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
             if (Me%Methodology==Value3DStat3D_ .or. &
                 Me%Methodology==Value3DStatLayers_) then
             
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/StandDev", "StandDev", &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/StandDev", trim(Me%Name), &
                                       "-", Array3D = Me%Monthly%StandardDeviation,                          &
                                       OutputNumber = Me%Monthly%OutputNumber,                               &
                                       STAT = STAT_CALL)
@@ -4054,7 +4085,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
 
             else if (Me%Methodology==Value2DStat2D_) then
             
-                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/StandDev", "StandDev", &
+                call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/StandDev", trim(Me%Name), &
                                       "-", Array2D = Me%Monthly%StandardDeviation2D,                        &
                                       OutputNumber = Me%Monthly%OutputNumber,                               &
                                       STAT = STAT_CALL)
@@ -4069,7 +4100,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                     Me%Methodology==Value3DStatLayers_) then
             
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/Accumulated",    &
-                                            "Accumulated", "-", Array3D = Me%Monthly%Accumulated,                       &
+                                            trim(Me%Name), "-", Array3D = Me%Monthly%Accumulated,                       &
                                             OutputNumber = Me%Monthly%OutputNumber,                                     &
                                             STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR34'
@@ -4077,7 +4108,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 else if (Me%Methodology==Value2DStat2D_) then
 
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/Accumulated",    &
-                                            "Accumulated","-", Array2D = Me%Monthly%Accumulated2D,                      &
+                                            trim(Me%Name),"-", Array2D = Me%Monthly%Accumulated2D,                      &
                                             OutputNumber = Me%Monthly%OutputNumber,                                     &
                                             STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR35'
@@ -4093,7 +4124,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                     Me%Methodology==Value3DStatLayers_) then
         
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/GeomAverage",        &
-                                          "GeomAverage",                                                    & 
+                                          trim(Me%Name),                                                    & 
                                           "-", Array3D = Me%Monthly%GeomAverage,                            &
                                           OutputNumber = Me%Monthly%OutputNumber,                           &
                                           STAT = STAT_CALL)
@@ -4102,7 +4133,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 else if (Me%Methodology==Value2DStat2D_) then
 
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/GeomAverage",        & 
-                                          "GeomAverage",                                                    &
+                                          trim(Me%Name),                                                    &
                                           "-", Array2D = Me%Monthly%GeomAverage2D,                          &
                                           OutputNumber = Me%Monthly%OutputNumber,                           &
                                           STAT = STAT_CALL)
@@ -4115,7 +4146,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                     Me%Methodology==Value3DStatLayers_) then
         
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/GeomStandDev",        & 
-                                          "GeomStandDev",                                                   &
+                                          trim(Me%Name),                                                   &
                                           "-", Array3D = Me%Monthly%GeomStandardDeviation,                  &
                                           OutputNumber = Me%Monthly%OutputNumber,                           &
                                           STAT = STAT_CALL)
@@ -4124,7 +4155,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 else if (Me%Methodology==Value2DStat2D_) then
 
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/GeomStandDev",        & 
-                                          "GeomStandDev",                                                   &
+                                          trim(Me%Name),                                                   &
                                           "-", Array2D = Me%Monthly%GeomStandardDeviation2D,                &
                                           OutputNumber = Me%Monthly%OutputNumber,                           &
                                           STAT = STAT_CALL)
@@ -4142,7 +4173,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                     Me%Methodology==Value3DStatLayers_) then
         
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/CriticalValue", &
-                                          "CriticalValue",                                                    & 
+                                          trim(Me%Name),                                                    & 
                                           "-", Array3D = Me%Monthly%PercentBelowCriticalValue,                             &
                                           OutputNumber = Me%Monthly%OutputNumber,                           &
                                           STAT = STAT_CALL)
@@ -4151,7 +4182,7 @@ doClass:        do iClass = 1, Me%Classification%nClasses
                 else if (Me%Methodology==Value2DStat2D_) then
 
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/Monthly"//"/CriticalValue", & 
-                                          "CriticalValue",                                                    &
+                                          trim(Me%Name),                                                    &
                                           "-", Array2D = Me%Monthly%PercentBelowCriticalValue2D,                           &
                                           OutputNumber = Me%Monthly%OutputNumber,                           &
                                           STAT = STAT_CALL)
@@ -4489,14 +4520,14 @@ doClass2:           do iClass = 1, nc
                 Me%Methodology==Value3DStatLayers_) then
             
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/SpecificHour"//"/Minimum", &
-                                      "Minimum","-", Array3D = Me%SpecificHour%Minimum,                           &
+                                      trim(Me%Name),"-", Array3D = Me%SpecificHour%Minimum,                           &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR51'
 
             else if (Me%Methodology==Value2DStat2D_) then
 
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/SpecificHour"//"/Minimum", &
-                                      "Minimum","-", Array2D = Me%SpecificHour%Minimum2D,                         &
+                                      trim(Me%Name),"-", Array2D = Me%SpecificHour%Minimum2D,                         &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR52'
 
@@ -4507,14 +4538,14 @@ doClass2:           do iClass = 1, nc
                 Me%Methodology==Value3DStatLayers_) then
             
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/SpecificHour"//"/Maximum", &
-                                      "Maximum","-", Array3D = Me%SpecificHour%Maximum,                           &
+                                      trim(Me%Name),"-", Array3D = Me%SpecificHour%Maximum,                           &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR53'
 
             else if (Me%Methodology==Value2DStat2D_) then
 
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/SpecificHour"//"/Maximum", &
-                                      "Maximum","-", Array2D = Me%SpecificHour%Maximum2D,                         &
+                                      trim(Me%Name),"-", Array2D = Me%SpecificHour%Maximum2D,                         &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR54'
 
@@ -4525,14 +4556,14 @@ doClass2:           do iClass = 1, nc
                 Me%Methodology==Value3DStatLayers_) then
             
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/SpecificHour"//"/Average", &
-                                      "Average", "-", Array3D = Me%SpecificHour%Average,                          &
+                                      trim(Me%Name), "-", Array3D = Me%SpecificHour%Average,                          &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR55'
 
             else if (Me%Methodology==Value2DStat2D_) then
 
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/SpecificHour"//"/Average", &
-                                      "Average","-", Array2D = Me%SpecificHour%Average2D,                         &
+                                      trim(Me%Name),"-", Array2D = Me%SpecificHour%Average2D,                         &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR56'
 
@@ -4543,14 +4574,14 @@ doClass2:           do iClass = 1, nc
                 Me%Methodology==Value3DStatLayers_) then
             
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/SpecificHour"//"/StandDev",&
-                                      "StandDev", "-", Array3D = Me%SpecificHour%StandardDeviation,               &
+                                      trim(Me%Name), "-", Array3D = Me%SpecificHour%StandardDeviation,               &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR57'
 
             else if (Me%Methodology==Value2DStat2D_) then
 
                 call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/SpecificHour"//"/StandDev",&
-                                      "StandDev","-", Array2D = Me%SpecificHour%StandardDeviation2D,              &
+                                      trim(Me%Name),"-", Array2D = Me%SpecificHour%StandardDeviation2D,              &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR58'
 
@@ -4563,14 +4594,14 @@ doClass2:           do iClass = 1, nc
                     Me%Methodology==Value3DStatLayers_) then
             
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/SpecificHour"//"/Accumulated",   &
-                                            "Accumulated", "-", Array3D = Me%SpecificHour%Accumulated,                      &
+                                            trim(Me%Name), "-", Array3D = Me%SpecificHour%Accumulated,                      &
                                             STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR34'
 
                 else if (Me%Methodology==Value2DStat2D_) then
 
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/SpecificHour"//"/Accumulated",   &
-                                            "Accumulated","-", Array2D = Me%SpecificHour%Accumulated2D,                     &
+                                            trim(Me%Name),"-", Array2D = Me%SpecificHour%Accumulated2D,                     &
                                             STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR35'
 
@@ -4586,7 +4617,7 @@ doClass2:           do iClass = 1, nc
                     Me%Methodology==Value3DStatLayers_) then
         
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/SpecificHour"//"/GeomAverage", &
-                                          "GeomAverage",                                                    & 
+                                          trim(Me%Name),                                                    & 
                                           "-", Array3D = Me%SpecificHour%GeomAverage,                             &
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR60'
@@ -4594,7 +4625,7 @@ doClass2:           do iClass = 1, nc
                 else if (Me%Methodology==Value2DStat2D_) then
 
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/SpecificHour"//"/GeomAverage", & 
-                                          "GeomAverage",                                                    &
+                                          trim(Me%Name),                                                    &
                                           "-", Array2D = Me%SpecificHour%GeomAverage2D,                           &
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR61'
@@ -4606,7 +4637,7 @@ doClass2:           do iClass = 1, nc
                     Me%Methodology==Value3DStatLayers_) then
         
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/SpecificHour"//"/GeomStandDev",& 
-                                          "GeomStandDev",                                                   &
+                                          trim(Me%Name),                                                   &
                                           "-", Array3D = Me%SpecificHour%GeomStandardDeviation,                   &
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR62'
@@ -4614,7 +4645,7 @@ doClass2:           do iClass = 1, nc
                 else if (Me%Methodology==Value2DStat2D_) then
 
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/SpecificHour"//"/GeomStandDev",& 
-                                          "GeomStandDev",                                                   &
+                                          trim(Me%Name),                                                   &
                                           "-", Array2D = Me%SpecificHour%GeomStandardDeviation2D,                 &
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR63'
@@ -4630,7 +4661,7 @@ doClass2:           do iClass = 1, nc
                     Me%Methodology==Value3DStatLayers_) then
         
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/SpecificHour"//"/CriticalValue", &
-                                          "CriticalValue",                                                    & 
+                                          trim(Me%Name),                                                    & 
                                           "-", Array3D = Me%SpecificHour%PercentBelowCriticalValue,                             &
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR10a'
@@ -4638,7 +4669,7 @@ doClass2:           do iClass = 1, nc
                 else if (Me%Methodology==Value2DStat2D_) then
 
                     call HDF5WriteData   (Me%ObjHDF5, trim(Me%GroupName)//trim(Me%Name)//"/SpecificHour"//"/CriticalValue", & 
-                                          "CriticalValue",                                                    &
+                                          trim(Me%Name),                                                    &
                                           "-", Array2D = Me%SpecificHour%PercentBelowCriticalValue2D,                           &
                                           STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'WriteValuesToFileHDF5 - ModuleStatistic - ERR11a'
@@ -5139,6 +5170,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         deallocate (Me%Layers%WaterPoints)
         deallocate (Me%Layers%UpperDepth)
         deallocate (Me%Layers%LowerDepth)
+
         deallocate (Me%Layers%UpperLayer)
         deallocate (Me%Layers%LowerLayer)
 

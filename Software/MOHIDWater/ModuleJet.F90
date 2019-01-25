@@ -98,9 +98,9 @@ Module ModuleJet
 !   SURFACE_VELV            : real (m/s)       [0]        !ambient surface velocity V when a LINEAR water column is admitted
 
     use ModuleGlobalData
-    use ModuleEnterData, only : ConstructEnterData, GetData, KillEnterData, GetExtractType
-    use ModuleFunctions, only : SigmaUNESCO
-
+    use ModuleEnterData,      only : ConstructEnterData, GetData, KillEnterData, GetExtractType
+    use ModuleFunctions,      only : SigmaUNESCO
+    use ModuleHorizontalGrid, only : GetCellRotation    
 
     implicit none 
 
@@ -371,6 +371,7 @@ Module ModuleJet
         type(T_OutPut)                  :: OutPut
         type(T_Evolution)               :: Evolution
         integer                         :: ObjEnterData      = 0
+        integer                         :: ObjHorizontalGrid = 0
 
         !Collection of instances
         type(T_Jet  ), pointer          :: Next
@@ -394,12 +395,13 @@ Module ModuleJet
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine Construct_Jet(JetID, FileName, PositionX, PositionY,            &
+    subroutine Construct_Jet(JetID, FileName, HorizontalGridID, PositionX, PositionY,  &
                              Flow, Salinity, Temperature, STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: JetID
         character(LEN=*)                            :: FileName
+        integer                                     :: HorizontalGridID
         real                                        :: PositionX, PositionY
         real                                        :: Flow, Salinity, Temperature
         integer, optional, intent(OUT)              :: STAT
@@ -426,6 +428,8 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Allocates a new Instance
             call AllocateInstance
+            
+            Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)            
 
             call ConstructEnterData (Me%ObjEnterData, FileName, STAT = STAT_)
             if (STAT_ /= SUCCESS_) stop 'Construct_Jet - ModuleJet - ERR01'
@@ -1340,8 +1344,9 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
    
         !Local-----------------------------------------------------------------
         integer :: I, J, K, Kbottom, Ksurface
-        real    :: a
+        real    :: a, CellRotationX, CellRotationY
         logical :: FoundLayer
+        integer :: STAT_CALL
         
         !----------------------------------------------------------------------
 
@@ -1375,15 +1380,25 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
 
                 Me%Ambient%LocalSalinity    = Me%Ambient%Salinity(I, J, K)
                 Me%Ambient%LocalTemperature = Me%Ambient%Temperature(I, J, K)
-                                                  
+                
+                call GetCellRotation(Me%ObjHorizontalGrid, I, J,                        &
+                                     CellRotationX = CellRotationX,                     &
+                                     CellRotationY = CellRotationY,                     &
+                                     STAT          = STAT_CALL)
+                                     
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ModuleJet - LocalAmbientProp - ERR20'
+                endif                
 
-                Me%Ambient%LocalVelU        = Me%Ambient%VelU(I, J, K)
-                Me%Ambient%LocalVelV        = Me%Ambient%VelV(I, J, K)
-                Me%Ambient%LocalVelW        = Me%Ambient%VelW(I, J, K)
+                Me%Ambient%LocalVelU = Me%Ambient%VelU(I, J, K) * cos(CellRotationX) +  &
+                                       Me%Ambient%VelV(I, J, K) * cos(CellRotationY)
+                Me%Ambient%LocalVelV = Me%Ambient%VelU(I, J, K) * sin(CellRotationX) +  &
+                                       Me%Ambient%VelV(I, J, K) * sin(CellRotationY)
+                Me%Ambient%LocalVelW = Me%Ambient%VelW(I, J, K)
 
            
             else
-                stop 'LocalAmbientProp - ModuleJet - ERR01'
+                stop 'LocalAmbientProp - ModuleJet - ERR30'
             endif
 
         else if (Me%Ambient%LocalType == Uniform) then
@@ -2855,8 +2870,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             nUsers = DeassociateInstance(mJET_,  Me%InstanceID)
 
             if (nUsers == 0) then
-               
-                
+
+                nUsers = DeassociateInstance(mHORIZONTALGRID_,  Me%ObjHorizontalGrid)
+                if (nUsers == 0) stop 'KillJet - ModuleJet -ERR10'
 
                 !Deallocates the output matrix
                 deallocate (Me%OutPut%Matrix)

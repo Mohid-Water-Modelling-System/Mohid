@@ -4346,8 +4346,10 @@ cd1:    if (EnterDataID > 0) then
             Me => Me%Next
         enddo
 
-        if (.not. associated(Me))                                          &
+        if (.not. associated(Me)) then
             stop 'ModuleEnterData - LocateObjEnterData - ERR01'
+        endif
+               
 
     end subroutine LocateObjEnterData
 
@@ -4658,7 +4660,7 @@ cd3 :           if (ClientNumber .NE. Me%BlockClientIDnumber) then
 
         !Local-----------------------------------------------------------------
         character(len=25)           :: KeyWord_Delimiter = " "
-        character(len=255)          :: Line
+        character(len=255)          :: Line              = " "
         integer                     :: i
         character(10), allocatable, dimension(:) :: CharVectorValues
 

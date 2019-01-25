@@ -1,0 +1,10 @@
+BATHYMETRY_FILE     : Bathymetry.dat
+GEOMETRY_FILE       : Geometry_1.dat
+OUTPUT_FILE         : DDC.dat
+N_DOMAINS_X         : 4
+N_DOMAINS_Y         : 4
+HAS_MASTER          : 1
+USE_CENTER_OF_MASS  : 0
+DIVISION_METHOD     : 3
+
+

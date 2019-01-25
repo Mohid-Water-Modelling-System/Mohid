@@ -206,6 +206,7 @@ program MohidWater
     integer                                                 :: ObjLagrangianGlobal  = 0
     integer,                      dimension(:,:), pointer   :: LagInstance          => null()
     character(len=StringLength),  dimension(:  ), pointer   :: ModelNames           => null()
+    character(len=PathLength),    dimension(:  ), pointer   :: ModelPaths			=> null()
     real, dimension(:), allocatable                         :: ModelDTs
 
 
@@ -289,8 +290,15 @@ program MohidWater
         do while (associated(CurrentModel))
 
             call SetFilesName  (CurrentModel%ModelPath)
-            call ConstructModel(LagInstance, ModelNames, NumberOfModels, ObjLagrangianGlobal, &
-                                CurrentModel%ModelID, InitialSystemTime, STAT = STAT_CALL)
+            
+            call ConstructModel(LagInstance			= LagInstance,						&
+                                ModelNames			= ModelNames,						&
+                                ModelPaths          = ModelPaths,                       &	
+                                NumberOfModels		= NumberOfModels,					&
+                                ObjLagrangianGlobal	= ObjLagrangianGlobal,				&
+                                ModelID				= CurrentModel%ModelID,				&
+                                InitialSystemTime	= InitialSystemTime,				&
+                                STAT				= STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR20'
 
             !Get the Instance IDs of the Objects which are necessary for Model/SubModel
@@ -607,12 +615,20 @@ program MohidWater
 
                 !PCL
                 write(*,*) "Construct model MPI ID =", CurrentModel%MPI_ID
+                    
 
-                call ConstructModel(LagInstance, ModelNames, NumberOfModels,            &
-                                    ObjLagrangianGlobal, CurrentModel%ModelID,          &
-                                    InitialSystemTime, CurrentModel%MPI_ID,             &
-                                    CurrentModel%MasterID, CurrentModel%LastSlaveID,    &
-                                    CurrentModel%ModelPath, STAT = STAT_CALL)
+                call ConstructModel(LagInstance			= LagInstance,					&
+                                    ModelNames			= ModelNames,					&
+                                    ModelPaths          = ModelPaths,                   &	
+                                    NumberOfModels		= NumberOfModels,				&
+                                    ObjLagrangianGlobal	= ObjLagrangianGlobal,			&
+                                    ModelID				= CurrentModel%ModelID,         &
+                                    InitialSystemTime	= InitialSystemTime,			& 
+                                    MPI_ID				= CurrentModel%MPI_ID,			&
+                                    MasterID			= CurrentModel%MasterID,		&
+                                    LastSlaveID			= CurrentModel%LastSlaveID,     &
+                                    ModelPath			= CurrentModel%ModelPath,		&
+                                    STAT				= STAT_CALL)
 
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWaterMPI - MohidWater - ERR80'
 
@@ -1216,6 +1232,7 @@ iT:     if (TreeExists) then
         endif iT
 
         allocate(ModelNames(1:NumberOfModels))
+        allocate(ModelPaths(1:NumberOfModels))        
         allocate(LagInstance(1:TotalLagInst_, 1:NumberOfModels))
         LagInstance(:,:) = 0
 
@@ -1227,6 +1244,7 @@ iT:     if (TreeExists) then
         do while (associated(CurrentModel))
             i = i + 1
             ModelNames(i) = trim(CurrentModel%ModelName)
+            ModelPaths(i) = trim(CurrentModel%ModelPath)
 
             NextModel => CurrentModel%Next
 doNext:     do while (associated(NextModel))
@@ -1548,7 +1566,13 @@ doNext:     do while (associated(NextModel))
 
             CurrentModel => CurrentModel%Next
         enddo
+        
+        if (associated(LagInstance  )) deallocate(LagInstance)
+        if (associated(ModelNames   )) deallocate(ModelNames )
+        if (associated(ModelPaths   )) deallocate(ModelPaths )
 
+
+        
         if (MonitorPerformance) then
             call KillWatchGroup (STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'KillMohidWater - MohidWater - ERR02'
