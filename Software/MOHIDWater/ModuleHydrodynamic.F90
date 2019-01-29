@@ -120,7 +120,7 @@ Module ModuleHydrodynamic
                                        SetDischargeInterceptionRatio,                    &
                                        GetDischargeInterceptionRatio,                    &
                                        Kill_Discharges, CorrectsBypassCellsDischarges,   &
-                                       SetDistributionCoefMass
+                                       SetDistributionCoefMass, IsUpscaling
     use ModuleTimeSerie,        only : StartTimeSerie, StartTimeSerieInput,              &
                                        GetTimeSerieLocation, CorrectsCellsTimeSerie,     &
                                        GetNumberOfTimeSeries, TryIgnoreTimeSerie,        &
@@ -149,8 +149,8 @@ Module ModuleHydrodynamic
                                        GetDDecompWorkSize2D, WriteHorizontalGrid_UV,     &
                                        GetCellRotation, GetGridCellArea
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
-                                       AllocateTwoWayAux, PrepTwoWay, UngetTwoWayExternal_Vars,&
-                                       Construct_TwoWay_Discharges
+                                       AllocateTwoWayAux, PrepTwoWay, UngetTwoWayExternal_Vars, &
+                                       Construct_Upscaling_Discharges, GetUpscalingDischarge
 #ifdef _USE_MPI
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
@@ -572,7 +572,7 @@ Module ModuleHydrodynamic
         module procedure UngetHydrodynamic2Dreal8
         module procedure UngetHydrodynamic3Dreal4
         module procedure UngetHydrodynamic3Dreal8
-        module procedure UngetHydrodynamic3Dinteger !Joao Sobrinho
+        module procedure UngetHydrodynamic3Dinteger
     end interface UngetHydrodynamic
 
     private :: pythag
@@ -1463,7 +1463,7 @@ Module ModuleHydrodynamic
                                            InvertBaromSomeBound = .false., &
                                            NullWaterLevelGradI  = .false., &
                                            NullWaterLevelGradJ  = .false., &
-                                           TwoWay               = .false., & ! Joao Sobrinho
+                                           TwoWay               = .false., &
                                            TwoWayWaterLevel     = .false.
         real, pointer, dimension(:,:)   :: InvertBarometerCells => null()
 
@@ -1487,6 +1487,7 @@ Module ModuleHydrodynamic
         logical                         :: CoriolisBoundary     = .false., &
                                            Recording            = .false., &
                                            MomentumDischarge    = .false., &
+                                           UpscalingDischarge   = .false., &
                                            LocalDensity         = .false., &
                                            BlumbergKantha       = .false., &
                                            InitialElevation     = .false., &
@@ -1588,8 +1589,8 @@ Module ModuleHydrodynamic
                                                      ModulusUVaux   => null(), &
                                                      CenterWaux     => null()
 
-         real(4),       dimension(:,:,:), pointer :: AuxReal4       => null()  ! Joao Sobrinho
-         real(4),       dimension(:,:  ), pointer :: Aux2DReal4     => null()  ! Joao Sobrinho
+         real(4),       dimension(:,:,:), pointer :: AuxReal4       => null()
+         real(4),       dimension(:,:  ), pointer :: Aux2DReal4     => null()
 
 
          real,          dimension(:,:),   pointer :: Aux2D          => null(), &
@@ -1599,7 +1600,7 @@ Module ModuleHydrodynamic
 
          logical                                  :: RestartOverwrite   = .false.
          logical                                  :: Faces              = .false.
-         logical                                  :: Real4              = .true. !Joao Sobrinho
+         logical                                  :: Real4              = .true.
 
          real                                     :: WaterLevelUnits    = null_real
          logical                                  :: TimeSerieDischON   = .false.
@@ -1844,7 +1845,7 @@ Module ModuleHydrodynamic
         private
         type(T_Direction     ) :: Direction
         type(T_State         ) :: State
-        integer                :: FatherInstanceID !Joao Sobrinho
+        integer                :: FatherInstanceID 
         integer                :: InstanceID    = null_int
         character(PathLength)  :: ModelName     = null_str
         type(T_Size2D        ) :: Size2D
@@ -4917,7 +4918,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         if (Me%ComputeOptions%WriteContinuousFormat /= Binary_ .and.                     &
             Me%ComputeOptions%WriteContinuousFormat /= HDF5_) then
-            stop 'Construct_Numerical_Options - Hydrodynamic - ERR28.'!Joao Sobrinho
+            stop 'Construct_Numerical_Options - Hydrodynamic - ERR28.'
         endif
 
 
@@ -8252,7 +8253,7 @@ cd21:   if (Baroclinic) then
         if (STAT_CALL /= SUCCESS_)                                                     &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1210')
 
-        !Joao Sobrinho
+        
         call GetData(Me%ComputeOptions%TwoWay,                                      &
                     Me%ObjEnterData, iflag,                                            &
                     Keyword    = 'TWO_WAY',                                            &
@@ -9979,6 +9980,7 @@ d1:             do dn = 1, DischargesNumber
                             write(*,*) 'active in module Hydrodynamic.dat'
                             stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR40'
                         endif
+                        Me%ComputeOptions%UpscalingDischarge = .true. !Joao Sobrinho
                     endif
                     
 
@@ -10975,7 +10977,7 @@ cd5 :           if (opened) then
             Me%OutPut%Simple = .false.
         endif
 
-        !Joao Sobrinho
+        
         call GetData(Me%Output%Real4,                                                   &
                      Me%ObjEnterData,                                                   &
                      iflag,                                                             &
@@ -12492,7 +12494,7 @@ i1:         if (CoordON) then
                  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructMatrixesOutput - ModuleHydrodynamic - ERR10'
 
-        !Joao Sobrinho
+       
         if (Me%Output%Real4)then
             Me%OutPut%AuxReal4      (:,:,:) = 0.
             Me%OutPut%Aux2DReal4    (:,:  ) = 0.
@@ -16441,7 +16443,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
 
                 if (Me%ComputeOptions%TwoWay)then
                     call AllocateTwoWayAux(HydrodynamicFatherID, HydrodynamicID)
-                    !call Construct_Uppscalling_Discharges(HydrodynamicFatherID, HydrodynamicID)
+                    !if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then   Joao Sobrinho
+                    !    call Construct_Upscaling_Discharges(HydrodynamicFatherID, HydrodynamicID)
+                    !endif
                 endif
 
 
@@ -16455,9 +16459,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
 
             call SetMatrixValue(Me%SubModel%DUZ_Old, Me%Size, Me%SubModel%DUZ_New)
             call SetMatrixValue(Me%SubModel%DVZ_Old, Me%Size, Me%SubModel%DVZ_New)
-
-            !Me%SubModel%DUZ_Old(:,:,:) = Me%SubModel%DUZ_New(:,:,:)
-            !Me%SubModel%DVZ_Old(:,:,:) = Me%SubModel%DVZ_New(:,:,:)
 
             if (ObjHydrodynamicFather%LastIteration > Me%SubModel%NextTime &
                 .or. InitialField) then
@@ -21970,7 +21971,6 @@ cd12:   if (Me%SubModel%InterPolTime .and. InitialField) then
         if (STAT_CALL /= SUCCESS_)                                                       &
         stop 'AddSubmodelWaterLevel - ModuleHydrodynamic - ERR01'
 
-        !Paralelizar! Joao Sobrinho
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     Me%Submodel%Z_Next(i, j) = Me%Submodel%Z_Next(i, j) + Me%Submodel%WaterLevelIncrease * &
@@ -25365,7 +25365,7 @@ X1:         if (Me%External_Var%OpenPoints3D(i, j,KUB) == OpenPoint) then
 
         WaterPoints3D    => Me%External_Var%WaterPoints3D
 
-        OpenPoints3D       => Me%External_Var%OpenPoints3D !Joao Sobrinho
+        OpenPoints3D       => Me%External_Var%OpenPoints3D
 
         SurfaceElevation => Me%WaterLevel%New
 
@@ -37961,6 +37961,7 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         integer                            :: DischVertical
         real                               :: InterceptionRatio
         integer                            :: CHUNK
+        logical                            :: UpscalingDischarge
 
         !Begin----------------------------------------------------------------
 
@@ -38014,8 +38015,6 @@ do1:    do DischargeID = 1, DischargesNumber
                                                STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR30'
-            
-            UpscalingDischarge = IsUpscaling(Me%ObjDischarges, DischargesNumber) ! Joao Sobrinho
 
             !Check if this is a bypass discharge. If it is gives the water level of the bypass end cell
             call GetByPassON(Me%ObjDischarges, DischargeID, ByPassON, STAT = STAT_CALL)
@@ -38046,21 +38045,25 @@ do1:    do DischargeID = 1, DischargesNumber
                 WaterLevelByPass = FillValueReal
             endif
             
+            UpscalingDischarge = IsUpscaling(Me%ObjDischarges, DischargesNumber) ! Joao Sobrinho
+            
             if (UpscalingDischarge )then! joao Sobrinho
                 
-                call ModifyUpscalingDischarge(FatherID                   = Me%InstanceID,     &
-                                              DischargeNumber            = DischargeID,       &
-                                              UpscalingMomentum          = UpscalingMomentum, &
-                                              ComputeFaces3D             = ComputeFaces3D_UV, &
-                                              Velocity_UV                = Velocity_UV_Old,   &
-                                              Kfloor                     = KFloor_UV,         &
-                                              DischargesVelUV            = Me%WaterFluxes%DischargesVelUV, &
-                                              di                         = Me%Direction%di,   &
-                                              dj                         = Me%Direction%dj,   &
-                                              I                          = I,                 &
-                                              J                          = J,                 &
-                                              STAT                       = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR455'
+                !Aqui será chamada a routina que actializa o transporte horizontal.
+    
+                !call GetUpscalingDischarge(FatherID                   = Me%InstanceID,     &
+                !                              DischargeNumber            = DischargeID,       &
+                !                              UpscalingMomentum          = UpscalingMomentum, &
+                !                              ComputeFaces3D             = ComputeFaces3D_UV, &
+                !                              Velocity_UV                = Velocity_UV_Old,   &
+                !                              Kfloor                     = KFloor_UV,         &
+                !                              DischargesVelUV            = Me%WaterFluxes%DischargesVelUV, &
+                !                              di                         = Me%Direction%di,   &
+                !                              dj                         = Me%Direction%dj,   &
+                !                              I                          = I,                 &
+                !                              J                          = J,                 &
+                !                              STAT                       = STAT_CALL)
+                !if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR455'
 
             else
                 
@@ -48684,6 +48687,13 @@ do5:            do i = ILB, IUB
                         if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR05.'
 
                     endif
+                    
+                    if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
+                        ! busca descargas com upscaling
+                        ! faz o ciclo que le as descargas
+                        ! Para cada descarga upscaling, busca a localizacao
+                        ! chama a routina Modify_upscaling_Discharges que modifica os fluxos e velocidades da matriz do pai
+                    endif
 
                     call UngetTwoWayExternal_Vars(SonID             = AuxHydrodynamicID,   &
                                                   FatherID          = Me%FatherInstanceID, &
@@ -49599,7 +49609,6 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         endif
 
 
-        !Joao Sobrinho
         if (Me%Output%Real4 .and. .not. present(iw)) then
 
         !Writes Waterlevel
@@ -50673,7 +50682,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
                              OutputNumber   = NextSurfaceOutPut,                        &
                              STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_Surface_HDF5_Format - ModuleHydrodynamic - ERR51'
-!Joao Sobrinho
+
         if (Me%Output%Real4) then
 
             call SetMatrixValue(Me%OutPut%AuxReal4, Me%Size, Me%OutPut%CenterU)
@@ -51126,8 +51135,6 @@ cd3:        if (Me%ComputeOptions%Residual) then
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "CenterVelocity")
         endif
-
-        ! Joao Sobrinho
 
         !$OMP PARALLEL PRIVATE(i,j,k,AngleX,AngleY,VelU,VelV)
 
@@ -55523,7 +55530,6 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
 
         !Horizontal Velocity
-        !Joao Sobrinho
         if (Me%Output%Real4)then
             deallocate(Me%OutPut%AuxReal4,                                               &
                        Me%OutPut%Aux2DReal4,                                             &
@@ -55556,7 +55562,6 @@ ic1:    if (Me%CyclicBoundary%ON) then
                    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'KillMatrixesOutput - ModuleHydrodynamic - ERR10'
 
-        !Joao Sobrinho
         if(Me%Output%Real4)then
             nullify  (Me%OutPut%AuxReal4    )
             nullify  (Me%OutPut%Aux2DReal4  )

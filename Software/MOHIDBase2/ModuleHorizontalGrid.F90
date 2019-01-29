@@ -1905,7 +1905,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                              IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z, IWD_Nodes_Z, IWD_Nodes_U, &
                              IWD_Nodes_V, STAT)
         !Arguments-------------------------------------------------------------
-        integer                                     :: HorizontalGridID, IWD_Nodes_Z, IWD_Nodes_U, IWD_Nodes_V
+        integer                                     :: HorizontalGridID
+        integer, optional                           :: IWD_Nodes_Z, IWD_Nodes_U, IWD_Nodes_V
         integer, optional,        intent (OUT)      :: STAT
         integer,  dimension(:,:), pointer, optional :: Connections_U, Connections_V, Connections_Z
         real,     dimension(:  ), pointer, optional :: IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z
@@ -2777,13 +2778,13 @@ do8:       do i = ILBwork, IUBwork
             FatherCenterY = (( ObjHorizontalFather%YY_IE(i, j  ) +  ObjHorizontalFather%YY_IE(i+1, j  ))/2. + &
                                 ( ObjHorizontalFather%YY_IE(i, j+1) +  ObjHorizontalFather%YY_IE(i+1, j+1))/2.)/2.
             
-            if (isIWD)then
+            !if (isIWD)then !Joao Sobrinho
                 SearchRadious = (1.01+(1/(Sqrt(MaxRatio)))) * Sqrt((FatherCenterX - ObjHorizontalFather%XX(j))**2 + &
                                                                     (FatherCenterY - ObjHorizontalFather%YY(i))**2)
-            else
-                SearchRadious = Sqrt((FatherCenterX - ObjHorizontalFather%XX(j))**2 + &
-                                        (FatherCenterY - ObjHorizontalFather%YY(i))**2)
-            endif
+           ! else
+                !SearchRadious = Sqrt((FatherCenterX - ObjHorizontalFather%XX(j))**2 + &
+                                        !(FatherCenterY - ObjHorizontalFather%YY(i))**2)
+            !endif
 
                 !Find and build matrix of correspondent son cells
             do j2 = 1, Me%Size%JUB - 1
@@ -2961,8 +2962,8 @@ do8:       do i = ILBwork, IUBwork
             do j2 = 1, Me%Size%JUB - 1
             do i2 = 1, Me%Size%IUB - 1
 
-                if (FatherLinkI(i2, j2) = i) then
-                    if (FatherLinkJ(i2, j2) = j) then
+                if (FatherLinkI(i2, j2) == i) then
+                    if (FatherLinkJ(i2, j2) == j) then
                         
                         Me%Connections_Z(index, 1) = i
                         Me%Connections_Z(index, 2) = j

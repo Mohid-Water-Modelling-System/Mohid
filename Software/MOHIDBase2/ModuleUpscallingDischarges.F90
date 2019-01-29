@@ -41,7 +41,7 @@ Module ModuleUpscallingDischarges
 
     !Subroutines-----------------------------------------------------------------
 
-    public  :: BuildDischargesMatrix
+    !public  :: BuildDischargesMatrix
     public  :: SearchDischargeFace
     
     !begin-----------------------------------------------------------------------
@@ -59,70 +59,69 @@ Module ModuleUpscallingDischarges
         !Local-----------------------------------------------------------------
         
         !----------------------------------------------------------------------
-        ConnectionsUB = SizeSon%IUB * SizeSon%JUB
-        do i = 1, ConnectionsUB
-            iFather = Connections(i, 1)
-            jFather = Connections(i, 2)
-            
-            k = i
-            !find next father cell in Connections matrix
-            do
-                k = k + 1
-                if ((Connections(k, 1) * Connections(k, 2)) .NE. aux)then
-                    exit
-                endif
-            enddo
-            
-            if (Connections(k, 1) == iFather)then
-                
-                if (FatherWaterPoints3D(iFather, jFather) .and. FatherLandPoints2D(iFather, jFather + 1))then
-                    aux = iFather * (jFather + 1)
-                    aux2 = aux
-                    do while (aux2 == aux)
-                        k = k + 1
-                        if (k == ConnectionsUB - 1)then
-                            exit
-                        endif
-                        
-                        if (
-                        
-                        iSon = Connections(k, 3)
-                        jSon = Connections(k, 4)
-                        
-                        if (SonWaterPoints3D(iSon, jSon) == 1 .and. SonWaterPoints3D(iSon, jSon - 1) == 1) then
-                            Flag1 = .true.
-                        endif
-                        
-
-                        aux2 = Connections(k, 1) * Connections(k, 2)                
-                    enddo
-
-                endif
-
-            endif
-            
-            Waterpoint3D(ison, json) * FatherWaterPoints3D(iFather, jFather)
-            Waterpoint3D(ison, json) * Waterpoint3D(ison, json)
-            
-        enddo
-        
+        !ConnectionsUB = SizeSon%IUB * SizeSon%JUB
+        !do i = 1, ConnectionsUB
+        !    iFather = Connections(i, 1)
+        !    jFather = Connections(i, 2)
+        !    
+        !    k = i
+        !    !find next father cell in Connections matrix
+        !    do
+        !        k = k + 1
+        !        if ((Connections(k, 1) * Connections(k, 2)) .NE. aux)then
+        !            exit
+        !        endif
+        !    enddo
+        !    
+        !    if (Connections(k, 1) == iFather)then
+        !        
+        !        if (FatherWaterPoints3D(iFather, jFather) .and. FatherLandPoints2D(iFather, jFather + 1))then
+        !            aux = iFather * (jFather + 1)
+        !            aux2 = aux
+        !            do while (aux2 == aux)
+        !                k = k + 1
+        !                if (k == ConnectionsUB - 1)then
+        !                    exit
+        !                endif
+        !                
+        !                if (
+        !                
+        !                iSon = Connections(k, 3)
+        !                jSon = Connections(k, 4)
+        !                
+        !                if (SonWaterPoints3D(iSon, jSon) == 1 .and. SonWaterPoints3D(iSon, jSon - 1) == 1) then
+        !                    Flag1 = .true.
+        !                endif
+        !                
+        !
+        !                aux2 = Connections(k, 1) * Connections(k, 2)                
+        !            enddo
+        !
+        !        endif
+        !
+        !    endif
+        !    
+        !    Waterpoint3D(ison, json) * FatherWaterPoints3D(iFather, jFather)
+        !    Waterpoint3D(ison, json) * Waterpoint3D(ison, json)
+        !    
+        !enddo
+        !
     
     end subroutine SearchDischargeFace
 
 
-    subroutine BuildDischargesMatrix(Connections, WaterPoints3D, FatherWaterPoints3D, MomentumDischargesMatrix)
-        !Arguments-------------------------------------------------------------
-        integer                            :: FatherTwoWayID, TwoWayID
-        integer, dimension(:), pointer     :: Connections
-        integer, dimension(:,:), pointer   :: WaterPoints3D, FatherWaterPoints3D
-        real, dimension(:,:,:), pointer    :: 
-        !Local-----------------------------------------------------------------
-        integer                            :: ready_, ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL
-        !----------------------------------------------------------------------
-        
-        
-    
-    end subroutine BuildDischargesMatrix
+    !subroutine BuildDischargesMatrix(Connections, WaterPoints3D, FatherWaterPoints3D, MomentumDischargesMatrix)
+    !    !Arguments-------------------------------------------------------------
+    !    integer                            :: FatherTwoWayID, TwoWayID
+    !    integer, dimension(:), pointer     :: Connections
+    !    integer, dimension(:,:), pointer   :: WaterPoints3D, FatherWaterPoints3D
+    !    !Local-----------------------------------------------------------------
+    !    integer                            :: ready_, ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL
+    !    !----------------------------------------------------------------------
+    !    
+    !    
+    !
+    !end subroutine BuildDischargesMatrix
     
 
 
