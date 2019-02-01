@@ -330,6 +330,8 @@ Module ModuleHorizontalGrid
     interface ReceiveSendLogicalMPI
         module procedure AtLeastOneDomainIsTrue
     endinterface
+    
+    public :: GetKfloorZminMPI
 
 #endif _USE_MPI
 
@@ -5045,37 +5047,18 @@ Inp:    if (Me%CornersXYInput) then
 
             Nvert = 0
 
-            if ((IUB-ILB)>=2) then
+            Nvert = 2*(IUB-ILB+1)
 
-                Nvert = 2*(IUB-ILB-1)
-
-                if (Outer_) then
-                    Nvert = Nvert + 4
-                endif
-
-            else
-
-                Nvert = 2
-
+            if (Outer_) then
+                Nvert = Nvert + 4
             endif
 
+            Nvert = Nvert + 2*(JUB-JLB+1)
 
-            if ((JUB-JLB)>=2) then
-
-                Nvert = Nvert + 2*(JUB-JLB-1)
-
-                if (Outer_) then
-                    Nvert = Nvert + 4
-                endif
-
-            else
-
-                Nvert = Nvert + 2
-
+            if (Outer_) then
+                Nvert = Nvert + 4
             endif
 
-
-!        else if (GridBorder%Type_ == RotatedRectang_) then
         else
 
             Nvert = 4
@@ -7667,8 +7650,7 @@ if2:        if (Me%DDecomp%Master) then
 
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-
-
+    
     idd:    if (Me%DDecomp%MasterOrSlave) then
 
                 IUB = Me%WorkSize%IUB
@@ -7808,7 +7790,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 enddo difd
 
             endif idd
-
+            
             STAT_ = SUCCESS_
         else
             STAT_ = ready_
@@ -8182,7 +8164,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 enddo difd
 
             endif idd
-
+            
             STAT_ = SUCCESS_
         else
             STAT_ = ready_
@@ -8471,6 +8453,100 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
 
     end subroutine AtLeastOneDomainIsTrue
+    
+    !------------------------------------------------------------------------------
+
+    subroutine GetKfloorZminMPI(HorizontalGridID, KminZin, KminZout, STAT)
+    
+        !Arguments------------------------------------------------------------
+        integer            , intent(IN)    :: HorizontalGridID
+        integer            , intent(IN)    :: KminZin        
+        integer            , intent(OUT)   :: KminZout
+        integer            , optional      :: STAT
+        !Local---------------------------------------------------------------
+        integer                            :: STAT_CALL, i
+        integer                            :: KminZAux
+        integer                            :: Source, Destination
+        integer                            :: iSize
+        integer, save                      :: Precision
+        integer                            :: status(MPI_STATUS_SIZE)
+        integer                            :: STAT_, ready_
+
+        !Begin---------------------------------------------------------------    
+
+       STAT_ = UNKNOWN_
+
+        call Ready(HorizontalGridID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+    
+            KminZout = KminZin
+            
+            if (Me%DDecomp%ON) then
+
+                if (Me%DDecomp%Master) then
+
+                    iSize     = 1
+
+                    Precision = MPI_INTEGER
+                
+                    !Receive from slaves
+                    do i=1, Me%DDecomp%Nslaves
+
+                        Source    =  Me%DDecomp%Slaves_MPI_ID(i)
+
+                        !Receive logical from slaves
+                        call MPI_Recv (KminZAux, iSize, Precision, Source, 999903, MPI_COMM_WORLD, status, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'GetKfloorZminMPI - ModuleHorizontalGrid - ERR10'
+
+                        if (KminZAux < KminZout) KminZout = KminZAux
+
+                    enddo
+
+                    !send to slaves
+                    do i=1, Me%DDecomp%Nslaves
+
+                        Destination  =  Me%DDecomp%Slaves_MPI_ID(i)
+
+                        !Send logical to slaves
+                        call MPI_Send (KminZout, iSize, Precision, Destination, 999904, MPI_COMM_WORLD, status, STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'GetKfloorZminMPI - ModuleHorizontalGrid - ERR20'
+
+                    enddo
+
+                else
+
+                    iSize       = 1
+
+                    Precision   = MPI_INTEGER
+
+                    Destination = Me%DDecomp%Master_MPI_ID
+
+                    !Send integer to master
+                    call MPI_Send (KminZin, iSize, Precision, Destination, 999903, MPI_COMM_WORLD, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'GetKfloorZminMPI - ModuleHorizontalGrid - ERR30'
+
+                    Source      = Me%DDecomp%Master_MPI_ID
+
+                    !Receive logical from master
+                    call MPI_Recv (KminZout, iSize, Precision, Source, 999904, MPI_COMM_WORLD, status, STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'GetKfloorZminMPI - ModuleHorizontalGrid - ERR40'
+
+                endif
+                
+            endif                
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetKfloorZminMPI
+    !------------------------------------------------------------------------------
+    
 
 #endif _USE_MPI
 

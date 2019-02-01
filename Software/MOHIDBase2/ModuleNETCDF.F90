@@ -1891,17 +1891,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         MissingValue = FillValueReal
         
         call NETCDFWriteAttributes(Me%Dims(1)%VarID, LongName     = "X",                &
-                                                     StandardName = "x direction in the canonical space",   &
-                                                     Units        = "cell index",       &
-                                                     FillValue    = FillValue,          &
-                                                     MissingValue = MissingValue,       &
+                                                     !StandardName = "x direction in the canonical space",   &
+                                                     Units        = " ",       &
+!                                                     FillValue    = FillValue,          &
+!                                                     MissingValue = MissingValue,       &
                                                      axis           ="X")
 
         call NETCDFWriteAttributes(Me%Dims(2)%VarID, LongName     = "Y",                &
-                                                     StandardName = "y direction in the canonical space",   &
-                                                     Units        = "cell index",       &
-                                                     FillValue    = FillValue,          &
-                                                     MissingValue = MissingValue,       &
+                                                     !StandardName = "y direction in the canonical space",   &
+                                                     Units        = " ",       &
+!                                                     FillValue    = FillValue,          &
+!                                                     MissingValue = MissingValue,       &
                                                      axis           ="Y")
                                                      
         allocate(Column(Me%Dims(1)%LB:Me%Dims(1)%UB))
@@ -2015,31 +2015,31 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call NETCDFWriteAttributes(Me%Dims(2)%VarID, LongName     = "latitude",             &
                                                          StandardName = "latitude",             &
                                                          Units        = "degrees_north",        &
-                                                         FillValue    = FillValue,              &
+!                                                         FillValue    = FillValue,              &
                                                          ValidMin     = -90.,                   &
                                                          ValidMax     = 90.,                    &
-                                                         bounds       = trim(Lat_Stag_Name),    &
-                                                         MissingValue = MissingValue)
+                                                         bounds       = trim(Lat_Stag_Name)) !,    &
+!                                                         MissingValue = MissingValue)
            
             call NETCDFWriteAttributes(Me%Dims(1)%VarID, LongName     = "longitude",            &
                                                          StandardName = "longitude",            &
                                                          Units        = "degrees_east",         &
-                                                         FillValue    = FillValue,              &
+!                                                         FillValue    = FillValue,              &
                                                          ValidMin     = -180.,                  &
                                                          ValidMax     = 180.,                   &
-                                                         bounds       = trim(Lon_Stag_Name),    &
-                                                         MissingValue = MissingValue)
+                                                         bounds       = trim(Lon_Stag_Name)) !,    &
+!                                                         MissingValue = MissingValue)
 
             if (present(SphericX)) then
                 if (associated(SphericX)) then
                                                          
                     call NETCDFWriteAttributes(SphericXVarID,    LongName     = "spherical mercator - google maps - x staggered",  &
-                                                                 StandardName = "spherical mercator - google maps - x",            &
-                                                                 Units        = "paper meters",         &
-                                                                 FillValue    = FillValue,              &
+                                                                 !StandardName = "spherical mercator - google maps - x",            &
+                                                                 Units        = "meters",         &
+!                                                                 FillValue    = FillValue,              &
                                                                  ValidMin     = -20037508.34,           &
-                                                                 ValidMax     =  20037508.34,           &
-                                                                 MissingValue = MissingValue)
+                                                                 ValidMax     =  20037508.34)
+!                                                                 MissingValue = MissingValue)
                 endif                    
             endif
             
@@ -2047,12 +2047,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (associated(SphericY)) then
 
                     call NETCDFWriteAttributes(SphericYVarID,    LongName     = "spherical mercator - google maps - y staggered",  &
-                                                                 StandardName = "spherical mercator - google maps - y",            &
-                                                                 Units        = "paper meters",         &
-                                                                 FillValue    = FillValue,              & 
+                                                                 !StandardName = "spherical mercator - google maps - y",            &
+                                                                 Units        = "meters",         &
+!                                                                 FillValue    = FillValue,              & 
                                                                  ValidMin     = -20037508.34,           &
-                                                                 ValidMax     =  20037508.34,           &
-                                                                 MissingValue = MissingValue)
+                                                                 ValidMax     =  20037508.34)
+!                                                                 MissingValue = MissingValue)
                 endif
             endif                
             
@@ -2717,17 +2717,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                                 StandardName = depth_Name,          &
                                                                 Units        = null_str,            &
                                                                 Positive     = "down",              &
-                                                                FillValue    = MissingValue,        &
+!                                                                FillValue    = MissingValue,        &
                                                                 ValidMin     = 0.,                  &
                                                                 ValidMax     = 1.,                  & 
                                                                 Add_Offset   = OffSet,              &
-                                                                MissingValue = MissingValue,        &
+!                                                                MissingValue = MissingValue,        &
                                                                 bounds       = trim(depth_Stag_Name))
                
                 !No? Then it must be a z-coordinate grid
             else
                 
-                if (SimpleGrid_) then
+                !if (SimpleGrid_) then
 
                     call NETCDFWriteAttributes(Me%Dims(3)%VarID, LongName               = "Depth",      &
                                                                  StandardName           = depth_Name,   &
@@ -2738,19 +2738,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                                  CoordinateZisPositive  = "down",       &    
                                                                  bounds                 = trim(depth_Stag_Name))                    
 
-                else                    
-                
-                    call NETCDFWriteAttributes(Me%Dims(3)%VarID, LongName     = depth_Name,          &
-                                                                 StandardName = depth_Name,          &
-                                                                 Units        = "m",                 &
-                                                                 Positive     = "down",              &
-                                                                 FillValue    = FillValue,           &
-                                                                 ValidMin     = -50.,                &
-                                                                 ValidMax     = 10000.,              &
-                                                                 Add_Offset   = OffSet,              &
-                                                                 MissingValue = MissingValue,        &
-                                                                 bounds       = trim(depth_Stag_Name))
-                endif                                                                                                
+!                else                    
+!                
+!                    call NETCDFWriteAttributes(Me%Dims(3)%VarID, LongName     = depth_Name,          &
+!                                                                 StandardName = depth_Name,          &
+!                                                                 Units        = "m",                 &
+!                                                                 Positive     = "down",              &
+!!                                                                 FillValue    = FillValue,           &
+!                                                                 ValidMin     = -50.,                &
+!                                                                 ValidMax     = 10000.,              &
+!                                                                 Add_Offset   = OffSet,              &
+!!                                                                 MissingValue = MissingValue,        &
+!                                                                 bounds       = trim(depth_Stag_Name))
+!                endif                                                                                                
             end if
 
             !exit definition mode
