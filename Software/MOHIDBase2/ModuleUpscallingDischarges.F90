@@ -44,19 +44,75 @@ Module ModuleUpscallingDischarges
     !public  :: BuildDischargesMatrix
     public  :: SearchDischargeFace
     
+    
+    private :: SearchFace
+    
     !begin-----------------------------------------------------------------------
     contains
     
-    subroutine SearchDischargeFace(Connections, SonWaterPoints3D, FatherWaterPoints3D, SonLandPoints2D, &
-                                   FatherLandPoints2D, SizeSon, SizeFather, Present)
+    subroutine SearchDischargeFace(ConnectionMatrix, SonWaterPoints2D, FatherWaterPoints2D, SonSize2D, &
+                                   ICell, JCell, CellsToAllocate)
         !Arguments-------------------------------------------------------------
-        integer, dimension(:, :), pointer   :: Connections
-        integer, dimension(:, :), pointer   :: SonWaterPoints3D, FatherWaterPoints3D, SonLandPoints2D, &
-                                               FatherLandPoints2D
-        type (T_Size2D)                     :: SizeSon, SizeFather
-        logical                             :: Present
-        integer                             :: i, iFather, jFather, iSon, jSon, k, ConnectionsUB
+        integer, dimension(:, :, :, :), pointer   :: ConnectionMatrix
+        integer, dimension(:, :), pointer         :: SonWaterPoints2D, FatherWaterPoints2D
+        type (T_Size2D)                           :: SonSize2D
+        integer                                   :: ICell, JCell
+        integer, intent(OUT), optional            :: CellsToAllocate
         !Local-----------------------------------------------------------------
+        integer                                   :: di, dj
+        !-------------------------------------------------------------------------
+        
+        if (present(CellsToAllocate)) then
+            
+            Size = size(ConnectionMatrix)            
+            
+            !If father cell to the north is land, check for son cells(compare with adjacent southern cell)
+            if (FatherWaterPoints2D(Icell + 1, JCell) == 0) then
+                IFather = Icell + 1
+                JFather = JCell
+                di      = -1 !only going to search southwards
+                dj      = 0
+                call SearchFace (ConnectionMatrix, Size, IFather, JFather, di, dj, SonWaterPoints2D, &
+                                 CellsToAllocate, link = Ilink)
+            endif
+            if (FatherWaterPoints2D(Icell - 1, JCell) == 0) then
+                IFather = Icell - 1
+                JFather = JCell
+                di      = 1 !only going to search northwards
+                dj      = 0
+                call SearchFace (ConnectionMatrix, Size, IFather, JFather, di, dj, SonWaterPoints2D, &
+                                 CellsToAllocate, link = Ilink)
+            endif 
+            if (FatherWaterPoints2D(Icell, JCell + 1) == 0) then
+                IFather = Icell - 1
+                JFather = JCell
+                di      = 0 
+                dj      = -1 !only going to search westward
+                call SearchFace (ConnectionMatrix, Size, IFather, JFather, di, dj, SonWaterPoints2D, &
+                                 CellsToAllocate, link = Jlink)
+            endif
+            if (FatherWaterPoints2D(Icell, JCell - 1) == 0) then
+                IFather = Icell - 1
+                JFather = JCell
+                di      = 0 !only going to search eastward
+                dj      = 1
+                call SearchFace (ConnectionMatrix, Size, IFather, JFather, di, dj, SonWaterPoints2D, &
+                                 CellsToAllocate, link = Jlink)
+            endif
+            
+
+        else
+            
+            
+            
+        endif
+        
+        
+        
+        
+        
+        
+        
         
         !----------------------------------------------------------------------
         !ConnectionsUB = SizeSon%IUB * SizeSon%JUB
@@ -110,18 +166,53 @@ Module ModuleUpscallingDischarges
     end subroutine SearchDischargeFace
 
 
-    !subroutine BuildDischargesMatrix(Connections, WaterPoints3D, FatherWaterPoints3D, MomentumDischargesMatrix)
-    !    !Arguments-------------------------------------------------------------
-    !    integer                            :: FatherTwoWayID, TwoWayID
-    !    integer, dimension(:), pointer     :: Connections
-    !    integer, dimension(:,:), pointer   :: WaterPoints3D, FatherWaterPoints3D
-    !    !Local-----------------------------------------------------------------
-    !    integer                            :: ready_, ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL
-    !    !----------------------------------------------------------------------
-    !    
-    !    
-    !
-    !end subroutine BuildDischargesMatrix
+    subroutine SearchFace(Connection, Size, IFather, JFather, di, dj, SonWaterPoints, n, link)
+        !Arguments-------------------------------------------------------------
+        integer, dimension(:, :, :, :), pointer   :: Connection
+        integer, dimension(:, :), pointer         :: SonWaterPoints, link
+        integer                                   :: IFather, JFather, n, di, dj, Size
+        
+        !Local-----------------------------------------------------------------
+        integer                         :: Aux, Aux2, StartIndex, i, ISon, JSon, ISonAdjacent, JSonAdjacent, IJFather
+        !----------------------------------------------------------------------
+        
+        !Find index of matrix where connections to cell (IFather, JCell) begin
+        do i = 1, Size
+            if (Connection(i, 1) == IFather)then
+                if (Connection(i, 2) == JFather)then
+                    StartIndex = i
+                    Aux = IFather * JFather
+                    exit
+                endif
+            endif
+        enddo
+        
+        if (di /=0) IJFather = IFather
+        if (dj /=0) IJFather = JFather
+        
+        !Check if northern face needs to be considered for the discharge velocity
+        do while (Aux2 == Aux)
+            i = StartIndex
+            ISon         = Connection(i, 3)
+            JSon         = Connection(i, 4)
+            ISonAdjacent = Connection(i, 3) + di
+            JSonAdjacent = Connection(i, 3) + dj
+                    
+            if (SonWaterPoints(ISon, JSon) == 1)then
+                if (link(ISonAdjacent, JSonAdjacent) == IJFather)then
+                    if (SonWaterPoints2D(ISonAdjacent, JSonAdjacent) == 1)then
+                        n = n + 1 ! Found a discharge face
+                        exit
+                    endif
+
+                endif
+            endif
+            i = 1 + 1
+            Aux2 = Connection(i, 1) * Connection(i, 2)
+                         
+        enddo     
+    
+    end subroutine SearchFace
     
 
 

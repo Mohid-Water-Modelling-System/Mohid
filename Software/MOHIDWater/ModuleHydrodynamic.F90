@@ -150,7 +150,7 @@ Module ModuleHydrodynamic
                                        GetCellRotation, GetGridCellArea
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
                                        AllocateTwoWayAux, PrepTwoWay, UngetTwoWayExternal_Vars, &
-                                       Construct_Upscaling_Discharges, GetUpscalingDischarge
+                                       ConstructUpscalingDischarges !GetUpscalingDischarge
 #ifdef _USE_MPI
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
@@ -10368,14 +10368,69 @@ i7:             if (.not. ContinuousGOTM)  then
 
         if (Me%ComputeOptions%Turbine)                                      &
             call ConstructTurbine(TurbineID = Me%ObjTurbine, HorizontalGridID = Me%ObjHorizontalGrid,   &
-                                GeometryID = Me%ObjGeometry, TimeID = Me%ObjTime,OutPut= Me%OutPut%TurbineON, STAT = STAT_CALL)
+                                GeometryID = Me%ObjGeometry, TimeID = Me%ObjTime,OutPut= Me%OutPut%TurbineON, &
+                                STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR420'
 
         call ConstructHydroStatistic
 
 
     end subroutine Construct_Sub_Modules
+    !------------------------------------------------------------------------------------------------------------------
+    
+    subroutine Set_Upscaling_Discharges(FatherID, SonID)
+        !Arguments-------------------------------------------------------------
+        integer,           intent(IN )              :: FatherID, SonID
+        !Local-----------------------------------------------------------------
+        integer                                     :: DischargeID, I, J, DischargesNumber, n
+        real                                        :: CoordinateX, CoordinateY
+        logical                                     :: CoordinatesON
+        Integer                                     :: STAT_CALL
+        
+        !----------------------------------------------------------------------
+        
+        n = 0
+        call GetDischargesNumber(FatherID, DischargesNumber, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_)stop 'Set_Upscaling_Discharges - ModuleHydrodynamic - ERR10'
+        
+        do DischargeID = 1, DischargesNumber
+            
+            if (IsUpscaling(FatherID, DischargeID))then
+                
+                call GetDischargesGridLocalization(FatherID,          &
+                                                   DischargeID,       &
+                                                   Igrid         = I, &
+                                                   JGrid         = J, &
+                                                   STAT = STAT_CALL)
 
+                if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - ModuleHydrodynamic - ERR20'
+                
+                call ConstructUpscalingDischarges(FatherID, SonID, I, J, n = n) !Managed by ModuleTwoWay
+                
+            endif
+            
+        enddo
+        
+        do DischargeID = 1, DischargesNumber
+            
+            if (IsUpscaling(FatherID, DischargeID))then
+                
+                call GetDischargesGridLocalization(FatherID,          &
+                                                   DischargeID,       &
+                                                   Igrid         = I, &
+                                                   JGrid         = J, &
+                                                   STAT = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - ModuleHydrodynamic - ERR20'
+                
+                call ConstructUpscalingDischarges(FatherID, SonID, I, J) !Managed by ModuleTwoWay
+                
+            endif
+            
+        enddo
+
+    end subroutine Set_Upscaling_Discharges
+    !------------------------------------------------------------------------------------------------------------------
 
 #ifdef OVERLAP
     subroutine ConstructHydroOverlap
@@ -16443,9 +16498,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
 
                 if (Me%ComputeOptions%TwoWay)then
                     call AllocateTwoWayAux(HydrodynamicFatherID, HydrodynamicID)
-                    !if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then   Joao Sobrinho
-                    !    call Construct_Upscaling_Discharges(HydrodynamicFatherID, HydrodynamicID)
-                    !endif
+                    if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then   !Joao Sobrinho
+                        call Set_Upscaling_Discharges(HydrodynamicFatherID, HydrodynamicID)
+                    endif
                 endif
 
 
@@ -37979,7 +38034,7 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
 
         !End - Shorten variables name
         
-        UpscalingDischarge  = .false.
+        UpscalingDischarge  = .false. !Joao Sobrinho
         
         call GetDischargesNumber(Me%ObjDischarges, DischargesNumber, STAT = STAT_CALL)
         if (STAT_CALL/=SUCCESS_)stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR10'
@@ -48689,10 +48744,15 @@ do5:            do i = ILB, IUB
                     endif
                     
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
+                        
+                        
+                        
+                        
                         ! busca descargas com upscaling
                         ! faz o ciclo que le as descargas
                         ! Para cada descarga upscaling, busca a localizacao
-                        ! chama a routina Modify_upscaling_Discharges que modifica os fluxos e velocidades da matriz do pai
+                        !Se a localizaco estiver dentro do domínio filho em questao (obtido uma única vez no construct)
+                           ! chama a routina Modify_upscaling_Discharges que modifica os fluxos e velocidades da matriz do pai
                     endif
 
                     call UngetTwoWayExternal_Vars(SonID             = AuxHydrodynamicID,   &
