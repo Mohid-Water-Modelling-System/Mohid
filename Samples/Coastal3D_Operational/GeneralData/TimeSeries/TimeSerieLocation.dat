@@ -1,0 +1,20 @@
+IGNORE_ON                     : 1
+DT_OUTPUT_TIME                :  60
+MAX_BUFFER_SIZE               :  10000
+
+
+<BeginTimeSerie>
+NAME                          : MALagos
+COORD_X                       : -8.680998
+COORD_Y                       :  37.05246
+DEPTH_LEVEL                   : 0.
+<EndTimeSerie>
+
+
+<BeginTimeSerie>
+NAME                          : BOFaro 
+DEPTH_LEVEL                   : 0.
+COORD_X                       : -7.898333
+COORD_Y                       :  36.93
+<EndTimeSerie>
+

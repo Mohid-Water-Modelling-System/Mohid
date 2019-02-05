@@ -1,0 +1,532 @@
+
+OUTPUT_TIME                  : 0  86400
+SURFACE_OUTPUT_TIME          : 0  3600
+RESTART_FILE_OUTPUT_TIME  : 43200 43200
+RESTART_FILE_OVERWRITE       : 0
+
+<beginoutput>
+<<beginoutwindow>>
+OUTPUT_TIME_W            : 0 900.
+KLB_KUB_W                : 1 -99
+ILB_IUB_W                : 1 10
+JLB_JUB_W                : 1 10
+<<endoutwindow>>
+<endoutput>
+
+ADV_METHOD_H                 : 4
+ADV_METHOD_V                 : 4
+TVD_LIMIT_H                  : 4
+TVD_LIMIT_V                  : 4
+
+TIME_SERIE_LOCATION       : ../../generalData/timeSeries/TimeSerieLocation.dat
+
+<beginproperty>
+NAME                         : salinity
+UNITS                        : ºC
+DESCRIPTION                  : salinity
+DEFAULTVALUE                 : 36
+ADVECTION_DIFFUSION          : 1
+DATA_ASSIMILATION            : 1
+DISCHARGES                   : 1
+BOUNDARY_CONDITION           : 4
+TYPE_ZUV                     : z
+INITIALIZATION_METHOD        : HDF
+FIELD4D                      : 1
+SPATIAL_INTERPOL             : 1
+EXTRAPOLATE                  : 1
+OLD                          : 1
+DEFAULTVALUE                 : 34.895
+TIME_SERIE                   : 1
+OUTPUT_HDF                   : 1
+OUTPUT_SURFACE_HDF           : 1
+<endproperty>
+
+
+<beginproperty>
+NAME                         : temperature
+UNITS                        : ºC
+DESCRIPTION                  : temperature profile measure off the Nazare Canyon by NIOZ (Holand) in August of 1999
+DEFAULTVALUE                 : 16.
+ADVECTION_DIFFUSION          : 1
+DATA_ASSIMILATION            : 1
+SURFACE_FLUXES               : 1
+DISCHARGES                   : 1
+BOUNDARY_CONDITION           : 4
+TYPE_ZUV                     : z
+FIELD4D                      : 1
+SPATIAL_INTERPOL             : 1
+EXTRAPOLATE                  : 1          
+OLD                          : 1
+DEFAULTVALUE                 : 2.515
+TIME_SERIE                   : 1
+OUTPUT_HDF                   : 1
+OUTPUT_SURFACE_HDF           : 1
+<endproperty>
+
+<beginproperty>
+NAME                         : cohesive sediment
+UNITS                        : mg/l
+DESCRIPTION                  : No description was given.
+IS_COEF                      : .001
+PARTICULATE                  : 1
+INITIALIZATION_METHOD        : CONSTANT
+DEFAULTVALUE                 : 0.001
+
+DEFAULTBOUNDARY              : 1.
+BOUNDARY_INITIALIZATION      : INTERIOR
+BOUNDARY_CONDITION           : 7
+
+OLD                          : 1
+
+ADVECTION_DIFFUSION          : 1
+DISCHARGES                   : 0
+VERTICAL_MOVEMENT            : 1
+BOTTOM_FLUXES                : 1
+DATA_ASSIMILATION            : 0
+TIME_SERIE                   : 1
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 1
+OUTPUT_SURFACE_HDF           : 1
+MIN_VALUE                    : 1e-3
+MAX_VALUE                    : 100
+<endproperty>
+
+<beginproperty>
+NAME                         : oxygen
+UNITS                        : mg/l
+DESCRIPTION                  : dissolved oxygen
+IS_COEF                      : .001
+PARTICULATE                  : 0
+
+
+DEFAULTVALUE                 : 7.99
+BOUNDARY_INITIALIZATION      : INTERIOR
+BOUNDARY_CONDITION           : 7
+
+OLD                          : 1
+
+ADVECTION_DIFFUSION          : 1
+DISCHARGES                   : 0
+VERTICAL_MOVEMENT            : 0
+SURFACE_FLUXES               : 1
+BOTTOM_FLUXES                : 1
+DATA_ASSIMILATION            : 1
+PARTITION                    : 0
+WATER_QUALITY         	     : 1
+TIME_SERIE                   : 1
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 1
+OUTPUT_SURFACE_HDF           : 1
+
+MIN_VALUE                    : 1e-5
+<endproperty>
+
+--------------- Nutrients ---------------------
+
+<beginproperty>
+NAME                         : nitrate
+UNITS                        : mg/l
+DESCRIPTION                  : nitrate concentration
+IS_COEF                      : .001
+PARTICULATE                  : 0
+
+DEFAULTVALUE                 : 0.2
+!DEFAULTBOUNDARY              : 0.2
+
+BOUNDARY_INITIALIZATION      : INTERIOR
+BOUNDARY_CONDITION           : 7
+
+OLD                          : 1
+
+ADVECTION_DIFFUSION          : 1
+DISCHARGES                   : 0
+VERTICAL_MOVEMENT            : 0
+SURFACE_FLUXES               : 0
+BOTTOM_FLUXES                : 0
+DATA_ASSIMILATION            : 1
+PARTITION                    : 0
+WATER_QUALITY         : 1
+TIME_SERIE                   : 1
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 1
+OUTPUT_SURFACE_HDF           : 1
+
+MIN_VALUE                    : 1e-5
+<endproperty>
+
+<beginproperty>
+NAME                         : nitrite
+UNITS                        : mg/l
+DESCRIPTION                  : nitrite concentration
+IS_COEF                      : .001
+PARTICULATE                  : 0
+INITIALIZATION_METHOD        : CONSTANT
+DEFAULTVALUE                 : 0.0010
+DEFAULTBOUNDARY              : 0.0010
+
+BOUNDARY_INITIALIZATION      : INTERIOR
+BOUNDARY_CONDITION           : 7
+
+OLD                          : 1
+
+ADVECTION_DIFFUSION          : 1
+DISCHARGES                   : 0
+VERTICAL_MOVEMENT            : 0
+SURFACE_FLUXES               : 0
+BOTTOM_FLUXES                : 0
+DATA_ASSIMILATION            : 0
+PARTITION                    : 0
+WATER_QUALITY         : 1
+TIME_SERIE                   : 1
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 1
+OUTPUT_SURFACE_HDF           : 1
+
+MIN_VALUE                    : 1e-5
+<endproperty>
+
+<beginproperty>
+NAME                         : ammonia
+UNITS                        : mg/l
+DESCRIPTION                  : ammonia concentration
+IS_COEF                      : .001
+PARTICULATE                  : 0
+
+
+
+DEFAULTVALUE                 : 0.0010
+DEFAULTBOUNDARY              : 0.0010
+
+BOUNDARY_INITIALIZATION      : INTERIOR
+BOUNDARY_CONDITION           : 7
+
+OLD                          : 1
+
+ADVECTION_DIFFUSION          : 1
+DISCHARGES                   : 0
+VERTICAL_MOVEMENT            : 0
+SURFACE_FLUXES               : 0
+BOTTOM_FLUXES                : 1
+DATA_ASSIMILATION            : 1
+PARTITION                    : 0
+WATER_QUALITY         : 1
+TIME_SERIE                   : 1
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 1
+OUTPUT_SURFACE_HDF           : 1
+
+MIN_VALUE                    : 1e-5
+<endproperty>
+
+<beginproperty>
+NAME                         : dissolved non-refractory organic nitrogen
+UNITS                        : mg/l
+DESCRIPTION                  : dissolved non-refractory organic nitrogen concentration
+IS_COEF                      : .001
+PARTICULATE                  : 0
+INITIALIZATION_METHOD        : CONSTANT
+DEFAULTVALUE                 : 0.0001
+DEFAULTBOUNDARY              : 0.0001
+BOUNDARY_INITIALIZATION      : INTERIOR
+BOUNDARY_CONDITION           : 7
+
+OLD                          : 1
+
+DISCHARGES                   : 0
+ADVECTION_DIFFUSION          : 1
+VERTICAL_MOVEMENT            : 0
+SURFACE_FLUXES               : 0
+BOTTOM_FLUXES                : 0
+DATA_ASSIMILATION            : 0
+PARTITION                    : 0
+WATER_QUALITY                : 1
+TIME_SERIE                   : 1
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 1
+OUTPUT_SURFACE_HDF           : 1
+
+!STATISTICS                   : 1
+!STATISTICS_FILE              : C:\MOHIDv1_3\NewScheldt\GeneralData\STATISTICS_salinity.dat
+<endproperty>
+
+<beginproperty>
+NAME                         : dissolved refractory organic nitrogen
+UNITS                        : mg/l
+DESCRIPTION                  : dissolved refractory organic nitrogen concentration
+IS_COEF                      : .001
+PARTICULATE                  : 0
+INITIALIZATION_METHOD        : CONSTANT
+DEFAULTVALUE                 : 0.0001
+DEFAULTBOUNDARY              : 0.0001
+BOUNDARY_INITIALIZATION      : INTERIOR
+BOUNDARY_CONDITION           : 7
+
+OLD                          : 1
+
+DISCHARGES                   : 0
+DISCHARGES_TRACKING          : 0
+ADVECTION_DIFFUSION          : 1
+VERTICAL_MOVEMENT            : 0
+SURFACE_FLUXES               : 0
+BOTTOM_FLUXES                : 0
+DATA_ASSIMILATION            : 0
+PARTITION                    : 0
+WATER_QUALITY                : 1
+TIME_SERIE                   : 1
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 1
+OUTPUT_SURFACE_HDF           : 1
+!STATISTICS                   : 1
+!STATISTICS_FILE              : C:\MOHIDv1_3\NewScheldt\GeneralData\STATISTICS_salinity.dat
+<endproperty>
+
+<beginproperty>
+NAME                         : particulate organic nitrogen
+UNITS                        : mg/l
+DESCRIPTION                  : particulate organic nitrogen concentration
+IS_COEF                      : .001
+PARTICULATE                  : 1
+INITIALIZATION_METHOD        : CONSTANT
+! Default value from access file sent by Soetaert!!
+DEFAULTVALUE                 : 0.0001
+MIN_VALUE                    : 0.0001
+DEFAULTBOUNDARY              : 0.0001
+BOUNDARY_INITIALIZATION      : INTERIOR
+BOUNDARY_CONDITION           : 7
+
+OLD                          : 1
+
+DISCHARGES                   : 0
+ADVECTION_DIFFUSION          : 1
+VERTICAL_MOVEMENT            : 1
+SURFACE_FLUXES               : 0
+BOTTOM_FLUXES                : 1
+DATA_ASSIMILATION            : 0
+PARTITION                    : 0
+WATER_QUALITY                : 1
+TIME_SERIE                   : 1
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 1
+OUTPUT_SURFACE_HDF           : 1
+
+!STATISTICS                   : 1
+!STATISTICS_FILE              : C:\MOHIDv1_3\NewScheldt\GeneralData\STATISTICS_salinity.dat
+<endproperty>
+
+<beginproperty>
+NAME                         : inorganic phosphorus
+UNITS                        : mg/l
+DESCRIPTION                  : phosphorus concentration
+IS_COEF                      : .001
+PARTICULATE                  : 0
+
+
+DEFAULTVALUE                 : 0.05
+DEFAULTBOUNDARY              : 0.05
+
+BOUNDARY_INITIALIZATION      : INTERIOR
+BOUNDARY_CONDITION           : 7
+
+OLD                          : 1
+SUBMODEL                     : 0
+
+ADVECTION_DIFFUSION          : 1
+DISCHARGES                   : 0
+VERTICAL_MOVEMENT            : 0
+SURFACE_FLUXES               : 0
+BOTTOM_FLUXES                : 1
+DATA_ASSIMILATION            : 1
+PARTITION                    : 0
+WATER_QUALITY         : 1
+TIME_SERIE                   : 1
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 1
+OUTPUT_SURFACE_HDF           : 1
+
+MIN_VALUE                    : 1e-5
+<endproperty>
+
+<beginproperty>
+NAME                         : dissolved refractory organic phosphorus
+UNITS                        : mg/l
+DESCRIPTION                  : phosphorus concentration
+IS_COEF                      : .001
+PARTICULATE                  : 0
+INITIALIZATION_METHOD        : CONSTANT
+DEFAULTVALUE                 : .0001
+MIN_VALUE                    : .0001
+DEFAULTBOUNDARY              : .0001
+BOUNDARY_INITIALIZATION      : INTERIOR
+BOUNDARY_CONDITION           : 7
+
+OLD                          : 1
+
+DISCHARGES                   : 0
+ADVECTION_DIFFUSION          : 1
+VERTICAL_MOVEMENT            : 0
+SURFACE_FLUXES               : 0
+BOTTOM_FLUXES                : 0
+DATA_ASSIMILATION            : 0
+PARTITION                    : 0
+WATER_QUALITY                : 1
+TIME_SERIE                   : 1
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 1
+OUTPUT_SURFACE_HDF           : 1
+
+!STATISTICS                   : 1
+!STATISTICS_FILE              : C:\MOHIDv1_3\NewScheldt\GeneralData\STATISTICS_salinity.dat
+<endproperty>
+
+<beginproperty>
+NAME                         : dissolved non-refractory organic phosphorus
+UNITS                        : mg/l
+DESCRIPTION                  : phosphorus concentration
+IS_COEF                      : .001
+PARTICULATE                  : 0
+INITIALIZATION_METHOD        : CONSTANT
+DEFAULTVALUE                 : .0001
+MIN_VALUE                    : .0001
+DEFAULTBOUNDARY              : .0001
+BOUNDARY_INITIALIZATION      : INTERIOR
+BOUNDARY_CONDITION           : 7
+
+OLD                          : 1
+
+DISCHARGES                   : 0
+ADVECTION_DIFFUSION          : 1
+VERTICAL_MOVEMENT            : 0
+SURFACE_FLUXES               : 0
+BOTTOM_FLUXES                : 0
+DATA_ASSIMILATION            : 0
+PARTITION                    : 0
+WATER_QUALITY                : 1
+TIME_SERIE                   : 1
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 1
+OUTPUT_SURFACE_HDF           : 1
+
+!STATISTICS                   : 1
+!STATISTICS_FILE              : C:\MOHIDv1_3\NewScheldt\GeneralData\STATISTICS_salinity.dat
+<endproperty>
+
+<beginproperty>
+NAME                         : particulate organic phosphorus
+UNITS                        : mg/l
+DESCRIPTION                  : phosphorus concentration
+IS_COEF                      : .001
+PARTICULATE                  : 1
+INITIALIZATION_METHOD        : CONSTANT
+DEFAULTVALUE                 : .0001
+MIN_VALUE                    : .0001
+DEFAULTBOUNDARY              : .0001
+BOUNDARY_INITIALIZATION      : INTERIOR
+BOUNDARY_CONDITION           : 7
+
+OLD                          : 1
+DISCHARGES                   : 0
+ADVECTION_DIFFUSION          : 1
+VERTICAL_MOVEMENT            : 1
+SURFACE_FLUXES               : 0
+BOTTOM_FLUXES                : 1
+DATA_ASSIMILATION            : 0
+PARTITION                    : 0
+WATER_QUALITY                : 1
+TIME_SERIE                   : 1
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 1
+OUTPUT_SURFACE_HDF           : 1
+
+!STATISTICS                   : 1
+!STATISTICS_FILE              : C:\MOHIDv1_3\NewScheldt\GeneralData\STATISTICS_salinity.dat
+<endproperty>
+
+
+<beginproperty>
+NAME                         : phytoplankton
+UNITS                        : mg/l
+DESCRIPTION                  : phytoplankton concentration
+IS_COEF                      : .001
+PARTICULATE                  : 0
+
+
+! 0.1 microg/l de Chla assuming 1:20 relationship (no lo asumo pienso que no hay)
+DEFAULTVALUE                 : 0.0001
+MIN_VALUE                    : 0.0
+DEFAULTBOUNDARY              : 0.0001
+BOUNDARY_INITIALIZATION      : INTERIOR
+BOUNDARY_CONDITION           : 7
+
+OLD                          : 1
+
+
+
+DISCHARGES                   : 0
+ADVECTION_DIFFUSION          : 1
+VERTICAL_MOVEMENT            : 0
+SURFACE_FLUXES               : 0
+BOTTOM_FLUXES                : 0
+DATA_ASSIMILATION            : 1
+PARTITION                    : 0
+WATER_QUALITY                : 1
+TIME_SERIE                   : 1
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 1
+OUTPUT_SURFACE_HDF           : 1
+
+!STATISTICS                   : 1
+!STATISTICS_FILE              : C:\MOHIDv1_3\NewScheldt\GeneralData\STATISTICS_salinity.dat
+<endproperty>
+
+<beginproperty>
+NAME                         : zooplankton
+UNITS                        : mg/l
+DESCRIPTION                  : zooplankton concentration
+IS_COEF                      : .001
+PARTICULATE                  : 0
+INITIALIZATION_METHOD        : CONSTANT
+DEFAULTVALUE                 : 0.003
+DEFAULTBOUNDARY              : 0.003
+MIN_VALUE                    : .0001
+BOUNDARY_INITIALIZATION      : INTERIOR
+BOUNDARY_CONDITION           : 7
+
+OLD                          : 1
+
+DISCHARGES                   : 0
+ADVECTION_DIFFUSION          : 1
+VERTICAL_MOVEMENT            : 0
+SURFACE_FLUXES               : 0
+BOTTOM_FLUXES                : 0
+DATA_ASSIMILATION            : 0
+PARTITION                    : 0
+WATER_QUALITY                : 1
+TIME_SERIE                   : 1
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 1
+OUTPUT_SURFACE_HDF           : 1
+
+!STATISTICS                   : 1
+!STATISTICS_FILE              : C:\MOHIDv1_3\NewScheldt\GeneralData\STATISTICS_salinity.dat
+<endproperty>
+
+!<beginwqrate>
+!NAME          :  NutLim
+!DESCRIPTION   :  Nutrient Limitation
+!FIRSTPROP     :  nutrientlim
+!SECONDPROP    :  nutrientlim
+!<endwqrate>
+
+!<beginwqrate>
+!NAME          :  LightLim
+!DESCRIPTION   :  Light Limitation
+!FIRSTPROP     :  lightlim
+!SECONDPROP    :  lightlim
+!<endwqrate>
+
+!<beginwqrate>
+!NAME          :  ZooGrazing
+!DESCRIPTION   :  Zoo grazing over Phytoplankton 
+!FIRSTPROP     :  zooplankton
+!SECONDPROP    :  phytoplankton
+!<endwqrate>

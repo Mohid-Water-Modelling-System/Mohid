@@ -1,0 +1,147 @@
+
+OUTPUT_TIME             : 0 86400
+
+WIND_MEASUREMENT_HEIGHT : 10.
+AIR_MEASUREMENT_HEIGHT  : 10.
+
+<beginproperty>
+NAME                    : atmospheric pressure
+UNITS                   : Pa
+DESCRIPTION             : atmospheric pressure
+DEFAULTVALUE            : 0.
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+FILENAME                : ../../generalData/meteo/Meteo.hdf5
+TIME_SERIE              : 1
+OUTPUT_HDF              : 1
+<endproperty>
+
+OVERRIDE_WIND_VEL_STANDARD : 1
+
+<beginproperty>
+NAME                    : wind velocity
+UNITS                   : m/s
+DESCRIPTION             : wind velocity
+DEFAULTVALUE            : 0. 0. 
+TIME_SERIE              : 0
+OUTPUT_HDF              : 0
+<endproperty>
+
+
+<beginproperty>
+NAME                    : wind velocity X
+UNITS                   : m/s
+DESCRIPTION             : wind velocity X
+DEFAULTVALUE            : 0.
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+FILENAME                : ../../generalData/meteo/Meteo.hdf5
+TIME_SERIE              : 1
+OUTPUT_HDF              : 1
+<endproperty>
+
+<beginproperty>
+NAME                    : wind velocity Y
+UNITS                   : m/s
+DESCRIPTION             : wind velocity Y
+DEFAULTVALUE            : 0.
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+FILENAME                : ../../generalData/meteo/Meteo.hdf5
+TIME_SERIE              : 1
+OUTPUT_HDF              : 1
+<endproperty>
+
+<beginproperty>
+NAME                    : solar radiation
+UNITS                   : W/m^2
+DESCRIPTION             : meteoIST Solar Radiation
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+FILENAME                : ../../generalData/meteo/Meteo.hdf5
+DEFAULTVALUE            : 0.0
+TIME_SERIE              : 1
+OUTPUT_HDF              : 1
+<endproperty>
+
+<beginproperty>
+NAME                    : air temperature
+UNITS                   : ºC
+DESCRIPTION             : Temperature
+DEFAULTVALUE            : 0.
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+FILENAME                : ../../generalData/meteo/Meteo.hdf5
+TIME_SERIE              : 1
+OUTPUT_HDF              : 1
+<endproperty>
+
+<beginproperty>
+NAME                    : relative humidity
+UNITS                   : fraction
+DESCRIPTION             : Humidity
+DEFAULTVALUE            : 0.
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+FILENAME                : ../../generalData/meteo/Meteo.hdf5
+TIME_SERIE              : 1
+OUTPUT_HDF              : 1
+<endproperty>
+
+<beginproperty>
+NAME                      : pbl height
+UNITS                     : m
+DESCRIPTION               : planetary boundary layer
+FILE_IN_TIME              : HDF
+FIELD4D                   : 1
+SPATIAL_INTERPOL          : 1
+EXTRAPOLATE               : 1
+FILENAME                  : ../../generalData/meteo/Meteo.hdf5
+DEFAULTVALUE              : 600
+REMAIN_CONSTANT           : 0
+TIME_SERIE                : 0
+OUTPUT_HDF                : 0
+<endproperty>
+
+<beginproperty>
+NAME                      : precipitation
+UNITS                     : mm/hour
+DESCRIPTION               : precipitation description
+FILE_IN_TIME              : HDF
+FIELD4D                   : 1
+SPATIAL_INTERPOL          : 1
+EXTRAPOLATE               : 1
+FILENAME                  : ../../generalData/meteo/Meteo.hdf5
+USE_ORIGINAL_VALUES       : 1
+DEFAULTVALUE              : 0.
+REMAIN_CONSTANT           : 0
+TIME_SERIE                : 0
+OUTPUT_HDF                : 1
+<endproperty>
+
+<beginproperty>
+NAME                    : cloud cover
+UNITS                   : fraction
+DESCRIPTION             : cloud cover
+DEFAULTVALUE            : 0.
+REMAIN_CONSTANT         : 1
+FILE_IN_TIME            : NONE
+
+TIME_SERIE              : 0
+OUTPUT_HDF              : 0
+
+<endproperty>
+
+

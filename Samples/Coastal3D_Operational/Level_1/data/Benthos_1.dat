@@ -1,0 +1,17 @@
+DT                : 3600
+PELAGIC_MODEL     : WaterQuality
+
+NITROGEN          : 1
+PHOSPHORUS        : 1
+SILICA            : 0
+OXYGEN            : 1
+DIATOMS           : 0
+PHYTO             : 0
+
+PON_DECAY_RATE    : 0.1
+PON_DECAY_TFACTOR : 1.02
+
+POP_DECAY_RATE    : 0.03
+POP_DECAY_TFACTOR : 1.08
+
+BIOSI_DECAY_RATE  : 0.1
