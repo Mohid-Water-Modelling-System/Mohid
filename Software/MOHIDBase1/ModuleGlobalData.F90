@@ -4035,6 +4035,8 @@ do2:    do
         character(len=*)                :: ModelName
         real                            :: ElapsedSeconds, TotalCPUTime
         real, optional                  :: WorkCycleElapsed, WorkCycleCPUTime
+        
+        !Local---------------------------------------------------------------
         integer                         :: ElapsedHours, ElapsedMinutes, ElapsedSecremain
 
         !----------------------------------------------------------------------

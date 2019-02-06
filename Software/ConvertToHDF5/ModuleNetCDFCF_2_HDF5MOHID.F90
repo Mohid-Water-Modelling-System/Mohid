@@ -188,6 +188,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         integer                                 :: Dim
         character(len=StringLength)             :: NetCDFName
         real                                    :: Add, Multiply, MinValue
+        real                                    :: UnitsScale
         type (T_ValueIn)                        :: ValueIn        
         real, dimension(:,:),     pointer       :: Value2DOut
         real, dimension(:,:,:),   pointer       :: Value3DOut
@@ -2012,7 +2013,7 @@ BF:         if (BlockFound) then
                                      default      = 3600.,                              &
                                      ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
                                      STAT         = STAT_CALL)        
-                        if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR89'                        
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR89'
                         
                     endif                        
                     
@@ -2542,6 +2543,14 @@ BF:         if (BlockFound) then
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR40'    
 
+                    call GetData(Me%Field(ip)%UnitsScale,                               &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'UNITS_SCALE',                          &
+                                 default      = 1.,                                     &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR45'    
 
                     call GetData(Me%Field(ip)%MinValue,                                 &
                                  Me%ObjEnterData, iflag,                                &
@@ -2593,7 +2602,7 @@ BF:         if (BlockFound) then
                                  default      = .true.,                                 &
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR100'                                        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR100'
                     
                     call ConstructPropertyID (Me%Field(ip)%ID,  Me%ObjEnterData, FromBlockInBlock, check)
                     
@@ -3996,11 +4005,13 @@ if13:               if (Me%Depth%GeoVert == sigma_) then
                         TopDepth = - GetNetCDFValue(Me%Depth%WLValueIn, Dim1 = j+1, Dim2 = i+1, Dim3 = 1) 
 
 if20:                   if (k==Me%WorkSize%KUB) then
-                            Me%Depth%Value3DOut(i, j, k) = GetCellInDepth(i, j, k+1,Me%WorkSize%KUB,iT, CellFace = .true., Topdepth = Topdepth)
+                            Me%Depth%Value3DOut(i, j, k) = GetCellInDepth(i, j, k+1,Me%WorkSize%KUB,iT, &
+                                                            CellFace = .true., Topdepth = Topdepth)
                             SumDepth                     = 0.
                         endif if20
 
-                        Me%Depth%Value3DOut(i, j, k-1) = GetCellInDepth(i, j, k,Me%WorkSize%KUB,iT, CellFace = .true., Topdepth = Topdepth)
+                        Me%Depth%Value3DOut(i, j, k-1) = GetCellInDepth(i, j, k,Me%WorkSize%KUB,iT,     &
+                                                            CellFace = .true., Topdepth = Topdepth)
                         
                     else if13
                 
@@ -4239,7 +4250,9 @@ i5:         if (Me%OutHDF5) then
                                                                               
                         Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%Add +           &
                             Me%Field(iP)%Value3DOut(i, j, k)* Me%Field(iP)%Multiply
-                            
+                        
+                        Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%Value3DOut(i, j, k) * Me%Field(iP)%UnitsScale
+                        
                         if (Me%Field(iP)%Value3DOut(i, j, k) < Me%Field(iP)%MinValue) then
                             Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%MinValue
                         endif                                     
@@ -4272,7 +4285,9 @@ i5:         if (Me%OutHDF5) then
                             Me%Field(iP)%Value2DOut(i, j) = GetNetCDFValue(Me%Field(iP)%ValueIn,  &
                                                                 Dim1 = j+1, Dim2 = i+1, Dim3 = 1, Dim4 = 1)
                         endif
-                        Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%Value2DOut(i, j)* Me%Field(iP)%Multiply + Me%Field(iP)%Add
+                        Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%Value2DOut(i, j) * Me%Field(iP)%Multiply + Me%Field(iP)%Add
+                        
+                        Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%Value2DOut(i, j) * Me%Field(iP)%UnitsScale
                         
                         if (Me%Field(iP)%Value2DOut(i, j) < Me%Field(iP)%MinValue) then
                             Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%MinValue
@@ -5120,8 +5135,6 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
                 Aux1        = Aux
                 call JulianDateToGregorianDate(Me%Date%RefDateTimeIn, CurrentTime)
                 
-                !CurrentTime = CurrentTime + Aux
-                
                 !~3e7 anos
                 if (Aux1 > 1e15) then  
                     write(*,*) 'error in the time instant =',i
@@ -5874,7 +5887,7 @@ i2:                 if (Me%Depth%Interpolate) then
                                                            Dim4 = 1)
             elseif (Me%Field(iP)%ValueIn%Dim  == 2) then
                 call AllocateValueIn(Me%Field(iP)%ValueIn, Dim1 = Me%LongLat%jmax,      &
-                                                           Dim2 = Me%LongLat%imax)                                                           
+                                                           Dim2 = Me%LongLat%imax)
             else
                 stop 'ReadFieldNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
             endif

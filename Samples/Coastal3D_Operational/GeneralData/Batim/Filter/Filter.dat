@@ -1,0 +1,20 @@
+Data file - default name 'Filter.dat' (must be placed in working directory)
+
+!IN_BATIM                    : char              -           !Original bathymetry file name
+!OUT_BATIM                   : char              -           !Filtered bathymetry file name
+!FILTER_RADIUS               : int               -           !Number of influence cells to filter bathymetry
+!FACTOR                      : real              -           !Filtering factor
+!SIGMA_SMOOTH                : logical           -           !Check if the user wants to do an automaitc  smoothing 
+                                                            !in a way that the slope of each cell is below a slope parameter
+!SLOPE_PARAMETER             : real             0.2          ! slope parameter in the bibliography this value for sigma models should be lower than 0.2
+! H_MIN                   : real            [-1e9]        !Minimum value to be filter
+! H_MAX                   : real            [ 1e9]        !Maximum value to be filter
+
+
+IN_BATIM                    : ..\original\Level1.dat
+OUT_BATIM                   : ..\Level1.dat
+SIGMA_SMOOTH                : 1
+                              
+SLOPE_PARAMETER             : 0.1
+!H_MIN                   : rea
+!H_MAX                   : rea

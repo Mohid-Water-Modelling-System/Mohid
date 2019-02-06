@@ -450,10 +450,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructReservoirs - ModuleReservoirs - ERR010' 
             
             call ConstructGlobalVariables            
-            
-            call ConstructPropertyList            
-                        
+                                 
             call ConstructReservoirList
+            
+            call ConstructPropertyList                        
             
             
             if (Me%ComputeOptions%Discharges) then
@@ -1395,7 +1395,8 @@ cd2 :           if (BlockFound) then
         real                                        :: BottomInitialConc
         real                                        :: ModelDT, auxFactor, errorAux, DTaux
         integer                                     :: ObjHorizontalGrid = 0
-        integer                                     :: ObjBasinGeometry  = 0        
+        integer                                     :: ObjBasinGeometry  = 0      
+        integer                                     :: ObjGridData = 0
         integer, dimension(:,:), pointer            :: BasinPoints       => null()
         real, dimension(:,:), pointer               :: ReservoirConc
         type (T_Reservoir), pointer                 :: CurrReservoir
@@ -1421,14 +1422,33 @@ cd2 :           if (BlockFound) then
             call ConstructHorizontalGrid(ObjHorizontalGrid, Me%ExtVar%TopographicFile, &
                                             STAT = STAT_CALL)           
             if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyValues - ModuleReservoirs - ERR010'
+            
+            !Constructs GridData
+            call ConstructGridData      (ObjGridData, ObjHorizontalGrid,           &
+                                            FileName = Me%ExtVar%TopographicFile,  &
+                                            STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyValues - ModuleReservoirs - ERR020'
 
+            !Constructs BasinGeometry
+            call ConstructBasinGeometry (ObjBasinGeometry, ObjGridData,            &
+                                            ObjHorizontalGrid, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyValues - ModuleReservoirs - ERR030'
+            
+            
             !Gets BasinPoints
             call GetBasinPoints         (ObjBasinGeometry, BasinPoints, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyValues - ModuleReservoirs - ERR040'     
 
-            allocate(ReservoirConc           (Me%ExtVar%WorkSize2D%ILB:Me%ExtVar%WorkSize2D%IUB,   &
-                                              Me%ExtVar%WorkSize2D%JLB:Me%ExtVar%WorkSize2D%JUB))
-            call SetMatrixValue (ReservoirConc,          Me%ExtVar%WorkSize2D, 0.0)            
+            !Gets the size of the grid
+            call GetHorizontalGridSize (ObjHorizontalGrid,                               &
+                                        Size     = Me%ExtVar%Size2D,                     &
+                                        WorkSize = Me%ExtVar%WorkSize2D,                 &
+                                        STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyValues - ModuleReservoirs - ERR050'               
+            
+            allocate(ReservoirConc           (Me%ExtVar%Size2D%ILB:Me%ExtVar%Size2D%IUB,   &
+                                              Me%ExtVar%Size2D%JLB:Me%ExtVar%Size2D%JUB))
+            call SetMatrixValue (ReservoirConc,          Me%ExtVar%Size2D, 0.0)            
             
             
             call ConstructFillMatrix  (PropertyID           = NewProperty%ID,                   &
@@ -1468,7 +1488,13 @@ cd2 :           if (BlockFound) then
             
             !Ungets BasinPoints
             call UngetBasin             (ObjBasinGeometry, BasinPoints, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyValues - ModuleReservoirs - ERR150'  
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyValues - ModuleReservoirs - ERR152' 
+            
+            call KillBasinGeometry      (ObjBasinGeometry,   STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyValues - ModuleReservoirs - ERR160'
+
+            call KillGridData           (ObjGridData,        STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyValues - ModuleReservoirs - ERR170'            
             
             call KillHorizontalGrid     (ObjHorizontalGrid,  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyValues - ModuleReservoirs - ERR180'             
@@ -1693,11 +1719,11 @@ cd2 :           if (BlockFound) then
        !have Bottom Fluxes because if all water exits reservoir the mass needs to go somewhere
        !and so needs the bottom concentration 
 !~         if(Check_Particulate_Property(NewProperty%ID%IDNumber) .and.  &
-       if (.not. NewProperty%ID%IsParticulate .and. (.not. NewProperty%ComputeOptions%BottomFluxes)) then 
+       if (NewProperty%ID%IsParticulate .and. (.not. NewProperty%ComputeOptions%BottomFluxes)) then 
             write(*,*) 'Property '//trim(NewProperty%ID%Name)// ' has not BOTTOM_FLUXES ON'
             write(*,*) 'but is recognised by the model as particulate.'
             write(*,*) 'Particulated recognized properties can accumulate in bottom and'
-            write(*,*) 'need BOTTOM_FLUXES to be active for the propery in Drainage Network'
+            write(*,*) 'need BOTTOM_FLUXES to be active for the propery in Reservoirs'
             stop 'ModuleReservoirs - ConstructPropertyValues - ERR110'
         end if      
 
@@ -2638,7 +2664,7 @@ cd0:    if (Exist) then
             endif
             
             CurrentReservoir%VolumeOld      = CurrentReservoir%VolumeNew
-            CurrentReservoir%PercFull       = CurrentReservoir%VolumeOld / CurrentReservoir%MaxVolume
+            CurrentReservoir%PercFull       = CurrentReservoir%VolumeOld / CurrentReservoir%MaxVolume  * 100
             !CurrentReservoir%DNInflow       = 0.0  ! Cant reset since it is imposed
             CurrentReservoir%Outflow        = 0.0
             CurrentReservoir%Discharges     = 0.0
@@ -2651,8 +2677,11 @@ cd0:    if (Exist) then
                     CurrentProperty%ConcentrationOld(CurrentReservoir%Position) =   &
                              CurrentProperty%Concentration(CurrentReservoir%Position)
                     CurrentProperty%MassCreated(CurrentReservoir%Position)    = 0.0
-                    CurrentProperty%ErosionRate(CurrentReservoir%Position)    = 0.0
-                    CurrentProperty%DepositionRate(CurrentReservoir%Position) = 0.0
+                    
+                    if (CurrentProperty%ComputeOptions%BottomFluxes) then
+                        CurrentProperty%ErosionRate(CurrentReservoir%Position)    = 0.0
+                        CurrentProperty%DepositionRate(CurrentReservoir%Position) = 0.0
+                    endif
                     
                     CurrentProperty => CurrentProperty%Next
                 enddo
@@ -3548,7 +3577,8 @@ if0:    if (Me%HasProperties) then
         
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID) 
+            
+            call Read_Lock(mReservoirs_, Me%InstanceID) 
 
             nullify(PropertyX)
 
@@ -3590,7 +3620,7 @@ if0:    if (Me%HasProperties) then
         integer, intent(OUT), optional                  :: STAT
 
         !Local------------------------------------------------------------------
-        integer                                         :: STAT_CALL, ready_, STAT_
+        integer                                         :: STAT_CALL, ready_
         type (T_Property), pointer                      :: PropertyX
         !-----------------------------------------------------------------------
 
@@ -3601,8 +3631,8 @@ if0:    if (Me%HasProperties) then
 
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyID, STAT = STAT_)
-            if (STAT_ /= SUCCESS_) then 
+            call SearchProperty(PropertyX, PropertyXIDNumber = PropertyID, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then 
                 write(*,*)
                 write(*,*)'Could not find property', GetPropertyName(PropertyID)
                 write(*,*)'in Reservoirs Module'
@@ -4802,7 +4832,7 @@ if2:            if (Me%HasProperties) then
                     do while (associated (Property))                
 
                         if (Property%ComputeOptions%TimeSerie) then
-                            Me%TimeSerie%DataLine (i) = Property%Concentration(CurrReservoir%Position)   
+                            Me%TimeSerie%DataLine (j) = Property%Concentration(CurrReservoir%Position)   
                             j = j + 1
 
                         end if

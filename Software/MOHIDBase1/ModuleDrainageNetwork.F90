@@ -3030,19 +3030,19 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
                 stop 'ModuleDrainageNetwork - ConstructNode - ERR12a'
             endif
 
-            if (.not. NewNode%HasGrid) then
-                call GetData(NewNode%CrossSection%TerrainLevel,                         &
-                             Me%Files%ObjEnterDataNetwork, flag,                        &  
-                             keyword      = 'TERRAIN_LEVEL',                            &
-                             ClientModule = 'DrainageNetwork',                          &
-                             SearchType   = FromBlock,                                  &
-                             STAT         = STAT_CALL)                                      
-                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR08'
-                if (flag /= 1) then
-                    write (*,*)'Invalid Node Terrain Level [TERRAIN_LEVEL]'
-                    stop 'ModuleDrainageNetwork - ConstructNode - ERR21'
-                endif
-            endif            
+            !if (.not. NewNode%HasGrid) then
+            !    call GetData(NewNode%CrossSection%TerrainLevel,                         &
+            !                 Me%Files%ObjEnterDataNetwork, flag,                        &  
+            !                 keyword      = 'TERRAIN_LEVEL',                            &
+            !                 ClientModule = 'DrainageNetwork',                          &
+            !                 SearchType   = FromBlock,                                  &
+            !                 STAT         = STAT_CALL)                                      
+            !    if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR08'
+            !    if (flag /= 1) then
+            !        write (*,*)'Invalid Node Terrain Level [TERRAIN_LEVEL]'
+            !        stop 'ModuleDrainageNetwork - ConstructNode - ERR21'
+            !    endif
+            !endif            
             
             !
             !Commented logic below. Now the Node has either:
@@ -3053,7 +3053,21 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
             !meaning that drainage network may have been built from DTM different than currently used (e.g. with depressions removed), 
             !need to check terrain level and height to be consistent with DTM used
             if (associated(Me%ExtVar%Topography) .AND. NewNode%HasGrid) then
-                NewNode%CrossSection%TerrainLevel = Me%ExtVar%Topography(NewNode%GridI, NewNode%GridJ)
+                NewNode%CrossSection%TerrainLevel = Me%ExtVar%Topography(NewNode%GridI, NewNode%GridJ)              
+            else
+                
+                call GetData(NewNode%CrossSection%TerrainLevel,                         &
+                             Me%Files%ObjEnterDataNetwork, flag,                        &  
+                             keyword      = 'TERRAIN_LEVEL',                            &
+                             ClientModule = 'DrainageNetwork',                          &
+                             SearchType   = FromBlock,                                  &
+                             STAT         = STAT_CALL)                                      
+                if (STAT_CALL .NE. SUCCESS_) stop 'ModuleDrainageNetwork - ConstructNode - ERR08'
+                if (flag /= 1) then
+                    write (*,*)'Invalid Node Terrain Level [TERRAIN_LEVEL]'
+                    stop 'ModuleDrainageNetwork - ConstructNode - ERR21'
+                endif                
+                
             endif
             !    
             !    if (Me%ExtVar%Topography(NewNode%GridI, NewNode%GridJ) /= NewNode%CrossSection%TerrainLevel) then
@@ -10192,7 +10206,8 @@ if0:    if (Me%HasProperties) then
 
         call Ready(DrainageNetworkID, ready_)
 
-        if (ready_ .EQ. IDLE_ERR_)then
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
             
             call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID) 
                          
@@ -10254,6 +10269,9 @@ do1:        do while (associated (PropertyX))
                     FoundProperty = .true.
                     exit do1
                 endif
+                
+                PropertyX => PropertyX%Next
+                
             enddo do1
             
             if (.not. FoundProperty) then
@@ -10262,6 +10280,9 @@ do1:        do while (associated (PropertyX))
                 stop 'SetReservoirsConcDN - ModuleDrainageNetwork - ERR010'
             end if
 
+            
+            STAT_ = SUCCESS_ 
+            
         else
             STAT_ = ready_
         end if
@@ -10293,8 +10314,11 @@ do1:        do while (associated (PropertyX))
 
         call Ready(DrainageNetworkID, ready_)
 
-        if (ready_ .EQ. IDLE_ERR_)then
-                       
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
+            (ready_ .EQ. READ_LOCK_ERR_)) then                       
+            
+            call Read_Lock(mDRAINAGENETWORK_, Me%InstanceID) 
+            
             nullify(PropertyX)
             
             FoundProperty = .false.
@@ -10305,7 +10329,8 @@ do1:        do while (associated (PropertyX))
                 iProp = iProp + 1   
     
                 if (PropertyX%ID%IDNumber == PropertyXIDNumber) then
-                         
+            
+                    
                     do ReservoirPos = 1, Me%Reservoirs%nReservoirs            
             
                         ConcentrationX(ReservoirPos) = Me%Reservoirs%NodeConc(ReservoirPos, iProp)
@@ -10315,6 +10340,9 @@ do1:        do while (associated (PropertyX))
                     FoundProperty = .true.
                     exit do1
                 endif
+                
+                PropertyX => PropertyX%Next
+                
             enddo do1
             
             if (.not. FoundProperty) then
@@ -10323,6 +10351,7 @@ do1:        do while (associated (PropertyX))
                 stop 'GetNodeConcReservoir - ModuleDrainageNetwork - ERR010'
             end if
 
+            STAT_ = SUCCESS_
         else
             STAT_ = ready_
         end if
@@ -14987,7 +15016,7 @@ if1:    if (Property%Diffusion_Scheme == CentralDif) then
                 
                 do NodeID = 1, Me%TotalNodes
 
-                    if (Me%OpenPointsProcess (NodeID) == OpenPoint) then                    
+                    if ( (Me%OpenPointsProcess (NodeID) == OpenPoint) .and. (Me%Nodes (NodeID)%VolumeNew .gt. 0.0)) then                    
                         
                         CurrNode => Me%Nodes (NodeID)
                         
