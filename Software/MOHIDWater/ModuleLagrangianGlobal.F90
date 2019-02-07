@@ -1508,7 +1508,6 @@ Module ModuleLagrangianGlobal
         real                                    :: CriticalThickness        = null_real        
         real                                    :: CriticalSlopeVel         = null_real        
         real                                    :: CriticalSlopeVelUncertainty = null_real
-        real                                    :: CriticalBathymSlope      = null_real
     end type T_Deposition
 
     type T_FloatingObject
@@ -5800,17 +5799,6 @@ DE:     if (NewOrigin%State%Deposition) then
             if (STAT_CALL /= SUCCESS_)                                                  &
                 call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR9895')                           
 
-            call GetData(NewOrigin%Deposition%CriticalBathymSlope,                      &
-                         Me%ObjEnterData,                                               &
-                         flag,                                                          &
-                         SearchType   = FromBlock,                                      &
-                         keyword      ='CRITICAL_BAHTYM_SLOPE',                         &
-                         default      = - null_real,                                    &
-                         ClientModule ='ModuleLagrangianGlobal',                        &
-                         STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR9900')                  
-            
         endif DE
 
 
@@ -20917,7 +20905,7 @@ g3:             do ig = 1, Me%NGroups
                             
                             Me%EulerModel(em)%Lag2Euler%GridBottomSlope(i,j,ig)  = dBottom_dxy
                             
-                            if (dBottom_dxy > Me%FirstOrigin%Deposition%CriticalBathymSlope .and.     &
+                            if (dBottom_dxy > Me%FirstOrigin%Deposition%CriticalSlope .and.         &
                                     Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) >          &
                                     Me%FirstOrigin%Deposition%CriticalThickness) then
                                     
@@ -21016,7 +21004,7 @@ CurrOr4:            do while (associated(CurrentOrigin))
                                     
                                     dBottom_dxy = Me%EulerModel(em)%Lag2Euler%GridBottomSlope(i,j,ig)
                                         
-                                    if (dBottom_dxy > CurrentOrigin%Deposition%CriticalBathymSlope) then
+                                    if (dBottom_dxy > CurrentOrigin%Deposition%CriticalSlope) then
                                         
                                         CurrentPartic%Deposited = .false.                                         
 
