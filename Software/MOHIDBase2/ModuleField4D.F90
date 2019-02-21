@@ -454,12 +454,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%ClientID = FillValueInt
             endif
             
-            if (present(FileName)) then
+            Me%File%FileListON      = .false.
             
-                Me%File%FileName     = trim(FileName)
-                Me%File%FileListON   = .false.
-                
-            else if (present(FileNameList)) then
+            if (present(FileNameList)) then
                 if (associated(FileNameList)) then
             
                     Me%File%FileListON      = .true. 
@@ -473,12 +470,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     Me%File%ObjList     (:) = 0
                     Me%File%FileNameList(:) = FileNameList(:)
                     Me%File%ListNInst   (:) = 0
-
-                else                    
-                    stop 'ConstructField4D - ModuleField4D - ERR10' 
+                                    
                 endif
-            else                    
-                stop 'ConstructField4D - ModuleField4D - ERR20' 
+            endif                
+            
+            if (.not. Me%File%FileListON) then
+                
+                if (present(FileName)) then
+                    Me%File%FileName     = trim(FileName)
+
+                else                 
+                    stop 'ConstructField4D - ModuleField4D - ERR20' 
+                endif
             endif                
             
             
