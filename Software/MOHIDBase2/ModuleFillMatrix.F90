@@ -647,14 +647,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
             
-            if (present(RotateAngleToGrid)) then
-                Me%RotateAngleToGrid = RotateAngleToGrid
-            else
-                if (Me%PropertyID%IsAngle) then
-                    Me%RotateAngleToGrid = .true.                    
-                endif 
-            endif
-            
             if (present(CheckDates)) then
                 Me%CheckDates = CheckDates
             endif
@@ -710,6 +702,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%Dim          = Dim2D
             Me%TypeZUV      = TypeZUV
             Me%PropertyID   = PropertyID
+            
+            if (present(RotateAngleToGrid)) then
+                Me%RotateAngleToGrid = RotateAngleToGrid
+            else
+                if (Me%PropertyID%IsAngle) then
+                    Me%RotateAngleToGrid = .true.                    
+                endif 
+            endif            
             
             Me%Matrix2D       => Matrix2D
             Me%PointsToFill2D => PointsToFill2D
