@@ -6010,7 +6010,8 @@ if1:    if (Me%HasGrid) then
             allocate(Me%ChannelsActiveState   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             allocate(Me%ChannelsID            (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             
-            Me%ChannelsWaterLevel   = 0.0
+            !Me%ChannelsWaterLevel   = 0.0  !use null_real to map everything not to take account
+            Me%ChannelsWaterLevel   = null_real
             Me%ChannelsTopArea      = null_real
             Me%ChannelsBottomLevel  = null_real
             Me%ChannelsBottomWidth  = null_real
@@ -14052,7 +14053,7 @@ do2:        do NodeID = 1, Me%TotalNodes
                 end do
             
                 Me%ChannelsVelocity        (CurrNode%GridI, CurrNode%GridJ) = AvrgVelocity
-            
+                
             endif
             
         enddo
