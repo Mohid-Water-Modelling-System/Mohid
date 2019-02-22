@@ -1,0 +1,108 @@
+REMOVE_LAND_BOTTOM_LAYERS : 1
+
+2D discretization - remove comments of this block. Comment blocks below
+!<begindomain>
+ ID                : 1
+ TYPE              : SIGMA
+ DOMAINDEPTH       : -99.00
+ LAYERS            : 1
+<<beginlayers>>
+1
+<<endlayers>>
+!<enddomain>
+
+ <begindomain>
+ ID                : 1
+ TYPE              : CARTESIAN
+ DOMAINDEPTH       : 19.9400
+ LAYERS            : 63
+ MININITIALLAYERTHICKNESS : 0.05
+ MAX_THICKNESS_GRAD       : 2
+ 
+ <<beginlayers>>
+3.09
+3.39
+3.72
+4.09
+4.49
+4.93
+5.42
+5.96
+6.55
+7.2
+7.92
+8.71
+9.58
+10.53
+11.58
+12.73
+14
+15.4
+16.94
+18.63
+20.49
+22.53
+24.78
+27.25
+29.97
+32.96
+36.25
+39.87
+43.85
+48.23
+53.05
+58.35
+64.18
+70.59
+77.64
+85.4
+93.94
+103.33
+113.66
+125.02
+137.52
+151.27
+166.39
+183.02
+201.32
+221.45
+243.59
+267.94
+294.73
+324.2
+356.62
+392.28
+431.5
+474.65
+522.11
+574.32
+631.75
+694.92
+764.41
+840.85
+924.93
+1017.42
+1119.16
+ <<endlayers>>
+ <enddomain>
+
+ <begindomain>
+ ID                : 2
+ TYPE              : SIGMA
+ DOMAINDEPTH       : -99.00
+ LAYERS            : 12
+<<beginlayers>>
+0.045
+0.055
+0.055
+0.065
+0.065
+0.075
+0.085
+0.095
+0.095
+0.105
+0.125
+0.135
+<<endlayers>>
+ <enddomain>

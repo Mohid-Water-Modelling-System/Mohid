@@ -8422,6 +8422,7 @@ cd21:   if (Baroclinic) then
         real                                :: DX
         integer                             :: iflag, FromFile
         integer                             :: STAT_CALL
+        integer                             :: i, j
         logical                             :: OperationalModel
 
         !----------------------------------------------------------------------    
@@ -8561,7 +8562,17 @@ cd21:   if (Baroclinic) then
                     stop "OperationalModelDefaultOptions - Hydrodynamic - ERR40"    
                 endif                            
 
-                DX = max(DUX(1,1), DVY(1,1))
+                !DX = max(DUX(1,1), DVY(1,1))
+                
+                DX = - FillValueReal
+                
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    !Find minimum spatial step 
+                    if (DUX(i,j) < DX .and. DUX(i,j) > 0) DX = DUX(i,j)
+                    if (DVY(i,j) < DX .and. DVY(i,j) > 0) DX = DVY(i,j)
+                enddo
+                enddo
             
                 !BIHARMONIC_COEF          : dx^3/10
                 Me%ComputeOptions%BiHarmonicCoef    = DX**3/10.         
@@ -29586,6 +29597,12 @@ do6:               do k = KLB, KUB + 1
 
 
         Compute_Tide          = Me%ComputeOptions%Compute_Tide
+        
+        call GetOpenBoundParameter(Me%ObjOpenBoundary, DirectionX = DirX,           &
+                                                       DirectionY = DirY, STAT= status)
+
+        if (status /= SUCCESS_)                                                     &
+            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR003")        
 
         if      (DirectionXY == DirectionX_) then
 

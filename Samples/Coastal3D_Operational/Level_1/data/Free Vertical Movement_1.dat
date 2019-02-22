@@ -1,0 +1,22 @@
+<beginproperty>
+NAME                     : cohesive sediment
+SALTINT                  : 1
+WS_TYPE                  : 1
+WS_VALUE                 : 0.00001
+FREEVERT_IMPEXP_ADV      : 0
+<endproperty>
+
+<beginproperty>
+NAME                     : particulate organic nitrogen
+WS_VALUE                 : 0.00001
+WS_TYPE                  : 2
+DEPOSITION               : 1
+<endproperty>
+
+
+<beginproperty>
+NAME                     : particulate organic phosphorus
+WS_VALUE                 : 0.00001
+WS_TYPE                  : 2
+DEPOSITION               : 1
+<endproperty>

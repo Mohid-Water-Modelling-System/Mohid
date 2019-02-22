@@ -256,6 +256,11 @@ Module ModuleFillMatrix
     character(LEN = StringLength), parameter :: BeginMTSBlock     = '<BeginStation>'
     character(LEN = StringLength), parameter :: EndMTSBlock       = '<EndStation>'
     
+    character(LEN = StringLength), parameter :: Begin_files       = '<<BeginFiles>>'
+    character(LEN = StringLength), parameter :: End_files         = '<<EndFiles>>'
+    character(LEN = StringLength), parameter :: Begin_files_2     = '<<<BeginFiles>>>'
+    character(LEN = StringLength), parameter :: End_files_2       = '<<<EndFiles>>>'
+    
 
     !Types---------------------------------------------------------------------
 
@@ -464,6 +469,7 @@ Module ModuleFillMatrix
         logical, dimension(:), pointer              :: NoData               => null()  
         logical                                     :: Extrapolate          = .false.       
         integer                                     :: ExtrapolateMethod    = null_int
+        character(len=PathLength), dimension(:), pointer :: FileNameList    => null()
         type (T_Field4D), pointer                   :: Next                 => null()
         type (T_Field4D), pointer                   :: Prev                 => null()         
     end type T_Field4D
@@ -641,14 +647,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
             
-            if (present(RotateAngleToGrid)) then
-                Me%RotateAngleToGrid = RotateAngleToGrid
-            else
-                if (Me%PropertyID%IsAngle) then
-                    Me%RotateAngleToGrid = .true.                    
-                endif 
-            endif
-            
             if (present(CheckDates)) then
                 Me%CheckDates = CheckDates
             endif
@@ -704,6 +702,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%Dim          = Dim2D
             Me%TypeZUV      = TypeZUV
             Me%PropertyID   = PropertyID
+            
+            if (present(RotateAngleToGrid)) then
+                Me%RotateAngleToGrid = RotateAngleToGrid
+            else
+                if (Me%PropertyID%IsAngle) then
+                    Me%RotateAngleToGrid = .true.                    
+                endif 
+            endif            
             
             Me%Matrix2D       => Matrix2D
             Me%PointsToFill2D => PointsToFill2D
@@ -5762,7 +5768,7 @@ i2:     if (Me%Dim == Dim2D) then
         !Begin-----------------------------------------------------------------
         
         !get general options and list of HDF (one if scalar, two if vectorial prop)
-        call ReadOptionsHDFinput(ExtractType) 
+        call ReadOptionsHDFinput(ExtractType, ClientID) 
         
         
         CurrentHDF => Me%FirstHDF
@@ -5926,10 +5932,11 @@ i0:     if(Me%Dim == Dim2D)then
 
     !-----------------------------------------------------------------------------------
 
-    subroutine ReadOptionsHDFinput(ExtractType)
+    subroutine ReadOptionsHDFinput(ExtractType, ClientID)
     
          !Arguments------------------------------------------------------------
-        integer                                         :: ExtractType               
+        integer                                         :: ExtractType   
+        integer                                         :: ClientID
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_CALL, iflag, i
         integer                                         :: ILB, IUB, JLB, JUB
@@ -6156,7 +6163,7 @@ i0:     if(Me%Dim == Dim2D)then
         
         CurrentHDF => Me%FirstHDF
         
-        do while (associated(CurrentHDF))         
+d1:     do while (associated(CurrentHDF))         
         
             call GetData(CurrentHDF%Generic4D%ON,                                           &
                          Me%ObjEnterData , iflag,                                           &
@@ -6287,7 +6294,14 @@ i0:     if(Me%Dim == Dim2D)then
                 if (CurrentHDF%ExtrapolateMethod /= ExtrapolAverage_ .and.              &
                     CurrentHDF%ExtrapolateMethod /= ExtrapolNearstCell_ ) then
                     stop 'ConstructHDFInput - ModuleFillMatrix - ERR300'  
-                endif                    
+                endif        
+                    
+                if     (ExtractType == FromBlock)        then
+                    call ReadListFilesFromBlock         (CurrentHDF, ClientID)     
+                elseif (ExtractType == FromBlockInBlock) then
+                    call ReadListFilesFromBlockInBlock  (CurrentHDF, ClientID)     
+                endif
+                
             endif
         
             !The adding and multiplying functionalities are also available in ModuleField4D
@@ -6371,11 +6385,115 @@ i0:     if(Me%Dim == Dim2D)then
             
             CurrentHDF => CurrentHDF%Next
             
-        enddo
+        enddo d1
     
     end subroutine ReadOptionsHDFinput
     
     !-----------------------------------------------------------------------------    
+    
+    
+    !--------------------------------------------------------------------------
+
+    subroutine ReadListFilesFromBlock(CurrentHDF, ClientNumber)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Field4D), pointer                        :: CurrentHDF
+        integer                                         :: ClientNumber 
+
+        !Local-----------------------------------------------------------------
+        logical                                         :: BlockInBlockFound
+        integer                                         :: STAT_CALL, FirstLine, LastLine, iflag
+        integer                                         :: n, FileNumber 
+        !Begin-----------------------------------------------------------------
+        
+        call RewindBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadListFilesFromBlock - ModuleFillMatrix - ERR10'        
+
+        call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                       &
+                                            Begin_files,                                &
+                                            End_files,                                  &
+                                            BlockInBlockFound,                          &
+                                            FirstLine, LastLine,                        &
+                                            STAT = STAT_CALL)                                        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadListFilesFromBlock - ModuleFillMatrix - ERR20'
+            
+        if (BlockInBlockFound) then
+                
+            FileNumber = LastLine - FirstLine - 1
+            
+            allocate(CurrentHDF%FileNameList(FileNumber))
+
+
+            do n = 1, FileNumber
+
+                call GetData(CurrentHDF%FileNameList(n),                                &
+                                Me%ObjEnterData,  iflag, Buffer_Line  = FirstLine + n,  &
+                                STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadListFilesFromBlock - ModuleFillMatrix - ERR30'
+
+            enddo
+        
+
+            call RewindBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
+            if (STAT_CALL /= SUCCESS_) stop 'ReadListFilesFromBlock - ModuleFillMatrix - ERR40'
+            
+        endif            
+
+    end subroutine ReadListFilesFromBlock
+                
+    !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    subroutine ReadListFilesFromBlockInBlock(CurrentHDF, ClientNumber)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Field4D), pointer                        :: CurrentHDF
+        integer                                         :: ClientNumber 
+
+        !Local-----------------------------------------------------------------
+        logical                                         :: BlockInBlockInBlockFound
+        integer                                         :: STAT_CALL, FirstLine, LastLine, iflag
+        integer                                         :: n, FileNumber 
+        !Begin-----------------------------------------------------------------
+        
+        call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
+        if (STAT_CALL /= SUCCESS_) stop 'ReadListFilesFromBlockInBlock - ModuleFillMatrix - ERR10'        
+
+        call ExtractBlockFromBlockFromBlock(Me%ObjEnterData, ClientNumber,              &
+                                            Begin_files_2,                              &
+                                            End_files_2,                                &
+                                            BlockInBlockInBlockFound,                   &
+                                            FirstLine, LastLine,                        &
+                                            STAT = STAT_CALL)                                        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadListFilesFromBlockInBlock - ModuleFillMatrix - ERR20'
+            
+        if (BlockInBlockInBlockFound) then
+                
+            FileNumber = LastLine - FirstLine - 1
+            
+            allocate(CurrentHDF%FileNameList(FileNumber))
+
+
+            do n = 1, FileNumber
+
+                call GetData(CurrentHDF%FileNameList(n),                                &
+                                Me%ObjEnterData,  iflag, Buffer_Line  = FirstLine + n,  &
+                                STAT         = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ReadListFilesFromBlockInBlock - ModuleFillMatrix - ERR30'
+
+            enddo
+        
+
+            call RewindBlockInBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)  
+            if (STAT_CALL /= SUCCESS_) stop 'ReadListFilesFromBlockInBlock - ModuleFillMatrix - ERR40'
+            
+        endif            
+
+    end subroutine ReadListFilesFromBlockInBlock
+                
+    !--------------------------------------------------------------------------
+    
     
     subroutine BuildField4D(ExtractType, ClientID, PointsToFill2D, PointsToFill3D, CurrentHDF)    
     
@@ -6448,6 +6566,7 @@ ifMS:       if (MasterOrSlave) then
                                   ExtrapolateMethod = ExtrapolAverage_,                 &
                                   PropertyID        = Me%PropertyID,                    &                                  
                                   ClientID          = ClientID,                         &
+                                  FileNameList      = CurrentHDF%FileNameList,          &
                                   STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'BuildField4D - ModuleFillMatrix - ERR40'
         
@@ -7118,6 +7237,7 @@ d2:      do while(.not. FoundSecondInstant)
                                   ExtrapolateMethod = CurrentHDF%ExtrapolateMethod,     &
                                   PropertyID        = Me%PropertyID,                    &
                                   ClientID          = ClientID,                         &
+                                  FileNameList      = CurrentHDF%FileNameList,          &
                                   STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR110'        
         
@@ -7137,6 +7257,7 @@ d2:      do while(.not. FoundSecondInstant)
                                   ExtrapolateMethod = CurrentHDF%ExtrapolateMethod,     &
                                   PropertyID        = Me%PropertyID,                    &
                                   ClientID          = ClientID,                         &
+                                  FileNameList      = CurrentHDF%FileNameList,          &
                                   STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR120'
         endif
@@ -12268,6 +12389,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                                 
                                 deallocate(CurrentHDF%X, CurrentHDF%Y, CurrentHDF%Prop, CurrentHDF%NoData)
                         
+                            endif
+                            
+                            if (associated(CurrentHDF%FileNameList)) then
+                                deallocate(CurrentHDF%FileNameList)
                             endif
                         
                             call KillField4D(CurrentHDF%ObjField4D, STAT = STAT_CALL)

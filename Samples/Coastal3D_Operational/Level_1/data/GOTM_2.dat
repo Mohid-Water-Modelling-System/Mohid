@@ -1,0 +1,200 @@
+!-------------------------------------------------------------------------------
+! The namelists 'turbulence','turb_parameters', 'keps', 'my', 'stabfunc',
+! 'iw' and 'eobs' are all read from init_turbulence in the module 
+! turbulence.F90. 
+! They have to come in this order.
+!-------------------------------------------------------------------------------
+
+!-------------------------------------------------------------------------------
+! General turbulence settings.
+!
+! turb_method=	0: Convective Adjustment
+!		1: Analytical eddy visc. and diff. profiles, not coded yet
+!		2: Turbulence Model calculating TKE, length scale, stab. func.
+! tke_method=	How to calculate TKE.
+!		1= Algebraic equation.
+!		2= Dynamic equation for k-epsilon model.
+!		3= Dynamic equation for Mellor-Yamada model.
+! len_scale_method=  How to calculate the lenght scale.
+!		1= Parabolic shape
+!		2= Triangle shape
+!		3= Xing and Davies [1995]
+!		4= Robert and Ouellet [1987]
+!		5= Blackadar (two boundaries) [1962]
+!		6= Bougeault and Andre [1986]
+!		7= Eifler and Schrimpf (ISPRAMIX) [1992]
+!		8= Dynamic dissipation rate equation
+!		9= Dynamic Mellor-Yamada kL equation
+!
+! stab_method=	How to calculate stability functions.
+! Note that the given values for cm0,cmust,Prandtl0 are recommendations
+! For values for ce3minus, see below.
+!	1, Kantha and Clayson [1994],      full version, cm0 = 0.5544
+!	2, Burchard and Baumert [1995],    full version, cm0 = 0.5900
+!	3, Canuto et al. [2000] version A, full version, cm0 = 0.5270
+!	4, Canuto et al. [2000] version B, full version, cm0 = 0.5540
+!	5, Kantha and Clayson [1994],      quasi-eq. version, cm0 = 0.5544
+!	6, Burchard and Baumert [1995],    quasi-eq. version, cm0 = 0.5900
+!	7, Canuto et al. [2000] version A, quasi-eq. version, cm0 = 0.5270
+!	8, Canuto et al. [2000] version B, quasi-eq. version, cm0 = 0.5540
+!	9, Constant stability functions,   cm0 = cmust = 0.5477, Prandtl0=0.74
+!	10, Munk and Anderson [1954],      cm0 = cmust = 0.5477, Prandtl0=0.74
+!	11, Schumann and Gerz [1995],      cm0 = cmust = 0.5477, Prandtl0=0.74
+!	12, Eifler and Schrimpf [1992],    cm0 = cmust = 0.5477, Prandtl0=0.74
+!
+! craig_banner= .true.: Craig and Banner wave breaking parameterisation 
+! length_lim=	apply length limitation or not
+! k_min=	minimun TKE
+! L_min=	minimum lengthscale
+! eps_min=	minimum dissipation
+!-------------------------------------------------------------------------------
+ &turbulence
+  turb_method=		2,
+  tke_method=		2,
+  len_scale_method=	8,
+  stab_method=		3,
+  craig_banner=		.false.
+  length_lim=		.false.,
+  k_min=		1.e-6,
+  L_min=		0.01,
+  eps_min=		1.e-12,
+ /
+
+!-------------------------------------------------------------------------------
+!Empirical parameters used in turbulence modeling.
+!
+! kappa=	von Karman's constant.
+! Prandtl0=	The turbulent Prandtle number (constant)
+! cm0=		stab. func. for momentum for unstrat. equilibrium flow
+!		or if a "constant" stability function is used.
+! cm_craig=	surface value for stability function for wave breaking,
+!		shold be set to cm0 except for stabfunc = 1, 2, 3, 4
+! cw=		proportionality factor for TKE injection
+! cm0=		stab. func. for momentum for unstrat. equilibrium flow
+! galp=		coef. for length limitation, should be 0.53
+!-------------------------------------------------------------------------------
+ &turb_parameters
+  kappa=	0.4,
+  Prandtl0=	0.714,
+  cm0=		0.527,
+  cm_craig=	0.73,
+  cw=		100.,
+  galp=		0.53,
+/
+
+!-------------------------------------------------------------------------------
+! Empirical parameters used in the k-epsilon model.
+!
+! ce1=		emp. coef. in diss. eq.
+! ce2=		emp. coef. in diss. eq.
+! ce3minus=	ce3 for stable stratification
+! 	Recommended values for ce3minus
+! 	(steady-state Richardson number=0.25) are:
+! 	stab_method = 1 --> ce3minus = -0.404
+! 	stab_method = 2 --> ce3minus = -0.444
+! 	stab_method = 3 --> ce3minus = -0.629
+! 	stab_method = 4 --> ce3minus = -0.566
+! 	stab_method = 5 --> ce3minus = -0.404
+! 	stab_method = 6 --> ce3minus = -0.444
+! 	stab_method = 7 --> ce3minus = -0.629
+! 	stab_method = 8 --> ce3minus = -0.566
+!	stab_method = 9 --> ce3minus = +0.499
+!	stab_method =10 --> ce3minus = +0.035
+!	stab_method =11 --> ce3minus = -0.368
+!	stab_method =12 --> ce3minus = +0.239
+! ce3plus=	ce3 for un-stable stratification
+! sig_k=	Schmidt # for TKE eddy diffusivity
+! flux_bdy=	flux boundary conditions
+!-------------------------------------------------------------------------------
+ &keps
+  ce1=		1.44,
+  ce2=		1.92,
+  ce3minus=	-0.629,
+  ce3plus=	1.0,
+  sig_k=	1.,
+  flux_bdy= 	.true.,
+ /
+
+!-------------------------------------------------------------------------------
+! Empirical parameters used by the Mellor-Yamada model.
+!
+! sl=eddy diffusivities of k and kL (sl=cl/sqrt(2))
+! e1=coef. in MY kL equation
+! e2=coef. in MY kL equation
+! e3=coef. in MY kL equation
+! 	Recommended values for e3
+!	(steady-state Richardson number=0.25) are:
+!	stab_method = 1 --> ce3minus =  5.808
+!	stab_method = 2 --> ce3minus =  5.888
+!	stab_method = 3 --> ce3minus =  6.258
+!	stab_method = 4 --> ce3minus =  6.132
+!	stab_method = 5 --> ce3minus =  5.808
+!	stab_method = 6 --> ce3minus =  5.888
+!	stab_method = 7 --> ce3minus =  6.258
+!	stab_method = 8 --> ce3minus =  6.132
+!	(for motivation, see Burchard [2000], JPO)
+! MY_length=	prescribed barotropic lengthscale in kL eq.
+!		1=parabolic
+!		2=triangular
+!		3=lin. from surface
+!-------------------------------------------------------------------------------
+ &my
+  sl=		0.2,
+  e1=		1.8,
+  e2=		1.33,
+  e3=		6.258,
+  MY_length=	3,
+ /
+
+!-------------------------------------------------------------------------------
+! Empirical parameters used for the stabillity function calculations.
+!
+! a1=		coef. in Galperin QE SF
+! a2=		coef. in Galperin QE SF
+! b1=		coef. in Galperin QE SF
+! b2=		coef. in Galperin QE SF
+! c2=		0.0 for Galperin SF, 0.7 for Kantha & Clayson SF
+! c3=		0.0 for Galperin SF, 0.2 for Kantha & Clayson SF
+! qesmooth=	smooth in unstable stratification (true/false)
+! qeghmax=	max. value of parameter gh in qeSF
+! qeghmin=	min. value of parameter gh in qeSF
+! qeghcrit=	critical value of gh to start smoothing
+!-------------------------------------------------------------------------------
+ &stabfunc
+  a1=		0.92,
+  a2=		0.74,
+  b1=		16.6,
+  b2=		10.1,
+  c2=		0.7,
+  c3=		0.2,
+  qesmooth=	.true.,
+  qeghmax=	0.0233,
+  qeghmin=	-0.28,
+  qeghcrit=	0.02,
+ /
+
+!-------------------------------------------------------------------------------
+! Internal wave parameters.
+! iw_model=	IW specification
+!		0=no IW, 2=Large et al. 1994
+! alpha=	coeff. for Mellor IWmodel (0: no IW, 0.7 Mellor 1989)
+!
+! The following six empirical parameters are used for the
+! Large et al. 1994 shear instability and internal wave breaking
+! parameterisations (iw_model = 2, all viscosities are in m**2/s):
+!
+! klimiw=	critcal value of TKE
+! rich_cr=	critical Richardson number for shear instability
+! numshear=	background diffusivity for shear instability
+! numiw=	background viscosity for internal wave breaking
+! nuhiw=	background diffusivity for internal wave breaking
+!-------------------------------------------------------------------------------
+ &iw
+  iw_model=	0,
+  alpha=	0.0,
+  klimiw=	1e-6,
+  rich_cr=	0.7,
+  numshear=	5.e-3,
+  numiw=	1.e-4,
+  nuhiw=	1.e-5,
+ /

@@ -9502,20 +9502,30 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
             
             CellRotationX = 0.
-            CellRotationY = Pi/2.
             
             if      (Me%Distortion) then
 
                 CellRotationX = Me%RotationX(i, j)
                 
-                CellRotationY = Me%RotationY(i, j)                
-
             else if (Me%RegularRotation) then
 
                 CellRotationX = Me%Grid_Angle * Pi / 180.
                 
-                CellRotationY = CellRotationX + Pi/2.
+            endif
+            
+            if (present(CellRotationY)) then
+                
+                CellRotationY = Pi/2.
+            
+                if      (Me%Distortion) then
 
+                    CellRotationY = Me%RotationY(i, j)                
+
+                else if (Me%RegularRotation) then
+
+                    CellRotationY = CellRotationX + Pi/2.
+
+                endif            
             endif
 
             STAT_ = SUCCESS_
@@ -15286,19 +15296,26 @@ do1 :   do while(associated(FatherGrid))
 
                 nullify   (FatherGrid%JZ)
                 
-                !ILinkZ
-                deallocate(FatherGrid%ILinkZ, STAT = status)
-                if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR41") 
+                if (associated(FatherGrid%ILinkZ)) then
+                    !ILinkZ
+                    deallocate(FatherGrid%ILinkZ, STAT = status)
+                    if (status /= SUCCESS_)                                                 &
+                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR41") 
 
-                nullify   (FatherGrid%ILinkZ)
-                !Joao Sobrinho
-                !JLinkZ
-                deallocate(FatherGrid%JLinkZ, STAT = status)
-                if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR42") 
+                    nullify   (FatherGrid%ILinkZ)
+                endif
+                
+                if (associated(FatherGrid%JLinkZ)) then                
+                
+                    !Joao Sobrinho
+                    !JLinkZ
+                    deallocate(FatherGrid%JLinkZ, STAT = status)
+                    if (status /= SUCCESS_)                                                 &
+                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR42") 
 
-                nullify   (FatherGrid%JLinkZ) 
+                    nullify   (FatherGrid%JLinkZ) 
+                    
+                endif                    
 
             endif
 
@@ -15340,23 +15357,27 @@ do1 :   do while(associated(FatherGrid))
 
                 nullify   (FatherGrid%JU)
                 
-                !ILinkU
-                deallocate(FatherGrid%ILinkU, STAT = status)
+                if (associated(FatherGrid%ILinkU)) then
+                    !ILinkU
+                    deallocate(FatherGrid%ILinkU, STAT = status)
 
-                if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR81") 
+                    if (status /= SUCCESS_)                                                 &
+                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR81") 
 
-                nullify   (FatherGrid%ILinkU)
+                    nullify   (FatherGrid%ILinkU)
+                    
+                endif                                        
                 
-                !Joao Sobrinho
-                !JLinkU
-                deallocate(FatherGrid%JLinkU, STAT = status)
+                if (associated(FatherGrid%JLinkU)) then                
+                    !Joao Sobrinho
+                    !JLinkU
+                    deallocate(FatherGrid%JLinkU, STAT = status)
 
-                if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR82") 
+                    if (status /= SUCCESS_)                                                 &
+                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR82") 
 
-                nullify   (FatherGrid%JLinkU)
-
+                    nullify   (FatherGrid%JLinkU)
+                endif
             endif
 
             if (FatherGrid%OkV) then
@@ -15395,23 +15416,27 @@ do1 :   do while(associated(FatherGrid))
 
                 nullify   (FatherGrid%JV)
                 
-                !Joao Sobrinho                
-                !ILinkV
-                deallocate(FatherGrid%ILinkV, STAT = status)
+                if (associated(FatherGrid%ILinkV)) then
+                    !Joao Sobrinho                
+                    !ILinkV
+                    deallocate(FatherGrid%ILinkV, STAT = status)
 
-                if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR111") 
+                    if (status /= SUCCESS_)                                                 &
+                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR111") 
 
-                nullify   (FatherGrid%ILinkV)
+                    nullify   (FatherGrid%ILinkV)
+                endif
+                
+                if (associated(FatherGrid%JLinkV)) then
+                    !JLinkV
+                    deallocate(FatherGrid%JLinkV, STAT = status)
 
-                !JLinkV
-                deallocate(FatherGrid%JLinkV, STAT = status)
+                    if (status /= SUCCESS_)                                                 &
+                        call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR112") 
 
-                if (status /= SUCCESS_)                                                 &
-                    call SetError(FATAL_, INTERNAL_, "KillFatherGridList; HorizontalGrid. ERR112") 
-
-                nullify   (FatherGrid%JLinkV)
-
+                    nullify   (FatherGrid%JLinkV)
+                endif
+                
             endif
 
             if (FatherGrid%OkCross) then

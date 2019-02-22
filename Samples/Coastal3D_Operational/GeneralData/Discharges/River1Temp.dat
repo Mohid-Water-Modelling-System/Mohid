@@ -1,0 +1,12 @@
+TIME_UNITS: HOURS
+SERIE_INITIAL_DATA: 2017 01 1 0 0 0
+NAME : Evros River
+COORD_X : 26.03478
+COORD_Y : 40.7444
+
+
+Date Flow_Modulus_[m3/s] 
+<BeginTimeSerie>
+0 10
+1e8 10
+<EndTimeSerie>

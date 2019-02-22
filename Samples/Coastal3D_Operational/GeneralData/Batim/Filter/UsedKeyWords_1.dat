@@ -1,0 +1,29 @@
+ IN_BATIM                  MohidBatimFilter          Do not have               From File                 ..\original\Level1.dat                                       YES
+ OUT_BATIM                 MohidBatimFilter          Do not have               From File                 ..\Level1.dat                                                YES
+ FILTER_RADIUS             MohidBatimFilter          Do not have               From File                 -999999                                                      YES
+ FACTOR                    MohidBatimFilter          0.500000000000000         From File                 0.500000000000000                                            YES
+ SIGMA_SMOOTH              MohidBatimFilter          FALSE                     From File                 TRUE                                                         YES
+ SLOPE_PARAMETER           MohidBatimFilter          0.200000000000000         From File                 0.100000000000000                                            YES
+ H_MIN                     MohidBatimFilter          -1000000000.00000         From File                 -1000000000.00000                                            YES
+ H_MAX                     MohidBatimFilter          1000000000.00000          From File                 1000000000.00000                                             YES
+ ILB_IUB                   HorizontalGrid            Do not have               From File                 1 305                                                        YES
+ JLB_JUB                   HorizontalGrid            Do not have               From File                 1 232                                                        YES
+ HALOPOINTS                HorizontalGrid            3                         From File                 3                                                            YES
+ COORD_TIP                 HorizontalGrid            Do not have               From File                 4                                                            YES
+ LATITUDE                  HorizontalGrid            Do not have               From File                 43.0000000000000                                             YES
+ LONGITUDE                 HorizontalGrid            Do not have               From File                 -9.00000000000000                                            YES
+ DATUM                     HorizontalGrid            3                         From File                 3                                                            YES
+ EASTING                   HorizontalGrid            0.00000000000000          From File                 0.00000000000000                                             YES
+ NORTHING                  HorizontalGrid            0.00000000000000          From File                 0.00000000000000                                             YES
+ PROJ_TYPE                 HorizontalGrid            11                        From File                 11                                                           YES
+ SP1                       HorizontalGrid            30.0000000000000          From File                 30.0000000000000                                             YES
+ SP2                       HorizontalGrid            60.0000000000000          From File                 60.0000000000000                                             YES
+ ORIGIN                    HorizontalGrid            Do not have               From File                 -9.30200000000000 42.0400000000000                           YES
+ GRID_ANGLE                HorizontalGrid            0.00000000000000          From File                 0.00000000000000                                             YES
+ CONSTANT_SPACING_Y        Unknown Client            Do not have               From File                 FALSE                                                        YES
+ CONSTANT_SPACING_X        Unknown Client            Do not have               From File                 FALSE                                                        YES
+ FILL_VALUE                ModuleGridData            -99.0000000000000         From File                 -99.0000000000000                                            YES
+ TYPE_ZUV                  ModuleGridData            Z                         From File                 Z                                                            YES
+ EVOLUTION                 ModuleGridData            FALSE                     From File                 FALSE                                                        YES
+ CONSTANT_IN_SPACE         ModuleGridData            FALSE                     From File                 FALSE                                                        YES
+ DEFAULT_VALUE             ModuleGridData            0.00000000000000          From File                 0.00000000000000                                             YES
