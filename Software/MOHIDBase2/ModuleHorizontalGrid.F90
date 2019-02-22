@@ -9502,20 +9502,30 @@ cd1 :   if (ready_ == IDLE_ERR_ .or. ready_ == READ_LOCK_ERR_) then
 
             
             CellRotationX = 0.
-            CellRotationY = Pi/2.
             
             if      (Me%Distortion) then
 
                 CellRotationX = Me%RotationX(i, j)
                 
-                CellRotationY = Me%RotationY(i, j)                
-
             else if (Me%RegularRotation) then
 
                 CellRotationX = Me%Grid_Angle * Pi / 180.
                 
-                CellRotationY = CellRotationX + Pi/2.
+            endif
+            
+            if (present(CellRotationY)) then
+                
+                CellRotationY = Pi/2.
+            
+                if      (Me%Distortion) then
 
+                    CellRotationY = Me%RotationY(i, j)                
+
+                else if (Me%RegularRotation) then
+
+                    CellRotationY = CellRotationX + Pi/2.
+
+                endif            
             endif
 
             STAT_ = SUCCESS_

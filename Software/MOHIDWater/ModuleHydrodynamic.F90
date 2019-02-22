@@ -29597,6 +29597,12 @@ do6:               do k = KLB, KUB + 1
 
 
         Compute_Tide          = Me%ComputeOptions%Compute_Tide
+        
+        call GetOpenBoundParameter(Me%ObjOpenBoundary, DirectionX = DirX,           &
+                                                       DirectionY = DirY, STAT= status)
+
+        if (status /= SUCCESS_)                                                     &
+            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherWindWave - Hydrodynamic - ERR003")        
 
         if      (DirectionXY == DirectionX_) then
 
