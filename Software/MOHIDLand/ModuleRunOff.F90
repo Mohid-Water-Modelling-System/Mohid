@@ -414,6 +414,7 @@ Module ModuleRunOff
         
         
         real, dimension(:,:), pointer               :: NodeRiverLevel           => null() !river level at river points (from DN or external model)
+        integer, dimension(:,:), pointer            :: NodeRiverMapping         => null() !mapping of river points where interaction occurs (for external model)
         
         real                                        :: MinSlope              = null_real
         logical                                     :: AdjustSlope           = .false.
@@ -1954,6 +1955,7 @@ do1:    do
                 if (STAT_CALL /= SUCCESS_) stop 'Read1DInteractionMapping - ModuleRunoff - ERR040'   
                 
                 call AddNodeGridPoint(NewNodeGridPoint)
+
                 
             else
                 
@@ -2016,7 +2018,7 @@ do2:    do
                              ClientModule = 'ModuleRunoff',                     &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'Read1DInteractionMapping - ModuleRunoff - ERR090'                
-                
+                          
                 call AddBankGridPoint(NewBankGridPoint)
                 
             else
@@ -3646,6 +3648,7 @@ do4:            do di = -1, 1
         integer                                             :: iAux, jAux
         real                                                :: lowestValue
         logical                                             :: IgnoreTopography
+        type(T_NodeGridPoint), pointer                      :: NodeGridPoint
 
         !Bounds
         ILB = Me%WorkSize%ILB
@@ -3704,7 +3707,22 @@ do4:            do di = -1, 1
             !allocate(Me%BoundaryRiverLevel          (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             !Me%BoundaryRiverLevel           = null_real
             allocate(Me%NodeRiverLevel              (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            Me%NodeRiverLevel              = null_real            
+            Me%NodeRiverLevel              = null_real      
+            allocate(Me%NodeRiverMapping            (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            Me%NodeRiverMapping            = 0
+            
+            !river point mapping to know where interaction occurs
+            NodeGridPoint => Me%FirstNodeGridPoint
+
+            do while (associated(NodeGridPoint))
+
+                Me%NodeRiverMapping(NodeGridPoint%GridI, NodeGridPoint%GridJ) = 1
+                          
+                NodeGridPoint => NodeGridPoint%Next
+                
+            enddo               
+
+         
             
             Me%StormWaterEffectiveFlow      = 0.0
             Me%StreetGutterPotentialFlow    = 0.0
@@ -8713,7 +8731,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                         Flow  = Area *  FluxWidth ** (2./3.) * sign * sqrt(ABS(dh)/cellwidth) / Me%OverlandCoefficient(i, j)
                 
                         !Maximum equal levels
-                        Flow = min(Flow, (Me%myWaterLevel (i, j) - RiverLevel) / 2.0 * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT)
+                        Flow = sign * min( ABS(Flow), ABS(Me%myWaterLevel (i, j) - RiverLevel) / 2.0 * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT)
                     else
                         Flow = 0.0
                     endif
@@ -8856,7 +8874,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                         Flow  = area *  width ** (2./3.) * sign * sqrt(ABS(dh)/cellwidth) / Me%OverlandCoefficient(i, j)
                 
                         !Maximum equal levels
-                        Flow = min(Flow, (Me%myWaterLevel (i, j) - ChannelsWaterLevel(i, j)) / 2.0 * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT)
+                        Flow = sign * min(ABS(Flow), ABS(Me%myWaterLevel (i, j) - ChannelsWaterLevel(i, j)) / 2.0 * Me%ExtVar%GridCellArea(i,j) / Me%ExtVar%DT)
                     else
                         Flow = 0.0
                     endif
@@ -11699,7 +11717,81 @@ cd1:    if (RunOffID > 0) then
         return
 
     end function IsUrbanDrainagePoint
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::IsRiverPoint
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_ISRIVERPOINT"::IsRiverPoint
+    !DEC$ ENDIF
+    logical function IsRiverPoint(RunOffID, i, j)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: RunOffID
+        integer                                     :: i, j
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        type (T_NodeGridPoint), pointer             :: NodeGridPoint
+        logical                                     :: Found
 
+        call Ready(RunOffID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            Found = .false.
+            
+            NodeGridPoint => Me%FirstNodeGridPoint
+
+do1:        do while (associated(NodeGridPoint))
+        
+                if (NodeGridPoint%GRIDI == i .and. NodeGridPoint%GRIDJ == j) then
+                    Found = .TRUE.
+                    exit do1
+                end if
+                NodeGridPoint => NodeGridPoint%Next
+            end do do1           
+            
+            if (Found) then        
+                IsRiverPoint = .true.
+            else
+                IsRiverPoint = .false.
+            endif
+        else 
+            IsRiverPoint = .false.
+        end if
+           
+        return
+
+    end function IsRiverPoint    
+
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::IsDNMappingActive
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_ISDNMAPPINGACTIVE"::IsDNMappingActive
+    !DEC$ ENDIF
+    logical function IsDNMappingActive(RunOffID)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: RunOffID
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+
+        call Ready(RunOffID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            IsDNMappingActive = Me%Use1D2DInteractionMapping
+        else 
+            IsDNMappingActive = .false.
+        end if
+           
+        return
+
+    end function IsDNMappingActive    
+    
 
 
     !DEC$ IFDEFINED (VF66)
@@ -11787,6 +11879,52 @@ cd1:    if (RunOffID > 0) then
         end if
 
     end function GetInletInFlow
+    
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::GetFlowToRivers
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_GETFLOWTORIVERS"::GetFlowToRivers
+    !DEC$ ENDIF
+    logical function GetFlowToRivers(RunOffID, nComputePoints, flow)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: RunOffID
+        integer                                     :: nComputePoints
+        real(8), dimension(nComputePoints)          :: flow
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        integer                                     :: i, j, idx
+
+        call Ready(RunOffID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            !Puts values into 1D OpenMI matrix
+            idx = 1
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                if (Me%NodeRiverMapping (i, j) == BasinPoint) then 
+                
+
+                    flow(idx) = Me%iFlowToChannels(i, j)
+                    idx = idx + 1
+                endif
+                    
+            enddo
+            enddo
+
+
+            GetFlowToRivers = .true.
+        else 
+            call PlaceErrorMessageOnStack("Runoff not ready")
+            GetFlowToRivers = .false.
+        end if
+
+    end function GetFlowToRivers    
 
     
     !DEC$ IFDEFINED (VF66)
@@ -11828,6 +11966,47 @@ cd1:    if (RunOffID > 0) then
            
 
     end function SetStormWaterModelFlow
+    
+    
+    !DEC$ IFDEFINED (VF66)
+    !dec$ attributes dllexport::SetRiverWaterLevel
+    !DEC$ ELSE
+    !dec$ attributes dllexport,alias:"_SETRIVERWATERLEVEL"::SetRiverWaterLevel
+    !DEC$ ENDIF
+    logical function SetRiverWaterLevel(RunOffID, nComputePoints, riverLevel)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: RunOffID
+        integer                                     :: nComputePoints
+        real(8), dimension(nComputePoints)          :: riverLevel
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_CALL
+        integer                                     :: ready_         
+        integer                                     :: i, j, idx
+
+        call Ready(RunOffID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            idx = 1
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%NodeRiverMapping (i, j) == BasinPoint) then
+                    Me%NodeRiverLevel(i, j) = riverLevel(idx)
+                    idx = idx + 1
+                endif
+            enddo
+            enddo
+
+            SetRiverWaterLevel = .true.
+        else 
+            call PlaceErrorMessageOnStack("Runoff not ready")
+            SetRiverWaterLevel = .false.
+        end if
+           
+
+    end function SetRiverWaterLevel    
         
 
 #endif
