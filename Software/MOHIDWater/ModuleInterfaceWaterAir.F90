@@ -1024,6 +1024,7 @@ i1:         if(BlockFound)then
                                            PointsToFill2D       = Me%ExtWater%WaterPoints2D,&
                                            Matrix2D             = Me%Rugosity%Field,        &
                                            TypeZUV              = TypeZ_,                   &
+                                           ClientID             = ClientNumber,             &
                                            STAT                 = STAT_CALL)
                 if (STAT_CALL  /= SUCCESS_) stop 'ConstructRugosity - ModuleInterfaceWaterAir - ERR20'
 
@@ -1171,7 +1172,7 @@ do1 :   do
 cd1 :       if      (STAT_CALL .EQ. SUCCESS_     ) then    
 cd2 :           if (BlockFound) then                                                  
                     ! Construct a New Property 
-                    Call Construct_Property(NewProperty)
+                    Call Construct_Property(NewProperty, ClientNumber)
 
                     ! Add new Property to the WaterProperties List 
                     Call Add_Property(NewProperty)
@@ -1262,10 +1263,11 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
     
     !----------------------------------------------------------------------    
 
-    subroutine Construct_Property(NewProperty)
+    subroutine Construct_Property(NewProperty, ClientNumber)
 
         !Arguments-------------------------------------------------------------
         type(T_property), pointer       :: NewProperty
+        integer                         :: ClientNumber
 
         !External--------------------------------------------------------------
         integer                         :: STAT_CALL
@@ -1289,7 +1291,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
 
         call Construct_PropertyEvolution(NewProperty)
 
-        call Construct_PropertyValues   (NewProperty)
+        call Construct_PropertyValues   (NewProperty, ClientNumber)
 
         call Construct_PropertyOutPut   (NewProperty)
 
@@ -1299,10 +1301,11 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
     !--------------------------------------------------------------------------
 
 
-    subroutine Construct_PropertyValues(NewProperty)
+    subroutine Construct_PropertyValues(NewProperty, ClientNumber)
 
         !Arguments-------------------------------------------------------------
         type(T_property),   pointer                 :: NewProperty
+        integer                                     :: ClientNumber
 
         !External--------------------------------------------------------------
         integer                                     :: STAT_CALL, iflag
@@ -1345,6 +1348,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                        Matrix2DX            = NewProperty%FieldX,       &
                                        Matrix2DY            = NewProperty%FieldY,       &  
                                        TypeZUV              = TypeZ_,                   &
+                                       ClientID             = ClientNumber,             &
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR00'
@@ -1363,6 +1367,7 @@ if5 :       if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                                        PointsToFill2D       = Me%ExtWater%WaterPoints2D,&
                                        Matrix2D             = NewProperty%Field,        &
                                        TypeZUV              = TypeZ_,                   &
+                                       ClientID             = ClientNumber,             &
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
                 stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR10'

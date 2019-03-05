@@ -1982,6 +1982,7 @@ case1 : select case(String)
                                        PointsToFill3D       = Me%ExternalVar%WaterPoints3D,     &
                                        Matrix3D             = Me%Viscosity%HorizontalCenter,    &
                                        TypeZUV              = TypeZ_,                           &
+                                       ClientID             = ClientNumber,                     &
                                        STAT                 = STAT_CALL)
             
             if (STAT_CALL  /= SUCCESS_) stop 'InicFileHorizontalModel - ModuleTurbulence - ERR12a'
@@ -2028,6 +2029,7 @@ case1 : select case(String)
                                        PointsToFill3D       = Me%ExternalVar%WaterPoints3D,     &
                                        Matrix3D             = Me%Viscosity%Vertical,            &
                                        TypeZUV              = TypeZ_,                           &
+                                       ClientID             = ClientNumber,                     &    
                                        STAT                 = STAT_CALL)
             if (STAT_CALL  /= SUCCESS_) stop 'InicFileVerticalModel - ModuleTurbulence - ERR02'
 

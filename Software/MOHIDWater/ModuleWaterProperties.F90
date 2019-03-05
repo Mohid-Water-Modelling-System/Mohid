@@ -2465,6 +2465,7 @@ cd2 :           if (BlockFound) then
                                             PointsToFill3D       = Me%ExternalVar%WaterPoints3D,         &
                                             Matrix3D             = NewSpecies%SettlementProbability,     &
                                             TypeZUV              = TypeZ_,                               &
+                                            ClientID             = ClientNumber,                         &   
                                             STAT                 = STAT_CALL)
                  if (STAT_CALL /= SUCCESS_)                                                              &
                      call CloseAllAndStop ('ConstructSpeciesSettlement - ModuleWaterProperties - ERR20')
@@ -5229,6 +5230,7 @@ do1 :   do while (associated(PropertyX))
                                      PointsToFill2D    = Me%ExternalVar%WaterPoints2D,  &
                                      Matrix2D          = Me%SolarRadiation%Shading%Field, &
                                      TypeZUV           = TypeZ_,                        &
+                                     ClientID          = ClientNumber,                  &
                                      STAT              = STAT_CALL)
             if (STAT_CALL  /= SUCCESS_) call CloseAllAndStop ('CoupleLightExtinction - ModuleInterfaceSedimentWater - ERR90')
 
@@ -6715,10 +6717,10 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         call Construct_PropertyState    (NewProperty)
 
         !Construct property values
-        call Construct_PropertyValues   (NewProperty)
+        call Construct_PropertyValues   (NewProperty, ClientNumber)
 
         !Construct property evolution parameters
-        call Construct_PropertyEvolution(NewProperty,ClientNumber)
+        call Construct_PropertyEvolution(NewProperty, ClientNumber)
 
         !Defines the property output
         call Construct_PropertyOutPut   (NewProperty, FromBlock)
@@ -7099,10 +7101,11 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
     !This subroutine reads all the information needed to construct the property values
     ! in the domain and in the boundaries
 
-    subroutine Construct_PropertyValues(NewProperty)
+    subroutine Construct_PropertyValues(NewProperty, ClientNumber)
 
         !Arguments-------------------------------------------------------------
         type(T_property), pointer       :: NewProperty
+        integer                         :: ClientNumber
 
         !External--------------------------------------------------------------
         integer                         :: STAT_CALL
@@ -7428,6 +7431,7 @@ cd1 :   if (.not.NewProperty%Old) then
                                        PointsToFill3D       = Me%ExternalVar%WaterPoints3D, &
                                        Matrix3D             = NewProperty%Concentration,    &
                                        TypeZUV              = TypeZ_,                       &
+                                       ClientID             = ClientNumber,                 &
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
                 call CloseAllAndStop ('Construct_PropertyValues - ModuleWaterProperties - ERR110')
@@ -10869,17 +10873,18 @@ cd1 :   if (STAT_CALL .EQ. SUCCESS_     ) then
 cd2 :       if (BlockFound) then
 
 
-                call ConstructFillMatrix  (PropertyID           = Me%Density%ID,                    &
-                                        EnterDataID          = Me%ObjEnterData,                  &
-                                        TimeID               = Me%ObjTime,                       &
-                                        HorizontalGridID     = Me%ObjHorizontalGrid,             &
-                                        GeometryID           = Me%ObjGeometry,                   &
-                                        ExtractType          = FromBlock,                        &
-                                        PointsToFill3D       = Me%ExternalVar%WaterPoints3D,     &
-                                        Matrix3D             = Me%Density%Sigma,                 &
-                                        TypeZUV              = TypeZ_,                           &
+                call ConstructFillMatrix  (PropertyID           = Me%Density%ID,            &
+                                        EnterDataID          = Me%ObjEnterData,             &
+                                        TimeID               = Me%ObjTime,                  &
+                                        HorizontalGridID     = Me%ObjHorizontalGrid,        &
+                                        GeometryID           = Me%ObjGeometry,              &
+                                        ExtractType          = FromBlock,                   &
+                                        PointsToFill3D       = Me%ExternalVar%WaterPoints3D,&
+                                        Matrix3D             = Me%Density%Sigma,            &
+                                        TypeZUV              = TypeZ_,                      &
+                                        ClientID             = ClientNumber,                &
                                         STAT                 = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                          &
+                if (STAT_CALL /= SUCCESS_)                                                  &
                     call CloseAllAndStop ('ConstructDensity - ModuleWaterProperties - ERR90')
 
 
@@ -11262,6 +11267,7 @@ cd2 :       if (BlockFound) then
                                            PointsToFill3D       = Me%ExternalVar%WaterPoints3D,     &
                                            Matrix3D             = Me%SpecificHeat%Field,            &
                                            TypeZUV              = TypeZ_,                           &
+                                           ClientID             = ClientNumber,                     &             
                                            STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                          &
                     call CloseAllAndStop ('ConstructSpecificHeat - ModuleWaterProperties - ERR07')
