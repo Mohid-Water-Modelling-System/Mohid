@@ -10382,14 +10382,13 @@ i7:             if (.not. ContinuousGOTM)  then
         !Arguments-------------------------------------------------------------
         integer,           intent(IN )              :: FatherID, SonID
         !Local-----------------------------------------------------------------
-        integer                                     :: DischargeID, I, J, DischargesNumber, n
-        real                                        :: CoordinateX, CoordinateY
-        logical                                     :: CoordinatesON
+        integer                                     :: DischargeID, I, J, DischargesNumber
+        logical                                     :: ToAllocate
         Integer                                     :: STAT_CALL
         
         !----------------------------------------------------------------------
         
-        n = 0
+        ToAllocate = .true. !Flag to indicate that the code should only find the matrixes size for allocation
         call GetDischargesNumber(FatherID, DischargesNumber, STAT = STAT_CALL)
         if (STAT_CALL/=SUCCESS_)stop 'Set_Upscaling_Discharges - ModuleHydrodynamic - ERR10'
         
@@ -10405,12 +10404,12 @@ i7:             if (.not. ContinuousGOTM)  then
 
                 if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - ModuleHydrodynamic - ERR20'
                 
-                call ConstructUpscalingDischarges(FatherID, SonID, I, J, n = n) !Managed by ModuleTwoWay
+                call ConstructUpscalingDischarges(FatherID, SonID, I, J, ToAllocate) !Managed by ModuleTwoWay
                 
             endif
             
         enddo
-        
+        ToAllocate = .false.
         do DischargeID = 1, DischargesNumber
             
             if (IsUpscaling(FatherID, DischargeID))then

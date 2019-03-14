@@ -57,7 +57,7 @@ Module ModuleUpscallingDischarges
         integer, dimension(:, :), pointer         :: SonWaterPoints2D, FatherWaterPoints2D
         type (T_Size2D)                           :: SonSize2D
         integer                                   :: ICell, JCell
-        integer, intent(OUT), optional            :: CellsToAllocate
+        integer, intent(INOUT), optional          :: CellsToAllocate
         !Local-----------------------------------------------------------------
         integer                                   :: di, dj
         !-------------------------------------------------------------------------
@@ -106,62 +106,6 @@ Module ModuleUpscallingDischarges
             
             
         endif
-        
-        
-        
-        
-        
-        
-        
-        
-        !----------------------------------------------------------------------
-        !ConnectionsUB = SizeSon%IUB * SizeSon%JUB
-        !do i = 1, ConnectionsUB
-        !    iFather = Connections(i, 1)
-        !    jFather = Connections(i, 2)
-        !    
-        !    k = i
-        !    !find next father cell in Connections matrix
-        !    do
-        !        k = k + 1
-        !        if ((Connections(k, 1) * Connections(k, 2)) .NE. aux)then
-        !            exit
-        !        endif
-        !    enddo
-        !    
-        !    if (Connections(k, 1) == iFather)then
-        !        
-        !        if (FatherWaterPoints3D(iFather, jFather) .and. FatherLandPoints2D(iFather, jFather + 1))then
-        !            aux = iFather * (jFather + 1)
-        !            aux2 = aux
-        !            do while (aux2 == aux)
-        !                k = k + 1
-        !                if (k == ConnectionsUB - 1)then
-        !                    exit
-        !                endif
-        !                
-        !                if (
-        !                
-        !                iSon = Connections(k, 3)
-        !                jSon = Connections(k, 4)
-        !                
-        !                if (SonWaterPoints3D(iSon, jSon) == 1 .and. SonWaterPoints3D(iSon, jSon - 1) == 1) then
-        !                    Flag1 = .true.
-        !                endif
-        !                
-        !
-        !                aux2 = Connections(k, 1) * Connections(k, 2)                
-        !            enddo
-        !
-        !        endif
-        !
-        !    endif
-        !    
-        !    Waterpoint3D(ison, json) * FatherWaterPoints3D(iFather, jFather)
-        !    Waterpoint3D(ison, json) * Waterpoint3D(ison, json)
-        !    
-        !enddo
-        !
     
     end subroutine SearchDischargeFace
 
@@ -170,13 +114,15 @@ Module ModuleUpscallingDischarges
         !Arguments-------------------------------------------------------------
         integer, dimension(:, :, :, :), pointer   :: Connection
         integer, dimension(:, :), pointer         :: SonWaterPoints, link
-        integer                                   :: IFather, JFather, n, di, dj, Size
+        integer                                   :: IFather, JFather, di, dj, Size
+        integer, intent(INOUT)                    :: n
         
         !Local-----------------------------------------------------------------
         integer                         :: Aux, Aux2, StartIndex, i, ISon, JSon, ISonAdjacent, JSonAdjacent, IJFather
         !----------------------------------------------------------------------
         
         !Find index of matrix where connections to cell (IFather, JCell) begin
+        !columns in connection(:) : 1 - IFather; 2 - JFather; 3 - ISon; 4 - JSon
         do i = 1, Size
             if (Connection(i, 1) == IFather)then
                 if (Connection(i, 2) == JFather)then
@@ -187,10 +133,10 @@ Module ModuleUpscallingDischarges
             endif
         enddo
         
-        if (di /=0) IJFather = IFather
-        if (dj /=0) IJFather = JFather
+        if (di /=0) IJFather = IFather ! means we are searching the north/South direction
+        if (dj /=0) IJFather = JFather ! means we are searching the west/east direction
         
-        !Check if northern face needs to be considered for the discharge velocity
+        !Check if current face needs to be considered for the discharge velocity
         do while (Aux2 == Aux)
             i = StartIndex
             ISon         = Connection(i, 3)
@@ -208,14 +154,11 @@ Module ModuleUpscallingDischarges
                 endif
             endif
             i = 1 + 1
-            Aux2 = Connection(i, 1) * Connection(i, 2)
-                         
+            Aux2 = Connection(i, 1) * Connection(i, 2)            
         enddo     
     
     end subroutine SearchFace
     
-
-
 
     end module ModuleUpscallingDischarges
 

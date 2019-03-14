@@ -452,19 +452,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !> Searches and sets discharge faces of father cell, and provides it to the son domain
     !>@param[in] FatherTwoWayID, TwoWayID    
-    subroutine ConstructUpscalingDischarges(FatherID, SonID, dI, dJ, n)
+    subroutine ConstructUpscalingDischarges(FatherID, SonID, dI, dJ, ToAllocate)
         !Arguments-------------------------------------------------------------
         integer                            :: FatherID, SonID, dI, dJ
-        integer, intent(OUT), optional     :: n
+        logical, intent(IN), optional      :: ToAllocate
         !Local-----------------------------------------------------------------
-        integer                            :: ready_, STAT_CALL
+        integer                            :: ready_, STAT_CALL, n
         !----------------------------------------------------------------------
         call Ready (SonID, ready_)
         
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            if (present(n)) then
+            if (ToAllocate) then
                 
                 call SearchDischargeFace(ConnectionMatrix    = Me%External_Var%Connections_Z,        &
                                          SonWaterPoints2D    = Me%External_Var%WaterPoints2D,        &
