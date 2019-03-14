@@ -1,0 +1,176 @@
+OUTPUT_TIME             : 0 86400
+
+<begin_rugosity>
+INITIALIZATION_METHOD   : CONSTANT
+DEFAULTVALUE            : 0.0025
+REMAIN_CONSTANT         : 0  
+OUTPUT_HDF              : 0
+TIME_SERIE              : 0
+<end_rugosity>
+
+USE_COARE               : 1
+COMPUTE_WARM_LAYER      : 1
+COMPUTE_COOL_SKIN       : 1
+FILTER_SPIKES           : 0
+
+<beginproperty>
+NAME                      : albedo
+UNITS                     : W/m^2
+DESCRIPTION               : climatologic solar radiation
+FILE_IN_TIME              : HDF
+FIELD4D                   : 1
+SPATIAL_INTERPOL          : 1
+EXTRAPOLATE               : 1
+FILENAME                  : ../../generalData/meteo/Meteo.hdf5
+DEFAULTVALUE              : 0.05
+TIME_SERIE                : 0
+OUTPUT_HDF                : 0
+<endproperty>
+
+<beginproperty>
+NAME                    : wind shear velocity
+UNITS                   : m/s
+DESCRIPTION             : computed wind shear velocity
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 0
+DEFAULTVALUE            : 0.
+TIME_SERIE              : 0
+OUTPUT_HDF              : 0
+<endproperty>
+
+
+
+<beginproperty>
+NAME                    : wind stress
+UNITS                   : N/m2
+DESCRIPTION             : calculated wind stress
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 0
+TIME_SERIE              : 0
+DEFAULTVALUE            : 0. 0.
+DEFINE_CDWIND           : 0
+OUTPUT_HDF              : 0
+<endproperty>
+
+
+<beginproperty>
+NAME                    : latent heat
+UNITS                   : W/m^2
+DESCRIPTION             : Calculated latent heat
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 0
+DEFAULTVALUE            : 0.
+TIME_SERIE              : 0
+OUTPUT_HDF              : 0
+<endproperty>
+
+<beginproperty>
+NAME                    : sensible heat
+UNITS                   : W/m^2
+DESCRIPTION             : Calculated sensible heat
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 0
+DEFAULTVALUE            : 0.
+TIME_SERIE              : 0
+OUTPUT_HDF              : 0
+<endproperty>
+
+<beginproperty>
+NAME                    : surface radiation
+UNITS                   : W/m^2
+DESCRIPTION             : Calculated infrared radiation
+ALBEDO                  : 0.05
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 0
+DEFAULTVALUE            : 0.
+TIME_SERIE              : 0
+OUTPUT_HDF              : 0
+<endproperty>
+
+
+<beginproperty>
+NAME                    : net long wave radiation
+UNITS                   : W/m^2
+DESCRIPTION             : Calculated net long wave radiation
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 0
+DEFAULTVALUE            : 0.
+TIME_SERIE              : 0
+OUTPUT_HDF              : 0
+<endproperty>
+
+<beginproperty>
+NAME                    : downward long wave radiation
+UNITS                   : W/m^2
+DESCRIPTION             : Calculated downward long wave radiation
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+FILENAME                : ../../generalData/meteo/Meteo.hdf5
+DEFAULTVALUE            : 0.
+TIME_SERIE              : 0
+OUTPUT_HDF              : 0
+<endproperty>
+
+<beginproperty>
+NAME                    : upward long wave radiation
+UNITS                   : W/m^2
+DESCRIPTION             : Calculated upward long wave radiation
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 0
+DEFAULTVALUE            : 0.
+TIME_SERIE              : 0
+OUTPUT_HDF              : 0
+<endproperty>
+
+<beginproperty>
+NAME                    : non solar flux
+UNITS                   : W/m^2
+DESCRIPTION             : Calculated infrared radiation
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 0
+DEFAULTVALUE            : 0.
+TIME_SERIE              : 0
+OUTPUT_HDF              : 0
+<endproperty>
+
+
+<beginproperty>
+NAME                    : oxygen flux
+UNITS                   : mg/s
+DESCRIPTION             : oxygen flux through the water air interface
+INITIALIZATION_METHOD   : CONSTANT
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 0
+DEFAULTVALUE            : 1.
+TIME_SERIE              : 1
+OUTPUT_HDF              : 1
+<endproperty>
+
+<beginproperty>
+NAME                    : evaporation
+UNITS                   : m/s
+DESCRIPTION             : water flux through the water air interface 
+INITIALIZATION_METHOD   : CONSTANT
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 0
+DEFAULTVALUE            : 1.
+TIME_SERIE              : 1
+OUTPUT_HDF              : 1
+<endproperty>
+
+<beginproperty>
+NAME                    : surface water flux
+UNITS                   : m/s
+DESCRIPTION             : water flux through the water air interface
+INITIALIZATION_METHOD   : CONSTANT
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 0
+DEFAULTVALUE            : 1.
+TIME_SERIE              : 1
+OUTPUT_HDF              : 1
+<endproperty>
+
+
+

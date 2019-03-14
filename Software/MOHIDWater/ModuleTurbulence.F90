@@ -1982,6 +1982,7 @@ case1 : select case(String)
                                        PointsToFill3D       = Me%ExternalVar%WaterPoints3D,     &
                                        Matrix3D             = Me%Viscosity%HorizontalCenter,    &
                                        TypeZUV              = TypeZ_,                           &
+                                       ClientID             = ClientNumber,                     &
                                        STAT                 = STAT_CALL)
             
             if (STAT_CALL  /= SUCCESS_) stop 'InicFileHorizontalModel - ModuleTurbulence - ERR12a'
@@ -2028,6 +2029,7 @@ case1 : select case(String)
                                        PointsToFill3D       = Me%ExternalVar%WaterPoints3D,     &
                                        Matrix3D             = Me%Viscosity%Vertical,            &
                                        TypeZUV              = TypeZ_,                           &
+                                       ClientID             = ClientNumber,                     &    
                                        STAT                 = STAT_CALL)
             if (STAT_CALL  /= SUCCESS_) stop 'InicFileVerticalModel - ModuleTurbulence - ERR02'
 
@@ -6087,7 +6089,7 @@ cd2 :           if (Me%ExternalVar%WaterPoints3D(I,J,K) .EQ. WaterPoint) then
         real    :: dUdY,  dVdX
         real    :: dUdX,  dVdY
         real    :: DXDY
-        real    :: ViscSmagorinsky, ViscMax
+        real    :: ViscSmagorinsky
 
         real,    pointer, dimension(:,:  ) :: DUX
         real,    pointer, dimension(:,:  ) :: DVY
@@ -6223,11 +6225,6 @@ cd5 :           IF (J .EQ. JUB) THEN
                 Me%Viscosity%HorizontalCenter(I,J,K) =             &
                     MAX(Me%TurbVar%MINHorizontalViscosity, ViscSmagorinsky)
                 
-                ViscMax = DXDY / Me%ExternalVar%DT * 0.25
-                
-                Me%Viscosity%HorizontalCenter(I,J,K) =             &
-                    MIN(Me%Viscosity%HorizontalCenter(I,J,K), ViscMax)
-
             end if cd1
 
         end do do3

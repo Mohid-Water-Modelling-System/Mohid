@@ -1331,6 +1331,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                            Matrix2DX            = WaveProperty%FieldX,              &
                                            Matrix2DY            = WaveProperty%FieldY,              &  
                                            TypeZUV              = TypeZ_,                           &
+                                           ClientID             = ClientNumber,                     &
                                            STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadWaveParameters - ModuleWaves - ERR06'                
                 
@@ -1348,6 +1349,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                Matrix2D             = WaveProperty%Field,               &
                                                Matrix2DInputRef     = WaveProperty%FieldInputRef,       &
                                                TypeZUV              = TypeZ_,                           &
+                                               ClientID             = ClientNumber,                     &
                                                STAT                 = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReadWaveParameters - ModuleWaves - ERR07'                    
                     
@@ -1361,6 +1363,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                PointsToFill2D       = Me%ExternalVar%WaterPoints2D,     &
                                                Matrix2D             = WaveProperty%Field,               &
                                                TypeZUV              = TypeZ_,                           &
+                                               ClientID             = ClientNumber,                     &
                                                STAT                 = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReadWaveParameters - ModuleWaves - ERR08'
                     
@@ -1564,6 +1567,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                        PointsToFill3D       = WaveProperty3D%PseudoOpenPoints,     &
                                        Matrix3D             = WaveProperty3D%Field,                &
                                        TypeZUV              = TypeZ_,                              &
+                                       ClientID             = ClientNumber,                        &
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                             &
                 stop 'ReadWaveParameters - ModuleWaves - ERR01d'

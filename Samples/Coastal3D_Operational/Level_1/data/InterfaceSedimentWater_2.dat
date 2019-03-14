@@ -1,0 +1,179 @@
+OUTPUT_TIME                  : 0 43200
+TIME_SERIE                   : 0
+DT_OUTPUT_TIME               : 3600.
+RESTART_FILE_OUTPUT_TIME     : 0 86400.
+RESTART_FILE_OVERWRITE       : 0
+
+WAVETENSION                  : 0
+
+TIME_SERIE_LOCATION          : ..\..\GeneralData\TimeSeries\TimeSerieLocationNivel2FinalExtended.dat
+
+CONSOLIDATION                : 0
+
+<begin_consolidation_rate>
+INITIALIZATION_METHOD        : CONSTANT
+DEFAULTVALUE                 : 1e-6
+<end_consolidation_rate>
+
+<begin_rugosity>
+DEFAULTVALUE                 : 0.0025
+<end_rugosity>
+
+<begin_critical_shear_erosion>
+INITIALIZATION_METHOD        : CONSTANT
+DEFAULTVALUE                 : 0.4
+<end_critical_shear_erosion>
+
+<begin_critical_shear_deposition>
+INITIALIZATION_METHOD        : CONSTANT
+DEFAULTVALUE                 : 0.2
+<end_critical_shear_deposition>
+
+<begin_erosion_rate>
+INITIALIZATION_METHOD        : CONSTANT
+DEFAULTVALUE                 : 0.00005
+<end_erosion_rate>
+
+
+<beginproperty>
+NAME                         : cohesive sediment
+UNITS                        : kg/m2
+DESCRIPTION                  : cohesive sediment mass
+OLD                          : 1
+PARTICULATE                  : 1
+WATER_FLUXES                 : 1
+EROSION                      : 1
+DEPOSITION                   : 1
+MASS_LIMITATION              : 1
+MASS_MIN                     : 0
+FILE_IN_TIME                 : NONE
+INITIALIZATION_METHOD        : CONSTANT
+REMAIN_CONSTANT              : 0
+DEFAULTVALUE                 : 1e-3
+TIME_SERIE                   : 0
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 1
+<endproperty>
+
+
+<beginproperty>
+NAME                         : particulate organic nitrogen
+UNITS                        : mg/l
+DESCRIPTION                  : cohesive sediment mass
+OLD                          : 1
+PARTICULATE                  : 1
+WATER_FLUXES                 : 1
+EROSION                      : 1
+DEPOSITION                   : 1
+MASS_LIMITATION              : 1
+MASS_MIN                     : 1e-6
+FILE_IN_TIME                 : NONE
+INITIALIZATION_METHOD        : CONSTANT
+REMAIN_CONSTANT              : 0
+DEFAULTVALUE                 : 0.0001
+TIME_SERIE                   : 0
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 1
+BENTHOS                      : 1
+<endproperty>
+
+<beginproperty>
+NAME                         : particulate organic phosphorus
+UNITS                        : mg/l
+DESCRIPTION                  : cohesive sediment mass
+OLD                          : 1
+PARTICULATE                  : 1
+WATER_FLUXES                 : 1
+EROSION                      : 1
+DEPOSITION                   : 1
+MASS_LIMITATION              : 1
+MASS_MIN                     : 1e-6
+FILE_IN_TIME                 : NONE
+INITIALIZATION_METHOD        : CONSTANT
+REMAIN_CONSTANT              : 0
+DEFAULTVALUE                 : 0.0001
+TIME_SERIE                   : 0
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 1
+BENTHOS                      : 1
+<endproperty>
+
+<beginproperty>
+NAME                         : ammonia
+UNITS                        : kg/m2
+DESCRIPTION                  : dissolved contaminant mass
+PARTICULATE                  : 0
+INITIALIZATION_METHOD        : CONSTANT
+DEFAULTVALUE                 : 0.
+WATER_FLUXES                 : 1
+SEDIMENT_FLUXES              : 0
+SEDIMENT_WATER_FLUXES        : 0
+EROSION                      : 0
+DEPOSITION                   : 0
+MASS_LIMITATION              : 1
+MASS_MIN                     : 0.
+TIME_SERIE                   : 0
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 0
+BENTHOS                      : 1
+<endproperty>
+
+<beginproperty>
+NAME                         : inorganic phosphorus
+UNITS                        : kg/m2
+DESCRIPTION                  : dissolved contaminant mass
+PARTICULATE                  : 0
+INITIALIZATION_METHOD        : CONSTANT
+DEFAULTVALUE                 : 0.
+WATER_FLUXES                 : 1
+SEDIMENT_FLUXES              : 0
+SEDIMENT_WATER_FLUXES        : 0
+EROSION                      : 0
+DEPOSITION                   : 0
+MASS_LIMITATION              : 1
+MASS_MIN                     : 0.
+TIME_SERIE                   : 0
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 0
+BENTHOS                      : 1
+<endproperty>
+
+<beginproperty>
+NAME                         : oxygen
+UNITS                        : kg/m2
+DESCRIPTION                  : dissolved contaminant mass
+PARTICULATE                  : 0
+INITIALIZATION_METHOD        : CONSTANT
+DEFAULTVALUE                 : 0.
+WATER_FLUXES                 : 1
+SEDIMENT_FLUXES              : 0
+SEDIMENT_WATER_FLUXES        : 0
+EROSION                      : 0
+DEPOSITION                   : 0
+MASS_LIMITATION              : 1
+MASS_MIN                     : 0.
+TIME_SERIE                   : 0
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 0
+BENTHOS                      : 1
+<endproperty>
+
+<beginproperty>
+NAME                         : temperature
+UNITS                        : kg/m2
+DESCRIPTION                  : dissolved contaminant mass
+PARTICULATE                  : 0
+INITIALIZATION_METHOD        : CONSTANT
+DEFAULTVALUE                 : 0.
+WATER_FLUXES                 : 0
+SEDIMENT_FLUXES              : 0
+SEDIMENT_WATER_FLUXES        : 0
+EROSION                      : 0
+DEPOSITION                   : 0
+MASS_LIMITATION              : 1
+MASS_MIN                     : 0.
+TIME_SERIE                   : 0
+BOX_TIME_SERIE               : 0
+OUTPUT_HDF                   : 0
+BENTHOS                      : 0
+<endproperty>

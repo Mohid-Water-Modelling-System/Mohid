@@ -310,7 +310,9 @@ OPT_PROJ4F(){
       git clone https://github.com/mhagdorn/proj4-fortran.git
     fi
     cd $proj4fortran || exit 1
+    git checkout 2865227446959983dbda81d52f999921d8b84ad5
     ./bootstrap
+    mv configure.in configure.ac
     ./configure --with-proj4=$DIRINSTALL/$proj --prefix=$DIRINSTALL/$proj4fortran  CC=$CC FC=$FC || exit 1
     ## IF error, add -DIFORT or -D<COMPILER_TAG> in the compile expression
     echo

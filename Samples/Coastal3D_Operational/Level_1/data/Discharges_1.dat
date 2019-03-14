@@ -1,0 +1,30 @@
+!Discharges data file. DO NOT EDIT
+
+IGNORE_ON                : 1
+
+TIME_SERIE               : 1
+
+<begindischarge>
+NAME                  : River 1
+K_CELL                :  1
+COORD_X               : 24.80485
+COORD_Y               : 40.84831
+VERTICAL_DISCHARGE    : 5
+DATA_BASE_FILE        : ../../GeneralData/Discharges/River1.dat
+FLOW_COLUMN           : 2
+
+<<beginproperty>>
+NAME                  : salinity
+UNITS                 : psu
+DEFAULTVALUE          : 0.01
+<<endproperty>>
+
+<<beginproperty>>
+NAME                  : temperature
+UNITS                 : ºC
+DEFAULTVALUE          : 10
+TIME_SERIE_COLUMN     : 2
+FILENAME              : ../../GeneralData/Discharges/River1Temp.dat
+<<endproperty>>
+
+<enddischarge>
