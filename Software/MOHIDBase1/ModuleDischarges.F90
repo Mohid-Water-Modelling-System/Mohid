@@ -88,6 +88,7 @@ Module ModuleDischarges
     public  :: GetDischargeSpatialType
     public  :: GetDischargeFlowDistribuiton
     public  :: GetDischargeON
+    public  :: IsUpscaling
     public  :: GetDistributionCoefMass    
     public  :: SetLocationCellsZ
     public  :: SetLayer
@@ -182,6 +183,7 @@ Module ModuleDischarges
         logical                                 :: Variable      = .false.
         integer                                 :: FlowColumn    = null_int 
         real                                    :: scalar        = FillValueReal
+        logical                                 :: Upscaling     = .false.
     end type T_WaterFlow
 
 
@@ -390,7 +392,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%DataFile = DataFile
             else
                 call ReadFileName('DISCHARG', Me%DataFile, Message = "Discharges Data File", STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR10'
+                if (STAT_CALL /= SUCCESS_) then
+                    write(*,*    ) 'DISCHARG keyword not found in Nomfich'
+                    stop 'Construct_Discharges - ModuleDischarges - ERR10'
+                endif
             endif
         
             ! Construct one instance to use the moduleEnterData
@@ -1682,6 +1687,16 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
             NewDischarge%WaterFlow%Variable = .true.
         
         endif
+        !Joao Sobrinho
+        call GetData(NewDischarge%WaterFlow%Upscaling,                         &
+                Me%ObjEnterData,                                               &
+                flag,                                                          &
+                FromBlock,                                                     &
+                keyword      ='UPSCALING_DISCHARGE',                           &
+                ClientModule = 'ModuleDischarges',                             &
+                default      = .false.,                                        &
+                STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR320'
         
 
 
@@ -1889,7 +1904,7 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
             endif
 
         endif
-
+        
         !----------------------------------------------------------------------
 
     end subroutine Construct_VelocityValues
@@ -3937,7 +3952,40 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
         !----------------------------------------------------------------------
 
     end subroutine GetDischargeON
+    !--------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Checks if a discharge is of the type "upscalling"
+    !>@param[in] DischargesID, number, STAT_CALL    
+    logical function IsUpscaling(DischargesID, number)
+    
+    !Arguments-----------------------------------------------------------------
+    integer                                     :: DischargesID, number
+    !local---------------------------------------------------------------------
+    integer                                     :: ready_, STAT_CALL
+    type(T_IndividualDischarge), pointer        :: DischargeX
+    !--------------------------------------------------------------------------
+    
+    call Ready(DischargesID, ready_)    
+        
+    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
+        call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=number)
+        if (STAT_CALL/=SUCCESS_) then 
+            write(*,*) 'Can not find discharge number ', number, '.'
+            stop       'Function GetIsUpscaling - ModuleDischarges. ERR01.'
+        endif
+
+        
+        IsUpscaling = DischargeX%WaterFlow%Upscaling
+    else 
+        IsUpscaling = .false.
+    end if
+           
+    return
+    
+    end function IsUpscaling
+    
     !--------------------------------------------------------------------------
 
     subroutine GetDischargeConcentration(DischargesID, TimeX,DischargeIDNumber,         &
