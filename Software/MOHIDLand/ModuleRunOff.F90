@@ -299,6 +299,8 @@ Module ModuleRunOff
         integer                                     :: MinToRestart                 = 0  
         real                                        :: MinimumValueToStabilize      = 0.001
         logical                                     :: CheckDecreaseOnly            = .false.        
+        logical                                     :: CorrectDischarge             = .false.
+        logical                                     :: CorrectDischargeByPass       = .true.   !Default true Paulo suggestion
     end type T_Converge
 
     type     T_FromTimeSerie
@@ -2463,6 +2465,30 @@ cd5 :           if (opened) then
                          STAT         = STAT_CALL)                                  
             if (STAT_CALL /= SUCCESS_) &
                 call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR087")
+            
+            !Correcting user data can not be the default behaviour
+            !User needs to specifically define that wants to correct so default is false
+            call GetData(Me%CV%CorrectDischarge,                                &
+                         Me%ObjEnterData, iflag,                                &  
+                         keyword      = 'STABILIZE_CORRECT_DISCHARGE',          &
+                         ClientModule = 'ModuleRunOff',                         &
+                         SearchType   = FromFile,                               &
+                         Default      = .false.,                                &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR088")   
+            
+            !Bypass hyraulics correct by default (Paulo suggestion)
+            call GetData(Me%CV%CorrectDischargeByPass,                          &
+                         Me%ObjEnterData, iflag,                                &  
+                         keyword      = 'STABILIZE_CORRECT_DISCHARGE_BYPASS',   &
+                         ClientModule = 'ModuleRunOff',                         &
+                         SearchType   = FromFile,                               &
+                         Default      = .true.,                                 &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR089")             
+            
         endif        
 
        !Number of iterations threshold for starting to ask for a lower DT 
@@ -5719,6 +5745,9 @@ doIter:         do while (iter <= Niter)
         !     This percentage is equal to 100 * Me%CV%StabilizeFactor. By default Me%CV%StabilizeFactor = 0.1  this means that by 
         !     default this percentage is 1000 %. The Me%CV%StabilizeFactor is used for estimate changes in the time step to 
         !     maintain the model stability  
+        !David -> Correcting user defined values in discharge should not be the default behaviour. 
+        !In "normal" discharges this is now controlled by a keyword and default is false. And only used when stabilize is ON. 
+        !Paulo suggestion is that in by pass discharges it should 
         
         StabilizeFactor = Me%CV%StabilizeFactor * 100.
 
@@ -5901,39 +5930,48 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                        
                     endif
                     
-                    Vnew = Me%myWaterVolume(i, j) + AuxFlowIJ * LocalDT
-                    Hold = Me%myWaterVolumeOld(i, j) / Me%ExtVar%GridCellArea(i, j)
+                    !if not bypass, look to normal discharge option
+                    !if bypass, look to bypass discharge option
+                    if ((.not. ByPassON .and. Me%CV%CorrectDischarge) .or. (ByPassON .and. Me%CV%CorrectDischargeByPass)) then      
+                        
+                        Vnew = Me%myWaterVolume(i, j) + AuxFlowIJ * LocalDT
+                        Hold = Me%myWaterVolumeOld(i, j) / Me%ExtVar%GridCellArea(i, j)
                     
-                    if ((.not. Me%CV%CheckDecreaseOnly) .or. Me%myWaterVolumeOld(i, j) > Vnew) then
-                    
-                        if (Hold >= Me%CV%MinimumValueToStabilize) then
-                    
-                            DV =  Me%myWaterVolume(i, j)  - Me%myWaterVolumeOld(i, j)
-                            
-                            variation = abs(DV + AuxFlowIJ * LocalDT) / Me%myWaterVolumeOld(i, j)
-                            
-                            if (variation > StabilizeFactor) then
-                                AuxFlow = AuxFlowIJ
-                                variation2 = abs(DV) / Me%myWaterVolumeOld(i, j)                    
-                                if (variation2 > StabilizeFactor) then
-                                    AuxFlowIJ = 0.
-                                else
-                                    if (AuxFlowIJ > 0.) then
-                                        AuxFlowIJ =  (  StabilizeFactor * Me%myWaterVolumeOld(i, j) - DV) / LocalDT
-                                    else
-                                        AuxFlowIJ =  (- StabilizeFactor * Me%myWaterVolumeOld(i, j) - DV) / LocalDT
-                                    endif                                
-                                endif              
-                                write(*,*) 'Flow in cell',i,j,'was corrected from ',AuxFlow,'to ',AuxFlowIJ
-                            endif
-                        endif                        
-                    endif                        
 
-                    if (ByPassON) then
+                        if ((.not. Me%CV%CheckDecreaseOnly) .or. Me%myWaterVolumeOld(i, j) > Vnew) then
                     
+                            if (Hold >= Me%CV%MinimumValueToStabilize) then
+                    
+                                DV =  Me%myWaterVolume(i, j)  - Me%myWaterVolumeOld(i, j)
+                            
+                                variation = abs(DV + AuxFlowIJ * LocalDT) / Me%myWaterVolumeOld(i, j)
+                            
+                                if (variation > StabilizeFactor) then
+                                    AuxFlow = AuxFlowIJ
+                                    variation2 = abs(DV) / Me%myWaterVolumeOld(i, j)                    
+                                    if (variation2 > StabilizeFactor) then
+                                        AuxFlowIJ = 0.
+                                    else
+                                        if (AuxFlowIJ > 0.) then
+                                            AuxFlowIJ =  (  StabilizeFactor * Me%myWaterVolumeOld(i, j) - DV) / LocalDT
+                                        else
+                                            AuxFlowIJ =  (- StabilizeFactor * Me%myWaterVolumeOld(i, j) - DV) / LocalDT
+                                        endif                                
+                                    endif              
+                                    write(*,*) 'Flow in cell',i,j,'was corrected from ',AuxFlow,'to ',AuxFlowIJ
+                                endif
+                            endif                        
+                        endif
+
+                    endif
+
+                    !correct if bypass correction ON (is the default)
+                    if (ByPassON .and. Me%CV%CorrectDischargeByPass) then
+                        
                         Vnew = Me%myWaterVolume   (ib, jb) - AuxFlowIJ * LocalDT                    
                         Hold = Me%myWaterVolumeOld(ib, jb) / Me%ExtVar%GridCellArea(ib, jb)
-                    
+
+
                         if ((.not. Me%CV%CheckDecreaseOnly) .or. Me%myWaterVolumeOld(ib, jb) > Vnew) then
                         
                             if (Hold >= Me%CV%MinimumValueToStabilize) then
@@ -5951,15 +5989,17 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                                         AuxFlowIJ = 0.
                                     else
                                         if (AuxFlowIJ < 0.) then
-                                              AuxFlowIJ =  (- StabilizeFactor * Me%myWaterVolumeOld(ib, jb) + DV) / LocalDT
+                                                AuxFlowIJ =  (- StabilizeFactor * Me%myWaterVolumeOld(ib, jb) + DV) / LocalDT
                                         else
-                                              AuxFlowIJ =  (  StabilizeFactor * Me%myWaterVolumeOld(ib, jb) + DV) / LocalDT
+                                                AuxFlowIJ =  (  StabilizeFactor * Me%myWaterVolumeOld(ib, jb) + DV) / LocalDT
                                         endif                                
                                     endif  
                                     write(*,*) 'Flow in cell',i,j,'was corrected from ',AuxFlow,'to ',AuxFlowIJ
                                 endif
-                            endif                                
-                        endif
+                            endif 
+                        endif                  
+
+                    
                     endif
 
                     Me%lFlowDischarge(i, j)     = Me%lFlowDischarge(i, j) + AuxFlowIJ
@@ -6512,7 +6552,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 V = Me%FlowYOld(i,j)/Me%AreaV(i,j)
                 
                 !Me%VelModFaceV(i, j) = sqrt(V**2.0 + Uaverage**2.0)
-                Me%VelModFaceU(i, j) = abs(cmplx(Uaverage, V))
+                Me%VelModFaceV(i, j) = abs(cmplx(Uaverage, V))
                 
             endif
 
