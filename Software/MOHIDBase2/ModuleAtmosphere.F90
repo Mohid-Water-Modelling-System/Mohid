@@ -1059,8 +1059,8 @@ cd2 :           if (BlockFound) then
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExternalVar%MappingPoints2D(i, j) == 1) then
-                    if (PropertyX%Field(i, j) > 1.0) then
-                        write(*,*)'Relative Humidity must be given between 0 and 1'
+                    if (PropertyX%Field(i, j) > 1.2) then
+                        write(*,*)'Relative Humidity must be given between 0 and 1.2'
                         stop 'ConstructPropertyList - ModuleAtmosphere - ERR50'
                     endif
                 endif    
