@@ -372,6 +372,11 @@ Module ModuleHorizontalGrid
 
 
     !Type----------------------------------------------------------------------
+    type T_BorderLimits
+        real,    dimension(4)            :: Values = FillValueReal
+        logical                          :: ON     = .false.
+    end type T_BorderLimits    
+    
     type T_Compute
         real,    dimension(:),   pointer :: XX_Z => null()
         real,    dimension(:),   pointer :: YY_Z => null()
@@ -609,6 +614,7 @@ Module ModuleHorizontalGrid
         character(PathLength)                   :: FileName = null_str
 
         type(T_DDecomp)                         :: DDecomp
+        type (T_BorderLimits)                   :: BorderLimits
 
         !Instances
         integer                                 :: ObjHDF5       = 0
@@ -3719,6 +3725,22 @@ BF1:    if (Me%ReadCartCorners) then
 
 
         endif BF1
+        
+
+        !Impose boder ,limits do not compute automatically from grid
+        !West, East, South, North
+        call GetData(Me%BorderLimits%Values,                                            &
+                     Me%ObjEnterData ,  flag,                                           &
+                     keyword      = 'BORDER_LIMITS',                                    &
+                     ClientModule = 'ModuleHorizontalGrid',                             &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalVariables - HorizontalGrid - ERR440'        
+        
+        if (flag == 4) then
+            Me%BorderLimits%ON = .true.
+        else
+            Me%BorderLimits%ON = .false.
+        endif            
 
 
         !Closes Data File
@@ -10615,11 +10637,22 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
 i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
             (ready_ == READ_LOCK_ERR_)) then
+    
+            if (Me%BorderLimits%ON) then
+                
+                West    = Me%BorderLimits%Values(1)
+                East    = Me%BorderLimits%Values(2)
+                South   = Me%BorderLimits%Values(3)
+                North   = Me%BorderLimits%Values(4)
+                
+            else                
 
-            West    = Me%GridBorderCoord%Polygon_%Limits%Left
-            East    = Me%GridBorderCoord%Polygon_%Limits%Right
-            South   = Me%GridBorderCoord%Polygon_%Limits%Bottom
-            North   = Me%GridBorderCoord%Polygon_%Limits%Top
+                West    = Me%GridBorderCoord%Polygon_%Limits%Left
+                East    = Me%GridBorderCoord%Polygon_%Limits%Right
+                South   = Me%GridBorderCoord%Polygon_%Limits%Bottom
+                North   = Me%GridBorderCoord%Polygon_%Limits%Top
+                
+            endif                
 
             STAT_ = SUCCESS_
         else    i1

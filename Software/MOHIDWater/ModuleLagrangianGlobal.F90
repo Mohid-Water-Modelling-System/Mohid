@@ -385,7 +385,7 @@ Module ModuleLagrangianGlobal
 !<BeginMeteoOcean>
 !<<BeginProperty>>
 !   MASK_DIM  ??????????????????????????
-!<<<BeginMeteoOceanFiles>>>
+!<<<BeginMeteoOceanFiles<>>
 !<<<EndMeteoOceanFiles>>>
 !<<EndProperty>>
 !<EndMeteoOcean>
@@ -1257,6 +1257,8 @@ Module ModuleLagrangianGlobal
         real                                    :: VarVelHX                 = 0.2
         real                                    :: VarVelH                  = 0.0
         real                                    :: DiffusionCoefH           = 0.0
+        
+        logical                                 :: TurbGradK                = .false.
 
         !Vertical
         integer                                 :: StandardDeviationType    = VerticalTurbConstant
@@ -5098,7 +5100,7 @@ AC:     if (NewOrigin%EmissionSpatial == Accident_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR700'
 
-MO:             if (flag == 1) then
+MO:     if (flag == 1) then
 
             select case(trim(adjustl(String)))
             
@@ -5240,6 +5242,21 @@ TURB_V:                 if (flag == 1) then
                 stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR790'
          
             end select
+            
+            
+            if (NewOrigin%Movement%MovType /= NotRandom_) then
+
+                call GetData(NewOrigin%Movement%TurbGradK,                              &
+                                Me%ObjEnterData,                                        &
+                                flag,                                                   &
+                                SearchType   = FromBlock,                               &
+                                keyword      ='TURB_GRADIENT_K',                        &
+                                ClientModule ='ModuleLagrangianGlobal',                 &  
+                                Default      = .true.,                                  &
+                                STAT         = STAT_CALL)             
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR795'     
+                
+            endif
 
         else MO
 
@@ -16281,8 +16298,8 @@ BD:             if (CurrentPartic%Beached .or. CurrentPartic%Deposited .or. Curr
                 
                 if (CurrentOrigin%Movement%Float) then   
                     !Equal probability to go in any horizontal direction
-                    GradDWx = 0.5
-                    GradDWy = 0.5
+                    GradDWx = 0.0
+                    GradDWy = 0.0
                 else
                     !Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).                        
                     !Linear Interpolation to obtain the thickness gradient
@@ -16750,18 +16767,19 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                         call random_number(RAND)
 
                         !   From 0 to Pi/2 cos and sin have positive values
-                        UD                       = HD * cos(Pi / 2. * RAND)
-                        VD                       = HD * sin(Pi / 2. * RAND)
+                        UD                       = HD * cos(2 * Pi * RAND)
+                        VD                       = HD * sin(2 * Pi * RAND)
 
                         !Third step - Compute the direction of the the turbulent vector taking in consideration the layers thickness gradients
-                        ! Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).                        
-                        call random_number(RAND)
-                       
-                        if (RAND > GradDWx)   UD = - UD              
+                        ! Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).
+                        
+                        if (CurrentOrigin%Movement%TurbGradK) then
+                            ![m/s] = [m/s] + [m] * [m/s] * [1/m] 
+                            ! K = Turbulent Diffusion Coefficent = MixingLength * Stdev of turbulent velocity / 2. 
+                            UD = UD + MixingLength * 1.732050808 * StandardDeviation / 2. * GradDWx
+                            VD = VD + MixingLength * 1.732050808 * StandardDeviation / 2. * GradDWy
 
-                        call random_number(RAND)
-
-                        if (RAND > GradDWy)   VD = - VD      
+                        endif                                    
                         
                         CurrentPartic%TpercursoH = Me%DT_Partic
                         CurrentPartic%UD_old     = UD
@@ -16773,37 +16791,36 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                         CurrentPartic%TpercursoH = CurrentPartic%TpercursoH + Me%DT_Partic
                     end if
 
-                    else if (CurrentOrigin%Movement%MovType .EQ. DiffusionCoef_    ) then MT     
+                else if (CurrentOrigin%Movement%MovType .EQ. DiffusionCoef_    ) then MT     
     
-                        if (CurrentOrigin%Movement%DiffusionCoefHON) then
-                            DiffusionCoefH = CurrentOrigin%Movement%DiffusionCoefH
-                        else
-                            DiffusionCoefH = Me%EulerModel(emp)%DiffusionH(i, j, k)
-                        endif
+                    if (CurrentOrigin%Movement%DiffusionCoefHON) then
+                        DiffusionCoefH = CurrentOrigin%Movement%DiffusionCoefH
+                    else
+                        DiffusionCoefH = Me%EulerModel(emp)%DiffusionH(i, j, k)
+                    endif
 
-                        ! First step - compute the modulus of turbulent vector
+                    ! First step - compute the modulus of turbulent vector
                         
-                        call random_number(RAND)
+                    call random_number(RAND)
                         
-                        !(m^2/s/s)^0.5  du = sqrt(2*D/dt) - standard approach
-                        HD                       = sqrt(2.* DiffusionCoefH / Me%DT_Partic)  * RAND
+                    !(m^2/s/s)^0.5  du = sqrt(2*D/dt) - standard approach
+                    HD                       = sqrt(2.* DiffusionCoefH / Me%DT_Partic)  * RAND
 
-                        ! Second step - Compute the modulus of each component of the turbulent vector
-                        call random_number(RAND)
+                    ! Second step - Compute the modulus of each component of the turbulent vector
+                    call random_number(RAND)
 
-                        !   From 0 to Pi/2 cos and sin have positive values
-                        UD                       = HD * cos(Pi / 2. * RAND)
-                        VD                       = HD * sin(Pi / 2. * RAND)
+                    !   From 0 to Pi/2 cos and sin have positive values
+                    UD                       = HD * cos(2 * Pi * RAND)
+                    VD                       = HD * sin(2 * Pi * RAND)
 
-                        !Third step - Compute the direction of the the turbulent vector taking in consideration the layers thickness gradients
-                        ! Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).                        
-                        call random_number(RAND)
-                       
-                        if (RAND > GradDWx)   UD = - UD              
+                    !Third step - Compute the direction of the the turbulent vector taking in consideration the layers thickness gradients
+                    ! Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).                        
 
-                        call random_number(RAND)
-
-                        if (RAND > GradDWy)   VD = - VD      
+                    if (CurrentOrigin%Movement%TurbGradK) then
+                        ![m/s] = [m/s] + [m^2/s] * [1/m] 
+                        UD = UD + DiffusionCoefH * GradDWx
+                        VD = VD + DiffusionCoefH * GradDWy
+                    endif                                    
                         
                    
                 else if (CurrentOrigin%Movement%MovType .EQ. NotRandom_    ) then MT

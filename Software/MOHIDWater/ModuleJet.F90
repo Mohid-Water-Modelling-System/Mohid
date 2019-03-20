@@ -358,6 +358,7 @@ Module ModuleJet
         logical                         :: InversionZ                   = .false.
         real                            :: MaxHorizLengthScale          = null_real
         real                            :: VertLengthScale              = null_real
+        character(len=StringLength)     :: EndRunType                   = null_str
     end type T_Evolution
 
 
@@ -429,7 +430,9 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             !Allocates a new Instance
             call AllocateInstance
             
-            Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)            
+            if (HorizontalGridID > 0) then
+                Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)            
+            endif
 
             call ConstructEnterData (Me%ObjEnterData, FileName, STAT = STAT_)
             if (STAT_ /= SUCCESS_) stop 'Construct_Jet - ModuleJet - ERR01'
@@ -1381,14 +1384,21 @@ if1 :   if (ready_ .EQ. IDLE_ERR_) then
                 Me%Ambient%LocalSalinity    = Me%Ambient%Salinity(I, J, K)
                 Me%Ambient%LocalTemperature = Me%Ambient%Temperature(I, J, K)
                 
-                call GetCellRotation(Me%ObjHorizontalGrid, I, J,                        &
-                                     CellRotationX = CellRotationX,                     &
-                                     CellRotationY = CellRotationY,                     &
-                                     STAT          = STAT_CALL)
+                if (Me%ObjHorizontalGrid > 0) then
+                
+                    call GetCellRotation(Me%ObjHorizontalGrid, I, J,                        &
+                                         CellRotationX = CellRotationX,                     &
+                                         CellRotationY = CellRotationY,                     &
+                                         STAT          = STAT_CALL)
                                      
-                if (STAT_CALL /= SUCCESS_) then
-                    stop 'ModuleJet - LocalAmbientProp - ERR20'
-                endif                
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ModuleJet - LocalAmbientProp - ERR20'
+                    endif          
+
+                else
+                    CellRotationX = 0.
+                    CellRotationY = Pi/2.
+                endif                    
 
                 Me%Ambient%LocalVelU = Me%Ambient%VelU(I, J, K) * cos(CellRotationX) +  &
                                        Me%Ambient%VelV(I, J, K) * cos(CellRotationY)
@@ -1895,6 +1905,7 @@ i2:     if (Me%Evolution%VertBoundContact) then
         
             if (.not.Me%Evolution%DisconnectVertLimit) then
                 Me%Evolution%EndRun = .true.
+                Me%Evolution%EndRunType = "Plume Arrive to surface"
             endif
 
             if (.not. Me%Evolution%NotFirstContact) then
@@ -1914,6 +1925,7 @@ i2:     if (Me%Evolution%VertBoundContact) then
 
         if (Me%Evolution%z     > Me%Evolution%z_old .and. Me%Evolution%InversionZ) then
             Me%Evolution%EndRun = .true.
+            Me%Evolution%EndRunType = "Plume invert the vertical trajectory"            
         endif
 
         if (Me%Evolution%EndRun .and. Me%Port%Number > 1) then
@@ -1958,6 +1970,7 @@ i2:     if (Me%Evolution%VertBoundContact) then
 
         if (Me%Evolution%Time > Me%NumericalOptions%MaxSimulationPeriod) then
             Me%Evolution%EndRun = .true.
+            Me%Evolution%EndRunType = "Max run period"
         endif
 
         If (((Me%Evolution%Time > Me%OutPut%TimeOut .and. Me%Evolution%Time < Me%NumericalOptions%MaxSimulationPeriod) &
@@ -2871,8 +2884,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
             if (nUsers == 0) then
 
-                nUsers = DeassociateInstance(mHORIZONTALGRID_,  Me%ObjHorizontalGrid)
-                if (nUsers == 0) stop 'KillJet - ModuleJet -ERR10'
+                if (Me%ObjHorizontalGrid > 0) then
+                    nUsers = DeassociateInstance(mHORIZONTALGRID_,  Me%ObjHorizontalGrid)
+                    if (nUsers == 0) stop 'KillJet - ModuleJet -ERR10'
+                endif    
+                
+                write(*,*) trim(Me%Evolution%EndRunType)
 
                 !Deallocates the output matrix
                 deallocate (Me%OutPut%Matrix)

@@ -8046,8 +8046,13 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                     if (Me%PointsToFill3D(i,j,Me%WorkSize3D%KUB) == WaterPoint) then                    
                         icount           = icount + 1
                         if (CurrentHDF%NoData(icount)) then
-                            write(*,*) 'No data in 2D cell I=',i + di, 'J=',j + dj
-                            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR60' 
+                            if (CurrentHDF%Extrapolate) then 
+                                !NeedToExtrapolate = .true.
+                                Matrix3D(i, j, k) = Me%DefaultValue(1)
+                            else                             
+                                write(*,*) 'No data in 2D cell I=',i + di, 'J=',j + dj
+                                stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR60' 
+                            endif                                
                         else                        
                             do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
                                 if (Me%PointsToFill3D(i,j,k) == WaterPoint) then                                
@@ -8106,8 +8111,13 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                     
                         icount           = icount + 1
                         if (CurrentHDF%NoData(icount)) then
-                            write(*,*) 'No data in 3D cell I=',i + di, 'J=',j + dj, 'K=',k
-                            stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR100' 
+                            if (CurrentHDF%Extrapolate) then 
+                                !NeedToExtrapolate = .true.
+                                Matrix3D(i, j, k) = Me%DefaultValue(1)
+                            else    
+                                write(*,*) 'No data in 3D cell I=',i + di, 'J=',j + dj, 'K=',k
+                                stop 'ModifyField4DInterpol - ModuleFillMatrix - ERR100'
+                            endif                               
                         else                        
                             Matrix3D(i, j, k)   = CurrentHDF%Prop(icount)
                         endif
@@ -8116,8 +8126,8 @@ F2D3D:      if (CurrentHDF%From2Dto3D) then
                 
                 enddo
                 enddo   
-                enddo            
-            
+                enddo   
+                
             endif F2D3D        
         endif if2D
         

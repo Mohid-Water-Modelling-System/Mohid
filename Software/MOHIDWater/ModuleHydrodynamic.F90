@@ -1552,6 +1552,8 @@ Module ModuleHydrodynamic
         integer                         :: WaveForcing3D_Two
         
         logical                         :: AssimilaOneField      = .false. 
+        
+        real                            :: WaterDischargesSlowStart = null_real
 
     end type T_HydroOptions
 
@@ -5163,6 +5165,30 @@ ifFla: if (BarotropicRadia == FlatherWindWave_ .or. BarotropicRadia == FlatherLo
                          STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                            &
                 call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR92.')
+            
+            !Period over which the discharge flow is linear increase from 0 to the 
+            !real value
+            Me%ComputeOptions%WaterDischargesSlowStart = 0.
+            
+            !If cold start
+            if (.not. Me%ComputeOptions%Continuous) then                            
+
+                call GetData(Me%ComputeOptions%WaterDischargesSlowStart,                &
+                             Me%ObjEnterData, iflag,                                    &
+                             keyword    = 'WATER_DISCHARGES_SLOWSTART',                 &
+                             default    = 0.,                                           &
+                             SearchType = FromFile,                                     &
+                             ClientModule ='ModuleHydrodynamic',                        &
+                             STAT       = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_)                                              &
+                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic -ERR94.')
+                
+                if (Me%ComputeOptions%WaterDischargesSlowStart > Me%EndTime - Me%BeginTime) then
+                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic -ERR95.')
+                endif    
+                
+            endif
 
         endif
 
@@ -8544,7 +8570,15 @@ cd21:   if (Baroclinic) then
 
                 if (Me%ComputeOptions%FlatherColdPeriod > (Me%EndTime - Me%BeginTime)) then
                     stop "OperationalModelDefaultOptions - Hydrodynamic - ERR30"    
-                endif            
+                endif      
+                
+                !WATER_DISCHARGES_SLOWSTART : 172800. 
+                Me%ComputeOptions%WaterDischargesSlowStart  =  172800.
+                
+                if (Me%ComputeOptions%WaterDischargesSlowStart > (Me%EndTime - Me%BeginTime)) then
+                    stop "OperationalModelDefaultOptions - Hydrodynamic - ERR40"    
+                endif                      
+                
             endif
 
             !If not define automatically connect the biharmonic filter 
@@ -8553,13 +8587,13 @@ cd21:   if (Baroclinic) then
                 
                 Me%ComputeOptions%BiHarmonic        = .true.                
             
-                call GetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,             &
-                                       DUX              = DUX,                              &
-                                       DVY              = DVY,                              &
+                call GetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,         &
+                                       DUX              = DUX,                          &
+                                       DVY              = DVY,                          &
                                        STAT             = STAT_CALL)
 
                 if (STAT_CALL /= SUCCESS_) then
-                    stop "OperationalModelDefaultOptions - Hydrodynamic - ERR40"    
+                    stop "OperationalModelDefaultOptions - Hydrodynamic - ERR50"    
                 endif                            
 
                 !DX = max(DUX(1,1), DVY(1,1))
@@ -8577,18 +8611,18 @@ cd21:   if (Baroclinic) then
                 !BIHARMONIC_COEF          : dx^3/10
                 Me%ComputeOptions%BiHarmonicCoef    = DX**3/10.         
 
-                call UnGetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,           &
-                                         Array            = DUX,                            &
-                                         STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) then
-                    stop "OperationalModelDefaultOptions - Hydrodynamic - ERR50"
-                endif              
-            
-                call UnGetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,           &
-                                         Array            = DVY,                            &
+                call UnGetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,       &
+                                         Array            = DUX,                        &
                                          STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) then
                     stop "OperationalModelDefaultOptions - Hydrodynamic - ERR60"
+                endif              
+            
+                call UnGetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,       &
+                                         Array            = DVY,                        &
+                                         STAT             = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop "OperationalModelDefaultOptions - Hydrodynamic - ERR70"
                 endif                          
             
             endif
@@ -37974,6 +38008,7 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         integer                            :: DischVertical
 
         real                               :: InterceptionRatio
+        real                               :: DT_RunPeriod
 
         integer                            :: CHUNK
 
@@ -38066,6 +38101,12 @@ do1:    do DischargeID = 1, DischargesNumber
                                        DischargeFlow,                       &
                                        SurfaceElevation2 = WaterLevelByPass,&
                                        STAT = STAT_CALL)
+            
+            DT_RunPeriod = Me%CurrentTime - Me%BeginTime
+
+            if (Me%ComputeOptions%WaterDischargesSlowStart > 0.) then
+                DischargeFlow = DischargeFlow * DT_RunPeriod / Me%ComputeOptions%WaterDischargesSlowStart
+            endif            
 
             if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR60'
 
@@ -38172,6 +38213,12 @@ dn:         do n=1, nCells
 
                     if (STAT_CALL/=SUCCESS_)                                            &
                         stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
+                    
+                    DT_RunPeriod = Me%CurrentTime - Me%BeginTime
+
+                    if (Me%ComputeOptions%WaterDischargesSlowStart > 0.) then
+                        AuxFlowIJ = AuxFlowIJ * DT_RunPeriod / Me%ComputeOptions%WaterDischargesSlowStart
+                    endif                        
 
                 endif
 
@@ -38370,7 +38417,7 @@ dk:             do k = kmin,kmax
 
         logical                            :: ByPassON, IgnoreOK, CoordinatesON
 
-        real                               :: InterceptionRatio
+        real                               :: InterceptionRatio, DT_RunPeriod
 
         integer                            :: DischVertical
 
@@ -38466,6 +38513,12 @@ do1:    do DischargeID = 1, DischargesNumber
                                        STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR60'
+            
+            DT_RunPeriod = Me%CurrentTime - Me%BeginTime
+
+            if (Me%ComputeOptions%WaterDischargesSlowStart > 0.) then
+                DischargeFlow = DischargeFlow * DT_RunPeriod / Me%ComputeOptions%WaterDischargesSlowStart
+            endif                    
 
             call GetDischargeFlowVelocity(Me%ObjDischarges,                 &
                                        Me%CurrentTime, DischargeID,         &
@@ -38545,6 +38598,12 @@ dn:         do n=1, nCells
 
                     if (STAT_CALL/=SUCCESS_)                                            &
                         stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR110'
+                    
+                    DT_RunPeriod = Me%CurrentTime - Me%BeginTime
+
+                    if (Me%ComputeOptions%WaterDischargesSlowStart > 0.) then
+                        AuxFlowIJ = AuxFlowIJ * DT_RunPeriod / Me%ComputeOptions%WaterDischargesSlowStart
+                    endif                         
 
                 endif
 
@@ -48072,7 +48131,7 @@ subroutine ModifyWaterDischarges
         logical                            :: CoordinatesON
         integer                            :: nCells, n
         integer                            :: FlowDistribution, SpatialEmission
-        real                               :: InterceptionRatio
+        real                               :: InterceptionRatio, DT_RunPeriod
 
         integer                            :: CHUNK
 
@@ -48174,6 +48233,13 @@ do1:        do DischargeID = 1, DischargesNumber
                                            STAT = STAT_CALL)
 
                 if (STAT_CALL/=SUCCESS_) stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR100'
+                
+                DT_RunPeriod = Me%CurrentTime - Me%BeginTime
+
+                if (Me%ComputeOptions%WaterDischargesSlowStart > 0.) then
+                    DischargeFlow = DischargeFlow * DT_RunPeriod / Me%ComputeOptions%WaterDischargesSlowStart
+                endif                         
+                
 
 
                 call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, FlowDistribution, &
@@ -48240,6 +48306,13 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
 
                         if (STAT_CALL/=SUCCESS_)                                        &
                             stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR160'
+                        
+                        DT_RunPeriod = Me%CurrentTime - Me%BeginTime
+
+                        if (Me%ComputeOptions%WaterDischargesSlowStart > 0.) then
+                            AuxFlowIJ = AuxFlowIJ * DT_RunPeriod / Me%ComputeOptions%WaterDischargesSlowStart
+                        endif                         
+                                        
 
                     endif
 
