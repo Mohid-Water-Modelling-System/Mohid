@@ -79,7 +79,7 @@ Module ModuleHorizontalGrid
     private :: DefineBorderPolygons
     private ::      DefinesBorderPoly
     public  :: ConstructP2C_IWD
-    private ::      ConstructP2C_Avrg
+    public  ::      ConstructP2C_Avrg
     private ::      ConstructIWDVel
     
     !Modifier
@@ -541,7 +541,7 @@ Module ModuleHorizontalGrid
         integer, dimension(:, :), allocatable   :: Connections_Z
         real, pointer, dimension(:)             :: IWD_Distances_U   => null()
         real, pointer, dimension(:)             :: IWD_Distances_V   => null()
-        real, pointer, dimension(:)             :: IWD_Distances_Z   => null()
+        real, dimension   (:),    allocatable   :: IWD_Distances_Z
         logical                                 :: UsedIWD_2Way      = .false.
         integer                                 :: IWD_Nodes_Z       = null_int
         integer                                 :: IWD_Nodes_U       = null_int
@@ -1911,13 +1911,13 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                              IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z, IWD_Nodes_Z, IWD_Nodes_U, &
                              IWD_Nodes_V, STAT)
         !Arguments-------------------------------------------------------------
-        integer                                     :: HorizontalGridID
-        integer, optional                           :: IWD_Nodes_Z, IWD_Nodes_U, IWD_Nodes_V
-        integer, optional,        intent (OUT)      :: STAT
-        integer,  dimension(:,:), pointer, optional :: Connections_U, Connections_V, Connections_Z
-        real,     dimension(:  ), pointer, optional :: IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z
+        integer, intent(IN)                                       :: HorizontalGridID
+        integer, optional,                          intent(OUT)   :: IWD_Nodes_Z, IWD_Nodes_U, IWD_Nodes_V
+        integer, optional,                          intent(INOUT) :: STAT
+        integer, dimension(:,:), pointer, optional, intent(OUT)   :: Connections_U, Connections_V, Connections_Z
+        real,    dimension(:  ), pointer, optional, intent(OUT)   :: IWD_Distances_U, IWD_Distances_V, IWD_Distances_Z
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_, ready_
+        integer                                                 :: STAT_, ready_
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -2952,9 +2952,7 @@ do8:       do i = ILBwork, IUBwork
                     FatherLinkJ(Me%Size%IUB - 1, 1), FatherLinkJ(Me%Size%IUB - 1, Me%Size%JUB - 1))
         maxI = max(FatherLinkI(1,1), FatherLinkI(1, Me%Size%JUB - 1), &
                     FatherLinkI(Me%Size%IUB - 1, 1), FatherLinkI(Me%Size%IUB - 1, Me%Size%JUB - 1))
-        
-        nullify(FatherLinkI)
-        nullify(FatherLinkJ)
+
         
         Nbr_Connections = Me%Size%JUB * Me%Size%IUB + 1
         
@@ -2985,6 +2983,9 @@ do8:       do i = ILBwork, IUBwork
 
         enddo
         enddo
+        
+        nullify(FatherLinkI)
+        nullify(FatherLinkJ)
         
     end subroutine ConstructP2C_Avrg
     
@@ -15309,8 +15310,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 endif
                 if (allocated(Me%Connections_Z)) then
                     deallocate(Me%Connections_Z)
+                endif
+                
+                if (allocated(Me%IWD_Distances_Z)) then
                     deallocate(Me%IWD_Distances_Z)
-                    nullify   (Me%IWD_Distances_Z)
                 endif
 
                 call KillFatherGridList

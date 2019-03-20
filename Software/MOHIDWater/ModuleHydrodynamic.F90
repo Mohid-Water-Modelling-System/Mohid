@@ -150,7 +150,7 @@ Module ModuleHydrodynamic
                                        GetCellRotation, GetGridCellArea
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
                                        AllocateTwoWayAux, PrepTwoWay, UngetTwoWayExternal_Vars, &
-                                       ConstructUpscalingDischarges !GetUpscalingDischarge
+                                       ConstructUpscalingDischarges GetUpscalingDischarge
 #ifdef _USE_MPI
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
@@ -10422,56 +10422,64 @@ i7:             if (.not. ContinuousGOTM)  then
 
     end subroutine Construct_Sub_Modules
     !------------------------------------------------------------------------------------------------------------------
-
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Checks if a discharge is of type "upscaling" and constructs it
+    !>@param[in] FatherID, SonID
     subroutine Set_Upscaling_Discharges(FatherID, SonID)
         !Arguments-------------------------------------------------------------
         integer,           intent(IN )              :: FatherID, SonID
         !Local-----------------------------------------------------------------
-        integer                                     :: DischargeID, I, J, DischargesNumber
+        integer                                     :: DischargeID, I, J, DischargesNumber, STAT_CALL
         logical                                     :: ToAllocate
-        Integer                                     :: STAT_CALL
-
+        integer,  dimension(:,:), pointer           :: Connections, SonWaterPoints2D, FatherWaterPoints2D
         !----------------------------------------------------------------------
 
         ToAllocate = .true. !Flag to indicate that the code should only find the matrixes size for allocation
+        
         call GetDischargesNumber(FatherID, DischargesNumber, STAT = STAT_CALL)
-        if (STAT_CALL/=SUCCESS_)stop 'Set_Upscaling_Discharges - ModuleHydrodynamic - ERR10'
+        if (STAT_CALL /= SUCCESS_)stop 'Set_Upscaling_Discharges - Failed to get number of discharges'
+        call GetConnections(SonID, Connections_Z = Connections, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Connections matrix'
+        call GetWaterPoints2D(SonID, SonWaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Son waterpoints'
+        call GetWaterPoints2D(FatherID, FatherWaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Father waterpoints'
 
         do DischargeID = 1, DischargesNumber
 
             if (IsUpscaling(FatherID, DischargeID))then
 
-                call GetDischargesGridLocalization(FatherID,          &
-                                                   DischargeID,       &
-                                                   Igrid         = I, &
-                                                   JGrid         = J, &
-                                                   STAT = STAT_CALL)
+                call GetDischargesGridLocalization(FatherID, DischargeID, Igrid = I, JGrid = J, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Discharge location - ERR01'
 
-                if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - ModuleHydrodynamic - ERR20'
-
-                call ConstructUpscalingDischarges(FatherID, SonID, I, J, ToAllocate) !Managed by ModuleTwoWay
-
+                call ConstructUpscalingDischarges(FatherID, SonID, I, J, Connections, SonWaterPoints2D, &
+                                                  FatherWaterPoints2D, ToAllocate) !Managed by ModuleTwoWay
             endif
 
         enddo
+        
         ToAllocate = .false.
+        
         do DischargeID = 1, DischargesNumber
 
             if (IsUpscaling(FatherID, DischargeID))then
 
-                call GetDischargesGridLocalization(FatherID,          &
-                                                   DischargeID,       &
-                                                   Igrid         = I, &
-                                                   JGrid         = J, &
-                                                   STAT = STAT_CALL)
+                call GetDischargesGridLocalization(FatherID, DischargeID, Igrid = I, JGrid = J, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Discharge location - ERR02'
 
-                if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - ModuleHydrodynamic - ERR20'
-
-                call ConstructUpscalingDischarges(FatherID, SonID, I, J) !Managed by ModuleTwoWay
-
+                call ConstructUpscalingDischarges(FatherID, SonID, I, J, Connections, SonWaterPoints2D, &
+                                                  FatherWaterPoints2D, ToAllocate) !Managed by ModuleTwoWay
             endif
 
         enddo
+        
+        call UnGetHorizontalGrid(SonID, Connections, STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget Connections matrix'
+        call UnGetHorizontalMap(SonID, SonWaterPoints2D, STAT = STAT_CALL)
+        if (status /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget SonWaterPoints2D' 
+        call UnGetHorizontalMap(FatherID, FatherWaterPoints2D, STAT = STAT_CALL)
+        if (status /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget FatherWaterPoints2D'
 
     end subroutine Set_Upscaling_Discharges
     !------------------------------------------------------------------------------------------------------------------
@@ -35284,7 +35292,7 @@ dok1:           do k = Kbottom, KUB
 
         !Gets a pointer to Bathymetry
         call GetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR20a'
+        if (STAT_CALL /= SUCCESS_) stop 'Compute_StokesDriftVelocity - ModuleHydrodynamic - ERR20a'
 
         ! Allocate variables
         allocate( U    ( ILB:IUB, JLB:JUB, KLB:KUB ) )
@@ -35387,7 +35395,7 @@ dok1:           do k = Kbottom, KUB
 
 
         call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
+        if (STAT_CALL /= SUCCESS_) stop 'Compute_StokesDriftVelocity - ModuleHydrodynamic - ERR120'
 
         nullify(IUB)
         nullify(ILB)
@@ -38201,7 +38209,7 @@ do1:    do DischargeID = 1, DischargesNumber
 
                         call GetDischargeFlowVelocity(Me%ObjDischarges,                       &
                                                       Me%CurrentTime, DischargeID,            &
-                                                      VelocityU = DischargeVelocity,          &
+                                                      VelocityU = DischargeVelocity,          & !Errado?? Joao Sobrinho
                                                       STAT = STAT_CALL)
                         if (STAT_CALL/=SUCCESS_) stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR80'
                 endif

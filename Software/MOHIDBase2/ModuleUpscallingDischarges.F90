@@ -41,7 +41,6 @@ Module ModuleUpscallingDischarges
 
     !Subroutines-----------------------------------------------------------------
 
-    !public  :: BuildDischargesMatrix
     public  :: SearchDischargeFace
     
     
@@ -50,16 +49,20 @@ Module ModuleUpscallingDischarges
     !begin-----------------------------------------------------------------------
     contains
     
-    subroutine SearchDischargeFace(ConnectionMatrix, SonWaterPoints2D, FatherWaterPoints2D, SonSize2D, &
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Searches discharge faces of father cell, and provides it to the son domain
+    !>@param[in] ConnectionMatrix, SonWaterPoints, FatherWaterPoints, SonSize2D, ICell, JCell, CellsToAllocate
+    subroutine SearchDischargeFace(ConnectionMatrix, SonWaterPoints, FatherWaterPoints, SonSize2D, &
                                    ICell, JCell, CellsToAllocate)
         !Arguments-------------------------------------------------------------
-        integer, dimension(:, :, :, :), pointer   :: ConnectionMatrix
-        integer, dimension(:, :), pointer         :: SonWaterPoints2D, FatherWaterPoints2D
-        type (T_Size2D)                           :: SonSize2D
-        integer                                   :: ICell, JCell
-        integer, intent(INOUT), optional          :: CellsToAllocate
+        integer, dimension(:, :, :, :), pointer, intent(IN)   :: ConnectionMatrix
+        integer, dimension(:, :), pointer, intent(IN)         :: SonWaterPoints, FatherWaterPoints
+        type (T_Size2D)                                       :: SonSize2D
+        integer, intent(IN)                                   :: ICell, JCell
+        integer, intent(INOUT), optional                      :: CellsToAllocate
         !Local-----------------------------------------------------------------
-        integer                                   :: di, dj
+        integer                                               :: di, dj
         !-------------------------------------------------------------------------
         
         if (present(CellsToAllocate)) then
@@ -67,40 +70,39 @@ Module ModuleUpscallingDischarges
             Size = size(ConnectionMatrix)            
             
             !If father cell to the north is land, check for son cells(compare with adjacent southern cell)
-            if (FatherWaterPoints2D(Icell + 1, JCell) == 0) then
+            if (FatherWaterPoints(Icell + 1, JCell) == 0) then
                 IFather = Icell + 1
                 JFather = JCell
                 di      = -1 !only going to search southwards
                 dj      = 0
-                call SearchFace (ConnectionMatrix, Size, IFather, JFather, di, dj, SonWaterPoints2D, &
+                call SearchFace (ConnectionMatrix, Size, IFather, JFather, di, dj, SonWaterPoints, &
                                  CellsToAllocate, link = Ilink)
             endif
-            if (FatherWaterPoints2D(Icell - 1, JCell) == 0) then
+            if (FatherWaterPoints(Icell - 1, JCell) == 0) then
                 IFather = Icell - 1
                 JFather = JCell
                 di      = 1 !only going to search northwards
                 dj      = 0
-                call SearchFace (ConnectionMatrix, Size, IFather, JFather, di, dj, SonWaterPoints2D, &
+                call SearchFace (ConnectionMatrix, Size, IFather, JFather, di, dj, SonWaterPoints, &
                                  CellsToAllocate, link = Ilink)
             endif 
-            if (FatherWaterPoints2D(Icell, JCell + 1) == 0) then
+            if (FatherWaterPoints(Icell, JCell + 1) == 0) then
                 IFather = Icell - 1
                 JFather = JCell
                 di      = 0 
                 dj      = -1 !only going to search westward
-                call SearchFace (ConnectionMatrix, Size, IFather, JFather, di, dj, SonWaterPoints2D, &
+                call SearchFace (ConnectionMatrix, Size, IFather, JFather, di, dj, SonWaterPoints, &
                                  CellsToAllocate, link = Jlink)
             endif
-            if (FatherWaterPoints2D(Icell, JCell - 1) == 0) then
+            if (FatherWaterPoints(Icell, JCell - 1) == 0) then
                 IFather = Icell - 1
                 JFather = JCell
                 di      = 0 !only going to search eastward
                 dj      = 1
-                call SearchFace (ConnectionMatrix, Size, IFather, JFather, di, dj, SonWaterPoints2D, &
+                call SearchFace (ConnectionMatrix, Size, IFather, JFather, di, dj, SonWaterPoints, &
                                  CellsToAllocate, link = Jlink)
             endif
             
-
         else
             
             
@@ -150,7 +152,7 @@ Module ModuleUpscallingDischarges
                         n = n + 1 ! Found a discharge face
                         exit
                     endif
-
+    
                 endif
             endif
             i = 1 + 1
@@ -158,8 +160,8 @@ Module ModuleUpscallingDischarges
         enddo     
     
     end subroutine SearchFace
-    
-
+    !
+    !
     end module ModuleUpscallingDischarges
 
 !----------------------------------------------------------------------------------------------------------
