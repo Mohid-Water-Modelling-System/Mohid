@@ -2387,7 +2387,7 @@ do2 :       do while(associated(ObjParameter))
                     stop 'ReadParameterFields - ModuleHDF5Statistics - ERR02'
         
                     !read field
-                    call HDF5ReadWindow(ObjHDF5File%HDFID, ObjParameter%Group,            &
+                    call HDF5ReadWindow(ObjHDF5File%HDFID, ObjParameter%Group,          &
                                       trim(NewField%Name),                              &
                                       Array2D      = NewField%Values2D,                 &
                                       STAT = STAT_CALL)

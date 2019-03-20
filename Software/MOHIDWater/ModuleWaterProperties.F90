@@ -205,7 +205,8 @@ Module ModuleWaterProperties
     use ModuleLightExtinction,      only: ConstructLightExtinction, ModifyLightExtinctionField, &
                                           GetLightExtinctionOptions, KillLightExtinction,       &
                                           GetShortWaveExtinctionField, UnGetLightExtinction,    &
-                                          GetLongWaveExtinctionCoef, GetRadiationPercentages
+                                          GetLongWaveExtinctionCoef, GetRadiationPercentages,   &
+                                          UpdateLightExtinctionSatellite
     use ModuleFillMatrix,           only: ConstructFillMatrix, GetDefaultValue, KillFillMatrix, &
                                           ModifyFillMatrix, GetIfMatrixRemainsConstant
     use ModuleHorizontalMap,        only: GetOpenPoints2D, GetWaterPoints2D, GetBoundaries,     &
@@ -262,7 +263,8 @@ Module ModuleWaterProperties
                                           SpecificHeatUNESCO, ComputeT90_Chapra,                &
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
-                                          ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad
+                                          ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
+                                          SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977
     use mpi
 #else _USE_MPI
     use ModuleFunctions,            only: SigmaLeendertse, SigmaUNESCO, SigmaWang,              &
@@ -274,7 +276,8 @@ Module ModuleWaterProperties
                                           SpecificHeatUNESCO, ComputeT90_Chapra,                &
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
-                                          ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad
+                                          ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
+                                          SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977
 #endif _USE_MPI
 
     use ModuleTurbulence,           only: GetHorizontalViscosity, GetVerticalDiffusivity,       &
@@ -596,6 +599,10 @@ Module ModuleWaterProperties
 
     character(LEN = StringLength), parameter    :: shading_begin        = '<begin_shading>'
     character(LEN = StringLength), parameter    :: shading_end          = '<end_shading>'
+    character(LEN = StringLength), parameter    :: SW_Kd_2D_begin       = '<begin_SW_Kd_2D>'
+    character(LEN = StringLength), parameter    :: SW_Kd_2D_end         = '<end_SW_Kd_2D>'
+    
+    
 
     !T90 Calc Method
     integer, parameter                          :: Canteras             = 1
@@ -1089,6 +1096,7 @@ Module ModuleWaterProperties
         real, pointer, dimension(:,:,:)         :: LongWaveTop
         logical                                 :: Exists
         type       (T_Property_2D)              :: Shading
+        type       (T_Property_2D)              :: ShortWave_Kd_2D
     end type T_Radiation
 
     type       T_DischargeTimeSerie
@@ -5249,13 +5257,104 @@ do1 :   do while (associated(PropertyX))
 
         call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
         if (STAT_CALL  /= SUCCESS_) call CloseAllAndStop ('CoupleLightExtinction - ModuleWaterProperties - ERR130')
-
+        
+        call ConstructRadiationProp2D(Property_2D = Me%SolarRadiation%ShortWave_Kd_2D,  &
+                                      block_begin = SW_Kd_2D_begin,                     &
+                                      block_end   = SW_Kd_2D_end)
+        
+         if (Me%SolarRadiation%ShortWave_Kd_2D%ON) then
+        
+            call UpdateLightExtinctionSatellite(LightExtinctionID = Me%ObjLightExtinction,                    &
+                                                SatelliteKd2D     = Me%SolarRadiation%ShortWave_Kd_2D%Field,  &
+                                                STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('CoupleLightExtinction - ModuleWaterProperties - ERR140')        
+            
+        endif                        
+        
         Me%Coupled%LightExtinction%NextCompute = Me%ExternalVar%Now
 
     end subroutine CoupleLightExtinction
 
 
     !--------------------------------------------------------------------------
+
+    subroutine ConstructRadiationProp2D(Property_2D, block_begin, block_end)
+
+        !Arguments--------------------------------------------------------------
+        type (T_Property_2D)                            :: Property_2D
+        character(len=*)                                :: block_begin, block_end
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_CALL
+        integer                                         :: ILB, IUB, JLB, JUB, ClientNumber
+        logical                                         :: BlockFound       = .false.
+
+        !----------------------------------------------------------------------
+
+
+        ILB = Me%Size%ILB
+        IUB = Me%Size%IUB        
+        JLB = Me%Size%JLB
+        JUB = Me%Size%JUB        
+
+        Property_2D%ON  = .false.
+
+        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                      &
+                                    block_begin, block_end, BlockFound,                 &
+                                    STAT = STAT_CALL)
+        if (STAT_CALL  /= SUCCESS_) then
+            call CloseAllAndStop ('ConstructRadiationProp2D - ModuleWaterProperties - ERR10')
+        endif
+        
+        if(BlockFound)then
+
+            nullify (Property_2D%Field)
+            allocate(Property_2D%Field(ILB:IUB, JLB:JUB))
+
+            Property_2D%ON = .true.
+
+            call ConstructFillMatrix(PropertyID        = Property_2D%ID,                &
+                                     EnterDataID       = Me%ObjEnterData,               &
+                                     TimeID            = Me%ObjTime,                    &
+                                     HorizontalGridID  = Me%ObjHorizontalGrid,          &
+                                     ExtractType       = FromBlock,                     &
+                                     PointsToFill2D    = Me%ExternalVar%WaterPoints2D,  &
+                                     Matrix2D          = Property_2D%Field,             &
+                                     TypeZUV           = TypeZ_,                        &
+                                     ClientID          = ClientNumber,                  &
+                                     STAT              = STAT_CALL)
+            if (STAT_CALL  /= SUCCESS_) then
+                call CloseAllAndStop ('ConstructRadiationProp2D - ModuleInterfaceSedimentWater - ERR20')
+            endif                
+            
+            if (Property_2D%ID%SolutionFromFile) then
+                
+                Property_2D%Constant = .false. 
+                
+            else
+                
+                Property_2D%Constant = .true. 
+                
+                call KillFillMatrix(Property_2D%ID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL  /= SUCCESS_) then
+                    call CloseAllAndStop ('ConstructRadiationProp2D - ModuleWaterProperties - ERR40')
+                endif                    
+
+            endif        
+            
+            call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+            if (STAT_CALL  /= SUCCESS_) then
+                call CloseAllAndStop ('ConstructRadiationProp2D - ModuleWaterProperties - ERR50')
+            endif                
+
+        endif
+
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
+        if (STAT_CALL  /= SUCCESS_) call CloseAllAndStop ('ConstructRadiationProp2D - ModuleWaterProperties - ERR60')
+    
+    end subroutine ConstructRadiationProp2D
+    
+    !-----------------------------------------------------------------------------------
 
 
     subroutine CoupleWaterQuality
@@ -21608,7 +21707,7 @@ cd10:   if (CurrentTime > Me%SpecificHeat%LastActualization) then
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB, KUB
         integer                                     :: i, j, k, kbottom
-        real                                        :: LongWaveExtinctionCoef
+        real                                        :: LongWaveExtinctionCoef, SWCoef
         real                                        :: SWPercentage, LWPercentage
         integer                                     :: CHUNK
 
@@ -21628,16 +21727,32 @@ cd10:   if (CurrentTime > Me%SpecificHeat%LastActualization) then
 
         SurfaceRadiation => Me%ExtSurface%SurfaceRadiation
 
-        call Compute_SWExtCoefField
+        if (Me%SolarRadiation%ShortWave_Kd_2D%ON) then                                   
+            if (.not.Me%SolarRadiation%ShortWave_Kd_2D%Constant) then                           
+                call ModifyFillMatrix (FillMatrixID   = Me%SolarRadiation%ShortWave_Kd_2D%ID%ObjFillMatrix, &
+                                       Matrix2D       = Me%SolarRadiation%ShortWave_Kd_2D%Field,            &
+                                       PointsToFill2D = Me%ExternalVar%WaterPoints2D,                       &
+                                       STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR10')
+            
+                call UpdateLightExtinctionSatellite(LightExtinctionID = Me%ObjLightExtinction,                    &
+                                                    SatelliteKd2D     = Me%SolarRadiation%ShortWave_Kd_2D%Field,  &
+                                                    STAT              = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR20')
+            endif                            
+        else            
+            call Compute_SWExtCoefField
+        endif                
 
+            
         call GetShortWaveExtinctionField(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR02')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR30')       
 
         call GetLongWaveExtinctionCoef(Me%ObjLightExtinction, LongWaveExtinctionCoef,STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR03')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR40')
 
         call GetRadiationPercentages(Me%ObjLightExtinction, SWPercentage, LWPercentage, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR04')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR50')
 
         CHUNK = CHUNK_J(JLB, JUB)
 
@@ -21654,6 +21769,16 @@ do3 :   do i = ILB, IUB
 cd1 :       if (Me%ExternalVar%WaterPoints3D(i, j, KUB) == WaterPoint) then
 
                 kbottom = Me%ExternalVar%KFloor_Z(i, j)
+                
+                if (Me%SolarRadiation%ShortWave_Kd_2D%ON) then  
+                
+                    SWCoef = ShortWaveExtinctionField(i,j,KUB)
+                
+                    SWPercentage           = SWPercentage_PaulsonSimpson1977 (SWCoef)
+                    LWPercentage           = 1. - SWPercentage
+                    LongWaveExtinctionCoef = LWCoef_PaulsonSimpson1977       (SWCoef)
+                    
+                endif                    
 
                 SWRadiation(i, j, KUB) = SurfaceRadiation(i, j) * SWPercentage
                 LWRadiation(i, j, KUB) = SurfaceRadiation(i, j) * LWPercentage
@@ -21714,7 +21839,7 @@ do9:                do k=kbottom, KUB
         endif
 
         call UnGetLightExtinction(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR04')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR60')
 
         !Nullify auxiliar variables
         nullify(SWRadiation)
@@ -26695,7 +26820,22 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
             if (STAT_CALL .NE. SUCCESS_)call CloseAllAndStop ('KillSolarRadiation - ModuleWaterProperties - ERR50')
             nullify    (Me%SolarRadiation%Shading%Field)
         endif
-
+        
+        if (Me%SolarRadiation%ShortWave_Kd_2D%ON) then
+            
+            deallocate(Me%SolarRadiation%ShortWave_Kd_2D%Field,  STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)call CloseAllAndStop ('KillSolarRadiation - ModuleWaterProperties - ERR60')
+            nullify    (Me%SolarRadiation%ShortWave_Kd_2D%Field)
+            
+            if (.not.Me%SolarRadiation%ShortWave_Kd_2D%Constant) then
+                
+                call KillFillMatrix(Me%SolarRadiation%ShortWave_Kd_2D%ID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL  /= SUCCESS_) then
+                    call CloseAllAndStop ('KillSolarRadiation - ModuleWaterProperties - ERR70')
+                endif                  
+                
+            endif                
+        endif
 
     end subroutine KillSolarRadiation
 
