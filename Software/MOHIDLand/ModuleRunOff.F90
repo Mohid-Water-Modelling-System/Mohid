@@ -303,7 +303,7 @@ Module ModuleRunOff
 
     type     T_FromTimeSerie
         integer                                     :: ObjTimeSerie         = 0
-        character(len=StringLength)                 :: FileName             = null_str
+        character(len=PathLength)                   :: FileName             = null_str
         integer                                     :: DataColumn           = null_int
     end type T_FromTimeSerie
     
@@ -728,7 +728,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         type(T_PropertyID)                          :: NumberOfStormWaterNodesID
         type(T_PropertyID)                          :: StreetGutterLengthID
         integer                                     :: ObjEnterDataGutterInteraction = 0
-        character(len=StringLength)                 :: InitializationMethod, Filename, MappingFileName
+        character(len=StringLength)                 :: InitializationMethod
+        character(len=PathLength)                   :: Filename, MappingFileName
         character(len=StringLength)                 :: StormWaterGutterRegExpression, StormWaterGutterRegExpressionFromGD
         integer                                     :: iflag, ClientNumber, FoundSWMMRegExpression
         logical                                     :: BlockFound
@@ -1899,7 +1900,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     
         !Arguments-------------------------------------------------------------
 
-        character(len=StringLength)                 :: filename
+        character(len=PathLength)                   :: filename
         !Local----------------------------------------------------------------
         integer                                     :: mapping1DObjEnterData, ClientNumber, STAT_CALL
         integer                                     :: iflag
@@ -3978,7 +3979,7 @@ do4:            do di = -1, 1
         integer                                             :: nProperties
         integer                                             :: STAT_CALL
         integer                                             :: iflag
-        character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=PathLength)                           :: TimeSerieLocationFile
         integer                                             :: TimeSerieNumber, dn, Id, Jd
         real                                                :: CoordX, CoordY
         logical                                             :: CoordON, IgnoreOK
@@ -11264,7 +11265,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 
         !Local-------------------------------------------------------------------
         integer                             :: STAT_, nUsers, STAT_CALL, dis   
-        character(len=StringLength)         :: MassErrorFile
+        character(len=PathLength)           :: MassErrorFile
         logical                             :: IsFinalFile
         !------------------------------------------------------------------------
 
