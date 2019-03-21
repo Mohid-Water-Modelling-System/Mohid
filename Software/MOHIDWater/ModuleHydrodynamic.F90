@@ -147,10 +147,10 @@ Module ModuleHydrodynamic
                                        ReturnsIntersectionCorners,                       &
                                        GetGridOutBorderPolygon,                          &
                                        GetDDecompWorkSize2D, WriteHorizontalGrid_UV,     &
-                                       GetCellRotation, GetGridCellArea
+                                       GetCellRotation, GetGridCellArea, GetConnections
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
                                        AllocateTwoWayAux, PrepTwoWay, UngetTwoWayExternal_Vars, &
-                                       ConstructUpscalingDischarges GetUpscalingDischarge
+                                       ConstructUpscalingDischarges
 #ifdef _USE_MPI
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
@@ -469,6 +469,7 @@ Module ModuleHydrodynamic
     private ::          ReadLockSon
     private ::          ReadUnLockSon
     private ::      ActualizeSon3DWithFather3D
+    private ::      Set_Upscaling_Discharges
     public  :: SetHydrodynamicManning
     public  :: SetHydrodynamicChezy
     public  :: SetHydrodynamicRugosityMatrix
@@ -10020,7 +10021,7 @@ i2:          if (DischargesID == 0) then
 d1:             do dn = 1, DischargesNumber
 
                     if (IsUpscaling(Me%ObjDischarges, dn))then
-                        if (Me%ComputeOptions%MomentumDischarge == .false.)then
+                        if (Me%ComputeOptions%MomentumDischarge)then
                             write(*,*) 'If an upscaling discharge is set, then keyword MOMENTUM_DISCHARGE must be'
                             write(*,*) 'active in module Hydrodynamic.dat'
                             stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR40'
@@ -10438,7 +10439,7 @@ i7:             if (.not. ContinuousGOTM)  then
         ToAllocate = .true. !Flag to indicate that the code should only find the matrixes size for allocation
         
         call GetDischargesNumber(FatherID, DischargesNumber, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Set_Upscaling_Discharges - Failed to get number of discharges'
+        if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get number of discharges'
         call GetConnections(SonID, Connections_Z = Connections, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Connections matrix'
         call GetWaterPoints2D(SonID, SonWaterPoints2D, STAT = STAT_CALL)
@@ -10451,35 +10452,26 @@ i7:             if (.not. ContinuousGOTM)  then
             if (IsUpscaling(FatherID, DischargeID))then
 
                 call GetDischargesGridLocalization(FatherID, DischargeID, Igrid = I, JGrid = J, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Discharge location - ERR01'
+                if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Discharge location'
 
-                call ConstructUpscalingDischarges(FatherID, SonID, I, J, Connections, SonWaterPoints2D, &
+                call ConstructUpscalingDischarges(SonID, I, J, Connections, SonWaterPoints2D, &
                                                   FatherWaterPoints2D, ToAllocate) !Managed by ModuleTwoWay
             endif
 
         enddo
         
         ToAllocate = .false.
-        
-        do DischargeID = 1, DischargesNumber
 
-            if (IsUpscaling(FatherID, DischargeID))then
+        call ConstructUpscalingDischarges(SonID, I, J, Connections, SonWaterPoints2D, &
+                                            FatherWaterPoints2D, ToAllocate) !Managed by ModuleTwoWay
 
-                call GetDischargesGridLocalization(FatherID, DischargeID, Igrid = I, JGrid = J, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Discharge location - ERR02'
-
-                call ConstructUpscalingDischarges(FatherID, SonID, I, J, Connections, SonWaterPoints2D, &
-                                                  FatherWaterPoints2D, ToAllocate) !Managed by ModuleTwoWay
-            endif
-
-        enddo
         
         call UnGetHorizontalGrid(SonID, Connections, STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget Connections matrix'
         call UnGetHorizontalMap(SonID, SonWaterPoints2D, STAT = STAT_CALL)
-        if (status /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget SonWaterPoints2D' 
+        if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget SonWaterPoints2D' 
         call UnGetHorizontalMap(FatherID, FatherWaterPoints2D, STAT = STAT_CALL)
-        if (status /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget FatherWaterPoints2D'
+        if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget FatherWaterPoints2D'
 
     end subroutine Set_Upscaling_Discharges
     !------------------------------------------------------------------------------------------------------------------
