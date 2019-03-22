@@ -6513,7 +6513,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                 V = Me%FlowYOld(i,j)/Me%AreaV(i,j)
                 
                 !Me%VelModFaceV(i, j) = sqrt(V**2.0 + Uaverage**2.0)
-                Me%VelModFaceU(i, j) = abs(cmplx(Uaverage, V))
+                Me%VelModFaceV(i, j) = abs(cmplx(Uaverage, V))
                 
             endif
 
