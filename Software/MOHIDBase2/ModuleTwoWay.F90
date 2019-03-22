@@ -126,8 +126,8 @@ Module ModuleTwoWay
     private :: T_Discharges
     type       T_Discharges
         integer, dimension(:, :), allocatable       :: U, V
-        integer                                     :: n_U = 0
-        integer                                     :: n_V = 0
+        integer                                     :: n_U = 0, n_V = 0
+        integer                                     :: Current_U = 0, Current_V = 0
     end type T_Discharges
     
 
@@ -460,45 +460,55 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     ! ------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !> Searches and sets discharge faces of father cell, and provides it to the son domain
-    !>@param[in] FatherTwoWayID, TwoWayID    
+    !> Searches and sets discharge faces of father cell, and finds son cells to use in upscaling
+    !>@param[in] SonID, dI, dJ, Connections, SonWaterPoints, FatherWaterPoints, IZ, JZ, Task   
     subroutine ConstructUpscalingDischarges(SonID, dI, dJ, Connections, SonWaterPoints, FatherWaterPoints, &
-                                            ToAllocate)
+                                            IZ, JZ, Task)
         !Arguments-------------------------------------------------------------
         integer, intent(IN)                           :: SonID, dI, dJ !dI & dJ = Cell discharge location
-        logical, intent(IN)                           :: ToAllocate
+        integer, intent(IN)                           :: Task
         integer,  dimension(:,:), pointer, intent(IN) :: Connections, SonWaterPoints, FatherWaterPoints
+        integer, dimension(:,:), pointer, intent(IN)  :: IZ, JZ!Connection between a Z son cell(i, j) and its father &
+                                                               !Z cell I/J component
         !Local-----------------------------------------------------------------
-        integer                                       :: ready_, STAT_CALL
-        integer, dimension(:,:), pointer              :: IZ, JZ !Connection between a Z son cell(i, j) and its father &
-                                                                !Z cell I/J component
+        integer                                       :: ready_, STAT_CALL, ID
         !----------------------------------------------------------------------
         call Ready (SonID, ready_)
         
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            call GetHorizontalGrid (HorizontalGridID = SonID, ILinkZ = IZ, JLinkZ = IZ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructUpscalingDischarges - Failed to get ILinkZ or JLinkZ'
-            
-            if (ToAllocate) then
+            if (Task == 1) then !find number of lines to allocate
                 call SearchDischargeFace(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, &
-                                         Me%DischargeCells%n_U, Me%DischargeCells%n_V, IZ, JZ)
-            else
+                                         IZ, JZ, Me%DischargeCells%n_U, Me%DischargeCells%n_V)
+            elseif (Task == 2) then ! allocate
+                
                 if (Me%DischargeCells%n_U > 0) allocate (Me%DischargeCells%U(Me%DischargeCells%n_U,  4))
+
                 if (Me%DischargeCells%n_V > 0) allocate (Me%DischargeCells%V(Me%DischargeCells%n_V,  4))
+                
+                if (Me%DischargeCells%n_U == 0) then
+                    if (Me%DischargeCells%n_V == 0) then
+                        stop 'ConstructUpscalingDischarges - Found no connected son cells for upscaling discharge'                  
+                    endif
+                endif
+            else ! Fill upscaling matrixes which have the son cells need to be included in the calculation
+                
+                if (Me%DischargeCells%n_U > 0) then
+                    ID = 1 !Vel U
+                    call UpsDischargesLinks(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, IZ, JZ, ID, &
+                                            tracer = Me%DischargeCells%Current_U, Cells = Me%DischargeCells%U)
+                endif
+                
+                if (Me%DischargeCells%n_V > 0) then
+                    ID = 2 ! Vel V
+                    call UpsDischargesLinks(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, IZ, JZ, ID, &
+                                            tracer = Me%DischargeCells%Current_V, Cells = Me%DischargeCells%V)
+                endif
+                
                 !these are the link matrixes between a Father discharge cell and its corresponding Son cells which 
                 !should be considered in the calculation of velocities and flow.
             endif
-            
-            !Esta routina searchDischarge vai actualizando estas matrizes. A melhor forma parece-me ser: calcular tudo
-            !uma vez e registar o número de linhas a alocar. Correr uma segunda vez já com a matriz do tamanho certo.
-            !No modify sao percorridas estas matrizes e alteradas as mattrizes das velocidades de descarga e do caudal.
-            
-            call UngetHorizontalGrid(SonID, IZ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructUpscalingDischarges - Failed to unget ILinkZ'
-            call UngetHorizontalGrid(SonID, JZ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructUpscalingDischarges - Failed to unget JLinkZ'
             
         else  
             stop 'Construct_Upscaling_Discharges - ModuleTwoWay -  Failed ready function'               

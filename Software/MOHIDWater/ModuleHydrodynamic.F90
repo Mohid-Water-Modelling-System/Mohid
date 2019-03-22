@@ -10432,11 +10432,12 @@ i7:             if (.not. ContinuousGOTM)  then
         integer,           intent(IN )              :: FatherID, SonID
         !Local-----------------------------------------------------------------
         integer                                     :: DischargeID, I, J, DischargesNumber, STAT_CALL
-        logical                                     :: ToAllocate
+        integer                                     :: Task
         integer,  dimension(:,:), pointer           :: Connections, SonWaterPoints2D, FatherWaterPoints2D
+        integer, dimension(:,:), pointer            :: IZ, JZ
         !----------------------------------------------------------------------
 
-        ToAllocate = .true. !Flag to indicate that the code should only find the matrixes size for allocation
+        Task = 1 !Flag to indicate that the code should only find the matrixes size for allocation
         
         call GetDischargesNumber(FatherID, DischargesNumber, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get number of discharges'
@@ -10446,6 +10447,8 @@ i7:             if (.not. ContinuousGOTM)  then
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Son waterpoints'
         call GetWaterPoints2D(FatherID, FatherWaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Father waterpoints'
+        call GetHorizontalGrid (HorizontalGridID = SonID, ILinkZ = IZ, JLinkZ = IZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructUpscalingDischarges - Failed to get ILinkZ or JLinkZ'
 
         do DischargeID = 1, DischargesNumber
 
@@ -10455,23 +10458,41 @@ i7:             if (.not. ContinuousGOTM)  then
                 if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Discharge location'
 
                 call ConstructUpscalingDischarges(SonID, I, J, Connections, SonWaterPoints2D, &
-                                                  FatherWaterPoints2D, ToAllocate) !Managed by ModuleTwoWay
+                                                  FatherWaterPoints2D, IZ, JZ, Task) !Managed by ModuleTwoWay
             endif
 
         enddo
         
-        ToAllocate = .false.
+        Task = 2 ! Allocate upscaling matrixes
 
         call ConstructUpscalingDischarges(SonID, I, J, Connections, SonWaterPoints2D, &
-                                            FatherWaterPoints2D, ToAllocate) !Managed by ModuleTwoWay
-
+                                            FatherWaterPoints2D, IZ, JZ, Task) !Managed by ModuleTwoWay
         
-        call UnGetHorizontalGrid(SonID, Connections, STAT_CALL)
+        Task = 3 ! Fill connection matrixes
+        
+        do DischargeID = 1, DischargesNumber
+
+            if (IsUpscaling(FatherID, DischargeID))then
+
+                call GetDischargesGridLocalization(FatherID, DischargeID, Igrid = I, JGrid = J, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Discharge location'
+
+                call ConstructUpscalingDischarges(SonID, I, J, Connections, SonWaterPoints2D, &
+                                                  FatherWaterPoints2D, IZ, JZ, Task) !Managed by ModuleTwoWay
+            endif
+
+        enddo        
+        
+        call UnGetHorizontalGrid(SonID,    Connections,         STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget Connections matrix'
-        call UnGetHorizontalMap(SonID, SonWaterPoints2D, STAT = STAT_CALL)
+        call UnGetHorizontalMap (SonID,    SonWaterPoints2D,    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget SonWaterPoints2D' 
-        call UnGetHorizontalMap(FatherID, FatherWaterPoints2D, STAT = STAT_CALL)
+        call UnGetHorizontalMap (FatherID, FatherWaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget FatherWaterPoints2D'
+        call UngetHorizontalGrid(SonID,    IZ,                  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget ILinkZ'
+        call UngetHorizontalGrid(SonID,    JZ,                  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget JLinkZ'
 
     end subroutine Set_Upscaling_Discharges
     !------------------------------------------------------------------------------------------------------------------
