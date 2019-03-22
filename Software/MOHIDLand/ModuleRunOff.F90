@@ -1907,9 +1907,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                     :: mapping1DObjEnterData, ClientNumber, STAT_CALL
         integer                                     :: iflag
         type(T_NodeGridPoint), pointer              :: NewNodeGridPoint, NodeGridPointFlux
-        type(T_BankGridPoint), pointer              :: NewBankGridPoint, BankGridPointFlux, BankGridPointUp, BankGridPointDown
+        type(T_BankGridPoint), pointer              :: NewBankGridPoint, BankGridPointFlux
         type(T_MarginGridPoint), pointer            :: NewMarginGridPoint
-        logical                                     :: BlockFound, FoundFlux, FoundUp, FoundDown
+        logical                                     :: BlockFound, FoundFlux
         !Begin----------------------------------------------------------------    
     
         
@@ -8707,10 +8707,10 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !Arguments-------------------------------------------------------------
         
         !Local-----------------------------------------------------------------
-        logical                                     :: FoundBankGridPoint
-        integer                                     :: STAT_CALL
-        real                                        :: Flow, lowestValue
-        type(T_BankGridPoint), pointer              :: BankGridPoint
+        !logical                                     :: FoundBankGridPoint
+        !integer                                     :: STAT_CALL
+        real                                        :: Flow
+        !type(T_BankGridPoint), pointer              :: BankGridPoint
         type(T_MarginGridPoint), pointer            :: MarginGridPoint
         integer                                     :: i, j, itarget, jtarget
         real                                        :: RiverLevel
@@ -8801,28 +8801,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
     
     
     
-    !--------------------------------------------------------------------------
-    !Same as 6 but with new mapping that is inependetn on 1D model used (e.g. Drainage Network or SWMM)
-    subroutine ComputeOverLandChannelFlow(i, j, RiverLevel, itarget, jtarget)
-
-        !Arguments-------------------------------------------------------------
-        integer                                     :: i, j, itarget, jtarget
-        real                                        :: RiverLevel
-        !Local-----------------------------------------------------------------
-
-        integer                                     :: STAT_CALL
-        integer                                     :: BoundaryFaces
-        real                                        :: Flow, lowestValue
-        real                                        :: dh, CellWidth, FluxWidth, Area, sign
-
-        
-
-                    
-                       
-      
-
-    end subroutine ComputeOverLandChannelFlow    
-    
+ 
     
     
     !--------------------------------------------------------------------------
@@ -8837,8 +8816,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB, STAT_CALL
-        integer                                     :: lowestI, lowestJ, di, dj
-        real                                        :: Flow, lowestValue
+        real                                        :: Flow
         real   , dimension(:, :), pointer           :: ChannelsVolume
         real   , dimension(:, :), pointer           :: ChannelsMaxVolume
         real   , dimension(:, :), pointer           :: ChannelsWaterLevel 
