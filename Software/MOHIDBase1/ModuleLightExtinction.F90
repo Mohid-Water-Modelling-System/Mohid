@@ -73,6 +73,7 @@ Module ModuleLightExtinction
     private ::          Compute_Combined_ParsonsPortela
     private ::          Compute_Multiparameters
     private ::      ComputeLongWaveExtinction
+    public  :: UpdateLightExtinctionSatellite
 
     !Destructor
     public  :: KillLightExtinction                                                     
@@ -1023,6 +1024,41 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine ModifyLightExtinctionField3D
 
     !----------------------------------------------------------------------
+                                            
+    subroutine UpdateLightExtinctionSatellite(LightExtinctionID, SatelliteKd2D, STAT)
+
+        !Arguments-------------------------------------------------------------
+        integer                                       :: LightExtinctionID
+        real,       dimension(:,:), pointer, optional :: SatelliteKd2D
+        integer, intent(OUT),                optional :: STAT
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_, ready_, k
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(LightExtinctionID, ready_)
+
+        if (ready_ .EQ. IDLE_ERR_) then
+            
+            
+            do k = Me%WorkSize%KLB, Me%WorkSize%KUB 
+                Me%ShortWave%ExtinctionCoefField3D(:,:,k) = SatelliteKd2D(:,:)
+            enddo                
+
+            STAT_ = SUCCESS_
+        else               
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine UpdateLightExtinctionSatellite
+
+    !----------------------------------------------------------------------
+                                            
 
     subroutine ComputeShortWaveExtinction
 

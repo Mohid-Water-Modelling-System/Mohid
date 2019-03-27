@@ -1,0 +1,193 @@
+DTSECONDS     : 3600.
+
+NITROGEN      : 1
+PHOSPHOR      : 1
+PHYTO         : 1
+ZOO           : 1
+LARVAE        : 0
+AGE           : 0       
+OXYGEN        : 1
+BOD           : 0
+DIATOMS       : 0
+SILICA        : 0
+BACTERIA      : 0
+CILIATE       : 0
+BOD           : 0
+
+EXPLICIT      : 1
+IMPLICIT      : 0
+SEMIIMP       : 0
+
+-----------------------------FITOPLANKTON--------------------------------------------------------
+GROWMAXF      : 2.0     !2.0     Phytoplankton Maximum gross growth rate 
+FENDREPC      : 0.0175  !0.0175  Endogenous respiration constant for phytoplankton
+PHOTORES      : 0.125   !0.125  Fraction of actual photosynthesis which is oxidized by photorespiration for phytoplankton
+EXCRCONS      : 0.07    !0.07    Excretion Constant for phytoplankton
+FMORTMAX      : 0.02    !0.02    Maximum Mortality Rate for phytoplankton
+FMORTCON      : 0.3     !0.3     Mortality half-saturation rate for phytoplankton
+ASS_EFIC      : 0.5     !0.8     Assimilation efficiency of the phytoplankton by zooplankton 
+NSATCONS      : 0.014   !0.014   Nitrogen half-saturation constant for phytoplankton
+PSATCONS      : 0.001   !0.001   Phosphorus half-saturation constant for phytoplankton
+PHOTOIN       : 121     !121     Optimum light intensity for phytoplankton photosynthesis
+TOPTFMIN      : 10.     !25      Minimum temperature of the optimal interval for phytoplankton photosynthesis
+TOPTFMAX      : 25.     !26.5    Maximum temperature of the optimal interval for phytoplankton photosynthesis
+TFMIN         : 5.      !4       Minimum tolerable temperature for phytoplankton photosynthesis
+TFMAX         : 35.     !37      Maximum tolerable temperature for phytoplankton photosynthesis
+TFCONST1      : 0.05    !0.05    Constant to control temperature response curve shape on phytoplankton
+TFCONST2      : 0.98    !0.98    Constant to control temperature response curve shape on phytoplankton
+TFCONST3      : 0.98    !0.98    Constant to control temperature response curve shape on phytoplankton
+TFCONST4      : 0.02    !0.02    Constant to control temperature response curve shape on phytoplankton
+FRATIONC      : 0.18    !0.18    Phytoplankton Nitrogen/Carbon Ratio
+FRATIOPC      : 0.024   !0.024   Phytoplankton Phosphorus/Carbon Ratio
+FSOLEXCR      : 0.4     !0.25    Fraction of soluble inorganic material excreted  by phytoplankton
+FDISSDON      : 0.5     !0.25    Fraction of dissolved organic material excreted  by phytoplankton
+                   
+----------------------DIATOMS-------------------------------------------------
+DIGROWMAX     : 3.      !3.      Diatoms Maximum gross growth rate
+DIFENDREPC    : 0.0175  !0.0175  Diatoms Endogenous respiration constant
+DIPHOTORES    : 0.125   !0.0125  Fraction of actual photosynthesis which is oxidized by photorespiration for Diatoms
+DIEXCRCONS    : 0.07    !0.08    Diatoms Excretion Constant 
+DIMORTMAX     : 0.02    !0.03    Maximum Mortality Rate for Diatoms
+DIMORTCON     : 0.3     !0.3     Half-saturation for mortality for Diatoms
+DIASS_EFIC    : 0.8     !0.8     Assimilation efficiency of Diatoms by zooplankton
+DINSATCONS    : 0.015   !0.015   Nitrogen half-saturation constant for Diatoms
+DIPSATCONS    : 0.002   !0.002   Phosphorus half-saturation constant for Diatoms
+DISISATCONS   : 0.08    !0.08    Silicate half-saturation constant for Diatoms
+DIPHOTOIN     : 121     !121     Optimum light intensity for Diatoms photosynthesis
+DITOPTMIN     : 8.      !25      Minimum temperature of the optimal interval for Diatoms photosynthesis
+DITOPTMAX     : 10.     !26.5    Maximum temperature of the optimal interval for Diatoms photosynthesis
+DITMIN        : 4       !4       Minimum tolerable temperature for Diatoms growth
+DITMAX        : 37      !37      Maximum tolerable temperature for Diatoms growth
+DITCONST1     : 0.1     !0.1    Constant to control temperature response curve shape on Diatoms
+DITCONST2     : 0.98    !0.98    Constant to control temperature response curve shape on Diatoms
+DITCONST3     : 0.98    !0.98    Constant to control temperature response curve shape on Diatoms
+DITCONST4     : 0.02    !0.02    Constant to control temperature response curve shape on Diatoms
+DIRATIONC     : 0.18    !0.18    Diatoms Nitrogen/Carbon Ratio
+DIRATIOPC     : 0.024   !0.024   Diatoms Phosphorus/Carbon Ratio
+DIRATIOSIC    : 0.6     !0.6     Diatoms Silica/Carbon Ratio
+DISOLEXCR     : 0.4     !0.4    Fraction of soluble inorganic material excreted  by Diatoms
+DIDISSDON     : 0.5     !0.5    Fraction of dissolved organic material excreted  by Diatoms
+
+-----------------------ZOOPLANKTON-----------------------------------------------
+GROWMAXZ      : 0.3     !0.3     Zooplankton Maximum gross growth rate 
+ZRATIONC      : 0.15    !0.15    Zooplankton Nitrogen/Carbon Ratio
+ZRATIOPC      : 0.024   !0.024   Zooplankton Phosphorus/Carbon Ratio
+ZSOLEXCR      : 0.4     !0.4     Soluble inorganic fraction on the zooplankton excretions
+ZDISSDON      : 0.5     !0.5     Dissolved organic fraction excreted  by zooplankton
+TOPTZMIN      : 10.     !24.8    Minimum temperature of the optimal interval for zooplankton growth
+TOPTZMAX      : 25.     !25.1    Maximum temperature of the optimal interval for zooplankton growth
+TZMIN         : 5.      !5       Minimum temperature zooplankton growth
+TZMAX         : 35.     !35      Minimum temperature of the optimal interval for zooplankton growth
+TZCONST1      : 0.05    !0.05    Constant to control temperature response curve shape 
+TZCONST2      : 0.98    !0.98    Constant to control temperature response curve shape 
+TZCONST3      : 0.98    !0.98    Constant to control temperature response curve shape 
+TZCONST4      : 0.02    !0.02    Constant to control temperature response curve shape 
+ZREFRESP      : 0.02    !0.02    Rate of zooplankton consumption of Carbon by respiration and non-predatory mortality
+IVLEVCON      : 13.     !1.6     Ivlev grazing constant
+ZPREDMOR      : 0.0077  !0.0077  Zooplankton predatory mortality rate: predation by higher trophic levels
+ZOOPREYMIN    : 0.0045  !0.0045  Minimum prey concentration for zooplankton grazing
+GRAZCILMIN    : 0.0045  !0.0045  Minimum Ciliates concentration for zooplankton grazing
+GRAZFITOMIN   : 0.0045  !0.0045  Minimum Phytoplankton concentration for zooplankton grazing
+DIGRAZMIN     : 0.0045  !0.0045  Diatoms Minimum concentration for predation
+ZEXCFAC       : 0.02    !0.02    Zooplankton Excretion Rate at 0º
+ZEXCCONS      : 1.0305  !1.0305  Constant for zooplankton excretion curve
+MORTZCOEF     : 0.0     !0.0     Constant for zooplankton mortality curve
+MINMORTZ      : 0.001   !0.0     Minimum Rate for Zooplankton Natural Mortality
+MAXMORTZ      : 0.04    !0.04    Maximum Rate for Zooplankton Natural Mortality
+INGCONSZ      : 0.85    !0.85    Half-Saturation Constant for Grazing
+ZOOEFFCAPHY   : 0.8     !0.8     Capture Efficiency of phytoplankton by Zooplankton
+ZOOEFFCAPCIL  : 0.2     !0.2     Capture Efficiency of Ciliates by Zooplankton
+DIZOOEFFCAP   : 0.8     !0.8     Capture efficiency of diatoms by zooplankton
+ZINGMAX       : 2.      !2.      Zooplankton maximum ingestion rate
+ZOPHYASS      : 0.8     !0.8     Assimilation Coefficient of Phyto by zoo
+ZOCILASS      : 0.8     !0.8     Assimilation Coefficient of Ciliates  by Zooplankton
+DIZOASS       : 0.8     !0.8     Assimilation Coefficient of Diatoms by zooplankton
+PHYRATING     : 1.0     !0.3     Proportion of phytoplankton in zooplankton ingestion
+CILRATINGZOO  : 0.0     !0.3     Proportion of ciliates in zooplankton ingestion
+DIRATINGZOO   : 0.0     !0.3     Proportion of Diatoms in mesozooplankton ingestion
+                        
+----------------------------CILIATES----------------------------------------------------
+CRATIONC      : 0.16    !0.16    Ciliates Nitrogen/Carbon Ratio
+CRATIOPC      : 0.024   !0.024    Ciliates Phosphorus/Carbon Ratio
+GRAZBACMIN    : 0.0045  !0.045   Minimum concentration of bacteria for ciliates grazing
+CILGRAZPHYMIN : 0.0045  !0.045   Minimum concentration of pytoplankton for ciliates grazing
+CILPREYMIN    : 0.0045  !0.045   Minimum concentration of prey for ciliates grazing
+CREFRESP      : 0.02    !0.02   Ciliates respiration rate at the reference temperature
+CEXCFAC       : 0.02    !0.02    Ciliates Excretion Rate 
+CEXCCONS      : 1.03505 !1.03505 Constant for Ciliates excretion curve
+MORTCICOEF    : 0.      !0       Constant for Ciliates mortality curve
+MINMORTCI     : 0.      !0       Minimum Rate for Ciliates Natural Mortality
+MAXMORTCI     : 0.044   !0.044   Maximum Rate for Ciliates Natural Mortality
+INGCONSC      : 0.85    !0.85    Half-Saturation Constant for CiliatesGrazing
+CILEFFCAPBA   : 0.5     !0.5     Capture efficiency of bacteria by Ciliates
+CILEFFCAPPHY  : 0.5     !0.5     Capture efficiency of phytoplankton by Ciliates
+CINGMAX       : 1.      !2.      Ciliates maximum ingestion rate
+CILBACASS     : 0.5     !0.5     Assimilation Coefficient of bacterias  by ciliates 
+CILPHYASS     : 0.5     !0.5     Assimilation Coefficient of phytoplankton by ciliates 
+BACINGCIL     : 0.5     !0.5     Proportion of bacteria in ciliates ingestion
+PHYINGCIL     : 0.5     !0.5     Proportion of phytoplankton in ciliates ingestion
+ 
+-----------------------BACTERIA-------------------------------------------------------
+BRATIONC      : 0.2     !0.2     Bacteria Nitrogen/Carbon Ratio
+NATMORB       : 0.1     !0.1     Bacteria Natural Mortality Rate 
+BARESPCO      : 0.01    !0.01     Bacteria Excretion Rate
+BMAXUPTA      : 0.25    !0.25    Bacteria Maximum Nutrient Uptake at the reference temperature
+BACMINSUB     : 0.01    !0.01    Bacteria Minimum Substract Concentration for uptake
+BACNCONS      : 0.0008  !0.0008  Half-Saturation constant for nutrient uptake
+TOPTBMIN      : 24.8    !24.8    Minimum temperature of the optimal interval for bacteria growth
+TOPTBMAX      : 25.1    !25.1    Maximum temperature of the optimal interval for bacteria growth
+TBMIN         : 5       !5       Minimum temperature for bacteria growth
+TBMAX         : 35      !35      Maximum temperature for bacteria growth
+TBCONST1      : 0.05    !0.05    Constant to control temperature response curve shape on bacteria
+TBCONST2      : 0.98    !0.98    Constant to control temperature response curve shape on bacteria
+TBCONST3      : 0.98    !0.98    Constant to control temperature response curve shape on bacteria
+TBCONST4      : 0.02    !0.02    Constant to control temperature response curve shape on bacteria
+
+--------------BOD----------------------------------------
+BODCOEF       : 1.047   !1.047  BOD oxidation coefficient
+BODREF        : 0.18    !0.18   Reference BOD oxidation
+BODOSSAT      : 0.5     !0.5    Oxygen limitation half-saturation constant
+    
+----------------NITROGEN---------------------------------------------
+NOPREF        : 0.1     !0.1     PON decomposition Rate at reference temperature
+NOPCOEF       : 1.02    !1.02    PON decomposition temperature coefficient
+NMINR         : 0.01    !0.01    DONre mineralization Rate at reference temperature
+TMINR         : 1.02    !1.02    DONre minreralization temperature coefficient
+NITRIREF      : 0.06    !0.06    Nitrification Rate at reference temperature
+NITSATCO      : 2.      !2       Nitrification half-saturation constant
+DENSATCO      : 0.1     !0.1     Denitrification half-saturation constant
+TNITCOEF      : 1.08    !1.08    Nitrification temperature coefficient
+DENITREF      : 0.125   !0.125   Denitrification Rate at reference temperature
+TDENCOEF      : 1.046   !1.045   Denitrification temperature coefficient
+NMINENR       : 0.1     !0.1     DONnr mineralization Rate at reference temperature
+TMINNR        : 1.02    !1.02    DONnrminreralization temperature coefficient
+
+------------------PHOSPHORUS---------------------------------------
+PPARTMIN      : 0.2     !0.03    POP mineralization Rate at reference temperature
+TPPARTMINCOEF : 1.08    !1.08    POP Mineralization temperature coefficient
+PMINR         : 0.03    !0.03    DOPre mineralization Rate at reference temperature
+PMINRCOEF     : 1.064   !1.064   DOPre minreralization temperature coefficient
+PMINNR        : 0.1     !0.1     DOPnr mineralization Rate at reference temperature
+PMINNRCOEF    : 1.064   !1.064   DOPnr minreralization temperature coefficient
+
+------------------PHOSPHORUS Or. NITROGEN---------------------------------------
+FREGSATC      : 1       !1       Nutrient Regeneration Half-Saturation Constant
+PHDECOMP      : 0.7     !0.5     Fraction of PON available for mineralization
+
+--------------SILICA----------------------------------------
+SIKDISS       :  0.03    !0.02    Biogenic Sílica dissolution Rate in the Water column at the reference temperature
+SIDISSTCOEF   : 1.02    !1.02    Biogenic Silica dissolution temperature coefficient
+
+
+--------------OXYGEN----------------------------------------
+OCRATIO       : 2.67    !32/12   Oxygen/Carbon Ratio in CO2
+PHOTOSOC      : 2.67    !32/12   Photosynthesis Oxygen/Carnon Ratio
+NITONRAT      : 3.43    !48/14   Oxygen/Nitrogen ratio in Nitrate
+PHOSOPRAT     : 2.06    !64/31   Oxygen/Nitrogen ratio in Phosphate
+PLANK_OC_RAT  : 2.67    !32/12   Plankton Oxygen/Carbon Ratio
+ZOCRATIO      : 2.67    !32/12   Mesozooplankton respiration O:C Ratio
+CILOCRATIO    : 2.67    !32/12   Microzooplankton respiration O:C Ratio
+BACTRATIOOC   : 1.4     !1.4     Bacteria Oxygen/Carbon Ratio (Redfield)
+OMRATIONC     : 0.18    !0.18    Organic matter Nitrogen/Carbon Ratio (Redfield)
+OMRATIOPC     : 0.024   !0.024   Organic matter Phosphorus/Carbon Ratio (Redfield)
+MINOXYGEN     : 10e-5   !10e-5   Minimum oxygen concentration for growth
