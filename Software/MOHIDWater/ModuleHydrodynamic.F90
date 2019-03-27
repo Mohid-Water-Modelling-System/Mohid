@@ -150,7 +150,7 @@ Module ModuleHydrodynamic
                                        GetCellRotation, GetGridCellArea, GetConnections
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
                                        AllocateTwoWayAux, PrepTwoWay, UngetTwoWayExternal_Vars, &
-                                       ConstructUpscalingDischarges
+                                       ConstructUpscalingDischarges, Modify_Upscaling_Discharges
 #ifdef _USE_MPI
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
@@ -48848,7 +48848,7 @@ do5:            do i = ILB, IUB
 
                     if (Me%ComputeOptions%TwoWayWaterLevel) then
 
-                        call ModifyTwoWay (SonID           = AuxHydrodynamicID,                                 &
+                        call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
                                            FatherMatrix2D   = ObjHydrodynamicFather%WaterLevel%New,              &
                                            SonMatrix2D      = Me%WaterLevel%New,                                 &
                                            CallerID         = mHydrodynamic_,                                    &
@@ -48858,15 +48858,17 @@ do5:            do i = ILB, IUB
                     endif
 
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
+                        
+                        call Modify_Upscaling_Discharges(SonID = AuxHydrodynamicID, &
+                                                    FatherID   = Me%FatherInstanceID, &
+                                                    DVel_U     = ObjHydrodynamicFather%WaterFluxes%DischargesVelU, &
+                                                    DVel_V     = ObjHydrodynamicFather%WaterFluxes%DischargesVelV)
+                             ! ver linha 36736 para incluir a difusao das velocidades impostas
+                        ! O twoway tem de calcular a velocidade do filho interpolada para o dominio pai e aplicar o
+                        !   o rácio da área lateral de modo a que o caudal fique correcto. Ou seja, multiplica o
+                        !   resultado das velocidades pela área lateral do filho e divide pela do pai.
+                        ! O volume é depois obtido pela multiplicacao da velocidades pela area lateral do pai
 
-
-
-
-                        ! busca descargas com upscaling
-                        ! faz o ciclo que le as descargas
-                        ! Para cada descarga upscaling, busca a localizacao
-                        !Se a localizaco estiver dentro do domínio filho em questao (obtido uma única vez no construct)
-                           ! chama a routina Modify_upscaling_Discharges que modifica os fluxos e velocidades da matriz do pai
                     endif
 
                     call UngetTwoWayExternal_Vars(SonID             = AuxHydrodynamicID,   &

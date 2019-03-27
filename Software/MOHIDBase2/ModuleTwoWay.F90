@@ -55,7 +55,7 @@ Module ModuleTwoWay
     private ::  Nudging_IWD
     public  :: PrepTwoWay
     public  :: UngetTwoWayExternal_Vars
-    !public  :: ModifyUpscalingDischarge
+    public  :: Modify_Upscaling_Discharges
 
     !Destructor
     public  :: KillTwoWay                                                     
@@ -471,7 +471,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, dimension(:,:), pointer, intent(IN)  :: IZ, JZ!Connection between a Z son cell(i, j) and its father &
                                                                !Z cell I/J component
         !Local-----------------------------------------------------------------
-        integer                                       :: ready_, STAT_CALL, ID
+        integer                                       :: ready_, ID
         !----------------------------------------------------------------------
         call Ready (SonID, ready_)
         
@@ -489,7 +489,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 
                 if (Me%DischargeCells%n_U == 0) then
                     if (Me%DischargeCells%n_V == 0) then
-                        stop 'ConstructUpscalingDischarges - Found no connected son cells for upscaling discharge'                  
+                        write(*,*)'No upscaling dishcarges was found between SonID: ', SonID, 'and its father'                  
                     endif
                 endif
             else ! Fill upscaling matrixes which have the son cells need to be included in the calculation
@@ -1101,70 +1101,66 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !>Computes momentum discharges provided by a nested domain
     !>@param[in] FatherID, UpscalingMomentum, ComputeFaces3D, Velocity, KFloor, DischargesVelUV, di, dj
-    !subroutine ModifyUpscalingDischarge(FatherID, UpscalingMomentum, ComputeFaces3D, Velocity, KFloor, &
-    !                                    DischargesVelUV, di, dj, I, J, STAT)
-    !    !Arguments-------------------------------------------------------------
-    !    integer                                        :: FatherID, di, dj, STAT, nCells, I, J
-    !    real, dimension(:, :, :), pointer              :: Velocity, FatherAreaU, FatherAreaV
-    !    real, dimension(:, :, :), pointer, intent(OUT) :: UpscalingMomentum, DischargesVelUV
-    !    integer, dimension(:, :, :), pointer           :: ComputeFaces3D
-    !    integer, dimension(:, :),    pointer           :: KFloor
-    !    !Local-----------------------------------------------------------------
-    !    integer                                        :: ready_
-    !    
-    !    STAT = UNKNOWN_
-    !    
-    !    call Ready(FatherID, ready_)
-    !    
-    !    if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-    !        
-    !        call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeNumber, nCells, STAT = STAT_CALL) 
-    !        if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ModifyUpscalingDischarge - ERR01'
-    !        
-    !        if (nCells == 1)then
-    !            
-    !            !Buscar a velocidade proveniente da média ponderada do filho : ChildVelocity
-    !            
-    !            !DischargeVelocity => Me%Son%DischargeVelocity
-    !
-    !            !Call GetGeometryAreas(FatherID, AreaU = FatherAreaU, AreaU = FatherAreaV, STAT_CALL)
-    !            !if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ModifyUpscalingDischarge - ERR10'
-    !            
-    !            !Child velocity => Me%Son%DischargeVelocityU
-    !            Call ComputeUpscalingVelocity(ComputeFaces3D, 
-    !                                          KFloor, 
-    !                                          Velocity, 
-    !                                          Me%Size, 
-    !                                          AreaV, 
-    !                                          DischargeVelocity, 
-    !                                          di, 
-    !                                          dj, 
-    !                                          I, 
-    !                                          J)
-    !                
-    !
-    !        else
-    !            write(*,*)'Model is not yet ready to accept any other discharge type than a point discharge'
-    !            stop 'ModuleTwoWay - ModifyUpscalingDischarge - ERR20'
-    !        endif
-    !        
-    !        iNorth = i+di
-    !        jEast =  j+dj
-    !                
-    !        
-    !        
-    !        
-    !        STAT = SUCCESS_
-    !    else
-    !        STAT = ready_
-    !        
-    !    endif
-    !    
-    !
-    !
-    !
-    !
-    !end subroutine ModifyUpscalingDischarge
+    subroutine  Modify_Upscaling_Discharges(SonID, FatherID, DVel_U, DVel_V)
+        !Arguments-------------------------------------------------------------
+        integer                                          :: SonID, FatherID
+        real, dimension(:, :, :), pointer, intent(INOUT) :: DVel_U, DVel_V
+        !Local-----------------------------------------------------------------
+        integer                                          :: ready_
+        
+        STAT = UNKNOWN_
+        
+        call Ready(FatherID, ready_)
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeNumber, nCells, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ModifyUpscalingDischarge - ERR01'
+            
+            if (nCells == 1)then
+                
+                !Buscar a velocidade proveniente da média ponderada do filho : ChildVelocity
+                
+                !DischargeVelocity => Me%Son%DischargeVelocity
+    
+                !Call GetGeometryAreas(FatherID, AreaU = FatherAreaU, AreaU = FatherAreaV, STAT_CALL)
+                !if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ModifyUpscalingDischarge - ERR10'
+                
+                !Child velocity => Me%Son%DischargeVelocityU
+                Call ComputeUpscalingVelocity(ComputeFaces3D, 
+                                              KFloor, 
+                                              Velocity, 
+                                              Me%Size, 
+                                              AreaV, 
+                                              DischargeVelocity, 
+                                              di, 
+                                              dj, 
+                                              I, 
+                                              J)
+                    
+    
+            else
+                write(*,*)'Model is not yet ready to accept any other discharge type than a point discharge'
+                stop 'ModuleTwoWay - ModifyUpscalingDischarge - ERR20'
+            endif
+            
+            iNorth = i+di
+            jEast =  j+dj
+                    
+            
+            
+            
+            STAT = SUCCESS_
+        else
+            STAT = ready_
+            
+        endif
+        
+    
+    
+    
+    
+    end subroutine Modify_Upscaling_Discharges
     
     !---------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec

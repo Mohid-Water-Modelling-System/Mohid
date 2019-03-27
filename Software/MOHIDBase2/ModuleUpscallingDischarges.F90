@@ -108,7 +108,7 @@ Module ModuleUpscallingDischarges
         integer, dimension(:, :), pointer, intent(IN)    :: SonWaterPoints, link
         integer, intent(IN)                              :: IFather, JFather, di, dj, MaxSize
         integer, optional                                :: n, tracer
-        Integer, dimension(:, :), pointer, optional      :: Cells
+        Integer, dimension(:, :), optional               :: Cells
         
         !Local-----------------------------------------------------------------
         integer                                          :: Aux, Aux2, StartIndex, i, ISon, JSon, ISonAdjacent, &
