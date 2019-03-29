@@ -43,6 +43,7 @@ Module ModuleUpscallingDischarges
 
     public  :: SearchDischargeFace
     public  :: UpsDischargesLinks
+    public  :: ComputeUpscalingVelocity
     
     private :: SearchFace
     
@@ -235,7 +236,13 @@ Module ModuleUpscallingDischarges
         
     end subroutine UpsDischargesLinks
     !-------------------------------------------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Searches discharge faces of father cell, and saves the upscaling discharge cell links between father-son cells
+    !>@param[in] n, Cells, Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, IZ, JZ, I     
+    subroutine ComputeUpscalingVelocity(DischargeVel, SonVel, Cells, Area, VelocityID)
     
+    end subroutine ComputeUpscalingVelocity
     !
     !
     end module ModuleUpscallingDischarges

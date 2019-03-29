@@ -48859,10 +48859,14 @@ do5:            do i = ILB, IUB
 
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
                         
-                        call Modify_Upscaling_Discharges(SonID = AuxHydrodynamicID, &
-                                                    FatherID   = Me%FatherInstanceID, &
+                        !only for 2D or 3D domains
+                        call Modify_Upscaling_Discharges(SonID = AuxHydrodynamicID,                                &
+                                                    FatherID   = Me%FatherInstanceID,                              &
                                                     DVel_U     = ObjHydrodynamicFather%WaterFluxes%DischargesVelU, &
-                                                    DVel_V     = ObjHydrodynamicFather%WaterFluxes%DischargesVelV)
+                                                    DVel_V     = ObjHydrodynamicFather%WaterFluxes%DischargesVelV, &
+                                                    SonVel_U   = Me%Velocity%Horizontal%U%New,                     &
+                                                    SonVel_V   = Me%Velocity%Horizontal%V%New,                     &
+                                                    STAT       = STAT_CALL)
                              ! ver linha 36736 para incluir a difusao das velocidades impostas
                         ! O twoway tem de calcular a velocidade do filho interpolada para o dominio pai e aplicar o
                         !   o rácio da área lateral de modo a que o caudal fique correcto. Ou seja, multiplica o

@@ -91,6 +91,8 @@ Module ModuleTwoWay
         real(8),    dimension(:, :, :), pointer     :: VolumeV          => null()
         real(8),    dimension(:, :, :), pointer     :: VolumeZ          => null()
         real(8),    dimension(:, :   ), pointer     :: VolumeZ_2D       => null()
+        real(8),    dimension(:, :   ), pointer     :: AreaU            => null()
+        real(8),    dimension(:, :   ), pointer     :: AreaV            => null()
         integer, dimension(:, :, :), pointer        :: Open3D           => null()
         integer, dimension(:, :, :), pointer        :: WaterPoints3D    => null()
         integer, dimension(:, :   ), pointer        :: WaterPoints2D    => null()
@@ -652,34 +654,25 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 !For future developments (when other modules call for twoway)
             endif
             
-            call GetHorizontalGrid (HorizontalGridID = SonID,                         &
-                                    ILinkV            = Me%External_Var%IV,                &
-                                    JLinkV            = Me%External_Var%JV,                &
-                                    ILinkU            = Me%External_Var%IU,                &
-                                    JLinkU            = Me%External_Var%JU,                &
-                                    ILinkZ            = Me%External_Var%IZ,                &
-                                    JLinkZ            = Me%External_Var%JZ,                &
-                                    STAT              = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR01'
+            call GetHorizontalGrid(HorizontalGridID = SonID, ILinkV = Me%External_Var%IV, JLinkV = Me%External_Var%JV,&
+                                    ILinkU = Me%External_Var%IU, JLinkU = Me%External_Var%JU,                         &
+                                    ILinkZ = Me%External_Var%IZ, JLinkZ = Me%External_Var%JZ, STAT   = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Son-Father link matrixes'
             
-            call GetGeometryVolumes(GeometryID     = SonID,                            &
-                                    VolumeU        = Me%External_Var%VolumeU,           &
-                                    VolumeV        = Me%External_Var%VolumeV,           &
-                                    VolumeZ        = Me%External_Var%VolumeZ,           &
-                                    VolumeZ_2D     = Me%External_Var%VolumeZ_2D,        &
-                                    STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR02'
+            Call GetGeometryAreas(SonID, AreaU = Me%External_Var%AreaU, AreaV = Me%External_Var%AreaV, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Could not get Son AreaU or AreaV matrix'            
             
-            call GetOpenPoints3D   (Map_ID         = SonID,                            &
-                                    OpenPoints3D   = Me%External_Var%Open3D,            &
-                                    STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR03'
+            call GetGeometryVolumes(GeometryID = SonID, VolumeU = Me%External_Var%VolumeU,                   &
+                                    VolumeV    = Me%External_Var%VolumeV, VolumeZ = Me%External_Var%VolumeZ, &
+                                    VolumeZ_2D = Me%External_Var%VolumeZ_2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get son U/V volume matrixes'
             
-            call GetComputeFaces3D(Map_ID          = SonID,                           &
-                                   ComputeFacesU3D = Me%External_Var%ComputeFaces3D_U, &
-                                   ComputeFacesV3D = Me%External_Var%ComputeFaces3D_V, &
-                                   STAT            = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR04'
+            call GetOpenPoints3D   (Map_ID = SonID, OpenPoints3D = Me%External_Var%Open3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Son OpenPoints3D'
+            
+            call GetComputeFaces3D (Map_ID = SonID, ComputeFacesU3D = Me%External_Var%ComputeFaces3D_U, &
+                                    ComputeFacesV3D = Me%External_Var%ComputeFaces3D_V, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Son U/V ComputeFaces3D'
             
             if (Me%Hydro%InterpolationMethod == 2) then
                 
@@ -694,29 +687,28 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                      IWD_Nodes_U            = Me%External_Var%IWD_Nodes_U,       &
                                      IWD_Nodes_V            = Me%External_Var%IWD_Nodes_V,       &
                                      STAT                   = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR05'
+                if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get IWD connections'
 
             endif                           
 
+            call GetGeometryAreas(FatherID, AreaU = Me%Father%External_Var%AreaU, &
+                                            AreaV = Me%Father%External_Var%AreaV, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get father AreaU or AreaV matrix'
             
-            call GetOpenPoints3D   (Map_ID         = FatherID,                         &
-                                    OpenPoints3D   = Me%Father%External_Var%Open3D,     &
-                                    STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR06'
+            call GetOpenPoints3D   (Map_ID = FatherID, OpenPoints3D = Me%Father%External_Var%Open3D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father OpenPoints3D'
         
-            call GetGeometryVolumes(GeometryID     = FatherID,                         &
-                                    VolumeU        = Me%Father%External_Var%VolumeU,    &
-                                    VolumeV        = Me%Father%External_Var%VolumeV,    &
-                                    VolumeZ        = Me%Father%External_Var%VolumeZ,    &
-                                    VolumeZ_2D     = Me%Father%External_Var%VolumeZ_2D, &
-                                    STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR07'
+            call GetGeometryVolumes(GeometryID = FatherID, VolumeU = Me%Father%External_Var%VolumeU,    &
+                                    VolumeV    = Me%Father%External_Var%VolumeV,    &
+                                    VolumeZ    = Me%Father%External_Var%VolumeZ,    &
+                                    VolumeZ_2D = Me%Father%External_Var%VolumeZ_2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father Volume U/V/2D matrixes'
             
             call GetComputeFaces3D(Map_ID          = FatherID,                               &
                                    ComputeFacesU3D = Me%Father%External_Var%ComputeFaces3D_U, &
                                    ComputeFacesV3D = Me%Father%External_Var%ComputeFaces3D_V, &
                                    STAT            = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - PrepTwoWay - ERR08'
+            if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father ComputeFaces3D U/V'
             
             STAT_ = SUCCESS_
         else
@@ -1100,65 +1092,46 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Computes momentum discharges provided by a nested domain
-    !>@param[in] FatherID, UpscalingMomentum, ComputeFaces3D, Velocity, KFloor, DischargesVelUV, di, dj
-    subroutine  Modify_Upscaling_Discharges(SonID, FatherID, DVel_U, DVel_V)
+    !>@param[in] SonID, FatherID, DVel_U, DVel_V, SonVel_U, SonVel_V, STAT
+    subroutine  Modify_Upscaling_Discharges(SonID, FatherID, DVel_U, DVel_V, SonVel_U, SonVel_V, STAT)
         !Arguments-------------------------------------------------------------
         integer                                          :: SonID, FatherID
-        real, dimension(:, :, :), pointer, intent(INOUT) :: DVel_U, DVel_V
+        real, dimension(:, :, :),          intent(INOUT) :: DVel_U, DVel_V
+        real, dimension(:, :, :), pointer, intent(IN)    :: SonVel_U, SonVel_V
         !Local-----------------------------------------------------------------
         integer                                          :: ready_
+        logical                                          :: STAT, ExitFlag
+        !----------------------------------------------------------------------
         
-        STAT = UNKNOWN_
-        
-        call Ready(FatherID, ready_)
+        STAT     = UNKNOWN_
+        ExitFlag = .true.
+        call Ready(SonID, ready_)
         
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-            
-            call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeNumber, nCells, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ModifyUpscalingDischarge - ERR01'
-            
-            if (nCells == 1)then
-                
-                !Buscar a velocidade proveniente da média ponderada do filho : ChildVelocity
-                
-                !DischargeVelocity => Me%Son%DischargeVelocity
-    
-                !Call GetGeometryAreas(FatherID, AreaU = FatherAreaU, AreaU = FatherAreaV, STAT_CALL)
-                !if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ModifyUpscalingDischarge - ERR10'
-                
-                !Child velocity => Me%Son%DischargeVelocityU
-                Call ComputeUpscalingVelocity(ComputeFaces3D, 
-                                              KFloor, 
-                                              Velocity, 
-                                              Me%Size, 
-                                              AreaV, 
-                                              DischargeVelocity, 
-                                              di, 
-                                              dj, 
-                                              I, 
-                                              J)
-                    
-    
-            else
-                write(*,*)'Model is not yet ready to accept any other discharge type than a point discharge'
-                stop 'ModuleTwoWay - ModifyUpscalingDischarge - ERR20'
+            if (allocated(Me%DischargeCells%U)) ExitFlag == .false.
+            if (allocated(Me%DischargeCells%V)) ExitFlag == .false.
+            ! if none of these matrixes is allocated then this son domain is not the one that is feeding
+            ! an upscale discharge into the father domain.
+            if (ExitFlag) then
+                STAT = SUCCESS_
+                exit
             endif
             
-            iNorth = i+di
-            jEast =  j+dj
-                    
-            
-            
-            
+            if (allocated(Me%DischargeCells%U))then
+                VelocityID = VelocityU_
+                Call ComputeUpscalingVelocity(DVel_U, SonVel_U, Me%DischargeCells%U, Me%External_Var%AreaU, &
+                                              Me%Father%External_Var%AreaU, VelocityID)
+            endif
+            if (allocated(Me%DischargeCells%V))then
+                VelocityID = VelocityV_
+                Call ComputeUpscalingVelocity(DVel_V, SonVel_V, Connections, Me%DischargeCells%V, &
+                                              Me%External_Var%AreaV, Me%Father%External_Var%AreaV, VelocityID)
+            endif            
+
             STAT = SUCCESS_
         else
             STAT = ready_
-            
         endif
-        
-    
-    
-    
     
     end subroutine Modify_Upscaling_Discharges
     
