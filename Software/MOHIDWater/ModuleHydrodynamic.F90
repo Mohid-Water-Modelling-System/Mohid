@@ -38220,11 +38220,11 @@ do1:    do DischargeID = 1, DischargesNumber
 
                 else if (DirectionXY == DirectionY_) then
 
-                        call GetDischargeFlowVelocity(Me%ObjDischarges,                       &
-                                                      Me%CurrentTime, DischargeID,            &
-                                                      VelocityU = DischargeVelocity,          & !Errado?? Joao Sobrinho
-                                                      STAT = STAT_CALL)
-                        if (STAT_CALL/=SUCCESS_) stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR80'
+                    call GetDischargeFlowVelocity(Me%ObjDischarges,                       &
+                                                    Me%CurrentTime, DischargeID,            &
+                                                    VelocityV = DischargeVelocity,          &
+                                                    STAT = STAT_CALL)
+                    if (STAT_CALL/=SUCCESS_) stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR80'
                 endif
 
                 di  = Me%Direction%di

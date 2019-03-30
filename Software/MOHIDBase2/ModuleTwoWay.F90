@@ -99,6 +99,8 @@ Module ModuleTwoWay
         integer, dimension(:, :, :), pointer        :: ComputeFaces3D_U => null()
         integer, dimension(:, :, :), pointer        :: ComputeFaces3D_V => null()
         integer, dimension(:, :   ), pointer        :: BoundaryPoints2D => null()
+		integer, dimension(:, :	  ), pointer        :: KFloor_U			=> null()
+		integer, dimension(:, :	  ), pointer        :: KFloor_V			=> null()
         integer, dimension(:, :   ), pointer        :: IWD_Connections_U => null()
         integer, dimension(:, :   ), pointer        :: IWD_Connections_V => null()
         integer, dimension(:, :   ), pointer        :: IWD_Connections_Z => null()
@@ -473,7 +475,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, dimension(:,:), pointer, intent(IN)  :: IZ, JZ!Connection between a Z son cell(i, j) and its father &
                                                                !Z cell I/J component
         !Local-----------------------------------------------------------------
-        integer                                       :: ready_, ID
+        integer                                       :: ready_, VelID
         !----------------------------------------------------------------------
         call Ready (SonID, ready_)
         
@@ -497,21 +499,20 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             else ! Fill upscaling matrixes which have the son cells need to be included in the calculation
                 
                 if (Me%DischargeCells%n_U > 0) then
-                    ID = 1 !Vel U
-                    call UpsDischargesLinks(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, IZ, JZ, ID, &
+                    VelID = VelocityU_
+                    call UpsDischargesLinks(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, IZ, JZ, VelID, &
                                             tracer = Me%DischargeCells%Current_U, Cells = Me%DischargeCells%U)
                 endif
                 
                 if (Me%DischargeCells%n_V > 0) then
-                    ID = 2 ! Vel V
-                    call UpsDischargesLinks(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, IZ, JZ, ID, &
+                    VelID = VelocityV_
+                    call UpsDischargesLinks(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, IZ, JZ, VelID, &
                                             tracer = Me%DischargeCells%Current_V, Cells = Me%DischargeCells%V)
                 endif
                 
                 !these are the link matrixes between a Father discharge cell and its corresponding Son cells which 
                 !should be considered in the calculation of velocities and flow.
             endif
-            
         else  
             stop 'Construct_Upscaling_Discharges - ModuleTwoWay -  Failed ready function'               
         endif
@@ -709,6 +710,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                    ComputeFacesV3D = Me%Father%External_Var%ComputeFaces3D_V, &
                                    STAT            = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father ComputeFaces3D U/V'
+			
+			call GetGeometryKFloor(GeometryID, U = Me%Father%External_Var%KFloor_U, &
+				                               V = Me%Father%External_Var%KFloor_V, STAT = STAT_CALL)
+			if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father KfloorU/V'
             
             STAT_ = SUCCESS_
         else
@@ -1120,12 +1125,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (allocated(Me%DischargeCells%U))then
                 VelocityID = VelocityU_
                 Call ComputeUpscalingVelocity(DVel_U, SonVel_U, Me%DischargeCells%U, Me%External_Var%AreaU, &
-                                              Me%Father%External_Var%AreaU, VelocityID)
+                                              Me%Father%External_Var%AreaU, Me%External_Var%ComputeFaces3D_U, &
+					                          Me%Father%External_Var%KFloor_U, Me%Size%KUB, Me%Father%Size%KUB, &
+					                          Me%VelocityID)
             endif
             if (allocated(Me%DischargeCells%V))then
                 VelocityID = VelocityV_
-                Call ComputeUpscalingVelocity(DVel_V, SonVel_V, Connections, Me%DischargeCells%V, &
-                                              Me%External_Var%AreaV, Me%Father%External_Var%AreaV, VelocityID)
+                Call ComputeUpscalingVelocity(DVel_V, SonVel_V, Me%DischargeCells%V, Me%External_Var%AreaV, &
+                                              Me%Father%External_Var%AreaV, Me%External_Var%ComputeFaces3D_V, &
+					                          Me%Father%External_Var%KFloor_V, Me%Size%KUB, Me%Father%Size%KUB, &
+					                          VelocityID)
             endif            
 
             STAT = SUCCESS_
@@ -1186,6 +1195,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR110'
             call UnGetMap(SonID, Me%External_Var%ComputeFaces3D_V, STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR120'
+			call UnGetGeometry(SonID, Me%External_Var%AreaU, STAT = status)
+			if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR121.'
+			call UnGetGeometry(SonID, Me%External_Var%AreaV, STAT = status)
+			if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR122.'
+			call UnGetGeometry(SonID, Me%Father%External_Var%KFloor_U, STAT = status)
+			if (STAT_CALL /= status) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR123.'
+			call UnGetGeometry(SonID, Me%Father%External_Var%KFloor_V, STAT = status)
+			if (STAT_CALL /= status) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR124.'
             
             if (Me%Hydro%InterpolationMethod == 2) then
                 
@@ -1206,19 +1223,23 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             !Unget father
             call UnGetMap(FatherID, Me%Father%External_Var%Open3D,           STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR190'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR190'
             call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ,     STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR200'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR200'
             call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeU,     STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR210'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR210'
             call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeV,     STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR220'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR220'
             call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ_2D,  STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR230'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR230'
             call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_U, STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR240'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR240'
             call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_V, STAT = status)
-            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-Hydrodynamic-ERR250'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR250'
+			call UnGetGeometry(FatherID, Me%Father%External_Var%Area_U,      STAT = status)
+			if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR260.'
+			call UnGetGeometry(FatherID, Me%Father%External_Var%Area_V,      STAT = status)
+			if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR270.'
             
             STAT_ = SUCCESS_
         else
@@ -1401,12 +1422,6 @@ cd1:    if (ObjTwoWay_ID > 0) then
     !--------------------------------------------------------------------------
 
 end module ModuleTwoWay
-
-
-
-
-
-
 
 
 

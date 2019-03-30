@@ -185,11 +185,11 @@ Module ModuleUpscallingDischarges
     !>@Brief
     !> Searches discharge faces of father cell, and saves the upscaling discharge cell links between father-son cells
     !>@param[in] n, Cells, Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, IZ, JZ, I   
-    subroutine UpsDischargesLinks (Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, IZ, JZ, ID, tracer, Cells)
+    subroutine UpsDischargesLinks (Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, IZ, JZ, VelID, tracer, Cells)
         !Arguments------------------------------------------------------------------------------------------------
         integer, dimension(:, :), pointer, intent(IN)         :: Connection !Connection beteen father-Son Z cells
         integer, dimension(:, :), pointer, intent(IN)         :: SonWaterPoints, FatherWaterPoints, IZ, JZ
-        integer, intent(IN)                                   :: ICell, JCell, ID, tracer
+        integer, intent(IN)                                   :: ICell, JCell, VelID, tracer
         integer, dimension(:, :)                              :: Cells
         !Local----------------------------------------------------------------------------------------------------
         integer                                               :: di, dj, MaxSize, IFather, JFather
@@ -198,7 +198,7 @@ Module ModuleUpscallingDischarges
         MaxSize = size(Connection, 1)
         !If father cell to the north is land, check for son cells(compare with adjacent southern cell)
         
-        if (ID == 1) then
+        if (VelID == VelocityU_) then
             if (FatherWaterPoints(Icell, JCell + 1) == 0) then
                 IFather = Icell - 1
                 JFather = JCell
@@ -239,8 +239,45 @@ Module ModuleUpscallingDischarges
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Searches discharge faces of father cell, and saves the upscaling discharge cell links between father-son cells
-    !>@param[in] n, Cells, Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, IZ, JZ, I     
-    subroutine ComputeUpscalingVelocity(DischargeVel, SonVel, Cells, Area, VelocityID)
+    !>@param[in] DischargeVel, SonVel, Cells, Area, VelocityID     
+    subroutine ComputeUpscalingVelocity(DischargeVel, SonVel, DLink, AreaSon, AreaFather, SonComputeFaces, KFloor, &
+		                                KUBSon, KUBFather, VelocityID)
+        !Arguments----------------------------------------------------------------------------------
+        real, dimension(:, :, :),          intent(INOUT) :: DischargeVel
+        real, dimension(:, :, :), pointer, intent(IN)    :: AreaSon, AreaFather, SonVel
+        integer, dimension(:, :), pointer, intent(IN)    :: SonComputeFaces, KFloor
+        integer, intent(IN)                              :: VelocityID
+        integer, dimension(:, :), intent(IN)             :: DLink
+        !Local--------------------------------------------------------------------------------------
+        integer                                          :: i, j, Maxlines, line, KUBSon, KUBFather, k, k2, i, i2
+        !-------------------------------------------------------------------------------------------
+        Maxlines = size(CellsToUse, 1)
+
+        if (VelocityID = VelocityU_) then
+			
+            do line = 1, Maxlines
+                i = DLink(line, 1)
+                j = DLink(line, 2)
+				i2 = DLink(line, 3)
+				j2 = DLink(line, 4)
+				KBottom = KFloor(i, j)
+				do k = Kbottom, KUBFather
+					k2 = k - (KUBFather - KUBSon) 
+					! I am assuming the vertical discretization will be the same even if the son has less layers.
+					AcumulatedVel(i, j, k) = AcumulatedVel(i, j, k) + &
+					                        SonVel(i2, j2, k2) * AreaSon(i2, j2, k2) / AreaFather(i, j, k)
+				enddo
+                  
+			enddo
+			
+			
+			
+			
+			
+        else
+        
+        endif
+    
     
     end subroutine ComputeUpscalingVelocity
     !
