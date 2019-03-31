@@ -48784,7 +48784,6 @@ do5:            do i = ILB, IUB
     !>Checks and starts TwoWay nesting
     !>@param[in] HydrodynamicID
     subroutine ComputeTwoWay(HydrodynamicID)
-
     !Arguments------------------------------------------------------------------------------
         integer, intent(IN)                               :: HydrodynamicID
     !Externals------------------------------------------------------------------------------
@@ -48793,7 +48792,6 @@ do5:            do i = ILB, IUB
         integer                                           :: ready_, readyFather_, STAT_CALL, i
         integer                                           :: AuxHydrodynamicID
     !Begin------------------------------------------------------------------------------
-
         if (Me%CurrentTime - Me%BeginTime > Me%ComputeOptions%TwoWayWaitPeriod)then
 
             !Cicle to go over all domains starting from the last nested one
@@ -48858,7 +48856,6 @@ do5:            do i = ILB, IUB
                     endif
 
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
-                        
                         !only for 2D or 3D domains
                         call Modify_Upscaling_Discharges(SonID = AuxHydrodynamicID,                                &
                                                     FatherID   = Me%FatherInstanceID,                              &
@@ -48868,9 +48865,6 @@ do5:            do i = ILB, IUB
                                                     SonVel_V   = Me%Velocity%Horizontal%V%New,                     &
                                                     STAT       = STAT_CALL)
                              ! ver linha 36736 para incluir a difusao das velocidades impostas
-                        ! O twoway tem de calcular a velocidade do filho interpolada para o dominio pai e aplicar o
-                        !   o rácio da área lateral de modo a que o caudal fique correcto. Ou seja, multiplica o
-                        !   resultado das velocidades pela área lateral do filho e divide pela do pai.
                         ! O volume é depois obtido pela multiplicacao da velocidades pela area lateral do pai
 
                     endif
@@ -48880,13 +48874,9 @@ do5:            do i = ILB, IUB
                                                   CallerID          = mHydrodynamic_,      &
                                                   STAT              = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR06.'
-
                 endif
-
             enddo
-
             call Ready (HydrodynamicID, ready_) ! swithes back to the last nested Domain
-
         endif
 
     end subroutine ComputeTwoWay

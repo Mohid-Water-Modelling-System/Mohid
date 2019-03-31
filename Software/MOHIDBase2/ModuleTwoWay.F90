@@ -119,8 +119,8 @@ Module ModuleTwoWay
         type (T_Size2D)                             :: Size2D, WorkSize2D
         type (T_External)                           :: External_Var
         integer                                     :: InstanceID
-        real, dimension (:, :, :), allocatable      :: TotSonVolIn
-        real, dimension (:, :   ), allocatable      :: TotSonVolIn_2D
+        real, dimension (:, :, :), allocatable      :: TotSonIn
+        real, dimension (:, :   ), allocatable      :: TotSonIn_2D
         real, dimension (:, :, :), allocatable      :: AuxMatrix
         real, dimension (:, :   ), allocatable      :: AuxMatrix2D
         real, dimension (:, :, :), allocatable      :: IWDNom
@@ -433,11 +433,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             KUB = Me%Father%WorkSize%KUB
             
             if (Me%Hydro%InterpolationMethod == 1)then
-                allocate(Me%Father%TotSonVolIn(ILB:IUB, JLB:JUB, KLB:KUB))
-                Me%Father%TotSonVolIn(:,:,:) = 0.0
+                allocate(Me%Father%TotSonIn(ILB:IUB, JLB:JUB, KLB:KUB))
+                Me%Father%TotSonIn(:,:,:) = 0.0
             
-                allocate(Me%Father%TotSonVolIn_2D(ILB:IUB, JLB:JUB))
-                Me%Father%TotSonVolIn_2D(:,:) = 0.0
+                allocate(Me%Father%TotSonIn_2D(ILB:IUB, JLB:JUB))
+                Me%Father%TotSonIn_2D(:,:) = 0.0
                 
                 allocate(Me%Father%AuxMatrix(ILB:IUB, JLB:JUB, KLB:KUB))
                 Me%Father%AuxMatrix(:,:,:) = 0.0
@@ -743,7 +743,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Goes for 3D
             if     (interpolMethod == 1)then
                 ! set the matrix to 0.001 so it can be divided without giving an error
-                call SetMatrixValue (GetPointer(Me%Father%TotSonVolIn), Me%Father%WorkSize, 0.001)
+                call SetMatrixValue (GetPointer(Me%Father%TotSonIn), Me%Father%WorkSize, 0.001)
                 call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%Father%WorkSize, 0.0)                  
                 ! Volume Weighted average
                 if (present(VelocityID))then
@@ -775,7 +775,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if     (interpolMethod == 1)then
                 call SetMatrixValue (GetPointer(Me%Father%AuxMatrix2D), Me%Father%WorkSize2D, 0.0)
                 ! set the matrix to 0.001 so it can be divided without giving an error
-                call SetMatrixValue (GetPointer(Me%Father%TotSonVolIn_2D), Me%Father%WorkSize2D, 0.001)
+                call SetMatrixValue (GetPointer(Me%Father%TotSonIn_2D), Me%Father%WorkSize2D, 0.001)
                 
                 ! Volume Weighted average
                 call ComputeSonVolInFather   (Volume_2D    = Volume_2D,     &
@@ -821,8 +821,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                            Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) =                             &
-                            Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) *        &
+                            Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) =                             &
+                            Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) *        &
                             Me%External_Var%Open3D(i, j, k) * Me%IgnoreOBCells(i, j) * SonComputeFaces(i, j, k)
                     enddo        
                     enddo
@@ -836,8 +836,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                            Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) =                             &
-                            Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) *        &
+                            Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) =                             &
+                            Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) *        &
                             Me%External_Var%Open3D(i, j, k) * Me%IgnoreOBCells(i, j) * SonComputeFaces(i, j, k)
                     enddo        
                     enddo
@@ -854,8 +854,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                            Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) =                      &
-                            Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) * &
+                            Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) =                      &
+                            Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) * &
                             Me%External_Var%Open3D(i, j, k) * Me%IgnoreOBCells(i, j)
                     enddo        
                     enddo
@@ -869,8 +869,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                     do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                            Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) =                      &
-                            Me%Father%TotSonVolIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) * &
+                            Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) =                      &
+                            Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) * &
                             Me%External_Var%Open3D(i, j, k) * Me%IgnoreOBCells(i, j)
                     enddo        
                     enddo
@@ -887,8 +887,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                Me%Father%TotSonVolIn_2D(ILink(i, j), JLink(i, j)) = &
-                Me%Father%TotSonVolIn_2D(ILink(i, j), JLink(i, j)) + Volume_2D(i, j) * &
+                Me%Father%TotSonIn_2D(ILink(i, j), JLink(i, j)) = &
+                Me%Father%TotSonIn_2D(ILink(i, j), JLink(i, j)) + Volume_2D(i, j) * &
                 Me%External_Var%Open3D(i, j, Me%WorkSize%KUB) * Me%IgnoreOBCells(i, j)
             enddo        
             enddo            
@@ -927,7 +927,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                            Jlink                = Me%External_Var%JU,                      &
                                            DecayTime            = LocalTimeDecay,                         &
                                            DT                   = Me%Hydro%VelDT,                         &
-                                           SonVolInFather       = GetPointer(Me%Father%TotSonVolIn),                  &
+                                           SonVolInFather       = GetPointer(Me%Father%TotSonIn),                  &
                                            AuxMatrix            = GetPointer(Me%Father%AuxMatrix),                    &
                                            VolumeSon            = Me%External_Var%VolumeU,                 &
                                            VolumeFather         = Me%Father%External_Var%VolumeU,         &
@@ -946,7 +946,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                            Jlink                = Me%External_Var%JV,                      &
                                            DecayTime            = LocalTimeDecay,                         &
                                            DT                   = Me%Hydro%VelDT,                         &
-                                           SonVolInFather       = GetPointer(Me%Father%TotSonVolIn),                  &
+                                           SonVolInFather       = GetPointer(Me%Father%TotSonIn),                  &
                                            AuxMatrix            = GetPointer(Me%Father%AuxMatrix),                    &
                                            VolumeSon            = Me%External_Var%VolumeV,                 &
                                            VolumeFather         = Me%Father%External_Var%VolumeV,          &
@@ -964,7 +964,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                       Jlink            = Me%External_Var%JZ,               &
                                       DecayTime        = LocalTimeDecay,                  &
                                       DT               = Me%Hydro%DT,                     &
-                                      SonVolInFather   = GetPointer(Me%Father%TotSonVolIn),           &
+                                      SonVolInFather   = GetPointer(Me%Father%TotSonIn),           &
                                       AuxMatrix        = GetPointer(Me%Father%AuxMatrix),             &
                                       VolumeSon        = Me%External_Var%VolumeZ,          &
                                       VolumeFather     = Me%Father%External_Var%VolumeZ, &
@@ -983,7 +983,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                   Jlink            = Me%External_Var%JZ,               &
                                   DecayTime        = LocalTimeDecay,                  &
                                   DT               = Me%Hydro%DT,                     &
-                                  SonVolInFather2D = GetPointer(Me%Father%TotSonVolIn_2D),        &
+                                  SonVolInFather2D = GetPointer(Me%Father%TotSonIn_2D),        &
                                   AuxMatrix2D      = GetPointer(Me%Father%AuxMatrix2D),           &
                                   VolumeSon2D      = Me%External_Var%VolumeZ_2D,       &
                                   VolumeFather2D   = Me%Father%External_Var%VolumeZ_2D, &
@@ -1123,20 +1123,40 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
             
             if (allocated(Me%DischargeCells%U))then
-                VelocityID = VelocityU_
-                Call ComputeUpscalingVelocity(DVel_U, SonVel_U, Me%DischargeCells%U, Me%External_Var%AreaU, &
-                                              Me%Father%External_Var%AreaU, Me%External_Var%ComputeFaces3D_U, &
-					                          Me%Father%External_Var%KFloor_U, Me%Size%KUB, Me%Father%Size%KUB, &
-					                          Me%VelocityID)
-            endif
-            if (allocated(Me%DischargeCells%V))then
-                VelocityID = VelocityV_
-                Call ComputeUpscalingVelocity(DVel_V, SonVel_V, Me%DischargeCells%V, Me%External_Var%AreaV, &
-                                              Me%Father%External_Var%AreaV, Me%External_Var%ComputeFaces3D_V, &
-					                          Me%Father%External_Var%KFloor_V, Me%Size%KUB, Me%Father%Size%KUB, &
-					                          VelocityID)
-            endif            
+                
+                call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%Father%WorkSize, 0.0)
+                call SetMatrixValue (GetPointer(Me%Father%TotSonIn),  Me%Father%WorkSize, 0.0)
 
+                Call ComputeUpscalingVelocity(DischargeVel    = DVel_U,                          &
+                                              SonVel          = SonVel_U,                        &
+                                              DLink           = Me%DischargeCells%U,             &
+                                              SonArea         = Me%External_Var%AreaU,           & 
+                                              FatherArea      = Me%Father%External_Var%AreaU,    &
+                                              AuxArea         = Me%Father%TotSonIn,              &
+                                              AcumulatedVel   = Me%Father%AuxMatrix,             &
+                                              SonComputeFaces = Me%External_Var%ComputeFaces3D_U,&
+					                          KFloor          = Me%Father%External_Var%KFloor_U, &
+                                              KUBSon          = Me%WorkSize%KUB,                 &
+                                              KUBFather       = Me%Father%WorkSize%KUB)
+            endif
+            
+            if (allocated(Me%DischargeCells%V))then
+                
+                call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%Father%WorkSize, 0.0)
+                call SetMatrixValue (GetPointer(Me%Father%TotSonIn),  Me%Father%WorkSize, 0.0)
+                
+                Call ComputeUpscalingVelocity(DischargeVel    = DVel_V,                          &
+                                              SonVel          = SonVel_V,                        &
+                                              DLink           = Me%DischargeCells%V,             &
+                                              SonArea         = Me%External_Var%AreaV,           & 
+                                              FatherArea      = Me%Father%External_Var%AreaV,    &
+                                              AuxArea         = Me%Father%TotSonIn,              &
+                                              AcumulatedVel   = Me%Father%AuxMatrix,             &
+                                              SonComputeFaces = Me%External_Var%ComputeFaces3D_V,&
+					                          KFloor          = Me%Father%External_Var%KFloor_V, &
+                                              KUBSon          = Me%WorkSize%KUB,                 &
+                                              KUBFather       = Me%Father%WorkSize%KUB)
+            endif
             STAT = SUCCESS_
         else
             STAT = ready_
@@ -1322,11 +1342,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         if (allocated(Me%Father%AuxMatrix2D)) then
             deallocate(Me%Father%AuxMatrix2D)
         endif
-        if (allocated(Me%Father%TotSonVolIn)) then
-            deallocate(Me%Father%TotSonVolIn)
+        if (allocated(Me%Father%TotSonIn)) then
+            deallocate(Me%Father%TotSonIn)
         endif
-        if (allocated(Me%Father%TotSonVolIn_2D)) then
-            deallocate(Me%Father%TotSonVolIn_2D)
+        if (allocated(Me%Father%TotSonIn_2D)) then
+            deallocate(Me%Father%TotSonIn_2D)
         endif
         if (allocated(Me%IgnoreOBCells)) then
             deallocate(Me%IgnoreOBCells)

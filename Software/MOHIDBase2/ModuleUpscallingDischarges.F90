@@ -239,45 +239,48 @@ Module ModuleUpscallingDischarges
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Searches discharge faces of father cell, and saves the upscaling discharge cell links between father-son cells
-    !>@param[in] DischargeVel, SonVel, Cells, Area, VelocityID     
-    subroutine ComputeUpscalingVelocity(DischargeVel, SonVel, DLink, AreaSon, AreaFather, SonComputeFaces, KFloor, &
-		                                KUBSon, KUBFather, VelocityID)
+    !>@param[in] DischargeVel, SonVel, DLink, SonArea, FatherArea, SonComputeFaces, AcumulatedVel, AuxArea, &
+    !> KFloor, KUBSon, KUBFather 
+    subroutine ComputeUpscalingVelocity(DischargeVel, SonVel, DLink, SonArea, FatherArea, SonComputeFaces, &
+                                        AcumulatedVel, AuxArea, KFloor, KUBSon, KUBFather)
         !Arguments----------------------------------------------------------------------------------
         real, dimension(:, :, :),          intent(INOUT) :: DischargeVel
-        real, dimension(:, :, :), pointer, intent(IN)    :: AreaSon, AreaFather, SonVel
+        real, dimension(:, :, :),          intent(IN)    :: AcumulatedVel, AuxArea 
+        real, dimension(:, :, :), pointer, intent(IN)    :: SonArea, FatherArea, SonVel
         integer, dimension(:, :), pointer, intent(IN)    :: SonComputeFaces, KFloor
-        integer, intent(IN)                              :: VelocityID
         integer, dimension(:, :), intent(IN)             :: DLink
         !Local--------------------------------------------------------------------------------------
-        integer                                          :: i, j, Maxlines, line, KUBSon, KUBFather, k, k2, i, i2
+        integer                                          :: i, j, k, Maxlines, line, KUBSon, KUBFather, &
+                                                            i2, j2, k2, Kbottom
         !-------------------------------------------------------------------------------------------
         Maxlines = size(CellsToUse, 1)
-
-        if (VelocityID = VelocityU_) then
 			
-            do line = 1, Maxlines
-                i = DLink(line, 1)
-                j = DLink(line, 2)
-				i2 = DLink(line, 3)
-				j2 = DLink(line, 4)
-				KBottom = KFloor(i, j)
-				do k = Kbottom, KUBFather
-					k2 = k - (KUBFather - KUBSon) 
-					! I am assuming the vertical discretization will be the same even if the son has less layers.
-					AcumulatedVel(i, j, k) = AcumulatedVel(i, j, k) + &
-					                        SonVel(i2, j2, k2) * AreaSon(i2, j2, k2) / AreaFather(i, j, k)
-				enddo
-                  
+        do line = 1, Maxlines
+            i = DLink(line, 1)
+            j = DLink(line, 2)
+			i2 = DLink(line, 3)
+			j2 = DLink(line, 4)
+			KBottom = KFloor(i, j)
+			do k = Kbottom, KUBFather
+				k2 = k - (KUBFather - KUBSon) 
+				! I am assuming the vertical discretization will be the same even if the son has less layers.
+				AcumulatedVel(i, j, k) = AcumulatedVel(i, j, k) + &
+					                    SonVel(i2, j2, k2) * SonArea(i2, j2, k2) * SonComputeFaces(i2, j2, k2)
+                    
+                AuxArea(i, j, k) = AuxArea(i, j, k) + SonArea(i2, j2, k2)
 			enddo
-			
-			
-			
-			
-			
-        else
-        
-        endif
-    
+                  
+        enddo
+            
+        do line = 1, Maxlines
+            i = DLink(line, 1)
+            j = DLink(line, 2)
+			KBottom = KFloor(i, j)
+			do k = Kbottom, KUBFather 
+				DischargeVel(i, j, k) = AcumulatedVel(i, j, k) / FatherArea(i, j, k)
+			enddo
+                  
+        enddo            
     
     end subroutine ComputeUpscalingVelocity
     !
