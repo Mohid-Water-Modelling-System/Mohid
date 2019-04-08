@@ -364,6 +364,8 @@ Module ModuleField4D
         
         logical                                     :: Extrapolate          = .false. 
         integer                                     :: ExtrapolateMethod    = null_int        
+        logical                                     :: DiscardFillValues    = .true.     
+        
 
         integer                                     :: MaskDim              = Dim3D
         real                                        :: LatReference         = null_real
@@ -400,7 +402,8 @@ Module ModuleField4D
                                 HorizontalMapID, GeometryID, MapID, LatReference,       &
                                 LonReference, WindowLimitsXY, WindowLimitsJI,           &
                                 Extrapolate, ExtrapolateMethod, PropertyID, ClientID,   &
-                                FileNameList, FieldName, OnlyReadGridFromFile, STAT)
+                                FileNameList, FieldName, OnlyReadGridFromFile,          &
+                                DiscardFillValues, STAT)
 
         !Arguments---------------------------------------------------------------
         integer,                                        intent(INOUT) :: Field4DID
@@ -424,7 +427,8 @@ Module ModuleField4D
         integer,                              optional, intent(IN )   :: ClientID
         character(*), dimension(:), pointer,  optional, intent(IN )   :: FileNameList             
         character(*),                         optional, intent(IN )   :: FieldName             
-        logical,                              optional, intent(IN )   :: OnlyReadGridFromFile    
+        logical,                              optional, intent(IN )   :: OnlyReadGridFromFile 
+        logical,                              optional, intent(IN )   :: DiscardFillValues
         integer,                              optional, intent(OUT)   :: STAT     
         
         !Local-------------------------------------------------------------------
@@ -515,7 +519,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%ExtrapolateMethod = ExtrapolateMethod
             else
                 Me%ExtrapolateMethod = ExtrapolAverage_
+            endif   
+            
+            if (present(DiscardFillValues)) then
+                Me%DiscardFillValues = DiscardFillValues
+            else
+                Me%DiscardFillValues = .true. 
             endif            
+            
+            
             
             
             
@@ -2028,7 +2040,7 @@ wwd1:       if (Me%WindowWithData) then
                      Me%ObjEnterData , iflag,                                           &
                      SearchType   = ExtractType,                                        &
                      keyword      = 'DISCARD_FILLVALUES',                               &
-                     default      = .true.,                                             &
+                     default      = Me%DiscardFillValues,                               &
                      ClientModule = 'ModuleField4D',                                    &
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR320'        
