@@ -53286,13 +53286,30 @@ i1:     if (HDF5FormatOK) then
             endif ifMS
 
 
-            if (ILW < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR50'
-            if (IUW > Imax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR60'
-            if (JLW < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR70'
-            if (JUW > Jmax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR80'
-            if (KLB < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR90'
-            if (KUB > Kmax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR100'
-
+            if (ILW < 1   ) then
+                write(*,*) 'ILW < 1 = ', ILW
+                stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR50'
+            endif                
+            if (IUW > Imax) then
+                write(*,*) 'IUW > Imax = ', IUW, Imax
+                stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR60'
+            endif                
+            if (JLW < 1   ) then
+                write(*,*) 'JLW < 1 = ', JLW
+                stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR70'
+            endif                
+            if (JUW > Jmax) then
+                write(*,*) 'JUW > Jmax = ', JUW, Jmax
+                stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR80'
+            endif                
+            if (KLB < 1   ) then
+                write(*,*) 'KLB < 1 = ', KLB
+                stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR90'
+            endif                
+            if (KUB > Kmax) then
+                write(*,*) 'KUB > Kmax = ', KUB, Kmax
+                stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR100'
+            endif
             allocate(Aux2DReal(ILW:IUW,JLW:JUW        ))
             allocate(Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB))
             allocate(Aux3DR8  (ILW:IUW,JLW:JUW,KLB:KUB))

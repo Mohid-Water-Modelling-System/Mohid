@@ -22256,6 +22256,8 @@ sp:                     if (.not. SimpleOutPut) then
                                                       STAT            = STAT_CALL)
 
                             if (STAT_CALL /= SUCCESS_) then
+                                write(*,*) 'Property name: ', trim(PropertyX%ID%Name)
+                                write(*,*) 'OutPut_Results_HDF - ModuleWaterProperties - ERR105'
                                 call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR105')
                             endif
                         end if i4                    
