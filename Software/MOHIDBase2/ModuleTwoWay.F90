@@ -19,7 +19,8 @@
 Module ModuleTwoWay
 
     use ModuleGlobalData
-    use ModuleGeometry,         only : GetGeometryVolumes, UnGetGeometry, GetGeometrySize
+    use ModuleGeometry,         only : GetGeometryVolumes, UnGetGeometry, GetGeometrySize, GetGeometryAreas, &
+                                       GetGeometryKFloor
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, UngetHorizontalGrid, GetHorizontalGridSize, GetConnections, &
                                        UnGetConnections, ConstructP2C_IWD, ConstructP2C_Avrg
     
@@ -118,6 +119,7 @@ Module ModuleTwoWay
         type (T_Size3D)                             :: Size, WorkSize
         type (T_Size2D)                             :: Size2D, WorkSize2D
         type (T_External)                           :: External_Var
+        type (T_Discharges)                         :: DischargeCells
         integer                                     :: InstanceID
         real, dimension (:, :, :), allocatable      :: TotSonIn
         real, dimension (:, :   ), allocatable      :: TotSonIn_2D
@@ -130,8 +132,8 @@ Module ModuleTwoWay
     private :: T_Discharges
     type       T_Discharges
         integer, dimension(:, :), allocatable       :: U, V
-        integer                                     :: n_U = 0, n_V = 0
-        integer                                     :: Current_U = 0, Current_V = 0
+        integer                                     :: n_U = 0, n_V = 0, n_Z = 0
+        integer                                     :: Current_U = 0, Current_V = 0, Current_Z = 0
     end type T_Discharges
     
 
@@ -484,12 +486,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             if (Task == 1) then !find number of lines to allocate
                 call SearchDischargeFace(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, &
-                                         IZ, JZ, Me%DischargeCells%n_U, Me%DischargeCells%n_V)
+                                         IZ, JZ, Me%DischargeCells%n_U, Me%DischargeCells%n_V, &
+                                         Me%Father%DischargeCells%n_Z)
+                !Me%DischargeCells%n_U/V - son cells to be included in the calculation
             elseif (Task == 2) then ! allocate
                 
                 if (Me%DischargeCells%n_U > 0) allocate (Me%DischargeCells%U(Me%DischargeCells%n_U,  4))
 
                 if (Me%DischargeCells%n_V > 0) allocate (Me%DischargeCells%V(Me%DischargeCells%n_V,  4))
+                
+                allocate (Me%Father%DischargeCells%Z(Me%Father%DischargeCells%n_Z, 2))
                 
                 if (Me%DischargeCells%n_U == 0) then
                     if (Me%DischargeCells%n_V == 0) then
@@ -509,6 +515,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     call UpsDischargesLinks(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, IZ, JZ, VelID, &
                                             tracer = Me%DischargeCells%Current_V, Cells = Me%DischargeCells%V)
                 endif
+                Me%Father%DischargeCells%Current_Z = Me%Father%DischargeCells%Current_Z + 1
+                !Save discharge cell IDs into a matrix
+                Me%Father%DischargeCells%n_Z(Me%Father%DischargeCells%Current_Z, 1) = dI
+                Me%Father%DischargeCells%n_Z(Me%Father%DischargeCells%Current_Z, 2) = dJ
                 
                 !these are the link matrixes between a Father discharge cell and its corresponding Son cells which 
                 !should be considered in the calculation of velocities and flow.
@@ -711,8 +721,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                    STAT            = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father ComputeFaces3D U/V'
 			
-			call GetGeometryKFloor(GeometryID, U = Me%Father%External_Var%KFloor_U, &
-				                               V = Me%Father%External_Var%KFloor_V, STAT = STAT_CALL)
+			call GetGeometryKFloor(GeometryID = FatherID, U = Me%Father%External_Var%KFloor_U, &
+				                                          V = Me%Father%External_Var%KFloor_V, STAT = STAT_CALL)
 			if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father KfloorU/V'
             
             STAT_ = SUCCESS_
@@ -1096,7 +1106,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !>Computes momentum discharges provided by a nested domain
+    !>Responsible for calling the routines which compute upscaling velocity.
     !>@param[in] SonID, FatherID, DVel_U, DVel_V, SonVel_U, SonVel_V, STAT
     subroutine  Modify_Upscaling_Discharges(SonID, FatherID, DVel_U, DVel_V, SonVel_U, SonVel_V, STAT)
         !Arguments-------------------------------------------------------------
@@ -1165,6 +1175,45 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     end subroutine Modify_Upscaling_Discharges
     
     !---------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Routine responsible for the computation of discharge volume by upscaling
+    !>@param[in] FatherID, CallerID, STAT     
+    subroutine UpscaleDischarge(SonID, FatherID, FatherU_old, FatherV_old, FatherU, FatherV, DischargeVolume, STAT)
+        !Arguments-------------------------------------------------------------
+        integer,                         , intent(IN)    :: FatherID, SonID
+        real, dimension(:, :, :), pointer, intent(IN)    :: FatherU_old, FatherV_old,FatherU, FatherV
+        real, dimension(:, :, :), pointer, intent(INOUT) :: DischargeVolume
+        logical,                         , intent(IN)    :: STAT
+        !Local-----------------------------------------------------------------
+        integer                                          :: ready_, line, i, j, k
+        !----------------------------------------------------------------------
+        STAT = UNKNOWN_
+        call Ready(SonID, ready_)        
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_))then
+            if (allocated(Me%DischargeCells%U))then
+                call ComputeDischargeVolume (Father_old = FatherU_old, Father = FatherU_old, DischargeVolume = Flow, &
+                                             KUB = Me%Father%WorkSize%KUB, KFloor = Me%Father%External_Var%KFloor_U, &
+                                             Area   = Me%Father%External_Var%Area_U,   &
+                                             CellsZ = Me%Father%DischargeCells%n_Z)
+            endif
+            
+            if (allocated(Me%DischargeCells%V))then
+                call ComputeDischargeVolume (Father_old = FatherV_old, Father = FatherV_old, DischargeVolume = Flow, &
+                                             KUB = Me%Father%WorkSize%KUB, KFloor = Me%Father%External_Var%KFloor_V, &
+                                             Area   = Me%Father%External_Var%Area_V,   &
+                                             CellsZ = Me%Father%DischargeCells%n_Z)
+            endif
+            
+            STAT = SUCCESS_
+        else
+            STAT = ready_
+        endif   
+        
+    end subroutine UpscaleDischarge
+!---------------------------------------------------------------------------
+    
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Ungets all external vars

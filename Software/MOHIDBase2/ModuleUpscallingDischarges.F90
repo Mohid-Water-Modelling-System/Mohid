@@ -44,6 +44,7 @@ Module ModuleUpscallingDischarges
     public  :: SearchDischargeFace
     public  :: UpsDischargesLinks
     public  :: ComputeUpscalingVelocity
+    public  :: ComputeDischargeVolume
     
     private :: SearchFace
     
@@ -54,18 +55,18 @@ Module ModuleUpscallingDischarges
     !>@Brief
     !> Searches discharge faces of father cell, and provides it to the son domain
     !>@param[in] Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, n_U, n_V, IZ, JZ
-    subroutine SearchDischargeFace(Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, IZ, JZ, n_U, n_V)
+    subroutine SearchDischargeFace(Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, IZ, JZ, n_U, n_V, n_Z)
         !Arguments-------------------------------------------------------------
         integer, dimension(:, :), pointer, intent(IN)         :: Connection !Connection beteen father-Son Z cells
         integer, dimension(:, :), pointer, intent(IN)         :: SonWaterPoints, FatherWaterPoints, IZ, JZ
         integer, intent(IN)                                   :: ICell, JCell
-        integer                                               :: n_U, n_V !Number of son cells in U and V direction
+        integer                                               :: n_U, n_V, n_Z !Number of son cells in U and V direction
         !Local-----------------------------------------------------------------
         integer                                               :: di, dj, MaxSize, IFather, JFather
         !-------------------------------------------------------------------------
          
         MaxSize = size(Connection, 1)            
-            
+        n_Z = n_Z + 1
         !If father cell to the north is land, check for son cells(compare with adjacent southern cell)
         if (FatherWaterPoints(Icell + 1, JCell) == 0) then
             IFather = Icell + 1
@@ -242,7 +243,7 @@ Module ModuleUpscallingDischarges
     !>@param[in] DischargeVel, SonVel, DLink, SonArea, FatherArea, SonComputeFaces, AcumulatedVel, AuxArea, &
     !> KFloor, KUBSon, KUBFather 
     subroutine ComputeUpscalingVelocity(DischargeVel, SonVel, DLink, SonArea, FatherArea, SonComputeFaces, &
-                                        AcumulatedVel, AuxArea, KFloor, KUBSon, KUBFather)
+                                        AcumulatedVel, AuxArea, KFloor, KUBSon, KUBFather, KFloor)
         !Arguments----------------------------------------------------------------------------------
         real, dimension(:, :, :),          intent(INOUT) :: DischargeVel
         real, dimension(:, :, :),          intent(IN)    :: AcumulatedVel, AuxArea 
@@ -254,7 +255,7 @@ Module ModuleUpscallingDischarges
                                                             i2, j2, k2, Kbottom
         !-------------------------------------------------------------------------------------------
         Maxlines = size(CellsToUse, 1)
-			
+        !Not worth paralelizing... too litle work for each thread.
         do line = 1, Maxlines
             i = DLink(line, 1)
             j = DLink(line, 2)
@@ -282,7 +283,32 @@ Module ModuleUpscallingDischarges
                   
         enddo            
     
-    end subroutine ComputeUpscalingVelocity
+                                        end subroutine ComputeUpscalingVelocity
+    !--------------------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Computes volume to be added or removed due to upscaling discharge
+    !>@param[in] Father_old, Father, DischargeVolume, KUB, KFloor, Area, CellsZ                                        
+    subroutine ComputeDischargeVolume(Father_old, Father, DischargeVolume, KUB, KFloor, Area, CellsZ)
+        !Arguments--------------------------------------------------------------------------
+        real, dimension(:, :, :), pointer, intent(IN)    :: Father_old, Father, Area
+        real, dimension(:, :, :), pointer, intent(INOUT) :: DischargeVolume
+        integer, dimension(:, :)         , intent(IN)    :: KFloor, CellsZ
+        integer                          , intent(IN)    :: KUB
+        !Local-------------------------------------------------------------------------------
+        integer                                          :: line, i, j, k, MaxSize, KBottom
+        !------------------------------------------------------------------------------------
+        MaxSize = size(CellsZ, 1)
+        do line = 1, MaxSize
+            i = CellsZ(line, 1)
+            j = CellsZ(line, 2)
+            KBottom = Kfloor(i, j)
+            !Considering Velocity Cell ID is the same as for type z (by doing so, null gradient is assumed)
+            do k = KBottom, KUB
+                DischargeVolume(i, j, k) = (Father_old(i, j, k) - Father(i, j, k)) * Area(i, j, k)
+            enddo
+        enddo
+    end subroutine ComputeDischargeVolume
     !
     !
     end module ModuleUpscallingDischarges

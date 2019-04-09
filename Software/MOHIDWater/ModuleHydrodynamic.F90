@@ -150,7 +150,8 @@ Module ModuleHydrodynamic
                                        GetCellRotation, GetGridCellArea, GetConnections
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
                                        AllocateTwoWayAux, PrepTwoWay, UngetTwoWayExternal_Vars, &
-                                       ConstructUpscalingDischarges, Modify_Upscaling_Discharges
+                                       ConstructUpscalingDischarges, UpscaleDischarge!, &
+                                       !Modify_Upscaling_Discharges
 #ifdef _USE_MPI
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
@@ -38177,20 +38178,7 @@ do1:    do DischargeID = 1, DischargesNumber
             if (UpscalingDischarge )then! joao Sobrinho
 
                 !Aqui será chamada a routina que actializa o transporte horizontal.
-
-                !call GetUpscalingDischarge(FatherID                   = Me%InstanceID,     &
-                !                              DischargeNumber            = DischargeID,       &
-                !                              UpscalingMomentum          = UpscalingMomentum, &
-                !                              ComputeFaces3D             = ComputeFaces3D_UV, &
-                !                              Velocity_UV                = Velocity_UV_Old,   &
-                !                              Kfloor                     = KFloor_UV,         &
-                !                              DischargesVelUV            = Me%WaterFluxes%DischargesVelUV, &
-                !                              di                         = Me%Direction%di,   &
-                !                              dj                         = Me%Direction%dj,   &
-                !                              I                          = I,                 &
-                !                              J                          = J,                 &
-                !                              STAT                       = STAT_CALL)
-                !if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR455'
+                
 
             else
 
@@ -48511,13 +48499,11 @@ do3:            do i = ILB, IUB
 !                    if ((OpenPoints3D (i, j, KUB) == OpenPoint .and. AddSurfaceWater(i, j) < 0) .or. &
 !                        (WaterPoints3D(i, j, KUB) == WaterPoint.and. AddSurfaceWater(i, j) > 0)) then
 
-                    if (OpenPoints3D (i, j, KUB) == OpenPoint) then
+                    !if (OpenPoints3D (i, j, KUB) == OpenPoint) then
 
                         Me%WaterFluxes%Discharges(i, j, KUB)     =                      &
                             Me%WaterFluxes%Discharges(i, j, KUB) +                      &
-                            AddSurfaceWater(i, j)
-
-                    endif
+                            AddSurfaceWater(i, j) * OpenPoints3D (i, j, KUB)
 
             enddo do3
             enddo do2
@@ -48819,6 +48805,12 @@ do5:            do i = ILB, IUB
                                      CallerID          = mHydrodynamic_,      &
                                      STAT              = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR01.'
+                    
+                    if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge) then!joao sobrinho
+                        call FatherVelocities
+                        !Father Velocities before 
+                    endif
+                    
 
                     !Updates father matrixes with son information. For now, hard coded.
                     call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
@@ -48857,15 +48849,24 @@ do5:            do i = ILB, IUB
 
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
                         !only for 2D or 3D domains
-                        call Modify_Upscaling_Discharges(SonID = AuxHydrodynamicID,                                &
-                                                    FatherID   = Me%FatherInstanceID,                              &
-                                                    DVel_U     = ObjHydrodynamicFather%WaterFluxes%DischargesVelU, &
-                                                    DVel_V     = ObjHydrodynamicFather%WaterFluxes%DischargesVelV, &
-                                                    SonVel_U   = Me%Velocity%Horizontal%U%New,                     &
-                                                    SonVel_V   = Me%Velocity%Horizontal%V%New,                     &
-                                                    STAT       = STAT_CALL)
+                        
+                        !call Modify_Upscaling_Discharges(SonID = AuxHydrodynamicID,                                &
+                        !                            FatherID   = Me%FatherInstanceID,                              &
+                        !                            DVel_U     = ObjHydrodynamicFather%WaterFluxes%DischargesVelU, &
+                        !                            DVel_V     = ObjHydrodynamicFather%WaterFluxes%DischargesVelV, &
+                        !                            SonVel_U   = Me%Velocity%Horizontal%U%New,                     &
+                        !                            SonVel_V   = Me%Velocity%Horizontal%V%New,                     &
+                        !                            STAT       = STAT_CALL)
+                        
+                        call UpscaleDischarge(SonID       = AuxHydrodynamicID,                               &
+                                              FatherID    = Me%FatherInstanceID,                             &
+                                              FatherU_old = ObjHydrodynamicFather%Velocity%Horizontal%U%Old, &                          &
+                                              FatherV_old = ObjHydrodynamicFather%Velocity%Horizontal%V%Old, &                         &
+                                              FatherU     = ObjHydrodynamicFather%Velocity%Horizontal%U%New, &
+                                              FatherV     = ObjHydrodynamicFather%Velocity%Horizontal%V%New, &
+                                              DischargeVolume = ObjHydrodynamicFather%WaterFluxes%Discharges,&
+                                              STAT        = STAT_CALL)
                              ! ver linha 36736 para incluir a difusao das velocidades impostas
-                        ! O volume é depois obtido pela multiplicacao da velocidades pela area lateral do pai
 
                     endif
 
