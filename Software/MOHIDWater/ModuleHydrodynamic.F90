@@ -120,7 +120,7 @@ Module ModuleHydrodynamic
                                        SetDischargeInterceptionRatio,                    &
                                        GetDischargeInterceptionRatio,                    &
                                        Kill_Discharges, CorrectsBypassCellsDischarges,   &
-                                       SetDistributionCoefMass, IsUpscaling
+                                       SetDistributionCoefMass, IsUpscaling, UpscalingDischargeType
     use ModuleTimeSerie,        only : StartTimeSerie, StartTimeSerieInput,              &
                                        GetTimeSerieLocation, CorrectsCellsTimeSerie,     &
                                        GetNumberOfTimeSeries, TryIgnoreTimeSerie,        &
@@ -746,6 +746,8 @@ Module ModuleHydrodynamic
     !Wave stress relaxation coefficients
     character(LEN = StringLength), parameter :: relax_wave_stress_begin = '<begin_relax_wave_stress>'
     character(LEN = StringLength), parameter :: relax_wave_stress_end   = '<end_relax_wave_stress>'
+    
+    integer, parameter        :: UpscalingDischargeByVolume = 1
 
 
     !Types---------------------------------------------------------------------
@@ -10022,10 +10024,12 @@ i2:          if (DischargesID == 0) then
 d1:             do dn = 1, DischargesNumber
 
                     if (IsUpscaling(Me%ObjDischarges, dn))then
-                        if (Me%ComputeOptions%MomentumDischarge)then
-                            write(*,*) 'If an upscaling discharge is set, then keyword MOMENTUM_DISCHARGE must be'
-                            write(*,*) 'active in module Hydrodynamic.dat'
-                            stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR40'
+                        if (UpscalingDischargeType(Me%ObjDischarges, dn) == UpscalingDischargeByVolume)then
+                        !nothing to do
+                        elseif (.NOT. Me%ComputeOptions%MomentumDischarge)then
+                            write(*,*) 'If an upscaling discharge is set with method "momentum" , then keyword'
+                            write(*,*) 'MOMENTUM_DISCHARGE must be active in module Hydrodynamic.dat'
+                            stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR35'                            
                         endif
                         Me%ComputeOptions%UpscalingDischarge = .true. !Joao Sobrinho
                     endif
@@ -10449,7 +10453,7 @@ i7:             if (.not. ContinuousGOTM)  then
         call GetWaterPoints2D(FatherID, FatherWaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Father waterpoints'
         call GetHorizontalGrid (HorizontalGridID = SonID, ILinkZ = IZ, JLinkZ = IZ, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructUpscalingDischarges - Failed to get ILinkZ or JLinkZ'
+        if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get ILinkZ or JLinkZ'
 
         do DischargeID = 1, DischargesNumber
 
@@ -48804,13 +48808,7 @@ do5:            do i = ILB, IUB
                                      FatherID          = Me%FatherInstanceID, &
                                      CallerID          = mHydrodynamic_,      &
                                      STAT              = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR01.'
-                    
-                    if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge) then!joao sobrinho
-                        call FatherVelocities
-                        !Father Velocities before 
-                    endif
-                    
+                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR01.'        
 
                     !Updates father matrixes with son information. For now, hard coded.
                     call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
@@ -48851,23 +48849,20 @@ do5:            do i = ILB, IUB
                         !only for 2D or 3D domains
                         
                         !call Modify_Upscaling_Discharges(SonID = AuxHydrodynamicID,                                &
-                        !                            FatherID   = Me%FatherInstanceID,                              &
                         !                            DVel_U     = ObjHydrodynamicFather%WaterFluxes%DischargesVelU, &
                         !                            DVel_V     = ObjHydrodynamicFather%WaterFluxes%DischargesVelV, &
                         !                            SonVel_U   = Me%Velocity%Horizontal%U%New,                     &
                         !                            SonVel_V   = Me%Velocity%Horizontal%V%New,                     &
                         !                            STAT       = STAT_CALL)
-                        
+                        ! ver linha 36736 para incluir a difusao das velocidades impostas
                         call UpscaleDischarge(SonID       = AuxHydrodynamicID,                               &
-                                              FatherID    = Me%FatherInstanceID,                             &
-                                              FatherU_old = ObjHydrodynamicFather%Velocity%Horizontal%U%Old, &                          &
-                                              FatherV_old = ObjHydrodynamicFather%Velocity%Horizontal%V%Old, &                         &
+                                              FatherU_old = ObjHydrodynamicFather%Velocity%Horizontal%U%Old, &
+                                              FatherV_old = ObjHydrodynamicFather%Velocity%Horizontal%V%Old, &
                                               FatherU     = ObjHydrodynamicFather%Velocity%Horizontal%U%New, &
                                               FatherV     = ObjHydrodynamicFather%Velocity%Horizontal%V%New, &
                                               DischargeVolume = ObjHydrodynamicFather%WaterFluxes%Discharges,&
                                               STAT        = STAT_CALL)
-                             ! ver linha 36736 para incluir a difusao das velocidades impostas
-
+                            
                     endif
 
                     call UngetTwoWayExternal_Vars(SonID             = AuxHydrodynamicID,   &

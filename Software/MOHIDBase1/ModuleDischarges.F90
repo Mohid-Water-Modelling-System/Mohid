@@ -89,6 +89,7 @@ Module ModuleDischarges
     public  :: GetDischargeFlowDistribuiton
     public  :: GetDischargeON
     public  :: IsUpscaling
+    public  :: UpscalingDischargeType
     public  :: GetDistributionCoefMass    
     public  :: SetLocationCellsZ
     public  :: SetLayer
@@ -180,10 +181,11 @@ Module ModuleDischarges
     end type T_Property
 
     type       T_WaterFlow
-        logical                                 :: Variable      = .false.
-        integer                                 :: FlowColumn    = null_int 
-        real                                    :: scalar        = FillValueReal
-        logical                                 :: Upscaling     = .false.
+        logical                                 :: Variable        = .false.
+        integer                                 :: FlowColumn      = null_int 
+        real                                    :: scalar          = FillValueReal
+        logical                                 :: Upscaling       = .false.
+        integer                                 :: UpscalingMethod = 1
     end type T_WaterFlow
 
 
@@ -1692,11 +1694,22 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                 Me%ObjEnterData,                                               &
                 flag,                                                          &
                 FromBlock,                                                     &
-                keyword      ='UPSCALING_DISCHARGE',                           &
+                keyword      ='UPSCALING',                                     &
                 ClientModule = 'ModuleDischarges',                             &
                 default      = .false.,                                        &
                 STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR320'
+        
+        !Joao Sobrinho
+        call GetData(NewDischarge%WaterFlow%UpscalingMethod,                   &
+                Me%ObjEnterData,                                               &
+                flag,                                                          &
+                FromBlock,                                                     &
+                keyword      ='UPSCALING_METHOD',                              &
+                ClientModule = 'ModuleDischarges',                             &
+                default      = 1,                                              &
+                STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR330'
         
 
 
@@ -3956,7 +3969,7 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Checks if a discharge is of the type "upscalling"
-    !>@param[in] DischargesID, number, STAT_CALL    
+    !>@param[in] DischargesID, number    
     logical function IsUpscaling(DischargesID, number)
     
     !Arguments-----------------------------------------------------------------
@@ -3985,6 +3998,37 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
     return
     
     end function IsUpscaling
+    !-------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Checks which method is defined in a discharge of the type "upscalling"
+    !>@param[in] DischargesID, number    
+    integer function UpscalingDischargeType (DischargesID, number)
+    !Arguments-----------------------------------------------------------------
+    integer                                     :: DischargesID, number
+    !local---------------------------------------------------------------------
+    integer                                     :: ready_, STAT_CALL
+    type(T_IndividualDischarge), pointer        :: DischargeX
+    !--------------------------------------------------------------------------
+    call Ready(DischargesID, ready_)    
+        
+    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+        call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=number)
+        if (STAT_CALL/=SUCCESS_) then 
+            write(*,*) 'Can not find discharge number ', number, '.'
+            stop       'Function UpscalingDischargeType - ModuleDischarges. ERR01.'
+        endif
+
+        UpscalingDischargeType = DischargeX%WaterFlow%UpscalingMethod
+    else 
+        UpscalingDischargeType = 1
+    end if
+           
+    return    
+    
+    end function UpscalingDischargeType
     
     !--------------------------------------------------------------------------
 

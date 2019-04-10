@@ -60,7 +60,7 @@ Module ModuleUpscallingDischarges
         integer, dimension(:, :), pointer, intent(IN)         :: Connection !Connection beteen father-Son Z cells
         integer, dimension(:, :), pointer, intent(IN)         :: SonWaterPoints, FatherWaterPoints, IZ, JZ
         integer, intent(IN)                                   :: ICell, JCell
-        integer                                               :: n_U, n_V, n_Z !Number of son cells in U and V direction
+        integer                                               :: n_U, n_V, n_Z !Number of son cells in U/V directions
         !Local-----------------------------------------------------------------
         integer                                               :: di, dj, MaxSize, IFather, JFather
         !-------------------------------------------------------------------------
@@ -243,43 +243,44 @@ Module ModuleUpscallingDischarges
     !>@param[in] DischargeVel, SonVel, DLink, SonArea, FatherArea, SonComputeFaces, AcumulatedVel, AuxArea, &
     !> KFloor, KUBSon, KUBFather 
     subroutine ComputeUpscalingVelocity(DischargeVel, SonVel, DLink, SonArea, FatherArea, SonComputeFaces, &
-                                        AcumulatedVel, AuxArea, KFloor, KUBSon, KUBFather, KFloor)
+                                        AcumulatedVel, AuxArea, KFloor, KUBSon, KUBFather)
         !Arguments----------------------------------------------------------------------------------
-        real, dimension(:, :, :),          intent(INOUT) :: DischargeVel
-        real, dimension(:, :, :),          intent(IN)    :: AcumulatedVel, AuxArea 
-        real, dimension(:, :, :), pointer, intent(IN)    :: SonArea, FatherArea, SonVel
-        integer, dimension(:, :), pointer, intent(IN)    :: SonComputeFaces, KFloor
-        integer, dimension(:, :), intent(IN)             :: DLink
+        real, dimension(:, :, :),          intent(INOUT)    :: DischargeVel
+        real, dimension(:, :, :),          intent(INOUT)    :: AcumulatedVel, AuxArea 
+        real, dimension(:, :, :),    pointer, intent(IN)    :: SonArea, FatherArea, SonVel
+        integer, dimension(:, :),    pointer, intent(IN)    :: KFloor
+        integer, dimension(:, :, :), pointer, intent(IN)    :: SonComputeFaces
+        integer, dimension(:, :),             intent(IN)    :: DLink
         !Local--------------------------------------------------------------------------------------
-        integer                                          :: i, j, k, Maxlines, line, KUBSon, KUBFather, &
-                                                            i2, j2, k2, Kbottom
+        integer                                             :: i, j, k, Maxlines, line, KUBSon, KUBFather, &
+                                                               i2, j2, k2, Kbottom
         !-------------------------------------------------------------------------------------------
-        Maxlines = size(CellsToUse, 1)
+        Maxlines = size(DLink, 1)
         !Not worth paralelizing... too litle work for each thread.
         do line = 1, Maxlines
             i = DLink(line, 1)
             j = DLink(line, 2)
-			i2 = DLink(line, 3)
-			j2 = DLink(line, 4)
-			KBottom = KFloor(i, j)
-			do k = Kbottom, KUBFather
-				k2 = k - (KUBFather - KUBSon) 
-				! I am assuming the vertical discretization will be the same even if the son has less layers.
-				AcumulatedVel(i, j, k) = AcumulatedVel(i, j, k) + &
-					                    SonVel(i2, j2, k2) * SonArea(i2, j2, k2) * SonComputeFaces(i2, j2, k2)
+            i2 = DLink(line, 3)
+            j2 = DLink(line, 4)
+            KBottom = KFloor(i, j)
+            do k = Kbottom, KUBFather
+                k2 = k - (KUBFather - KUBSon)
+                ! I am assuming the vertical discretization will be the same even if the son has less layers.
+                AcumulatedVel(i, j, k) = AcumulatedVel(i, j, k) + &
+                                         SonVel(i2, j2, k2) * SonArea(i2, j2, k2) * SonComputeFaces(i2, j2, k2)
                     
                 AuxArea(i, j, k) = AuxArea(i, j, k) + SonArea(i2, j2, k2)
-			enddo
+            enddo
                   
         enddo
             
         do line = 1, Maxlines
             i = DLink(line, 1)
             j = DLink(line, 2)
-			KBottom = KFloor(i, j)
-			do k = Kbottom, KUBFather 
-				DischargeVel(i, j, k) = AcumulatedVel(i, j, k) / FatherArea(i, j, k)
-			enddo
+            KBottom = KFloor(i, j)
+            do k = Kbottom, KUBFather
+                DischargeVel(i, j, k) = AcumulatedVel(i, j, k) / FatherArea(i, j, k)
+            enddo
                   
         enddo            
     
@@ -289,10 +290,10 @@ Module ModuleUpscallingDischarges
     !>@Brief
     !> Computes volume to be added or removed due to upscaling discharge
     !>@param[in] Father_old, Father, DischargeVolume, KUB, KFloor, Area, CellsZ                                        
-    subroutine ComputeDischargeVolume(Father_old, Father, DischargeVolume, KUB, KFloor, Area, CellsZ)
+    subroutine ComputeDischargeVolume(Father_old, Father, Volume, KUB, KFloor, Area, CellsZ)
         !Arguments--------------------------------------------------------------------------
         real, dimension(:, :, :), pointer, intent(IN)    :: Father_old, Father, Area
-        real, dimension(:, :, :), pointer, intent(INOUT) :: DischargeVolume
+        real, dimension(:, :, :), pointer, intent(INOUT) :: Volume
         integer, dimension(:, :)         , intent(IN)    :: KFloor, CellsZ
         integer                          , intent(IN)    :: KUB
         !Local-------------------------------------------------------------------------------
@@ -305,7 +306,7 @@ Module ModuleUpscallingDischarges
             KBottom = Kfloor(i, j)
             !Considering Velocity Cell ID is the same as for type z (by doing so, null gradient is assumed)
             do k = KBottom, KUB
-                DischargeVolume(i, j, k) = (Father_old(i, j, k) - Father(i, j, k)) * Area(i, j, k)
+                Volume(i, j, k) = (Father_old(i, j, k) - Father(i, j, k)) * Area(i, j, k)
             enddo
         enddo
     end subroutine ComputeDischargeVolume

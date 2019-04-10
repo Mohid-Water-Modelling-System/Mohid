@@ -57,6 +57,7 @@ Module ModuleTwoWay
     public  :: PrepTwoWay
     public  :: UngetTwoWayExternal_Vars
     public  :: Modify_Upscaling_Discharges
+    public  :: UpscaleDischarge
 
     !Destructor
     public  :: KillTwoWay                                                     
@@ -92,16 +93,16 @@ Module ModuleTwoWay
         real(8),    dimension(:, :, :), pointer     :: VolumeV          => null()
         real(8),    dimension(:, :, :), pointer     :: VolumeZ          => null()
         real(8),    dimension(:, :   ), pointer     :: VolumeZ_2D       => null()
-        real(8),    dimension(:, :   ), pointer     :: AreaU            => null()
-        real(8),    dimension(:, :   ), pointer     :: AreaV            => null()
+        real,    dimension(:, :, :), pointer        :: AreaU            => null()
+        real,    dimension(:, :, :), pointer        :: AreaV            => null()
         integer, dimension(:, :, :), pointer        :: Open3D           => null()
         integer, dimension(:, :, :), pointer        :: WaterPoints3D    => null()
         integer, dimension(:, :   ), pointer        :: WaterPoints2D    => null()
         integer, dimension(:, :, :), pointer        :: ComputeFaces3D_U => null()
         integer, dimension(:, :, :), pointer        :: ComputeFaces3D_V => null()
         integer, dimension(:, :   ), pointer        :: BoundaryPoints2D => null()
-		integer, dimension(:, :	  ), pointer        :: KFloor_U			=> null()
-		integer, dimension(:, :	  ), pointer        :: KFloor_V			=> null()
+        integer, dimension(:, :   ), pointer        :: KFloor_U         => null()
+        integer, dimension(:, :   ), pointer        :: KFloor_V         => null()
         integer, dimension(:, :   ), pointer        :: IWD_Connections_U => null()
         integer, dimension(:, :   ), pointer        :: IWD_Connections_V => null()
         integer, dimension(:, :   ), pointer        :: IWD_Connections_Z => null()
@@ -112,7 +113,14 @@ Module ModuleTwoWay
         integer                                     :: IWD_Nodes_U       = null_int
         integer                                     :: IWD_Nodes_V       = null_int
         integer, dimension(:, :   ), pointer        :: Connections_Z     => null()
-    end type T_External    
+    end type T_External
+    
+    private :: T_Discharges
+    type       T_Discharges
+        integer, dimension(:, :), allocatable       :: U, V, Z
+        integer                                     :: n_U = 0, n_V = 0, n_Z = 0
+        integer                                     :: Current_U = 0, Current_V = 0, Current_Z = 0
+    end type T_Discharges
     
     private :: T_FatherDomain
     type       T_FatherDomain
@@ -129,12 +137,7 @@ Module ModuleTwoWay
         real, dimension (:, :, :), allocatable      :: IWDDenom
     end type T_FatherDomain
     
-    private :: T_Discharges
-    type       T_Discharges
-        integer, dimension(:, :), allocatable       :: U, V
-        integer                                     :: n_U = 0, n_V = 0, n_Z = 0
-        integer                                     :: Current_U = 0, Current_V = 0, Current_Z = 0
-    end type T_Discharges
+
     
 
     private :: T_TwoWay
@@ -516,9 +519,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                             tracer = Me%DischargeCells%Current_V, Cells = Me%DischargeCells%V)
                 endif
                 Me%Father%DischargeCells%Current_Z = Me%Father%DischargeCells%Current_Z + 1
+                !This update is done for each new discharge cell, in order to fill the matrix of discharge cells
                 !Save discharge cell IDs into a matrix
-                Me%Father%DischargeCells%n_Z(Me%Father%DischargeCells%Current_Z, 1) = dI
-                Me%Father%DischargeCells%n_Z(Me%Father%DischargeCells%Current_Z, 2) = dJ
+                Me%Father%DischargeCells%Z(Me%Father%DischargeCells%Current_Z, 1) = dI
+                Me%Father%DischargeCells%Z(Me%Father%DischargeCells%Current_Z, 2) = dJ
                 
                 !these are the link matrixes between a Father discharge cell and its corresponding Son cells which 
                 !should be considered in the calculation of velocities and flow.
@@ -670,7 +674,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                     ILinkZ = Me%External_Var%IZ, JLinkZ = Me%External_Var%JZ, STAT   = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Son-Father link matrixes'
             
-            Call GetGeometryAreas(SonID, AreaU = Me%External_Var%AreaU, AreaV = Me%External_Var%AreaV, STAT_CALL)
+            Call GetGeometryAreas(SonID, AreaU = Me%External_Var%AreaU, AreaV = Me%External_Var%AreaV, &
+                                  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Could not get Son AreaU or AreaV matrix'            
             
             call GetGeometryVolumes(GeometryID = SonID, VolumeU = Me%External_Var%VolumeU,                   &
@@ -720,10 +725,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                    ComputeFacesV3D = Me%Father%External_Var%ComputeFaces3D_V, &
                                    STAT            = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father ComputeFaces3D U/V'
-			
-			call GetGeometryKFloor(GeometryID = FatherID, U = Me%Father%External_Var%KFloor_U, &
-				                                          V = Me%Father%External_Var%KFloor_V, STAT = STAT_CALL)
-			if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father KfloorU/V'
+        
+            call GetGeometryKFloor(GeometryID = FatherID, U = Me%Father%External_Var%KFloor_U, &
+                                                          V = Me%Father%External_Var%KFloor_V, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father KfloorU/V'
             
             STAT_ = SUCCESS_
         else
@@ -1107,15 +1112,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Responsible for calling the routines which compute upscaling velocity.
-    !>@param[in] SonID, FatherID, DVel_U, DVel_V, SonVel_U, SonVel_V, STAT
-    subroutine  Modify_Upscaling_Discharges(SonID, FatherID, DVel_U, DVel_V, SonVel_U, SonVel_V, STAT)
+    !>@param[in] SonID, DVel_U, DVel_V, SonVel_U, SonVel_V, STAT
+    subroutine  Modify_Upscaling_Discharges(SonID, DVel_U, DVel_V, SonVel_U, SonVel_V, STAT)
         !Arguments-------------------------------------------------------------
-        integer                                          :: SonID, FatherID
+        integer                                          :: SonID
         real, dimension(:, :, :),          intent(INOUT) :: DVel_U, DVel_V
         real, dimension(:, :, :), pointer, intent(IN)    :: SonVel_U, SonVel_V
         !Local-----------------------------------------------------------------
-        integer                                          :: ready_
-        logical                                          :: STAT, ExitFlag
+        integer                                          :: ready_, STAT
+        logical                                          :: ExitFlag
         !----------------------------------------------------------------------
         
         STAT     = UNKNOWN_
@@ -1123,51 +1128,51 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call Ready(SonID, ready_)
         
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-            if (allocated(Me%DischargeCells%U)) ExitFlag == .false.
-            if (allocated(Me%DischargeCells%V)) ExitFlag == .false.
+            if (allocated(Me%DischargeCells%U)) ExitFlag = .false.
+            if (allocated(Me%DischargeCells%V)) ExitFlag = .false.
             ! if none of these matrixes is allocated then this son domain is not the one that is feeding
             ! an upscale discharge into the father domain.
             if (ExitFlag) then
                 STAT = SUCCESS_
-                exit
-            endif
-            
-            if (allocated(Me%DischargeCells%U))then
+            else
                 
-                call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%Father%WorkSize, 0.0)
-                call SetMatrixValue (GetPointer(Me%Father%TotSonIn),  Me%Father%WorkSize, 0.0)
+                if (allocated(Me%DischargeCells%U))then
+                
+                    call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%Father%WorkSize, 0.0)
+                    call SetMatrixValue (GetPointer(Me%Father%TotSonIn),  Me%Father%WorkSize, 0.0)
 
-                Call ComputeUpscalingVelocity(DischargeVel    = DVel_U,                          &
-                                              SonVel          = SonVel_U,                        &
-                                              DLink           = Me%DischargeCells%U,             &
-                                              SonArea         = Me%External_Var%AreaU,           & 
-                                              FatherArea      = Me%Father%External_Var%AreaU,    &
-                                              AuxArea         = Me%Father%TotSonIn,              &
-                                              AcumulatedVel   = Me%Father%AuxMatrix,             &
-                                              SonComputeFaces = Me%External_Var%ComputeFaces3D_U,&
-					                          KFloor          = Me%Father%External_Var%KFloor_U, &
-                                              KUBSon          = Me%WorkSize%KUB,                 &
-                                              KUBFather       = Me%Father%WorkSize%KUB)
-            endif
+                    Call ComputeUpscalingVelocity(DischargeVel    = DVel_U,                          &
+                                                  SonVel          = SonVel_U,                        &
+                                                  DLink           = Me%DischargeCells%U,             &
+                                                  SonArea         = Me%External_Var%AreaU,           & 
+                                                  FatherArea      = Me%Father%External_Var%AreaU,    &
+                                                  AuxArea         = Me%Father%TotSonIn,              &
+                                                  AcumulatedVel   = Me%Father%AuxMatrix,             &
+                                                  SonComputeFaces = Me%External_Var%ComputeFaces3D_U,&
+                                                  KFloor          = Me%Father%External_Var%KFloor_U, &
+                                                  KUBSon          = Me%WorkSize%KUB,                 &
+                                                  KUBFather       = Me%Father%WorkSize%KUB)
+                endif
             
-            if (allocated(Me%DischargeCells%V))then
+                if (allocated(Me%DischargeCells%V))then
                 
-                call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%Father%WorkSize, 0.0)
-                call SetMatrixValue (GetPointer(Me%Father%TotSonIn),  Me%Father%WorkSize, 0.0)
+                    call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%Father%WorkSize, 0.0)
+                    call SetMatrixValue (GetPointer(Me%Father%TotSonIn),  Me%Father%WorkSize, 0.0)
                 
-                Call ComputeUpscalingVelocity(DischargeVel    = DVel_V,                          &
-                                              SonVel          = SonVel_V,                        &
-                                              DLink           = Me%DischargeCells%V,             &
-                                              SonArea         = Me%External_Var%AreaV,           & 
-                                              FatherArea      = Me%Father%External_Var%AreaV,    &
-                                              AuxArea         = Me%Father%TotSonIn,              &
-                                              AcumulatedVel   = Me%Father%AuxMatrix,             &
-                                              SonComputeFaces = Me%External_Var%ComputeFaces3D_V,&
-					                          KFloor          = Me%Father%External_Var%KFloor_V, &
-                                              KUBSon          = Me%WorkSize%KUB,                 &
-                                              KUBFather       = Me%Father%WorkSize%KUB)
+                    Call ComputeUpscalingVelocity(DischargeVel    = DVel_V,                          &
+                                                  SonVel          = SonVel_V,                        &
+                                                  DLink           = Me%DischargeCells%V,             &
+                                                  SonArea         = Me%External_Var%AreaV,           & 
+                                                  FatherArea      = Me%Father%External_Var%AreaV,    &
+                                                  AuxArea         = Me%Father%TotSonIn,              &
+                                                  AcumulatedVel   = Me%Father%AuxMatrix,             &
+                                                  SonComputeFaces = Me%External_Var%ComputeFaces3D_V,&
+                                                  KFloor          = Me%Father%External_Var%KFloor_V, &
+                                                  KUBSon          = Me%WorkSize%KUB,                 &
+                                                  KUBFather       = Me%Father%WorkSize%KUB)
+                endif
+                STAT = SUCCESS_
             endif
-            STAT = SUCCESS_
         else
             STAT = ready_
         endif
@@ -1179,31 +1184,31 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !>Routine responsible for the computation of discharge volume by upscaling
     !>@param[in] FatherID, CallerID, STAT     
-    subroutine UpscaleDischarge(SonID, FatherID, FatherU_old, FatherV_old, FatherU, FatherV, DischargeVolume, STAT)
+    subroutine UpscaleDischarge(SonID, FatherU_old, FatherV_old, FatherU, FatherV, DischargeVolume, STAT)
         !Arguments-------------------------------------------------------------
-        integer,                         , intent(IN)    :: FatherID, SonID
+        integer                          , intent(IN)    :: SonID
         real, dimension(:, :, :), pointer, intent(IN)    :: FatherU_old, FatherV_old,FatherU, FatherV
         real, dimension(:, :, :), pointer, intent(INOUT) :: DischargeVolume
-        logical,                         , intent(IN)    :: STAT
+        integer                          , intent(OUT)   :: STAT
         !Local-----------------------------------------------------------------
-        integer                                          :: ready_, line, i, j, k
+        integer                                          :: ready_
         !----------------------------------------------------------------------
         STAT = UNKNOWN_
         call Ready(SonID, ready_)        
         
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_))then
             if (allocated(Me%DischargeCells%U))then
-                call ComputeDischargeVolume (Father_old = FatherU_old, Father = FatherU_old, DischargeVolume = Flow, &
+                call ComputeDischargeVolume (Father_old = FatherU_old, Father = FatherU, Volume = DischargeVolume,&
                                              KUB = Me%Father%WorkSize%KUB, KFloor = Me%Father%External_Var%KFloor_U, &
-                                             Area   = Me%Father%External_Var%Area_U,   &
-                                             CellsZ = Me%Father%DischargeCells%n_Z)
+                                             Area   = Me%Father%External_Var%AreaU,   &
+                                             CellsZ = Me%Father%DischargeCells%Z)
             endif
             
             if (allocated(Me%DischargeCells%V))then
-                call ComputeDischargeVolume (Father_old = FatherV_old, Father = FatherV_old, DischargeVolume = Flow, &
+                call ComputeDischargeVolume (Father_old = FatherV_old, Father = FatherV, Volume = DischargeVolume,&
                                              KUB = Me%Father%WorkSize%KUB, KFloor = Me%Father%External_Var%KFloor_V, &
-                                             Area   = Me%Father%External_Var%Area_V,   &
-                                             CellsZ = Me%Father%DischargeCells%n_Z)
+                                             Area   = Me%Father%External_Var%AreaV,   &
+                                             CellsZ = Me%Father%DischargeCells%Z)
             endif
             
             STAT = SUCCESS_
@@ -1264,14 +1269,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR110'
             call UnGetMap(SonID, Me%External_Var%ComputeFaces3D_V, STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR120'
-			call UnGetGeometry(SonID, Me%External_Var%AreaU, STAT = status)
-			if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR121.'
-			call UnGetGeometry(SonID, Me%External_Var%AreaV, STAT = status)
-			if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR122.'
-			call UnGetGeometry(SonID, Me%Father%External_Var%KFloor_U, STAT = status)
-			if (STAT_CALL /= status) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR123.'
-			call UnGetGeometry(SonID, Me%Father%External_Var%KFloor_V, STAT = status)
-			if (STAT_CALL /= status) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR124.'
+            call UnGetGeometry(SonID, Me%External_Var%AreaU, STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR121.'
+            call UnGetGeometry(SonID, Me%External_Var%AreaV, STAT = status)
+            if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR122.'
+            call UnGetGeometry(SonID, Me%Father%External_Var%KFloor_U, STAT = status)
+            if (status /= status) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR123.'
+            call UnGetGeometry(SonID, Me%Father%External_Var%KFloor_V, STAT = status)
+            if (status /= status) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR124.'
             
             if (Me%Hydro%InterpolationMethod == 2) then
                 
@@ -1305,10 +1310,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR240'
             call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_V, STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR250'
-			call UnGetGeometry(FatherID, Me%Father%External_Var%Area_U,      STAT = status)
-			if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR260.'
-			call UnGetGeometry(FatherID, Me%Father%External_Var%Area_V,      STAT = status)
-			if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR270.'
+            call UnGetGeometry(FatherID, Me%Father%External_Var%AreaU,      STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR260.'
+            call UnGetGeometry(FatherID, Me%Father%External_Var%AreaV,      STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR270.'
             
             STAT_ = SUCCESS_
         else
