@@ -1197,20 +1197,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call Ready(SonID, ready_)        
         
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_))then
-            if (allocated(Me%DischargeCells%U))then
-                call ComputeDischargeVolume (Father_old = FatherU_old, Father = FatherU, Volume = DischargeVolume,&
-                                             KUB = Me%Father%WorkSize%KUB, KFloor = Me%Father%External_Var%KFloor_U, &
-                                             Area   = Me%Father%External_Var%AreaU,   &
-                                             CellsZ = Me%Father%DischargeCells%Z)
-            endif
-            
-            if (allocated(Me%DischargeCells%V))then
-                call ComputeDischargeVolume (Father_old = FatherV_old, Father = FatherV, Volume = DischargeVolume,&
-                                             KUB = Me%Father%WorkSize%KUB, KFloor = Me%Father%External_Var%KFloor_V, &
-                                             Area   = Me%Father%External_Var%AreaV,   &
-                                             CellsZ = Me%Father%DischargeCells%Z)
-            endif
-            
+
+            call ComputeDischargeVolume(FatherU_old = FatherU_old, FatherU = FatherU,                               & 
+                                        FatherV_old = FatherV_old, FatherV = FatherV,                               &
+                                        Volume = DischargeVolume,                                                   &
+                                        KUB = Me%Father%WorkSize%KUB,                                               &
+                                        KFloorU = Me%Father%External_Var%KFloor_U,                                  &
+                                        KFloorV = Me%Father%External_Var%KFloor_V,                                  &
+                                        AreaU = Me%Father%External_Var%AreaU, AreaV = Me%Father%External_Var%AreaV, &
+                                        ComputeFacesU = Me%Father%External_Var%ComputeFaces3D_U,                    &
+                                        ComputeFacesV = Me%Father%External_Var%ComputeFaces3D_V,                    &
+                                        CellsZ = Me%Father%DischargeCells%Z)
             STAT = SUCCESS_
         else
             STAT = ready_

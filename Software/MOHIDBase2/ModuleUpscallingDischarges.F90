@@ -289,24 +289,39 @@ Module ModuleUpscallingDischarges
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Computes volume to be added or removed due to upscaling discharge
-    !>@param[in] Father_old, Father, DischargeVolume, KUB, KFloor, Area, CellsZ                                        
-    subroutine ComputeDischargeVolume(Father_old, Father, Volume, KUB, KFloor, Area, CellsZ)
+    !>@param[in] FatherU_old, FatherU, FatherV_old, FatherV, Volume, KUB, KFloorU, KFloorV, &
+    !>                                 AreaU, AreaV, ComputeFacesU, ComputeFacesV, CellsZ                                        
+    subroutine ComputeDischargeVolume(FatherU_old, FatherU, FatherV_old, FatherV, Volume, KUB, KFloorU, KFloorV, &
+                                      AreaU, AreaV, ComputeFacesU, ComputeFacesV, CellsZ)
         !Arguments--------------------------------------------------------------------------
-        real, dimension(:, :, :), pointer, intent(IN)    :: Father_old, Father, Area
-        real, dimension(:, :, :), pointer, intent(INOUT) :: Volume
-        integer, dimension(:, :)         , intent(IN)    :: KFloor, CellsZ
-        integer                          , intent(IN)    :: KUB
+        real,    dimension(:, :, :), pointer, intent(IN)    :: FatherU_old, FatherV_old, FatherU, FatherV, AreaU, AreaV
+        integer, dimension(:, :, :), pointer, intent(IN)    :: ComputeFacesU, ComputeFacesV
+        real,    dimension(:, :, :), pointer, intent(INOUT) :: Volume
+        integer, dimension(:, :)         , intent(IN)       :: KFloorU, KFloorV, CellsZ
+        integer                          , intent(IN)       :: KUB
         !Local-------------------------------------------------------------------------------
-        integer                                          :: line, i, j, k, MaxSize, KBottom
+        integer                                             :: line, i, j, k, MaxSize, KBottom
+        real                                                :: F_East, F_West, F_South, F_North
         !------------------------------------------------------------------------------------
         MaxSize = size(CellsZ, 1)
         do line = 1, MaxSize
             i = CellsZ(line, 1)
             j = CellsZ(line, 2)
-            KBottom = Kfloor(i, j)
+            KBottom = KfloorU(i, j)
             !Considering Velocity Cell ID is the same as for type z (by doing so, null gradient is assumed)
             do k = KBottom, KUB
-                Volume(i, j, k) = (Father_old(i, j, k) - Father(i, j, k)) * Area(i, j, k)
+                F_East = (FatherU_old(i, j  , k) - FatherU(i, j  , k)) * AreaU(i, j  , k) *(1-ComputeFacesU(i , j+1,k))
+                F_West = (FatherU_old(i, j+1, k) - FatherU(i, j+1, k)) * AreaU(i, j+1, k) *(1-ComputeFacesU(i , j  ,k))
+                
+                Volume(i, j, k) = Volume(i, j, k) + F_East + F_West
+            enddo
+            
+            KBottom = KfloorV(i, j)
+            do k = KBottom, KUB
+                F_South = (FatherV_old(i  , j, k) - FatherV(i  ,j , k)) * AreaV(i  , j, k) *(1-ComputeFacesV(i+1, j,k))
+                F_North = (FatherV_old(i+1, j, k) - FatherV(i+1,j , k)) * AreaV(i+1, j, k) *(1-ComputeFacesV(i  , j,k))
+                
+                Volume(i, j, k) = Volume(i, j, k) + F_South + F_North
             enddo
         enddo
     end subroutine ComputeDischargeVolume

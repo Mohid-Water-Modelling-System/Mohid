@@ -48854,7 +48854,6 @@ do5:            do i = ILB, IUB
                         !                            SonVel_U   = Me%Velocity%Horizontal%U%New,                     &
                         !                            SonVel_V   = Me%Velocity%Horizontal%V%New,                     &
                         !                            STAT       = STAT_CALL)
-                        ! ver linha 36736 para incluir a difusao das velocidades impostas
                         call UpscaleDischarge(SonID       = AuxHydrodynamicID,                               &
                                               FatherU_old = ObjHydrodynamicFather%Velocity%Horizontal%U%Old, &
                                               FatherV_old = ObjHydrodynamicFather%Velocity%Horizontal%V%Old, &
