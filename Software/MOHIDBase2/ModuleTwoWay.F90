@@ -1270,10 +1270,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR121.'
             call UnGetGeometry(SonID, Me%External_Var%AreaV, STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR122.'
-            call UnGetGeometry(SonID, Me%Father%External_Var%KFloor_U, STAT = status)
-            if (status /= status) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR123.'
-            call UnGetGeometry(SonID, Me%Father%External_Var%KFloor_V, STAT = status)
-            if (status /= status) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR124.'
             
             if (Me%Hydro%InterpolationMethod == 2) then
                 
@@ -1311,6 +1307,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR260.'
             call UnGetGeometry(FatherID, Me%Father%External_Var%AreaV,      STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR270.'
+            call UnGetGeometry(FatherID, Me%Father%External_Var%KFloor_U,   STAT = status)
+            if (status /= status) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR275.'
+            call UnGetGeometry(FatherID, Me%Father%External_Var%KFloor_V,   STAT = status)
+            if (status /= status) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR280.'
             
             STAT_ = SUCCESS_
         else
