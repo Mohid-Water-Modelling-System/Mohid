@@ -5732,8 +5732,9 @@ d5:     do k = klast + 1,KUB
             !$OMP END DO
             !$OMP END PARALLEL
             CHUNK = CHUNK_K(KLBFather, KUBFather, NThreads)
-            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1)) * (KUBFather - KLBFather) 
-            !$OMP PARALLEL PRIVATE(i,j) IF(N > 10000)
+            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon)-ILink(1, 1)) * (KUBFather-KLBFather) / &
+                NThreads
+            !$OMP PARALLEL PRIVATE(i,j) IF(N > 50000)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = KLBFather, KUBFather
             do j = JLink(1, 1), JLink(IUBSon, JUBSon)

@@ -10102,7 +10102,7 @@ i3:                 if (SpatialEmission == DischPoint_) then
                                 stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR130'
                             endif
                         endif
-
+                        ! Joao Sobrinho : aqui é que terá de ser feito o if fo upscaling e depois adicionar mais Ncells
                         nCells    = 1
                         allocate(VectorI(nCells), VectorJ(nCells), VectorK(nCells))
                         VectorJ(nCells) = Jd
@@ -10315,6 +10315,11 @@ n1:                         do nC =1, nCells
 
                         case (DischUniform_)
                             !do not do nothing
+                            !Joao Sobrinho : Adicionar nova opcao: "dischargeProfile" e com isso criar
+                            !                Todos os VectorI/J/K, fluxos e concentracoes necessarios.
+                            !                Será preciso alocar os vectores com base no número de ks.
+                            !                Talvez de para preparar isto para descargas por linhas, etc?
+                            !                Quando forem alocados os vectores I e J, contar logo com os K
                         case default
                             write(*,*) "VERTICAL DISCHARGE option not known ", DischVertical
 

@@ -19997,7 +19997,7 @@ dd:     do dis = 1, Me%Discharge%Number
 
 i11:        if (nCells > 1) then
                 !allocate(DistributionCoef(1:nCells))
-i22:                if      (FlowDistribution == DischByCell_       ) then
+i22:            if      (FlowDistribution == DischByCell_       ) then
 
                     !DistributionCoef(1:nCells) = 1./float(nCells)
 
@@ -20020,7 +20020,7 @@ i22:                if      (FlowDistribution == DischByCell_       ) then
 
             Me%Discharge%Vert   (dis) = DischVertical
 
-dn:         do n=1, nCells
+dn:         do n=1, nCells  ! Joao : ver se aqui se pode adicionar um caudal e concentracao por k
                 if (nCells > 1) then
                     i         = VectorI(n)
                     j         = VectorJ(n)

@@ -1698,7 +1698,7 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                 ClientModule = 'ModuleDischarges',                             &
                 default      = .false.,                                        &
                 STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR320'
+        if (STAT_CALL /= SUCCESS_) stop 'Invalid value for Keyword UPSCALING - Construct_FlowValues'
         
         !Joao Sobrinho
         call GetData(NewDischarge%WaterFlow%UpscalingMethod,                   &
@@ -1709,9 +1709,11 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                 ClientModule = 'ModuleDischarges',                             &
                 default      = 1,                                              &
                 STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR330'
+        if (STAT_CALL /= SUCCESS_) stop 'Invalid value for Keyword UPSCALING_METHOD - Construct_FlowValues'
         
-
+        if (NewDischarge%WaterFlow%Upscaling) then
+            NewDischarge%WaterFlow%scalar = 0.
+        endif
 
      End Subroutine Construct_FlowValues  
 
