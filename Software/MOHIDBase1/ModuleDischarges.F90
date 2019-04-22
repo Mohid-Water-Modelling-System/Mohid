@@ -1070,7 +1070,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
 
         else    i1
 
-            !Darinage Network Dishcarge
+            !Drainage Network Dishcarge
             call GetData(NewDischarge%Localization%NodeID,                              &
                          Me%ObjEnterData,                                               &
                          flag,                                                          &

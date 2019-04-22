@@ -9993,7 +9993,7 @@ ic1:    if (Me%CyclicBoundary%ON) then
         logical                         :: WaterDischarges, ModelGOTM, ContinuousGOTM
         integer, dimension(:,:), pointer:: WaterPoints2D
         integer, dimension(:),   pointer:: VectorI, VectorJ, VectorK
-        integer                         :: Id, Jd, Kd, dn, DischargesNumber, nC
+        integer                         :: Id, Jd, Kd, dn, DischargesNumber, nC, aux
         integer                         :: SpatialEmission, nCells, DischVertical
         integer                         :: STAT_CALL
         real                            :: InterceptionRatio
@@ -10020,6 +10020,9 @@ i2:          if (DischargesID == 0) then
                 call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR30'
 
+                call GetGeometryKFloor(Me%ObjGeometry, Z = Me%External_Var%KFloor_Z, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                              &
+                stop 'Construct_Sub_Modules - ModuleHydrodynamic - Failed to get Kfloor_Z.'
 
 d1:             do dn = 1, DischargesNumber
 
@@ -10102,11 +10105,25 @@ i3:                 if (SpatialEmission == DischPoint_) then
                                 stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR130'
                             endif
                         endif
-                        ! Joao Sobrinho : aqui é que terá de ser feito o if fo upscaling e depois adicionar mais Ncells
-                        nCells    = 1
-                        allocate(VectorI(nCells), VectorJ(nCells), VectorK(nCells))
-                        VectorJ(nCells) = Jd
-                        VectorI(nCells) = Id
+                        ! Joao Sobrinho
+                        !Allocation of Vectors I J and K- profile option for now only for upscaling
+                        if (DischVertical == DischProfile_)then
+                            nCells = Me%WorkSize%KUB - Me%External_Var%KFloor_Z
+                            allocate(VectorI(nCells), VectorJ(nCells), VectorK(nCells))
+                            VectorJ(:) = Jd
+                            VectorI(:) = Id
+                            if (IsUpscaling(Me%ObjDischarges, dn))then
+                                !All good
+                            else
+                                stop 'Upscaling discharge must be a profile discharge : VERTICAL_DISCHARGE : 6'
+                            end
+                            
+                        else
+                            nCells    = 1
+                            allocate(VectorI(nCells), VectorJ(nCells), VectorK(nCells))
+                            VectorJ(nCells) = Jd
+                            VectorI(nCells) = Id
+                        endif
 
                     else i3
 
@@ -10273,6 +10290,13 @@ i3:                 if (SpatialEmission == DischPoint_) then
                         endif
 
                     endif i3
+                    
+                    !call GetGeometryKFloor(Me%ObjGeometry,                  &
+                    !                        Z = Me%External_Var%KFloor_Z,    &
+                    !                        STAT = STAT_CALL)
+                    !
+                    !if (STAT_CALL /= SUCCESS_)                              &
+                    !    stop 'Construct_Sub_Modules - ModuleHydrodynamic - Failed to get Kfloor_Z.'
 
 c1:                 select case (DischVertical)
 
@@ -10288,26 +10312,11 @@ c1:                 select case (DischVertical)
 
                         case (DischBottom_)
 
-                            call GetGeometryKFloor(Me%ObjGeometry,                  &
-                                                   Z = Me%External_Var%KFloor_Z,    &
-                                                   STAT = STAT_CALL)
-
-                            if (STAT_CALL /= SUCCESS_)                              &
-                                stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR330.'
-
 n1:                         do nC =1, nCells
 
                                 VectorK(nC) = Me%External_Var%Kfloor_Z(VectorI(nC), VectorJ(nC))
 
                             enddo n1
-
-                            call UnGetGeometry(Me%ObjGeometry,                      &
-                                                   Me%External_Var%KFloor_Z,        &
-                                                   STAT = STAT_CALL)
-
-                            if (STAT_CALL /= SUCCESS_)                              &
-                                stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR340.'
-
 
                         case (DischSurf_)
 
@@ -10320,34 +10329,62 @@ n1:                         do nC =1, nCells
                             !                Será preciso alocar os vectores com base no número de ks.
                             !                Talvez de para preparar isto para descargas por linhas, etc?
                             !                Quando forem alocados os vectores I e J, contar logo com os K
+                        case (DischProfile_)
+                            
+                            !every index of Vector I and J is repeated n times, where n is KUB - Kfloor
+                            aux = 0
+                            do nC = 1, nCells
+                                do k = Me%External_Var%KFloor_Z(VectorI(nC), VectorJ(nC)), Me%WorkSize%KUB
+                                    aux = aux + 1
+                                    VectorK(aux) = k
+                                enddo 
+                            enddo
+                            
                         case default
                             write(*,*) "VERTICAL DISCHARGE option not known ", DischVertical
 
                             write(*,*) "The known options are : "," Bottom=",DischBottom_," Surface=",DischSurf_,&
                                                                   " Layer =",DischLayer_, " Depth  =",DischDepth_,&
                                                                   " Uniform=",DischUniform_
-                            stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR350'
+                            stop 'Construct_Sub_Modules - ModuleDischarges. ERR350'
 
-                    end select c1
+                        end select c1
+                        
+                        !call UnGetGeometry(Me%ObjGeometry,                      &
+                        !                        Me%External_Var%KFloor_Z,        &
+                        !                        STAT = STAT_CALL)
+                        !
+                        !if (STAT_CALL /= SUCCESS_)                              &
+                        !    stop 'Construct_Sub_Modules - ModuleHydrodynamic - Failed to unget Kfloor_Z'
 
-i4:                 if (SpatialEmission /= DischPoint_) then
 
-
+                    if (SpatialEmission /= DischPoint_) then
                         call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
-                            if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR360'
-
-                    else  i4
+                        if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR360'
+                        
+                    elseif (SpatialEmission == DischPoint_) then
+                        
+                        if (DischVertical == DischProfile_) then
+                            call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
+                            if (STAT_CALL /= SUCCESS_) stop 'Failed using SetLocationCellsZ for profile discharge'
+                        endif
+                    
+                    else
                         if (DischVertical == DischBottom_ .or. DischVertical == DischSurf_) then
                             call SetLayer (Me%ObjDischarges, dn, VectorK(nCells), STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR370'
                         endif
                         deallocate(VectorI, VectorJ, VectorK)
-                    endif i4
+                    endif
 
                 enddo d1
 
                 call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR380'
+                
+                call UnGetGeometry(Me%ObjGeometry, Me%External_Var%KFloor_Z, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)                              &
+                    stop 'Construct_Sub_Modules - ModuleHydrodynamic - Failed to unget Kfloor_Z'
 
             else  i2
                 Me%ObjDischarges = AssociateInstance (mDISCHARGES_, DischargesID)
