@@ -73,7 +73,7 @@ Module ModuleGeometry
                                       GetDDecompWorkSize2D, GetDDecompParameters
 
 #ifdef _USE_MPI
-    use ModuleHorizontalGrid,   only: ReceiveSendLogicalMPI
+    use ModuleHorizontalGrid,   only: ReceiveSendLogicalMPI, GetKfloorZminMPI
 #endif _USE_MPI
 
     use ModuleFunctions,        only: SetMatrixValue, SetMatrixValueAllocatable,        &
@@ -97,6 +97,9 @@ Module ModuleGeometry
     private ::          AllocateVariables
     private ::          VerifyBathymetry
     private ::      ConstructKFloor
+    private ::          RemoveLandBottomLayers
+    private ::              Reallocate3DGeometryProp    
+    private ::              Reallocate3DGeometryPropR8    
 
 #ifdef _USE_SEQASSIMILATION
     !Subroutine to point to memory space of geometry variables
@@ -195,6 +198,7 @@ Module ModuleGeometry
         module procedure ConstructGeometryV1
         module procedure ConstructGeometryV2
     end interface
+    
 
     !Parameter-----------------------------------------------------------------
 
@@ -349,6 +353,8 @@ Module ModuleGeometry
         character(len=Pathlength)               :: InputFile                = null_str !initialization: Jauch
 
         real, dimension(:,:,:), allocatable     :: NearbyAvgVel_Z ! Joao Sobrinho
+        
+        logical                                 :: RemoveLandBotLayersON
 
 #ifdef _USE_SEQASSIMILATION
         !This variable is used to retain location of original memory space for variables
@@ -983,6 +989,24 @@ Module ModuleGeometry
             stop "GetDomainsFromFile - Geometry - ERR40"
 
         endif
+        
+        call GetData(Me%FacesOption, ObjEnterData, iflag,                               &
+                     SearchType     = FromFile,                                         &
+                     keyword        = 'FACES_OPTION',                                   &
+                     Default        = AverageTickness,                                  &
+                     ClientModule   ='ModuleGeometry',                                  &
+                     STAT = STATUS)
+        if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR30"        
+
+        call GetData(Me%RemoveLandBotLayersON, ObjEnterData, iflag,                     &
+                     SearchType     = FromFile,                                         &
+                     keyword        = 'REMOVE_LAND_BOTTOM_LAYERS',                      &
+                     Default        = .false.,                                          &
+                     ClientModule   ='ModuleGeometry',                                  &
+                     STAT = STATUS)
+        if (STATUS /= SUCCESS_) stop "GetDomainsFromFile - Geometry - ERR40"                
+        
+      
 
         !The MinTickness option gives bad results espeially in the large scales.
         ! At the estuary scale bad results have also been identified.
@@ -2577,12 +2601,386 @@ iw:         if (WaterPoints2D(i, j) == WaterPoint) then
         !Disposes pointer to WaterPoints2D
         call UnGetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructKFloor - ModuleGeometry - ERR07'
+        
+        if (Me%RemoveLandBotLayersON) then
+            call RemoveLandBottomLayers
+        endif
 
         !----------------------------------------------------------------------
 
     end subroutine ConstructKFloor
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine Reallocate3DGeometryPropR8(GeoProp3D, Matrix3D, KLB, KUB, KLB_Max, KUB_Max)    
+    
+        !Arguments-------------------------------------------------------------
+        real(8), allocatable, dimension(:,:,:)  :: GeoProp3D
+        real(8), pointer,     dimension(:,:,:)  :: Matrix3D
+        integer                                 :: KLB, KUB, KLB_Max, KUB_Max
+        
+        !Local-----------------------------------------------------------------
+        integer                                 :: STATUS
+        integer                                 :: ILB, IUB, JLB, JUB
+
+        !Begin-----------------------------------------------------------------
+    
+    
+        ILB = Me%Size%ILB
+        IUB = Me%Size%IUB
+
+        JLB = Me%Size%JLB
+        JUB = Me%Size%JUB
+    
+    
+        Matrix3D(:,:,:) = GeoProp3D(:,:,:)
+
+        deallocate (GeoProp3D, stat = STATUS)
+        if (STATUS /= SUCCESS_) stop 'Reallocate3DGeometryPropR8 - Geometry - ERR10'    
+
+        allocate (GeoProp3D(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS)
+        if (STATUS /= SUCCESS_) stop 'Reallocate3DGeometryPropR8 - Geometry - ERR20'      
+        
+        GeoProp3D(:,:,:) = Matrix3D(:,:,KLB_Max:KUB_Max)    
+        
+    end subroutine Reallocate3DGeometryPropR8
+    
+    !--------------------------------------------------------------------------    
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine Reallocate3DGeometryProp(GeoProp3D, Matrix3D, KLB, KUB, KLB_Max, KUB_Max)    
+    
+        !Arguments-------------------------------------------------------------
+        real,    allocatable, dimension(:,:,:)  :: GeoProp3D
+        real(8), pointer,     dimension(:,:,:)  :: Matrix3D
+        integer                                 :: KLB, KUB, KLB_Max, KUB_Max
+        
+        !Local-----------------------------------------------------------------
+        integer                                 :: STATUS
+        integer                                 :: ILB, IUB, JLB, JUB
+
+        !Begin-----------------------------------------------------------------
+    
+    
+        ILB = Me%Size%ILB
+        IUB = Me%Size%IUB
+
+        JLB = Me%Size%JLB
+        JUB = Me%Size%JUB
+    
+    
+        Matrix3D(:,:,:) = GeoProp3D(:,:,:)
+        
+        deallocate (GeoProp3D, stat = STATUS)
+        if (STATUS /= SUCCESS_) stop 'Reallocate3DGeometryProp - Geometry - ERR10'    
+
+        allocate (GeoProp3D(ILB:IUB, JLB:JUB, KLB:KUB), stat = STATUS)
+        if (STATUS /= SUCCESS_) stop 'Reallocate3DGeometryProp - Geometry - ERR20'    
+        
+        GeoProp3D(:,:,:) = Matrix3D(:,:,KLB_Max:KUB_Max)    
+        
+    end subroutine Reallocate3DGeometryProp
+    
+    !--------------------------------------------------------------------------   
+    
+    !--------------------------------------------------------------------------
+    
+    subroutine Reallocate1DGeometryProp(GeoProp1D, KLD, KUD, KLD_New, KUD_New)
+    
+        !Arguments-------------------------------------------------------------
+        real,    pointer,     dimension(:)  :: GeoProp1D
+        integer                             :: KLD, KUD, KLD_New, KUD_New
+        
+        !Local-----------------------------------------------------------------
+        real,    pointer,     dimension(:)  :: Matrix1D        
+        integer                             :: STATUS
+
+        !Begin-----------------------------------------------------------------
+    
+        allocate(Matrix1D(KLD:KUD))
+        
+        Matrix1D(:) = GeoProp1D(:)
+        
+        deallocate (GeoProp1D, stat = STATUS)
+        if (STATUS /= SUCCESS_) stop 'Reallocate1DGeometryProp - Geometry - ERR10'    
+
+        allocate (GeoProp1D(KLD_New:KUD_New), stat = STATUS)
+        if (STATUS /= SUCCESS_) stop 'Reallocate1DGeometryProp - Geometry - ERR20'    
+        
+        GeoProp1D(KLD_New:KUD_New) = Matrix1D(KLD:KUD)    
+        
+        deallocate(Matrix1D)
+        
+    end subroutine Reallocate1DGeometryProp
+    
+    !--------------------------------------------------------------------------       
+    
+    subroutine RemoveLandBottomLayers
+
+        !Parameter-------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        real(8), pointer, dimension(:,:,:)  :: Matrix3D
+        integer                             :: STATUS
+        integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                             :: i, j, Kmin, KLB_Max, KUB_Max
+        type (T_Domain), pointer            :: CurrentDomain 
+        integer                             :: KLD_New, KUD_New, KLD, KUD, KminAux
+
+        !Begin-----------------------------------------------------------------
+
+
+        ILB = Me%Size%ILB
+        IUB = Me%Size%IUB
+
+        JLB = Me%Size%JLB
+        JUB = Me%Size%JUB
+
+        
+        !Find Kmin
+        Kmin = - FillValueInt
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (Me%KFloor%Z(i, j) > 0) then
+                if (Me%KFloor%Z(i, j) < Kmin) then
+                    Kmin = Me%KFloor%Z(i, j)
+                endif
+            endif                
+        enddo
+        enddo
+        
+        KminAux = Kmin        
+        
+#ifdef _USE_MPI
+        call GetKfloorZminMPI(HorizontalGridID = Me%ObjHorizontalGrid,                  &
+                              KminZin          = KminAux,                               &
+                              KminZout         = Kmin,                                  &
+                              STAT             = STATUS)
+        if (STATUS /= SUCCESS_) stop 'RemoveLandBottomLayers - Geometry - ERR10'    
+#endif
+
+        !Correct the 2D Variables
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (Me%KFloor%Z(i, j) > 0) then
+                Me%KFloor%Z(i, j) = Me%KFloor%Z(i, j) - Kmin + 1
+            endif                
+        enddo
+        enddo        
+        
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (Me%KFloor%U(i, j) > 0) then
+                Me%KFloor%U(i, j) = Me%KFloor%U(i, j) - Kmin + 1
+            endif                
+        enddo
+        enddo                
+
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (Me%KFloor%V(i, j) > 0) then
+                Me%KFloor%V(i, j) = Me%KFloor%V(i, j) - Kmin + 1
+            endif                
+        enddo
+        enddo   
+            
+        !reallocate and shift vertically the 3D Variables     
+        KLB         = Me%Size%KLB             
+        KUB_Max     = Me%Size%KUB
+        
+        allocate(Matrix3D(ILB:IUB, JLB:JUB, KLB:KUB_Max), stat = STATUS)
+        if (STATUS /= SUCCESS_) stop 'RemoveLandBottomLayers - Geometry - ERR20'        
+        
+        Me%Size%KUB     = Me%Size%KUB     - Kmin + 1   
+        Me%WorkSize%KUB = Me%WorkSize%KUB - Kmin + 1           
+        KUB             = Me%Size%KUB
+        KLB_Max         = KLB + Kmin -1
+        
+        !VolumeZ
+        call Reallocate3DGeometryPropR8(GeoProp3D = Me%Volumes%VolumeZ,                 &
+                                        Matrix3D  = Matrix3D,                           &
+                                        KLB       = KLB     ,                           &
+                                        KUB       = KUB     ,                           &
+                                        KLB_Max   = KLB_Max ,                           &
+                                        KUB_Max   = KUB_Max )
+
+        !VolumeU
+        call Reallocate3DGeometryPropR8(GeoProp3D = Me%Volumes%VolumeU,                 &
+                                        Matrix3D  = Matrix3D,                           &
+                                        KLB       = KLB     ,                           &
+                                        KUB       = KUB     ,                           &
+                                        KLB_Max   = KLB_Max ,                           &
+                                        KUB_Max   = KUB_Max )
+        
+        !VolumeV
+        call Reallocate3DGeometryPropR8(GeoProp3D = Me%Volumes%VolumeV,                 &
+                                        Matrix3D  = Matrix3D,                           &
+                                        KLB       = KLB     ,                           &
+                                        KUB       = KUB     ,                           &
+                                        KLB_Max   = KLB_Max ,                           &
+                                        KUB_Max   = KUB_Max )
+
+        !VolumeZOld
+        call Reallocate3DGeometryPropR8(GeoProp3D = Me%Volumes%VolumeZOld,              &
+                                        Matrix3D  = Matrix3D,                           &
+                                        KLB       = KLB     ,                           &
+                                        KUB       = KUB     ,                           &
+                                        KLB_Max   = KLB_Max ,                           &
+                                        KUB_Max   = KUB_Max )
+        
+        !AreaU
+        call Reallocate3DGeometryProp(GeoProp3D = Me%Areas%AreaU,                       &
+                                      Matrix3D  = Matrix3D,                             &
+                                      KLB       = KLB     ,                             &
+                                      KUB       = KUB     ,                             &
+                                      KLB_Max   = KLB_Max ,                             &
+                                      KUB_Max   = KUB_Max )
+        !AreaV
+        call Reallocate3DGeometryProp(GeoProp3D = Me%Areas%AreaV,                       &
+                                      Matrix3D  = Matrix3D,                             &
+                                      KLB       = KLB     ,                             &
+                                      KUB       = KUB     ,                             &
+                                      KLB_Max   = KLB_Max ,                             &
+                                      KUB_Max   = KUB_Max )
+
+        !SZZ
+        call Reallocate3DGeometryProp(GeoProp3D = Me%Distances%SZZ,                     &
+                                      Matrix3D  = Matrix3D,                             &
+                                      KLB       = KLB     ,                             &
+                                      KUB       = KUB     ,                             &
+                                      KLB_Max   = KLB_Max ,                             &
+                                      KUB_Max   = KUB_Max )
+        
+        !DZZ
+        call Reallocate3DGeometryProp(GeoProp3D = Me%Distances%DZZ,                     &
+                                      Matrix3D  = Matrix3D,                             &
+                                      KLB       = KLB     ,                             &
+                                      KUB       = KUB     ,                             &
+                                      KLB_Max   = KLB_Max ,                             &
+                                      KUB_Max   = KUB_Max )        
+        
+        !DWZ
+        call Reallocate3DGeometryProp(GeoProp3D = Me%Distances%DWZ,                     &
+                                      Matrix3D  = Matrix3D,                             &
+                                      KLB       = KLB     ,                             &
+                                      KUB       = KUB     ,                             &
+                                      KLB_Max   = KLB_Max ,                             &
+                                      KUB_Max   = KUB_Max )        
+
+        !DUZ
+        call Reallocate3DGeometryProp(GeoProp3D = Me%Distances%DUZ,                     &
+                                      Matrix3D  = Matrix3D,                             &
+                                      KLB       = KLB     ,                             &
+                                      KUB       = KUB     ,                             &
+                                      KLB_Max   = KLB_Max ,                             &
+                                      KUB_Max   = KUB_Max )           
+
+        !DVZ
+        call Reallocate3DGeometryProp(GeoProp3D = Me%Distances%DVZ,                     &
+                                      Matrix3D  = Matrix3D,                             &
+                                      KLB       = KLB     ,                             &
+                                      KUB       = KUB     ,                             &
+                                      KLB_Max   = KLB_Max ,                             &
+                                      KUB_Max   = KUB_Max )   
+
+        !InitialSZZ
+        call Reallocate3DGeometryProp(GeoProp3D = Me%Distances%InitialSZZ,              &
+                                      Matrix3D  = Matrix3D,                             &
+                                      KLB       = KLB     ,                             &
+                                      KUB       = KUB     ,                             &
+                                      KLB_Max   = KLB_Max ,                             &
+                                      KUB_Max   = KUB_Max )   
+
+        !ZCellCenter
+        call Reallocate3DGeometryProp(GeoProp3D = Me%Distances%ZCellCenter,             &
+                                      Matrix3D  = Matrix3D,                             &
+                                      KLB       = KLB     ,                             &
+                                      KUB       = KUB     ,                             &
+                                      KLB_Max   = KLB_Max ,                             &
+                                      KUB_Max   = KUB_Max )   
+        
+        !DZI
+        call Reallocate3DGeometryProp(GeoProp3D = Me%Distances%DZI,                     &
+                                      Matrix3D  = Matrix3D,                             &
+                                      KLB       = KLB     ,                             &
+                                      KUB       = KUB     ,                             &
+                                      KLB_Max   = KLB_Max ,                             &
+                                      KUB_Max   = KUB_Max )   
+
+        !DZE
+        call Reallocate3DGeometryProp(GeoProp3D = Me%Distances%DZE,                     &
+                                      Matrix3D  = Matrix3D,                             &
+                                      KLB       = KLB     ,                             &
+                                      KUB       = KUB     ,                             &
+                                      KLB_Max   = KLB_Max ,                             &
+                                      KUB_Max   = KUB_Max )   
+        
+        !DWZ_Xgrad
+        call Reallocate3DGeometryProp(GeoProp3D = Me%Distances%DWZ_Xgrad,               &
+                                      Matrix3D  = Matrix3D,                             &
+                                      KLB       = KLB     ,                             &
+                                      KUB       = KUB     ,                             &
+                                      KLB_Max   = KLB_Max ,                             &
+                                      KUB_Max   = KUB_Max )           
+        !DWZ_Ygrad
+        call Reallocate3DGeometryProp(GeoProp3D = Me%Distances%DWZ_Ygrad,               &
+                                      Matrix3D  = Matrix3D,                             &
+                                      KLB       = KLB     ,                             &
+                                      KUB       = KUB     ,                             &
+                                      KLB_Max   = KLB_Max ,                             &
+                                      KUB_Max   = KUB_Max )         
+        
+        !NearbyAvgVel_Z
+        call Reallocate3DGeometryProp(GeoProp3D = Me%NearbyAvgVel_Z,                    &
+                                      Matrix3D  = Matrix3D,                             &
+                                      KLB       = KLB     ,                             &
+                                      KUB       = KUB     ,                             &
+                                      KLB_Max   = KLB_Max ,                             &
+                                      KUB_Max   = KUB_Max )          
+        
+        CurrentDomain => Me%FirstDomain
+        do while (associated(CurrentDomain))
+                    
+            KLD     = CurrentDomain%LowerLayer
+            KUD     = CurrentDomain%UpperLayer
+            KLD_New = KLD - Kmin + 1
+            KUD_New = KUD - Kmin + 1
+            
+            call Reallocate1DGeometryProp(GeoProp1D = CurrentDomain%LayerThickness,     &
+                                          KLD       = KLD    ,                          &
+                                          KUD       = KUD    ,                          &
+                                          KLD_New   = KLD_New,                          &
+                                          KUD_New   = KUD_New)
+            
+            call Reallocate1DGeometryProp(GeoProp1D = CurrentDomain%LayerMinThickness,  &
+                                          KLD       = KLD    ,                          &
+                                          KUD       = KUD    ,                          &
+                                          KLD_New   = KLD_New,                          &
+                                          KUD_New   = KUD_New)            
+            
+            call Reallocate1DGeometryProp(GeoProp1D = CurrentDomain%LayerMaxThickness,  &
+                                          KLD       = KLD    ,                          &
+                                          KUD       = KUD    ,                          &
+                                          KLD_New   = KLD_New,                          &
+                                          KUD_New   = KUD_New)            
+
+            !Atualizes UpperLayer and LowerLayer of each domain
+            CurrentDomain%LowerLayer =  KLD_New         
+            CurrentDomain%UpperLayer =  KUD_New  
+            
+            CurrentDomain => CurrentDomain%Next
+        
+        enddo        
+
+        deallocate(Matrix3D, stat = STATUS)
+        if (STATUS /= SUCCESS_) stop 'RemoveLandBottomLayers - Geometry - ERR30'
+
+    end subroutine RemoveLandBottomLayers
+
+    !--------------------------------------------------------------------------        
 
     subroutine Add_Domain(NewDomain)
 
@@ -3242,6 +3640,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Local-----------------------------------------------------------------
         real   , dimension(:, :, :), pointer    :: DWZ, DZZ, DUZ, DVZ, SZZ, DZI, DZE, DWZ_Xgrad, DWZ_Ygrad
         real   , dimension(:, :   ), pointer    :: DUX, DVY
+        real   , dimension(:, :   ), pointer    :: DZX, DZY        
         real                                    :: aux
         integer                                 :: FacesOption
         integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
@@ -3338,7 +3737,7 @@ cd1:    if (FacesOption == MinTickness) then
         else if (FacesOption == AverageTickness) then cd1
 
             !! $OMP MASTER
-            !Gets DZX, DZY
+            !Gets DUX, DVY
             call GetHorizontalGrid(Me%ObjHorizontalGrid, DUX = DUX, DVY = DVY, &
                                    STAT = STAT_CALL)
 
@@ -3465,8 +3864,16 @@ cd1:    if (FacesOption == MinTickness) then
         !$OMP END DO NOWAIT
         enddo
         !$OMP END PARALLEL
+        
 
-!Computes DWZ_Xgrad
+        !Gets DZX, DZY
+        call GetHorizontalGrid(Me%ObjHorizontalGrid, DZX = DZX, DZY = DZY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                             &
+            stop 'ComputeDistances - Geometry - ERR04'
+        
+        
+
+!Computes DWZ_Xgrad = layer tickness gradient in the X diretion divided by the thickness 
         !$OMP PARALLEL PRIVATE(i,j,k,aux)
         do k = KLB  , KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -3476,21 +3883,18 @@ cd1:    if (FacesOption == MinTickness) then
             if (WaterPoints3D(i, j - 1, k) == WaterPoint .and.                            &
                 WaterPoints3D(i, j    , k) == WaterPoint) then
 
-                aux=(DWZ(i, j-1, k) + DWZ(i, j, k))
-
-                if (DUZ(i, j, k) > 0. .and. aux > 0.) then
-                    DWZ_Xgrad(i, j, k) = DWZ(i, j, k) / aux
+                if (DWZ(i, j, k) > 0. .and. DWZ(i, j-1, k) > 0.) then
+                    ![m]                    
+                    aux=(DWZ(i, j-1, k) + DWZ(i, j, k)) / 2.
+                     ![1/m] =  [m] /[m] / [m]
+                    DWZ_Xgrad(i, j, k) = (DWZ(i, j, k) -  DWZ(i, j-1, k)) / aux / DZX(i, j-1)
                 else
-                    DWZ_Xgrad(i, j, k) = 0.5
+                    DWZ_Xgrad(i, j, k) = 0.
                 endif
 
-            else if (WaterPoints3D(i, j - 1, k) == WaterPoint) then
-
+            else 
+                
                 DWZ_Xgrad(i, j, k) =  0.
-
-            else if (WaterPoints3D(i, j    , k) == WaterPoint) then
-
-                DWZ_Xgrad(i, j, k) =   1.
 
             endif
 
@@ -3500,7 +3904,7 @@ cd1:    if (FacesOption == MinTickness) then
         enddo
         !$OMP END PARALLEL
 
-!Computes DWZ_Ygrad
+!Computes DWZ_Ygrad = layer tickness gradient in the Y diretion divided by the thickness 
         !$OMP PARALLEL PRIVATE(i,j,k,aux)
         do k = KLB  , KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -3510,21 +3914,18 @@ cd1:    if (FacesOption == MinTickness) then
             if (WaterPoints3D(i - 1, j, k) == WaterPoint .and.                            &
                 WaterPoints3D(i    , j, k) == WaterPoint) then
 
-                aux= (DWZ(i, j, k) + DWZ(i-1, j, k))
-
-                if (DVZ(i, j, k) > 0. .and. aux > 0.) then
-                    DWZ_Ygrad(i, j, k) =  DWZ(i, j, k)/aux
+                if (DWZ(i, j, k) > 0. .and.  DWZ(i-1, j, k) > 0.) then
+                    ![m]
+                    aux= (DWZ(i, j, k) + DWZ(i-1, j, k)) / 2.                     
+                    ![1/m] =  [m] /[m] / [m]
+                    DWZ_Ygrad(i, j, k) =  (DWZ(i, j, k) -  DWZ(i-1, j, k))/  DZY(i-1, j) /aux
                 else
-                    DWZ_Ygrad(i, j, k) = 0.5
+                    DWZ_Ygrad(i, j, k) = 0.0
                 endif
 
-            else if (WaterPoints3D(i - 1, j, k) == WaterPoint) then
+            else 
 
                 DWZ_Ygrad(i, j, k) =  0.
-
-            else if (WaterPoints3D(i    , j, k) == WaterPoint) then
-
-                DWZ_Ygrad(i, j, k) =   1.
 
             endif
 
@@ -3533,6 +3934,17 @@ cd1:    if (FacesOption == MinTickness) then
         !$OMP END DO NOWAIT
         enddo
         !$OMP END PARALLEL
+        
+        !Nullifies auxilary pointers
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DZX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                             &
+            stop 'ComputeDistances - Geometry - ERR05'
+
+
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DZY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                             &
+            stop 'ComputeDistances - Geometry - ERR06'
+        
 
         if (MonitorPerformance) call StopWatch ("ModuleGeometry", "ComputeDistances")
 
@@ -3548,7 +3960,7 @@ cd1:    if (FacesOption == MinTickness) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        real, dimension(:, :), pointer          :: DUX, DVY, DZX, DZY
+        real, dimension(:, :), pointer          :: DUX, DVY
         integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                 :: i, j, k, STAT_CALL
         integer                                 :: CHUNK
@@ -3564,8 +3976,7 @@ cd1:    if (FacesOption == MinTickness) then
         KUB = Me%WorkSize%KUB
 
         !Gets DUX, DVY
-        call GetHorizontalGrid(Me%ObjHorizontalGrid, DUX = DUX, DVY = DVY,      &
-                               DZX = DZX, DZY = DZY, STAT = STAT_CALL)
+        call GetHorizontalGrid(Me%ObjHorizontalGrid, DUX = DUX, DVY = DVY, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                             &
             stop 'ComputeVolumes - Geometry - ERR01'
 
@@ -3665,16 +4076,6 @@ cd1:    if (FacesOption == MinTickness) then
             stop 'ComputeVolumes - Geometry - ERR03'
 
 
-        !Nullifies auxilary pointers
-        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DZX, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                             &
-            stop 'ComputeVolumes - Geometry - ERR04'
-
-
-        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DZY, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                             &
-            stop 'ComputeVolumes - Geometry - ERR05'
-
         !----------------------------------------------------------------------
 
     end subroutine ComputeVolumes
@@ -3709,7 +4110,7 @@ cd1:    if (FacesOption == MinTickness) then
         DUZ => Me%Distances%DUZ
         DVZ => Me%Distances%DVZ
 
-        !Gets DZX, DZY
+        !Gets DXX, DYY
         call GetHorizontalGrid(Me%ObjHorizontalGrid, DXX = DXX, DYY = DYY, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ComputeAreas - Geometry - ERR01'
 
@@ -6271,17 +6672,20 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
     !--------------------------------------------------------------------------
 
-    integer function GetLayer4Level(GeometryID, i, j, DepthLevel, STAT)
+    integer function GetLayer4Level(GeometryID, i, j, DepthLevel, FromSurface, STAT)
 
         !Parameter-------------------------------------------------------------
         integer, intent (IN)                        :: GeometryID, i, j
         real   , intent (IN)                        :: DepthLevel
+        logical, intent (IN), optional              :: FromSurface
         integer, intent(OUT), optional              :: STAT
 
         !Local-----------------------------------------------------------------
+        real,       dimension(:), pointer           :: Array1D
         integer                                     :: ready_
         integer                                     :: STAT_
         integer                                     :: k, kbottom, KUB
+        logical                                     :: FromSurface_
 
         !----------------------------------------------------------------------
 
@@ -6294,27 +6698,42 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
 
             KUB     = Me%WorkSize%KUB
             kbottom = Me%KFloor%Z(i, j)
+            
+            if (present(FromSurface)) then
+                FromSurface_ = FromSurface
+            else
+                FromSurface_ = .true.
+            endif                
 
 i0:         if (kbottom >=1 .and. kbottom <= KUB) then
-
-i1:             if      (DepthLevel < Me%Distances%SZZ(i,j,KUB)) then
+                
+                allocate(Array1D(kbottom-1:KUB))
+    
+                if (FromSurface_) then
+                    Array1D(kbottom-1:KUB) = Me%Distances%SZZ(i,j,kbottom-1:KUB) - Me%Distances%SZZ(i,j,KUB) 
+                else
+                    Array1D(kbottom-1:KUB) = Me%Distances%SZZ(i,j,kbottom-1:KUB)
+                endif                    
+i1:             if      (DepthLevel < Array1D(KUB)) then
 
                     GetLayer4Level = Me%WorkSize%KUB
 
-                else if (DepthLevel > Me%Distances%SZZ(i,j,kbottom-1)) then i1
+                else if (DepthLevel > Array1D(kbottom-1)) then i1
 
                     GetLayer4Level = kbottom
 
                 else i1
 
                     do k = kbottom, KUB
-                        if (DepthLevel <= Me%Distances%SZZ(i,j,k-1) .and.                    &
-                            DepthLevel >= Me%Distances%SZZ(i,j,k  )) exit
+                        if (DepthLevel <= Array1D(k-1) .and.                    &
+                            DepthLevel >= Array1D(k  )) exit
                     enddo
 
                     GetLayer4Level = k
 
                 endif i1
+                
+                deallocate(Array1D)
 
             else i0
 

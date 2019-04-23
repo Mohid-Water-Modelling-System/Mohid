@@ -311,6 +311,7 @@ Module ModuleTurbulence
         type(T_Time         )                       :: Now
         type(T_Time         )                       :: BeginTime  
         type(T_Time         )                       :: EndTime
+        real                                        :: DT
         
         !Hydrodynamic
         real,    pointer, dimension(:,:,:)          :: VelocityX  => null() !inicialization: Carina
@@ -505,45 +506,50 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjMap               = AssociateInstance (mMAP_,            MapID            )
 
             call GetComputeCurrentTime(Me%ObjTime, Me%ExternalVar%Now, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR10'
    
             call GetComputeTimeLimits(  Me%ObjTime,                             & 
                                         BeginTime = Me%ExternalVar%BeginTime,   &
                                         EndTime   = Me%ExternalVar%EndTime,     & 
                                         STAT = STAT_CALL )
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR20'
+            
+            
+            call GetComputeTimeStep(Me%ObjTime, DT = Me%ExternalVar%DT, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR30'
 
             !Reads File Names From Nomfich
             call ReadFileName('IN_TURB', Me%Files%ConstructData, "Turbulence Data File", &
                                STAT      = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR40'
 
             call ReadFileName('TURB_HDF', Me%Files%OutPutFields, "Turbulence HDF File",  &
                                MPI_ID    = GetDDecompMPI_ID(Me%ObjHorizontalGrid),&
                                DD_ON     = GetDDecompON    (Me%ObjHorizontalGrid),&
                                STAT      = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR03'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR50'
         
 
             !Gets the size from the Geometry   
             call GetGeometrySize(Me%ObjGeometry, Size = Me%Size, WorkSize = Me%WorkSize, &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR04'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR60'
 
             !Gets Horizontal Grid
             call GetHorizontalGrid (Me%ObjHorizontalGrid, DUX = Me%ExternalVar%DUX,      &        
                                     STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR05'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR70'
 
             call GetHorizontalGrid (Me%ObjHorizontalGrid, DYY = Me%ExternalVar%DYY,      &
                                     STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR06'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR80'
 
             !Opens Turbulence data file
             call ConstructEnterData(Me%ObjEnterData, Me%Files%ConstructData, STAT = STAT_CALL) 
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR07'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR90'
 
             call GetWaterPoints3D(Me%ObjMap, Me%ExternalVar%WaterPoints3D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR08'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR100'
 
 
             call TurbulenceOptions
@@ -565,18 +571,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call OutPut_Results_HDF
 
             call UngetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%DUX, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR09'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR110'
 
 
             call UngetHorizontalGrid(Me%ObjHorizontalGrid, Me%ExternalVar%DYY, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR120'
 
             call UngetMap(Me%ObjMap, Me%ExternalVar%WaterPoints3D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR11'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR130'
 
             !Kills Instance of EnterData
             call KillEnterData(Me%ObjEnterData, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR12'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbulence - ModuleTurbulence - ERR140'
 
             !Returns ID
             TurbGOTMID      = Me%ObjTurbGOTM
@@ -586,7 +592,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         else 
             
-             stop 'ModuleTurbulence - ConstructTurbulence - ERR13'
+             stop 'ModuleTurbulence - ConstructTurbulence - ERR150'
 
         end if cd0
 
@@ -1359,6 +1365,7 @@ cd1 :   if (flag .EQ. 0) then
         integer                             :: STAT_CALL
         integer                             :: flag, DefaultFormat
         character(LEN = StringLength)       :: String
+        logical                             :: DefaultMLD
         !----------------------------------------------------------------------
 
         call GetData(String,                                &
@@ -1435,6 +1442,12 @@ cd2 :   if (flag .EQ. 0) then
                      ClientModule = 'ModuleWaterProperties',                             &
                      STAT       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR80'
+        
+        if (Me%TurbOptions%MODTURB == Constant_) then
+            DefaultMLD = .false.
+        else
+            DefaultMLD = .true.
+        endif             
 
         !<BeginKeyword>
             !Keyword          : MLD
@@ -1453,10 +1466,13 @@ cd2 :   if (flag .EQ. 0) then
                      Me%ObjEnterData, flag,                 &
                      keyword      = 'MLD',                  &
                      ClientModule = 'ModuleTurbulence',     &
-                     Default      = .false.,                &
+                     Default      = DefaultMLD,             &
                      STAT         = STAT_CALL)            
-        if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR90'
+        if (STAT_CALL /= SUCCESS_) stop 'TurbulenceOptions - ModuleTurbulence - ERR90'
         
+        if (Me%TurbOptions%MODTURB == Constant_ .and. Me%TurbOptions%MLD_Calc) then
+            stop 'TurbulenceOptions - ModuleTurbulence - ERR95'
+        endif      
         
         if(Me%TurbOptions%MLD_Calc) then
 
@@ -1477,7 +1493,7 @@ cd2 :   if (flag .EQ. 0) then
                      Me%ObjEnterData, flag,                 &
                      keyword      = 'MLD_BOTTOM',           &
                      ClientModule = 'ModuleTurbulence',     &
-                     Default      = .false.,                &
+                     Default      = DefaultMLD,             &
                      STAT         = STAT_CALL)            
         if (STAT_CALL /= SUCCESS_)stop 'TurbulenceOptions - ModuleTurbulence - ERR100'
            
@@ -1966,6 +1982,7 @@ case1 : select case(String)
                                        PointsToFill3D       = Me%ExternalVar%WaterPoints3D,     &
                                        Matrix3D             = Me%Viscosity%HorizontalCenter,    &
                                        TypeZUV              = TypeZ_,                           &
+                                       ClientID             = ClientNumber,                     &
                                        STAT                 = STAT_CALL)
             
             if (STAT_CALL  /= SUCCESS_) stop 'InicFileHorizontalModel - ModuleTurbulence - ERR12a'
@@ -2012,6 +2029,7 @@ case1 : select case(String)
                                        PointsToFill3D       = Me%ExternalVar%WaterPoints3D,     &
                                        Matrix3D             = Me%Viscosity%Vertical,            &
                                        TypeZUV              = TypeZ_,                           &
+                                       ClientID             = ClientNumber,                     &    
                                        STAT                 = STAT_CALL)
             if (STAT_CALL  /= SUCCESS_) stop 'InicFileVerticalModel - ModuleTurbulence - ERR02'
 
@@ -4908,15 +4926,17 @@ do2 :   do I = ILB, IUB
                 select case(Me%TurbOptions%MLD_Method)
       
                 case(TKE_MLD_)          ! MLD according to TKE criterium
+                    
+                    MLD_Surf (i,j) = Me%ExternalVar%SZZ(i,j,KUB-1)                    
          
                     do while (TKE(i,j,k) > Me%TurbVar%TKE_MLD)
 
-                        MLD_Surf(i,j) = Me%ExternalVar%SZZ(i,j,k-1)
-                        k=k-1
                         if(k == KFloorZ(i, j)) then
-                            MLD_Surf(i,j) = Me%ExternalVar%SZZ(i,j,k-1)
                             exit
                         end if
+
+                        k             = k-1
+                        MLD_Surf(i,j) = Me%ExternalVar%SZZ(i,j,k-1) 
 
                     end do   
 
@@ -4940,15 +4960,17 @@ do2 :   do I = ILB, IUB
 
                 
                 case(Rich_MLD_)         ! MLD according to critical Ri number
+                    
+                    MLD_Surf (i,j) = Me%ExternalVar%SZZ(i,j,KUB-1)
  
                     do while (Me%TurbVar%Richardson(i,j,k) < Me%TurbVar%Rich_MLD)
-
-                        MLD_Surf (i,j) = Me%ExternalVar%SZZ(i,j,k-1)
-                        k=k-1
+                        
                         if(k == KFloorZ(i, j)) then
-                            MLD_Surf(i,j) = Me%ExternalVar%SZZ(i,j,k-1)
                             exit
                         end if
+
+                        k             = k-1
+                        MLD_Surf(i,j) = Me%ExternalVar%SZZ(i,j,k-1)                        
 
                     end do    
                  
@@ -6202,7 +6224,7 @@ cd5 :           IF (J .EQ. JUB) THEN
 
                 Me%Viscosity%HorizontalCenter(I,J,K) =             &
                     MAX(Me%TurbVar%MINHorizontalViscosity, ViscSmagorinsky)
-
+                
             end if cd1
 
         end do do3

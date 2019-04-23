@@ -1,0 +1,22 @@
+MODVISH                  : file2D
+
+OUTPUT_TIME              : 0  86400
+
+<begin_viscosity_h>
+DEFAULTVALUE            : 0
+TYPE_ZUV                : z
+FILE_IN_TIME            : NONE
+INITIALIZATION_METHOD   : Sponge
+VISC_TURB_SPONGE        : 1
+SPONGE_EVOLUTION        : 2
+<end_viscosity_h>
+
+
+MODTURB                  : turbulence_equation
+
+RESTART_FILE_OUTPUT_TIME  : 43200 43200
+RESTART_FILE_OVERWRITE   : 0
+
+CONTINUOUS               : 1
+
+

@@ -385,7 +385,7 @@ Module ModuleLagrangianGlobal
 !<BeginMeteoOcean>
 !<<BeginProperty>>
 !   MASK_DIM  ??????????????????????????
-!<<<BeginMeteoOceanFiles>>>
+!<<<BeginMeteoOceanFiles<>>
 !<<<EndMeteoOceanFiles>>>
 !<<EndProperty>>
 !<EndMeteoOcean>
@@ -414,7 +414,7 @@ Module ModuleLagrangianGlobal
                                        ChangeSuffix, ConstructPropertyID,                   &
                                        DistanceBetweenTwoGPSPoints, WGS84toGoogleMaps,      &
                                        SettlingVelSecondaryClarifier,                       &
-                                       WaveLengthHuntsApproximation
+                                       WaveLengthHuntsApproximation, LinearInterpolation
     use ModuleEnterData,        only : ReadFileName, ConstructEnterData, GetData,           &
                                        ExtractBlockFromBuffer, ExtractBlockFromBlock,       &
                                        Block_Unlock, GetOutPutTime, RewindBuffer,           &
@@ -457,6 +457,7 @@ Module ModuleLagrangianGlobal
     use ModuleBoxDif,           only : StartBoxDif, GetBoxes, GetNumberOfBoxes, UngetBoxDif,&
                                        BoxDif, CheckIfInsideBox, GetIfBoxInsideDomain, KillBoxDif        
     use ModuleTurbulence,       only : GetMixingLengthVertical, GetMixingLengthHorizontal,  &
+                                       GetHorizontalViscosity, GetVerticalDiffusivity,      &
                                        UngetTurbulence       
     use ModuleHydrodynamic,     only : StartHydrodynamic,                                   &
                                        GetHorizontalVelocity,                               &
@@ -655,6 +656,8 @@ Module ModuleLagrangianGlobal
     integer, parameter                          :: Imposed_                 = 2
     integer, parameter                          :: DensDynamic_             = 3
     integer, parameter                          :: SecondaryClarifier_      = 4
+    integer, parameter                          :: FergusonChurch2004_      = 5
+    
 
     !accident
     integer, parameter                          :: Fay_                     = 1
@@ -760,6 +763,7 @@ Module ModuleLagrangianGlobal
     character(LEN = StringLength), parameter    :: Char_Imposed             = 'Imposed'
     character(LEN = StringLength), parameter    :: Char_DensDynamic         = 'Density Dynamic'    
     character(LEN = StringLength), parameter    :: Char_SecondaryClarifier  = 'Secondary Clarifier'    
+    character(LEN = StringLength), parameter    :: Char_FergusonChurch2004  = 'FergusonChurch2004'
 
     character(LEN = StringLength), parameter    :: Char_Fay                 = 'Fay'
     character(LEN = StringLength), parameter    :: Char_Thickness           = 'Thickness'
@@ -839,21 +843,40 @@ Module ModuleLagrangianGlobal
         integer, dimension(:, :, :, :   ), pointer     :: GridTracerNumber      => null()
         real,    dimension(:, :, :, :, :), pointer     :: GridMaxTracer         => null()
         real,    dimension(:, :, :, :, :), pointer     :: GridMaxMass           => null()        
-        real,    dimension(:, :,    :, :), pointer     :: GridBottomConc        => null()
 
         real(8), dimension(:, :, :, :   ), pointer     :: GridVolume            => null()
         real,    dimension(:, :, :, :   ), pointer     :: PercentContamin       => null()
         real,    dimension(:, :, :, :, :), pointer     :: GridMass              => null()
-        real,    dimension(:, :, :, :   ), pointer     :: GridBottomMass        => null()
+
                           !p, ig  
         real,    dimension(:, :),          pointer     :: MeanConc              => null()
         real,    dimension(:, :),          pointer     :: AmbientConc           => null()
         real,    dimension(:, :),          pointer     :: MinConc               => null()
         real,    dimension(:, :),          pointer     :: MassVolCel            => null()
 
-        !Sediments
+        !Deposition    
+        real,    dimension(:, :,    :, :), pointer     :: GridBottomConc        => null()
+        real,    dimension(:, :, :, :   ), pointer     :: GridBottomMass        => null()        
+
+        integer, dimension(:, :, :),       pointer     :: GridBottomNumber      => null()
+        integer, dimension(:, :, :),       pointer     :: GridWaterColumnNumber => null() 
+        
+        real,    dimension(:, :, :),       pointer     :: GridBottomVolume      => null()
+        real,    dimension(:, :, :),       pointer     :: GridWaterColumnVolume => null()
+        
+        real,    dimension(:, :, :),       pointer     :: GridBottomSlope       => null()
+        real,    dimension(:, :, :),       pointer     :: GridVelSlope_X        => null()
+        real,    dimension(:, :, :),       pointer     :: GridVelSlope_Y        => null()
+        
+        !g/m2
+        real,    dimension(:, :, :),       pointer     :: GridWaterColumnSedAreaDensity => null() 
+        
+        !Deposition & Erosion Sediments
         real,    dimension(:, :, :),       pointer     :: TauErosionGrid        => null()
         real,    dimension(:, :, :),       pointer     :: MassSedGrid           => null()
+
+        
+       
         
         !Beached
         real,    dimension(:, :, :),       pointer     :: GridBeachedVolume             => null()
@@ -982,6 +1005,8 @@ Module ModuleLagrangianGlobal
         real,    pointer, dimension(:,:,:)      :: Ldownward                            => null()
         real,    pointer, dimension(:,:,:)      :: MixingLengthX                        => null()
         real,    pointer, dimension(:,:,:)      :: MixingLengthY                        => null()
+        real,    pointer, dimension(:,:,:)      :: DiffusionH                           => null()
+        real,    pointer, dimension(:,:,:)      :: DiffusionV                           => null()        
 
         !ObjHydrodynamic
         real,    pointer, dimension(:,:,:)      :: Velocity_U                           => null()
@@ -1087,6 +1112,7 @@ Module ModuleLagrangianGlobal
         logical                                 :: Wind                 = OFF
         logical                                 :: Sedimentation        = OFF
         logical                                 :: Deposition           = OFF
+        logical                                 :: CriticalSlope        = OFF
         logical                                 :: VariableGeom         = OFF
         logical                                 :: ShearVel             = OFF
         logical                                 :: Oil                  = OFF
@@ -1128,6 +1154,7 @@ Module ModuleLagrangianGlobal
         logical                                 :: HNSSedimentation     = OFF
         logical                                 :: HNSEntrainment       = OFF
         logical                                 :: HNSSpreading         = OFF
+        logical                                 :: D50                  = OFF
     end type T_State
 
     !IO
@@ -1230,12 +1257,17 @@ Module ModuleLagrangianGlobal
         real                                    :: VarVelHX                 = 0.2
         real                                    :: VarVelH                  = 0.0
         real                                    :: DiffusionCoefH           = 0.0
+        
+        logical                                 :: TurbGradK                = .false.
 
         !Vertical
         integer                                 :: StandardDeviationType    = VerticalTurbConstant
         real                                    :: VarVelVX                 = 0.0
         real                                    :: VarVelV                  = 0.0
         real                                    :: DiffusionCoefV           = 0.0        
+        
+        logical                                 :: DiffusionCoefHON         = .false. 
+        logical                                 :: DiffusionCoefVON         = .false.         
 
         real                                    :: WindTransferCoef         = 0.03
         integer                                 :: WindDriftCorrection      = NoCorrection_
@@ -1250,11 +1282,18 @@ Module ModuleLagrangianGlobal
         !Sediment stuff
         integer                                 :: SedimentationType        = null_int
         real                                    :: SedVel                   = null_real
+        real                                    :: SedVelUncertainty        = null_real
         real                                    :: MinSedVel                = null_real
         real                                    :: D50                      = null_real
         real                                    :: D50sdv                   = null_real
         real                                    :: Density                  = null_real
         logical                                 :: Sediment                 =.FALSE.
+        real                                    :: D50min                   = null_real
+        real                                    :: D50max                   = null_real        
+        integer                                 :: nDiameterClasses         = null_int
+        !diameter acumulated percentage
+        real,    dimension(:,:), pointer        :: DiameterClasses          => null() 
+        
 
         real                                    :: ThicknessMeters          = null_real
 
@@ -1396,6 +1435,8 @@ Module ModuleLagrangianGlobal
         logical                                 :: AtTheBottom              = OFF        
         real                                    :: HumanBodySinkingVel      = null_real
         real                                    :: TauErosion               = null_real
+        real                                    :: TauErosionMix            = null_real        
+        real                                    :: TauDeposition            = null_real        
         real                                    :: ErosionRateProbability   = null_real
         real                                    :: U, V, W                  = null_real
         real                                    :: RelU, RelV               = null_real
@@ -1429,6 +1470,7 @@ Module ModuleLagrangianGlobal
         real                                    :: CurrentY                 = FillValueReal
         real                                    :: CurrentZ                 = FillValueReal
         real                                    :: D50vel                   = FillValueReal
+        real                                    :: D50                      = FillValueReal
         integer                                 :: SolutionWH               = FillValueInt
         integer                                 :: SolutionWP               = FillValueInt
         integer                                 :: SolutionWD               = FillValueInt
@@ -1459,10 +1501,16 @@ Module ModuleLagrangianGlobal
         real                                    :: TauErosion               = null_real
         real                                    :: ErosionRate              = null_real
         real                                    :: TauDeposition            = null_real
-        real                                    :: Tdecay                   = null_real
+        real                                    :: TdecayMix                = null_real
         logical                                 :: BottomEmission           = OFF
+        real                                    :: TauUncertainty           = null_real
+        logical                                 :: MixSedON                 = .false.
+        logical                                 :: CriticalSlopeON          = .false.
+        real                                    :: CriticalSlope            = null_real
+        real                                    :: CriticalThickness        = null_real        
+        real                                    :: CriticalSlopeVel         = null_real        
+        real                                    :: CriticalSlopeVelUncertainty = null_real
     end type T_Deposition
-    
 
     type T_FloatingObject
         real                                    :: AirDragCoef            = null_real
@@ -1593,7 +1641,10 @@ Module ModuleLagrangianGlobal
         real                                    :: MDegraded                = null_real
         character(PathLength)                   :: OutputEnvelopeTimeSerieFileName = null_str 
         integer                                 :: eroUnit                  = null_int
-
+        real                                    :: SectionDepthMax          = null_real
+        real                                    :: SectionEndX              = null_real
+        real                                    :: SectionEndY              = null_real        
+        logical                                 :: SectionEmission          = .false.
     end type T_Origin
 
     type T_OptionsStat
@@ -3675,9 +3726,33 @@ d1:     do em = 1, Me%EulerModelNumber
             if (Me%State%Deposition) then
                 allocate (Me%EulerModel(em)%Lag2Euler%GridBottomMass(ILB:IUB, JLB:JUB, 1:nProp, 1:Me%NGroups))
                 allocate (Me%EulerModel(em)%Lag2Euler%GridBottomConc(ILB:IUB, JLB:JUB, 1:nProp, 1:Me%NGroups))
-                                                          !i,j,k,p,ig 
+                                                          !i,j,p,  ig 
                 Me%EulerModel(em)%Lag2Euler%GridBottomMass(:,:,:,  :) = 0.
                 Me%EulerModel(em)%Lag2Euler%GridBottomConc(:,:,:,  :) = 0.
+                
+                allocate (Me%EulerModel(em)%Lag2Euler%GridBottomNumber             (ILB:IUB, JLB:JUB, 1:Me%NGroups))
+                allocate (Me%EulerModel(em)%Lag2Euler%GridWaterColumnNumber        (ILB:IUB, JLB:JUB, 1:Me%NGroups))
+                allocate (Me%EulerModel(em)%Lag2Euler%GridWaterColumnSedAreaDensity(ILB:IUB, JLB:JUB, 1:Me%NGroups))                
+                allocate (Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume        (ILB:IUB, JLB:JUB, 1:Me%NGroups))
+                allocate (Me%EulerModel(em)%Lag2Euler%GridBottomVolume             (ILB:IUB, JLB:JUB, 1:Me%NGroups))  
+                
+                Me%EulerModel(em)%Lag2Euler%GridBottomNumber             (:,:,:) = 0
+                Me%EulerModel(em)%Lag2Euler%GridWaterColumnNumber        (:,:,:) = 0
+                Me%EulerModel(em)%Lag2Euler%GridWaterColumnSedAreaDensity(:,:,:) = 0.
+                Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume        (:,:,:) = 0.
+                Me%EulerModel(em)%Lag2Euler%GridBottomVolume             (:,:,:) = 0.
+                
+                if (Me%State%CriticalSlope) then
+                    allocate (Me%EulerModel(em)%Lag2Euler%GridBottomSlope (ILB:IUB, JLB:JUB, 1:Me%NGroups))  
+                    allocate (Me%EulerModel(em)%Lag2Euler%GridVelSlope_X  (ILB:IUB, JLB:JUB, 1:Me%NGroups))  
+                    allocate (Me%EulerModel(em)%Lag2Euler%GridVelSlope_Y  (ILB:IUB, JLB:JUB, 1:Me%NGroups))                   
+                    
+                    Me%EulerModel(em)%Lag2Euler%GridBottomSlope           (:,:,:) = 0.
+                    Me%EulerModel(em)%Lag2Euler%GridVelSlope_X            (:,:,:) = 0.
+                    Me%EulerModel(em)%Lag2Euler%GridVelSlope_Y            (:,:,:) = 0.               
+                    
+                endif                
+               
             endif
 
             if (Me%OutPut%ConcMaxTracer) then
@@ -4461,6 +4536,8 @@ BF:         if (BlockFound) then
         logical                                     :: FindWaterLocation, FoundWater
         real                                        :: EmissionDuration
         integer                                     :: dir
+        integer                                     :: iLine, FirstLine, LastLine, nClasses 
+        logical                                     :: BlockFound
 
         !Begin-----------------------------------------------------------------
 
@@ -5023,11 +5100,13 @@ AC:     if (NewOrigin%EmissionSpatial == Accident_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR700'
 
-MO:             if (flag == 1) then
+MO:     if (flag == 1) then
 
             select case(trim(adjustl(String)))
             
             case(Char_DiffusionCoef)
+                
+                NewOrigin%Movement%DiffusionCoefHON = .false.
 
                 NewOrigin%Movement%MovType = DiffusionCoef_
 
@@ -5041,6 +5120,12 @@ MO:             if (flag == 1) then
                              Default      = 1.0,                                        &
                              STAT         = STAT_CALL)             
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR705'
+                
+                if (flag /= 0) then
+                    NewOrigin%Movement%DiffusionCoefHON = .true.
+                endif        
+                
+                NewOrigin%Movement%DiffusionCoefVON = .false.
 
                 call GetData(NewOrigin%Movement%DiffusionCoefV,                         &
                              Me%ObjEnterData,                                           &
@@ -5050,7 +5135,11 @@ MO:             if (flag == 1) then
                              ClientModule ='ModuleLagrangianGlobal',                    &  
                              Default      = 0.001,                                      &
                              STAT         = STAT_CALL)             
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR707'                
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR707'  
+                
+                if (flag /= 0) then
+                    NewOrigin%Movement%DiffusionCoefVON = .true.
+                endif                
                 
             case(Char_SullivanAllen)
                 NewOrigin%Movement%MovType = SullivanAllen_
@@ -5153,6 +5242,21 @@ TURB_V:                 if (flag == 1) then
                 stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR790'
          
             end select
+            
+            
+            if (NewOrigin%Movement%MovType /= NotRandom_) then
+
+                call GetData(NewOrigin%Movement%TurbGradK,                              &
+                                Me%ObjEnterData,                                        &
+                                flag,                                                   &
+                                SearchType   = FromBlock,                               &
+                                keyword      ='TURB_GRADIENT_K',                        &
+                                ClientModule ='ModuleLagrangianGlobal',                 &  
+                                Default      = .true.,                                  &
+                                STAT         = STAT_CALL)             
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR795'     
+                
+            endif
 
         else MO
 
@@ -5265,7 +5369,7 @@ TURB_V:                 if (flag == 1) then
                      ClientModule ='ModuleLagrangianGlobal',                     &  
                      Default      = 0.03,                                        &
                      STAT         = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR840'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR834'
 
         if (flag /=0) Me%State%Wind = .true. 
 
@@ -5278,7 +5382,13 @@ TURB_V:                 if (flag == 1) then
                      ClientModule ='ModuleLagrangianGlobal',                     &  
                      Default      = NoCorrection_,                               &
                      STAT         = STAT_CALL)             
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR840'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR835'
+        
+        if (NewOrigin%Movement%WindDriftCorrection /= NoCorrection_ .and.               &
+            NewOrigin%Movement%WindDriftCorrection /= UserDefined_  .and.               &
+            NewOrigin%Movement%WindDriftCorrection /= Computed_Samuels_)    then
+            stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR836'
+        endif            
 
         !WINDDRIFTANGLE
         if (NewOrigin%Movement%WindDriftCorrection .EQ. UserDefined_) then
@@ -5411,6 +5521,17 @@ SE:             if (flag == 1) then
                     write(*,*)'Sedimentation velocity not defined, keyword SED_VELOCITY'
                     stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR890'
                 endif
+                
+                call GetData(NewOrigin%Movement%SedVelUncertainty,                      &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='SED_VELOCITY_UNCERTAINTY',                  &
+                             default      = 0.,                                         &   
+                             ClientModule ='ModuleLagrangianGlobal',                    &
+                             STAT         = STAT_CALL)             
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR880'
+           
 
                 NewOrigin%State%Sedimentation     = ON
              
@@ -5418,6 +5539,99 @@ SE:             if (flag == 1) then
             
                 NewOrigin%Movement%SedimentationType = SecondaryClarifier_
                 NewOrigin%State%Sedimentation        = ON
+                
+            case(Char_FergusonChurch2004)
+                
+                !call GetData(NewOrigin%Movement%D50min,                          &
+                !             Me%ObjEnterData,                                    &
+                !             flag,                                               &
+                !             SearchType   = FromBlock,                           &
+                !             keyword      ='D50_MIN',                            &
+                !             ClientModule ='ModuleLagrangianGlobal',             &
+                !             STAT         = STAT_CALL)             
+                !if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR880'
+                !if (flag == 0) then
+                !    write(*,*)'Sedimentation velocity not defined, keyword D50_MIN'
+                !    stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR890'
+                !endif
+                !
+                !call GetData(NewOrigin%Movement%D50max,                          &
+                !             Me%ObjEnterData,                                    &
+                !             flag,                                               &
+                !             SearchType   = FromBlock,                           &
+                !             keyword      ='D50_MAX',                            &
+                !             ClientModule ='ModuleLagrangianGlobal',             &
+                !             STAT         = STAT_CALL)             
+                !if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR880'
+                !if (flag == 0) then
+                !    write(*,*)'Sedimentation velocity not defined, keyword D50_MAX'
+                !    stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR890'
+                !endif    
+                
+                call RewindBlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)                  
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR879'
+
+                call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,               &
+                                            "<<BeginGranulometricCurve>>",              &
+                                            "<<EndGranulometricCurve>>",                &
+                                            BlockFound,                                 &
+                                            FirstLine = FirstLine,                      &
+                                            LastLine  = LastLine,                       &
+                                            STAT      = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR880'
+
+
+                !Reads Classification Data
+        cd1:    if (BlockFound) then
+                    nClasses = (LastLine-1) - (FirstLine+1) + 1
+                    NewOrigin%Movement%nDiameterClasses = nClasses 
+                    allocate (NewOrigin%Movement%DiameterClasses(nClasses, 2))
+                    nClasses = 0
+                    do iLine = FirstLine+1, LastLine-1
+                        nClasses = nClasses + 1
+                        !Diameter [mm] (ascending order) , accumulated percentage 
+                        call GetData(NewOrigin%Movement%DiameterClasses(nClasses, :),   &
+                                     Me%ObjEnterData, flag,                             &
+                                     Buffer_Line  = iLine,                              & 
+                                     STAT         = STAT_CALL)
+                        if (flag      /=        2) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR881'
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR882'
+                    enddo
+                    if (NewOrigin%Movement%DiameterClasses(       1, 2) /= 0.  ) then
+                            stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR883'
+                    endif                            
+                    if (NewOrigin%Movement%DiameterClasses(nClasses, 2) /= 100.) then
+                            stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR884'                    
+                    endif                                                    
+                else  cd1           
+            
+                    write (*,*)'Sediments classes not defined : ', trim(NewOrigin%Name)
+                    stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR883'
+
+                endif cd1    
+           
+             
+                
+                call GetData(NewOrigin%Movement%SedVelUncertainty,                      &
+                             Me%ObjEnterData,                                           &
+                             flag,                                                      &
+                             SearchType   = FromBlock,                                  &
+                             keyword      ='SED_VELOCITY_UNCERTAINTY',                  &
+                             default      = 0.,                                         &   
+                             ClientModule ='ModuleLagrangianGlobal',                    &
+                             STAT         = STAT_CALL)             
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR880'                
+                
+                NewOrigin%Movement%SedimentationType = FergusonChurch2004_                
+                NewOrigin%State%Sedimentation        = ON  
+                NewOrigin%State%D50                  = ON
+                
+                if (NewOrigin%State%D50) then
+
+                    Me%State%D50 = .true.
+
+                endif                
                 
             case default
             
@@ -5482,7 +5696,7 @@ DE:     if (NewOrigin%State%Deposition) then
             if (STAT_CALL /= SUCCESS_)                                           &
                 call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR950')
 
-           call GetData(NewOrigin%Deposition%Tdecay,                             &
+           call GetData(NewOrigin%Deposition%TdecayMix,                          &
                          Me%ObjEnterData,                                        &
                          flag,                                                   &
                          SearchType   = FromBlock,                               &
@@ -5521,6 +5735,86 @@ DE:     if (NewOrigin%State%Deposition) then
 
             if (STAT_CALL /= SUCCESS_)                                           &
                 call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR980')
+            
+            call GetData(NewOrigin%Deposition%TauUncertainty,                           &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='TAU_UNCERTAINTY',                               &
+                         default      = 0.0,                                            &                                  
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR985')     
+
+            call GetData(NewOrigin%Deposition%MixSedON,                                 &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='MIX_SED_ON',                                    &
+                         default      = .false.,                                        &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR986')  
+            
+            call GetData(NewOrigin%Deposition%CriticalSlopeON,                          &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='CRITICAL_SLOPE_ON',                             &
+                         default      = .false.,                                        &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR987')      
+            
+            if (NewOrigin%Deposition%CriticalSlopeON) Me%State%CriticalSlope = .true.
+
+            call GetData(NewOrigin%Deposition%CriticalSlope,                            &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='CRITICAL_SLOPE',                                &
+                !Need to look for values in literature
+                         default      = 0.4,                                            &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR988')               
+  
+            call GetData(NewOrigin%Deposition%CriticalThickness,                        &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='CRITICAL_THICKNESS',                            &
+                         default      = - null_real,                                    &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR989')   
+            
+            call GetData(NewOrigin%Deposition%CriticalSlopeVel,                         &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='CRITICAL_SLOPE_VELOCITY',                       &
+                         default      = 0.,                                             &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR9890')               
+            
+            call GetData(NewOrigin%Deposition%CriticalSlopeVelUncertainty,              &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='CRITICAL_SLOPE_VELOCITY_UNCERTAINTY',           &
+                         default      = 0.,                                             &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call SetError(FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR9895')                           
 
         endif DE
 
@@ -5806,6 +6100,8 @@ NDF:        if (.not. NewOrigin%Default) then
                     write(*,*)'Is not a WaterPoint'
                     stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1090'
                 endif
+                
+                call ReadSectionEmission(NewOrigin)
 
             else  NDF
 
@@ -7101,6 +7397,72 @@ SP:             if (NewProperty%SedimentPartition%ON) then
     end subroutine ConstructOneOrigin
 
     !--------------------------------------------------------------------------
+    
+    subroutine ReadSectionEmission(NewOrigin)
+
+        !Arguments-------------------------------------------------------------
+        type(T_Origin)                  :: NewOrigin
+
+        !Local-----------------------------------------------------------------    
+        real, dimension(1:2)            :: Aux1D
+        integer                         :: flag, STAT_CALL, em
+        logical                         :: NoDomain
+        
+        !Begin-----------------------------------------------------------------    
+        
+        call GetData(NewOrigin%SectionEmission,                                         &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromBlock,                                          &
+                     keyword      ='SECTION_EMISSION',                                  &
+                     Default      = .false.,                                            &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
+                     STAT         = STAT_CALL)             
+        if (STAT_CALL /= SUCCESS_) stop 'ReadSectionEmission - ModuleLagrangianGlobal - ERR010'
+        
+ 
+        if (NewOrigin%SectionEmission) then
+            
+            call GetData(NewOrigin%SectionDepthMax,                                     &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='SECTION_DEPTH_MAX',                             &
+                         Default      = -99.,                                           &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         STAT         = STAT_CALL)             
+            if (STAT_CALL /= SUCCESS_) stop 'ReadSectionEmission - ModuleLagrangianGlobal - ERR020'        
+                   
+            !Horizontal position of section END in coordinates X, Y
+            call GetData(Aux1D,                                                         &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromBlock,                                      &
+                         keyword      ='SECTION_END_XY',                                &
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadSectionEmission - ModuleLagrangianGlobal - ERR030'
+
+            if (flag /= 2) then
+                stop 'ReadSectionEmission - ModuleLagrangianGlobal - ERR040'
+            endif
+
+            em = Locate_ModelDomain(Aux1D(1), Aux1D(2), NoDomain) 
+
+            if (NoDomain) then
+                write(*,*) 'Discharge outside the domain - ',trim(NewOrigin%Name)
+                write (*,*) 'Origin ',trim(NewOrigin%Name),' is outside of the outer model domain'
+                stop 'ReadSectionEmission - ModuleLagrangianGlobal - ERR050'
+            endif            
+            
+            NewOrigin%SectionEndX = Aux1D(1)      
+            NewOrigin%SectionEndY = Aux1D(2)      
+            
+        endif    
+    
+    end subroutine ReadSectionEmission
+    
+    !--------------------------------------------------------------------------    
     
     subroutine OriginLocationInWater(Position,EulerModel,FoundWater)
     
@@ -8659,7 +9021,7 @@ d1:     do em = 1, Me%EulerModelNumber
             
             NomfichFile =  trim(Me%EulerModel(em)%Path)//'/nomfich.dat'
                 
-            call ReadFileName(keyword       = "ROOT_SRT",								&
+            call ReadFileName(keyword       = "ROOT_SRT",                               &
                               FILE_NAME     = RootPath,									&
                               FilesInput    = NomfichFile,                              &
                               STAT          = STAT_CALL)
@@ -9461,7 +9823,7 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
 
         !Begin-----------------------------------------------------------------
 
-!        CanEmit = .true. 
+        emp = CurrentOrigin%Position%ModelID  
 
         !Actualizes Variable Flow
         if (CurrentOrigin%EmissionTemporal == Continuous_)  then
@@ -9498,7 +9860,6 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                                       
             if (CurrentOrigin%MovingOriginCloudEmission) then
             
-                emp = CurrentOrigin%Position%ModelID            
                 
                 if (trim(CurrentOrigin%MovingOriginUnits) == trim(Char_Cells)) then
 
@@ -9530,6 +9891,10 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                 call Convert_CellK_K (NewParticle%Position)
 
 
+            endif
+            
+            if (CurrentOrigin%SectionEmission) then
+                call EmissionAlongSection (CurrentOrigin, NewParticle) 
             endif
             
 
@@ -9635,6 +10000,96 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
 
 
     end subroutine EmissionPoint
+    
+    !--------------------------------------------------------------------------
+
+    subroutine EmissionAlongSection (CurrentOrigin, NewParticle)
+        
+        !Arguments-------------------------------------------------------------
+        type (T_Origin), pointer                    :: CurrentOrigin    
+        type (T_Partic), pointer                    :: NewParticle
+        
+        !Local-----------------------------------------------------------------
+        integer                                     :: emp        
+        real                                        :: randomXY, randomZ
+        real                                        :: X1, X2, X3, Y1, Y2, Y3, dx, dy, m
+        real                                        :: dDepth, DepthMax, DepthMin
+        integer                                     :: KUB, KFloor, i, j
+
+        !Begin-----------------------------------------------------------------    
+    
+        emp = CurrentOrigin%Position%ModelID  
+    
+        X1 = CurrentOrigin%Position%CoordX
+        Y1 = CurrentOrigin%Position%CoordY 
+        
+        X2 = CurrentOrigin%SectionEndX
+        Y2 = CurrentOrigin%SectionEndY
+        
+        dx = X2 - X1
+        dy = Y2 - Y1
+        
+        call RANDOM_NUMBER(randomXY)
+        
+        if (abs(dx) > 1e-9) then
+            m  = dy/dx
+            X3 = X1 + dx * randomXY
+            Y3 = Y1 + m * (X3 - X1)
+        else
+            X3 = X1
+            Y3 = Y1 + dy * randomXY
+        endif
+        
+        NewParticle%Position%CoordX = X3
+        NewParticle%Position%CoordY = Y3
+
+        !Convert Coordinates
+        call Convert_XY_CellIJ(Me%EulerModel(emp), NewParticle%Position, Referential = GridCoord_)
+        
+        i = NewParticle%Position%I
+        j = NewParticle%Position%J
+        
+        if (i < 0 .or. j < 0) then
+                
+            NewParticle%Position%CoordX = CurrentOrigin%Position%CoordX
+            NewParticle%Position%CoordY = CurrentOrigin%Position%CoordY
+            
+           !Convert Coordinates
+            call Convert_XY_CellIJ(Me%EulerModel(emp), NewParticle%Position, Referential = GridCoord_)            
+            
+            write(*,*)  'EmissionAlongSection - ModuleLagrangianGlobal - WRN10' 
+            
+        endif
+        
+        KUB = Me%EulerModel(emp)%WorkSize%KUB
+
+        if (CurrentOrigin%Position%Depth < -90.) then
+            DepthMin = Me%EulerModel(emp)%SZZ(i, j, KUB)
+        else
+            DepthMin = CurrentOrigin%Position%Depth
+        endif    
+        
+        if (CurrentOrigin%SectionDepthMax < -90.) then
+            kFloor   = Me%EulerModel(emp)%kFloor(i, j)
+            if (kFloor < 1) then
+                 write(*,*) 'i, j, kFloor', i, j, KFloor   
+                 stop 'EmissionAlongSection - ModuleLagrangianGlobal - ERR10' 
+            endif
+            DepthMax = Me%EulerModel(emp)%SZZ(i, j, kFloor - 1)
+        else
+            DepthMax = CurrentOrigin%SectionDepthMax
+        endif  
+        
+        dDepth = DepthMax - DepthMin
+        
+        call RANDOM_NUMBER(randomZ)
+        
+        NewParticle%Position%Z =  DepthMin + dDepth * randomZ
+
+        call Convert_Z_CellK (CurrentOrigin, Me%EulerModel(emp), NewParticle%Position)
+        call Convert_CellK_K (NewParticle%Position)
+
+    end subroutine EmissionAlongSection
     
     !--------------------------------------------------------------------------
 
@@ -11883,8 +12338,9 @@ CurrOr: do while (associated(CurrentOrigin))
 
         if (Origin%State%Deposition) then
         
-            NewParticle%TauErosion = Origin%Deposition%TauErosion
-            NewParticle%Deposited  = Origin%Deposition%BottomEmission
+            NewParticle%TauErosion    = Origin%Deposition%TauErosion
+            NewParticle%TauDeposition = Origin%Deposition%TauDeposition
+            NewParticle%Deposited     = Origin%Deposition%BottomEmission
 
         endif
         
@@ -14456,7 +14912,7 @@ CurrOr:         do while (associated(CurrentOrigin))
 
                         Me%EulerModel(emp)%Lag2Euler%TauErosionGrid (i, j, ig) =     &
                             Me%EulerModel(emp)%Lag2Euler%TauErosionGrid (i, j, ig) + &
-                            CurrentPartic%Mass(Sediment_ID) * CurrentOrigin%Deposition%TauErosion
+                            CurrentPartic%Mass(Sediment_ID) * CurrentPartic%TauErosion
 
                         Me%EulerModel(emp)%Lag2Euler%MassSedGrid(i, j, ig) =                                  &
                             Me%EulerModel(emp)%Lag2Euler%MassSedGrid(i, j, ig) + CurrentPartic%Mass(Sediment_ID) 
@@ -15639,6 +16095,8 @@ CurrOr: do while (associated(CurrentOrigin))
             enddo
             
             endif
+            
+            call CheckDepositionCriticalSlope
 
             !Moves the particles horizontaly
             call MoveParticHorizontal(CurrentOrigin, ThicknessGradient, Fay, SpreadingMethod)
@@ -15724,6 +16182,7 @@ CurrOr: do while (associated(CurrentOrigin))
         real                                        :: OilViscCin, OWInterfacialTension
         real                                        :: Wind
         logical                                     :: exitDoCycle
+        real                                        :: DiffusionCoefH
 
         !Begin-----------------------------------------------------------------------------------------
         
@@ -15785,17 +16244,25 @@ BD:             if (CurrentPartic%Beached .or. CurrentPartic%Deposited .or. Curr
                     .or. (CurrentPartic%HNSParticleState .EQ. Bottom_Deposited_)) then
 
                     if (CurrentPartic%Deposited) then
+                        
+                        if (CurrentOrigin%Deposition%MixSedON) then
 
-                        TauAux = CurrentPartic%TauErosion + (Me%EulerModel(emp)%Lag2Euler%TauErosionGrid( i, j, ID_Group) - &
-                                 CurrentPartic%TauErosion) * Me%DT_Partic / CurrentOrigin%Deposition%Tdecay
+                            TauAux = CurrentPartic%TauErosion + (Me%EulerModel(emp)%Lag2Euler%TauErosionGrid( i, j, ID_Group) - &
+                                     CurrentPartic%TauErosion) * Me%DT_Partic / CurrentOrigin%Deposition%TdecayMix
 
-                        CurrentPartic%TauErosion = max (CurrentOrigin%Deposition%TauErosion, TauAux)
+                            CurrentPartic%TauErosionMix = max (CurrentPartic%TauErosion, TauAux)
+                            
+                        else
+                            
+                            CurrentPartic%TauErosionMix = CurrentPartic%TauErosion
+                            
+                        endif                            
 
 
-                        if (VerifyRessuspension(CurrentPartic)) then
+                        if (VerifyRessuspension(CurrentPartic, CurrentOrigin)) then
                             CurrentPartic%Deposited = .false. 
                             !The effect of other sediment classes ends when the particle is ressuspended
-                            CurrentPartic%TauErosion = CurrentOrigin%Deposition%TauErosion
+                            CurrentPartic%TauErosionMix = CurrentPartic%TauErosion
                         endif
 
                     endif
@@ -15818,12 +16285,12 @@ BD:             if (CurrentPartic%Beached .or. CurrentPartic%Deposited .or. Curr
                 
                 if (CurrentPartic%CurrentX < HalfFillValueReal) then
                     !Linear Interpolation to obtain the velocity of the Water
-                    CurrentPartic%CurrentX = LinearInterpolation(Velocity_U(i,  j  ,k), Velocity_U(i,  j+1,k), Balx)
+                    CurrentPartic%CurrentX = LinearInterpolationCell(Velocity_U(i,  j  ,k), Velocity_U(i,  j+1,k), Balx)
                 endif
 
                 if (CurrentPartic%CurrentY < HalfFillValueReal) then
                     !Linear Interpolation to obtain the velocity of the Water
-                    CurrentPartic%CurrentY = LinearInterpolation(Velocity_V(i,  j  ,k), Velocity_V(i+1,j  ,k), Baly)
+                    CurrentPartic%CurrentY = LinearInterpolationCell(Velocity_V(i,  j  ,k), Velocity_V(i+1,j  ,k), Baly)
                 endif
                 
                 U = CurrentPartic%CurrentX                
@@ -15831,14 +16298,14 @@ BD:             if (CurrentPartic%Beached .or. CurrentPartic%Deposited .or. Curr
                 
                 if (CurrentOrigin%Movement%Float) then   
                     !Equal probability to go in any horizontal direction
-                    GradDWx = 0.5
-                    GradDWy = 0.5
+                    GradDWx = 0.0
+                    GradDWy = 0.0
                 else
                     !Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).                        
                     !Linear Interpolation to obtain the thickness gradient
-                    GradDWx = LinearInterpolation(Me%EulerModel(emp)%DWZ_Xgrad(i,  j  ,k),  &
+                    GradDWx = LinearInterpolationCell(Me%EulerModel(emp)%DWZ_Xgrad(i,  j  ,k),  &
                                                   Me%EulerModel(emp)%DWZ_Xgrad(i,  j+1,k), Balx)
-                    GradDWy = LinearInterpolation(Me%EulerModel(emp)%DWZ_Ygrad(i,  j  ,k),  &
+                    GradDWy = LinearInterpolationCell(Me%EulerModel(emp)%DWZ_Ygrad(i,  j  ,k),  &
                                                   Me%EulerModel(emp)%DWZ_Ygrad(i+1,j  ,k), Baly)
                 endif                                              
                                               
@@ -15896,22 +16363,29 @@ MF:             if (CurrentPartic%Position%Surface) then
                     UWind_ = CurrentOrigin%Movement%WindTransferCoef * WindX
                     VWind_ = CurrentOrigin%Movement%WindTransferCoef * WindY
                     
-                    If (CurrentOrigin%Movement%WindDriftCorrection .EQ. Computed_Samuels_) then
-                        Wind    = abs(cmplx(WindX, WindY))
+                    if      (CurrentOrigin%Movement%WindDriftCorrection == NoCorrection_) then
+                    
+                        UWind =   UWind_ 
+                        VWind =   VWind_                         
+                        
+                    else 
+                        if (CurrentOrigin%Movement%WindDriftCorrection == Computed_Samuels_) then
+                            Wind    = abs(cmplx(WindX, WindY))
 
-                        !Samuels, 1982 - deflection angle is inversely proportional to wind speed
-                        WindDriftAngle = 25. * exp(-10.e-8 * (Wind**3) / ( WaterCinematicVisc * gravity) )
-                    Else
-                        WindDriftAngle = CurrentOrigin%Movement%WindDriftAngle 
-                    End If
+                            !Samuels, 1982 - deflection angle is inversely proportional to wind speed
+                            WindDriftAngle = 25. * exp(-10.e-8 * (Wind**3) / ( WaterCinematicVisc * gravity) )
+                        elseif (CurrentOrigin%Movement%WindDriftCorrection == UserDefined_) then
+                            WindDriftAngle = CurrentOrigin%Movement%WindDriftAngle 
+                        endif
 
+                        UWind =   UWind_ * cos(WindDriftAngle * (Pi / 180.)) + VWind_ * sin(WindDriftAngle * (Pi / 180.))
+                        VWind = - UWind_ * sin(WindDriftAngle * (Pi / 180.)) + VWind_ * cos(WindDriftAngle * (Pi / 180.))
+                    endif                        
+                    
                     if (Me%ExternalVar%BackTracking) then
                         UWind = - UWind
                         VWind = - VWind
-                    endif                    
-
-                    UWind =   UWind_ * cos(WindDriftAngle * (Pi / 180.)) + VWind_ * sin(WindDriftAngle * (Pi / 180.))
-                    VWind = - UWind_ * sin(WindDriftAngle * (Pi / 180.)) + VWind_ * cos(WindDriftAngle * (Pi / 180.))
+                    endif                          
 
                     !Plume velocity
                     UPlume = 0.
@@ -16053,12 +16527,12 @@ if_stm:                     If (CurrentOrigin%Movement%StokesDriftMethod == Long
                         if      (SpreadingMethod == ThicknessGradient) then
                             if  (emp == CurrentOrigin%Position%ModelID) then
                 
-                                UOil = LinearInterpolation(                                      &
+                                UOil = LinearInterpolationCell(                                      &
                                         Me%EulerModel(emp)%OilSpreading(ID_Group)%VelocityX(i, j  ),    &
                                         Me%EulerModel(emp)%OilSpreading(ID_Group)%VelocityX(i, j+1),    &
                                         Balx)
 
-                                VOil = LinearInterpolation(                                      &
+                                VOil = LinearInterpolationCell(                                      &
                                         Me%EulerModel(emp)%OilSpreading(ID_Group)%VelocityY(i, j  ),    &
                                         Me%EulerModel(emp)%OilSpreading(ID_Group)%VelocityY(i+1, j),    &
                                         Baly)
@@ -16182,7 +16656,7 @@ i3D:                if (InterpolVel3D) then
                                 UINT = U
                             else
 
-                                U1 = LinearInterpolation(Velocity_U(I,  J  ,K-1),       &
+                                U1 = LinearInterpolationCell(Velocity_U(I,  J  ,K-1),       &
                                                          Velocity_U(I,  J+1,K-1), Balx)
 
                                 UINT = 2.0 * (U1 * (0.5-BALZ) * Esp + U * BALZ * Esp +  &
@@ -16193,7 +16667,7 @@ i3D:                if (InterpolVel3D) then
                                 VINT = V
                             else
 
-                                V1 = LinearInterpolation(Velocity_V(I,  J  ,K-1),       &
+                                V1 = LinearInterpolationCell(Velocity_V(I,  J  ,K-1),       &
                                                          Velocity_V(I+1,J  ,K-1), Baly)
 
                                 VINT = 2.0 * (V1 * (0.5-BALZ) * Esp + V * BALZ * Esp +  &
@@ -16206,7 +16680,7 @@ i3D:                if (InterpolVel3D) then
                             if (NoIntU) then 
                                 UINT = U
                             else
-                                U1 = LinearInterpolation(Velocity_U(I,  J  ,K+1),       &
+                                U1 = LinearInterpolationCell(Velocity_U(I,  J  ,K+1),       &
                                                          Velocity_U(I,  J+1,K+1), Balx)
 
                                 UINT = 2.0 * (U * 0.5 * EspSup + U * (1.0-BALZ) * Esp + &
@@ -16216,7 +16690,7 @@ i3D:                if (InterpolVel3D) then
                             if (NoIntV) then 
                                 VINT = V
                             else
-                                V1 = LinearInterpolation(Velocity_V(I,  J  ,K+1),       &
+                                V1 = LinearInterpolationCell(Velocity_V(I,  J  ,K+1),       &
                                                          Velocity_V(I+1,J  ,K+1), Baly)
 
                                 VINT = 2.0 * (V * 0.5 * EspSup + V * (1.0-BALZ) * Esp + &
@@ -16293,18 +16767,19 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                         call random_number(RAND)
 
                         !   From 0 to Pi/2 cos and sin have positive values
-                        UD                       = HD * cos(Pi / 2. * RAND)
-                        VD                       = HD * sin(Pi / 2. * RAND)
+                        UD                       = HD * cos(2 * Pi * RAND)
+                        VD                       = HD * sin(2 * Pi * RAND)
 
                         !Third step - Compute the direction of the the turbulent vector taking in consideration the layers thickness gradients
-                        ! Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).                        
-                        call random_number(RAND)
-                       
-                        if (RAND > GradDWx)   UD = - UD              
+                        ! Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).
+                        
+                        if (CurrentOrigin%Movement%TurbGradK) then
+                            ![m/s] = [m/s] + [m] * [m/s] * [1/m] 
+                            ! K = Turbulent Diffusion Coefficent = MixingLength * Stdev of turbulent velocity / 2. 
+                            UD = UD + MixingLength * 1.732050808 * StandardDeviation / 2. * GradDWx
+                            VD = VD + MixingLength * 1.732050808 * StandardDeviation / 2. * GradDWy
 
-                        call random_number(RAND)
-
-                        if (RAND > GradDWy)   VD = - VD      
+                        endif                                    
                         
                         CurrentPartic%TpercursoH = Me%DT_Partic
                         CurrentPartic%UD_old     = UD
@@ -16316,32 +16791,36 @@ MT:             if (CurrentOrigin%Movement%MovType == SullivanAllen_) then
                         CurrentPartic%TpercursoH = CurrentPartic%TpercursoH + Me%DT_Partic
                     end if
 
-                else if (CurrentOrigin%Movement%MovType .EQ. DiffusionCoef_    ) then MT                    
-                
+                else if (CurrentOrigin%Movement%MovType .EQ. DiffusionCoef_    ) then MT     
+    
+                    if (CurrentOrigin%Movement%DiffusionCoefHON) then
+                        DiffusionCoefH = CurrentOrigin%Movement%DiffusionCoefH
+                    else
+                        DiffusionCoefH = Me%EulerModel(emp)%DiffusionH(i, j, k)
+                    endif
 
-                        ! First step - compute the modulus of turbulent vector
+                    ! First step - compute the modulus of turbulent vector
                         
-                        call random_number(RAND)
+                    call random_number(RAND)
                         
-                        !(m^2/s/s)^0.5  du = sqrt(2*D/dt) - standard approach
-                        HD                       = sqrt(2.*CurrentOrigin%Movement%DiffusionCoefH / Me%DT_Partic)  * RAND
+                    !(m^2/s/s)^0.5  du = sqrt(2*D/dt) - standard approach
+                    HD                       = sqrt(2.* DiffusionCoefH / Me%DT_Partic)  * RAND
 
-                        ! Second step - Compute the modulus of each component of the turbulent vector
-                        call random_number(RAND)
+                    ! Second step - Compute the modulus of each component of the turbulent vector
+                    call random_number(RAND)
 
-                        !   From 0 to Pi/2 cos and sin have positive values
-                        UD                       = HD * cos(Pi / 2. * RAND)
-                        VD                       = HD * sin(Pi / 2. * RAND)
+                    !   From 0 to Pi/2 cos and sin have positive values
+                    UD                       = HD * cos(2 * Pi * RAND)
+                    VD                       = HD * sin(2 * Pi * RAND)
 
-                        !Third step - Compute the direction of the the turbulent vector taking in consideration the layers thickness gradients
-                        ! Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).                        
-                        call random_number(RAND)
-                       
-                        if (RAND > GradDWx)   UD = - UD              
+                    !Third step - Compute the direction of the the turbulent vector taking in consideration the layers thickness gradients
+                    ! Spagnol et al. (Mar. Ecol. Prog. Ser., 235, 299-302, 2002).                        
 
-                        call random_number(RAND)
-
-                        if (RAND > GradDWy)   VD = - VD      
+                    if (CurrentOrigin%Movement%TurbGradK) then
+                        ![m/s] = [m/s] + [m^2/s] * [1/m] 
+                        UD = UD + DiffusionCoefH * GradDWx
+                        VD = VD + DiffusionCoefH * GradDWy
+                    endif                                    
                         
                    
                 else if (CurrentOrigin%Movement%MovType .EQ. NotRandom_    ) then MT
@@ -16971,15 +17450,19 @@ iy:                 if  (Me%EulerModel(NewPosition%ModelID)%OpenPoints3D(NewI, N
     
     !--------------------------------------------------------------------------    
 
-    logical function VerifyRessuspension(CurrentPartic)
+    logical function VerifyRessuspension(CurrentPartic, CurrentOrigin)
 
         !Arguments-------------------------------------------------------------
    
         type (T_Partic), pointer                    :: CurrentPartic
+        type (T_Origin), pointer                    :: CurrentOrigin
+        
         !Local-----------------------------------------------------------------
         real, save                                  :: Ranval
         logical                                     :: VerifyShearStress, VerifyErosionRate
         integer                                     :: i, j, emp
+        real                                        :: TauStress, dS, r1        
+        !Begin-----------------------------------------------------------------
 
         i = CurrentPartic%Position%I
         j = CurrentPartic%Position%J
@@ -16996,9 +17479,22 @@ iy:                 if  (Me%EulerModel(NewPosition%ModelID)%OpenPoints3D(NewI, N
         !The ressuspension of a tracer is function of the bottom shear stress
         !and of the erosion rate. The erosion rate (Er) is quantifiied in the form of
         !a probability that is equal to  min (1, Er * dt / MassSedTotal(i,j))
-cd1:    if (Me%EulerModel(emp)%BottomStress(CurrentPartic%Position%I,             &
-                                                   CurrentPartic%Position%J) >=          &
-                                                   CurrentPartic%TauErosion) then
+
+        TauStress = Me%EulerModel(emp)%BottomStress(CurrentPartic%Position%I,           &
+                                                    CurrentPartic%Position%J)        
+        
+        if (CurrentOrigin%Deposition%TauUncertainty > 0) then
+                            
+            call random_number(r1)                            
+                            
+            dS = CurrentOrigin%Deposition%TauUncertainty *  2 * r1 + (1 - CurrentOrigin%Deposition%TauUncertainty)
+                            
+            TauStress = TauStress * dS
+                            
+        endif           
+        
+        
+cd1:    if (TauStress >= CurrentPartic%TauErosionMix) then
 
             VerifyShearStress = ON
 
@@ -17029,6 +17525,8 @@ cd1:    if (Me%EulerModel(emp)%BottomStress(CurrentPartic%Position%I,           
         real                                        :: Aux
         real, save                                  :: Ranval
         integer                                     :: i, j, kbottom, emp
+        real                                        :: TauStress, dS, r1
+        !Begin-----------------------------------------------------------------        
 
         i = CurrentPartic%Position%I
         j = CurrentPartic%Position%J
@@ -17044,14 +17542,24 @@ cd1:    if (CurrentOrigin%Deposition%BottomDistance    >=                       
 
 !Odd, N.V.M., Owen, M.W., 1972. A two-layer model of mud transport in the Thames estuary. 
 !In: Proceedings. Institution of Civil Engineers, London, pp. 195-202.
-
-cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                                      &
-                CurrentOrigin%Deposition%TauDeposition) then
+    
+            TauStress = Me%EulerModel(emp)%BottomStress(i,j)
+    
+            if (CurrentOrigin%Deposition%TauUncertainty > 0) then
+                            
+                call random_number(r1)                            
+                            
+                dS = CurrentOrigin%Deposition%TauUncertainty *  2 * r1 + (1 - CurrentOrigin%Deposition%TauUncertainty)
+                            
+                TauStress = TauStress * dS
+            endif                            
+    
+    
+cd2:        if (TauStress < CurrentOrigin%Deposition%TauDeposition) then
                             
                 call random_number(Ranval)
 
-                Aux = (CurrentOrigin%Deposition%TauDeposition -                         &
-                       Me%EulerModel(emp)%BottomStress(i,j)) /                              &
+                Aux = (CurrentOrigin%Deposition%TauDeposition - TauStress) /            &
                        CurrentOrigin%Deposition%TauDeposition
 
                 !if BottomStress = 0 => Aux = 1 and Aux is always > Randval
@@ -17065,16 +17573,16 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
     end function VerifyDeposition
 
 
-    real function LinearInterpolation(Val1, Val2, Coef)
+    real function LinearInterpolationCell(Val1, Val2, Coef)
         
         !Arguments-------------------------------------------------------------
         real                                        :: Val1, Val2, Coef
             
         !Begin-----------------------------------------------------------------
 
-        LinearInterpolation = Val1 * (1.0-Coef) +  Val2 * Coef
+        LinearInterpolationCell = Val1 * (1.0-Coef) +  Val2 * Coef
 
-    end function LinearInterpolation    
+    end function LinearInterpolationCell    
 
     !--------------------------------------------------------------------------
     
@@ -17142,6 +17650,9 @@ cd2:        if (Me%EulerModel(emp)%BottomStress(i,j) <                          
         real                                        :: SPMDensity, WaterDensity
         integer                                     :: STAT_CALL
         real                                        :: DistSurface, DistBottom, RAND
+        real                                        :: SedVel, dS
+        real                                        :: DiffusionCoefV
+        real                                        :: TauCritic, dx1, dx2
 
         !------------------------------------------------------------------------
 
@@ -17255,8 +17766,77 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
 
                     else if (CurrentOrigin%Movement%SedimentationType .EQ. Imposed_) then
 
-                        VELQZ =  -1. * CurrentOrigin%Movement%SedVel
+                        if (CurrentOrigin%Movement%SedVelUncertainty > 0) then
+                            
+                            call random_number(r1)                            
+                            
+                            dS = CurrentOrigin%Movement%SedVelUncertainty *  2 * r1 + (1 - CurrentOrigin%Movement%SedVelUncertainty)
+                            
+                            SedVel = CurrentOrigin%Movement%SedVel * dS
+                            
+                            VELQZ =  -1. * SedVel
+                            
+                        else
+                            VELQZ =  -1. * CurrentOrigin%Movement%SedVel
+                        endif  
                         
+                    else if (CurrentOrigin%Movement%SedimentationType .EQ. FergusonChurch2004_) then
+                        
+                        if (CurrentPartic%D50vel == FillValueReal) then
+                        
+                            call random_number(r1)
+                            
+                            r1 = r1 * 100
+                            
+                            do i=1, CurrentOrigin%Movement%nDiameterClasses
+                            
+                                if (r1 < CurrentOrigin%Movement%DiameterClasses(i, 2)) then
+                                    exit
+                                endif
+                            enddo
+                            
+                            dx1 = r1 - CurrentOrigin%Movement%DiameterClasses(i-1, 2)
+                            dx2 = CurrentOrigin%Movement%DiameterClasses(i, 2) - r1
+                            
+                            ! mm                            
+                            D50M =  (dx1 * CurrentOrigin%Movement%DiameterClasses(i  , 1) +  &
+                                     dx2 * CurrentOrigin%Movement%DiameterClasses(i-1, 1)) / (dx1 + dx2)
+                            
+                            !from mm to m
+                            D50M = D50M / 1000.         
+                            
+                            SedVel = 1.65*9.8*D50M**2/(18*1e-6+SQRT(0.75*1.65*9.8*D50M**3))                            
+                            
+                            CurrentPartic%D50vel = SedVel                            
+
+                            CurrentPartic%D50    = D50M
+                            
+                            TauCritic = 0.035 * Gravity * 1650. * D50M
+                            
+                            CurrentPartic%TauDeposition = max (TauCritic, CurrentOrigin%Deposition%TauDeposition)
+                            CurrentPartic%TauErosion    = max (TauCritic, CurrentOrigin%Deposition%TauErosion)
+                            
+                        else
+                            
+                            SedVel = CurrentPartic%D50vel
+                        
+                        endif                            
+                        
+                        
+
+                        if (CurrentOrigin%Movement%SedVelUncertainty > 0) then
+                            
+                            call random_number(r1)                            
+                            
+                            dS = CurrentOrigin%Movement%SedVelUncertainty *  2 * r1 + (1 - CurrentOrigin%Movement%SedVelUncertainty)
+                            
+                            SedVel = SedVel * dS
+                            
+                        endif                            
+                            
+                        VELQZ =  -1. * SedVel
+                            
+
                     else if (CurrentOrigin%Movement%SedimentationType .EQ. DensDynamic_) then   
                     
                         VELQZ = DropletsFloatVel(ParticleDensity = CurrentOrigin%Movement%Density, &
@@ -17266,6 +17846,7 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
                                                  InterfTension   = CurrentPartic%OWInterfacialTension)
                         
                         CurrentPartic%D50vel = VELQZ 
+                        CurrentPartic%D50    = CurrentOrigin%Movement%D50
                         
                     else if (CurrentOrigin%Movement%SedimentationType .EQ. SecondaryClarifier_) then 
                     
@@ -17338,12 +17919,18 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
 
                     end select
 
-                else if (CurrentOrigin%Movement%MovType .EQ. DiffusionCoef_    ) then MT                    
+                else if (CurrentOrigin%Movement%MovType .EQ. DiffusionCoef_    ) then MT  
+        
+                    if (CurrentOrigin%Movement%DiffusionCoefVON) then
+                        DiffusionCoefV = CurrentOrigin%Movement%DiffusionCoefV
+                    else
+                        DiffusionCoefV = Me%EulerModel(emp)%DiffusionV(i, j, k)
+                    endif
                     
                     call random_number(RAND)
                         
                     !(m^2/s/s)^0.5  wd = sqrt(2*D/dt) - standard approach
-                    WD  = sqrt(2.*CurrentOrigin%Movement%DiffusionCoefV / DT_Vert)  * (1.0 - 2.0 * RAND)
+                    WD  = sqrt(2.* DiffusionCoefV / DT_Vert)  * (1.0 - 2.0 * RAND)
                 
                 else if (CurrentOrigin%Movement%MovType .EQ. NotRandom_    ) then MT
 
@@ -18107,8 +18694,8 @@ DB:                 if (.not. CurrentPartic%Deposited .and.                     
                         BALY  = CellI - int(CellI)
 
                         !Linear Interpolation to obtain the velocity of the Water
-                        U = LinearInterpolation(Velocity_U(i,  j  ,k), Velocity_U(i,  j+1,k), Balx)
-                        V = LinearInterpolation(Velocity_V(i,  j  ,k), Velocity_V(i+1,j  ,k), Baly)
+                        U = LinearInterpolationCell(Velocity_U(i,  j  ,k), Velocity_U(i,  j+1,k), Balx)
+                        V = LinearInterpolationCell(Velocity_V(i,  j  ,k), Velocity_V(i+1,j  ,k), Baly)
 
                         !Velocity ^ 2
                         VelQ    = U**2. + V**2.
@@ -20141,6 +20728,537 @@ ib2:                if (.not. CurrentPartic%Beached) then
     end subroutine ComputeAreaVolume
 
     !--------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    subroutine CheckDepositionCriticalSlope ()
+
+        !Arguments-------------------------------------------------------------
+   
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin),    pointer                 :: CurrentOrigin
+        type (T_Partic),    pointer                 :: CurrentPartic
+        real,   dimension(:,:), pointer             :: DUX, DVY
+        integer                                     :: i, j, em, ig
+        integer                                     :: WS_JLB, WS_JUB, WS_ILB, WS_IUB, WS_KUB
+        real                                        :: dBottom_dxy, Bathym2, Bathym1, dBottom_dx, dBottom_dy
+        real                                        :: Vel_Dir, Vel_dBottom_X, Vel_dBottom_Y, DZ, v, d, dv, SlopeVel
+        real                                        :: Vel1, Vel2, Vel3, dAux
+        integer                                     :: STAT_CALL
+        logical                                     :: PartInside
+
+        !Begin-----------------------------------------------------------------
+
+        
+
+
+cd3:    if (Me%State%Deposition .and. Me%State%CriticalSlope) then 
+    
+d1:         do em = 1, Me%EulerModelNumber 
+
+
+                WS_ILB = Me%EulerModel(em)%WorkSize%ILB
+                WS_IUB = Me%EulerModel(em)%WorkSize%IUB
+                WS_JLB = Me%EulerModel(em)%WorkSize%JLB
+                WS_JUB = Me%EulerModel(em)%WorkSize%JUB
+                WS_KUB = Me%EulerModel(em)%WorkSize%KUB
+
+                do ig = 1, Me%NGroups
+                do j = WS_JLB, WS_JUB
+                do i = WS_ILB, WS_IUB
+
+                    Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(i,j,ig) = 0. 
+                    Me%EulerModel(em)%Lag2Euler%GridBottomVolume     (i,j,ig) = 0. 
+
+                enddo
+                enddo
+                enddo
+    
+        
+dg:             do ig = 1, Me%NGroups 
+
+                    !Integrates the Volume and the Mass in each GridCell
+                    CurrentOrigin => Me%FirstOrigin
+    CurrOr:         do while (associated(CurrentOrigin))
+
+                        if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+
+                            CurrentPartic => CurrentOrigin%FirstPartic
+                            do while (associated(CurrentPartic))
+
+       
+                                if (em == CurrentPartic%Position%ModelID) then
+
+                                    i = CurrentPartic%Position%I
+                                    j = CurrentPartic%Position%J
+                    
+                                else
+
+                                    PartInside = GetXYInsideDomain(Me%EulerModel(em)%ObjHorizontalGrid, &
+                                                                   CurrentPartic%Position%CoordX,       &
+                                                                   CurrentPartic%Position%CoordY,       &
+                                                                   Referential = GridCoord_,            &
+                                                                   STAT = STAT_CALL)
+
+                                    if (STAT_CALL /= SUCCESS_) then
+                                            stop 'CheckDepositionCriticalSlope - ModuleLagrangianGlobal - ERR10'
+                                    endif                                                                                    
+
+                                    if (PartInside) then
+
+                                        call GetXYCellZ(Me%EulerModel(em)%ObjHorizontalGrid,        &
+                                                        CurrentPartic%Position%CoordX,              &
+                                                        CurrentPartic%Position%CoordY, i, j,        &
+                                                        Referential = GridCoord_,                   &
+                                                        Iold        = CurrentPartic%Position%I,     &
+                                                        Jold        = CurrentPartic%Position%J,     &
+                                                        STAT        = STAT_CALL)
+
+                                        if (STAT_CALL /= SUCCESS_) then
+                                            stop 'CheckDepositionCriticalSlope - ModuleLagrangianGlobal - ERR20'
+                                        endif                                            
+
+                                    else
+                                        CurrentPartic => CurrentPartic%Next
+                                        cycle
+                                    endif
+                    
+                                endif
+                    
+                                if (CurrentPartic%Deposited) then
+
+                                    Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) =      &
+                                        Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) +  & 
+                                        CurrentPartic%Geometry%Volume
+                        
+
+                                else                            
+
+                                    Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(i,j,ig) =      &
+                                        Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(i,j,ig) +  & 
+                                        CurrentPartic%Geometry%Volume
+                            
+                                endif  
+                                
+                                CurrentPartic => CurrentPartic%Next
+                                
+                            enddo
+                        endif
+                        CurrentOrigin => CurrentOrigin%Next
+                    enddo CurrOr
+                    
+                enddo dg
+
+                    
+                !Gets Horizontal Grid
+                call GetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, DUX = DUX, DVY = DVY, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'CheckDepositionCriticalSlope - ModuleLagrangianGlobal - ERR30'
+                endif                    
+
+g3:             do ig = 1, Me%NGroups
+
+                    do j = WS_JLB, WS_JUB
+                    do i = WS_ILB, WS_IUB
+
+                        if (Me%EulerModel(em)%Waterpoints3D (i, j, WS_KUB) == WaterPoint) then
+
+                            ! Volume / m2 = m
+                            Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(i,j,ig) = &
+                                    Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(i,j,ig) / DUX(I, j) / DVY(i, j)
+
+                            ! Volume / m2 = m
+                            Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) = &
+                                    Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) / DUX(I, j) / DVY(i, j)
+                            
+                        endif
+
+                    enddo
+                    enddo                            
+
+                    do j = WS_JLB, WS_JUB
+                    do i = WS_ILB, WS_IUB
+
+                        if (Me%EulerModel(em)%Waterpoints3D (i, j, WS_KUB) == WaterPoint) then
+
+                            dBottom_dx = 0.
+                            dBottom_dy = 0.
+                            
+                            Bathym1  =   Me%EulerModel(em)%Bathymetry(i, j) - Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig)
+                                    
+                            if (Me%EulerModel(em)%Waterpoints3D (i-1, j, WS_KUB) == WaterPoint) then
+                                Bathym2   =   Me%EulerModel(em)%Bathymetry(i-1, j)
+                                Bathym2   =   Bathym2 - Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i-1,j,ig)
+                                dBottom_dy = (Bathym1 - Bathym2) / DVY(i, j) 
+                            endif     
+                                    
+                            if (Me%EulerModel(em)%Waterpoints3D (i+1, j, WS_KUB) == WaterPoint) then
+                                Bathym2   =   Me%EulerModel(em)%Bathymetry(i+1, j)
+                                Bathym2   =   Bathym2 - Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i+1,j,ig)
+
+                                dAux = (Bathym2 - Bathym1) / DVY(i, j)
+                                if (abs(dBottom_dy) < abs(dAux)) then
+                                    dBottom_dy = dAux
+                                endif                                    
+                            endif                                         
+                                    
+                            if (Me%EulerModel(em)%Waterpoints3D (i, j-1, WS_KUB) == WaterPoint) then
+                                Bathym2   =   Me%EulerModel(em)%Bathymetry(i, j-1)
+                                Bathym2   =   Bathym2 - Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j-1,ig)
+                                dBottom_dx  = (Bathym1 - Bathym2) / DUX(i, j)
+                            endif                                                                             
+
+                            if (Me%EulerModel(em)%Waterpoints3D (i, j+1, WS_KUB) == WaterPoint) then
+                                Bathym2   =   Me%EulerModel(em)%Bathymetry(i, j+1)
+                                Bathym2   =   Bathym2 - Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j+1,ig)
+                                dAux = (Bathym2 - Bathym1) / DUX(i, j)
+                                if (abs(dBottom_dx) < abs(dAux)) then
+                                    dBottom_dx = dAux
+                                endif                                    
+                            endif
+                                    
+                            dBottom_dxy = sqrt(dBottom_dx**2 + dBottom_dy**2)    
+                            
+                            Me%EulerModel(em)%Lag2Euler%GridBottomSlope(i,j,ig)  = dBottom_dxy
+                            
+                            if (dBottom_dxy > Me%FirstOrigin%Deposition%CriticalSlope .and.         &
+                                    Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) >          &
+                                    Me%FirstOrigin%Deposition%CriticalThickness) then
+                                    
+                                dv = 0.
+                            
+                                call RANDOM_NUMBER(v)
+                                    
+                                    
+                                dv = Me%FirstOrigin%Deposition%CriticalSlopeVelUncertainty * (2 * v - 1) 
+                                dv = dv + 1
+                                
+                                SlopeVel = Me%FirstOrigin%Deposition%CriticalSlopeVel *  dv
+                                            
+                                Vel_Dir  = atan2(dBottom_dy,dBottom_dx)
+                                            
+                                call RANDOM_NUMBER(d)
+                                    
+                                if (d > 0.5) then
+                                    Vel_Dir     = Vel_Dir + pi / 4 * (1-d)
+                                else
+                                    Vel_Dir     = Vel_Dir - pi / 4 * d
+                                endif    
+                                            
+                                Me%EulerModel(em)%Lag2Euler%GridVelSlope_X(i,j,ig) = SlopeVel * cos(Vel_Dir)
+                                
+                                Me%EulerModel(em)%Lag2Euler%GridVelSlope_Y(i,j,ig) = SlopeVel * sin(Vel_Dir)
+                                
+                            else
+                                
+                                Me%EulerModel(em)%Lag2Euler%GridVelSlope_X(i,j,ig) = 0.
+                                Me%EulerModel(em)%Lag2Euler%GridVelSlope_Y(i,j,ig) = 0.
+                                
+                            endif
+                            
+                        endif
+
+                    enddo
+                    enddo
+                    
+                    
+                enddo g3
+
+
+dg4:            do ig = 1, Me%NGroups 
+
+                    !Integrates the Volume and the Mass in each GridCell
+                    CurrentOrigin => Me%FirstOrigin
+                    
+CurrOr4:            do while (associated(CurrentOrigin))
+
+                        if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+
+                            CurrentPartic => CurrentOrigin%FirstPartic
+                            do while (associated(CurrentPartic))
+
+       
+                                if (em == CurrentPartic%Position%ModelID) then
+
+                                    i = CurrentPartic%Position%I
+                                    j = CurrentPartic%Position%J
+                    
+                                else
+
+                                    PartInside = GetXYInsideDomain(Me%EulerModel(em)%ObjHorizontalGrid, &
+                                                                   CurrentPartic%Position%CoordX,       &
+                                                                   CurrentPartic%Position%CoordY,       &
+                                                                   Referential = GridCoord_,            &
+                                                                   STAT = STAT_CALL)
+
+                                    if (STAT_CALL /= SUCCESS_) then
+                                            stop 'CheckDepositionCriticalSlope - ModuleLagrangianGlobal - ERR40'
+                                    endif                                                                                    
+
+                                    if (PartInside) then
+
+                                        call GetXYCellZ(Me%EulerModel(em)%ObjHorizontalGrid,        &
+                                                        CurrentPartic%Position%CoordX,              &
+                                                        CurrentPartic%Position%CoordY, i, j,        &
+                                                        Referential = GridCoord_,                   &
+                                                        Iold        = CurrentPartic%Position%I,     &
+                                                        Jold        = CurrentPartic%Position%J,     &
+                                                        STAT        = STAT_CALL)
+
+                                        if (STAT_CALL /= SUCCESS_) then
+                                            stop 'CheckDepositionCriticalSlope - ModuleLagrangianGlobal - ERR50'
+                                        endif                                            
+
+                                    else
+                                        CurrentPartic => CurrentPartic%Next
+                                        cycle
+                                    endif
+                    
+                                endif
+                    
+                                if (CurrentPartic%Deposited) then
+                                    
+                                    dBottom_dxy = Me%EulerModel(em)%Lag2Euler%GridBottomSlope(i,j,ig)
+                                        
+                                    if (dBottom_dxy > CurrentOrigin%Deposition%CriticalSlope) then
+                                        
+                                        CurrentPartic%Deposited = .false.                                         
+
+                                        Vel1 = Me%EulerModel(em)%Lag2Euler%GridVelSlope_X(i,j-1,ig)
+                                        Vel2 = Me%EulerModel(em)%Lag2Euler%GridVelSlope_X(i,j  ,ig)
+                                        Vel3 = Me%EulerModel(em)%Lag2Euler%GridVelSlope_X(i,j+1,ig)
+                                        
+                                        if (Vel2 > 0) then
+                                            Vel_dBottom_X = 0.5 * Vel1 + 0.5 * Vel2
+                                        else
+                                            Vel_dBottom_X = 0.5 * Vel2 + 0.5 * Vel3
+                                        endif                                            
+                                        
+                                        Vel1 =  Me%EulerModel(em)%Lag2Euler%GridVelSlope_Y(i-i,j,ig)
+                                        Vel2 =  Me%EulerModel(em)%Lag2Euler%GridVelSlope_Y(i  ,j,ig)
+                                        Vel3 =  Me%EulerModel(em)%Lag2Euler%GridVelSlope_Y(i+1,j,ig)
+                                        
+                                        if (Vel2 > 0) then
+                                            Vel_dBottom_Y = 0.5 * Vel1 + 0.5 * Vel2
+                                        else
+                                            Vel_dBottom_Y = 0.5 * Vel2 + 0.5 * Vel3
+                                        endif                                              
+                                        
+                                        DZ = Me%EulerModel(em)%Bathymetry(i, j) - CurrentPartic%Position%Z
+                                        
+                                        call MoveSingleParticAlongBottom(CurrentOrigin, CurrentPartic, &
+                                                                            Vel_dBottom_X, Vel_dBottom_Y, DZ)
+                                            
+                                    endif
+
+                                endif                        
+                            
+                                CurrentPartic => CurrentPartic%Next
+                            enddo
+                        endif
+                        CurrentOrigin => CurrentOrigin%Next
+                    enddo CurrOr4
+                    
+                enddo dg4
+
+                !UnGets Horizontal Grid
+                call UnGetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, DUX, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'CheckDepositionCriticalSlope - ModuleLagrangianGlobal - ERR60'
+                endif                    
+
+                !UnGets Horizontal Grid
+                call UnGetHorizontalGrid(Me%EulerModel(em)%ObjHorizontalGrid, DVY,      &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'CheckDepositionCriticalSlope - ModuleLagrangianGlobal - ERR70'
+                endif
+
+            enddo d1
+            
+        endif cd3
+
+    
+    end subroutine CheckDepositionCriticalSlope
+!
+!--------------------------------------------------------------------------   
+    
+    function FromGridToParticleXY(CurrentPartic, Matrix3D, ig)    
+    
+
+        !Arguments-------------------------------------------------------------
+        type (T_Partic),    pointer                 :: CurrentPartic
+        real,   dimension(:,:,:), pointer           :: Matrix3D
+        integer                                     :: ig
+        real                                        :: FromGridToParticleXY
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, em, KUB
+        real                                        :: ValueSW, ValueNW, ValueSE, ValueNE, ValueN, ValueS
+        integer                                     :: MaskSW, MaskNW, MaskSE, MaskNE, MaskN, MaskS       
+        real                                        :: X_W, X_E, Xv, Y_S, Y_N, Yv, PercI, PercJ
+        real                                        :: InterpolBilinear
+        integer                                     :: jW, jE, iS, iN
+
+        !Begin-----------------------------------------------------------------
+        
+                                 
+        !Cell Postition
+        i = CurrentPartic%Position%I
+        j = CurrentPartic%Position%J
+
+        !Fraction of the cell
+        PercJ  = CurrentPartic%Position%CellJ - real(j) + 1
+        PercI  = CurrentPartic%Position%CellI - real(i) + 1  
+        
+        if (PercJ > 0.5) then
+            jW = j
+            jE = j+1
+            Xv = PercJ - 0.5
+        else
+            jW = j-1
+            jE = j
+            Xv = PercJ + 0.5
+        endif
+                
+        if (PercI > 0.5) then
+            iS = i
+            iN = i+1
+            Yv = PercI - 0.5
+        else
+            iS = i-1
+            iN = i
+            Yv = PercI + 0.5
+        endif            
+                
+        X_W = 0.
+        X_E = 1
+        Y_S = 0.                
+        Y_N = 1.
+                
+        ValueSW     = Matrix3D(iS, jW, ig)
+        ValueSE     = Matrix3D(iS, jE, ig)
+        ValueNW     = Matrix3D(iN, jW, ig)
+        ValueNE     = Matrix3D(iN, jE, ig)
+                
+        em  = CurrentPartic%Position%ModelID         
+        KUB = Me%EulerModel(em)%WorkSize%KUB
+        
+        MaskSW      = Me%EulerModel(em)%Waterpoints3D (iS, jW, KUB)
+        MaskSE      = Me%EulerModel(em)%Waterpoints3D (iS, jE, KUB)
+        MaskNW      = Me%EulerModel(em)%Waterpoints3D (iN, jW, KUB)
+        MaskNE      = Me%EulerModel(em)%Waterpoints3D (iN, jE, KUB)
+
+        if (ValueSW < FillValueReal/1e4) ValueSW = 0.
+        if (ValueSE < FillValueReal/1e4) ValueSE = 0.                
+        if (ValueNW < FillValueReal/1e4) ValueNW = 0.                
+        if (ValueNE < FillValueReal/1e4) ValueNE = 0.     
+                    
+                    
+        if (MaskNW == WaterPoint .and. MaskNE == WaterPoint) then
+            ValueN = LinearInterpolation (X_W, ValueNW, X_E, ValueNE, Xv)
+            MaskN  = 1
+        elseif (MaskNW == WaterPoint) then
+            ValueN = ValueNW
+            MaskN  = 1
+        elseif (MaskNE == WaterPoint) then
+            ValueN = ValueNE
+            MaskN  = 1
+        else
+            MaskN  = 0
+        endif
+
+        if (MaskSW == WaterPoint .and. MaskSE == WaterPoint) then
+            ValueS = LinearInterpolation (X_W, ValueSW, X_E, ValueSE, Xv)
+            MaskS  = 1
+        elseif (MaskSW == WaterPoint) then
+            ValueS = ValueSW
+            MaskS  = 1
+        elseif (MaskSE == WaterPoint) then
+            ValueS = ValueSE
+            MaskS  = 1
+        else
+            MaskS  = 0
+        endif
+                        
+        if (MaskN == WaterPoint .and. MaskS == WaterPoint) then
+            InterpolBilinear = LinearInterpolation (Y_S, ValueS, Y_N, ValueN, Yv)
+        else if (MaskN == WaterPoint) then
+            InterpolBilinear = ValueN
+        else if (MaskS == WaterPoint) then
+            InterpolBilinear = ValueS
+        else
+            InterpolBilinear  = FillValueReal
+        endif
+        
+        FromGridToParticleXY = InterpolBilinear
+        
+    
+    end function FromGridToParticleXY
+    
+!--------------------------------------------------------------------------       
+    
+    subroutine MoveSingleParticAlongBottom(CurrentOrigin, CurrentPartic, VelX, VelY, DZ)    
+    
+
+        !Arguments-------------------------------------------------------------
+        type (T_Origin),    pointer                 :: CurrentOrigin
+        type (T_Partic),    pointer                 :: CurrentPartic
+        real                                        :: VelX, VelY, DZ
+   
+
+        !Local-----------------------------------------------------------------
+        type (T_Position)                           :: NewPosition
+        real                                        :: DX, DY
+        integer                                     :: i, j, em, KUB
+        logical                                     :: ConvertOK
+
+        !Begin-----------------------------------------------------------------
+        
+                
+        DX = VelX * Me%DT_Partic
+        DY = VelY * Me%DT_Partic     
+        
+        !New Position
+        NewPosition%X = CurrentPartic%Position%X + DX 
+        NewPosition%Y = CurrentPartic%Position%Y + DY 
+                    
+                
+        !As a first approach
+        NewPosition%ModelID = CurrentPartic%Position%ModelID
+        NewPosition%I       = CurrentPartic%Position%I
+        NewPosition%J       = CurrentPartic%Position%J
+                
+        call Convert_XY_CellIJ(Me%EulerModel(NewPosition%ModelID),NewPosition,  &
+                                Referential = AlongGrid_, ConvertOK = ConvertOK)           
+        
+        if (ConvertOK) then
+            
+            i = NewPosition%I
+            j = NewPosition%J
+            
+            em  = NewPosition%ModelID         
+            KUB = Me%EulerModel(em)%WorkSize%KUB
+            
+            if (Me%EulerModel(em)%Waterpoints3D (i, j, KUB) == WaterPoint) then
+            
+                !Bottom distance is maintain 
+                NewPosition%Z = Me%EulerModel(em)%Bathymetry(i, j) - DZ
+
+                call Convert_Z_CellK (CurrentOrigin, Me%EulerModel(NewPosition%ModelID), &
+                                                        NewPosition)
+                call Convert_CellK_K (NewPosition)
+            
+                CurrentPartic%Position = NewPosition
+                
+            endif                
+            
+        endif            
+    
+    end subroutine MoveSingleParticAlongBottom
+    
+    !--------------------------------------------------------------------------        
 
     subroutine InternalParticHNS ()
 
@@ -24605,7 +25723,7 @@ thick:                      do while (associated(CurrentOrigin))
                             !HDF 5
                             call HDF5WriteData        (Me%ObjHDF5(em),                           &
                                                        "/Results/"//trim(GroupName)//"/density", &
-                                                       "Origin ID",                              &
+                                                       "density",                                &
                                                        "sigma density kg/m^3",                   &
                                                        Array1D = Matrix1D,                       &
                                                        OutputNumber = OutPutNumber,              &
@@ -24613,8 +25731,106 @@ thick:                      do while (associated(CurrentOrigin))
 
 
                         end if
+                        
+                        !D50
+                        if (Me%State%D50) then                       
+                            nP = 1
+                            CurrentOrigin => Me%FirstOrigin
+    d50Vel:                 do while (associated(CurrentOrigin))
+                                if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+
+                                    if (CurrentOrigin%State%D50) then
+
+                                        CurrentPartic   => CurrentOrigin%FirstPartic
+                                        do while (associated(CurrentPartic))
+                                            !From m/s -> mm/s
+                                            Matrix1D(nP)  =  CurrentPartic%D50Vel * 1000.
+                                            CurrentPartic => CurrentPartic%Next
+                                            nP = nP + 1
+                                        enddo
+                                            
+                                    endif
+
+                                endif
+                
+                                CurrentOrigin => CurrentOrigin%Next
+                            enddo D50Vel
 
 
+                            !HDF 5
+                            call HDF5WriteData        (Me%ObjHDF5(em),                           &
+                                                       "/Results/"//trim(GroupName)//"/D50 Vel.",&
+                                                       "D50 Vel.",                               &
+                                                       "mm/s",                                   &
+                                                       Array1D = Matrix1D,                       &
+                                                       OutputNumber = OutPutNumber,              &
+                                                       STAT = STAT_CALL)
+                            
+                            nP = 1
+                            CurrentOrigin => Me%FirstOrigin
+    d50:                    do while (associated(CurrentOrigin))
+                                if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+
+                                    if (CurrentOrigin%State%D50) then
+
+                                        CurrentPartic   => CurrentOrigin%FirstPartic
+                                        do while (associated(CurrentPartic))
+                                            !From m -> mm
+                                            Matrix1D(nP)  =  CurrentPartic%D50 * 1000.
+                                            CurrentPartic => CurrentPartic%Next
+                                            nP = nP + 1
+                                        enddo
+                                            
+                                    endif
+
+                                endif
+                
+                                CurrentOrigin => CurrentOrigin%Next
+                            enddo D50
+
+
+                            !HDF 5
+                            call HDF5WriteData        (Me%ObjHDF5(em),                           &
+                                                       "/Results/"//trim(GroupName)//"/D50",     &
+                                                       "D50",                                   &
+                                                       "mm",                                    &
+                                                       Array1D = Matrix1D,                       &
+                                                       OutputNumber = OutPutNumber,              &
+                                                       STAT = STAT_CALL)                            
+                            
+                            nP = 1
+                            CurrentOrigin => Me%FirstOrigin
+    dTau:                   do while (associated(CurrentOrigin))
+                                if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+
+                                    if (CurrentOrigin%State%D50) then
+
+                                        CurrentPartic   => CurrentOrigin%FirstPartic
+                                        do while (associated(CurrentPartic))
+                                            !From m -> mm
+                                            Matrix1D(nP)  =  CurrentPartic%TauErosionMix
+                                            CurrentPartic => CurrentPartic%Next
+                                            nP = nP + 1
+                                        enddo
+                                            
+                                    endif
+
+                                endif
+                
+                                CurrentOrigin => CurrentOrigin%Next
+                            enddo DTau
+
+
+                            !HDF 5
+                            call HDF5WriteData        (Me%ObjHDF5(em),                  &
+                                                       "/Results/"//trim(GroupName)//"/Tau Erosion Mix",     &
+                                                       "Tau Erosion Mix",               &
+                                                       "Pa",                            &
+                                                       Array1D = Matrix1D,              &
+                                                       OutputNumber = OutPutNumber,     &
+                                                       STAT = STAT_CALL)                            
+                            
+                        endif
 
                         !(Properties)
                         !Just if in all origins are the same amount of properties and in the same
@@ -25812,9 +27028,18 @@ d1:     do em = 1, Me%EulerModelNumber
             enddo
             
             if (Me%State%Deposition) then
-                                                          !i,j,k,p,ig 
+                                                          !i,j,p,ig 
                 Me%EulerModel(em)%Lag2Euler%GridBottomMass(:,:,:,  :) = 0.
                 Me%EulerModel(em)%Lag2Euler%GridBottomConc(:,:,:,  :) = 0.
+                
+                                                                         !i,j,ig 
+                Me%EulerModel(em)%Lag2Euler%GridBottomNumber             (:,:,:) = 0.
+                Me%EulerModel(em)%Lag2Euler%GridWaterColumnNumber        (:,:,:) = 0.
+                Me%EulerModel(em)%Lag2Euler%GridWaterColumnSedAreaDensity(:,:,:) = 0.  
+                
+                Me%EulerModel(em)%Lag2Euler%GridBottomVolume             (:,:,:) = 0.
+                Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume        (:,:,:) = 0.                
+
             endif
 
             if (Me%OutPut%ConcMaxTracer) then
@@ -25866,7 +27091,32 @@ dg:         do ig = 1, Me%NGroups
                         endif
                     
                     endif
+                    
+                    if (Me%State%Deposition) then
+                        
+                        if (CurrentPartic%Deposited) then
 
+                            Me%EulerModel(em)%Lag2Euler%GridBottomNumber(i,j,ig) =      &
+                                Me%EulerModel(em)%Lag2Euler%GridBottomNumber(i,j,ig) + 1
+                            
+                            Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) =      &
+                                Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) +  &
+                                CurrentPartic%Geometry%Volume
+                            
+                        else
+
+
+                            Me%EulerModel(em)%Lag2Euler%GridWaterColumnNumber(i,j,ig) =      &
+                                Me%EulerModel(em)%Lag2Euler%GridWaterColumnNumber(i,j,ig) + 1          
+                            
+                            Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(i,j,ig) =      &
+                                Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(i,j,ig) +  & 
+                                CurrentPartic%Geometry%Volume
+                            
+                            
+                        endif
+                        
+                    endif                        
 
 cd1:                if (.not. CurrentPartic%Deposited) then
 
@@ -25881,7 +27131,8 @@ cd1:                if (.not. CurrentPartic%Deposited) then
 
                         Me%EulerModel(em)%Lag2Euler%GridTracerNumber(i, j, k, ig) = &
                             Me%EulerModel(em)%Lag2Euler%GridTracerNumber(i, j, k, ig) + 1
-                            
+                        
+
                         if (Me%OutPut%OutPutConcType == Analytic) then    
                             call AnalyticConcentration(CurrentPartic, em, i, j, k, ig, nProp)
                         endif    
@@ -26204,6 +27455,19 @@ g3:             do ig = 1, Me%NGroups
                                         ! Mass of sediment / m^2
                                         Me%EulerModel(em)%Lag2Euler%GridBottomConc(i, j, Sediment_ID, ig) = &
                                         Me%EulerModel(em)%Lag2Euler%GridBottomMass(i, j, Sediment_ID, ig) / DUX(I, j) / DVY(i, j)
+                                        ! Mass of sediment / m2
+                                        Me%EulerModel(em)%Lag2Euler%GridWaterColumnSedAreaDensity(i, j, ig)= &
+                                            sum(Me%EulerModel(em)%Lag2Euler%GridMass(i, j, WS_KLB:WS_KUB, Sediment_ID, ig)) &
+                                            / DUX(I, j) / DVY(i, j)   
+                                        
+                                        ! Volume / m2 = m
+                                        Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(i,j,ig) = &
+                                                Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(i,j,ig) / DUX(I, j) / DVY(i, j)
+
+                                        ! Volume / m2 = m
+                                        Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) = &
+                                                Me%EulerModel(em)%Lag2Euler%GridBottomVolume(i,j,ig) / DUX(I, j) / DVY(i, j)
+                                        
                                     endif
                    
                                 enddo 
@@ -26310,7 +27574,7 @@ g3:             do ig = 1, Me%NGroups
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                     :: WS_ILB, WS_IUB, WS_JLB, WS_JUB
         integer                                     :: WS_KLB, WS_KUB
-        character(StringLength)                     :: AuxChar, AuxChar2, AuxChar3
+        character(StringLength)                     :: AuxChar, AuxChar2, AuxChar3, AuxCharUnits
 
         !Shorten
 
@@ -26440,16 +27704,135 @@ ih:             if (CurrentProperty%WritesPropHDF) then
                         GridConc2D(:,:) = Me%EulerModel(em)%Lag2Euler%GridBottomConc(:, :, p, ig)
 
                         AuxChar3 = "/Results/Group_"//trim(adjustl(AuxChar))//&
-                                   "/Bottom/"//trim(CurrentProperty%Name)
-
+                                   "/Data_2D/Bottom/"//trim(CurrentProperty%Name)
+                        
+                        if (CurrentProperty%ID == Sediment) then
+                            AuxCharUnits = "mass/m2"
+                        else
+                            AuxCharUnits = "mass/mass sed"
+                        endif
                         !HDF 5
-                        call HDF5WriteData        (Me%ObjHDF5(em),                              &
-                                                   trim(AuxChar3),                          &
-                                                   trim(CurrentProperty%Name),              &
-                                                   trim(CurrentProperty%Units),             &
-                                                   Array2D = GridConc2D,                    &
+                        call HDF5WriteData        (Me%ObjHDF5(em),                      &
+                                                   trim(AuxChar3),                      &
+                                                   trim(CurrentProperty%Name),          &
+                                                   trim(AuxCharUnits),                  &
+                                                   Array2D = GridConc2D,                &
                                                    OutputNumber = OutputNumber)
-
+                        
+                        if (CurrentProperty%ID == Sediment) then
+                            
+                            AuxChar3 = "/Results/Group_"//trim(adjustl(AuxChar))//&
+                                       "/Data_2D/WaterColumn/"//trim(CurrentProperty%Name)
+                            
+                            GridConc2D(:,:) = Me%EulerModel(em)%Lag2Euler%GridWaterColumnSedAreaDensity(:, :, ig)
+                            
+                            call HDF5WriteData        (Me%ObjHDF5(em),                  &
+                                                       trim(AuxChar3),                  &
+                                                       trim(CurrentProperty%Name),      &
+                                                       trim(AuxCharUnits),              &
+                                                       Array2D = GridConc2D,            &
+                                                       OutputNumber = OutputNumber)
+                            
+                            AuxChar3 = "/Results/Group_"//trim(adjustl(AuxChar))//&
+                                       "/Data_2D/Total/"//trim(CurrentProperty%Name)
+                            
+                            GridConc2D(:,:) = Me%EulerModel(em)%Lag2Euler%GridWaterColumnSedAreaDensity(:, :, ig) + &
+                                              Me%EulerModel(em)%Lag2Euler%GridBottomConc(:, :, p, ig)  
+                            
+                            call HDF5WriteData        (Me%ObjHDF5(em),                  &
+                                                       trim(AuxChar3),                  &
+                                                       trim(CurrentProperty%Name),      &
+                                                       trim(AuxCharUnits),              &
+                                                       Array2D = GridConc2D,            &
+                                                       OutputNumber = OutputNumber)    
+                            
+                            AuxCharUnits = "m3/m2"
+                            
+                            AuxChar3 = "/Results/Group_"//trim(adjustl(AuxChar))//&
+                                       "/Data_2D/WaterColumn/Sediment Volume"
+                            
+                            GridConc2D(:,:) = Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(:, :, ig)
+                            
+                            call HDF5WriteData        (Me%ObjHDF5(em),                  &
+                                                       trim(AuxChar3),                  &
+                                                       "Sediment Volume",               &
+                                                       trim(AuxCharUnits),              &
+                                                       Array2D = GridConc2D,            &
+                                                       OutputNumber = OutputNumber)
+                            
+                            AuxChar3 = "/Results/Group_"//trim(adjustl(AuxChar))//&
+                                       "/Data_2D/Bottom/Sediment Volume"
+                            
+                            GridConc2D(:,:) = Me%EulerModel(em)%Lag2Euler%GridBottomVolume(:, :, ig)
+                            
+                            call HDF5WriteData        (Me%ObjHDF5(em),                  &
+                                                       trim(AuxChar3),                  &
+                                                       "Sediment Volume",               &
+                                                       trim(AuxCharUnits),              &
+                                                       Array2D = GridConc2D,            &
+                                                       OutputNumber = OutputNumber)                            
+                            
+                            AuxChar3 = "/Results/Group_"//trim(adjustl(AuxChar))//&
+                                       "/Data_2D/Total/Sediment Volume"
+                            
+                            GridConc2D(:,:) = Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume(:, :, ig) + &
+                                              Me%EulerModel(em)%Lag2Euler%GridBottomVolume(:, :, ig)  
+                            
+                            call HDF5WriteData        (Me%ObjHDF5(em),                  &
+                                                       trim(AuxChar3),                  &
+                                                       "Sediment Volume",               &
+                                                       trim(AuxCharUnits),              &
+                                                       Array2D = GridConc2D,            &
+                                                       OutputNumber = OutputNumber)  
+                            
+                            if (Me%State%CriticalSlope) then
+                                
+                                AuxChar3 = "/Results/Group_"//trim(adjustl(AuxChar))//&
+                                            "/Data_2D/Bottom/Slope"
+                            
+                                GridConc2D(:,:) = Me%EulerModel(em)%Lag2Euler%GridBottomSlope(:, :, ig)
+                                
+                                AuxCharUnits ="-"
+                                
+                                call HDF5WriteData        (Me%ObjHDF5(em),              &
+                                                            trim(AuxChar3),             &
+                                                            "Slope",                    &
+                                                            trim(AuxCharUnits),         &
+                                                            Array2D = GridConc2D,       &
+                                                            OutputNumber = OutputNumber)                                
+                                
+                                
+                                AuxChar3 = "/Results/Group_"//trim(adjustl(AuxChar))//&
+                                            "/Data_2D/Bottom/Slope Vel. X"
+                            
+                                GridConc2D(:,:) = Me%EulerModel(em)%Lag2Euler%GridVelSlope_X(:, :, ig)
+                                
+                                AuxCharUnits ="m/s"
+                            
+                                call HDF5WriteData        (Me%ObjHDF5(em),              &
+                                                            trim(AuxChar3),             &
+                                                            "Slope Vel. X",             &
+                                                            trim(AuxCharUnits),         &
+                                                            Array2D = GridConc2D,       &
+                                                            OutputNumber = OutputNumber)                                 
+                                
+                                AuxChar3 = "/Results/Group_"//trim(adjustl(AuxChar))//&
+                                            "/Data_2D/Bottom/Slope Vel. Y"
+                            
+                                GridConc2D(:,:) = Me%EulerModel(em)%Lag2Euler%GridVelSlope_Y(:, :, ig)
+                                
+                                AuxCharUnits ="m/s"
+                            
+                                call HDF5WriteData        (Me%ObjHDF5(em),              &
+                                                            trim(AuxChar3),             &
+                                                            "Slope Vel. Y",             &
+                                                            trim(AuxCharUnits),         &
+                                                            Array2D = GridConc2D,       &
+                                                            OutputNumber = OutputNumber)
+                            endif                            
+                            
+                        endif
+                        
                     endif
                     
                     if (Me%State%Odour) then
@@ -26491,6 +27874,49 @@ ih:             if (CurrentProperty%WritesPropHDF) then
                                        "Number", "a",                                   &
                                        Array3D = GridConc3D,                            &
                                        OutputNumber = OutputNumber)
+            
+            if (Me%State%Deposition) then            
+            
+                AuxChar3 = "/Results/Group_"//trim(adjustl(AuxChar))//&
+                            "/Data_2D/WaterColumn/"//"Number"
+                            
+                GridConc2D(:,:) = Me%EulerModel(em)%Lag2Euler%GridWaterColumnNumber(:, :, ig)                        
+                
+                AuxCharUnits = "a"
+                            
+                call HDF5WriteData        (Me%ObjHDF5(em),                              &
+                                            trim(AuxChar3),                             &
+                                            "Number",                                   &
+                                            trim(AuxCharUnits),                         &
+                                            Array2D = GridConc2D,                       &
+                                            OutputNumber = OutputNumber) 
+
+                AuxChar3 = "/Results/Group_"//trim(adjustl(AuxChar))//&
+                            "/Data_2D/Bottom/"//"Number"
+                            
+                GridConc2D(:,:) = Me%EulerModel(em)%Lag2Euler%GridBottomNumber(:, :, ig)                        
+                
+                call HDF5WriteData        (Me%ObjHDF5(em),                              &
+                                            trim(AuxChar3),                             &
+                                            "Number",                                   &
+                                            trim(AuxCharUnits),                         &
+                                            Array2D = GridConc2D,                       &
+                                            OutputNumber = OutputNumber) 
+                
+                AuxChar3 = "/Results/Group_"//trim(adjustl(AuxChar))//&
+                            "/Data_2D/Total/"//"Number"
+                            
+                GridConc2D(:,:) = Me%EulerModel(em)%Lag2Euler%GridBottomNumber(:, :, ig) + &
+                                  Me%EulerModel(em)%Lag2Euler%GridWaterColumnNumber(:, :, ig) 
+                
+                call HDF5WriteData        (Me%ObjHDF5(em),                              &
+                                            trim(AuxChar3),                             &
+                                            "Number",                                   &
+                                            trim(AuxCharUnits),                         &
+                                            Array2D = GridConc2D,                       &
+                                            OutputNumber = OutputNumber)                 
+                
+            endif                
 
             if (Me%State%Odour) then
                  
@@ -28510,6 +29936,7 @@ CurrOr: do while (associated(CurrentOrigin))
                 
                     write (UnitID) CurrentPartic%Deposited
                     write (UnitID) CurrentPartic%TauErosion
+                    write (UnitID) CurrentPartic%TauDeposition
 
                 endif
 
@@ -28701,7 +30128,8 @@ d2:         do nP = 1, nParticle
                 
                     read (UnitID) NewParticle%Deposited
                     read (UnitID) NewParticle%TauErosion
-
+                    read (UnitID) NewParticle%TauDeposition
+                    
                 endif
 
                 if (NewOrigin%State%Age) then
@@ -28920,6 +30348,18 @@ d1:     do em = 1, Me%EulerModelNumber
             if (Me%State%Deposition) then
                 deallocate (Me%EulerModel(em)%Lag2Euler%GridBottomMass)
                 deallocate (Me%EulerModel(em)%Lag2Euler%GridBottomConc)
+                deallocate (Me%EulerModel(em)%Lag2Euler%GridWaterColumnSedAreaDensity)
+                deallocate (Me%EulerModel(em)%Lag2Euler%GridWaterColumnNumber)
+                deallocate (Me%EulerModel(em)%Lag2Euler%GridBottomNumber)
+                deallocate (Me%EulerModel(em)%Lag2Euler%GridWaterColumnVolume)
+                deallocate (Me%EulerModel(em)%Lag2Euler%GridBottomVolume)
+                
+                if (Me%State%CriticalSlope) then
+                    deallocate (Me%EulerModel(em)%Lag2Euler%GridBottomSlope)
+                    deallocate (Me%EulerModel(em)%Lag2Euler%GridVelSlope_X )
+                    deallocate (Me%EulerModel(em)%Lag2Euler%GridVelSlope_Y )
+                endif                
+                             
             endif
 
             if (Me%OutPut%ConcMaxTracer) then
@@ -29558,6 +30998,17 @@ em1:    do em =1, Me%EulerModelNumber
                                             MixingLengthY = EulerModel%MixingLengthY,&
                                             STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR130'
+            
+            call GetHorizontalViscosity(TurbulenceID                = EulerModel%ObjTurbulence, &
+                                        HorizontalCenterViscosity   = EulerModel%DiffusionH,    &
+                                        STAT                        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR132'
+
+
+            call GetVerticalDiffusivity(TurbulenceID                = EulerModel%ObjTurbulence, &
+                                        VerticalDiffusivityCenter   = EulerModel%DiffusionV,    &
+                                        STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLockExternalVar - ModuleLagrangianGlobal - ERR134'
 
         
             !Velocity_U, Velocity_V
@@ -29785,13 +31236,19 @@ em1:    do em =1, Me%EulerModelNumber
             !MixingLengthX
             call UngetTurbulence(EulerModel%ObjTurbulence, EulerModel%MixingLengthX, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR200'
-
-
+            
             !MixingLengthY
             call UngetTurbulence(EulerModel%ObjTurbulence, EulerModel%MixingLengthY, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR210'
         
-
+            !DiffusionH
+            call UngetTurbulence(EulerModel%ObjTurbulence, EulerModel%DiffusionH, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR212'
+            
+            !DiffusionV
+            call UngetTurbulence(EulerModel%ObjTurbulence, EulerModel%DiffusionV, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR214'
+            
             !Velocity_U
             call UngetHydrodynamic (EulerModel%ObjHydrodynamic, EulerModel%Velocity_U, STAT  = STAT_CALL)                    
             if (STAT_CALL /= SUCCESS_) stop 'ReadUnLockExternalVar - ModuleLagrangianGlobal - ERR220'

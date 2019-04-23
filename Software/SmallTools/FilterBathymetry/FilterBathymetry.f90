@@ -36,6 +36,13 @@ program MohidBatimFilter
     use ModuleFunctions
              
     implicit none
+    
+    !Parameters
+    !Filter methods
+    integer                                     :: SigmaSmooth_     = 1
+    integer                                     :: Average_         = 2    
+    integer                                     :: Percentile_      = 3
+    
 
     !Instances
     integer                                     :: ObjEnterData         = 0
@@ -60,11 +67,15 @@ program MohidBatimFilter
     real                                        :: Factor
     logical                                     :: SigmaSmooth
     real                                        :: SlopeLimit, Hmin, Hmax
+    integer                                     :: FilterMethod
+    logical                                     :: PersistentFilter
+    real                                        :: PercentileValue
 
     !Working variables
     integer, dimension(:,:), pointer            :: WaterPoints2D
     real,    dimension(:,:), pointer            :: Bathymetry
     real,    dimension(:,:), pointer            :: NewBathymetry
+    real,    dimension(:,:), pointer            :: SlopeAux
 
     
     !Begin---------------------------------------------------------------------
@@ -77,7 +88,7 @@ program MohidBatimFilter
 
     call AllocateVariables
     
-    if (SigmaSmooth) then
+    if (PersistentFilter) then
         call ApplyPersistentFilter
     else
         call ApplyFilter
@@ -129,6 +140,7 @@ program MohidBatimFilter
                      SearchType   = FromFile,                           &
                      keyword      = 'FILTER_RADIUS',                    &
                      ClientModule = 'MohidBatimFilter',                 &
+                     Default      = 2,                                  &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - MohidBatimFilter - ERR40'
 
@@ -155,6 +167,53 @@ program MohidBatimFilter
                      ClientModule = 'MohidBatimFilter',                 &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - MohidBatimFilter - ERR70'
+        
+        
+        
+        call GetData(FilterMethod,                                                      &
+                     ObjEnterData, iflag   ,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'FILTER_METHOD',                                    &
+                     Default      = SigmaSmooth_,                                       &
+                     ClientModule = 'MohidBatimFilter',                                 &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - MohidBatimFilter - ERR71'
+        
+        if (FilterMethod /= SigmaSmooth_ .and.                                          &
+            FilterMethod /= Average_     .and.                                          &
+            FilterMethod /= Percentile_) then
+            stop 'ReadOptions - MohidBatimFilter - ERR72'
+        endif
+            
+        if (FilterMethod == Percentile_) then    
+            call GetData(PercentileValue,                                               &
+                         ObjEnterData, iflag   ,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'PERCENTILE_VALUE',                             &
+                         Default      = 0.5,                                            &
+                         ClientModule = 'MohidBatimFilter',                             &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - MohidBatimFilter - ERR73'            
+        endif
+        
+        if (PercentileValue < 0 .or. PercentileValue > 1) then
+            stop 'ReadOptions - MohidBatimFilter - ERR74'            
+        endif
+    
+
+        call GetData(PersistentFilter,                                                  &
+                     ObjEnterData, iflag   ,                                            &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'PERSISTENT_FILTER',                                &
+                     Default      = .true.,                                             &
+                     ClientModule = 'MohidBatimFilter',                                 &
+                     STAT         = STAT_CALL)        
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - MohidBatimFilter - ERR75'    
+        
+        if (SigmaSmooth) then
+            FilterMethod     = SigmaSmooth_
+            PersistentFilter = .true.
+        endif                
 
         
         !This parameter is equal to dh/(2h) 
@@ -240,7 +299,7 @@ program MohidBatimFilter
                                      HorizontalGridID = ObjHorizontalGrid,          &
                                      ActualTime       = CurrentTime,                &
                                      STAT             = STAT_CALL)  
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructDomain - MohidBatimFilter - ERR03'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructDsotomain - MohidBatimFilter - ERR03'
 
         write(*,*)
         write(*,*)"Compiling information..."
@@ -275,6 +334,7 @@ program MohidBatimFilter
         write(*,*)
 
         nullify (NewBathymetry); allocate(NewBathymetry(Size%ILB:Size%IUB, Size%JLB:Size%JUB))
+        nullify (SlopeAux     ); allocate(SlopeAux     (Size%ILB:Size%IUB, Size%JLB:Size%JUB))        
 
         NewBathymetry = -99
 
@@ -283,57 +343,108 @@ program MohidBatimFilter
     !--------------------------------------------------------------------------
 
 
-    subroutine ApplyFilter
+    subroutine ApplyFilter 
+    
+        !Arguments-------------------------------------------------------------    
 
         !Local-----------------------------------------------------------------
-        integer                                     :: i, j
+        integer                                     :: i, j, NValues
         real                                        :: AuxSum
-        integer                                     :: iw, jw, Counter
+        real,   dimension(:), pointer               :: AuxBat
+        integer                                     :: iw, jw, Counter, iPer, ii, jj
 
         !Begin-----------------------------------------------------------------
+        
+        SlopeAux(:,:) = 0.        
     
-        write(*,*)
-        write(*,*)"Filtering original bathymetry..."
-        write(*,*)
+        if (FilterMethod == SigmaSmooth_) then
 
-        NewBathymetry(:,:) = Bathymetry(:,:)
+            call SLPMIN(Bathymetry,WorkSize%IUB,WorkSize%JUB,SlopeLimit, WaterPoints2D, SlopeAux)        
+            
+        else
 
-        do j = WorkSize%JLB, WorkSize%JUB
-        do i = WorkSize%ILB, WorkSize%IUB
+            NewBathymetry(:,:) = Bathymetry(:,:)
+        
+            NValues = (2* FilterRadius + 1)**2 
+            
+            allocate (AuxBat (1:NValues))                                
+        
 
-            if (WaterPoints2D(i,j) == WaterPoint .and.                                  &
-                Bathymetry(i, j) < Hmax          .and.                                  &
-                Bathymetry(i, j) > Hmin) then
+            do j = WorkSize%JLB, WorkSize%JUB
+            do i = WorkSize%ILB, WorkSize%IUB
 
-                Counter = 0
-                AuxSum  = 0.
+                if (WaterPoints2D(i,j) == WaterPoint .and.                                  &
+                    Bathymetry(i, j) < Hmax          .and.                                  &
+                    Bathymetry(i, j) > Hmin) then
 
-                do jw = j - FilterRadius, j + FilterRadius
-                do iw = i - FilterRadius, i + FilterRadius
+                    Counter = 0
+                    AuxSum  = 0.
+                    
+                    AuxBat(:) = - FillValueReal 
 
-                    if (jw >= WorkSize%JLB .and. jw <= WorkSize%JUB .and.               &
-                        iw >= WorkSize%ILB .and. iw <= WorkSize%IUB .and.               &
-                        WaterPoints2D(iw, jw) == WaterPoint) then
+                    do jj = j - FilterRadius, j + FilterRadius
+                    do ii = i - FilterRadius, i + FilterRadius
                         
-                        if (Bathymetry(iw, jw) < Hmax                   .and.           &
-                            Bathymetry(iw, jw) > Hmin) then                                 
+                        iw = max(ii, WorkSize%ILB) 
+                        jw = max(jj, WorkSize%JLB)
+                        
+                        iw = min(iw, WorkSize%IUB) 
+                        jw = min(jw, WorkSize%JUB)                        
 
-                            Counter = Counter + 1
-                            AuxSum  = AuxSum  + Bathymetry(iw, jw)
+                        if (WaterPoints2D(iw, jw) == WaterPoint) then
+                        
+                            if (Bathymetry(iw, jw) < Hmax                   .and.           &
+                                Bathymetry(iw, jw) > Hmin) then                                 
+
+                                Counter = Counter + 1
+                                if     (FilterMethod == Average_) then                                
+                                    AuxSum  = AuxSum  + Bathymetry(iw, jw)
+                                elseif (FilterMethod == Percentile_) then         
+                                    AuxBat(Counter) =  Bathymetry(iw, jw)
+                                endif                                    
+                            endif
 
                         endif
 
-                    endif
+                    enddo
+                    enddo
+                    if      (FilterMethod == Average_) then                                
+                        NewBathymetry(i, j) = Factor * Bathymetry(i, j) + (1. - Factor) * AuxSum / real(Counter)
+                    else if (FilterMethod == Percentile_) then         
+                        call Insertion_Sort(AuxBat)
+                        iPer = int(real(Counter)*PercentileValue)
+                        if (iPer > 0) then
+                            NewBathymetry(i, j) = AuxBat(iPer)
+                        endif                            
+                    endif  
+                    
+                    SlopeAux(i, j) = FillValueReal
+                    
+                    if (WaterPoints2D(i  ,j+1) == WaterPoint) then
+                        SlopeAux(i, j) = max(SlopeAux(i, j), abs(NewBathymetry(i, j) - NewBathymetry(i  , j+1))/abs(NewBathymetry(i, j)))
+                    endif                        
+                    if (WaterPoints2D(i  ,j-1) == WaterPoint) then
+                        SlopeAux(i, j) = max(SlopeAux(i, j), abs(NewBathymetry(i, j) - NewBathymetry(i  , j-1))/abs(NewBathymetry(i, j)))
+                    endif 
 
-                enddo
-                enddo
+                    if (WaterPoints2D(i+1,j  ) == WaterPoint) then
+                        SlopeAux(i, j) = max(SlopeAux(i, j), abs(NewBathymetry(i, j) - NewBathymetry(i+1, j  ))/abs(NewBathymetry(i, j)))
+                    endif                        
+                    if (WaterPoints2D(i-1,j  ) == WaterPoint) then
+                        SlopeAux(i, j) = max(SlopeAux(i, j), abs(NewBathymetry(i, j) - NewBathymetry(i-1, j  ))/abs(NewBathymetry(i, j)))
+                    endif 
+                    
+                    
+                end if
 
-                NewBathymetry(i, j) = Factor * Bathymetry(i, j) + (1. - Factor) * AuxSum / real(Counter)
-
-            end if
-
-        enddo
-        enddo
+            enddo
+            enddo
+            
+            deallocate (AuxBat)                                  
+            
+            Bathymetry(:,:) = NewBathymetry(:,:)
+            
+        endif        
 
     end subroutine ApplyFilter
 
@@ -342,10 +453,8 @@ program MohidBatimFilter
     subroutine ApplyPersistentFilter
 
         !Local-----------------------------------------------------------------
-        integer                                     :: i, j, jj
+        integer                                     :: i, j, jj, jj_old
         logical                                     :: GoalAchived
-        real                                        :: Slope,r1,r2,r3,r4
-        real,   dimension(:,:), pointer             :: SlopeAux
 
         !Begin-----------------------------------------------------------------
     
@@ -353,17 +462,15 @@ program MohidBatimFilter
         write(*,*)"Filtering original bathymetry..."
         write(*,*)
 
-        allocate(SlopeAux(Size%ILB:Size%IUB,Size%JLB:Size%JUB))
-
         GoalAchived = .false.
-
+        
+        jj_old = FillValueInt
+        
         do while (.not. GoalAchived) 
 
             GoalAchived = .true.
 
-            SlopeAux(:,:) = 0.
-
-            call SLPMIN(Bathymetry,WorkSize%IUB,WorkSize%JUB,SlopeLimit, WaterPoints2D, SlopeAux)
+            call ApplyFilter 
 
             jj = 0
 
@@ -371,13 +478,6 @@ program MohidBatimFilter
             do i = WorkSize%ILB+1, WorkSize%IUB-1
 
                 if (WaterPoints2D(i,j) == WaterPoint) then
-
-                    r1 = abs((Bathymetry(i,j)-Bathymetry(i,j-1))/(Bathymetry(i,j)+Bathymetry(i,j-1)))
-                    r2 = abs((Bathymetry(i,j)-Bathymetry(i,j+1))/(Bathymetry(i,j)+Bathymetry(i,j+1)))
-                    r3 = abs((Bathymetry(i,j)-Bathymetry(i-1,j))/(Bathymetry(i,j)+Bathymetry(i-1,j)))
-                    r4 = abs((Bathymetry(i,j)-Bathymetry(i+1,j))/(Bathymetry(i,j)+Bathymetry(i+1,j)))
-
-                    Slope = max(r1,r2,r3,r4)
 
                     if (SlopeAux(i,j) > SlopeLimit + .001)  then
                         GoalAchived = .false.
@@ -390,12 +490,14 @@ program MohidBatimFilter
             enddo
 
             write(*,*) 'The number of cells where the slope is greater than the limit is ',jj
+            
+            if (jj_old ==jj) exit
+            
+            jj_old = jj
 
         enddo
 
         NewBathymetry(:,:) = Bathymetry(:,:)
-
-        deallocate(SlopeAux)
 
     end subroutine ApplyPersistentFilter
 
@@ -442,6 +544,7 @@ program MohidBatimFilter
         write(*,*)
 
         deallocate(NewBathymetry); nullify (NewBathymetry)
+        deallocate(SlopeAux     ); nullify (SlopeAux     )
 
 
     end subroutine DeallocateVariables

@@ -3959,7 +3959,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         type(T_Time)                                :: AuxTime
         integer                                     :: ready_, i         
         integer                                     :: STAT_ 
-        logical                                     :: NotIncremental_
+        logical                                     :: NotIncremental_, SearchStart
         !Begin-----------------------------------------------------------------        
 
 
@@ -3977,17 +3977,20 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             endif                
             
             if (NotIncremental_) then
+                
+                SearchStart = .true. 
             
                 do i=1, Me%DataValues
                 
                     AuxTime = Me%InitialData + Me%DataMatrix(i, 1)
                 
-                    if (AuxTime >= StartTime) then
-                        if (AuxTime > StartTime) then
+                    if (AuxTime >= StartTime .and. SearchStart) then
+                        if (AuxTime > StartTime .and. i > 1) then
                             StartIndex = i-1
                         else
                             StartIndex = i
-                        endif                            
+                        endif  
+                        SearchStart = .false. 
                     endif                        
                     
                     if (AuxTime >= EndTime) then

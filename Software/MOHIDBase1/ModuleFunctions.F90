@@ -114,6 +114,8 @@ Module ModuleFunctions
     public  :: LatentHeat
     public  :: SensibleHeat
     public  :: LatentHeatOfVaporization
+    public  :: LWCoef_PaulsonSimpson1977    
+    public  :: SWPercentage_PaulsonSimpson1977
 
     public  :: AerationFlux
     public  :: AerationFlux_CO2
@@ -7792,8 +7794,118 @@ cd1 :   if (PhytoLightLimitationFactor .LT. 0.0) then
         return
 
     end function AerationFlux_CO2
+    
+    
+    !--------------------------------------------------------------------------
+   
+    real function LWCoef_PaulsonSimpson1977 (SWCoef)
 
+        !Arguments-------------------------------------------------------------
+                                                    
+        real,   intent(IN)  :: SWCoef
 
+        !Local-----------------------------------------------------------------
+        real                :: SWCoef_aux, aux, LWCoef_aux
+
+        !----------------------------------------------------------------------
+
+        
+        !Paulson, C. A., and J. J. Simpson, 1977: Irradiance measurements in the upper ocean, 
+        !J. Phys. Oceanogr., 7, 952-956.
+        
+        !       Water type       ! SWCoef [m] ! LWCoef [m] ! SWPercentage [-]
+        !Jerlov (1968) - Type I  !   23       !    0.35    !    0.58            
+        !Jerlov (1968) - Type IA !   20       !    0.60    !    0.62            
+        !Jerlov (1968) - Type IB !   17       !    1.00    !    0.67            
+        !Jerlov (1968) - Type II !   14       !    1.50    !    0.77            
+        !Jerlov (1968) - Type III!   7.9      !    1.40    !    0.78           
+        
+        if (SWCoef > 0) then
+            !from 1/m to m
+            SWCoef_aux =  1/SWCoef
+        else
+            SWCoef_aux = 1000
+        endif            
+            
+        if (SWCoef_aux >= 23) then
+            LWCoef_aux   = 0.35
+        elseif (SWCoef_aux < 23 .and. SWCoef_aux >= 20) then    
+            aux          = (SWCoef_aux - 20)/3.
+            LWCoef_aux   = aux * 0.35 + (1-aux)*0.6 
+        elseif (SWCoef_aux < 20 .and. SWCoef_aux >= 17) then    
+            aux          = (SWCoef_aux - 17)/3.
+            LWCoef_aux   = aux * 0.60 + (1-aux)*1. 
+        elseif (SWCoef_aux < 17 .and. SWCoef_aux >= 14) then    
+            aux          = (SWCoef_aux - 14)/3.
+            LWCoef_aux   = aux * 1.   + (1-aux)*1.5 
+        elseif (SWCoef_aux < 14 .and. SWCoef_aux >= 7.9) then    
+            aux          = (SWCoef_aux - 7.9)/6.1
+            LWCoef_aux   = aux * 1.5   + (1-aux)*1.4 
+        elseif (SWCoef_aux < 7.9) then    
+            LWCoef_aux   = 1.4 
+        endif      
+            
+        LWCoef_PaulsonSimpson1977 = 1/LWCoef_aux
+
+    end function LWCoef_PaulsonSimpson1977
+
+    !--------------------------------------------------------------------------    
+    
+
+    !--------------------------------------------------------------------------
+   
+    real function SWPercentage_PaulsonSimpson1977 (SWCoef)
+
+        !Arguments-------------------------------------------------------------
+                                                    
+        real,   intent(IN)  :: SWCoef
+
+        !Local-----------------------------------------------------------------
+        real                :: SWCoef_aux, SWPercentage, aux
+
+        !----------------------------------------------------------------------
+
+        
+        !Paulson, C. A., and J. J. Simpson, 1977: Irradiance measurements in the upper ocean, 
+        !J. Phys. Oceanogr., 7, 952-956.
+        
+        !       Water type       ! SWCoef [m] ! LWCoef [m] ! SWPercentage [-]
+        !Jerlov (1968) - Type I  !   23       !    0.35    !    0.58            
+        !Jerlov (1968) - Type IA !   20       !    0.60    !    0.62            
+        !Jerlov (1968) - Type IB !   17       !    1.00    !    0.67            
+        !Jerlov (1968) - Type II !   14       !    1.50    !    0.77            
+        !Jerlov (1968) - Type III!   7.9      !    1.40    !    0.78           
+        
+        if (SWCoef > 0) then
+            !from 1/m to m
+            SWCoef_aux =  1/SWCoef
+        else
+            SWCoef_aux = 1000
+        endif            
+            
+        if (SWCoef_aux >= 23) then
+            SWPercentage = 0.58
+        elseif (SWCoef_aux < 23 .and. SWCoef_aux >= 20) then    
+            aux          = (SWCoef_aux - 20)/3.
+            SWPercentage = aux * 0.58 + (1-aux)*0.62
+        elseif (SWCoef_aux < 20 .and. SWCoef_aux >= 17) then    
+            aux          = (SWCoef_aux - 17)/3.
+            SWPercentage = aux * 0.62 + (1-aux)*0.67               
+        elseif (SWCoef_aux < 17 .and. SWCoef_aux >= 14) then    
+            aux          = (SWCoef_aux - 14)/3.
+            SWPercentage = aux * 0.67 + (1-aux)*0.77               
+        elseif (SWCoef_aux < 14 .and. SWCoef_aux >= 7.9) then    
+            aux          = (SWCoef_aux - 7.9)/6.1
+            SWPercentage = aux * 0.77  + (1-aux)*0.78                 
+        elseif (SWCoef_aux < 7.9) then    
+            SWPercentage = 0.78                  
+        endif      
+            
+        SWPercentage_PaulsonSimpson1977 = SWPercentage
+
+    end function SWPercentage_PaulsonSimpson1977
+
+    !--------------------------------------------------------------------------    
 
     !------------------------------------------------------------------------
 

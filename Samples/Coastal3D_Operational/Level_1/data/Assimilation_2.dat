@@ -1,0 +1,507 @@
+OUTPUT_TIME             : 0 864000.
+
+!No cold relaxation period (it is a hot start)
+COLD_RELAX_PERIOD_DEFAULT : 0.
+
+
+<beginproperty>
+NAME                    : water level
+UNITS                   : m
+DIMENSION               : 2D
+OUTPUT_HDF              : 1
+
+
+<<begin_field>>
+DEFAULTVALUE            : 0
+INITIALIZATION_METHOD   : HDF
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+FILENAME                : ../../generalData/Ocean/SSH.hdf5
+TYPE_ZUV                : z
+ADDING_FACTOR           : 2.5
+<<end_field>>
+
+<<begin_coef>>
+DEFAULTVALUE            : 1e9
+TYPE_ZUV                : z
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 1
+INITIALIZATION_METHOD   : Sponge
+FILE_DT         		: 1
+<<end_coef>>
+
+
+<endproperty>
+
+<beginproperty>
+NAME                    : velocity U
+UNITS                   : m/s
+DIMENSION               : 3D
+OUTPUT_HDF              : 1
+
+<<begin_field>>
+DEFAULTVALUE            : 0
+INITIALIZATION_METHOD   : HDF
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+FILENAME                : ../../generalData/Ocean/uv.hdf5
+TYPE_ZUV                : z
+<<end_field>>
+
+<<begin_coef>>
+DEFAULTVALUE            : 1e9
+TYPE_ZUV                : u
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 1
+INITIALIZATION_METHOD   : Sponge
+FILE_DT         		: 1
+<<end_coef>>
+
+<endproperty>
+
+
+<beginproperty>
+NAME                    : velocity V
+UNITS                   : m/s
+DIMENSION               : 3D
+OUTPUT_HDF              : 1
+
+
+<<begin_field>>
+DEFAULTVALUE            : 0
+INITIALIZATION_METHOD   : HDF
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+FILENAME                : ../../generalData/Ocean/uv.hdf5
+TYPE_ZUV                : z
+<<end_field>>
+
+<<begin_coef>>
+DEFAULTVALUE            : 1e9
+TYPE_ZUV                : v
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 1
+INITIALIZATION_METHOD   : Sponge
+FILE_DT          		: 1
+<<end_coef>>
+
+<endproperty>
+
+
+<beginproperty>
+NAME                    : water level
+UNITS                   : m
+DIMENSION               : 2D
+OUTPUT_HDF              : 1
+GROUP_OUTPUT_NAME       : water level Astro
+
+<<begin_field>>
+DEFAULTVALUE            : 0
+INITIALIZATION_METHOD   : HDF
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+FILENAME                : X:\GlobalTide\FES2014.hdf5
+TYPE_ZUV                : z
+HARMONICS               : 1
+UNITS                   : m
+HARMONICS_FIELD_DIM     : M2/amplitude
+ADDING_FACTOR           : 1.4
+<<<beginharmonics>>>
+SA
+SSA
+MU2
+NU2
+MSF
+2N2
+J1
+K1
+K2
+L2
+M2
+M3
+M4
+M6
+M8
+MF
+MKS2
+MM
+MN4
+MS4
+N2
+O1
+P1
+Q1
+R2
+S1
+S2
+S4
+T2
+EPS2
+LDA2
+<<<endharmonics>>>
+<<end_field>>
+
+<<begin_coef>>
+DEFAULTVALUE            : 1e9
+TYPE_ZUV                : z
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 1
+INITIALIZATION_METHOD   : Sponge
+SPONGE_OUT              : 1e5
+<<end_coef>>
+
+
+<endproperty>
+
+<beginproperty>
+NAME                    : barotropic velocity U
+UNITS                   : m/s
+DIMENSION               : 2D
+OUTPUT_HDF              : 1
+GROUP_OUTPUT_NAME       : velocity U Astro
+
+
+<<begin_field>>
+DEFAULTVALUE            : 0
+INITIALIZATION_METHOD   : HDF
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+FILENAME                : X:\GlobalTide\FES2014.hdf5
+TYPE_ZUV                : z
+HARMONICS               : 1
+UNITS                   : m
+HARMONICS_FIELD_DIM     : M2/amplitude
+ADDING_FACTOR           : 0
+<<<beginharmonics>>>
+SA
+SSA
+MU2
+NU2
+MSF
+2N2
+J1
+K1
+K2
+L2
+M2
+M3
+M4
+M6
+M8
+MF
+MKS2
+MM
+MN4
+MS4
+N2
+O1
+P1
+Q1
+R2
+S1
+S2
+S4
+T2
+EPS2
+LDA2
+<<<endharmonics>>>
+
+<<end_field>>
+
+<<begin_coef>>
+DEFAULTVALUE            : 1e9
+TYPE_ZUV                : u
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 1
+INITIALIZATION_METHOD   : Sponge
+SPONGE_OUT              : 3e5
+<<end_coef>>
+
+<endproperty>
+
+
+<beginproperty>
+NAME                    : barotropic velocity V
+UNITS                   : m/s
+DIMENSION               : 2D
+OUTPUT_HDF              : 1
+GROUP_OUTPUT_NAME       : velocity V Astro
+
+
+<<begin_field>>
+DEFAULTVALUE            : 0
+INITIALIZATION_METHOD   : HDF
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+FILENAME                : X:\GlobalTide\FES2014.hdf5
+TYPE_ZUV                : z
+HARMONICS               : 1
+UNITS                   : m
+HARMONICS_FIELD_DIM     : M2/amplitude
+ADDING_FACTOR           : 0
+<<<beginharmonics>>>
+SA
+SSA
+MU2
+NU2
+MSF
+2N2
+J1
+K1
+K2
+L2
+M2
+M3
+M4
+M6
+M8
+MF
+MKS2
+MM
+MN4
+MS4
+N2
+O1
+P1
+Q1
+R2
+S1
+S2
+S4
+T2
+EPS2
+LDA2
+<<<endharmonics>>>
+
+<<end_field>>
+
+<<begin_coef>>
+DEFAULTVALUE            : 1e9
+TYPE_ZUV                : v
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 1
+INITIALIZATION_METHOD   : Sponge
+SPONGE_OUT              : 3e5
+<<end_coef>>
+
+<endproperty>
+
+<beginproperty>
+NAME                    : temperature
+UNITS                   : ºC
+DIMENSION               : 3D
+OUTPUT_HDF              : 1
+
+<<begin_field>>
+DEFAULTVALUE            : 18
+INITIALIZATION_METHOD   : HDF
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+FILENAME                : ../../generalData/Ocean/Temp.hdf5
+TYPE_ZUV                : z
+<<end_field>>
+
+<<begin_coef>>
+DEFAULTVALUE            : 1e9
+TYPE_ZUV                : z
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 1
+INITIALIZATION_METHOD   : Sponge
+FILE_DT         		: 1
+<<end_coef>>
+
+<endproperty>
+
+
+<beginproperty>
+NAME                    : salinity
+UNITS                   : ºC
+DIMENSION               : 3D
+OUTPUT_HDF              : 1
+
+<<begin_field>>
+DEFAULTVALUE            : 36
+INITIALIZATION_METHOD   : HDF
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+FILENAME                : ../../generalData/Ocean/sal.hdf5
+TYPE_ZUV                : z
+<<end_field>>
+
+
+<<begin_coef>>
+DEFAULTVALUE            : 1e9
+TYPE_ZUV                : z
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 1
+INITIALIZATION_METHOD   : Sponge
+FILE_DT          		: 1
+<<end_coef>>
+
+<endproperty>
+
+
+
+
+
+<beginproperty>
+NAME                    : oxygen
+UNITS                   : mg O2/l
+DIMENSION               : 3D
+OUTPUT_HDF              : 1
+
+<<begin_field>>
+DEFAULTVALUE            : 5
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+EXTRAPOLATE_METHOD      : 1
+FILENAME                : ../../GeneralData/Ocean/O2.hdf5
+
+
+TYPE_ZUV                : z
+<<end_field>>
+
+<<begin_coef>>
+DEFAULTVALUE            : 1e9
+TYPE_ZUV                : z
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 1
+INITIALIZATION_METHOD   : SPONGE
+FILE_DT         		: 1
+<<end_coef>>
+<endproperty>
+
+
+<beginproperty>
+NAME                    : nitrate
+UNITS                   : mg/l
+DIMENSION               : 3D
+OUTPUT_HDF              : 1
+
+<<begin_field>>
+DEFAULTVALUE            : 36
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+EXTRAPOLATE_METHOD      : 1
+FILENAME                : ../../GeneralData/Ocean/no3.hdf5
+TYPE_ZUV                : z
+<<end_field>>
+
+<<begin_coef>>
+DEFAULTVALUE            : 1e9
+TYPE_ZUV                : z
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 1
+INITIALIZATION_METHOD   : SPONGE
+FILE_DT         		: 1
+<<end_coef>>
+
+<endproperty>
+
+<beginproperty>
+NAME                    : ammonia
+UNITS                   : mg/l
+DIMENSION               : 3D
+OUTPUT_HDF              : 1
+
+<<begin_field>>
+DEFAULTVALUE            : 0
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+EXTRAPOLATE_METHOD      : 1
+FILENAME                : ../../GeneralData/Ocean/NH4.hdf5
+
+
+TYPE_ZUV                : z
+<<end_field>>
+
+
+<<begin_coef>>
+DEFAULTVALUE            : 1e9
+TYPE_ZUV                : z
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 1
+INITIALIZATION_METHOD   : SPONGE
+FILE_DT         		: 1
+<<end_coef>>
+<endproperty>
+
+<beginproperty>
+NAME                    : inorganic phosphorus
+UNITS                   : mg/l
+DIMENSION               : 3D
+OUTPUT_HDF              : 1
+
+<<begin_field>>
+DEFAULTVALUE            : 36
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+EXTRAPOLATE_METHOD      : 1
+FILENAME                : ../../GeneralData/Ocean/PO4.hdf5
+
+TYPE_ZUV                : z
+<<end_field>>
+
+<<begin_coef>>
+DEFAULTVALUE            : 1e9
+TYPE_ZUV                : z
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 1
+INITIALIZATION_METHOD   : SPONGE
+FILE_DT         		: 1
+<<end_coef>>
+<endproperty>
+
+<beginproperty>
+NAME                    : phytoplankton
+UNITS                   : mg/l
+DIMENSION               : 3D
+OUTPUT_HDF              : 1
+
+
+<<begin_field>>
+DEFAULTVALUE            : 36
+FILE_IN_TIME            : HDF
+FIELD4D                 : 1
+SPATIAL_INTERPOL        : 1
+EXTRAPOLATE             : 1
+EXTRAPOLATE_METHOD      : 1
+FILENAME                : ../../GeneralData/Ocean/Phyto.hdf5
+
+TYPE_ZUV                : z
+<<end_field>>
+
+<<begin_coef>>
+DEFAULTVALUE            : 1e9
+TYPE_ZUV                : z
+FILE_IN_TIME            : NONE
+REMAIN_CONSTANT         : 1
+INITIALIZATION_METHOD   : SPONGE
+FILE_DT         		: 1
+<<end_coef>>
+<endproperty>
+

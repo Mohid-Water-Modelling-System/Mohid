@@ -6815,6 +6815,10 @@ cd0:    if (Exist) then
                 
                 !All DN properties with advection diffusion can interact with Reservoirs
                 if (PropAdvDiff) then
+                    
+                    
+                    allocate(DNConcentration(1:Me%nReservoirs))
+                    
                     !Get the property conc from DN                
                     call GetNodeConcReservoirs (DrainageNetworkID  = Me%ObjDrainageNetwork,                  &
                                                 ConcentrationX    = DNConcentration,                        &
@@ -6831,6 +6835,9 @@ cd0:    if (Exist) then
 
                     call UngetDrainageNetwork (Me%ObjDrainageNetwork, DNConcentration, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ReservoirProcesses - ModuleBasin - ERR056'
+                    
+                    !deallocate(DNConcentration)
+                    
                 endif
                 
             enddo           

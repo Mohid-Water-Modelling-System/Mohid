@@ -1494,11 +1494,12 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
     !This subroutine reads all the information needed to construct a        
     !sand property values in the domain    
 
-    subroutine ConstructSandProperty(NewProperty, ExtractType)
+    subroutine ConstructSandProperty(NewProperty, ExtractType, ClientNumber)
 
         !Arguments-------------------------------------------------------------
         type(T_Property)                :: NewProperty
         integer                         :: ExtractType
+        integer                         :: ClientNumber
 
         !External--------------------------------------------------------------
         integer                         :: STAT_CALL
@@ -1512,16 +1513,17 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         NewProperty%Field2D(:,:) = 0.
 
 
-        call ConstructFillMatrix  (PropertyID           = NewProperty%ID,              &
-                                   EnterDataID          = Me%ObjEnterData,             &
-                                   TimeID               = Me%ObjTime,                  &
-                                   HorizontalGridID     = Me%ObjHorizontalGrid,        &
-                                   ExtractType          = ExtractType,                 &
-                                   PointsToFill2D       = Me%ExternalVar%WaterPoints2D,&
-                                   Matrix2D             = NewProperty%Field2D,         &
-                                   TypeZUV              = TypeZ_,                      &
+        call ConstructFillMatrix  (PropertyID           = NewProperty%ID,               &
+                                   EnterDataID          = Me%ObjEnterData,              &
+                                   TimeID               = Me%ObjTime,                   &
+                                   HorizontalGridID     = Me%ObjHorizontalGrid,         &
+                                   ExtractType          = ExtractType,                  &
+                                   PointsToFill2D       = Me%ExternalVar%WaterPoints2D, &
+                                   Matrix2D             = NewProperty%Field2D,          &
+                                   TypeZUV              = TypeZ_,                       &
+                                   ClientID             = ClientNumber,                 & 
                                    STAT                 = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                     &
+        if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'Construct_SandProperty - ModuleSand - ERR02'
 
         call GetDefaultValue(NewProperty%ID%ObjFillMatrix, NewProperty%Scalar, STAT = STAT_CALL)
@@ -1657,7 +1659,7 @@ cd2 :               if (BlockFound) then
 
                         if (.not. BlockInBlockFound) stop 'ConstructClasses - ModuleSand - ERR06' 
  
-                        call ConstructSandProperty(Me%Classes%Diameter(ClassID), FromBlockInBlock)
+                        call ConstructSandProperty(Me%Classes%Diameter(ClassID), FromBlockInBlock, ClientNumber2)
 
                         call RewindBlock(Me%ObjEnterData, ClientNumber1, STAT = STAT_CALL)
                         
@@ -1675,7 +1677,7 @@ cd2 :               if (BlockFound) then
 
                         if (.not. BlockInBlockFound) stop 'ConstructClasses - ModuleSand - ERR08' 
 
-                        call ConstructSandProperty(Me%Classes%Percentage(ClassID), FromBlockInBlock)
+                        call ConstructSandProperty(Me%Classes%Percentage(ClassID), FromBlockInBlock, ClientNumber2)
 
                         call RewindBlock(Me%ObjEnterData, ClientNumber1, STAT = STAT_CALL)
                         
@@ -1736,7 +1738,7 @@ cd2 :               if (BlockFound) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR10'
 
         if (BlockFound) then
-            call ConstructSandProperty(Me%Uaverage, FromBlock)
+            call ConstructSandProperty(Me%Uaverage, FromBlock, ClientNumber)
 
             call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR20'
@@ -1759,7 +1761,7 @@ cd2 :               if (BlockFound) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAverageCurrent - ModuleSand - ERR40'
 
         if (BlockFound) then
-            call ConstructSandProperty(Me%Vaverage, FromBlock)
+            call ConstructSandProperty(Me%Vaverage, FromBlock, ClientNumber)
         else
             Me%AverageON = .false. 
         endif
@@ -1824,7 +1826,7 @@ cd2 :               if (BlockFound) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructMappDZ - ModuleSand - ERR10'
 
         if (BlockFound) then
-            call ConstructSandProperty(Me%MappDZ, FromBlock)
+            call ConstructSandProperty(Me%MappDZ, FromBlock, ClientNumber)
 
         else
             Me%MappDZON = .false. 
@@ -1908,7 +1910,7 @@ cd2 :               if (BlockFound) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR10'
 
             if (BlockFound) then
-                call ConstructSandProperty(Me%D35, FromBlock)
+                call ConstructSandProperty(Me%D35, FromBlock, ClientNumber)
 
                 call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
                 if (STAT_CALL .NE. SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR20'
@@ -1930,7 +1932,7 @@ cd2 :               if (BlockFound) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR50'
 
             if (BlockFound) then
-                call ConstructSandProperty(Me%D50, FromBlock)
+                call ConstructSandProperty(Me%D50, FromBlock, ClientNumber)
 
                 call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
                 if (STAT_CALL .NE. SUCCESS_) stop 'CConstructGlobalParameters - ModuleSand - ERR60'
@@ -1953,7 +1955,7 @@ cd2 :               if (BlockFound) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR80'
 
             if (BlockFound) then
-                call ConstructSandProperty(Me%D90, FromBlock)
+                call ConstructSandProperty(Me%D90, FromBlock, ClientNumber)
 
                 call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
 
@@ -1983,7 +1985,7 @@ cd2 :               if (BlockFound) then
         if (STAT_CALL /= SUCCESS_) stop 'ConstructGlobalParameters - ModuleSand - ERR120'
 
         if (BlockFound) then
-            call ConstructSandProperty(Me%BedRock, FromBlock)
+            call ConstructSandProperty(Me%BedRock, FromBlock, ClientNumber)
 
             call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
             if (STAT_CALL .NE. SUCCESS_) stop 'CConstructGlobalParameters - ModuleSand - ERR130'
