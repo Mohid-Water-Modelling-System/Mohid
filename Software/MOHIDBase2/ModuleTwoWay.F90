@@ -26,9 +26,12 @@ Module ModuleTwoWay
     
     use ModuleHorizontalMap,    only : GetBoundaries, UnGetHorizontalMap
     use ModuleFunctions
+    
     use ModuleMap,              only : GetComputeFaces3D, GetOpenPoints3D, UnGetMap
     use ModuleStopWatch,        only : StartWatch, StopWatch
     use ModuleUpscallingDischarges
+    
+    use ModuleDischarges,        only : GetDischargesNumber, GetDischargeFlowDistribuiton, IsUpscaling
     
     implicit none
 
@@ -58,6 +61,7 @@ Module ModuleTwoWay
     public  :: UngetTwoWayExternal_Vars
     public  :: Modify_Upscaling_Discharges
     public  :: UpscaleDischarge
+    public  :: UpscaleDischarge_WP
 
     !Destructor
     public  :: KillTwoWay                                                     
@@ -1184,14 +1188,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !>Routine responsible for the computation of discharge volume by upscaling
     !>@param[in] FatherID, CallerID, STAT     
-    subroutine UpscaleDischarge(SonID, FatherU_old, FatherV_old, FatherU, FatherV, DischargeVolume, STAT)
+    subroutine UpscaleDischarge(SonID, FatherU_old, FatherV_old, FatherU, FatherV, DischargeFlow, STAT)
         !Arguments-------------------------------------------------------------
-        integer                          , intent(IN)    :: SonID
-        real, dimension(:, :, :), pointer, intent(IN)    :: FatherU_old, FatherV_old,FatherU, FatherV
-        real, dimension(:, :, :), pointer, intent(INOUT) :: DischargeVolume
-        integer                          , intent(OUT)   :: STAT
+        integer                          , intent(IN)     :: SonID
+        real, dimension(:, :, :), allocatable, intent(IN) :: FatherU_old, FatherV_old
+        real, dimension(:, :, :), pointer, intent(IN)     :: FatherU, FatherV
+        real, dimension(:, :, :), pointer, intent(INOUT)  :: DischargeFlow
+        integer                          , intent(OUT)    :: STAT
         !Local-----------------------------------------------------------------
-        integer                                          :: ready_
+        integer                                           :: ready_
         !----------------------------------------------------------------------
         STAT = UNKNOWN_
         call Ready(SonID, ready_)        
@@ -1200,7 +1205,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call ComputeDischargeVolume(FatherU_old = FatherU_old, FatherU = FatherU,                               & 
                                         FatherV_old = FatherV_old, FatherV = FatherV,                               &
-                                        Volume = DischargeVolume,                                                   &
+                                        Flow = DischargeFlow,                                                       &
                                         KUB = Me%Father%WorkSize%KUB,                                               &
                                         KFloorU = Me%Father%External_Var%KFloor_U,                                  &
                                         KFloorV = Me%Father%External_Var%KFloor_V,                                  &
@@ -1215,6 +1220,61 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
     end subroutine UpscaleDischarge
 !---------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Routine responsible for filling the concentration for each upscaling discharge cell
+    !>@param[in] FatherID, CallerID, STAT 
+    subroutine UpscaleDischarge_WP (FatherID, Prop, PropVector, Flow, FlowVector, dI, dJ, dK, Kmin, Kmax, FirstTime)
+        !Arguments-------------------------------------------------------------
+        integer                          , intent(IN)     :: FatherID
+        real, dimension(:, :, :), pointer, intent(IN)     :: Flow
+        real, dimension(:)      , pointer, intent(IN)     :: FlowVector, PropVector
+        real, dimension(:, :, :), pointer, intent(IN)     :: Prop
+        integer, dimension(:), pointer, intent(INOUT)     :: dI, dJ, dK, Kmin, Kmax
+        logical                       , intent(IN)        :: FirstTime
+        !Local-----------------------------------------------------------------
+        integer                                           :: STAT_CALL, DischargeNumber, AuxCell, AuxKmin, &
+                                                             AuxKmax, dis, nCells, i
+        integer, dimension(:), pointer                    :: VectorI, VectorJ, VectorK
+        !----------------------------------------------------------------------
+        
+        call GetDischargesNumber(FatherID, DischargeNumber, STAT = STAT_CALL)
+        if (STAT_CALL/=SUCCESS_) stop 'UpscaleDischarge_WP - failed to get discharges number of a father' 
+        
+        AuxCell = 0
+        do dis = 1 , DischargeNumber
+            
+            call GetDischargeFlowDistribuiton(FatherID, DischargeIDNumber = dis, nCells = nCells, VectorI = VectorI, &
+                                              VectorJ = VectorJ, VectorK = VectorK, kmin = AuxKmin, kmax = AuxKmax, &
+                                              STAT = STAT_CALL)                
+            if (STAT_CALL/=SUCCESS_) stop 'UpscaleDischarge_WP - failed to get dischargeflowdistribution'
+        
+            if (IsUpscaling(FatherID, dis)) then
+                if (FirstTime)then
+                    do i = 1, nCells
+                        AuxCell = AuxCell + 1
+                        dI        (AuxCell) = VectorI(i)
+                        dJ        (AuxCell) = VectorJ(i)
+                        dK        (AuxCell) = VectorK(i)
+                        Kmin      (AuxCell) = AuxKmin
+                        Kmax      (AuxCell) = AuxKmax
+                        FlowVector(AuxCell) = Flow(VectorI(i), VectorJ(i), VectorK(i))
+                        PropVector(AuxCell) = Prop(VectorI(i), VectorJ(i), VectorK(i))
+                    enddo                    
+                else
+                    do i = 1, nCells
+                        AuxCell = AuxCell + 1
+                        PropVector(AuxCell) = Prop(VectorI(i), VectorJ(i), VectorK(i))
+                    enddo                      
+                    
+                endif
+            else
+                AuxCell = AuxCell + nCells
+            endif
+        enddo
+        
+    end subroutine UpscaleDischarge_WP
+    
     
     !>@author Joao Sobrinho Maretec
     !>@Brief

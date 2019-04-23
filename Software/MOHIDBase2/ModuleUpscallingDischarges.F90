@@ -239,7 +239,7 @@ Module ModuleUpscallingDischarges
     !-------------------------------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !> Searches discharge faces of father cell, and saves the upscaling discharge cell links between father-son cells
+    !> Computes area averaged velocity of son cells nested in a father cell
     !>@param[in] DischargeVel, SonVel, DLink, SonArea, FatherArea, SonComputeFaces, AcumulatedVel, AuxArea, &
     !> KFloor, KUBSon, KUBFather 
     subroutine ComputeUpscalingVelocity(DischargeVel, SonVel, DLink, SonArea, FatherArea, SonComputeFaces, &
@@ -291,17 +291,18 @@ Module ModuleUpscallingDischarges
     !> Computes volume to be added or removed due to upscaling discharge
     !>@param[in] FatherU_old, FatherU, FatherV_old, FatherV, Volume, KUB, KFloorU, KFloorV, &
     !>                                 AreaU, AreaV, ComputeFacesU, ComputeFacesV, CellsZ                                        
-    subroutine ComputeDischargeVolume(FatherU_old, FatherU, FatherV_old, FatherV, Volume, KUB, KFloorU, KFloorV, &
+    subroutine ComputeDischargeVolume(FatherU_old, FatherU, FatherV_old, FatherV, Flow, KUB, KFloorU, KFloorV, &
                                       AreaU, AreaV, ComputeFacesU, ComputeFacesV, CellsZ)
         !Arguments--------------------------------------------------------------------------
-        real,    dimension(:, :, :), pointer, intent(IN)    :: FatherU_old, FatherV_old, FatherU, FatherV, AreaU, AreaV
-        integer, dimension(:, :, :), pointer, intent(IN)    :: ComputeFacesU, ComputeFacesV
-        real,    dimension(:, :, :), pointer, intent(INOUT) :: Volume
-        integer, dimension(:, :)         , intent(IN)       :: KFloorU, KFloorV, CellsZ
-        integer                          , intent(IN)       :: KUB
+        real,    dimension(:, :, :), pointer, intent(IN)     :: FatherU, FatherV, AreaU, AreaV
+        real,    dimension(:, :, :), allocatable, intent(IN) :: FatherU_old, FatherV_old
+        integer, dimension(:, :, :), pointer, intent(IN)     :: ComputeFacesU, ComputeFacesV
+        real,    dimension(:, :, :), pointer, intent(INOUT)  :: Flow
+        integer, dimension(:, :)         , intent(IN)        :: KFloorU, KFloorV, CellsZ
+        integer                          , intent(IN)        :: KUB
         !Local-------------------------------------------------------------------------------
-        integer                                             :: line, i, j, k, MaxSize, KBottom
-        real                                                :: F_East, F_West, F_South, F_North
+        integer                                              :: line, i, j, k, MaxSize, KBottom
+        real                                                 :: F_East, F_West, F_South, F_North
         !------------------------------------------------------------------------------------
         MaxSize = size(CellsZ, 1)
         do line = 1, MaxSize
@@ -313,7 +314,7 @@ Module ModuleUpscallingDischarges
                 F_East = (FatherU_old(i, j  , k) - FatherU(i, j  , k)) * AreaU(i, j  , k) *(1-ComputeFacesU(i , j+1,k))
                 F_West = (FatherU_old(i, j+1, k) - FatherU(i, j+1, k)) * AreaU(i, j+1, k) *(1-ComputeFacesU(i , j  ,k))
                 
-                Volume(i, j, k) = Volume(i, j, k) + F_East + F_West
+                Flow(i, j, k) = Flow(i, j, k) + F_East + F_West
             enddo
             
             KBottom = KfloorV(i, j)
@@ -321,7 +322,7 @@ Module ModuleUpscallingDischarges
                 F_South = (FatherV_old(i  , j, k) - FatherV(i  ,j , k)) * AreaV(i  , j, k) *(1-ComputeFacesV(i+1, j,k))
                 F_North = (FatherV_old(i+1, j, k) - FatherV(i+1,j , k)) * AreaV(i+1, j, k) *(1-ComputeFacesV(i  , j,k))
                 
-                Volume(i, j, k) = Volume(i, j, k) + F_South + F_North
+                Flow(i, j, k) = Flow(i, j, k) + F_South + F_North
             enddo
         enddo
     end subroutine ComputeDischargeVolume

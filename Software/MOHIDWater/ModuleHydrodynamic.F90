@@ -1788,6 +1788,9 @@ Module ModuleHydrodynamic
                                                 qY  => null(), &
                                                 qXY => null(), &
                                                 qYX => null()
+        
+        real, dimension(:,:,:), allocatable  :: CopyU_New
+        real, dimension(:,:,:), allocatable  :: CopyV_New
 
         !Time Interpolation
         type(T_Time)                         :: NextTime, PreviousTime
@@ -9993,7 +9996,7 @@ ic1:    if (Me%CyclicBoundary%ON) then
         logical                         :: WaterDischarges, ModelGOTM, ContinuousGOTM
         integer, dimension(:,:), pointer:: WaterPoints2D
         integer, dimension(:),   pointer:: VectorI, VectorJ, VectorK
-        integer                         :: Id, Jd, Kd, dn, DischargesNumber, nC, aux
+        integer                         :: Id, Jd, Kd, dn, DischargesNumber, nC, aux, k
         integer                         :: SpatialEmission, nCells, DischVertical
         integer                         :: STAT_CALL
         real                            :: InterceptionRatio
@@ -10108,7 +10111,7 @@ i3:                 if (SpatialEmission == DischPoint_) then
                         ! Joao Sobrinho
                         !Allocation of Vectors I J and K- profile option for now only for upscaling
                         if (DischVertical == DischProfile_)then
-                            nCells = Me%WorkSize%KUB - Me%External_Var%KFloor_Z
+                            nCells = Me%WorkSize%KUB - Me%External_Var%KFloor_Z(Id, Jd)
                             allocate(VectorI(nCells), VectorJ(nCells), VectorK(nCells))
                             VectorJ(:) = Jd
                             VectorI(:) = Id
@@ -10116,7 +10119,7 @@ i3:                 if (SpatialEmission == DischPoint_) then
                                 !All good
                             else
                                 stop 'Upscaling discharge must be a profile discharge : VERTICAL_DISCHARGE : 6'
-                            end
+                            endif
                             
                         else
                             nCells    = 1
@@ -10364,7 +10367,7 @@ n1:                         do nC =1, nCells
                         
                     elseif (SpatialEmission == DischPoint_) then
                         
-                        if (DischVertical == DischProfile_) then
+                        if (DischVertical == DischProfile_) then !Only for upscaling for now
                             call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Failed using SetLocationCellsZ for profile discharge'
                         endif
@@ -16611,6 +16614,12 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
                 if (Me%ComputeOptions%TwoWay)then
                     call AllocateTwoWayAux(HydrodynamicFatherID, HydrodynamicID)
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then   !Joao Sobrinho
+                        allocate(Me%Submodel%CopyU_New(ObjHydrodynamicFather%Size%ILB:ObjHydrodynamicFather%Size%IUB, &
+                                 ObjHydrodynamicFather%Size%JLB:ObjHydrodynamicFather%Size%JUB, &
+                                 ObjHydrodynamicFather%Size%KLB:ObjHydrodynamicFather%Size%KUB))
+                        allocate(Me%Submodel%CopyV_New(ObjHydrodynamicFather%Size%ILB:ObjHydrodynamicFather%Size%IUB, &
+                                 ObjHydrodynamicFather%Size%JLB:ObjHydrodynamicFather%Size%JUB, &
+                                 ObjHydrodynamicFather%Size%KLB:ObjHydrodynamicFather%Size%KUB))
                         call Set_Upscaling_Discharges(HydrodynamicFatherID, HydrodynamicID)
                     endif
                 endif
@@ -48303,7 +48312,10 @@ cd1:    if (Me%ComputeOptions%WaterDischarges) then
             if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR20'
 
 do1:        do DischargeID = 1, DischargesNumber
-
+                if (IsUpscaling(Me%ObjDischarges, DischargeID))then !Joao Sobrinho
+                    cycle
+                endif
+                
                 call GetDischargeON(Me%ObjDischarges,DischargeID, IgnoreOK, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR30'
 
@@ -48844,6 +48856,15 @@ do5:            do i = ILB, IUB
                 if (ObjHydrodynamicFather%LastIteration == Me%CurrentTime)then
 
                     AuxHydrodynamicID = i    !Changes back to Son ID
+                    if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
+                        !makes a copy of velocities U and V of father in order to ompute the difference after upscaling
+                        !This difference will be used for the upscaling discharge volume
+                        call SetMatrixValue(GetPointer(Me%Submodel%CopyU_New), ObjHydrodynamicFather%Size, &
+                                            ObjHydrodynamicFather%Velocity%Horizontal%U%New)
+                        call SetMatrixValue(GetPointer(Me%Submodel%CopyV_New), ObjHydrodynamicFather%Size, &
+                                            ObjHydrodynamicFather%Velocity%Horizontal%V%New)
+                    endif
+                    
 
                     !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
                     call PrepTwoWay (SonID             = AuxHydrodynamicID,   &
@@ -48897,11 +48918,11 @@ do5:            do i = ILB, IUB
                         !                            SonVel_V   = Me%Velocity%Horizontal%V%New,                     &
                         !                            STAT       = STAT_CALL)
                         call UpscaleDischarge(SonID       = AuxHydrodynamicID,                               &
-                                              FatherU_old = ObjHydrodynamicFather%Velocity%Horizontal%U%Old, &
-                                              FatherV_old = ObjHydrodynamicFather%Velocity%Horizontal%V%Old, &
+                                              FatherU_old = Me%Submodel%CopyU_New,                           &
+                                              FatherV_old = Me%Submodel%CopyV_New,                           &
                                               FatherU     = ObjHydrodynamicFather%Velocity%Horizontal%U%New, &
                                               FatherV     = ObjHydrodynamicFather%Velocity%Horizontal%V%New, &
-                                              DischargeVolume = ObjHydrodynamicFather%WaterFluxes%Discharges,&
+                                              DischargeFlow = ObjHydrodynamicFather%WaterFluxes%Discharges,  &
                                               STAT        = STAT_CALL)
                             
                     endif

@@ -1711,8 +1711,9 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                 STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Invalid value for Keyword UPSCALING_METHOD - Construct_FlowValues'
         
-        if (NewDischarge%WaterFlow%Upscaling) then
+        if (NewDischarge%WaterFlow%Upscaling) then !Joao Sobrinho
             NewDischarge%WaterFlow%scalar = 0.
+            NewDischarge%Localization%FlowDistribution = DischByCell_
         endif
 
      End Subroutine Construct_FlowValues  
