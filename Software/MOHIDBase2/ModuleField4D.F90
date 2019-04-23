@@ -3392,7 +3392,9 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         integer, dimension(:,:,:), pointer      :: WaterPoints3D     
         real                                    :: HT   
         integer                                 :: Imax, Jmax, Kmax
-        integer                                 :: STAT_CALL, i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                 :: STAT_CALL, i, j, k
+        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                 :: SILB, SIUB, SJLB, SJUB, SKLB, SKUB        
         integer                                 :: Obj, iaux, kbottom
         integer                                 :: nItems, iVert
 
@@ -3418,6 +3420,27 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         IUB = Me%WorkSize3D%IUB
         JLB = Me%WorkSize3D%JLB
         JUB = Me%WorkSize3D%JUB
+        
+        SILB = Me%Size3D%ILB
+        SIUB = Me%Size3D%IUB
+        SJLB = Me%Size3D%JLB
+        SJUB = Me%Size3D%JUB
+
+        if (NewPropField%From2Dto3D) then
+            KLB = 1
+            KUB = 1
+            SKLB = Me%Size3D%KLB
+            SKUB = Me%Size3D%KUB
+            
+        else
+ 
+            KLB = Me%WorkSize3D%KLB
+            KUB = Me%WorkSize3D%KUB
+            SKLB = Me%Size3D%KLB
+            SKUB = Me%Size3D%KUB
+            
+        endif             
+        
          
         call GetWaterPoints3D(Map_ID            = Me%ObjMap,                            &
                               WaterPoints3D     = WaterPoints3D,                        &
@@ -3425,20 +3448,14 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         if (STAT_CALL/=SUCCESS_) stop 'ReadValues3D - ModuleField4D - ERR100'          
          
         if (NewPropField%From2Dto3D .or. NewPropField%From3Dto2D) then
-            allocate(Aux3D(Me%Size3D%ILB:Me%Size3D%IUB,Me%Size3D%JLB:Me%Size3D%JUB,1:1))   
+            allocate(Aux3D(SILB:SIUB, SJLB:SJUB, SKLB:SKUB))   
             Aux3D(:,:,:) = 0.      
         endif            
             
 
         if (NewPropField%From2Dto3D) then
-            KLB = 1
-            KUB = 1
-           
             FieldAux => Aux3D
         else
-            KLB = Me%WorkSize3D%KLB
-            KUB = Me%WorkSize3D%KUB
-            
             FieldAux => Field
         endif
         
@@ -3494,10 +3511,12 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             call HDF5ReadWindow(HDF5ID        = Obj,                                    &
                                 GroupName     = trim(NewPropField%VGroupPath),          &
                                 Name          = trim(NewPropField%FieldName),           &
-                                Array3D       = Field,                                  &
+                                Array3D       = FieldAux,                               &
                                 OutputNumber  = iaux,                                   &
                                 STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR50'
+            
+
             
             if (Me%File%ReadSZZ .and.  Me%File%SZZLast < iaux) then
             
@@ -5053,7 +5072,13 @@ d2:     do N =1, NW
         !Local-----------------------------------------------------------------
         type (T_PropField), pointer                     :: PropField
         integer                                         :: STAT_, ready_, STAT_CALL
-        logical                                         :: CorrectTimeFrame
+        integer                                         :: i, j, k
+        integer                                         :: SizeI1, SizeJ1, SizeK1
+        integer                                         :: SizeI2, SizeJ2, SizeK2        
+        integer                                         :: ILB1,IUB1,JLB1,JUB1,KLB1,KUB1
+        integer                                         :: ILB2,IUB2,JLB2,JUB2,KLB2,KUB2
+        logical                                         :: CorrectTimeFrame        
+        
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -5140,10 +5165,65 @@ d2:     do N =1, NW
             endif
 
             if (present(Matrix3D)) then
-                if (PropField%From3Dto2D) then
+                
+                SizeI1  = size(Matrix3D, 1)
+                SizeJ1  = size(Matrix3D, 2)
+                SizeK1  = size(Matrix3D, 3)
+                
+                SizeI2 = size(Me%Matrix3D, 1)
+                SizeJ2 = size(Me%Matrix3D, 2)                
+                SizeK2 = size(Me%Matrix3D, 3)
+                
+                ILB1   = LBound(Matrix3D, 1)
+                JLB1   = LBound(Matrix3D, 2)
+                KLB1   = LBound(Matrix3D, 3) 
+                
+                IUB1   = UBound(Matrix3D, 1)
+                JUB1   = UBound(Matrix3D, 2)                
+                KUB1   = UBound(Matrix3D, 3)                 
+                
+                ILB2   = LBound(Me%Matrix3D, 1)
+                JLB2   = LBound(Me%Matrix3D, 2)
+                KLB2   = LBound(Me%Matrix3D, 3) 
+                
+                IUB2   = UBound(Me%Matrix3D, 1)
+                JUB2   = UBound(Me%Matrix3D, 2)
+                KUB2   = UBound(Me%Matrix3D, 3)                                
+                
+                
+                if (SizeI1 /= SizeI2) then
+                    stop 'ModifyField4D - ModuleField4D - ERR30'
+                endif                        
+                
+                if (SizeJ1 /= SizeJ2) then
+                    stop 'ModifyField4D - ModuleField4D - ERR40'
+                endif                
+                
+                if      (PropField%From3Dto2D) then
+                    !Need to be a matrix3D with one layer
+                    if (SizeK1 /= 3) then
+                        stop 'ModifyField4D - ModuleField4D - ERR50'
+                    endif                        
+                    
                     Matrix3D(:,:,1) = Me%Matrix3D(:,:, Me%WorkSize3D%KUB)
+                    
+                elseif (PropField%From2Dto3D) then    
+                    
+                    
+                    do k = KLB1, KUB1
+                        Matrix3D(ILB1:IUB1,JLB1:JUB1,k) = Me%Matrix3D(ILB2:IUB2,JLB2:JUB2,1)                    
+                    enddo                        
+                    
+                    
+                    
                 else
-                    Matrix3D(:,:,:) = Me%Matrix3D(:,:,:)
+                    if (SizeK1  /= SizeK2) then
+                        stop 'ModifyField4D - ModuleField4D - ERR60'
+                    endif                        
+                    
+                    
+                    Matrix3D(ILB1:IUB1,JLB1:JUB1,KLB1:KUB1) = Me%Matrix3D(ILB2:IUB2,JLB2:JUB2,KLB2:KUB2)
+                    
                 endif                        
             endif
                                 
