@@ -124,6 +124,7 @@ Module ModuleTwoWay
         integer, dimension(:, :), allocatable       :: U, V, Z
         integer                                     :: n_U = 0, n_V = 0, n_Z = 0
         integer                                     :: Current_U = 0, Current_V = 0, Current_Z = 0
+        real, dimension(:, :), allocatable          :: Flow
     end type T_Discharges
     
     private :: T_FatherDomain
@@ -362,17 +363,25 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         allocate (Me%IgnoreOBCells(ILB:IUB, JLB:JUB))
         call SetMatrixValue (GetPointer(Me%IgnoreOBCells), Me%WorkSize2D, 1)
-        AuxIgnoreOBNumCells = IgnoreOBNumCells
+        
+        if ((IUB - IgnoreOBNumCells) <= 3)then
+            AuxIgnoreOBNumCells = 1
+        else
+            AuxIgnoreOBNumCells = IgnoreOBNumCells
+        endif
         !compute south border
         do j = JLB, JUB
         do i = ILB, AuxIgnoreOBNumCells
             Me%IgnoreOBCells(i, j) = 0
         enddo
         enddo
+        AuxIgnoreOBNumCells = IgnoreOBNumCells
         
         !compute North border
-        if (IgnoreOBNumCells == IUB)then
-            AuxIgnoreOBNumCells = AuxIgnoreOBNumCells - 1
+        if ((IUB - IgnoreOBNumCells) <= 3)then
+            AuxIgnoreOBNumCells = 0
+        else
+            AuxIgnoreOBNumCells = IgnoreOBNumCells
         endif
         
         do j = JLB, JUB
@@ -380,6 +389,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%IgnoreOBCells(i, j) = 0
         enddo
         enddo
+        
         AuxIgnoreOBNumCells = IgnoreOBNumCells
         !compute west border
         do j = JLB, AuxIgnoreOBNumCells
@@ -481,8 +491,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, intent(IN)                           :: SonID, dI, dJ !dI & dJ = Cell discharge location
         integer, intent(IN)                           :: Task
         integer,  dimension(:,:), pointer, intent(IN) :: Connections, SonWaterPoints, FatherWaterPoints
-        integer, dimension(:,:), pointer, intent(IN)  :: IZ, JZ!Connection between a Z son cell(i, j) and its father &
-                                                               !Z cell I/J component
+        integer, dimension(:,:), pointer, intent(IN)  :: IZ, JZ !Connection between a Z son cell(i, j) and its father &
+                                                                !Z cell I/J component
         !Local-----------------------------------------------------------------
         integer                                       :: ready_, VelID
         !----------------------------------------------------------------------
@@ -503,6 +513,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 if (Me%DischargeCells%n_V > 0) allocate (Me%DischargeCells%V(Me%DischargeCells%n_V,  4))
                 
                 allocate (Me%Father%DischargeCells%Z(Me%Father%DischargeCells%n_Z, 2))
+                
+                allocate (Me%Father%DischargeCells%Flow(Me%Father%DischargeCells%n_Z, 4))
                 
                 if (Me%DischargeCells%n_U == 0) then
                     if (Me%DischargeCells%n_V == 0) then
@@ -1213,6 +1225,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                         ComputeFacesU = Me%Father%External_Var%ComputeFaces3D_U,                    &
                                         ComputeFacesV = Me%Father%External_Var%ComputeFaces3D_V,                    &
                                         CellsZ = Me%Father%DischargeCells%Z)
+            
+            call ComputeDischargeVolume(FatherU_old = FatherU_old, FatherU = FatherU,                               & 
+                                        FatherV_old = FatherV_old, FatherV = FatherV,                               &
+                                        KFloor = Me%Father%External_Var%KFloor_Z,                                  &
+                                        AreaU = Me%Father%External_Var%AreaU, AreaV = Me%Father%External_Var%AreaV, &
+                                        ComputeFacesU = Me%Father%External_Var%ComputeFaces3D_U,                    &
+                                        ComputeFacesV = Me%Father%External_Var%ComputeFaces3D_V,                    &
+                                        UpscaleFlow = Me%Father%DischargeCells%Flow)
             STAT = SUCCESS_
         else
             STAT = ready_
