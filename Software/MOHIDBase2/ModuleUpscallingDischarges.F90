@@ -83,15 +83,15 @@ Module ModuleUpscallingDischarges
             call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, IZ, n = n_V)
         endif 
         if (FatherWaterPoints(Icell, JCell + 1) == 0) then
-            IFather = Icell - 1
-            JFather = JCell
+            IFather = Icell
+            JFather = JCell + 1
             di      = 0 
             dj      = -1 !only going to search westward
             call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, JZ, n = n_U)
         endif
         if (FatherWaterPoints(Icell, JCell - 1) == 0) then
-            IFather = Icell - 1
-            JFather = JCell
+            IFather = Icell
+            JFather = JCell - 1
             di      = 0 !only going to search eastward
             dj      = 1
             call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, JZ, n = n_U)
@@ -130,11 +130,11 @@ Module ModuleUpscallingDischarges
         
         if (di /=0) IJFather = IFather ! means we are searching the north/South direction
         if (dj /=0) IJFather = JFather ! means we are searching the west/east direction
-        
+        Aux2 = Aux
+        i = StartIndex
         !Check if current face needs to be considered for the discharge velocity
         if (present(Cells)) then
             do while (Aux2 == Aux)
-                i = StartIndex
                 ISon         = Connection(i, 3)
                 JSon         = Connection(i, 4)
                 ISonAdjacent = Connection(i, 3) + di
@@ -159,7 +159,6 @@ Module ModuleUpscallingDischarges
             enddo
         elseif (present(n)) then
             do while (Aux2 == Aux)
-                i = StartIndex
                 ISon         = Connection(i, 3)
                 JSon         = Connection(i, 4)
                 ISonAdjacent = Connection(i, 3) + di
@@ -324,6 +323,34 @@ Module ModuleUpscallingDischarges
                 
                 Flow(i, j, k) = Flow(i, j, k) + F_South + F_North
             enddo
+        enddo
+    end subroutine ComputeDischargeVolume
+                                      
+    subroutine ComputeDischargeVolume(FatherU_old, FatherU, FatherV_old, FatherV, KFloor, AreaU, AreaV, &
+        ComputeFacesU, ComputeFacesV, UpscaleFlow)
+        !Arguments--------------------------------------------------------------------------
+        real,    dimension(:, :, :), pointer, intent(IN)     :: FatherU, FatherV, AreaU, AreaV
+        real,    dimension(:, :, :), allocatable, intent(IN) :: FatherU_old, FatherV_old
+        integer, dimension(:, :, :), pointer, intent(IN)     :: ComputeFacesU, ComputeFacesV
+        integer, dimension(:, :)         , intent(IN)        :: KFloor, UpscaleFlow
+        !Local-------------------------------------------------------------------------------
+        integer                                              :: line, i, j, k, MaxSize, KBottom
+        real                                                 :: F_East, F_West, F_South, F_North
+        !------------------------------------------------------------------------------------
+        MaxSize = size(UpscaleFlow, 1)
+        do line = 1, MaxSize
+            i = UpscaleFlow(line, 1)
+            j = UpscaleFlow(line, 2)
+            k = UpscaleFlow(line, 3)
+            
+            F_East = (FatherU_old(i, j  , k) - FatherU(i, j  , k)) * AreaU(i, j  , k) *(1-ComputeFacesU(i , j+1,k))
+            F_West = (FatherU_old(i, j+1, k) - FatherU(i, j+1, k)) * AreaU(i, j+1, k) *(1-ComputeFacesU(i , j  ,k))
+
+            F_South = (FatherV_old(i  , j, k) - FatherV(i  ,j , k)) * AreaV(i  , j, k) *(1-ComputeFacesV(i+1, j,k))
+            F_North = (FatherV_old(i+1, j, k) - FatherV(i+1,j , k)) * AreaV(i+1, j, k) *(1-ComputeFacesV(i  , j,k))
+                
+            UpscaleFlow(line, 4) = F_South + F_North + F_East + F_West           
+            
         enddo
     end subroutine ComputeDischargeVolume
     !

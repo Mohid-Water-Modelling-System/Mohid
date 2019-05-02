@@ -10498,7 +10498,7 @@ i7:             if (.not. ContinuousGOTM)  then
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Son waterpoints'
         call GetWaterPoints2D(FatherID, FatherWaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Father waterpoints'
-        call GetHorizontalGrid (HorizontalGridID = SonID, ILinkZ = IZ, JLinkZ = IZ, STAT = STAT_CALL)
+        call GetHorizontalGrid (HorizontalGridID = SonID, ILinkZ = IZ, JLinkZ = JZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get ILinkZ or JLinkZ'
 
         do DischargeID = 1, DischargesNumber
@@ -48923,7 +48923,6 @@ do5:            do i = ILB, IUB
                                               FatherV_old = Me%Submodel%CopyV_New,                           &
                                               FatherU     = ObjHydrodynamicFather%Velocity%Horizontal%U%New, &
                                               FatherV     = ObjHydrodynamicFather%Velocity%Horizontal%V%New, &
-                                              DischargeFlow = ObjHydrodynamicFather%WaterFluxes%Discharges,  &
                                               STAT        = STAT_CALL)
                             
                     endif
