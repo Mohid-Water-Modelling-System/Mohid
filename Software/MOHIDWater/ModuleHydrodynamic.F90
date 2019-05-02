@@ -147,7 +147,8 @@ Module ModuleHydrodynamic
                                        ReturnsIntersectionCorners,                       &
                                        GetGridOutBorderPolygon,                          &
                                        GetDDecompWorkSize2D, WriteHorizontalGrid_UV,     &
-                                       GetCellRotation, GetGridCellArea, GetConnections
+                                       GetCellRotation, GetGridCellArea, GetConnections, &
+                                       GetCornersCoordinates
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
                                        AllocateTwoWayAux, PrepTwoWay, UngetTwoWayExternal_Vars, &
                                        ConstructUpscalingDischarges, UpscaleDischarge!, &
@@ -50650,12 +50651,12 @@ cd3:        if (Me%ComputeOptions%Residual) then
         integer                             :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         integer                             :: ILB, IUB, JLB, JUB
         integer                             :: WorkKLB, WorkKUB
-        integer                             :: i, j, k
+        integer                             :: i, j, k, Coord_Type
         real                                :: n, AuxSum
         real(8), dimension(:,:,:), pointer  :: Aux3D
         real(8), dimension(:,:  ), pointer  :: Value2D
         integer, dimension(:,:  ), pointer  :: Map2D
-        real,    dimension(:,:),   pointer  :: Latitude, Longitude
+        real,    dimension(:,:),   pointer  :: Latitude, Longitude, CornersX, CornersY, CornerMatrixX, CornerMatrixY
 
 
         !Begin-----------------------------------------------------------------
@@ -50680,18 +50681,32 @@ cd3:        if (Me%ComputeOptions%Residual) then
             if (STAT_CALL /= SUCCESS_) then
                 stop 'Write_HDF5_Format_3D_Corners - ModuleHydrodynamic - ERR10'
             endif
-
-            call GetGridLatitudeLongitude  (HorizontalGridID    = Me%ObjHorizontalGrid, &
-                                            GridLatitudeConn    = Latitude,             &
-                                            GridLongitudeConn   = Longitude,            &
-                                            STAT                = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) then
-                stop 'Write_HDF5_Format_3D_Corners - ModuleHydrodynamic - ERR20'
+            
+            call GetGridCoordType(Me%ObjHorizontalGrid, Coord_Type, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                stop 'Write_HDF5_Format_3D_Corners - Hydrodynamic - ERR12'
+            
+            if (Coord_Type == GRID_COORD_)then
+                call GetCornersCoordinates(Me%ObjHorizontalGrid, CoordX = CornersX, CoordY = CornersY, STAT=STAT_CALL)
+                CornerMatrixX => CornersX
+                CornerMatrixY => CornersY
+                
+            else
+                
+                call GetGridLatitudeLongitude  (HorizontalGridID    = Me%ObjHorizontalGrid, &
+                                                GridLatitudeConn    = Latitude,             &
+                                                GridLongitudeConn   = Longitude,            &
+                                                STAT                = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'Write_HDF5_Format_3D_Corners - ModuleHydrodynamic - ERR20'
+                endif
+                CornerMatrixX => Longitude
+                CornerMatrixY => Latitude
             endif
 
             do k = WorkKLB-1, WorkKUB
 
-                Aux3D(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1,k) = Latitude(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1)
+                Aux3D(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1,k) = CornerMatrixY(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1)
 
             enddo
 
@@ -50708,7 +50723,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
             do k = WorkKLB-1, WorkKUB
 
-                Aux3D(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1,k) = Longitude(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1)
+                Aux3D(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1,k) = CornerMatrixX(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1)
 
             enddo
 
