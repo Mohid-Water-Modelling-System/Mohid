@@ -50,7 +50,7 @@ Module ModuleTwoWay
     public  :: ConstructUpscalingDischarges
 
     !Selector                
-    
+    public  :: GetUpscalingDischarge
     !Modifier
     public  :: ModifyTwoWay
     private ::  ComputeAuxMatrixes
@@ -70,6 +70,7 @@ Module ModuleTwoWay
 
     !Management
     private ::      Ready
+    private ::      ReadyFather
     private ::          LocateObjTwoWay 
     
     !Interfaces----------------------------------------------------------------
@@ -107,6 +108,7 @@ Module ModuleTwoWay
         integer, dimension(:, :   ), pointer        :: BoundaryPoints2D => null()
         integer, dimension(:, :   ), pointer        :: KFloor_U         => null()
         integer, dimension(:, :   ), pointer        :: KFloor_V         => null()
+        integer, dimension(:, :   ), pointer        :: KFloor_Z         => null()
         integer, dimension(:, :   ), pointer        :: IWD_Connections_U => null()
         integer, dimension(:, :   ), pointer        :: IWD_Connections_V => null()
         integer, dimension(:, :   ), pointer        :: IWD_Connections_Z => null()
@@ -124,7 +126,9 @@ Module ModuleTwoWay
         integer, dimension(:, :), allocatable       :: U, V, Z
         integer                                     :: n_U = 0, n_V = 0, n_Z = 0
         integer                                     :: Current_U = 0, Current_V = 0, Current_Z = 0
-        real, dimension(:, :), allocatable          :: Flow
+        real(8), dimension(:), allocatable          :: Flow
+        real(8), dimension(:), pointer              :: AuxFlow => null()
+        integer, dimension(:, :), pointer           :: AuxConnections => null()
     end type T_Discharges
     
     private :: T_FatherDomain
@@ -494,7 +498,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, dimension(:,:), pointer, intent(IN)  :: IZ, JZ !Connection between a Z son cell(i, j) and its father &
                                                                 !Z cell I/J component
         !Local-----------------------------------------------------------------
-        integer                                       :: ready_, VelID
+        integer                                       :: ready_, VelID, STAT_CALL
         !----------------------------------------------------------------------
         call Ready (SonID, ready_)
         
@@ -502,51 +506,58 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
             if (Task == 1) then !find number of lines to allocate
+                call GetGeometryKFloor(GeometryID = Me%Father%InstanceID, Z = Me%Father%External_Var%KFloor_Z, &
+                                       STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructUpscalingDischarges - Failed to get Father KfloorZ'
+            
                 call SearchDischargeFace(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, &
-                                         IZ, JZ, Me%DischargeCells%n_U, Me%DischargeCells%n_V, &
-                                         Me%Father%DischargeCells%n_Z)
-                !Me%DischargeCells%n_U/V - son cells to be included in the calculation
+                                         IZ, JZ, Me%Father%DischargeCells%n_U, Me%Father%DischargeCells%n_V, &
+                                         Me%Father%DischargeCells%n_Z, Me%Father%External_Var%KFloor_Z, &
+                                         Me%Father%WorkSize%KUB)
+                !Me%Father%DischargeCells%n_U/V - son cells to be included in the calculation
+                
             elseif (Task == 2) then ! allocate
                 
-                if (Me%DischargeCells%n_U > 0) allocate (Me%DischargeCells%U(Me%DischargeCells%n_U,  4))
-
-                if (Me%DischargeCells%n_V > 0) allocate (Me%DischargeCells%V(Me%DischargeCells%n_V,  4))
+                if (Me%Father%DischargeCells%n_U > 0) &
+                    allocate (Me%Father%DischargeCells%U(Me%Father%DischargeCells%n_U,  4))
+                if (Me%Father%DischargeCells%n_V > 0) &
+                    allocate (Me%Father%DischargeCells%V(Me%Father%DischargeCells%n_V,  4))
                 
-                allocate (Me%Father%DischargeCells%Z(Me%Father%DischargeCells%n_Z, 2))
+                allocate (Me%Father%DischargeCells%Z(Me%Father%DischargeCells%n_Z, 3))
+                allocate (Me%Father%DischargeCells%Flow(Me%Father%DischargeCells%n_Z))
                 
-                allocate (Me%Father%DischargeCells%Flow(Me%Father%DischargeCells%n_Z, 4))
-                
-                if (Me%DischargeCells%n_U == 0) then
-                    if (Me%DischargeCells%n_V == 0) then
+                if (Me%Father%DischargeCells%n_U == 0) then
+                    if (Me%Father%DischargeCells%n_V == 0) then
                         write(*,*)'No upscaling dishcarges was found between SonID: ', SonID, 'and its father'                  
                     endif
                 endif
             else ! Fill upscaling matrixes which have the son cells need to be included in the calculation
                 
-                if (Me%DischargeCells%n_U > 0) then
+                if (Me%Father%DischargeCells%n_U > 0) then
                     VelID = VelocityU_
                     call UpsDischargesLinks(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, IZ, JZ, VelID, &
-                                            tracer = Me%DischargeCells%Current_U, Cells = Me%DischargeCells%U)
+                                    tracer = Me%Father%DischargeCells%Current_U, Cells = Me%Father%DischargeCells%U)
                 endif
                 
-                if (Me%DischargeCells%n_V > 0) then
+                if (Me%Father%DischargeCells%n_V > 0) then
                     VelID = VelocityV_
                     call UpsDischargesLinks(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, IZ, JZ, VelID, &
-                                            tracer = Me%DischargeCells%Current_V, Cells = Me%DischargeCells%V)
+                                    tracer = Me%Father%DischargeCells%Current_V, Cells = Me%Father%DischargeCells%V)
                 endif
-                Me%Father%DischargeCells%Current_Z = Me%Father%DischargeCells%Current_Z + 1
-                !This update is done for each new discharge cell, in order to fill the matrix of discharge cells
-                !Save discharge cell IDs into a matrix
-                Me%Father%DischargeCells%Z(Me%Father%DischargeCells%Current_Z, 1) = dI
-                Me%Father%DischargeCells%Z(Me%Father%DischargeCells%Current_Z, 2) = dJ
                 
+                !This update is done for each new discharge cell, in order to fill the matrix of discharge cells
+                !Save discharge cell IDs into a matrix                
+                call UpdateDischargeConnections(Me%Father%DischargeCells%Current_Z, Me%Father%DischargeCells%Z, &
+                                                Me%Father%External_Var%KFloor_Z, Me%Father%WorkSize%KUB, dI, dJ)
+
                 !these are the link matrixes between a Father discharge cell and its corresponding Son cells which 
                 !should be considered in the calculation of velocities and flow.
+                call UnGetGeometry(Me%Father%InstanceID, Me%Father%External_Var%KFloor_Z,   STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructUpscalingDischarges : failed to unget KFloor_Z.'
             endif
         else  
             stop 'Construct_Upscaling_Discharges - ModuleTwoWay -  Failed ready function'               
         endif
-            
         
     end subroutine ConstructUpscalingDischarges
     
@@ -561,6 +572,37 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     
     !--------------------------------------------------------------------------
+    subroutine GetUpscalingDischarge(TwoWayID, UpscaleDischarge, STAT)
+        !Arguments-------------------------------------------------------------
+        integer, intent(IN)                                 :: TwoWayID
+        real(8),  dimension(:,:, :), pointer, intent(INOUT) :: UpscaleDischarge
+        integer, optional                                   :: STAT
+        !Local-----------------------------------------------------------------
+        integer                                             :: ready_, STAT_, line, MaxSize, i, j, k
+        !----------------------------------------------------------------------
+        call Ready(TwoWayID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            MaxSize = Size(Me%DischargeCells%AuxFlow)
+            do line = 1, MaxSize
+                i = Me%DischargeCells%AuxConnections(line, 1)
+                j = Me%DischargeCells%AuxConnections(line, 2)
+                k = Me%DischargeCells%AuxConnections(line, 3)
+                
+                UpscaleDischarge(i, j, k) = Me%DischargeCells%AuxFlow(line)
+            enddo
+            
+            STAT_ = SUCCESS_
+        else               
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_    
+    
+    
+    end subroutine GetUpscalingDischarge
 
     !--------------------------------------------------------------------------
 
@@ -1144,22 +1186,22 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call Ready(SonID, ready_)
         
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-            if (allocated(Me%DischargeCells%U)) ExitFlag = .false.
-            if (allocated(Me%DischargeCells%V)) ExitFlag = .false.
+            if (allocated(Me%Father%DischargeCells%U)) ExitFlag = .false.
+            if (allocated(Me%Father%DischargeCells%V)) ExitFlag = .false.
             ! if none of these matrixes is allocated then this son domain is not the one that is feeding
             ! an upscale discharge into the father domain.
             if (ExitFlag) then
                 STAT = SUCCESS_
             else
                 
-                if (allocated(Me%DischargeCells%U))then
+                if (allocated(Me%Father%DischargeCells%U))then
                 
                     call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%Father%WorkSize, 0.0)
                     call SetMatrixValue (GetPointer(Me%Father%TotSonIn),  Me%Father%WorkSize, 0.0)
 
                     Call ComputeUpscalingVelocity(DischargeVel    = DVel_U,                          &
                                                   SonVel          = SonVel_U,                        &
-                                                  DLink           = Me%DischargeCells%U,             &
+                                                  DLink           = Me%Father%DischargeCells%U,      &
                                                   SonArea         = Me%External_Var%AreaU,           & 
                                                   FatherArea      = Me%Father%External_Var%AreaU,    &
                                                   AuxArea         = Me%Father%TotSonIn,              &
@@ -1170,14 +1212,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                   KUBFather       = Me%Father%WorkSize%KUB)
                 endif
             
-                if (allocated(Me%DischargeCells%V))then
+                if (allocated(Me%Father%DischargeCells%V))then
                 
                     call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%Father%WorkSize, 0.0)
                     call SetMatrixValue (GetPointer(Me%Father%TotSonIn),  Me%Father%WorkSize, 0.0)
                 
                     Call ComputeUpscalingVelocity(DischargeVel    = DVel_V,                          &
                                                   SonVel          = SonVel_V,                        &
-                                                  DLink           = Me%DischargeCells%V,             &
+                                                  DLink           = Me%Father%DischargeCells%V,      &
                                                   SonArea         = Me%External_Var%AreaV,           & 
                                                   FatherArea      = Me%Father%External_Var%AreaV,    &
                                                   AuxArea         = Me%Father%TotSonIn,              &
@@ -1200,39 +1242,33 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !>Routine responsible for the computation of discharge volume by upscaling
     !>@param[in] FatherID, CallerID, STAT     
-    subroutine UpscaleDischarge(SonID, FatherU_old, FatherV_old, FatherU, FatherV, DischargeFlow, STAT)
+    subroutine UpscaleDischarge(SonID, FatherU_old, FatherV_old, FatherU, FatherV, STAT)
         !Arguments-------------------------------------------------------------
         integer                          , intent(IN)     :: SonID
         real, dimension(:, :, :), allocatable, intent(IN) :: FatherU_old, FatherV_old
         real, dimension(:, :, :), pointer, intent(IN)     :: FatherU, FatherV
-        real, dimension(:, :, :), pointer, intent(INOUT)  :: DischargeFlow
         integer                          , intent(OUT)    :: STAT
+        type (T_TwoWay), pointer                          :: ObjFather
         !Local-----------------------------------------------------------------
-        integer                                           :: ready_
+        integer                                           :: ready_, ready_father
         !----------------------------------------------------------------------
         STAT = UNKNOWN_
         call Ready(SonID, ready_)        
         
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_))then
-
-            call ComputeDischargeVolume(FatherU_old = FatherU_old, FatherU = FatherU,                               & 
-                                        FatherV_old = FatherV_old, FatherV = FatherV,                               &
-                                        Flow = DischargeFlow,                                                       &
-                                        KUB = Me%Father%WorkSize%KUB,                                               &
-                                        KFloorU = Me%Father%External_Var%KFloor_U,                                  &
-                                        KFloorV = Me%Father%External_Var%KFloor_V,                                  &
-                                        AreaU = Me%Father%External_Var%AreaU, AreaV = Me%Father%External_Var%AreaV, &
-                                        ComputeFacesU = Me%Father%External_Var%ComputeFaces3D_U,                    &
-                                        ComputeFacesV = Me%Father%External_Var%ComputeFaces3D_V,                    &
-                                        CellsZ = Me%Father%DischargeCells%Z)
             
             call ComputeDischargeVolume(FatherU_old = FatherU_old, FatherU = FatherU,                               & 
                                         FatherV_old = FatherV_old, FatherV = FatherV,                               &
-                                        KFloor = Me%Father%External_Var%KFloor_Z,                                  &
                                         AreaU = Me%Father%External_Var%AreaU, AreaV = Me%Father%External_Var%AreaV, &
                                         ComputeFacesU = Me%Father%External_Var%ComputeFaces3D_U,                    &
                                         ComputeFacesV = Me%Father%External_Var%ComputeFaces3D_V,                    &
-                                        UpscaleFlow = Me%Father%DischargeCells%Flow)
+                                        UpscaleFlow = Me%Father%DischargeCells%Flow,                                &
+                                        DischargeConnection = Me%Father%DischargeCells%Z)
+            
+            call ReadyFather (Me%Father%InstanceID, ObjFather, ready_father)
+            
+            ObjFather%DischargeCells%AuxFlow => Me%Father%DischargeCells%Flow
+            ObjFather%DischargeCells%AuxConnections => Me%Father%DischargeCells%Z
             STAT = SUCCESS_
         else
             STAT = ready_
@@ -1550,6 +1586,33 @@ cd1:    if (ObjTwoWay_ID > 0) then
         end if cd1
 
     end subroutine Ready
+    
+    subroutine ReadyFather(TwoWayID, TwoWayFather, ready_)
+        !Arguments-------------------------------------------------------------
+        integer                                     :: TwoWayID
+        type (T_TwoWay), pointer                    :: TwoWayFather
+        integer                                     :: ready_
+        !----------------------------------------------------------------------
+        
+        nullify (TwoWayFather)
+
+cd1:    if (TwoWayID > 0) then
+            TwoWayFather => FirstObjTwoWay
+            do while (associated (TwoWayFather))
+                if (TwoWayFather%InstanceID == TwoWayID) exit
+                TwoWayFather => TwoWayFather%Next
+            enddo
+
+            if (.not. associated(TwoWayFather))                                             &
+                stop 'ModuleTwoWay - ReadyFather - father (Me) object not associated'
+
+            ready_ = VerifyReadLock (mTWOWAY_, TwoWayFather%InstanceID)
+
+        else
+            ready_ = OFF_ERR_
+        end if cd1        
+        
+    end subroutine ReadyFather
 
     !--------------------------------------------------------------------------
 

@@ -151,8 +151,8 @@ Module ModuleHydrodynamic
                                        GetCornersCoordinates
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
                                        AllocateTwoWayAux, PrepTwoWay, UngetTwoWayExternal_Vars, &
-                                       ConstructUpscalingDischarges, UpscaleDischarge!, &
-                                       !Modify_Upscaling_Discharges
+                                       ConstructUpscalingDischarges, UpscaleDischarge, &
+                                       GetUpscalingDischarge
 #ifdef _USE_MPI
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
@@ -48314,6 +48314,8 @@ cd1:    if (Me%ComputeOptions%WaterDischarges) then
 
 do1:        do DischargeID = 1, DischargesNumber
                 if (IsUpscaling(Me%ObjDischarges, DischargeID))then !Joao Sobrinho
+                    call GetUpscalingDischarge(Me%ObjTwoWay, Me%WaterFluxes%Discharges, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR25'
                     cycle
                 endif
                 

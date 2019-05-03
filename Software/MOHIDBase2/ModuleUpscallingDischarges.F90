@@ -45,8 +45,10 @@ Module ModuleUpscallingDischarges
     public  :: UpsDischargesLinks
     public  :: ComputeUpscalingVelocity
     public  :: ComputeDischargeVolume
+    public  :: UpdateDischargeConnections
     
     private :: SearchFace
+    private :: Update_n_Z
     
     !begin-----------------------------------------------------------------------
     contains
@@ -55,18 +57,20 @@ Module ModuleUpscallingDischarges
     !>@Brief
     !> Searches discharge faces of father cell, and provides it to the son domain
     !>@param[in] Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, n_U, n_V, IZ, JZ
-    subroutine SearchDischargeFace(Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, IZ, JZ, n_U, n_V, n_Z)
-        !Arguments-------------------------------------------------------------
+    subroutine SearchDischargeFace(Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, IZ, JZ, n_U, n_V, n_Z,&
+                                   Kfloor, KUB)
+        !Arguments------------------------------------------------------------- 
         integer, dimension(:, :), pointer, intent(IN)         :: Connection !Connection beteen father-Son Z cells
-        integer, dimension(:, :), pointer, intent(IN)         :: SonWaterPoints, FatherWaterPoints, IZ, JZ
+        integer, dimension(:, :), pointer, intent(IN)         :: SonWaterPoints, FatherWaterPoints, IZ, JZ, Kfloor
         integer, intent(IN)                                   :: ICell, JCell
-        integer                                               :: n_U, n_V, n_Z !Number of son cells in U/V directions
+        integer                                               :: n_U, n_V, n_Z, KUB !Number of son cells in U/V directions
         !Local-----------------------------------------------------------------
         integer                                               :: di, dj, MaxSize, IFather, JFather
         !-------------------------------------------------------------------------
          
-        MaxSize = size(Connection, 1)            
-        n_Z = n_Z + 1
+        MaxSize = size(Connection, 1)
+        
+        call Update_n_Z(n_Z, Kfloor, KUB, ICell, JCell)
         !If father cell to the north is land, check for son cells(compare with adjacent southern cell)
         if (FatherWaterPoints(Icell + 1, JCell) == 0) then
             IFather = Icell + 1
@@ -283,65 +287,31 @@ Module ModuleUpscallingDischarges
                   
         enddo            
     
-                                        end subroutine ComputeUpscalingVelocity
+    end subroutine ComputeUpscalingVelocity
     !--------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Computes volume to be added or removed due to upscaling discharge
     !>@param[in] FatherU_old, FatherU, FatherV_old, FatherV, Volume, KUB, KFloorU, KFloorV, &
     !>                                 AreaU, AreaV, ComputeFacesU, ComputeFacesV, CellsZ                                        
-    subroutine ComputeDischargeVolume(FatherU_old, FatherU, FatherV_old, FatherV, Flow, KUB, KFloorU, KFloorV, &
-                                      AreaU, AreaV, ComputeFacesU, ComputeFacesV, CellsZ)
-        !Arguments--------------------------------------------------------------------------
-        real,    dimension(:, :, :), pointer, intent(IN)     :: FatherU, FatherV, AreaU, AreaV
-        real,    dimension(:, :, :), allocatable, intent(IN) :: FatherU_old, FatherV_old
-        integer, dimension(:, :, :), pointer, intent(IN)     :: ComputeFacesU, ComputeFacesV
-        real,    dimension(:, :, :), pointer, intent(INOUT)  :: Flow
-        integer, dimension(:, :)         , intent(IN)        :: KFloorU, KFloorV, CellsZ
-        integer                          , intent(IN)        :: KUB
-        !Local-------------------------------------------------------------------------------
-        integer                                              :: line, i, j, k, MaxSize, KBottom
-        real                                                 :: F_East, F_West, F_South, F_North
-        !------------------------------------------------------------------------------------
-        MaxSize = size(CellsZ, 1)
-        do line = 1, MaxSize
-            i = CellsZ(line, 1)
-            j = CellsZ(line, 2)
-            KBottom = KfloorU(i, j)
-            !Considering Velocity Cell ID is the same as for type z (by doing so, null gradient is assumed)
-            do k = KBottom, KUB
-                F_East = (FatherU_old(i, j  , k) - FatherU(i, j  , k)) * AreaU(i, j  , k) *(1-ComputeFacesU(i , j+1,k))
-                F_West = (FatherU_old(i, j+1, k) - FatherU(i, j+1, k)) * AreaU(i, j+1, k) *(1-ComputeFacesU(i , j  ,k))
-                
-                Flow(i, j, k) = Flow(i, j, k) + F_East + F_West
-            enddo
-            
-            KBottom = KfloorV(i, j)
-            do k = KBottom, KUB
-                F_South = (FatherV_old(i  , j, k) - FatherV(i  ,j , k)) * AreaV(i  , j, k) *(1-ComputeFacesV(i+1, j,k))
-                F_North = (FatherV_old(i+1, j, k) - FatherV(i+1,j , k)) * AreaV(i+1, j, k) *(1-ComputeFacesV(i  , j,k))
-                
-                Flow(i, j, k) = Flow(i, j, k) + F_South + F_North
-            enddo
-        enddo
-    end subroutine ComputeDischargeVolume
                                       
-    subroutine ComputeDischargeVolume(FatherU_old, FatherU, FatherV_old, FatherV, KFloor, AreaU, AreaV, &
-        ComputeFacesU, ComputeFacesV, UpscaleFlow)
+    subroutine ComputeDischargeVolume(FatherU_old, FatherU, FatherV_old, FatherV, AreaU, AreaV, &
+        ComputeFacesU, ComputeFacesV, UpscaleFlow, DischargeConnection)
         !Arguments--------------------------------------------------------------------------
         real,    dimension(:, :, :), pointer, intent(IN)     :: FatherU, FatherV, AreaU, AreaV
         real,    dimension(:, :, :), allocatable, intent(IN) :: FatherU_old, FatherV_old
         integer, dimension(:, :, :), pointer, intent(IN)     :: ComputeFacesU, ComputeFacesV
-        integer, dimension(:, :)         , intent(IN)        :: KFloor, UpscaleFlow
+        real(8),    dimension(:)            , intent(INOUT)  :: UpscaleFlow
+        integer, dimension(:, :)            , intent(IN)     :: DischargeConnection
         !Local-------------------------------------------------------------------------------
-        integer                                              :: line, i, j, k, MaxSize, KBottom
+        integer                                              :: line, i, j, k, MaxSize
         real                                                 :: F_East, F_West, F_South, F_North
         !------------------------------------------------------------------------------------
-        MaxSize = size(UpscaleFlow, 1)
+        MaxSize = size(UpscaleFlow)
         do line = 1, MaxSize
-            i = UpscaleFlow(line, 1)
-            j = UpscaleFlow(line, 2)
-            k = UpscaleFlow(line, 3)
+            i = DischargeConnection(line, 1)
+            j = DischargeConnection(line, 2)
+            k = DischargeConnection(line, 3)
             
             F_East = (FatherU_old(i, j  , k) - FatherU(i, j  , k)) * AreaU(i, j  , k) *(1-ComputeFacesU(i , j+1,k))
             F_West = (FatherU_old(i, j+1, k) - FatherU(i, j+1, k)) * AreaU(i, j+1, k) *(1-ComputeFacesU(i , j  ,k))
@@ -349,10 +319,50 @@ Module ModuleUpscallingDischarges
             F_South = (FatherV_old(i  , j, k) - FatherV(i  ,j , k)) * AreaV(i  , j, k) *(1-ComputeFacesV(i+1, j,k))
             F_North = (FatherV_old(i+1, j, k) - FatherV(i+1,j , k)) * AreaV(i+1, j, k) *(1-ComputeFacesV(i  , j,k))
                 
-            UpscaleFlow(line, 4) = F_South + F_North + F_East + F_West           
-            
+            UpscaleFlow(line) = F_South + F_North + F_East + F_West           
         enddo
     end subroutine ComputeDischargeVolume
+        
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Updates n_Z matrix
+    !>@param[in] n_Z, Kfloor, KUB, I, J         
+    subroutine Update_n_Z(n_Z, Kfloor, KUB, I, J)
+        !Arguments--------------------------------------------------------------------------
+        integer, dimension(:, :)         , intent(IN)        :: KFloor
+        integer                          , intent(IN)        :: KUB, I, J
+        integer                          , intent(INOUT)     :: n_Z
+        !Local-------------------------------------------------------------------------------
+        integer                                              :: k, KBottom
+        !------------------------------------------------------------------------------------
+        KBottom = KFloor(I, J)
+        do k = KBottom, KUB
+            n_Z = n_Z + 1
+        enddo
+    end subroutine Update_n_Z
+    !----------------------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Updates n_Z matrix
+    !>@param[in] n_Z, Kfloor, KUB, I, J       
+    subroutine UpdateDischargeConnections(CurrentZ, Matrix, KFloor, KUB, I, J)
+        !Arguments--------------------------------------------------------------------------
+        integer, dimension(:, :)         , intent(INOUT)     :: Matrix
+        integer,                           intent(IN)        :: I, J, KUB
+        integer, dimension(:, :)         , intent(IN)        :: KFloor
+        integer,                           intent(INOUT)     :: CurrentZ
+        !Local-------------------------------------------------------------------------------
+        integer                                              :: k, KBottom
+        !------------------------------------------------------------------------------------
+        KBottom = KFloor(I, J)
+        do k = KBottom, KUB
+            CurrentZ = CurrentZ + 1
+            Matrix(CurrentZ, 1) = I
+            Matrix(CurrentZ, 2) = J
+            Matrix(CurrentZ, 3) = k
+        enddo
+    end subroutine UpdateDischargeConnections
     !
     !
     end module ModuleUpscallingDischarges
