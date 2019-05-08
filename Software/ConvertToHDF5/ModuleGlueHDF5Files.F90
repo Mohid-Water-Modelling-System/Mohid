@@ -123,6 +123,8 @@ Module ModuleGlueHDF5Files
         Me%ObjEnterData = AssociateInstance (mENTERDATA_, EnterDataID)
 
         call ReadOptions(ClientNumber)
+        
+        call GlueOnlyCommonVGroups
 
         call GlueProcess
 
@@ -382,6 +384,194 @@ if2 :           if (BlockFound) then
     end subroutine GlueProcess
 
     !--------------------------------------------------------------------------
+    
+
+    
+    subroutine GlueOnlyCommonVGroups
+    
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j
+        logical                                     :: NoDelete
+
+        !Begin-----------------------------------------------------------------
+        
+        NoDelete = .true.
+        
+        do While (NoDelete)
+            
+            NoDelete = .false. 
+
+            do i=1, Me%FileNameInNumber
+            do j=1, Me%FileNameInNumber   
+
+                if (i /= j) then    
+                    call DeleteVGNotCommon(i, j, NoDelete)
+                endif                    
+
+            enddo    
+            enddo        
+        enddo
+        
+    end subroutine GlueOnlyCommonVGroups        
+        
+                
+    !--------------------------------------------------------------------------
+    subroutine DeleteVGNotCommon(i, j, NoDelete)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: i, j
+        logical                                     :: NoDelete
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: HDF5_1, HDF5_2
+        integer                                     :: HDF5_READWRITE, STAT_CALL, ID1, ID2
+
+        !Begin-----------------------------------------------------------------
+       
+        !Gets File Access Code
+        call GetHDF5FileAccess  (HDF5_READWRITE = HDF5_READWRITE)
+        
+        HDF5_1 = 0
+        HDF5_2 = 0
+
+        call ConstructHDF5 (HDF5_1, Me%FileNameIn(i),                                   &
+                            Access = HDF5_READWRITE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'DeleteVGNotCommon - ModuleGlueHDF5Files - ERR10'        
+       
+        call GetHDF5FileID (HDF5_1, ID1, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'DeleteVGNotCommon - ModuleGlueHDF5Files - ERR20'        
+        
+        call ConstructHDF5 (HDF5_2, Me%FileNameIn(j),                                   &
+                            Access = HDF5_READWRITE, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'DeleteVGNotCommon - ModuleGlueHDF5Files - ERR30'        
+       
+        call GetHDF5FileID (HDF5_2, ID2, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'DeleteVGNotCommon - ModuleGlueHDF5Files - ERR40'        
+        
+        call DeleteNoMatchingSubGroups (ID1, ID2, "/", NoDelete)
+
+        call KillHDF5(HDF5_1, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'DeleteVGNotCommon - ModuleGlueHDF5Files - ERR50'
+
+        call KillHDF5(HDF5_2, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'DeleteVGNotCommon - ModuleGlueHDF5Files - ERR60'
+
+        
+    end subroutine DeleteVGNotCommon
+
+    
+    !--------------------------------------------------------------------------
+
+    recursive subroutine DeleteNoMatchingSubGroups (IDOut, IDIn, GroupNameOut, NoDelete)
+
+        !Arguments-------------------------------------------------------------
+        integer(HID_T)                              :: IDOut, IDIn
+        character(len=*)                            :: GroupNameOut
+        logical                                     :: NoDelete
+
+        !Local-----------------------------------------------------------------
+        logical                                     :: FoundOK        
+        integer                                     :: nmembersOut, nmembersIn
+        character(StringLength)                     :: obj_nameIn, obj_nameOut
+        integer                                     :: obj_type, idxOut, idxIN
+        integer                                     :: STAT
+
+        !Begin-----------------------------------------------------------------
+        
+        !Turns Error printing of        
+        call h5eset_auto_f  (0, STAT)        
+
+        !Get the number of members in the Group        
+        call h5gn_members_f(IDOut, GroupNameOut, nmembersOut, STAT)
+        
+        !Turns Error printing on
+        call h5eset_auto_f  (1, STAT)        
+        
+        if (STAT /= SUCCESS_) then
+            return
+            !stop 'DeleteNoMatchingSubGroups - ModuleGlueHDF5Files - ERR10'
+        endif            
+    
+
+        do idxOut = 1, nmembersOut
+
+            !Gets information about the group
+            call h5gget_obj_info_idx_f(IDOut, GroupNameOut, idxOut-1, obj_nameOut, obj_type, STAT)
+            !if (STAT /= SUCCESS_) then
+            !    stop 'DeleteNoMatchingSubGroups - ModuleGlueHDF5Files - ERR30'
+            !endif                            
+            
+            if  (obj_type ==H5G_GROUP_F) then
+                
+                call h5gn_members_f(IDIn, GroupNameOut, nmembersIn, STAT)
+                if (STAT /= SUCCESS_) then
+                    return
+                    !stop 'DeleteNoMatchingSubGroups - ModuleGlueHDF5Files - ERR20'
+                endif                   
+            
+                FoundOK = .false.
+                do idxIN = 1, nmembersIN
+                    call h5gget_obj_info_idx_f(IDIn, GroupNameOut, idxIN-1, obj_nameIn, obj_type, STAT)
+                    if (STAT /= SUCCESS_) then
+                        stop 'DeleteNoMatchingSubGroups - ModuleGlueHDF5Files - ERR10'
+                    endif      
+                
+                    if (trim(obj_nameOut) == trim(obj_nameIn))  then
+                        FoundOK = .true.
+                        exit
+                    endif    
+                enddo
+                    
+                    
+                if (FoundOK) then                    
+                    call DeleteNoMatchingSubGroups (IDOut, IDIn, trim(obj_nameOut), NoDelete)                    
+                else                    
+                    call DeleteVGroup(ID = IDOut,  ParentGroupName = GroupNameOut, GroupName = obj_nameOut )         
+                    NoDelete = .true.
+                endif
+
+            endif
+            
+        enddo
+
+
+    end subroutine DeleteNoMatchingSubGroups
+    
+    
+    !--------------------------------------------------------------------------    
+    
+    subroutine DeleteVGroup(ID, ParentGroupName, GroupName)
+    
+        !Arguments-------------------------------------------------------------
+        integer(HID_T)                              :: ID
+        character(len=*)                            :: ParentGroupName, GroupName
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT
+        integer(HID_T)                              :: gr_id
+
+        !Begin-----------------------------------------------------------------        
+        
+        call h5gopen_f  (ID, trim(ParentGroupName), gr_id, STAT)
+        if (STAT /= SUCCESS_) then
+            stop 'DeleteVGroup - ModuleGlueHDF5Files - ERR10'
+        endif                       
+        
+        call h5ldelete_f(loc_id     =  gr_id,                                           &
+                            name       =  trim(GroupName),                              &
+                            hdferr     =  STAT)
+        !if (STAT /= SUCCESS_) then
+        !    stop 'DeleteVGroup - ModuleGlueHDF5Files - ERR20'
+        !endif  
+        
+        call h5gclose_f       (gr_id, STAT)        
+        if (STAT /= SUCCESS_) then
+            stop 'DeleteVGroup - ModuleGlueHDF5Files - ERR30'
+        endif          
+    
+    end subroutine DeleteVGroup
+    
+   !--------------------------------------------------------------------------        
     
     subroutine BestTimeSerieGlue
     
@@ -1089,7 +1279,9 @@ if2 :           if (BlockFound) then
                                     i            = i)  
             else                
             
-                call GlueInTime (IDOut, IDIn, '/'//trim(Me%TimeGroup)//'/', '/'//trim(Me%TimeGroup)//'/', Me%FirstInstant(i), CheckOK)
+                call GlueInTime (IDOut, IDIn, '/'//trim(Me%TimeGroup)//'/', '/'         &
+                                                 //trim(Me%TimeGroup)//'/',             &
+                                                 Me%FirstInstant(i), CheckOK)
 
             endif                        
             
@@ -1150,7 +1342,7 @@ if2 :           if (BlockFound) then
 
 
     !--------------------------------------------------------------------------
-        !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
 
     recursive subroutine CompareSubGroups (IDOut, IDIn, GroupNameOut, GroupNameIn, CheckOK)
 
