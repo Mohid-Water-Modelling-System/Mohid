@@ -6227,23 +6227,7 @@ d1:     do while (associated(CurrentHDF))
                 CurrentHDF%VGroupPath=trim(CurrentHDF%VGroupPath)//"/"//trim(CurrentHDF%FieldName)
 
 
-            call GetData(CurrentHDF%From2Dto3D,                                             &
-                         Me%ObjEnterData , iflag,                                           &
-                         SearchType   = ExtractType,                                        &
-                         keyword      = 'FROM_2D_TO_3D',                                    &
-                         default      = .false.,                                            &
-                         ClientModule = 'ModuleFillMatrix',                                 &
-                         STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR240'
-        
-            if (CurrentHDF%From2Dto3D) then
-        
-                allocate(CurrentHDF%ReadField3D(ILB:IUB, JLB:JUB, 0:2), STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ConstructHDFInput - ModuleFillMatrix - ERR250'
-             
-                CurrentHDF%ReadField3D(:,:,:) = FillValueReal  
-            
-            endif      
+
             
             call GetData(CurrentHDF%From3Dto2D,                                             &
                          Me%ObjEnterData , iflag,                                           &
@@ -6269,6 +6253,24 @@ d1:     do while (associated(CurrentHDF))
                          ClientModule = 'ModuleFillMatrix',                                 &
                          STAT         = STAT_CALL)                                      
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR270'
+            
+            call GetData(CurrentHDF%From2Dto3D,                                             &
+                         Me%ObjEnterData , iflag,                                           &
+                         SearchType   = ExtractType,                                        &
+                         keyword      = 'FROM_2D_TO_3D',                                    &
+                         default      = .false.,                                            &
+                         ClientModule = 'ModuleFillMatrix',                                 &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR240'
+            
+            if (CurrentHDF%From2Dto3D .and. .not. CurrentHDF%Field4D) then
+        
+                allocate(CurrentHDF%ReadField3D(ILB:IUB, JLB:JUB, 0:2), STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'ConstructHDFInput - ModuleFillMatrix - ERR250'
+             
+                CurrentHDF%ReadField3D(:,:,:) = FillValueReal  
+            
+            endif                  
         
         
             if (CurrentHDF%Field4D) then
@@ -7677,24 +7679,26 @@ if4D:   if (CurrentHDF%Field4D) then
                               trim(CurrentHDF%FieldName),                                       &
                               Array2D = Field, OutputNumber = Instant, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR50'
+            
+            if(CurrentHDF%HasMultiplyingFactor)then
+                do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+                do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+                    Field(i,j) = Field(i,j) * CurrentHDF%MultiplyingFactor
+                enddo
+                enddo
+            end if
+
+            if(CurrentHDF%HasAddingFactor)then
+                do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
+                do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
+                    Field(i,j) = Field(i,j) + CurrentHDF%AddingFactor
+                enddo
+                enddo
+            end if            
 
         endif if4D
 
-        if(CurrentHDF%HasMultiplyingFactor)then
-            do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
-            do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
-                Field(i,j) = Field(i,j) * CurrentHDF%MultiplyingFactor
-            enddo
-            enddo
-        end if
 
-        if(CurrentHDF%HasAddingFactor)then
-            do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
-            do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
-                Field(i,j) = Field(i,j) + CurrentHDF%AddingFactor
-            enddo
-            enddo
-        end if
 
     end subroutine ReadHDF5Values2D
     
@@ -7733,15 +7737,18 @@ if4D:   if (CurrentHDF%Field4D) then
         else
             KLB = Me%WorkSize3D%KLB
             KUB = Me%WorkSize3D%KUB
-                     
-            CurrentHDF%ReadField3D => Field
+        
+            if (.not. CurrentHDF%Field4D) then
+                CurrentHDF%ReadField3D => Field
+            endif
+            
         endif
         
         
 if4D:   if (CurrentHDF%Field4D) then
 
             CurrentTime = GetField4DInstant (CurrentHDF%ObjField4D, Instant, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR10'
             
             if (CurrentHDF%SpatialInterpolON) then
             
@@ -7758,7 +7765,7 @@ if4D:   if (CurrentHDF%Field4D) then
                                    Matrix3D         = Field,                            &
                                    Instant          = Instant,                          &                                   
                                    STAT             = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR20'                                   
+                if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR20'
                 
             endif                
 
@@ -7768,12 +7775,12 @@ if4D:   if (CurrentHDF%Field4D) then
                 call GetHDF5ArrayDimensions(CurrentHDF%ObjHDF5, trim(CurrentHDF%VGroupPath),    &
                                   trim(CurrentHDF%FieldName), OutputNumber = Instant,       &
                                   Imax = Imax, Jmax = Jmax, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR30'
+                if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR30'
             else
                 call GetHDF5ArrayDimensions(CurrentHDF%ObjHDF5, trim(CurrentHDF%VGroupPath),    &
                                   trim(CurrentHDF%FieldName), OutputNumber = Instant,       &
                                   Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR40'                                   
+                if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR40'                                   
             endif
             
             if (CurrentHDF%From3Dto2D) then
@@ -7816,12 +7823,12 @@ if4D:   if (CurrentHDF%Field4D) then
 
                 call GetHDF5DataSetExist (HDF5ID = CurrentHDF%ObjHDF5, DataSetName = "/Grid/VerticalZ/Vertical_00001",&
                                           Exist  = Exist1, STAT = STAT_CALL)                                
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleField4D - ERR100'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR100'
                 
 
                 call GetHDF5DataSetExist (HDF5ID = CurrentHDF%ObjHDF5, DataSetName = "/Grid/VerticalZ/VerticalZ_00001",&
                                           Exist  = Exist2, STAT = STAT_CALL)                                
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleField4D - ERR110'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR110'
                 
                
                 if (Exist1) then
@@ -7837,7 +7844,7 @@ if4D:   if (CurrentHDF%Field4D) then
                         write(*,*) 'Missing the follow DataSet /Grid/VerticalZ/Vertical_00001'
                         write(*,*) '                       OR'                            
                         write(*,*) 'Missing the follow DataSet /Grid/VerticalZ/VerticalZ_00001'                        
-                        stop 'ReadHDF5Values3D - ModuleField4D - ERR120'
+                        stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR120'
                     endif
 
                 endif
@@ -7847,7 +7854,7 @@ if4D:   if (CurrentHDF%Field4D) then
                 
                 call HDF5ReadData(CurrentHDF%ObjHDF5, "/Grid/VerticalZ", trim(DataSetVert),&
                                   Array3D = SZZ, OutputNumber = Instant, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR130'                     
+                if (STAT_CALL /= SUCCESS_)stop 'ModuleFillMatrix - ModuleFillMatrix - ERR130'                     
 
                 do j = JLB, JUB
                 do i = ILB, IUB
@@ -7900,45 +7907,47 @@ if4D:   if (CurrentHDF%Field4D) then
               
             endif
             
+            if (CurrentHDF%From2Dto3D) then    
+           
+                do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+                do j =               JLB,               JUB
+                do i =               ILB,               IUB
+                    Field(i,j,k) = CurrentHDF%ReadField3D(i,j,1)
+                enddo
+                enddo
+                enddo
+            
+            else
+               nullify(CurrentHDF%ReadField3D)  
+            endif        
+
+            if(CurrentHDF%HasMultiplyingFactor)then
+            
+                do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+                do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+                do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
+                    Field(i,j,k) = Field(i,j,k) * CurrentHDF%MultiplyingFactor
+                enddo
+                enddo
+                enddo
+            
+            end if
+
+            if(CurrentHDF%HasAddingFactor)then
+            
+                do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
+                do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
+                do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
+                    Field(i,j,k) = Field(i,j,k) + CurrentHDF%AddingFactor
+                enddo
+                enddo
+                enddo
+
+            end if            
+            
         endif if4D            
 
-        if (CurrentHDF%From2Dto3D) then    
-           
-            do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-            do j =               JLB,               JUB
-            do i =               ILB,               IUB
-                Field(i,j,k) = CurrentHDF%ReadField3D(i,j,1)
-            enddo
-            enddo
-            enddo
-            
-        else
-           nullify(CurrentHDF%ReadField3D)  
-        endif        
 
-        if(CurrentHDF%HasMultiplyingFactor)then
-            
-            do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-            do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
-            do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
-                Field(i,j,k) = Field(i,j,k) * CurrentHDF%MultiplyingFactor
-            enddo
-            enddo
-            enddo
-            
-        end if
-
-        if(CurrentHDF%HasAddingFactor)then
-            
-            do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
-            do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
-            do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB
-                Field(i,j,k) = Field(i,j,k) + CurrentHDF%AddingFactor
-            enddo
-            enddo
-            enddo
-
-        end if
 
     end subroutine ReadHDF5Values3D
 

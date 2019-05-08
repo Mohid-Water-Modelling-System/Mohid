@@ -175,11 +175,13 @@ Module ModuleFunctions
     public  :: ExtraPol3DNearestCell
     public  :: ExtraPol3DNearestCell_8
 
-    private :: FillMatrix2DNearestCell
-    private :: FillMatrix2DAverage
-    private :: FillMatrix2DConstant
-    public  :: FillMatrix2D
-    public  :: FillMatrix3D
+    private :: FillMatrix2DNearestCell_R4
+    private :: FillMatrix2DAverage_R4
+    private :: FillMatrix2DConstant_R4
+    
+    private :: FillMatrix2DNearestCell_R8
+    private :: FillMatrix2DAverage_R8
+    private :: FillMatrix2DConstant_R8    
 
     !Nudging - TwoWay   Joao Sobrinho
     public  :: FeedBack_Avrg_UV
@@ -302,6 +304,19 @@ Module ModuleFunctions
         module procedure WGS84toGoogleMaps1D
         module procedure WGS84toGoogleMaps2D
     end interface  WGS84toGoogleMaps
+
+    public  :: FillMatrix2D
+    interface  FillMatrix2D
+        module procedure FillMatrix2D_R4
+        module procedure FillMatrix2D_R8
+    end interface  FillMatrix2D
+        
+    public  :: FillMatrix3D
+    interface  FillMatrix3D
+        module procedure FillMatrix3D_R4
+        module procedure FillMatrix3D_R8
+    end interface  FillMatrix3D
+    
 
     public :: GreatCircleDistance
 
@@ -5308,11 +5323,11 @@ d1:     do k = KLB, KUB
 
     !-------------------------------------------------------------------------------------
 
-    subroutine FillMatrix2DNearestCell (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
+    subroutine FillMatrix2DNearestCell_R4 (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: JLB, JUB, ILB, IUB
-        real,         dimension(:,:),   pointer     :: OutValues2D
+        real(4),      dimension(:,:),   pointer     :: OutValues2D
         integer,      dimension(:,:),   pointer     :: ComputePoints2D
 
 
@@ -5382,7 +5397,7 @@ d1:     do k = KLB, KUB
                         OutValues2D(i, j) = SumValues / real(Count)
 
                     else
-                        stop 'FillMatrix2DNearestCell - ModuleFunctions - ERR10'
+                        stop 'FillMatrix2DNearestCell_R4 - ModuleFunctions - ERR10'
                     endif
 
                 endif
@@ -5400,15 +5415,15 @@ d1:     do k = KLB, KUB
 
         endif
 
-    end subroutine FillMatrix2DNearestCell
+    end subroutine FillMatrix2DNearestCell_R4
 
     !-------------------------------------------------------------------------------------
 
-    subroutine FillMatrix2DConstant (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D, ExtrapolateValue)
+    subroutine FillMatrix2DConstant_R4 (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D, ExtrapolateValue)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: JLB, JUB, ILB, IUB
-        real,         dimension(:,:),   pointer     :: OutValues2D
+        real(4),      dimension(:,:),   pointer     :: OutValues2D
         integer,      dimension(:,:),   pointer     :: ComputePoints2D
         real                                        :: ExtrapolateValue
 
@@ -5449,15 +5464,15 @@ d1:     do k = KLB, KUB
 
         endif
 
-    end subroutine FillMatrix2DConstant
+    end subroutine FillMatrix2DConstant_R4
 
     !--------------------------------------------------------------------------
 
-    subroutine FillMatrix2DAverage (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
+    subroutine FillMatrix2DAverage_R4 (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: JLB, JUB, ILB, IUB
-        real,         dimension(:,:),   pointer     :: OutValues2D
+        real(4),      dimension(:,:),   pointer     :: OutValues2D
         integer,      dimension(:,:),   pointer     :: ComputePoints2D
 
         !Local-----------------------------------------------------------------
@@ -5510,44 +5525,278 @@ i1:     if (NumberOfCells > 0) then
         endif i1
 
 
-    end subroutine FillMatrix2DAverage
-
-    !-------------------------------------------------------------------------------------
+    end subroutine FillMatrix2DAverage_R4
 
     !--------------------------------------------------------------------------
+    
+    !-------------------------------------------------------------------------------------
 
-    subroutine FillMatrix2D (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D, FillGridMethod)
+    subroutine FillMatrix2DNearestCell_R8 (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: JLB, JUB, ILB, IUB
-        real,         dimension(:,:),   pointer     :: OutValues2D
+        real(8),      dimension(:,:),   pointer     :: OutValues2D
+        integer,      dimension(:,:),   pointer     :: ComputePoints2D
+
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: dij, Count, i, j, NumberOfCells
+        integer                                     :: jj, ii, dijmax, dimax, djmax
+        real                                        :: SumValues
+
+        !Begin-----------------------------------------------------------------
+
+        NumberOfCells = 0
+
+        do j=JLB,JUB
+        do i=ILB,IUB
+            if (OutValues2D(i, j) > FillValueReal/1e4 .and. ComputePoints2D(i, j) == 1) then
+                if (OutValues2D(i-1, j) < FillValueReal/1e4 .or. ComputePoints2D(i-1, j) == 0 .or. &
+                    OutValues2D(i+1, j) < FillValueReal/1e4 .or. ComputePoints2D(i+1, j) == 0 .or. &
+                    OutValues2D(i, j-1) < FillValueReal/1e4 .or. ComputePoints2D(i, j-1) == 0 .or. &
+                    OutValues2D(i, j+1) < FillValueReal/1e4 .or. ComputePoints2D(i, j+1) == 0) then
+
+                    NumberOfCells = NumberOfCells + ComputePoints2D(i, j)
+
+                endif
+            endif
+        enddo
+        enddo
+
+        if (NumberOfCells > 0) then
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+            if (OutValues2D(i, j) < FillValueReal/1e4 .or. ComputePoints2D(i, j) == 0) then
+
+                    dimax = IUB-ILB + 1
+                    djmax = JUB-JLB + 1
+
+                    dijmax = max(dimax, djmax)
+
+                    SumValues   = 0
+                    Count = 0
+
+                    do dij=1,dijmax
+
+                        do jj=j-dij,j+dij
+                        do ii=i-dij,i+dij
+
+                            if (jj < JLB) cycle
+                            if (jj > JUB) cycle
+                            if (ii < ILB) cycle
+                            if (ii > IUB) cycle
+
+                            if (OutValues2D(ii, jj) > FillValueReal/1e4 .and. ComputePoints2D(ii, jj) == 1) then
+                                SumValues   = SumValues + OutValues2D(ii, jj)
+                                Count = Count + 1
+                            endif
+
+                        enddo
+                        enddo
+
+                        if (Count > 0) exit
+
+                    enddo
+
+                    if (Count > 0) then
+
+                        OutValues2D(i, j) = SumValues / real(Count)
+
+                    else
+                        stop 'FillMatrix2DNearestCell_R4 - ModuleFunctions - ERR10'
+                    endif
+
+                endif
+
+            enddo
+            enddo
+
+        else
+
+            do j=JLB,JUB
+            do i=ILB,IUB
+                OutValues2D(i, j) = FillValueReal
+            enddo
+            enddo
+
+        endif
+
+    end subroutine FillMatrix2DNearestCell_R8
+
+    !-------------------------------------------------------------------------------------
+
+    subroutine FillMatrix2DConstant_R8 (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D, ExtrapolateValue)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JLB, JUB, ILB, IUB
+        real(8),      dimension(:,:),   pointer     :: OutValues2D
+        integer,      dimension(:,:),   pointer     :: ComputePoints2D
+        real                                        :: ExtrapolateValue
+
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j, NumberOfCells
+
+        !Begin-----------------------------------------------------------------
+
+        NumberOfCells = 0
+
+        do j=JLB,JUB
+        do i=ILB,IUB
+            if (OutValues2D(i, j) > FillValueReal/1e4 .and. ComputePoints2D(i, j) == 1) then
+                if (OutValues2D(i-1, j) < FillValueReal/1e4 .or. ComputePoints2D(i-1, j) == 0 .or. &
+                    OutValues2D(i+1, j) < FillValueReal/1e4 .or. ComputePoints2D(i+1, j) == 0 .or. &
+                    OutValues2D(i, j-1) < FillValueReal/1e4 .or. ComputePoints2D(i, j-1) == 0 .or. &
+                    OutValues2D(i, j+1) < FillValueReal/1e4 .or. ComputePoints2D(i, j+1) == 0) then
+
+                    NumberOfCells = NumberOfCells + ComputePoints2D(i, j)
+
+                endif
+            endif
+        enddo
+        enddo
+
+
+        if (NumberOfCells > 0) then
+
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+                if (OutValues2D(i, j) < FillValueReal/1e4 .or. ComputePoints2D(i, j) == 0) then
+                    OutValues2D(i, j) = ExtrapolateValue
+                endif
+            enddo
+            enddo
+
+        endif
+
+    end subroutine FillMatrix2DConstant_R8
+
+    !--------------------------------------------------------------------------
+
+    subroutine FillMatrix2DAverage_R8 (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JLB, JUB, ILB, IUB
+        real(8),      dimension(:,:),   pointer     :: OutValues2D
+        integer,      dimension(:,:),   pointer     :: ComputePoints2D
+
+        !Local-----------------------------------------------------------------
+        real                                        :: SumVal, AverageVal
+        integer                                     :: i, j, NumberOfCells
+
+        !Begin-----------------------------------------------------------------
+
+        NumberOfCells = 0
+        SumVal        = 0.
+
+        do j=JLB,JUB
+        do i=ILB,IUB
+            if (OutValues2D(i, j) > FillValueReal/1e4 .and. ComputePoints2D(i, j) == 1) then
+                if (OutValues2D(i-1, j) < FillValueReal/1e4 .or. ComputePoints2D(i-1, j) == 0 .or. &
+                    OutValues2D(i+1, j) < FillValueReal/1e4 .or. ComputePoints2D(i+1, j) == 0 .or. &
+                    OutValues2D(i, j-1) < FillValueReal/1e4 .or. ComputePoints2D(i, j-1) == 0 .or. &
+                    OutValues2D(i, j+1) < FillValueReal/1e4 .or. ComputePoints2D(i, j+1) == 0) then
+
+                    SumVal        = SumVal + OutValues2D(i, j)
+                    NumberOfCells = NumberOfCells + ComputePoints2D(i, j)
+
+                endif
+            endif
+        enddo
+        enddo
+
+i1:     if (NumberOfCells > 0) then
+
+            AverageVal =  SumVal / real (NumberOfCells)
+
+            do j=JLB,JUB
+            do i=ILB,IUB
+                if (OutValues2D(i, j) < FillValueReal/1e4 .or. ComputePoints2D(i, j) == 0) then
+                    OutValues2D(i, j) = AverageVal
+                endif
+            enddo
+            enddo
+
+
+
+        else  i1
+
+            do j=JLB,JUB
+            do i=ILB,IUB
+                OutValues2D(i, j) = FillValueReal
+            enddo
+            enddo
+
+        endif i1
+
+
+    end subroutine FillMatrix2DAverage_R8
+
+    !--------------------------------------------------------------------------    
+
+    subroutine FillMatrix2D_R4 (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D, FillGridMethod)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JLB, JUB, ILB, IUB
+        real(4),      dimension(:,:),   pointer     :: OutValues2D
         integer,      dimension(:,:),   pointer     :: ComputePoints2D
         integer                                     :: FillGridMethod
 
         !Local-----------------------------------------------------------------
 
         if      (FillGridMethod == ExtrapolAverage_) then
-            call FillMatrix2DAverage     (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
+            call FillMatrix2DAverage_R4     (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
         elseif  (FillGridMethod == ExtrapolConstant_) then
-            !call FillMatrix2DAverage     (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D, ExtrapolateValue)
+            !call FillMatrix2DAverage_R4     (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D, ExtrapolateValue)
         elseif  (FillGridMethod == ExtrapolNearstCell_) then
-            call FillMatrix2DNearestCell (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
+            call FillMatrix2DNearestCell_R4 (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
         else
-            stop 'FillMatrix2D - ModuleFunctions - ERR10'
+            stop 'FillMatrix2D_R4 - ModuleFunctions - ERR10'
         endif
         !Begin-----------------------------------------------------------------
 
 
-    end subroutine FillMatrix2D
+    end subroutine FillMatrix2D_R4
 
     !-------------------------------------------------------------------------------------
+    
+    !--------------------------------------------------------------------------
+
+    subroutine FillMatrix2D_R8 (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D, FillGridMethod)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JLB, JUB, ILB, IUB
+        real(8),      dimension(:,:),   pointer     :: OutValues2D
+        integer,      dimension(:,:),   pointer     :: ComputePoints2D
+        integer                                     :: FillGridMethod
+
+        !Local-----------------------------------------------------------------
+
+        if      (FillGridMethod == ExtrapolAverage_) then
+            call FillMatrix2DAverage_R8     (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
+        elseif  (FillGridMethod == ExtrapolConstant_) then
+            !call FillMatrix2DAverage_R8     (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D, ExtrapolateValue)
+        elseif  (FillGridMethod == ExtrapolNearstCell_) then
+            call FillMatrix2DNearestCell_R8 (ILB, IUB, JLB, JUB, ComputePoints2D, OutValues2D)
+        else
+            stop 'FillMatrix2D_R8 - ModuleFunctions - ERR10'
+        endif
+        !Begin-----------------------------------------------------------------
 
 
-    subroutine FillMatrix3D (ILB, IUB, JLB, JUB, KLB, KUB, ComputePoints3D, OutValues3D, FillGridMethod)
+    end subroutine FillMatrix2D_R8
+
+    !-------------------------------------------------------------------------------------
+    
+
+    subroutine FillMatrix3D_R4 (ILB, IUB, JLB, JUB, KLB, KUB, ComputePoints3D, OutValues3D, FillGridMethod)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: JLB, JUB, ILB, IUB, KLB, KUB
-        real,         dimension(:,:,:), pointer     :: OutValues3D
+        real(4),      dimension(:,:,:), pointer     :: OutValues3D
         integer,      dimension(:,:,:), pointer     :: ComputePoints3D
         integer                                     :: FillGridMethod
 
@@ -5614,7 +5863,86 @@ d5:     do k = klast + 1,KUB
 
         deallocate(Map2D, Value2D)
 
-    end subroutine FillMatrix3D
+    end subroutine FillMatrix3D_R4
+
+    !-------------------------------------------------------------------------------------
+    
+
+    subroutine FillMatrix3D_R8 (ILB, IUB, JLB, JUB, KLB, KUB, ComputePoints3D, OutValues3D, FillGridMethod)
+
+        !Arguments-------------------------------------------------------------
+        integer                                     :: JLB, JUB, ILB, IUB, KLB, KUB
+        real(8),      dimension(:,:,:), pointer     :: OutValues3D
+        integer,      dimension(:,:,:), pointer     :: ComputePoints3D
+        integer                                     :: FillGridMethod
+
+        !Local-----------------------------------------------------------------
+        real,         dimension(:,:  ), pointer     :: Value2D
+        integer,      dimension(:,:  ), pointer     :: Map2D
+
+        integer                                     :: k, kfirst, klast, i, j
+
+
+        !Begin-----------------------------------------------------------------
+
+        allocate(Value2D(ILB-1:IUB+1, JLB-1:JUB+1))
+        allocate(Map2D  (ILB-1:IUB+1, JLB-1:JUB+1))
+
+d1:     do k = KLB, KUB
+
+            Map2D      (ILB-1:IUB+1, JLB-1:JUB+1  ) = ComputePoints3D(ILB-1:IUB+1, JLB-1:JUB+1,k)
+            Value2D    (ILB-1:IUB+1, JLB-1:JUB+1  ) = OutValues3D    (ILB-1:IUB+1, JLB-1:JUB+1,k)
+
+            call FillMatrix2D (ILB, IUB, JLB, JUB, Map2D, Value2D, FillGridMethod)
+
+            OutValues3D(ILB-1:IUB+1, JLB-1:JUB+1,k) = Value2D        (ILB-1:IUB+1, JLB-1:JUB+1  )
+
+        enddo d1
+
+        kfirst = -FillValueInt
+        klast  = -FillValueInt
+
+!Search for the first layer with data
+d2:     do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (OutValues3D(i, j, k) > FillValueReal/1e4) then
+                kfirst = k
+                exit d2
+            endif
+        enddo
+        enddo
+        enddo d2
+
+!Extrapolate for the bottom layers
+d3:     do k = KLB, kfirst - 1
+            OutValues3D(ILB-1:IUB+1, JLB-1:JUB+1,k) = OutValues3D(ILB-1:IUB+1, JLB-1:JUB+1,kfirst)
+        enddo d3
+
+!Search for the last layer with data
+d4:     do k = KUB, KLB,-1
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (OutValues3D(ILB, JLB, k) > FillValueReal/1e4) then
+                klast = k
+                exit d4
+            endif
+        enddo
+        enddo
+        enddo d4
+
+!Extrapolate for the surface layers
+d5:     do k = klast + 1,KUB
+            OutValues3D(ILB-1:IUB+1, JLB-1:JUB+1,k) = OutValues3D(ILB-1:IUB+1, JLB-1:JUB+1,klast)
+        enddo d5
+
+
+        deallocate(Map2D, Value2D)
+
+    end subroutine FillMatrix3D_R8
+    
+    !-------------------------------------------------------------------------------------    
+    
     !-----------------------------------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
