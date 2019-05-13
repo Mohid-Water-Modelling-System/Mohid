@@ -417,6 +417,8 @@ Module ModuleRunOff
         
         real, dimension(:,:), pointer               :: NodeRiverLevel           => null() !river level at river points (from DN or external model)
         integer, dimension(:,:), pointer            :: NodeRiverMapping         => null() !mapping of river points where interaction occurs (for external model)
+        real, dimension(:,:), pointer               :: MarginRiverLevel         => null() !river level at margin points
+        real, dimension(:,:), pointer               :: MarginFlowToChannels     => null() !flow to channels at margin points
         
         real                                        :: MinSlope              = null_real
         logical                                     :: AdjustSlope           = .false.
@@ -2119,6 +2121,14 @@ do3:    do
                 endif
                 
                 
+                !dont allow duplicates margin points or fluxes would be duplicated
+                call FindMarginGridPoint(NewMarginGridPoint%GridI, NewMarginGridPoint%GridJ, FoundFlux)
+                if (FoundFlux) then
+                    write(*,*)
+                    write(*,*)'Found duplicate MarginGridPoint in cell ', NewMarginGridPoint%GridI, NewMarginGridPoint%GridJ
+                    call SetError(FATAL_, KEYWORD_, "Read1DInteractionMapping - ModuleRunOff - ERR0156")
+                endif                
+                
                 !associate i and j from BGP (DN) or NGP (OpenMI) to mgp to avoid searching in run-time
                 !BGP or NGP where to associate flux
                 call FindBankGridPoint(NewMarginGridPoint%BGPIntegrateFluxId, BankGridPointFlux, FoundFlux)
@@ -3499,7 +3509,13 @@ do4:            do di = -1, 1
             !allocate(Me%BoundaryRiverLevel   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             !Me%BoundaryRiverLevel      = null_real
             allocate(Me%NodeRiverLevel   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            Me%NodeRiverLevel      = null_real            
+            Me%NodeRiverLevel      = null_real  
+            
+            allocate(Me%MarginRiverLevel   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            Me%MarginRiverLevel      = null_real        
+            
+            allocate(Me%MarginFlowToChannels   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            Me%MarginFlowToChannels      = null_real              
         endif
 
 
@@ -3749,7 +3765,14 @@ do4:            do di = -1, 1
                 
             enddo               
 
-         
+            !additional output
+            if (Me%Use1D2DInteractionMapping) then
+                allocate(Me%MarginRiverLevel   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                Me%MarginRiverLevel      = null_real        
+            
+                allocate(Me%MarginFlowToChannels   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                Me%MarginFlowToChannels      = null_real 
+            endif
             
             Me%StormWaterEffectiveFlow      = 0.0
             Me%StreetGutterPotentialFlow    = 0.0
@@ -4010,13 +4033,18 @@ do4:            do di = -1, 1
         real                                                :: CoordX, CoordY
         logical                                             :: CoordON, IgnoreOK
         character(len=StringLength)                         :: TimeSerieName
+        integer                                             :: iProperty
         
         !Begin------------------------------------------------------------------
 
         nProperties = 8
+        iProperty = 8
         if(Me%StormWaterModel)then
-            nProperties = 12
+            nProperties = nProperties + 4
         endif      
+        if (Me%Use1D2DInteractionMapping) then
+            nProperties = nProperties + 4
+        endif
 
         !Allocates PropertyList
         allocate(PropertyList(nProperties))
@@ -4032,10 +4060,25 @@ do4:            do di = -1, 1
         PropertyList(8) = trim(GetPropertyName (VelocityModulus_))
       
         if(Me%StormWaterModel)then
-            PropertyList(9)  = "storm water potential flow"
-            PropertyList(10) = "storm water effective flow"
-            PropertyList(11) = "street gutter potential flow"
-            PropertyList(12) = "street gutter effective flow"
+            iProperty = iProperty + 1
+            PropertyList(iProperty)  = "storm water potential flow"
+            iProperty = iProperty + 1
+            PropertyList(iProperty) = "storm water effective flow"
+            iProperty = iProperty + 1
+            PropertyList(iProperty) = "street gutter potential flow"
+            iProperty = iProperty + 1
+            PropertyList(iProperty) = "street gutter effective flow"
+        endif
+        
+        if (Me%Use1D2DInteractionMapping) then
+            iProperty = iProperty + 1
+            PropertyList(iProperty)  = "node river level"
+            iProperty = iProperty + 1
+            PropertyList(iProperty) = "margin river level"
+            iProperty = iProperty + 1
+            PropertyList(iProperty) = "margin flow to channels"
+            iProperty = iProperty + 1
+            PropertyList(iProperty) = "node flow to channels"            
         endif
         
         call GetData (TimeSerieLocationFile,                  &
@@ -5551,6 +5594,9 @@ doIter:         do while (iter <= Niter)
     
         !Begin------------------------------------------------------------------
     
+        !output
+        call SetMatrixValue(Me%MarginRiverLevel, Me%Size, null_real)
+        
         !if using DN get water level from module and fill matrix. If using SWMM this will be filled by OpenMI
         !in case DN level appears in river points (in case of two banks are the bank grid points) and do not need
         !the node grid points
@@ -5640,6 +5686,10 @@ doIter:         do while (iter <= Niter)
                     
                     MarginGridPoint%RiverLevel = BankGridPointUp%RiverLevel - (BankGridPointUp%RiverLevel - BankGridPointDown%RiverLevel) * MarginGridPoint%InterpolationFraction                   
                 endif
+                
+                !output
+                Me%MarginRiverLevel(MarginGridPoint%GridI, MarginGridPoint%GridJ) = MarginGridPoint%RiverLevel
+                
             else
                 write (*,*) 'BankGridPoint not found'
                 write (*,*) 'BankeGridPoint ID = ', MarginGridPoint%BGPUpId, MarginGridPoint%BGPDownId            
@@ -5712,6 +5762,34 @@ doIter:         do while (iter <= Niter)
     end subroutine FindBankGridPoint
 
     !---------------------------------------------------------------------------       
+    
+    subroutine FindMarginGridPoint (i, j, Found)
+
+        !Arguments--------------------------------------------------------------
+        integer, intent(IN)                             :: i
+        integer, intent(IN)                             :: j        
+        logical, intent(OUT)                            :: Found
+        !Local------------------------------------------------------------------
+        type (T_MarginGridPoint), pointer               :: MarginGridPoint
+
+        Found = .FALSE.
+        
+        nullify(MarginGridPoint)
+        MarginGridPoint => Me%FirstMarginGridPoint
+        
+        do while (associated(MarginGridPoint))
+        
+            if (MarginGridPoint%GridI == i .and. MarginGridPoint%GridJ == j) then
+                Found = .TRUE.
+                exit
+            end if
+            MarginGridPoint => MarginGridPoint%Next
+        end do
+
+    end subroutine FindMarginGridPoint
+
+    !---------------------------------------------------------------------------       
+    
 
     subroutine ModifyWaterDischarges (LocalDT)
 
@@ -8718,6 +8796,10 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         real                                        :: dh, CellWidth, FluxWidth, Area, sign        
         
         
+        !output
+        call SetMatrixValue(Me%MarginFlowToChannels, Me%Size, null_real)        
+        
+        
         !Go for MarginGridPoints and compute 1D-2D flow 
         !It will integrate on closest BankGridPoint's for DN or associated NodeGridPoint for OpenMI
         MarginGridPoint => Me%FirstMarginGridPoint
@@ -8786,6 +8868,9 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             !Put the flow in integrated BankGriPoint - target i and j
             Me%iFlowToChannels(itarget, jtarget) = Me%iFlowToChannels(itarget, jtarget) + Flow
 
+            !output
+            Me%MarginFlowToChannels(i, j) = Flow
+            
             !Updates Variables
             Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Flow * Me%ExtVar%DT)
             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -10630,7 +10715,44 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR190'
            
+                
             endif
+            
+            if (Me%Use1D2DInteractionMapping) then
+                    
+                !River level from 1D model in river nodes
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/node river level", &
+                                        "node river level", "m",                  &
+                                        Array2D      = Me%NodeRiverLevel,         &
+                                        OutputNumber = Me%OutPut%NextOutPut,      &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR191'   
+                    
+                !River level from 1D model interpolated in margin 2D cells
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/margin river level", &
+                                        "margin river level", "m",                  &
+                                        Array2D      = Me%MarginRiverlevel,         &
+                                        OutputNumber = Me%OutPut%NextOutPut,        &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR192'      
+                    
+                !Flow to river in margin 2D cells
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/margin flow to river", &
+                                        "margin flow to river", "m3/s",               &
+                                        Array2D      = Me%MarginFlowToChannels,       &
+                                        OutputNumber = Me%OutPut%NextOutPut,          &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR193'        
+                    
+                !Flow to river integrated in river cells
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/node flow to river", &
+                                        "node flow to river", "m3/s",               &
+                                        Array2D      = Me%iFlowToChannels,          &
+                                        OutputNumber = Me%OutPut%NextOutPut,        &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR194'                      
+                    
+            endif            
 
            
             !Writes everything to disk
@@ -10740,6 +10862,30 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                 Data2D = Me%StreetGutterEffectiveFlow,                  &
                                 STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR12'
+            
+        endif
+        
+        if (Me%Use1D2DInteractionMapping) then
+            
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D = Me%NodeRiverLevel,                             &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR20'
+            
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D = Me%MarginRiverlevel,                           &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR30'
+            
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D = Me%MarginFlowToChannels,                       &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR40'
+            
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D = Me%iFlowToChannels,                            &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR50'            
             
         endif
    
@@ -11759,19 +11905,8 @@ cd1:    if (RunOffID > 0) then
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
             Found = .false.
-            
-            NodeGridPoint => Me%FirstNodeGridPoint
 
-do1:        do while (associated(NodeGridPoint))
-        
-                if (NodeGridPoint%GRIDI == i .and. NodeGridPoint%GRIDJ == j) then
-                    Found = .TRUE.
-                    exit do1
-                end if
-                NodeGridPoint => NodeGridPoint%Next
-            end do do1           
-            
-            if (Found) then        
+            if (Me%NodeRiverMapping (i,j) == BasinPoint) then 
                 IsRiverPoint = .true.
             else
                 IsRiverPoint = .false.
