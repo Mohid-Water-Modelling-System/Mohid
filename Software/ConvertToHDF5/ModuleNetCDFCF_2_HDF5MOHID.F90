@@ -220,6 +220,11 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         character(len=StringLength)             :: EnergyName
         integer, dimension(:), pointer          :: EnergyStartingHours        
         integer                                 :: N_EnergyStartH
+        logical                                 :: AvModelStart2Inst
+        character(len=StringLength)             :: AvModelStartName
+        !integer, dimension(:), pointer          :: AvModelStartingHours        
+        !integer                                 :: N_AvModelStartH
+        
     end type  T_Field
 
     type T_NetCDF_Out                                         
@@ -349,6 +354,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         call WriteReflectivity2Precipitation
         
         call WriteEnergy2Power
+        
+        call WriteAvModelStart2Inst
        
         if (Me%OutNetCDF) call WriteTimeNetCDF(DefDimTime=.false.)
     
@@ -990,7 +997,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                         
                         call ComputePowerFromEnergy(iPt, iP, Me%Date%TotalInstOut, Option = "End")                         
                         
-                    elseif (EnergyStartHour(Me%Field(ip)%EnergyStartingHours, Me%Field(ip)%N_EnergyStartH, i)) then
+                    elseif (ModelStartHour(Me%Field(ip)%EnergyStartingHours, Me%Field(ip)%N_EnergyStartH, i)) then
                         !Compute Power from Energy
                         call ComputePowerFromEnergy(iPt, iP, i, Option = "ReStart") 
                     else
@@ -1020,11 +1027,87 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         
     end subroutine WriteEnergy2Power
     
+    !------------------------------------------------------------------------
+    
+    subroutine WriteAvModelStart2Inst
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, iP, iPt
+        logical                                     :: Found
+        !Begin-----------------------------------------------------------------
+
+        
+        do iP = 1, Me%PropNumber
+        
+            if (Me%Field(iP)%AvModelStart2Inst) then
+        
+                !Found property to be average in depth
+                Found = .false.
+                do iPt = 1, Me%PropNumber
+                    if (trim(Me%Field(iPt)%ID%Name)==trim(Me%Field(iP)%AvModelStartName)) then
+                        Found = .true.
+                        exit
+                    endif
+                enddo
+                if (.not. Found) stop 'WriteAvModelStart2Inst - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+
+
+                if      (Me%Field(iPt)%Dim/=2) then
+                    stop 'WriteAvModelStart2Inst - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+                endif
+
+                allocate(Me%Field(iPt)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+
+                if      (Me%Field(iP)%Dim/=2) then
+                    stop 'WriteAverageInDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                endif
+                    
+                allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    
+                !Compute Instant value from average since model start
+
+                do i=1, Me%Date%TotalInstOut
+                !Read 2D property           
+                    if      (i == 1) then
+                        
+                        call ComputeInstFromAvgSinceModelStart(iPt, iP, 1, Option = "Start")    
+                        
+                    elseif  (i == Me%Date%TotalInstOut) then
+                        
+                        call ComputeInstFromAvgSinceModelStart(iPt, iP, Me%Date%TotalInstOut, Option = "End")                         
+                        
+                    else
+                        !Compute Power from Energy
+                        call ComputeInstFromAvgSinceModelStart(iPt, iP, i, Option = "Normal") 
+                    endif
+                    
+
+                    !Write Power
+                    if (Me%OutHDF5) then
+                        call WriteFieldHDF5  (iP, i)    
+                    endif
+
+                    if (Me%OutNetCDF) then
+                        call WriteFieldNetCDF(iP, i)                        
+                    endif
+                        
+                enddo
+            
+                deallocate(Me%Field(iPt)%Value2DOut)
+                nullify   (Me%Field(iPt)%Value2DOut)
+                deallocate(Me%Field(iP )%Value2DOut)
+                nullify   (Me%Field(iP )%Value2DOut)
+                
+            endif                
+        enddo    
+        
+    end subroutine WriteAvModelStart2Inst
+    
+    
     !------------------------------------------------------------------------       
-    logical function EnergyStartHour(EnergyStartingHours, nTotal, i)
+    logical function ModelStartHour(StartingHours, nTotal, i)
 
         !Arguments-------------------------------------------------------------
-        integer, dimension(:), pointer              :: EnergyStartingHours
+        integer, dimension(:), pointer              :: StartingHours
         integer                                     :: nTotal, i
 
         !Local-----------------------------------------------------------------
@@ -1037,15 +1120,15 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         
         do n=1, nTotal
             call ExtractDate(Time1 = HDF5TimeInstant(i), hour = hour) 
-            if (int(hour) == EnergyStartingHours(n)) then
+            if (int(hour) == StartingHours(n)) then
                 Aux = .true.
                 exit
             endif
         enddo            
                 
-        EnergyStartHour = Aux
+        ModelStartHour = Aux
         
-    end function EnergyStartHour
+    end function ModelStartHour
 
     !------------------------------------------------------------------------     
 
@@ -1363,7 +1446,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         enddo
         enddo  
         
-        NullEnergy = EnergyStartHour(Me%Field(ip)%EnergyStartingHours, Me%Field(ip)%N_EnergyStartH, iStart)
+        NullEnergy = ModelStartHour(Me%Field(ip)%EnergyStartingHours, Me%Field(ip)%N_EnergyStartH, iStart)
         
         if (.not. NullEnergy) then
             
@@ -1401,6 +1484,93 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     end subroutine ComputePowerFromEnergy
     
     !------------------------------------------------------------------------    
+    
+    !------------------------------------------------------------------------    
+
+    subroutine ComputeInstFromAvgSinceModelStart(iPt, iP, inst, Option) 
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: iPt, iP, inst
+        character(len=*)                            :: Option
+        !Local-----------------------------------------------------------------
+        real,   dimension(:,:), pointer             :: ValueInst, Average
+        real                                        :: EndPeriod, StartPeriod, dt
+        integer                                     :: iStart, iEnd, i, j
+!        logical                                     :: NullAverage
+        !Begin-----------------------------------------------------------------
+        
+    !------------------------------------------------------------------------    
+        ValueInst => Me%Field(iP)%Value2DOut    
+                    
+        Average => Me%Field(iPt)%Value2DOut    
+                    
+                   
+        ValueInst(:,:) = 0.
+        
+        if      (Option == "Start")  then
+            iEnd    = inst+1
+            iStart  = inst
+        elseif  (Option == "Normal") then
+            iEnd    = inst+1 
+            iStart  = inst-1               
+        elseif  (Option == "End"  .or. Option == "ReStart" ) then                
+            iEnd    = inst
+            iStart  = inst-1               
+        endif                
+            
+        EndPeriod   = HDF5TimeInstant(iEnd  ) - HDF5TimeInstant(1)
+        StartPeriod = HDF5TimeInstant(iStart) - HDF5TimeInstant(1)
+        dt          = EndPeriod - StartPeriod
+            
+        call ReadFieldHDF5(iPt, iEnd)
+                    
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if(Me%Mapping%Value2DOut(i,j) == 1) then
+                ValueInst(i, j) =  Average(i, j) * EndPeriod / dt
+            endif
+        enddo
+        enddo  
+        
+        
+        !NullAverage = ModelStartHour(Me%Field(ip)%AvModelStartingHours, Me%Field(ip)%N_AvModelStartH, iStart)
+        
+        !if (.not. NullAverage) then
+            
+            call ReadFieldHDF5(iPt, iStart)            
+            
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if(Me%Mapping%Value2DOut(i,j) == 1) then
+                    ValueInst(i, j) =  ValueInst(i, j) - Average(i, j) * StartPeriod / dt
+                endif
+            enddo
+            enddo
+            
+        !endif                        
+            
+        if  (Option == "ReStart") then
+
+            iEnd    = inst+1 
+            iStart  = inst
+            
+            dt = HDF5TimeInstant(iEnd) - HDF5TimeInstant(iStart)            
+            
+            call ReadFieldHDF5(iPt, iEnd)            
+            
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if(Me%Mapping%Value2DOut(i,j) == 1) then
+                   ValueInst(i, j) =  (ValueInst(i, j) + Average(i, j)) * 0.5
+                endif
+            enddo
+            enddo         
+            
+        endif
+            
+    end subroutine ComputeInstFromAvgSinceModelStart
+    
+    !------------------------------------------------------------------------     
 
     type(T_Time) function HDF5TimeInstant(Instant)
 
@@ -3267,7 +3437,50 @@ BF:         if (BlockFound) then
                             Me%Field(ip)%EnergyStartingHours(1:iflag) = Aux1DInt(1:iflag)
                         endif                           
 
-                    endif           
+                    endif        
+                    
+                    call GetData(Me%Field(ip)%AvModelStart2Inst,                        &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'AVERAGE_MODEL_START_2_INST',           &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)       
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2830'
+                    
+                    if (Me%Field(ip)%AvModelStart2Inst) then
+                        
+                        call GetData(Me%Field(ip)%AvModelStartName,                     &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlockInBlock,                   &
+                                     keyword      = 'AVERAGE_MODEL_START_NAME',         &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)       
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2840'   
+
+                        if (iflag == 0) then
+                            stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2850'
+                        endif   
+                        
+                        !call GetData(Aux1DInt,                                          &
+                        !             Me%ObjEnterData, iflag,                            &
+                        !             SearchType   = FromBlockInBlock,                   &
+                        !             keyword      = 'AVERAGE_MODEL_STARTING_HOURS',     &
+                        !             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                        !             STAT         = STAT_CALL)       
+                        !if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= SIZE_ERR_) then
+                        !    stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2860'   
+                        !endif
+                        !
+                        !if (iflag == 0) then
+                        !    stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2870'
+                        !else
+                        !    Me%Field(ip)%N_AvModelStartH = iflag
+                        !    allocate(Me%Field(ip)%AvModelStartingHours(1:iflag))
+                        !    Me%Field(ip)%AvModelStartingHours(1:iflag) = Aux1DInt(1:iflag)
+                        !endif                           
+
+                    endif                      
             
                 else BF
                 
@@ -3327,7 +3540,7 @@ BF:         if (BlockFound) then
                 Me%Field(iP)%Beaufort         .or. Me%Field(iP)%ComputeRH                  .or. &
                 Me%Field(iP)%WaveBeaufort     .or. Me%Field(iP)%ComputeDirection           .or. &
                 Me%Field(iP)%AverageInDepth   .or. Me%Field(iP)%Reflectivity2Precipitation .or. &
-                Me%Field(iP)%Energy2Power) then
+                Me%Field(iP)%Energy2Power     .or. Me%Field(iP)%AvModelStart2Inst) then
             
                 Me%ReadPropNumber = Me%ReadPropNumber - 1
             
@@ -4138,7 +4351,8 @@ BF:             if (BlockFound) then
                 if (Me%Field(iP)%ComputeIntensity           .or. Me%Field(iP)%Rotation       .or.  &
                     Me%Field(iP)%Beaufort                   .or. Me%Field(iP)%WaveBeaufort   .or.  &
                     Me%Field(iP)%ComputeDirection           .or. Me%Field(iP)%AverageInDepth .or.  &
-                    Me%Field(iP)%Reflectivity2Precipitation .or. Me%Field(iP)%Energy2Power) then
+                    Me%Field(iP)%Reflectivity2Precipitation .or. Me%Field(iP)%Energy2Power   .or.  &
+                    Me%Field(iP)%AvModelStart2Inst) then
                 
                     WriteProp       = .false.
                 
@@ -4162,7 +4376,8 @@ BF:             if (BlockFound) then
                 if (.not. (Me%Field(iP)%ComputeIntensity            .or. Me%Field(iP)%Rotation .or.     &
                            Me%Field(iP)%Beaufort                    .or. Me%Field(iP)%WaveBeaufort .or. &
                            Me%Field(iP)%ComputeDirection            .or. Me%Field(iP)%AverageInDepth.or.&
-                           Me%Field(iP)%Reflectivity2Precipitation  .or. Me%Field(iP)%Energy2Power))  &
+                           Me%Field(iP)%Reflectivity2Precipitation  .or. Me%Field(iP)%Energy2Power  .or.&
+                           Me%Field(iP)%AvModelStart2Inst))  &
                     call DeAllocateValueIn(Me%Field(iP)%ValueIn)
             enddo
         enddo
@@ -8021,9 +8236,10 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             if (associated(Me%Mapping%Value3DOut )) deallocate(Me%Mapping%Value3DOut)
 
             do ip = 1, Me%PropNumber   
-                if (associated(Me%Field(iP)%Value2DOut         )) deallocate(Me%Field(iP)%Value2DOut)
-                if (associated(Me%Field(iP)%Value3DOut         )) deallocate(Me%Field(iP)%Value3DOut)
-                if (associated(Me%Field(ip)%EnergyStartingHours)) deallocate(Me%Field(iP)%EnergyStartingHours)
+                if (associated(Me%Field(iP)%Value2DOut          )) deallocate(Me%Field(iP)%Value2DOut          )
+                if (associated(Me%Field(iP)%Value3DOut          )) deallocate(Me%Field(iP)%Value3DOut          )
+                if (associated(Me%Field(ip)%EnergyStartingHours )) deallocate(Me%Field(iP)%EnergyStartingHours )
+                !if (associated(Me%Field(ip)%AvModelStartingHours)) deallocate(Me%Field(iP)%AvModelStartingHours)
             enddo
             deallocate(Me%Field)
 

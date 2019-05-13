@@ -702,6 +702,7 @@ Module ModuleHydrodynamic
     integer, parameter :: AssimilaPlusSubModel_ = 5
     integer, parameter :: GaugePlusSubModel_    = 6
     integer, parameter :: AssimilaGaugeSubModel_= 7
+    integer, parameter :: AssimilaGauge_        = 8    
 
     !Baroclinic open boundary conditio discretization options
     integer, parameter :: Explicit_  = 1
@@ -1553,8 +1554,6 @@ Module ModuleHydrodynamic
         
         logical                         :: AssimilaOneField      = .false. 
         
-        real                            :: WaterDischargesSlowStart = null_real
-
     end type T_HydroOptions
 
 
@@ -5166,30 +5165,6 @@ ifFla: if (BarotropicRadia == FlatherWindWave_ .or. BarotropicRadia == FlatherLo
             if (STAT_CALL /= SUCCESS_)                                            &
                 call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR92.')
             
-            !Period over which the discharge flow is linear increase from 0 to the 
-            !real value
-            Me%ComputeOptions%WaterDischargesSlowStart = 0.
-            
-            !If cold start
-            if (.not. Me%ComputeOptions%Continuous) then                            
-
-                call GetData(Me%ComputeOptions%WaterDischargesSlowStart,                &
-                             Me%ObjEnterData, iflag,                                    &
-                             keyword    = 'WATER_DISCHARGES_SLOWSTART',                 &
-                             default    = 0.,                                           &
-                             SearchType = FromFile,                                     &
-                             ClientModule ='ModuleHydrodynamic',                        &
-                             STAT       = STAT_CALL)
-
-                if (STAT_CALL /= SUCCESS_)                                              &
-                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic -ERR94.')
-                
-                if (Me%ComputeOptions%WaterDischargesSlowStart > Me%EndTime - Me%BeginTime) then
-                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic -ERR95.')
-                endif    
-                
-            endif
-
         endif
 
 
@@ -7524,7 +7499,7 @@ cd21:   if (Baroclinic) then
             !Type             : integer
             !Default          : NoRadiation_
             !Options          : 1 - NoLocalSolution_,      2 - Submodel_, 3 - AssimilationField_, 4 - Gauge_,
-            !                   5 - AssimilaPlusSubModel_, 6 - GaugePlusSubModel_, 7 -AssimilaGaugeSubModel_
+            !                   5 - AssimilaPlusSubModel_, 6 - GaugePlusSubModel_, 7 -AssimilaGaugeSubModel_, 8 - AssimilaGauge_
             !File keyword     : IN_DAD3D
             !Search Type      : From File
         !<EndKeyword>
@@ -7545,7 +7520,8 @@ cd21:   if (Baroclinic) then
             (Me%ComputeOptions%LocalSolution == AssimilationField_ .or.                 &
              Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_ .or.              &
              Me%ComputeOptions%LocalSolution == GaugePlusSubModel_    .or.              &
-             Me%ComputeOptions%LocalSolution == AssimilaGaugeSubModel_)) then
+             Me%ComputeOptions%LocalSolution == AssimilaGaugeSubModel_ .or.             &
+             Me%ComputeOptions%LocalSolution == AssimilaGauge_)) then
 
 
             !<BeginKeyword>
@@ -8572,13 +8548,6 @@ cd21:   if (Baroclinic) then
                     stop "OperationalModelDefaultOptions - Hydrodynamic - ERR30"    
                 endif      
                 
-                !WATER_DISCHARGES_SLOWSTART : 172800. 
-                Me%ComputeOptions%WaterDischargesSlowStart  =  172800.
-                
-                if (Me%ComputeOptions%WaterDischargesSlowStart > (Me%EndTime - Me%BeginTime)) then
-                    stop "OperationalModelDefaultOptions - Hydrodynamic - ERR40"    
-                endif                      
-                
             endif
 
             !If not define automatically connect the biharmonic filter 
@@ -9127,7 +9096,8 @@ cd3:            if (Me%ComputeOptions%Continuous) then
             Me%ComputeOptions%LocalSolution /= AssimilaPlusSubModel_ .and.              &
             Me%ComputeOptions%LocalSolution /= GaugePlusSubModel_    .and.              &
             Me%ComputeOptions%LocalSolution /= AssimilaGaugeSubModel_.and.              &
-            Me%ComputeOptions%LocalSolution /= Gauge_)                                  &
+            Me%ComputeOptions%LocalSolution /= Gauge_                .and.              &
+            Me%ComputeOptions%LocalSolution /= AssimilaGauge_)                          &
             call SetError(FATAL_, KEYWORD_, 'Verify_Numerical_Options - Hydrodynamic - ERR29.')
 
         if (.not. Me%SubModel%ON .and.                                                  &
@@ -23222,7 +23192,8 @@ cd1:    if (Evolution == Solve_Equations_) then
 
             if (Me%ComputeOptions%LocalSolution == AssimilationField_ .or.              &
                 Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_ .or.           &
-                Me%ComputeOptions%LocalSolution == AssimilaGaugeSubModel_) then
+                Me%ComputeOptions%LocalSolution == AssimilaGaugeSubModel_ .or.          &
+                Me%ComputeOptions%LocalSolution == AssimilaGauge_) then
 
                 ! Compute batotropic part of geostrophic velocitiy
 
@@ -30533,7 +30504,8 @@ cd21:   if (Me%ComputeOptions%LocalSolution == Gauge_) then
 
 cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_             .or.                  &
             Me%ComputeOptions%LocalSolution == GaugePlusSubModel_ .or.                  &
-            Me%ComputeOptions%LocalSolution == AssimilaGaugeSubModel_) then
+            Me%ComputeOptions%LocalSolution == AssimilaGaugeSubModel_ .or.              &
+            Me%ComputeOptions%LocalSolution == AssimilaGauge_) then
 
 
             call Modify_OpenBoundary(Me%ObjOpenBoundary,                                &
@@ -30583,7 +30555,8 @@ cd0:    if (Me%ComputeOptions%LocalSolution == Gauge_             .or.          
 
 ifa:    if (Me%ComputeOptions%LocalSolution == AssimilationField_ .or.                  &
             Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_ .or.               &
-            Me%ComputeOptions%LocalSolution == AssimilaGaugeSubModel_) then
+            Me%ComputeOptions%LocalSolution == AssimilaGaugeSubModel_ .or.              &
+            Me%ComputeOptions%LocalSolution == AssimilaGauge_) then
             
             call GetNumberOfFields(AssimilationID  = Me%ObjAssimilation,                &
                                    ID              = WaterLevel_,                       &
@@ -31247,7 +31220,8 @@ cd15:           if (LocalSolution) then
 
 cd24:   if (Me%ComputeOptions%LocalSolution == Gauge_             .or.                  &
             Me%ComputeOptions%LocalSolution == GaugePlusSubmodel_ .or.                  &
-            Me%ComputeOptions%LocalSolution == AssimilaGaugeSubmodel_) then
+            Me%ComputeOptions%LocalSolution == AssimilaGaugeSubmodel_ .or.              &
+            Me%ComputeOptions%LocalSolution == AssimilaGauge_) then
 
             call UnGetOpenBoundary(Me%ObjOpenBoundary, GaugeWaterLevel, STAT = status)
             if (status /= SUCCESS_) &
@@ -31260,7 +31234,8 @@ cd24:   if (Me%ComputeOptions%LocalSolution == Gauge_             .or.          
 
 cd25:   if (Me%ComputeOptions%LocalSolution == AssimilationField_    .or.               &
             Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_ .or.               &
-            Me%ComputeOptions%LocalSolution == AssimilaGaugeSubmodel_) then
+            Me%ComputeOptions%LocalSolution == AssimilaGaugeSubmodel_.or.               &
+            Me%ComputeOptions%LocalSolution == AssimilaGauge_) then
 
 diL4:       do iL =1, NFieldsSSH
 
@@ -31815,7 +31790,8 @@ cd1:        if (BoundaryPoints(i, j) == Boundary) then
 cdsub: if (Me%SubModel%ON                                           .and.               &
            Me%ComputeOptions%LocalSolution /= AssimilaPlusSubModel_ .and.               &
            Me%ComputeOptions%LocalSolution /= AssimilationField_    .and.               &
-           Me%ComputeOptions%LocalSolution /= AssimilaGaugeSubModel_) then
+           Me%ComputeOptions%LocalSolution /= AssimilaGaugeSubModel_.and.               &
+           Me%ComputeOptions%LocalSolution /= AssimilaGauge_) then
 
             call VelSubModelNormalOB       ( Velocity_UV_New)
 
@@ -38008,7 +37984,6 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         integer                            :: DischVertical
 
         real                               :: InterceptionRatio
-        real                               :: DT_RunPeriod
 
         integer                            :: CHUNK
 
@@ -38102,12 +38077,6 @@ do1:    do DischargeID = 1, DischargesNumber
                                        SurfaceElevation2 = WaterLevelByPass,&
                                        STAT = STAT_CALL)
             
-            DT_RunPeriod = Me%CurrentTime - Me%BeginTime
-
-            if (Me%ComputeOptions%WaterDischargesSlowStart > 0.) then
-                DischargeFlow = DischargeFlow * DT_RunPeriod / Me%ComputeOptions%WaterDischargesSlowStart
-            endif            
-
             if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR60'
 
             if (DirectionXY == DirectionX_) then
@@ -38214,12 +38183,6 @@ dn:         do n=1, nCells
                     if (STAT_CALL/=SUCCESS_)                                            &
                         stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
                     
-                    DT_RunPeriod = Me%CurrentTime - Me%BeginTime
-
-                    if (Me%ComputeOptions%WaterDischargesSlowStart > 0.) then
-                        AuxFlowIJ = AuxFlowIJ * DT_RunPeriod / Me%ComputeOptions%WaterDischargesSlowStart
-                    endif                        
-
                 endif
 
                 iNorth = i+di
@@ -38417,7 +38380,7 @@ dk:             do k = kmin,kmax
 
         logical                            :: ByPassON, IgnoreOK, CoordinatesON
 
-        real                               :: InterceptionRatio, DT_RunPeriod
+        real                               :: InterceptionRatio
 
         integer                            :: DischVertical
 
@@ -38514,11 +38477,7 @@ do1:    do DischargeID = 1, DischargesNumber
 
             if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR60'
             
-            DT_RunPeriod = Me%CurrentTime - Me%BeginTime
-
-            if (Me%ComputeOptions%WaterDischargesSlowStart > 0.) then
-                DischargeFlow = DischargeFlow * DT_RunPeriod / Me%ComputeOptions%WaterDischargesSlowStart
-            endif                    
+                 
 
             call GetDischargeFlowVelocity(Me%ObjDischarges,                 &
                                        Me%CurrentTime, DischargeID,         &
@@ -38599,12 +38558,6 @@ dn:         do n=1, nCells
                     if (STAT_CALL/=SUCCESS_)                                            &
                         stop 'Sub. ModifyMomentumDischargeVert - ModuleHydrodynamic - ERR110'
                     
-                    DT_RunPeriod = Me%CurrentTime - Me%BeginTime
-
-                    if (Me%ComputeOptions%WaterDischargesSlowStart > 0.) then
-                        AuxFlowIJ = AuxFlowIJ * DT_RunPeriod / Me%ComputeOptions%WaterDischargesSlowStart
-                    endif                         
-
                 endif
 
                 if (DischVertical == DischUniform_) then
@@ -39838,7 +39791,8 @@ do3:            do K=kbottom, KUB
                         VelReference = SubModel_UV_New(i, j, k)
 
                     elseif (Me%ComputeOptions%LocalSolution == NoLocalSolution_ .or.    &
-                            Me%ComputeOptions%LocalSolution == AssimilationField_) then
+                            Me%ComputeOptions%LocalSolution == AssimilationField_ .or.  &
+                            Me%ComputeOptions%LocalSolution == AssimilaGauge_) then
 
                         VelReference = 0.
                         do iL =1, NFieldsUV3D                         
@@ -48131,7 +48085,7 @@ subroutine ModifyWaterDischarges
         logical                            :: CoordinatesON
         integer                            :: nCells, n
         integer                            :: FlowDistribution, SpatialEmission
-        real                               :: InterceptionRatio, DT_RunPeriod
+        real                               :: InterceptionRatio
 
         integer                            :: CHUNK
 
@@ -48233,13 +48187,6 @@ do1:        do DischargeID = 1, DischargesNumber
                                            STAT = STAT_CALL)
 
                 if (STAT_CALL/=SUCCESS_) stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR100'
-                
-                DT_RunPeriod = Me%CurrentTime - Me%BeginTime
-
-                if (Me%ComputeOptions%WaterDischargesSlowStart > 0.) then
-                    DischargeFlow = DischargeFlow * DT_RunPeriod / Me%ComputeOptions%WaterDischargesSlowStart
-                endif                         
-                
 
 
                 call GetDischargeFlowDistribuiton(Me%ObjDischarges, DischargeID, nCells, FlowDistribution, &
@@ -48307,13 +48254,6 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
                         if (STAT_CALL/=SUCCESS_)                                        &
                             stop 'Sub. ModifyWaterDischarges - ModuleHydrodynamic - ERR160'
                         
-                        DT_RunPeriod = Me%CurrentTime - Me%BeginTime
-
-                        if (Me%ComputeOptions%WaterDischargesSlowStart > 0.) then
-                            AuxFlowIJ = AuxFlowIJ * DT_RunPeriod / Me%ComputeOptions%WaterDischargesSlowStart
-                        endif                         
-                                        
-
                     endif
 
                     if (DischVertical == DischUniform_) then
@@ -53286,13 +53226,30 @@ i1:     if (HDF5FormatOK) then
             endif ifMS
 
 
-            if (ILW < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR50'
-            if (IUW > Imax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR60'
-            if (JLW < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR70'
-            if (JUW > Jmax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR80'
-            if (KLB < 1   ) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR90'
-            if (KUB > Kmax) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR100'
-
+            if (ILW < 1   ) then
+                write(*,*) 'ILW < 1 = ', ILW
+                stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR50'
+            endif                
+            if (IUW > Imax) then
+                write(*,*) 'IUW > Imax = ', IUW, Imax
+                stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR60'
+            endif                
+            if (JLW < 1   ) then
+                write(*,*) 'JLW < 1 = ', JLW
+                stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR70'
+            endif                
+            if (JUW > Jmax) then
+                write(*,*) 'JUW > Jmax = ', JUW, Jmax
+                stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR80'
+            endif                
+            if (KLB < 1   ) then
+                write(*,*) 'KLB < 1 = ', KLB
+                stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR90'
+            endif                
+            if (KUB > Kmax) then
+                write(*,*) 'KUB > Kmax = ', KUB, Kmax
+                stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR100'
+            endif
             allocate(Aux2DReal(ILW:IUW,JLW:JUW        ))
             allocate(Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB))
             allocate(Aux3DR8  (ILW:IUW,JLW:JUW,KLB:KUB))

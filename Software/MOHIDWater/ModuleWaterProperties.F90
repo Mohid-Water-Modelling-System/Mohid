@@ -22054,10 +22054,11 @@ do9:                do k=kbottom, KUB
 
     !--------------------------------------------------------------------------
 
-    subroutine OutPut_Results_HDF(iW)
+    subroutine OutPut_Results_HDF(iW, StoppingModel)
 
         !Arguments-------------------------------------------------------------
         integer, optional                  :: iW
+        logical, optional                  :: StoppingModel
 
         !External--------------------------------------------------------------
         integer                            :: STAT_CALL
@@ -22076,12 +22077,19 @@ do9:                do k=kbottom, KUB
         logical                            :: SimpleOutPut
         character(len=StringLength)        :: AuxGroup
         real(8)                            :: AuxPeriod, TotalTime
+        logical                            :: StoppingModel_
 
         !----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "OutPut_Results_HDF")
 
         SimpleOutPut = .false.
+        
+        if (present(StoppingModel)) then
+            StoppingModel_ = StoppingModel
+        else
+            StoppingModel_ = .false. 
+        endif            
 
         !Saida das diferentes propriedades
         Actual = Me%ExternalVar%Now
@@ -22240,7 +22248,7 @@ sp:                     if (.not. SimpleOutPut) then
                         call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR100')
                     endif
 
-                    if (PropertyX%Evolution%DataAssimilation /= NoNudging .and. .not. SimpleOutPut) then
+                    if (PropertyX%Evolution%DataAssimilation /= NoNudging .and. .not. SimpleOutPut .and. .not. StoppingModel_) then
                     
     i4 :                if (PropertyX%SubModel%ON) then
 
@@ -22249,13 +22257,15 @@ sp:                     if (.not. SimpleOutPut) then
 
                         else i4
 
-                            call GetAssimilationField(AssimilationID  = Me%ObjAssimilation, &
-                                                      ID              = PropertyX%ID%IDNumber,&
-                                                      N_Field         = 1,                  &
-                                                      GroupOutPutName = PropertyX%Assimilation%GroupOutPutName,&
+                            call GetAssimilationField(AssimilationID  = Me%ObjAssimilation,                     &
+                                                      ID              = PropertyX%ID%IDNumber,                  &
+                                                      N_Field         = 1,                                      &
+                                                      GroupOutPutName = PropertyX%Assimilation%GroupOutPutName, &
                                                       STAT            = STAT_CALL)
 
                             if (STAT_CALL /= SUCCESS_) then
+                                write(*,*) 'Property name: ', trim(PropertyX%ID%Name)
+                                write(*,*) 'OutPut_Results_HDF - ModuleWaterProperties - ERR105'
                                 call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR105')
                             endif
                         end if i4                    
@@ -25734,7 +25744,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !----------------------------------------------------------------------
 
         if (Me%OutPut%Yes) &
-            call OutPut_Results_HDF
+            call OutPut_Results_HDF(StoppingModel = .true.)
 
         if (Me%Coupled%TimeSerie%Yes) &
             call KillTimeSerie(Me%ObjTimeSerie, STAT = STAT_CALL)

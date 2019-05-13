@@ -191,11 +191,11 @@ if0 :   if (ready_.EQ. OFF_ERR_) then
             
             !Reading input data file
             call ReadFileName('TURBINE', Me%DataFile, STAT=STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConsrtuctTurbine - TurbineModule - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbine - TurbineModule - ERR01'
             
             !Construct enter data
             call ConstructEnterData(Me%ObjEnterData, Me%DataFile, STAT=STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConsrtuctTurbine - TurbineModule - ERR02'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbine - TurbineModule - ERR02'
             
             call GetData(Me%TimeSerieON,                                         &
                      Me%ObjEnterData, iflag,                                            & 
@@ -204,7 +204,7 @@ if0 :   if (ready_.EQ. OFF_ERR_) then
                      SearchType = FromFile,                                             &
                      ClientModule ='ModuleHydrodynamic',                                &
                      STAT       = STAT_CALL)     
-            if (STAT_CALL /= SUCCESS_) stop 'ConsrtuctTurbine - TurbineModule - ERR03'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructTurbine - TurbineModule - ERR03'
             
             OutPut = Me%TimeSerieON
             

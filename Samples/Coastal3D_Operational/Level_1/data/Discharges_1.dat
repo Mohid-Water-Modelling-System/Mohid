@@ -4,6 +4,8 @@ IGNORE_ON                : 1
 
 TIME_SERIE               : 1
 
+SLOW_START               : 172800
+
 <begindischarge>
 NAME                  : River 1
 K_CELL                :  1
