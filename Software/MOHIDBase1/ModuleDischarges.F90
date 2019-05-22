@@ -332,7 +332,10 @@ Module ModuleDischarges
          type (T_IndividualDischarge), pointer  :: CurrentDischarge => null()
          type (T_Discharges), pointer           :: Next             => null()
          logical                                :: IgnoreON         = .false.
-         integer                                :: ReferentialZ     = FillValueInt          
+         integer                                :: ReferentialZ     = FillValueInt     
+         real                                   :: SlowStart        = null_real   
+         type (T_Time)                          :: BeginTime        
+         type (T_Time)                          :: EndTime          
     end type T_Discharges
 
     !Global Variables
@@ -384,13 +387,22 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             !Associates Time
             Me%ObjTime = AssociateInstance   (mTIME_, ObjTime)
-
+            
+            call GetComputeTimeLimits(TimeID    = Me%ObjTime,                           &
+                                      BeginTime = Me%BeginTime,                         &
+                                      EndTime   = Me%EndTime,                           &
+                                      STAT      = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'Construct_Discharges - ModuleDischarges - ERR10'
+            endif
 
             if (present(DataFile)) then
                 Me%DataFile = DataFile
             else
                 call ReadFileName('DISCHARG', Me%DataFile, Message = "Discharges Data File", STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR10'
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'Construct_Discharges - ModuleDischarges - ERR20'
+                endif                    
             endif
         
             ! Construct one instance to use the moduleEnterData
@@ -402,38 +414,54 @@ cd1 :       if      ( STAT_CALL .EQ. FILE_NOT_FOUND_ERR_) then
                 write(*,*    ) 'Fatal error ! Discharges data file not found' 
                 write(*,'(A)') 'File : ', trim(adjustl(Me%DataFile))
                 write(*,*    ) 'look at DISCHARGES KeyWord at nomfich.dat file  '
-                stop 'Construct_Discharges - ModuleDischarges - ERR20'  
+                stop 'Construct_Discharges - ModuleDischarges - ERR30'  
 
-            else if ((STAT_CALL .NE. FILE_NOT_FOUND_ERR_) .AND.                &
+            else if ((STAT_CALL .NE. FILE_NOT_FOUND_ERR_) .AND.                         &
                      (STAT_CALL .NE. SUCCESS_          )) then cd1
-                stop 'Subroutine Construct_Discharges - ModuleDischarges. ERR30.' 
+                stop 'Subroutine Construct_Discharges - ModuleDischarges. ERR40.' 
             end if cd1
 
-            call GetData(Me%IgnoreON,                                           &
-                         Me%ObjEnterData,                                       &
-                         flag,                                                  &
-                         SearchType   = FromFile,                               &
-                         keyword      ='IGNORE_ON',                             &
-                         Default      = .false.,                                &
-                         ClientModule ='ModuleDischarges',                      &
+            call GetData(Me%IgnoreON,                                                   &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='IGNORE_ON',                                     &
+                         Default      = .false.,                                        &
+                         ClientModule ='ModuleDischarges',                              &
                          STAT         = STAT_CALL)        
 
-            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR40'
+            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR50'
 
-            call GetData(Me%ReferentialZ,                                       &
-                         Me%ObjEnterData,                                       &
-                         flag,                                                  &
-                         SearchType   = FromFile,                               &
-                         keyword      ='REFERENTIAL_Z',                         &
-                         Default      = Hydrographic_,                          &
-                         ClientModule ='ModuleDischarges',                      &
+            call GetData(Me%ReferentialZ,                                               &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='REFERENTIAL_Z',                                 &
+                         Default      = Hydrographic_,                                  &
+                         ClientModule ='ModuleDischarges',                              &
                          STAT         = STAT_CALL)        
 
-            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR42'
+            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR60'
             
             if (Me%ReferentialZ /= Hydrographic_ .and. Me%ReferentialZ /=  Topographic_) then
-                stop 'Construct_Discharges - ModuleDischarges - ERR44'
+                stop 'Construct_Discharges - ModuleDischarges - ERR70'
             endif
+            
+
+            call GetData(Me%SlowStart,                                                  &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         keyword        = 'SLOW_START',                                 &
+                         default        = null_real,                                    &
+                         SearchType     = FromFile,                                     &
+                         ClientModule   ='ModuleDischarges',                            &
+                         STAT           = STAT_CALL)
+
+            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR80'
+                
+            if (Me%SlowStart > Me%EndTime - Me%BeginTime) then
+                stop 'Construct_Discharges - ModuleDischarges - ERR90'
+            endif                
 
 
             ! Constructs the discharge list 
@@ -445,7 +473,7 @@ cd1 :       if      ( STAT_CALL .EQ. FILE_NOT_FOUND_ERR_) then
             call ConstructLog
 
             call KillEnterData  (Me%ObjEnterData, STAT = STAT_CALL)
-            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR50'
+            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR100'
 
             !Returns ID
             DischargesID    = Me%InstanceID
@@ -3324,6 +3352,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         real                                        :: PipeFriction, P, Rh
         real                                        :: dQ1, dQ2
         integer                                     :: iAux
+        real                                        :: DT_RunPeriod
          !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -3562,6 +3591,15 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                 Flow = Flow * FlowDistribution
             endif
 
+            if (Me%SlowStart > 0.) then
+                
+                DT_RunPeriod = TimeX - Me%BeginTime
+
+                if (DT_RunPeriod < Me%SlowStart) then
+                    Flow = Flow * DT_RunPeriod / Me%SlowStart
+                endif       
+                
+            endif                
 
             nullify(DischargeX)
 
