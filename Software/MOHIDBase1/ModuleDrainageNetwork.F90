@@ -256,6 +256,7 @@ Module ModuleDrainageNetwork
     public  :: GetChannelsOpenProcess
     public  :: GetChannelsActiveState
     public  :: GetHasProperties
+    public  :: GetHasTwoGridPoints
     public  :: GetDNnProperties
     public  :: GetDNPropertiesIDByIdx   
     public  :: GetHasToxicity
@@ -9356,7 +9357,53 @@ if0:    if (Me%HasProperties) then
     end subroutine GetHasProperties
 
     !---------------------------------------------------------------------------
+    
+    
+    subroutine GetHasTwoGridPoints (DrainageNetworkID, HasTwoGridPoints, STAT)
 
+        !Arguments--------------------------------------------------------------
+        integer                                         :: DrainageNetworkID
+        logical                                         :: HasTwoGridPoints
+        integer, intent(OUT), optional                  :: STAT
+
+        !Local------------------------------------------------------------------
+        integer                                         :: STAT_CALL, ready_
+        integer                                         :: NodeID
+        type (T_Node), pointer                          :: CurrNode
+        !-----------------------------------------------------------------------
+
+
+        STAT_CALL = UNKNOWN_
+
+        call Ready(DrainageNetworkID, ready_)
+
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            !If one has it, than set to true and exit
+            HasTwoGridPoints = .false.
+do1:        do NodeID = 1, Me%TotalNodes
+
+                CurrNode => Me%Nodes (NodeID)      
+                
+                if (CurrNode%HasTwoGridPoints) then     
+                    HasTwoGridPoints = .true.
+                    exit do1
+                    
+                endif
+            enddo do1
+                    
+            STAT_CALL = SUCCESS_
+
+        else 
+            STAT_CALL = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_CALL
+
+    end subroutine GetHasTwoGridPoints
+
+    !---------------------------------------------------------------------------    
+       
     subroutine GetDNConcentration(DrainageNetworkID, ConcentrationX, PropertyXIDNumber, &
                                 PropertyXUnits, STAT)
 
