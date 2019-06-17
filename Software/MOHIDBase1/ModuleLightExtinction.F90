@@ -178,6 +178,7 @@ Module ModuleLightExtinction
         type(T_Time)                                :: LastCompute
         type(T_Needs)                               :: Needs
         type(T_PlanktonParameters)                  :: PlanktonParameters
+        real                                        :: CoefParsonsPortela        
 
         !Instance of ModuleTime
         integer                                     :: ObjTime              = 0
@@ -442,59 +443,68 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !Begin-----------------------------------------------------------------
 
-        call GetData(Me%ShortWave%ExtinctionType,                                   &
-                     Me%ObjEnterData,  iflag,                                       &
-                     SearchType     = FromFile,                                     &
-                     keyword        = 'SW_EXTINCTION_TYPE',                         &
-                     default        = Constant,                                     &
-                     ClientModule   = 'ModuleLightExtinction',                      &
+        call GetData(Me%ShortWave%ExtinctionType,                                       &
+                     Me%ObjEnterData,  iflag,                                           &
+                     SearchType     = FromFile,                                         &
+                     keyword        = 'SW_EXTINCTION_TYPE',                             &
+                     default        = Constant,                                         &
+                     ClientModule   = 'ModuleLightExtinction',                          &
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructShortWaveParameters - ModuleLightExtinction - ERR01'
 
         if (Me%ShortWave%ExtinctionType == Multiparameters) then
 
-            call GetData(Me%ShortWave%ExtCoefWater,                                 &
-                         Me%ObjEnterData,  iflag,                                   &
-                         SearchType     = FromFile,                                 &
-                         keyword        = 'SW_KW',                                  &
-                         Default        = 0.08,                                     &
-                         ClientModule   = 'ModuleLightExtinction',                  &
+            call GetData(Me%ShortWave%ExtCoefWater,                                     &
+                         Me%ObjEnterData,  iflag,                                       &
+                         SearchType     = FromFile,                                     &
+                         keyword        = 'SW_KW',                                      &
+                         Default        = 0.08,                                         &
+                         ClientModule   = 'ModuleLightExtinction',                      &
                          STAT           = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructShortWaveParameters - ModuleLightExtinction - ERR03'
 
         end if
 
-        call GetData(Me%ShortWave%ExtinctionCoef,                                   &
-                     Me%ObjEnterData, iflag,                                        &
-                     SearchType     = FromFile,                                     &
-                     keyword        = 'SW_EXTINCTION_COEF',                         &
-                     Default        = 1/20.,                                        &
-                     ClientModule   = 'ModuleLightExtinction',                      &
+        call GetData(Me%ShortWave%ExtinctionCoef,                                       &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType     = FromFile,                                         &
+                     keyword        = 'SW_EXTINCTION_COEF',                             &
+                     Default        = 1/20.,                                            &
+                     ClientModule   = 'ModuleLightExtinction',                          &
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructShortWaveParameters - ModuleLightExtinction - ERR04'
 
 
-        call GetData(Me%ShortWave%Percentage,                                       &
-                     Me%ObjEnterData, iflag,                                        &
-                     SearchType     = FromFile,                                     &
-                     keyword        = 'SW_PERCENTAGE',                              &
-                     Default        = 0.6,                                          &
-                     ClientModule   = 'ModuleLightExtinction',                      &
+        call GetData(Me%ShortWave%Percentage,                                           &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType     = FromFile,                                         &
+                     keyword        = 'SW_PERCENTAGE',                                  &
+                     Default        = 0.6,                                              &
+                     ClientModule   = 'ModuleLightExtinction',                          &
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructShortWaveParameters - ModuleLightExtinction - ERR05'
 
         if (Me%ShortWave%ExtinctionType == ASCIIFile) then
 
-            call GetData(Me%SWColumn,                                               &
-                         Me%ObjEnterData, iflag,                                    &
-                         SearchType     = FromFile,                                 &
-                         keyword        = 'SW_EXTINCTION_COLUMN',                   &
-                         ClientModule   = 'ModuleLightExtinction',                  &
+            call GetData(Me%SWColumn,                                                   &
+                         Me%ObjEnterData, iflag,                                        &
+                         SearchType     = FromFile,                                     &
+                         keyword        = 'SW_EXTINCTION_COLUMN',                       &
+                         ClientModule   = 'ModuleLightExtinction',                      &
                          STAT           = STAT_CALL) 
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructShortWaveParameters - ModuleLightExtinction - ERR06'
             if (iflag /= 1)              stop 'ConstructShortWaveParameters - ModuleLightExtinction - ERR07'
 
         endif
+        
+        call GetData(Me%CoefParsonsPortela,                                             &
+                     Me%ObjEnterData, iflag,                                            &
+                     SearchType     = FromFile,                                         &
+                     keyword        = 'COEF_PARSONS_PORTELA',                           &
+                     Default        = 0.04,                                             &
+                     ClientModule   = 'ModuleLightExtinction',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ConstructShortWaveParameters - ModuleLightExtinction - ERR08'        
                                                                              
     end subroutine ConstructShortWaveParameters
 
@@ -517,13 +527,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      ClientModule   = 'ModuleLightExtinction',                      &
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructLongWaveParameters - ModuleLightExtinction - ERR01'
-
+        
+        
+!
         call GetData(Me%LongWave%ExtinctionCoef,                                    &
                      Me%ObjEnterData,                                               &
                      iflag,                                                         &
                      SearchType     = FromFile,                                     &
                      keyword        = 'LW_EXTINCTION_COEF',                         &
-                     Default        = 1/3.,                                         &
+                     Default        = 2.9,                                          &
                      ClientModule   = 'ModuleLightExtinction',                      &
                      STAT           = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ConstructLongWaveParameters - ModuleLightExtinction - ERR02'
@@ -1298,7 +1310,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                 :: i, j, k
         real,   dimension(:)    , pointer       :: PhytoConcentration1D, SPMConcentration1D
         real,   dimension(:,:,:), pointer       :: PhytoConcentration3D, SPMConcentration3D
-        real                                    :: Phyto_UnitsCoef, SPM_UnitsCoef
+        real                                    :: Phyto_UnitsCoef, SPM_UnitsCoef, Coef
 
         !Begin------------------------------------------------------------------
 
@@ -1351,9 +1363,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         !factor de extincao para alto mar, funcao da concentracao de fitoplancton
                         !Eq. 59 pp 95 Parsons et al(Biol.Ocea.Proc.) C[mg Chl a/m3],tem que haver
                         !conversão de unidades pq o modelo calcula o fito em mgC/L.    
+                        
+                        !Default 0.04 but can be adjust for better adjustment with observations 
+                        Coef = Me%CoefParsonsPortela
 
                         Me%ShortWave%ExtinctionCoefField3D(i,j,k) =                                         &
-                                        0.04 + 0.0088 * (PhytoConcentration3D(i, j, k) * Phyto_UnitsCoef) + &
+                                        Coef  + 0.0088 * (PhytoConcentration3D(i, j, k) * Phyto_UnitsCoef) + &
                                         0.054 * (PhytoConcentration3D(i, j, k) * Phyto_UnitsCoef) ** (2.0 / 3.0) 
                                     
                         Me%ShortWave%ExtinctionCoefField3D(i,j,k) =                                         &
