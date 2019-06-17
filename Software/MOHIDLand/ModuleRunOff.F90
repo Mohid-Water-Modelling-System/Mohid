@@ -60,7 +60,8 @@ Module ModuleRunOff
                                         GetChannelsBottomLevel, UnGetDrainageNetwork,    &
                                         GetChannelsID,GetChannelsVolume,                 &
                                         GetChannelsMaxVolume, GetChannelsActiveState,    &
-                                        GetChannelsTopArea, GetChannelsVelocity
+                                        GetChannelsTopArea, GetChannelsVelocity,         &
+                                        GetHasTwoGridPoints
     use ModuleDischarges        ,only : Construct_Discharges, GetDischargesNumber,       &
                                         GetDischargesGridLocalization,                   &
                                         GetDischargeWaterFlow, GetDischargesIDName,      &
@@ -299,6 +300,8 @@ Module ModuleRunOff
         integer                                     :: MinToRestart                 = 0  
         real                                        :: MinimumValueToStabilize      = 0.001
         logical                                     :: CheckDecreaseOnly            = .false.        
+        logical                                     :: CorrectDischarge             = .false.
+        logical                                     :: CorrectDischargeByPass       = .true.   !Default true Paulo suggestion
     end type T_Converge
 
     type     T_FromTimeSerie
@@ -415,6 +418,8 @@ Module ModuleRunOff
         
         real, dimension(:,:), pointer               :: NodeRiverLevel           => null() !river level at river points (from DN or external model)
         integer, dimension(:,:), pointer            :: NodeRiverMapping         => null() !mapping of river points where interaction occurs (for external model)
+        real, dimension(:,:), pointer               :: MarginRiverLevel         => null() !river level at margin points
+        real, dimension(:,:), pointer               :: MarginFlowToChannels     => null() !flow to channels at margin points
         
         real                                        :: MinSlope              = null_real
         logical                                     :: AdjustSlope           = .false.
@@ -463,6 +468,7 @@ Module ModuleRunOff
         type (T_ImposedLevelTS)                     :: ImposedLevelTS
 !        integer                                     :: MaxIterations        = 5
         logical                                     :: SimpleChannelInteraction = .false.
+        logical                                     :: ChannelHasTwoGridPoints = .false.
         logical                                     :: LimitToCriticalFlow  = .true.
         integer                                     :: FaceWaterColumn      = WCMaxBottom_
 !        real                                        :: MaxVariation         = null_real
@@ -1140,6 +1146,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .false.,                                &
                      STAT         = STAT_CALL)                                  
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR380'        
+        
+        !Check if DN link is made with more than one margin
+        if (Me%SimpleChannelInteraction  .and. Me%ObjDrainageNetwork /= 0) then
+            call GetHasTwoGridPoints(Me%ObjDrainageNetwork, Me%ChannelHasTwoGridPoints, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0385'
+        endif
         
         !Routes D4 Points
         call GetData(Me%RouteDFourPoints,                                   &
@@ -1905,9 +1917,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                     :: mapping1DObjEnterData, ClientNumber, STAT_CALL
         integer                                     :: iflag
         type(T_NodeGridPoint), pointer              :: NewNodeGridPoint, NodeGridPointFlux
-        type(T_BankGridPoint), pointer              :: NewBankGridPoint, BankGridPointFlux, BankGridPointUp, BankGridPointDown
+        type(T_BankGridPoint), pointer              :: NewBankGridPoint, BankGridPointFlux
         type(T_MarginGridPoint), pointer            :: NewMarginGridPoint
-        logical                                     :: BlockFound, FoundFlux, FoundUp, FoundDown
+        logical                                     :: BlockFound, FoundFlux
         !Begin----------------------------------------------------------------    
     
         
@@ -2116,6 +2128,14 @@ do3:    do
                     NewMarginGridPoint%BGPIntegrateFluxId = NewMarginGridPoint%BGPDownId
                 endif
                 
+                
+                !dont allow duplicates margin points or fluxes would be duplicated
+                call FindMarginGridPoint(NewMarginGridPoint%GridI, NewMarginGridPoint%GridJ, FoundFlux)
+                if (FoundFlux) then
+                    write(*,*)
+                    write(*,*)'Found duplicate MarginGridPoint in cell ', NewMarginGridPoint%GridI, NewMarginGridPoint%GridJ
+                    call SetError(FATAL_, KEYWORD_, "Read1DInteractionMapping - ModuleRunOff - ERR0156")
+                endif                
                 
                 !associate i and j from BGP (DN) or NGP (OpenMI) to mgp to avoid searching in run-time
                 !BGP or NGP where to associate flux
@@ -2464,6 +2484,30 @@ cd5 :           if (opened) then
                          STAT         = STAT_CALL)                                  
             if (STAT_CALL /= SUCCESS_) &
                 call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR087")
+            
+            !Correcting user data can not be the default behaviour
+            !User needs to specifically define that wants to correct so default is false
+            call GetData(Me%CV%CorrectDischarge,                                &
+                         Me%ObjEnterData, iflag,                                &  
+                         keyword      = 'STABILIZE_CORRECT_DISCHARGE',          &
+                         ClientModule = 'ModuleRunOff',                         &
+                         SearchType   = FromFile,                               &
+                         Default      = .false.,                                &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR088")   
+            
+            !Bypass hyraulics correct by default (Paulo suggestion)
+            call GetData(Me%CV%CorrectDischargeByPass,                          &
+                         Me%ObjEnterData, iflag,                                &  
+                         keyword      = 'STABILIZE_CORRECT_DISCHARGE_BYPASS',   &
+                         ClientModule = 'ModuleRunOff',                         &
+                         SearchType   = FromFile,                               &
+                         Default      = .true.,                                 &
+                         STAT         = STAT_CALL)                                  
+            if (STAT_CALL /= SUCCESS_) &
+                call SetError(FATAL_, KEYWORD_, "ReadConvergenceParameters - ModuleRunOff - ERR089")             
+            
         endif        
 
        !Number of iterations threshold for starting to ask for a lower DT 
@@ -3473,7 +3517,13 @@ do4:            do di = -1, 1
             !allocate(Me%BoundaryRiverLevel   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             !Me%BoundaryRiverLevel      = null_real
             allocate(Me%NodeRiverLevel   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
-            Me%NodeRiverLevel      = null_real            
+            Me%NodeRiverLevel      = null_real  
+            
+            allocate(Me%MarginRiverLevel   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            Me%MarginRiverLevel      = null_real        
+            
+            allocate(Me%MarginFlowToChannels   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+            Me%MarginFlowToChannels      = null_real              
         endif
 
 
@@ -3723,7 +3773,14 @@ do4:            do di = -1, 1
                 
             enddo               
 
-         
+            !additional output
+            if (Me%Use1D2DInteractionMapping) then
+                allocate(Me%MarginRiverLevel   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                Me%MarginRiverLevel      = null_real        
+            
+                allocate(Me%MarginFlowToChannels   (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
+                Me%MarginFlowToChannels      = null_real 
+            endif
             
             Me%StormWaterEffectiveFlow      = 0.0
             Me%StreetGutterPotentialFlow    = 0.0
@@ -3984,13 +4041,18 @@ do4:            do di = -1, 1
         real                                                :: CoordX, CoordY
         logical                                             :: CoordON, IgnoreOK
         character(len=StringLength)                         :: TimeSerieName
+        integer                                             :: iProperty
         
         !Begin------------------------------------------------------------------
 
         nProperties = 8
+        iProperty = 8
         if(Me%StormWaterModel)then
-            nProperties = 12
+            nProperties = nProperties + 4
         endif      
+        if (Me%Use1D2DInteractionMapping) then
+            nProperties = nProperties + 4
+        endif
 
         !Allocates PropertyList
         allocate(PropertyList(nProperties))
@@ -4006,10 +4068,25 @@ do4:            do di = -1, 1
         PropertyList(8) = trim(GetPropertyName (VelocityModulus_))
       
         if(Me%StormWaterModel)then
-            PropertyList(9)  = "storm water potential flow"
-            PropertyList(10) = "storm water effective flow"
-            PropertyList(11) = "street gutter potential flow"
-            PropertyList(12) = "street gutter effective flow"
+            iProperty = iProperty + 1
+            PropertyList(iProperty)  = "storm water potential flow"
+            iProperty = iProperty + 1
+            PropertyList(iProperty) = "storm water effective flow"
+            iProperty = iProperty + 1
+            PropertyList(iProperty) = "street gutter potential flow"
+            iProperty = iProperty + 1
+            PropertyList(iProperty) = "street gutter effective flow"
+        endif
+        
+        if (Me%Use1D2DInteractionMapping) then
+            iProperty = iProperty + 1
+            PropertyList(iProperty)  = "node river level"
+            iProperty = iProperty + 1
+            PropertyList(iProperty) = "margin river level"
+            iProperty = iProperty + 1
+            PropertyList(iProperty) = "margin flow to channels"
+            iProperty = iProperty + 1
+            PropertyList(iProperty) = "node flow to channels"            
         endif
         
         call GetData (TimeSerieLocationFile,                  &
@@ -5392,7 +5469,17 @@ doIter:         do while (iter <= Niter)
                     
                         !call OverLandChannelInteraction_2
                         !call OverLandChannelInteraction
-                        call OverLandChannelInteraction_6
+                        
+                        !TODO: Remove this and have only one method!! This is a workaround
+                        !Try to use the in _6 the code from _2 where water exits the river (celerity limited)
+                        if (Me%ChannelHasTwoGridPoints) then
+                            !new method adapted to hydraulic simulation with two grid points per river node (e.g. UKBenchmark Test7)
+                            call OverLandChannelInteraction_6
+                        else
+                            !old method that is stable on normal cases only one cell per river node (e.g. Trancao sample generates "rendilhado"
+                            !when water exits the river if _6 method is used but is stable with this one _2)
+                            call OverLandChannelInteraction_2
+                        endif
                     else
                         !Calculates flow from channels to land -> First ever implement approach
                         call FlowFromChannels
@@ -5525,6 +5612,9 @@ doIter:         do while (iter <= Niter)
     
         !Begin------------------------------------------------------------------
     
+        !output
+        call SetMatrixValue(Me%MarginRiverLevel, Me%Size, null_real)
+        
         !if using DN get water level from module and fill matrix. If using SWMM this will be filled by OpenMI
         !in case DN level appears in river points (in case of two banks are the bank grid points) and do not need
         !the node grid points
@@ -5614,6 +5704,10 @@ doIter:         do while (iter <= Niter)
                     
                     MarginGridPoint%RiverLevel = BankGridPointUp%RiverLevel - (BankGridPointUp%RiverLevel - BankGridPointDown%RiverLevel) * MarginGridPoint%InterpolationFraction                   
                 endif
+                
+                !output
+                Me%MarginRiverLevel(MarginGridPoint%GridI, MarginGridPoint%GridJ) = MarginGridPoint%RiverLevel
+                
             else
                 write (*,*) 'BankGridPoint not found'
                 write (*,*) 'BankeGridPoint ID = ', MarginGridPoint%BGPUpId, MarginGridPoint%BGPDownId            
@@ -5686,6 +5780,34 @@ doIter:         do while (iter <= Niter)
     end subroutine FindBankGridPoint
 
     !---------------------------------------------------------------------------       
+    
+    subroutine FindMarginGridPoint (i, j, Found)
+
+        !Arguments--------------------------------------------------------------
+        integer, intent(IN)                             :: i
+        integer, intent(IN)                             :: j        
+        logical, intent(OUT)                            :: Found
+        !Local------------------------------------------------------------------
+        type (T_MarginGridPoint), pointer               :: MarginGridPoint
+
+        Found = .FALSE.
+        
+        nullify(MarginGridPoint)
+        MarginGridPoint => Me%FirstMarginGridPoint
+        
+        do while (associated(MarginGridPoint))
+        
+            if (MarginGridPoint%GridI == i .and. MarginGridPoint%GridJ == j) then
+                Found = .TRUE.
+                exit
+            end if
+            MarginGridPoint => MarginGridPoint%Next
+        end do
+
+    end subroutine FindMarginGridPoint
+
+    !---------------------------------------------------------------------------       
+    
 
     subroutine ModifyWaterDischarges (LocalDT)
 
@@ -5720,6 +5842,9 @@ doIter:         do while (iter <= Niter)
         !     This percentage is equal to 100 * Me%CV%StabilizeFactor. By default Me%CV%StabilizeFactor = 0.1  this means that by 
         !     default this percentage is 1000 %. The Me%CV%StabilizeFactor is used for estimate changes in the time step to 
         !     maintain the model stability  
+        !David -> Correcting user defined values in discharge should not be the default behaviour. 
+        !In "normal" discharges this is now controlled by a keyword and default is false. And only used when stabilize is ON. 
+        !Paulo suggestion is that in by pass discharges it should 
         
         StabilizeFactor = Me%CV%StabilizeFactor * 100.
 
@@ -5902,39 +6027,48 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                        
                     endif
                     
-                    Vnew = Me%myWaterVolume(i, j) + AuxFlowIJ * LocalDT
-                    Hold = Me%myWaterVolumeOld(i, j) / Me%ExtVar%GridCellArea(i, j)
+                    !if not bypass, look to normal discharge option
+                    !if bypass, look to bypass discharge option
+                    if ((.not. ByPassON .and. Me%CV%CorrectDischarge) .or. (ByPassON .and. Me%CV%CorrectDischargeByPass)) then      
+                        
+                        Vnew = Me%myWaterVolume(i, j) + AuxFlowIJ * LocalDT
+                        Hold = Me%myWaterVolumeOld(i, j) / Me%ExtVar%GridCellArea(i, j)
                     
-                    if ((.not. Me%CV%CheckDecreaseOnly) .or. Me%myWaterVolumeOld(i, j) > Vnew) then
-                    
-                        if (Hold >= Me%CV%MinimumValueToStabilize) then
-                    
-                            DV =  Me%myWaterVolume(i, j)  - Me%myWaterVolumeOld(i, j)
-                            
-                            variation = abs(DV + AuxFlowIJ * LocalDT) / Me%myWaterVolumeOld(i, j)
-                            
-                            if (variation > StabilizeFactor) then
-                                AuxFlow = AuxFlowIJ
-                                variation2 = abs(DV) / Me%myWaterVolumeOld(i, j)                    
-                                if (variation2 > StabilizeFactor) then
-                                    AuxFlowIJ = 0.
-                                else
-                                    if (AuxFlowIJ > 0.) then
-                                        AuxFlowIJ =  (  StabilizeFactor * Me%myWaterVolumeOld(i, j) - DV) / LocalDT
-                                    else
-                                        AuxFlowIJ =  (- StabilizeFactor * Me%myWaterVolumeOld(i, j) - DV) / LocalDT
-                                    endif                                
-                                endif              
-                                write(*,*) 'Flow in cell',i,j,'was corrected from ',AuxFlow,'to ',AuxFlowIJ
-                            endif
-                        endif                        
-                    endif                        
 
-                    if (ByPassON) then
+                        if ((.not. Me%CV%CheckDecreaseOnly) .or. Me%myWaterVolumeOld(i, j) > Vnew) then
                     
+                            if (Hold >= Me%CV%MinimumValueToStabilize) then
+                    
+                                DV =  Me%myWaterVolume(i, j)  - Me%myWaterVolumeOld(i, j)
+                            
+                                variation = abs(DV + AuxFlowIJ * LocalDT) / Me%myWaterVolumeOld(i, j)
+                            
+                                if (variation > StabilizeFactor) then
+                                    AuxFlow = AuxFlowIJ
+                                    variation2 = abs(DV) / Me%myWaterVolumeOld(i, j)                    
+                                    if (variation2 > StabilizeFactor) then
+                                        AuxFlowIJ = 0.
+                                    else
+                                        if (AuxFlowIJ > 0.) then
+                                            AuxFlowIJ =  (  StabilizeFactor * Me%myWaterVolumeOld(i, j) - DV) / LocalDT
+                                        else
+                                            AuxFlowIJ =  (- StabilizeFactor * Me%myWaterVolumeOld(i, j) - DV) / LocalDT
+                                        endif                                
+                                    endif              
+                                    write(*,*) 'Flow in cell',i,j,'was corrected from ',AuxFlow,'to ',AuxFlowIJ
+                                endif
+                            endif                        
+                        endif
+
+                    endif
+
+                    !correct if bypass correction ON (is the default)
+                    if (ByPassON .and. Me%CV%CorrectDischargeByPass) then
+                        
                         Vnew = Me%myWaterVolume   (ib, jb) - AuxFlowIJ * LocalDT                    
                         Hold = Me%myWaterVolumeOld(ib, jb) / Me%ExtVar%GridCellArea(ib, jb)
-                    
+
+
                         if ((.not. Me%CV%CheckDecreaseOnly) .or. Me%myWaterVolumeOld(ib, jb) > Vnew) then
                         
                             if (Hold >= Me%CV%MinimumValueToStabilize) then
@@ -5952,15 +6086,17 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
                                         AuxFlowIJ = 0.
                                     else
                                         if (AuxFlowIJ < 0.) then
-                                              AuxFlowIJ =  (- StabilizeFactor * Me%myWaterVolumeOld(ib, jb) + DV) / LocalDT
+                                                AuxFlowIJ =  (- StabilizeFactor * Me%myWaterVolumeOld(ib, jb) + DV) / LocalDT
                                         else
-                                              AuxFlowIJ =  (  StabilizeFactor * Me%myWaterVolumeOld(ib, jb) + DV) / LocalDT
+                                                AuxFlowIJ =  (  StabilizeFactor * Me%myWaterVolumeOld(ib, jb) + DV) / LocalDT
                                         endif                                
                                     endif  
                                     write(*,*) 'Flow in cell',i,j,'was corrected from ',AuxFlow,'to ',AuxFlowIJ
                                 endif
-                            endif                                
-                        endif
+                            endif 
+                        endif                  
+
+                    
                     endif
 
                     Me%lFlowDischarge(i, j)     = Me%lFlowDischarge(i, j) + AuxFlowIJ
@@ -8667,15 +8803,19 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !Arguments-------------------------------------------------------------
         
         !Local-----------------------------------------------------------------
-        logical                                     :: FoundBankGridPoint
-        integer                                     :: STAT_CALL
-        real                                        :: Flow, lowestValue
-        type(T_BankGridPoint), pointer              :: BankGridPoint
+        !logical                                     :: FoundBankGridPoint
+        !integer                                     :: STAT_CALL
+        real                                        :: Flow
+        !type(T_BankGridPoint), pointer              :: BankGridPoint
         type(T_MarginGridPoint), pointer            :: MarginGridPoint
         integer                                     :: i, j, itarget, jtarget
         real                                        :: RiverLevel
         integer                                     :: BoundaryFaces
         real                                        :: dh, CellWidth, FluxWidth, Area, sign        
+        
+        
+        !output
+        call SetMatrixValue(Me%MarginFlowToChannels, Me%Size, null_real)        
         
         
         !Go for MarginGridPoints and compute 1D-2D flow 
@@ -8746,6 +8886,9 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
             !Put the flow in integrated BankGriPoint - target i and j
             Me%iFlowToChannels(itarget, jtarget) = Me%iFlowToChannels(itarget, jtarget) + Flow
 
+            !output
+            Me%MarginFlowToChannels(i, j) = Flow
+            
             !Updates Variables
             Me%myWaterVolume (i, j) = Me%myWaterVolume (i, j) - (Flow * Me%ExtVar%DT)
             Me%myWaterColumn (i, j) = Me%myWaterVolume (i, j) / Me%ExtVar%GridCellArea(i, j)
@@ -8761,28 +8904,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
     
     
     
-    !--------------------------------------------------------------------------
-    !Same as 6 but with new mapping that is inependetn on 1D model used (e.g. Drainage Network or SWMM)
-    subroutine ComputeOverLandChannelFlow(i, j, RiverLevel, itarget, jtarget)
-
-        !Arguments-------------------------------------------------------------
-        integer                                     :: i, j, itarget, jtarget
-        real                                        :: RiverLevel
-        !Local-----------------------------------------------------------------
-
-        integer                                     :: STAT_CALL
-        integer                                     :: BoundaryFaces
-        real                                        :: Flow, lowestValue
-        real                                        :: dh, CellWidth, FluxWidth, Area, sign
-
-        
-
-                    
-                       
-      
-
-    end subroutine ComputeOverLandChannelFlow    
-    
+ 
     
     
     !--------------------------------------------------------------------------
@@ -8797,8 +8919,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB, STAT_CALL
-        integer                                     :: lowestI, lowestJ, di, dj
-        real                                        :: Flow, lowestValue
+        real                                        :: Flow
         real   , dimension(:, :), pointer           :: ChannelsVolume
         real   , dimension(:, :), pointer           :: ChannelsMaxVolume
         real   , dimension(:, :), pointer           :: ChannelsWaterLevel 
@@ -10612,7 +10733,44 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR190'
            
+                
             endif
+            
+            if (Me%Use1D2DInteractionMapping) then
+                    
+                !River level from 1D model in river nodes
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/node river level", &
+                                        "node river level", "m",                  &
+                                        Array2D      = Me%NodeRiverLevel,         &
+                                        OutputNumber = Me%OutPut%NextOutPut,      &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR191'   
+                    
+                !River level from 1D model interpolated in margin 2D cells
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/margin river level", &
+                                        "margin river level", "m",                  &
+                                        Array2D      = Me%MarginRiverlevel,         &
+                                        OutputNumber = Me%OutPut%NextOutPut,        &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR192'      
+                    
+                !Flow to river in margin 2D cells
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/margin flow to river", &
+                                        "margin flow to river", "m3/s",               &
+                                        Array2D      = Me%MarginFlowToChannels,       &
+                                        OutputNumber = Me%OutPut%NextOutPut,          &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR193'        
+                    
+                !Flow to river integrated in river cells
+                call HDF5WriteData   (Me%ObjHDF5, "//Results/node flow to river", &
+                                        "node flow to river", "m3/s",               &
+                                        Array2D      = Me%iFlowToChannels,          &
+                                        OutputNumber = Me%OutPut%NextOutPut,        &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR194'                      
+                    
+            endif            
 
            
             !Writes everything to disk
@@ -10722,6 +10880,30 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                 Data2D = Me%StreetGutterEffectiveFlow,                  &
                                 STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR12'
+            
+        endif
+        
+        if (Me%Use1D2DInteractionMapping) then
+            
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D = Me%NodeRiverLevel,                             &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR20'
+            
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D = Me%MarginRiverlevel,                           &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR30'
+            
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D = Me%MarginFlowToChannels,                       &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR40'
+            
+            call WriteTimeSerie(Me%ObjTimeSerie,                                        &
+                                Data2D = Me%iFlowToChannels,                            &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries - ModuleRunoff - ERR50'            
             
         endif
    
@@ -11741,19 +11923,8 @@ cd1:    if (RunOffID > 0) then
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
             Found = .false.
-            
-            NodeGridPoint => Me%FirstNodeGridPoint
 
-do1:        do while (associated(NodeGridPoint))
-        
-                if (NodeGridPoint%GRIDI == i .and. NodeGridPoint%GRIDJ == j) then
-                    Found = .TRUE.
-                    exit do1
-                end if
-                NodeGridPoint => NodeGridPoint%Next
-            end do do1           
-            
-            if (Found) then        
+            if (Me%NodeRiverMapping (i,j) == BasinPoint) then 
                 IsRiverPoint = .true.
             else
                 IsRiverPoint = .false.
