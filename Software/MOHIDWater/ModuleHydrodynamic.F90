@@ -8368,13 +8368,6 @@ cd21:   if (Baroclinic) then
 
                 if (STAT_CALL /= SUCCESS_)                                                      &
                     call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1225')
-                if (Me%ComputeOptions%TwoWayNumIgnOBCells > Me%WorkSize%IUB - Me%WorkSize%ILB + 1) then
-                    stop 'Construct_Numerical_Options - Hydrodynamic - ERR1226'
-                endif
-
-                if (Me%ComputeOptions%TwoWayNumIgnOBCells > Me%WorkSize%JUB - Me%WorkSize%JLB + 1) then
-                    stop 'Construct_Numerical_Options - Hydrodynamic - ERR1227'
-                endif
 
                 call GetData(Me%ComputeOptions%TwoWayWaterLevel,                                  &
                              Me%ObjEnterData, iflag,                                            &
