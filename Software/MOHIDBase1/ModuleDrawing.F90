@@ -74,6 +74,7 @@ Module ModuleDrawing
     end interface SegIntersectSeg    
    
     private ::    NewPolygon
+    private ::    NewPolygon_V2    
     private ::    NewXYZPoint
     private ::    NewXYZPoint_V2
     private ::    NewXYZPoint_V3
@@ -81,6 +82,7 @@ Module ModuleDrawing
     private ::    NewXYZPoint_V5
     interface     New
         module procedure NewPolygon
+        module procedure NewPolygon_V2        
         module procedure NewXYZPoint
         module procedure NewXYZPoint_V2 
         module procedure NewXYZPoint_V3 
@@ -340,6 +342,63 @@ if2 :               if (BlockFound) then
             if(STAT_CALL .ne. SUCCESS_)stop 'NewPolygon - ModuleDrawing - ERR06'
 
     end subroutine NewPolygon
+    !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+    
+    subroutine NewPolygon_V2(Polygons, VectorX, VectorY)
+        
+        !Arguments-------------------------------------------------------------
+        type(T_Polygon),                 pointer    :: Polygons
+        real,   dimension(:), pointer, intent(IN)   :: VectorX, VectorY
+
+        !Local-----------------------------------------------------------------
+        type(T_Polygon),                 pointer    :: Polygon
+        integer                                     :: i, nVert
+        logical                                     :: NeedToClose
+
+        !Begin-----------------------------------------------------------------
+
+        !Allocates new instance
+        allocate (Polygon)
+        nullify  (Polygon%Next)
+        
+        nVert = size(VectorX)
+        
+        if (VectorX(1) /= VectorX(nVert) .and. VectorY(1) /= VectorY(nVert)) then
+            nVert = nVert + 1
+            NeedToClose = .true.
+        else
+            NeedToClose = .false.
+        endif
+
+        Polygon%Count = nVert
+                    
+        allocate(Polygon%VerticesF(1:Polygon%Count))
+
+        do i = 1 , Polygon%Count - 1
+                            
+            Polygon%VerticesF(i)%X  = VectorX(i)
+            Polygon%VerticesF(i)%Y  = VectorY(i)
+                    
+        end do
+                                                   
+        if (NeedToClose) then
+            !Close polygon
+            Polygon%VerticesF(nVert)%X  = Polygon%VerticesF(1)%X
+            Polygon%VerticesF(nVert)%Y  = Polygon%VerticesF(1)%Y
+        else            
+            Polygon%VerticesF(nVert)%X  = VectorX(nVert)
+            Polygon%VerticesF(nVert)%Y  = VectorY(nVert)
+        endif    
+
+        call SetLimits(Polygon)
+                        
+        call Add(Polygons, Polygon)
+        nullify   (Polygon)
+        
+        
+    end subroutine NewPolygon_V2
     !--------------------------------------------------------------------------
 
     
