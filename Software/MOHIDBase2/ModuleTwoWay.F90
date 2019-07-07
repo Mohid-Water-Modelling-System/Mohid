@@ -505,56 +505,62 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            if (Task == 1) then !find number of lines to allocate
-                call GetGeometryKFloor(GeometryID = Me%Father%InstanceID, Z = Me%Father%External_Var%KFloor_Z, &
-                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructUpscalingDischarges - Failed to get Father KfloorZ'
+            call GetGeometryKFloor(GeometryID = Me%Father%InstanceID, Z = Me%Father%External_Var%KFloor_Z, &
+                                    STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructUpscalingDischarges - Failed to get Father KfloorZ'
             
+            if (Task == 1) then !find number of lines to allocate
                 call SearchDischargeFace(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, &
                                          IZ, JZ, Me%Father%DischargeCells%n_U, Me%Father%DischargeCells%n_V, &
                                          Me%Father%DischargeCells%n_Z, Me%Father%External_Var%KFloor_Z, &
                                          Me%Father%WorkSize%KUB)
-                !Me%Father%DischargeCells%n_U/V - son cells to be included in the calculation
                 
+                !Me%Father%DischargeCells%n_U/V - son cells to be included in the calculation
             elseif (Task == 2) then ! allocate
                 
-                if (Me%Father%DischargeCells%n_U > 0) &
-                    allocate (Me%Father%DischargeCells%U(Me%Father%DischargeCells%n_U,  4))
-                if (Me%Father%DischargeCells%n_V > 0) &
-                    allocate (Me%Father%DischargeCells%V(Me%Father%DischargeCells%n_V,  4))
-                
-                allocate (Me%Father%DischargeCells%Z(Me%Father%DischargeCells%n_Z, 3))
-                allocate (Me%Father%DischargeCells%Flow(Me%Father%DischargeCells%n_Z))
-                
-                if (Me%Father%DischargeCells%n_U == 0) then
-                    if (Me%Father%DischargeCells%n_V == 0) then
-                        write(*,*)'No upscaling dishcarges was found between SonID: ', SonID, 'and its father'                  
-                    endif
-                endif
-            else ! Fill upscaling matrixes which have the son cells need to be included in the calculation
+                !this would be needed to compute the actual flow from son to parent.
+                !if (Me%Father%DischargeCells%n_U > 0) &
+                !    allocate (Me%Father%DischargeCells%U(Me%Father%DischargeCells%n_U,  4))
+                !if (Me%Father%DischargeCells%n_V > 0) &
+                !    allocate (Me%Father%DischargeCells%V(Me%Father%DischargeCells%n_V,  4))
                 
                 if (Me%Father%DischargeCells%n_U > 0) then
-                    VelID = VelocityU_
-                    call UpsDischargesLinks(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, IZ, JZ, VelID, &
-                                    tracer = Me%Father%DischargeCells%Current_U, Cells = Me%Father%DischargeCells%U)
+                    allocate (Me%Father%DischargeCells%Z(Me%Father%DischargeCells%n_Z, 3))
+                    allocate (Me%Father%DischargeCells%Flow(Me%Father%DischargeCells%n_Z))
+                elseif (Me%Father%DischargeCells%n_V > 0) then
+                    allocate (Me%Father%DischargeCells%Z(Me%Father%DischargeCells%n_Z, 3))
+                    allocate (Me%Father%DischargeCells%Flow(Me%Father%DischargeCells%n_Z))
+                else
+                    write(*,*)'No upscaling discharges was found between SonID: ', SonID, 'and its father'
                 endif
                 
-                if (Me%Father%DischargeCells%n_V > 0) then
-                    VelID = VelocityV_
-                    call UpsDischargesLinks(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, IZ, JZ, VelID, &
-                                    tracer = Me%Father%DischargeCells%Current_V, Cells = Me%Father%DischargeCells%V)
-                endif
+            else ! Fill upscaling matrixes which have the son cells need to be included in the calculation
                 
-                !This update is done for each new discharge cell, in order to fill the matrix of discharge cells
-                !Save discharge cell IDs into a matrix                
-                call UpdateDischargeConnections(Me%Father%DischargeCells%Current_Z, Me%Father%DischargeCells%Z, &
-                                                Me%Father%External_Var%KFloor_Z, Me%Father%WorkSize%KUB, dI, dJ)
-
+                !this would be needed to compute the actual flow from son to parent.
                 !these are the link matrixes between a Father discharge cell and its corresponding Son cells which 
                 !should be considered in the calculation of velocities and flow.
+                !if (Me%Father%DischargeCells%n_U > 0) then
+                !    VelID = VelocityU_
+                !    call UpsDischargesLinks(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, IZ, JZ, VelID, &
+                !                    tracer = Me%Father%DischargeCells%Current_U, Cells = Me%Father%DischargeCells%U)
+                !endif
+                !
+                !if (Me%Father%DischargeCells%n_V > 0) then
+                !    VelID = VelocityV_
+                !    call UpsDischargesLinks(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, IZ, JZ, VelID, &
+                !                    tracer = Me%Father%DischargeCells%Current_V, Cells = Me%Father%DischargeCells%V)
+                !endif
+                
+                !This update is done for each new discharge cell, in order to fill the matrix of discharge cells
+                !Save discharge cell IDs into a matrix
+                if (Me%Father%DischargeCells%n_Z > 0) then
+                    call UpdateDischargeConnections(Me%Father%DischargeCells%Current_Z, Me%Father%DischargeCells%Z, &
+                                                    Me%Father%External_Var%KFloor_Z, Me%Father%WorkSize%KUB, dI, dJ)
+                endif
+
+            endif
                 call UnGetGeometry(Me%Father%InstanceID, Me%Father%External_Var%KFloor_Z,   STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructUpscalingDischarges : failed to unget KFloor_Z.'
-            endif
         else  
             stop 'Construct_Upscaling_Discharges - ModuleTwoWay -  Failed ready function'               
         endif
@@ -1169,7 +1175,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !>Responsible for calling the routines which compute upscaling velocity.
+    !>Responsible for calling the routines which compute upscaling velocity. Not in use because it is not possible
+    !>to determine the flow value with this method (we make a nudging of flow velocity on the parent, so we don't know
+    !>how much water should be added or removed)
     !>@param[in] SonID, DVel_U, DVel_V, SonVel_U, SonVel_V, STAT
     subroutine  Modify_Upscaling_Discharges(SonID, DVel_U, DVel_V, SonVel_U, SonVel_V, STAT)
         !Arguments-------------------------------------------------------------

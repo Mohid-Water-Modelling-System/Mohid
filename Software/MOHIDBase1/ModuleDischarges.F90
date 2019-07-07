@@ -885,13 +885,16 @@ i1:     if (NewDischarge%Localization%Location2D) then
                         stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR76.'
 
                 case (DischBottom_, DischSurf_)
-                    !do not do nothing 
+                    !do not do nothing
+                    
+                case (DischProfile_)
+                    !do nothing
                 case default
                     write(*,*) "VERTICAL DISCHARGE option not known ", NewDischarge%Localization%DischVertical
 
                     write(*,*) "The known options are : "," Bottom=",DischBottom_," Surface=",DischSurf_,&
                                                           " Layer =",DischLayer_, " Depth  =",DischDepth_,&
-                                                          " Uniform=",DischUniform_
+                                                          " Uniform=",DischUniform_, "Profile =",DischProfile_
                     stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR80'
 
             end select

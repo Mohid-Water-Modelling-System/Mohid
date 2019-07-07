@@ -10105,14 +10105,13 @@ i3:                 if (SpatialEmission == DischPoint_) then
                         ! Joao Sobrinho
                         !Allocation of Vectors I J and K- profile option for now only for upscaling
                         if (DischVertical == DischProfile_)then
-                            nCells = Me%WorkSize%KUB - Me%External_Var%KFloor_Z(Id, Jd)
-                            allocate(VectorI(nCells), VectorJ(nCells), VectorK(nCells))
-                            VectorJ(:) = Jd
-                            VectorI(:) = Id
                             if (IsUpscaling(Me%ObjDischarges, dn))then
-                                !All good
+                                nCells = Me%WorkSize%KUB - Me%External_Var%KFloor_Z(Id, Jd) + 1
+                                allocate(VectorI(nCells), VectorJ(nCells), VectorK(nCells))
+                                VectorJ(:) = Jd
+                                VectorI(:) = Id
                             else
-                                stop 'Upscaling discharge must be a profile discharge : VERTICAL_DISCHARGE : 6'
+                                stop 'Discharge profile only implemented for upscaling'
                             endif
                             
                         else
@@ -10329,13 +10328,13 @@ n1:                         do nC =1, nCells
                         case (DischProfile_)
                             
                             !every index of Vector I and J is repeated n times, where n is KUB - Kfloor
+                            !Only made for discharge point at this stage.
                             aux = 0
-                            do nC = 1, nCells
-                                do k = Me%External_Var%KFloor_Z(VectorI(nC), VectorJ(nC)), Me%WorkSize%KUB
-                                    aux = aux + 1
-                                    VectorK(aux) = k
-                                enddo 
-                            enddo
+                            
+                            do k = Me%External_Var%KFloor_Z(VectorI(1), VectorJ(1)), Me%WorkSize%KUB
+                                aux = aux + 1
+                                VectorK(aux) = k
+                            enddo 
                             
                         case default
                             write(*,*) "VERTICAL DISCHARGE option not known ", DischVertical
@@ -10470,10 +10469,11 @@ i7:             if (.not. ContinuousGOTM)  then
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Checks if a discharge is of type "upscaling" and constructs it
-    !>@param[in] FatherID, SonID
-    subroutine Set_Upscaling_Discharges(FatherID, SonID)
+    !>@param[in] FatherID, ObjHydrodynamicFather, SonID
+    subroutine Set_Upscaling_Discharges(FatherID, ObjFather, SonID)
         !Arguments-------------------------------------------------------------
         integer,           intent(IN )              :: FatherID, SonID
+        type (T_Hydrodynamic), pointer, intent(IN)  :: ObjFather
         !Local-----------------------------------------------------------------
         integer                                     :: DischargeID, I, J, DischargesNumber, STAT_CALL
         integer                                     :: Task
@@ -10483,7 +10483,7 @@ i7:             if (.not. ContinuousGOTM)  then
 
         Task = 1 !Flag to indicate that the code should only find the matrixes size for allocation
         
-        call GetDischargesNumber(FatherID, DischargesNumber, STAT = STAT_CALL)
+        call GetDischargesNumber(ObjFather%ObjDischarges, DischargesNumber, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get number of discharges'
         call GetConnections(SonID, Connections_Z = Connections, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Connections matrix'
@@ -10496,9 +10496,9 @@ i7:             if (.not. ContinuousGOTM)  then
 
         do DischargeID = 1, DischargesNumber
 
-            if (IsUpscaling(FatherID, DischargeID))then
+            if (IsUpscaling(ObjFather%ObjDischarges, DischargeID))then
 
-                call GetDischargesGridLocalization(FatherID, DischargeID, Igrid = I, JGrid = J, STAT = STAT_CALL)
+                call GetDischargesGridLocalization(ObjFather%ObjDischarges, DischargeID, Igrid = I, JGrid = J, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Discharge location'
 
                 call ConstructUpscalingDischarges(SonID, I, J, Connections, SonWaterPoints2D, &
@@ -10516,9 +10516,10 @@ i7:             if (.not. ContinuousGOTM)  then
         
         do DischargeID = 1, DischargesNumber
 
-            if (IsUpscaling(FatherID, DischargeID))then
+            if (IsUpscaling(ObjFather%ObjDischarges, DischargeID))then
 
-                call GetDischargesGridLocalization(FatherID, DischargeID, Igrid = I, JGrid = J, STAT = STAT_CALL)
+                call GetDischargesGridLocalization(ObjFather%ObjDischarges, DischargeID, Igrid = I, JGrid = J, &
+                                                   STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Discharge location'
 
                 call ConstructUpscalingDischarges(SonID, I, J, Connections, SonWaterPoints2D, &
@@ -16614,7 +16615,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
                         allocate(Me%Submodel%CopyV_New(ObjHydrodynamicFather%Size%ILB:ObjHydrodynamicFather%Size%IUB, &
                                  ObjHydrodynamicFather%Size%JLB:ObjHydrodynamicFather%Size%JUB, &
                                  ObjHydrodynamicFather%Size%KLB:ObjHydrodynamicFather%Size%KUB))
-                        call Set_Upscaling_Discharges(HydrodynamicFatherID, HydrodynamicID)
+                        call Set_Upscaling_Discharges(HydrodynamicFatherID, ObjHydrodynamicFather, HydrodynamicID)
                     endif
                 endif
 
@@ -51592,7 +51593,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
                 if (Me%External_Var%WaterPoints3D(Id, JD, kd) /= WaterPoint .and. Me%FirstIteration) then
 
                     write(*,*) 'Time serie station I=',Id, 'J=',Jd,'K=',Kd,'is located in land'
-                    write(*,*) 'Construct_Sub_Modules - ModuleHydrodynamic - WRN100'
+                    write(*,*) 'OutPut_TimeSeries - ModuleHydrodynamic - WRN100'
 
                 endif
             endif

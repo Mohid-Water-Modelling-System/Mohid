@@ -158,7 +158,7 @@ Module ModuleUpscallingDischarges
                         endif
                     endif
                 endif
-                i = 1 + 1
+                i = i + 1
                 Aux2 = Connection(i, 1) * Connection(i, 2)            
             enddo
         elseif (present(n)) then
@@ -172,11 +172,11 @@ Module ModuleUpscallingDischarges
                     !Check if adjacent cell of son domain is inside Father dicharge cell
                     if (link(ISonAdjacent, JSonAdjacent) == (IJFather - 1))then
                         if (SonWaterPoints(ISonAdjacent, JSonAdjacent) == 1)then
-                            n = n + 1 ! Found a discharge face
+                            n = n + 1 ! Found a discharge face   AQUI
                         endif
                     endif
                 endif
-                i = 1 + 1
+                i = i + 1
                 Aux2 = Connection(i, 1) * Connection(i, 2)            
             enddo            
             
@@ -204,16 +204,16 @@ Module ModuleUpscallingDischarges
         
         if (VelID == VelocityU_) then
             if (FatherWaterPoints(Icell, JCell + 1) == 0) then
-                IFather = Icell - 1
-                JFather = JCell
+                IFather = Icell
+                JFather = JCell + 1
                 di      = 0 
                 dj      = -1 !only going to search westward
                 call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, JZ, Cells = Cells, &
                                  tracer = tracer)
             endif
             if (FatherWaterPoints(Icell, JCell - 1) == 0) then
-                IFather = Icell - 1
-                JFather = JCell
+                IFather = Icell
+                JFather = JCell - 1
                 di      = 0 !only going to search eastward
                 dj      = 1
                 call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, JZ, Cells = Cells, &
@@ -313,13 +313,21 @@ Module ModuleUpscallingDischarges
             j = DischargeConnection(line, 2)
             k = DischargeConnection(line, 3)
             
-            F_East = (FatherU_old(i, j  , k) - FatherU(i, j  , k)) * AreaU(i, j  , k) *(1-ComputeFacesU(i , j+1,k))
-            F_West = (FatherU_old(i, j+1, k) - FatherU(i, j+1, k)) * AreaU(i, j+1, k) *(1-ComputeFacesU(i , j  ,k))
+            !F_West = (FatherU_old(i, j  , k) - FatherU(i, j  , k)) * AreaU(i, j  , k)
+            !F_East = -(FatherU_old(i, j+1, k) - FatherU(i, j+1, k)) * AreaU(i, j+1, k)
+            !
+            !F_South = (FatherV_old(i  , j, k) - FatherV(i  ,j , k)) * AreaV(i  , j, k)
+            !F_North = -(FatherV_old(i+1, j, k) - FatherV(i+1,j , k)) * AreaV(i+1, j, k)
+            !    
+            !UpscaleFlow(line) = (F_South + F_North + F_East + F_West)
+            
+            F_West  = - (FatherU(i, j  , k) * AreaU(i, j  , k))
+            F_East  =    FatherU(i, j+1, k) * AreaU(i, j+1, k)
 
-            F_South = (FatherV_old(i  , j, k) - FatherV(i  ,j , k)) * AreaV(i  , j, k) *(1-ComputeFacesV(i+1, j,k))
-            F_North = (FatherV_old(i+1, j, k) - FatherV(i+1,j , k)) * AreaV(i+1, j, k) *(1-ComputeFacesV(i  , j,k))
+            F_South = - (FatherV(i  ,j , k) * AreaV(i  , j, k))
+            F_North =    FatherV(i+1,j , k) * AreaV(i+1, j, k)
                 
-            UpscaleFlow(line) = F_South + F_North + F_East + F_West           
+            UpscaleFlow(line) = F_South + F_North + F_East + F_West
         enddo
     end subroutine ComputeDischargeVolume
         
@@ -327,15 +335,15 @@ Module ModuleUpscallingDischarges
     !>@Brief
     !> Updates n_Z matrix
     !>@param[in] n_Z, Kfloor, KUB, I, J         
-    subroutine Update_n_Z(n_Z, Kfloor, KUB, I, J)
+    subroutine Update_n_Z(n_Z, KFloorZ, KUB, I, J)
         !Arguments--------------------------------------------------------------------------
-        integer, dimension(:, :)         , intent(IN)        :: KFloor
+        integer, dimension(:, :), pointer, intent(IN)        :: KFloorZ
         integer                          , intent(IN)        :: KUB, I, J
         integer                          , intent(INOUT)     :: n_Z
         !Local-------------------------------------------------------------------------------
         integer                                              :: k, KBottom
         !------------------------------------------------------------------------------------
-        KBottom = KFloor(I, J)
+        KBottom = KFloorZ(I, J)
         do k = KBottom, KUB
             n_Z = n_Z + 1
         enddo
@@ -344,16 +352,16 @@ Module ModuleUpscallingDischarges
     
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !> Updates n_Z matrix
+    !> Updates discharge matrix table with the I, J and K  Parent cells
     !>@param[in] n_Z, Kfloor, KUB, I, J       
     subroutine UpdateDischargeConnections(CurrentZ, Matrix, KFloor, KUB, I, J)
         !Arguments--------------------------------------------------------------------------
-        integer, dimension(:, :)         , intent(INOUT)     :: Matrix
-        integer,                           intent(IN)        :: I, J, KUB
-        integer, dimension(:, :)         , intent(IN)        :: KFloor
-        integer,                           intent(INOUT)     :: CurrentZ
+        integer, dimension(:, :), allocatable , intent(INOUT)     :: Matrix
+        integer,                           intent(IN)             :: I, J, KUB
+        integer, dimension(:, :), pointer, intent(IN)             :: KFloor
+        integer,                           intent(INOUT)          :: CurrentZ
         !Local-------------------------------------------------------------------------------
-        integer                                              :: k, KBottom
+        integer                                                   :: k, KBottom
         !------------------------------------------------------------------------------------
         KBottom = KFloor(I, J)
         do k = KBottom, KUB
