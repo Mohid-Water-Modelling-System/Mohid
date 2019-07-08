@@ -313,19 +313,19 @@ Module ModuleUpscallingDischarges
             j = DischargeConnection(line, 2)
             k = DischargeConnection(line, 3)
             
-            !F_West = (FatherU_old(i, j  , k) - FatherU(i, j  , k)) * AreaU(i, j  , k)
-            !F_East = -(FatherU_old(i, j+1, k) - FatherU(i, j+1, k)) * AreaU(i, j+1, k)
-            !
-            !F_South = (FatherV_old(i  , j, k) - FatherV(i  ,j , k)) * AreaV(i  , j, k)
-            !F_North = -(FatherV_old(i+1, j, k) - FatherV(i+1,j , k)) * AreaV(i+1, j, k)
-            !    
-            !UpscaleFlow(line) = (F_South + F_North + F_East + F_West)
+            F_West = (FatherU_old(i, j  , k) - FatherU(i, j  , k)) * AreaU(i, j  , k)
+            F_East = -(FatherU_old(i, j+1, k) - FatherU(i, j+1, k)) * AreaU(i, j+1, k)
             
-            F_West  = - (FatherU(i, j  , k) * AreaU(i, j  , k))
-            F_East  =    FatherU(i, j+1, k) * AreaU(i, j+1, k)
-
-            F_South = - (FatherV(i  ,j , k) * AreaV(i  , j, k))
-            F_North =    FatherV(i+1,j , k) * AreaV(i+1, j, k)
+            F_South = (FatherV_old(i  , j, k) - FatherV(i  ,j , k)) * AreaV(i  , j, k)
+            F_North = -(FatherV_old(i+1, j, k) - FatherV(i+1,j , k)) * AreaV(i+1, j, k)
+                
+            UpscaleFlow(line) = F_South + F_North + F_East + F_West
+            
+            !F_West  = - (FatherU(i, j  , k) * AreaU(i, j  , k))
+            !F_East  =    FatherU(i, j+1, k) * AreaU(i, j+1, k)
+            !
+            !F_South = - (FatherV(i  ,j , k) * AreaV(i  , j, k))
+            !F_North =    FatherV(i+1,j , k) * AreaV(i+1, j, k)
                 
             UpscaleFlow(line) = F_South + F_North + F_East + F_West
         enddo
