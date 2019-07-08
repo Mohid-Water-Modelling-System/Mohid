@@ -430,7 +430,7 @@ Module ModuleHorizontalGrid
         integer, dimension(:,:), pointer :: ICross => null()
         integer, dimension(:,:), pointer :: JCross => null()
         
-        integer, dimension(:,:), pointer :: ILinkZ => null() !Joao Sobrinho
+        integer, dimension(:,:), pointer :: ILinkZ => null()
         integer, dimension(:,:), pointer :: JLinkZ => null()
         integer, dimension(:,:), pointer :: ILinkU => null()
         integer, dimension(:,:), pointer :: JLinkU => null()
@@ -2784,13 +2784,8 @@ do8:       do i = ILBwork, IUBwork
             FatherCenterY = (( ObjHorizontalFather%YY_IE(i, j  ) +  ObjHorizontalFather%YY_IE(i+1, j  ))/2. + &
                                 ( ObjHorizontalFather%YY_IE(i, j+1) +  ObjHorizontalFather%YY_IE(i+1, j+1))/2.)/2.
             
-            !if (isIWD)then !Joao Sobrinho
-                SearchRadious = (1.01+(1/(Sqrt(MaxRatio)))) * Sqrt((FatherCenterX - ObjHorizontalFather%XX(j))**2 + &
-                                                                    (FatherCenterY - ObjHorizontalFather%YY(i))**2)
-           ! else
-                !SearchRadious = Sqrt((FatherCenterX - ObjHorizontalFather%XX(j))**2 + &
-                                        !(FatherCenterY - ObjHorizontalFather%YY(i))**2)
-            !endif
+            SearchRadious = (1.01+(1/(Sqrt(MaxRatio)))) * Sqrt((FatherCenterX - ObjHorizontalFather%XX(j))**2 + &
+                                                                (FatherCenterY - ObjHorizontalFather%YY(i))**2)
 
                 !Find and build matrix of correspondent son cells
             do j2 = 1, Me%Size%JUB - 1
@@ -8896,8 +8891,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
         real, dimension(:   ), pointer, optional    :: XX_Z, YY_Z, XX_U, YY_U, XX_V, YY_V, XX_Cross, YY_Cross
         real, dimension(:, :), pointer, optional    :: DXX, DYY, DZX, DZY
         real, dimension(:, :), pointer, optional    :: DUX, DUY, DVX, DVY
-        integer, dimension(:, :), pointer, optional :: ILinkV, JLinkV, ILinkU, JLinkU, ILinkZ, JLinkZ !Joao Sobrinho
-        integer, dimension(:, :), pointer, optional :: IV, JV, IU, JU, IZ, JZ !Joao Sobrinho
+        integer, dimension(:, :), pointer, optional :: ILinkV, JLinkV, ILinkU, JLinkU, ILinkZ, JLinkZ
+        integer, dimension(:, :), pointer, optional :: IV, JV, IU, JU, IZ, JZ
         real, dimension(:   ), pointer, optional    :: XX, YY
         integer, optional,  intent(OUT)             :: STAT
 
@@ -15435,9 +15430,7 @@ do1 :   do while(associated(FatherGrid))
                     nullify   (FatherGrid%ILinkZ)
                 endif
                 
-                if (associated(FatherGrid%JLinkZ)) then                
-                
-                    !Joao Sobrinho
+                if (associated(FatherGrid%JLinkZ)) then
                     !JLinkZ
                     deallocate(FatherGrid%JLinkZ, STAT = status)
                     if (status /= SUCCESS_)                                                 &
@@ -15499,8 +15492,7 @@ do1 :   do while(associated(FatherGrid))
                 endif                                        
                 
                 if (associated(FatherGrid%JLinkU)) then                
-                    !Joao Sobrinho
-                    !JLinkU
+
                     deallocate(FatherGrid%JLinkU, STAT = status)
 
                     if (status /= SUCCESS_)                                                 &
@@ -15546,8 +15538,7 @@ do1 :   do while(associated(FatherGrid))
 
                 nullify   (FatherGrid%JV)
                 
-                if (associated(FatherGrid%ILinkV)) then
-                    !Joao Sobrinho                
+                if (associated(FatherGrid%ILinkV)) then             
                     !ILinkV
                     deallocate(FatherGrid%ILinkV, STAT = status)
 

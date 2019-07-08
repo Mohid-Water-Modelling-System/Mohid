@@ -1692,7 +1692,7 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
             NewDischarge%WaterFlow%Variable = .true.
         
         endif
-        !Joao Sobrinho
+        
         call GetData(NewDischarge%WaterFlow%Upscaling,                         &
                 Me%ObjEnterData,                                               &
                 flag,                                                          &
@@ -1703,7 +1703,6 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                 STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Invalid value for Keyword UPSCALING - Construct_FlowValues'
         
-        !Joao Sobrinho
         call GetData(NewDischarge%WaterFlow%UpscalingMethod,                   &
                 Me%ObjEnterData,                                               &
                 flag,                                                          &
@@ -1714,7 +1713,7 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                 STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Invalid value for Keyword UPSCALING_METHOD - Construct_FlowValues'
         
-        if (NewDischarge%WaterFlow%Upscaling) then !Joao Sobrinho
+        if (NewDischarge%WaterFlow%Upscaling) then
             NewDischarge%WaterFlow%scalar = 0.
             NewDischarge%Localization%FlowDistribution = DischByCell_
         endif

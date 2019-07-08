@@ -545,7 +545,7 @@ Module ModuleWaterProperties
     private ::      Ready
     private ::          LocateObjWaterProperties
     private ::          LocateObjFather
-    private ::          LocateObjSon   !Joao Sobrinho
+    private ::          LocateObjSon
 
     private ::              ReadLockExternalVar
     private ::              ReadUnlockExternalVar
@@ -878,7 +878,7 @@ Module ModuleWaterProperties
          real                                   :: C_CHLA
          real,    pointer, dimension(:,:,:)     :: Aux3D
          real,    pointer, dimension(:,:)       :: Aux2D
-         real(4), pointer, dimension(:,:,:)     :: Aux3Dreal4           => null() !Joao Sobrinho
+         real(4), pointer, dimension(:,:,:)     :: Aux3Dreal4           => null()
         logical                                 :: Simple               = .false.
     end type T_OutPut
 
@@ -927,7 +927,7 @@ Module ModuleWaterProperties
         real                                    :: OffSet               = FillValueReal
         logical                                 :: TimeSerie            = .false.
         logical                                 :: OutputHDF            = .false.
-        logical                                 :: OutputReal4          = .true. !Joao Sobrinho
+        logical                                 :: OutputReal4          = .true.
         logical                                 :: OutputSurfaceHDF     = .false.
         logical                                 :: OutputProfile        = .false.
         logical                                 :: OutputHDFSedVel      = .false.
@@ -1033,7 +1033,7 @@ Module ModuleWaterProperties
          type(T_Coupling)                       :: LightExtinction
          type(T_Coupling)                       :: Discharges
          type(T_Coupling)                       :: DischargesTracking
-         type(T_Coupling)                       :: UpscalingDischarge !Joao Sobrinho
+         type(T_Coupling)                       :: UpscalingDischarge
          type(T_Coupling)                       :: HydroIntegration
          type(T_Coupling)                       :: DataAssimilation
          type(T_Coupling)                       :: AltimetryAssimilation ! nogueira e guillaume
@@ -1230,8 +1230,8 @@ Module ModuleWaterProperties
         real(8), pointer, dimension(:,:,:)      :: CellMass
 
         logical                                 :: FirstIteration   = .true.
-        logical                                 :: Start2way        = .false. !Joao Sobrinho
-        logical                                 :: WriteHDFReal4    = .true. !Joao Sobrinho
+        logical                                 :: Start2way        = .false.
+        logical                                 :: WriteHDFReal4    = .true.
         logical                                 :: OxygenSaturation = .false.
         logical                                 :: CO2_PP_Output    = .false.
         logical                                 :: O2_Sat_Output    = .false.
@@ -4832,12 +4832,12 @@ do1 :   do while (associated(PropertyX))
 
                 TotalCells = 0
 
-                do dis = 1, Me%Discharge%Number !Joao Sobrinho
+                do dis = 1, Me%Discharge%Number
 
                     call GetDischargeFlowDistribuiton(Me%ObjDischarges, dis,            &
                                                       Me%Discharge%nCells(dis), STAT = STAT_CALL)
                     
-                    if (IsUpscaling(Me%ObjDischarges, dis)) then !Joao Sobrinho
+                    if (IsUpscaling(Me%ObjDischarges, dis)) then
                         Me%Coupled%UpscalingDischarge%Yes = .true.
                     endif
 
@@ -9462,7 +9462,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
         if (STAT_CALL /= SUCCESS_)                                                       &
             call CloseAllAndStop ('ReadSubModelOptions - ModuleWaterProperties - ERR40')
 
-        if (NewProperty%Submodel%TwoWay .and. .not. NewProperty%SubModel%ON) then   !Joao Sobrinho
+        if (NewProperty%Submodel%TwoWay .and. .not. NewProperty%SubModel%ON) then
 
             write(*,*) 'Keyword TWO_WAY must ONLY be defined in nested son domains'
             call CloseAllAndStop ('ReadSubModelOptions - ModuleWaterProperties - ERR50')
@@ -9471,7 +9471,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
 
         if (NewProperty%Submodel%TwoWay)then
 
-            !Period during which the two way is not computed (to avoid assimilation of instabilities) Joao Sobrinho
+            !Period during which the two way is not computed (to avoid assimilation of instabilities)
             call GetData(NewProperty%Submodel%TwoWayWaitPeriod,                               &
                         Me%ObjEnterData, iflag,                                               &
                         Keyword      = 'TWO_WAY_WAIT_PERIOD',                                 &
@@ -11641,7 +11641,7 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
                 CurrentProperty => CurrentProperty%Next
 
             enddo
-            !Joao Sobrinho
+            
             if(Me%WriteHDFReal4)then
 
                 nullify(Me%Output%Aux3Dreal4)
@@ -12312,7 +12312,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (.not. Me%VirtualRun) then
 #endif _USE_SEQASSIMILATION
 
-            !Joao Sobrinho
+            
             if (.not. associated (Me%Next))then
                 Call ComputeTwoWay (WaterPropertiesID, Me%ExternalVar%Now)
             endif
@@ -13013,7 +13013,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if(InitialField)then
 
-                Me%WPFatherInstanceID = ObjWaterPropertiesFather%InstanceID   !Joao Sobrinho
+                Me%WPFatherInstanceID = ObjWaterPropertiesFather%InstanceID
 
                 if(PropertyFather%Evolution%Variable .and. .not. PropertySon%Evolution%Variable) then
                     write(*,*)'Property father is variable and property son is not.'
@@ -19905,7 +19905,7 @@ do3:            do k = kbottom, KUB
         integer, dimension(:    ), pointer          :: VectorI, VectorJ, VectorK
         real                                        :: AuxFlowIJ
         integer                                     :: nCells, n, AuxCell, Aux
-        integer                                     :: FlowDistribution, teste1, teste2, teste3, teste4
+        integer                                     :: FlowDistribution
         real                                        :: ByPassConcIncrease
         integer                                     :: IntakeI, IntakeJ, IntakeK, kmin, kmax
 
@@ -20094,7 +20094,7 @@ dn:         do n=1, nCells
 
                 endif
 
-                AuxCell = AuxCell + 1! Joao Sobrinho - Confirmar
+                AuxCell = AuxCell + 1
 
 
                 Me%Discharge%Flow   (AuxCell) = AuxFlowIJ
@@ -22481,7 +22481,7 @@ AO:     if (Actual >= SurfaceOutTime) then
                                          WorkJLB, WorkJUB, WorkKUB, WorkKUB, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)  &
                         call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR60')
-! Joao Sobrinho
+
                    if (Me%WriteHDFReal4)then
                         call SetMatrixValue(Me%Output%Aux3Dreal4, Me%Size, PropertyX%Concentration)
 
@@ -26041,7 +26041,7 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                         call CloseAllAndStop ('KillWaterProperties - ModuleWaterProperties - ERR386')
                     nullify   (Me%OutPut%Aux2D)
                 end if
-                !Joao Sobrinho
+                
                 if (associated(Me%OutPut%Aux3Dreal4)) then
                     deallocate(Me%OutPut%Aux3Dreal4, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
@@ -26914,7 +26914,9 @@ cd1:    if (WaterPropertiesID > 0) then
 
     !--------------------------------------------------------------------------
 
-   !Joao Sobrinho - gets son solution
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Gets Son Object Me%
     subroutine LocateObjSon (ObjWaterPropertiesID, ObjWaterPropertiesSon)
 
         !Arguments-------------------------------------------------------------

@@ -293,14 +293,13 @@ Module ModuleUpscallingDischarges
     !>@Brief
     !> Computes volume to be added or removed due to upscaling discharge
     !>@param[in] FatherU_old, FatherU, FatherV_old, FatherV, Volume, KUB, KFloorU, KFloorV, &
-    !>                                 AreaU, AreaV, ComputeFacesU, ComputeFacesV, CellsZ                                        
+    !>                                 AreaU, AreaV, CellsZ                                        
                                       
     subroutine ComputeDischargeVolume(FatherU_old, FatherU, FatherV_old, FatherV, AreaU, AreaV, &
-        ComputeFacesU, ComputeFacesV, UpscaleFlow, DischargeConnection)
+        UpscaleFlow, DischargeConnection)
         !Arguments--------------------------------------------------------------------------
         real,    dimension(:, :, :), pointer, intent(IN)     :: FatherU, FatherV, AreaU, AreaV
         real,    dimension(:, :, :), allocatable, intent(IN) :: FatherU_old, FatherV_old
-        integer, dimension(:, :, :), pointer, intent(IN)     :: ComputeFacesU, ComputeFacesV
         real(8),    dimension(:)            , intent(INOUT)  :: UpscaleFlow
         integer, dimension(:, :)            , intent(IN)     :: DischargeConnection
         !Local-------------------------------------------------------------------------------
@@ -320,12 +319,6 @@ Module ModuleUpscallingDischarges
             F_North = -(FatherV_old(i+1, j, k) - FatherV(i+1,j , k)) * AreaV(i+1, j, k)
                 
             UpscaleFlow(line) = F_South + F_North + F_East + F_West
-            
-            !F_West  = - (FatherU(i, j  , k) * AreaU(i, j  , k))
-            !F_East  =    FatherU(i, j+1, k) * AreaU(i, j+1, k)
-            !
-            !F_South = - (FatherV(i  ,j , k) * AreaV(i  , j, k))
-            !F_North =    FatherV(i+1,j , k) * AreaV(i+1, j, k)
                 
             UpscaleFlow(line) = F_South + F_North + F_East + F_West
         enddo

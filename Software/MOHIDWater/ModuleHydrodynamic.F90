@@ -10031,7 +10031,7 @@ d1:             do dn = 1, DischargesNumber
                             write(*,*) 'MOMENTUM_DISCHARGE must be active in module Hydrodynamic.dat'
                             stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR35'                            
                         endif
-                        Me%ComputeOptions%UpscalingDischarge = .true. !Joao Sobrinho
+                        Me%ComputeOptions%UpscalingDischarge = .true.
                     endif
 
 
@@ -10102,7 +10102,7 @@ i3:                 if (SpatialEmission == DischPoint_) then
                                 stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR130'
                             endif
                         endif
-                        ! Joao Sobrinho
+                        
                         !Allocation of Vectors I J and K- profile option for now only for upscaling
                         if (DischVertical == DischProfile_)then
                             if (IsUpscaling(Me%ObjDischarges, dn))then
@@ -10319,12 +10319,7 @@ n1:                         do nC =1, nCells
                             VectorK(:) = Me%WorkSize%KUB
 
                         case (DischUniform_)
-                            !do not do nothing
-                            !Joao Sobrinho : Adicionar nova opcao: "dischargeProfile" e com isso criar
-                            !                Todos os VectorI/J/K, fluxos e concentracoes necessarios.
-                            !                Será preciso alocar os vectores com base no número de ks.
-                            !                Talvez de para preparar isto para descargas por linhas, etc?
-                            !                Quando forem alocados os vectores I e J, contar logo com os K
+
                         case (DischProfile_)
                             
                             !every index of Vector I and J is repeated n times, where n is KUB - Kfloor
@@ -16608,7 +16603,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
 
                 if (Me%ComputeOptions%TwoWay)then
                     call AllocateTwoWayAux(HydrodynamicFatherID, HydrodynamicID)
-                    if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then   !Joao Sobrinho
+                    if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
                         allocate(Me%Submodel%CopyU_New(ObjHydrodynamicFather%Size%ILB:ObjHydrodynamicFather%Size%IUB, &
                                  ObjHydrodynamicFather%Size%JLB:ObjHydrodynamicFather%Size%JUB, &
                                  ObjHydrodynamicFather%Size%KLB:ObjHydrodynamicFather%Size%KUB))
@@ -38157,7 +38152,7 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
 
         !End - Shorten variables name
 
-        UpscalingDischarge  = .false. !Joao Sobrinho
+        UpscalingDischarge  = .false.
 
         call GetDischargesNumber(Me%ObjDischarges, DischargesNumber, STAT = STAT_CALL)
         if (STAT_CALL/=SUCCESS_)stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR10'
@@ -38223,12 +38218,11 @@ do1:    do DischargeID = 1, DischargesNumber
                 WaterLevelByPass = FillValueReal
             endif
 
-            UpscalingDischarge = IsUpscaling(Me%ObjDischarges, DischargesNumber) ! Joao Sobrinho
+            UpscalingDischarge = IsUpscaling(Me%ObjDischarges, DischargesNumber)
 
-            if (UpscalingDischarge )then! joao Sobrinho
+            if (UpscalingDischarge )then
 
-                !Aqui será chamada a routina que actializa o transporte horizontal.
-                
+                !do nothing... this is not prepared for momentum discharge
 
             else
 
@@ -48307,7 +48301,7 @@ cd1:    if (Me%ComputeOptions%WaterDischarges) then
             if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR20'
 
 do1:        do DischargeID = 1, DischargesNumber
-                if (IsUpscaling(Me%ObjDischarges, DischargeID))then !Joao Sobrinho
+                if (IsUpscaling(Me%ObjDischarges, DischargeID))then
                     call GetUpscalingDischarge(Me%ObjTwoWay, Me%WaterFluxes%Discharges, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ModifyWaterDischarges - ModuleHydrodynamic - ERR25'
                     cycle

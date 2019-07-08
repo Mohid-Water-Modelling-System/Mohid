@@ -179,7 +179,7 @@ Module ModuleFunctions
     public  :: FillMatrix2D
     public  :: FillMatrix3D
 
-    !Nudging - TwoWay   Joao Sobrinho
+    !Nudging - TwoWay
     public  :: FeedBack_Avrg_UV
     public  :: FeedBack_Avrg
     public  :: FeedBack_Avrg_WL

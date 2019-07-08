@@ -498,7 +498,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, dimension(:,:), pointer, intent(IN)  :: IZ, JZ !Connection between a Z son cell(i, j) and its father &
                                                                 !Z cell I/J component
         !Local-----------------------------------------------------------------
-        integer                                       :: ready_, VelID, STAT_CALL
+        integer                                       :: ready_, STAT_CALL !, VelID
         !----------------------------------------------------------------------
         call Ready (SonID, ready_)
         
@@ -1268,8 +1268,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ComputeDischargeVolume(FatherU_old = FatherU_old, FatherU = FatherU,                               & 
                                         FatherV_old = FatherV_old, FatherV = FatherV,                               &
                                         AreaU = Me%Father%External_Var%AreaU, AreaV = Me%Father%External_Var%AreaV, &
-                                        ComputeFacesU = Me%Father%External_Var%ComputeFaces3D_U,                    &
-                                        ComputeFacesV = Me%Father%External_Var%ComputeFaces3D_V,                    &
                                         UpscaleFlow = Me%Father%DischargeCells%Flow,                                &
                                         DischargeConnection = Me%Father%DischargeCells%Z)
             
