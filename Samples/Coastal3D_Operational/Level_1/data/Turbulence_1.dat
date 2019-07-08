@@ -9,6 +9,7 @@ TYPE_ZUV                : z
 FILE_IN_TIME            : NONE
 INITIALIZATION_METHOD   : Sponge
 VISC_TURB_SPONGE        : 1
+SPONGE_EVOLUTION        : 2
 <end_viscosity_h>
 
 MODTURB                  : turbulence_equation

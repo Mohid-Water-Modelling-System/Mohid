@@ -14,7 +14,7 @@
 !------------------------------------------------------------------------------
 !
 !This program is free software; you can redistribute it and/or
-!modify it under the terms of the GNU General Public License 
+!modify it under the terms of the GNU General Public License
 !version 2, as published by the Free Software Foundation.
 !
 !This program is distributed in the hope that it will be useful,
@@ -38,7 +38,7 @@ Module ModuleDischarges
                                 WriteTimeSerieLine, KillTimeSerie, GetTimeSerieDataColumns
     use ModuleDrawing
 
-    implicit none 
+    implicit none
 
     private
 
@@ -68,17 +68,17 @@ Module ModuleDischarges
     public  :: GetDischargesGridLocalization
     public  :: GetDischargesNodeID
     public  :: GetDischargesReservoirID
-    public  :: GetIsReservoirOutflow    
+    public  :: GetIsReservoirOutflow
     public  :: GetDischargesIDName
     public  :: GetDischargeWaterFlow
     public  :: SetDischargeWaterFlow
     public  :: SetDischargeInterceptionRatio
-    public  :: GetDischargeInterceptionRatio    
+    public  :: GetDischargeInterceptionRatio
     public  :: GetDischargeFlowVelocity
     public  :: GetDischargeParameters
     public  :: GetDischargeConcentration
     public  :: GetByPassON
-    public  :: GetByPassConcIncrease    
+    public  :: GetByPassConcIncrease
     public  :: GetDischargeFromIntakeON
     public  :: GetIntakePosition
     private ::    Search_Discharge
@@ -89,7 +89,7 @@ Module ModuleDischarges
     public  :: GetDischargeFlowDistribuiton
     public  :: GetDischargeON
     public  :: IsUpscaling
-    public  :: GetDistributionCoefMass    
+    public  :: GetDistributionCoefMass
     public  :: SetLocationCellsZ
     public  :: SetLayer
     public  :: SetDistributionCoefMass
@@ -120,7 +120,7 @@ Module ModuleDischarges
     !STAT
     integer, parameter :: NO_ID_          =  7    ! No property ID was specified
 
-    ! Time Series 
+    ! Time Series
     integer, parameter :: TIME_COLUMN     = 1
     integer, parameter :: SECONDS         = 1
     integer, parameter :: MINUTES         = 2
@@ -133,7 +133,7 @@ Module ModuleDischarges
     integer, parameter :: DirectionX_   = 1
     integer, parameter :: DirectionY_   = 2
 
-    !Discharges type 
+    !Discharges type
     integer, parameter :: Normal        = 1
     integer, parameter :: FlowOver      = 2
     integer, parameter :: Valve         = 3
@@ -143,11 +143,11 @@ Module ModuleDischarges
     !Valve side
     integer, parameter :: SideA         = 1
     integer, parameter :: SideB         = 2
-    
+
     !Valve - section type
     integer, parameter :: circular_area     = 1
     integer, parameter :: rectangular_area  = 2
-    
+
 
 
     character(len=StringLength), parameter :: block_begin               = '<begindischarge>'
@@ -167,42 +167,42 @@ Module ModuleDischarges
     type       T_Property
         type (T_PropertyID)                     :: ID
         logical                                 :: Variable         = .false.
-        integer                                 :: ConcColumn       = null_int 
+        integer                                 :: ConcColumn       = null_int
         real                                    :: scalar           = FillValueReal
-        logical                                 :: TimeSerieON      = .false. 
+        logical                                 :: TimeSerieON      = .false.
         integer                                 :: TimeSerie        = 0
-        integer                                 :: TimeSerieMaxCol  = 0        
+        integer                                 :: TimeSerieMaxCol  = 0
         logical                                 :: PropTimeSerie    = .false.
         logical                                 :: FromIntake       = .false.
-        real                                    :: IncreaseValue    = FillValueReal 
+        real                                    :: IncreaseValue    = FillValueReal
         type (T_Property), pointer              :: Next => null(), &
                                                    Prev => null()
     end type T_Property
 
     type       T_WaterFlow
         logical                                 :: Variable      = .false.
-        integer                                 :: FlowColumn    = null_int 
+        integer                                 :: FlowColumn    = null_int
         real                                    :: scalar        = FillValueReal
         logical                                 :: Upscaling     = .false.
     end type T_WaterFlow
 
 
     type       T_WaterVelocity
-        logical                                 :: UVariable    = .false.  
-        logical                                 :: VVariable    = .false.  
-        logical                                 :: WVariable    = .false.  
-        integer                                 :: UColumn      = null_int 
-        integer                                 :: VColumn      = null_int 
-        integer                                 :: WColumn      = null_int 
+        logical                                 :: UVariable    = .false.
+        logical                                 :: VVariable    = .false.
+        logical                                 :: WVariable    = .false.
+        integer                                 :: UColumn      = null_int
+        integer                                 :: VColumn      = null_int
+        integer                                 :: WColumn      = null_int
         real                                    :: Uscalar = FillValueReal
         real                                    :: Vscalar = FillValueReal
-        real                                    :: Wscalar = FillValueReal        
+        real                                    :: Wscalar = FillValueReal
     end type T_WaterVelocity
 
     type       T_FlowOver
-        real                                    :: WeirLength           = null_real 
-        real                                    :: DischargeCoeficient  = null_real 
-        real                                    :: CrestHeigth          = null_real 
+        real                                    :: WeirLength           = null_real
+        real                                    :: DischargeCoeficient  = null_real
+        real                                    :: CrestHeigth          = null_real
     end  type T_FlowOver
 
     type       T_RatingCurve
@@ -210,18 +210,18 @@ Module ModuleDischarges
         real, dimension(:), pointer             :: Flow
         integer                                 :: nValues
     end  type T_RatingCurve
-    
+
     type       T_Valve
         integer                                 :: SectionType          = null_int
-        real                                    :: Diameter             = null_real 
-        real                                    :: Height               = null_real 
-        real                                    :: Width                = null_real         
-        real                                    :: DischargeCoeficient  = null_real 
-        real                                    :: AxisHeigth           = null_real 
+        real                                    :: Diameter             = null_real
+        real                                    :: Height               = null_real
+        real                                    :: Width                = null_real
+        real                                    :: DischargeCoeficient  = null_real
+        real                                    :: AxisHeigth           = null_real
         real                                    :: SillHeigth           = null_real
-        real                                    :: PipeLength           = null_real 
-        real                                    :: PipeManning          = null_real 
-        real                                    :: AreaInTime           = null_real 
+        real                                    :: PipeLength           = null_real
+        real                                    :: PipeManning          = null_real
+        real                                    :: AreaInTime           = null_real
     end  type T_Valve
 
     type T_GridCoordinates
@@ -232,35 +232,35 @@ Module ModuleDischarges
         integer                                 :: OldJ = FillValueInt
     end type T_GridCoordinates
 
-    type       T_Localization 
+    type       T_Localization
          type (T_GridCoordinates)               :: GridCoordinates
          logical                                :: AlternativeLocations             = .false.
-         real                                   :: MinimumDischargeDepth            = null_real 
+         real                                   :: MinimumDischargeDepth            = null_real
          logical                                :: StartFromLastDischargeLocation   = .false.
-         logical                                :: Location2D                       = .false. 
+         logical                                :: Location2D                       = .false.
          integer                                :: DischVertical                    = FillValueInt
          real                                   :: Kdepth                           = FillValueReal
          integer                                :: NodeID                           = FillValueInt
          integer                                :: ReservoirID                      = FillValueInt
-         logical                                :: TrackLocation                    = .false. 
-         character(len=StringLength)            :: TrackLocationFile                = null_str 
-         integer                                :: TrackLocationFileUnitNumber      = null_int 
+         logical                                :: TrackLocation                    = .false.
+         character(len=StringLength)            :: TrackLocationFile                = null_str
+         integer                                :: TrackLocationFileUnitNumber      = null_int
          logical                                :: UseDischargePathFile             = .false.
-         character(len=StringLength)            :: DischargePathFile                = null_str 
-         real                                   :: CoordinateX                      = null_real, & 
-                                                   CoordinateY                      = null_real    
-         integer                                :: XColumn                          = null_int, & 
-                                                   YColumn                          = null_int    
-         logical                                :: VariableX                        = .false., & 
-                                                   VariableY                        = .false.    
+         character(len=StringLength)            :: DischargePathFile                = null_str
+         real                                   :: CoordinateX                      = null_real, &
+                                                   CoordinateY                      = null_real
+         integer                                :: XColumn                          = null_int, &
+                                                   YColumn                          = null_int
+         logical                                :: VariableX                        = .false., &
+                                                   VariableY                        = .false.
          logical                                :: CoordinatesON                    = .false.
          integer                                :: HorizontalType                   = FillValueInt
          logical                                :: CellCorrect                      = .false.
-         integer                                :: SpatialEmission                  = null_int    
-         character(len=StringLength)            :: SpatialFile                      = null_str 
+         integer                                :: SpatialEmission                  = null_int
+         character(len=StringLength)            :: SpatialFile                      = null_str
          type (T_Polygon), pointer              :: Polygon                          => null()
          type (T_Lines),   pointer              :: Line                             => null()
-         type (T_XYZPoints), pointer            :: XYZPoints                        => null()         
+         type (T_XYZPoints), pointer            :: XYZPoints                        => null()
          integer                                :: nCells                           = 1
          integer, dimension(:), pointer         :: VectorI                          => null(), &
                                                    VectorJ                          => null(), &
@@ -272,7 +272,7 @@ Module ModuleDischarges
          !Important for the domain decomposition approach
          !is the ratio of the XYZPoints or Line or Polygon that intercepts the model domain
          real                                   :: InterceptionRatio               = FillValueReal
-         
+
          real,    dimension(:    ), pointer     :: DistributionCoefMass             => null()
     end  type T_Localization
 
@@ -284,15 +284,15 @@ Module ModuleDischarges
         real                                    :: FlowFraction                     = 1.0
     end type  T_FromIntake
 
-    type      T_ByPass 
+    type      T_ByPass
          integer                                :: i        = null_int
-         integer                                :: j        = null_int    
+         integer                                :: j        = null_int
          integer                                :: k        = null_int
          real                                   :: X        = null_real
          real                                   :: Y        = null_real
          logical                                :: ON       = .false.
-         logical                                :: OneWay   = .false.    
-         integer                                :: Side     = null_int 
+         logical                                :: OneWay   = .false.
+         integer                                :: Side     = null_int
     end  type T_ByPass
 
 
@@ -300,15 +300,15 @@ Module ModuleDischarges
          type(T_ID                 )            :: ID
          type(T_Localization       )            :: Localization
          integer                                :: PropertiesNumber = FillValueInt
-         character(len=PathLength)              :: DataBaseFile     = null_str  
-         character(len=PathLength)              :: OutPutFile       = null_str    
-         logical                                :: TimeSerieON      = .false.  
+         character(len=PathLength)              :: DataBaseFile     = null_str
+         character(len=PathLength)              :: OutPutFile       = null_str
+         logical                                :: TimeSerieON      = .false.
          integer                                :: TimeSerie        = 0
-         integer                                :: TimeSerieMaxCol  = 0       
-         logical                                :: UseOriginalValues    = .false.  
-         type(T_WaterFlow          )            :: WaterFlow   
+         integer                                :: TimeSerieMaxCol  = 0
+         logical                                :: UseOriginalValues    = .false.
+         type(T_WaterFlow          )            :: WaterFlow
          type(T_WaterVelocity      )            :: VelocityFlow
-         integer                                :: DischargeType    = null_int  
+         integer                                :: DischargeType    = null_int
          type(T_Valve   )                       :: Valve
          type(T_FlowOver)                       :: FlowOver
          type(T_RatingCurve)                    :: RatingCurve
@@ -318,29 +318,32 @@ Module ModuleDischarges
          type(T_IndividualDischarge), pointer   :: Next             => null()
          type(T_IndividualDischarge), pointer   :: Prev             => null()
          type(T_ByPass             )            :: ByPass
-         type(T_FromIntake         )            :: FromIntake       
-         logical                                :: IgnoreON         = .false.  
+         type(T_FromIntake         )            :: FromIntake
+         logical                                :: IgnoreON         = .false.
          logical                                :: IsReservoirOutflow = .false.
-    end type T_IndividualDischarge    
+    end type T_IndividualDischarge
 
     type      T_Discharges
-         integer                                :: InstanceID       = null_int             
+         integer                                :: InstanceID       = null_int
          integer                                :: ObjEnterData     = 0
          integer                                :: ObjTime          = 0
-         character(len=Pathlength)              :: DataFile         = null_str 
+         character(len=Pathlength)              :: DataFile         = null_str
          integer                                :: DischargesNumber = FillValueInt
          type (T_IndividualDischarge), pointer  :: FirstDischarge   => null()
          type (T_IndividualDischarge), pointer  :: LastDischarge    => null()
          type (T_IndividualDischarge), pointer  :: CurrentDischarge => null()
          type (T_Discharges), pointer           :: Next             => null()
          logical                                :: IgnoreON         = .false.
-         integer                                :: ReferentialZ     = FillValueInt          
+         integer                                :: ReferentialZ     = FillValueInt
+         real                                   :: SlowStart        = null_real
+         type (T_Time)                          :: BeginTime
+         type (T_Time)                          :: EndTime
     end type T_Discharges
 
     !Global Variables
     type (T_Discharges), pointer                :: FirstDischarges  => null()
     type (T_Discharges), pointer                :: Me               => null()
-    
+
     !--------------------------------------------------------------------------
 
     contains
@@ -348,7 +351,7 @@ Module ModuleDischarges
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    !CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR 
+    !CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR CONSTRUCTOR
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -362,11 +365,11 @@ Module ModuleDischarges
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_         
+        integer                                     :: ready_
         integer                                     :: STAT_
 
         integer                                     :: STAT_CALL, flag
-                                 
+
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -374,10 +377,10 @@ Module ModuleDischarges
         !Assures nullification of the global variable
         if (.not. ModuleIsRegistered(mDischarges_)) then
             nullify (FirstDischarges)
-            call RegisterModule (mDischarges_) 
+            call RegisterModule (mDischarges_)
         endif
 
-        call Ready(DischargesID, ready_)    
+        call Ready(DischargesID, ready_)
 
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
@@ -387,6 +390,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Associates Time
             Me%ObjTime = AssociateInstance   (mTIME_, ObjTime)
 
+            call GetComputeTimeLimits(TimeID    = Me%ObjTime,                           &
+                                      BeginTime = Me%BeginTime,                         &
+                                      EndTime   = Me%EndTime,                           &
+                                      STAT      = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'Construct_Discharges - ModuleDischarges - ERR10'
+            endif
 
             if (present(DataFile)) then
                 Me%DataFile = DataFile
@@ -397,51 +407,67 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     stop 'Construct_Discharges - ModuleDischarges - ERR10'
                 endif
             endif
-        
+
             ! Construct one instance to use the moduleEnterData
             call ConstructEnterData(Me%ObjEnterData, Me%DataFile, STAT = STAT_CALL)
 
 cd1 :       if      ( STAT_CALL .EQ. FILE_NOT_FOUND_ERR_) then
 
-                write(*,*    ) 
-                write(*,*    ) 'Fatal error ! Discharges data file not found' 
+                write(*,*    )
+                write(*,*    ) 'Fatal error ! Discharges data file not found'
                 write(*,'(A)') 'File : ', trim(adjustl(Me%DataFile))
                 write(*,*    ) 'look at DISCHARGES KeyWord at nomfich.dat file  '
-                stop 'Construct_Discharges - ModuleDischarges - ERR20'  
+                stop 'Construct_Discharges - ModuleDischarges - ERR30'
 
-            else if ((STAT_CALL .NE. FILE_NOT_FOUND_ERR_) .AND.                &
+            else if ((STAT_CALL .NE. FILE_NOT_FOUND_ERR_) .AND.                         &
                      (STAT_CALL .NE. SUCCESS_          )) then cd1
-                stop 'Subroutine Construct_Discharges - ModuleDischarges. ERR30.' 
+                stop 'Subroutine Construct_Discharges - ModuleDischarges. ERR40.'
             end if cd1
 
-            call GetData(Me%IgnoreON,                                           &
-                         Me%ObjEnterData,                                       &
-                         flag,                                                  &
-                         SearchType   = FromFile,                               &
-                         keyword      ='IGNORE_ON',                             &
-                         Default      = .false.,                                &
-                         ClientModule ='ModuleDischarges',                      &
-                         STAT         = STAT_CALL)        
+            call GetData(Me%IgnoreON,                                                   &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='IGNORE_ON',                                     &
+                         Default      = .false.,                                        &
+                         ClientModule ='ModuleDischarges',                              &
+                         STAT         = STAT_CALL)
 
-            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR40'
+            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR50'
 
-            call GetData(Me%ReferentialZ,                                       &
-                         Me%ObjEnterData,                                       &
-                         flag,                                                  &
-                         SearchType   = FromFile,                               &
-                         keyword      ='REFERENTIAL_Z',                         &
-                         Default      = Hydrographic_,                          &
-                         ClientModule ='ModuleDischarges',                      &
-                         STAT         = STAT_CALL)        
+            call GetData(Me%ReferentialZ,                                               &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='REFERENTIAL_Z',                                 &
+                         Default      = Hydrographic_,                                  &
+                         ClientModule ='ModuleDischarges',                              &
+                         STAT         = STAT_CALL)
 
-            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR42'
-            
+            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR60'
+
             if (Me%ReferentialZ /= Hydrographic_ .and. Me%ReferentialZ /=  Topographic_) then
-                stop 'Construct_Discharges - ModuleDischarges - ERR44'
+                stop 'Construct_Discharges - ModuleDischarges - ERR70'
             endif
 
 
-            ! Constructs the discharge list 
+            call GetData(Me%SlowStart,                                                  &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         keyword        = 'SLOW_START',                                 &
+                         default        = null_real,                                    &
+                         SearchType     = FromFile,                                     &
+                         ClientModule   ='ModuleDischarges',                            &
+                         STAT           = STAT_CALL)
+
+            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR80'
+
+            if (Me%SlowStart > Me%EndTime - Me%BeginTime) then
+                stop 'Construct_Discharges - ModuleDischarges - ERR90'
+            endif
+
+
+            ! Constructs the discharge list
             call Construct_DischargeList
 
             call ConstructIntakeDischarges
@@ -450,15 +476,15 @@ cd1 :       if      ( STAT_CALL .EQ. FILE_NOT_FOUND_ERR_) then
             call ConstructLog
 
             call KillEnterData  (Me%ObjEnterData, STAT = STAT_CALL)
-            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR50'
+            if (STAT_CALL  /= SUCCESS_) stop 'Construct_Discharges - ModuleDischarges - ERR100'
 
             !Returns ID
             DischargesID    = Me%InstanceID
 
             STAT_ = SUCCESS_
-        else 
+        else
 
-            stop 'ModuleDischarges - Construct_Discharges - ERR60' 
+            stop 'ModuleDischarges - Construct_Discharges - ERR60'
 
         end if cd0
 
@@ -502,10 +528,10 @@ cd1 :       if      ( STAT_CALL .EQ. FILE_NOT_FOUND_ERR_) then
 
         Me%InstanceID = RegisterNewInstance (mDISCHARGES_)
 
-        ! Initialize the  discharges number   
+        ! Initialize the  discharges number
         Me%DischargesNumber = 0
 
-        ! Initialize the water discharges list   
+        ! Initialize the water discharges list
         nullify (Me%FirstDischarge)
         nullify (Me%LastDischarge)
 
@@ -518,13 +544,13 @@ cd1 :       if      ( STAT_CALL .EQ. FILE_NOT_FOUND_ERR_) then
         !Arguments-------------------------------------------------------------
 
         !External--------------------------------------------------------------
-                                  
+
         integer :: STAT_CALL
-        integer :: IDnumber 
+        integer :: IDnumber
         integer :: ClientNumber
 
         logical :: BlockFound
-                                  
+
         !Local-----------------------------------------------------------------
 
         type (T_IndividualDischarge), pointer :: NewDischarge
@@ -538,20 +564,20 @@ do1 :   do
                                         block_begin, block_end, BlockFound,       &
                                         STAT = STAT_CALL)
 
-cd1 :       if      (STAT_CALL .EQ. SUCCESS_      ) then    
-cd2 :           if (BlockFound) then                                  
-                
+cd1 :       if      (STAT_CALL .EQ. SUCCESS_      ) then
+cd2 :           if (BlockFound) then
+
                     ! Increments the number of Discharges
                     IDnumber = IDnumber + 1
-                    ! Construct a New Property 
+                    ! Construct a New Property
                     Call Construct_Discharge(NewDischarge, IDnumber, ClientNumber)
-                                             
 
-                    ! Add new Property to the discharge List 
+
+                    ! Add new Property to the discharge List
                     Call Add_Discharge(NewDischarge)
 
                 else
-                    call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+                    call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
 
                     if (STAT_CALL .NE. SUCCESS_)                               &
                         stop 'Subroutine Construct_DischargeList - ModuleDischarges. ERR01.'
@@ -571,15 +597,15 @@ cd2 :           if (BlockFound) then
     !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
-    !This subroutine reads all the information needed to construct a new property.           
+    !This subroutine reads all the information needed to construct a new property.
 
     subroutine Construct_Discharge(NewDischarge, IDnumber, ClientNumber)
 
         !Arguments--------------------------------------------------------------
         type(T_IndividualDischarge), pointer        :: NewDischarge
         integer, intent(IN)                         :: ClientNumber
-        integer, intent(IN)                         :: IDnumber 
-         
+        integer, intent(IN)                         :: IDnumber
+
         !----------------------------------------------------------------------
 
 
@@ -621,12 +647,12 @@ cd2 :           if (BlockFound) then
 
 
     !--------------------------------------------------------------------------
-    ! This subroutine adds a new discharge to the discharge List  
+    ! This subroutine adds a new discharge to the discharge List
 
     subroutine Add_Discharge(NewDischarge)
 
         !Arguments--------------------------------------------------------------
-                
+
         type(T_IndividualDischarge), pointer :: NewDischarge
 
         !----------------------------------------------------------------------
@@ -641,21 +667,21 @@ cd2 :           if (BlockFound) then
             Me%LastDischarge%Next => NewDischarge
             Me%LastDischarge      => NewDischarge
             Me%DischargesNumber   = Me%DischargesNumber + 1
-        end if 
+        end if
 
         !----------------------------------------------------------------------
 
-    end subroutine Add_Discharge 
+    end subroutine Add_Discharge
 
     !--------------------------------------------------------------------------
 
 
 
     !--------------------------------------------------------------------------
-    !This subroutine reads all the information needed to construct the property ID          
+    !This subroutine reads all the information needed to construct the property ID
 
     subroutine Construct_Discharge_ID(NewDischarge,IDNumber)
-        
+
         !Arguments--------------------------------------------------------------
         type(T_IndividualDischarge), pointer    :: NewDischarge
         integer,                     intent(IN) :: IDnumber
@@ -667,15 +693,15 @@ cd2 :           if (BlockFound) then
         integer :: flag
 
         !----------------------------------------------------------------------
-     
+
 
 
         ! The property ID number is incremented when a new discharge is created
-        NewDischarge%ID%IDnumber = IDnumber 
+        NewDischarge%ID%IDnumber = IDnumber
 
 
         ! Property name and is units don't have a default value. The program stops when a
-        ! is not sepecified the property name and untis 
+        ! is not sepecified the property name and untis
         call GetData(NewDischarge%ID%name,                                              &
                      Me%ObjEnterData,                                                   &
                      flag,                                                              &
@@ -687,7 +713,7 @@ cd2 :           if (BlockFound) then
 
 
         ! The property description is a character*132 where the user can
-        ! store information about the property, example: 
+        ! store information about the property, example:
         ! spring climatologic temperature field for the North Atlantic
         call GetData(NewDischarge%ID%Description,                                       &
                      Me%ObjEnterData,                                                   &
@@ -709,18 +735,18 @@ cd2 :           if (BlockFound) then
     !--------------------------------------------------------------------------
 
     Subroutine ConstDischargeLoc (NewDischarge)
-        
+
         !Arguments--------------------------------------------------------------
         type(T_IndividualDischarge), pointer        :: NewDischarge
 
         !External--------------------------------------------------------------
         integer                                     :: STAT_CALL
-        
+
         !Local-----------------------------------------------------------------
         integer                                     :: flag
         logical                                     :: AuxLog
         character(LEN = StringLength)               :: RootPath, DischargeName, AuxName
-        
+
         !----------------------------------------------------------------------
         !X Location
         call GetData(NewDischarge%Localization%CoordinateX,                         &
@@ -758,7 +784,7 @@ i3:     if (NewDischarge%Localization%CoordinatesON) then
                 stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR130.'
 
         endif i3
-        
+
 i4:     if (.not. NewDischarge%Localization%CoordinatesON) then
             !I Location
             call GetData(NewDischarge%Localization%GridCoordinates%I,                       &
@@ -792,7 +818,7 @@ i8:         if (NewDischarge%Localization%Location2D) then
                     stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR20.'
                 if (flag==0)                                                                &
                     stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR30.'
-        
+
             endif i8
 
         endif i4
@@ -824,17 +850,17 @@ i1:     if (NewDischarge%Localization%Location2D) then
 
             if (AuxLog) NewDischarge%Localization%DischVertical = DischUniform_
 
-            !Alway read a default layer 
+            !Alway read a default layer
             call GetData(NewDischarge%Localization%GridCoordinates%K,                   &
                          Me%ObjEnterData,                                               &
                          flag,                                                          &
                          FromBlock,                                                     &
                          keyword      ='K_CELL',                                        &
                          ClientModule = 'ModuleDischarges',                             &
-                         STAT         = STAT_CALL)                                      
+                         STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                &
                 stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR60.'
-            
+
             if (NewDischarge%Localization%DischVertical .eq. DischLayer_ .and. flag .eq. 0)then
                 write(*,*)"You must define the K_CELL in the discharge: "//trim(NewDischarge%ID%Name)
                 stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR61.'
@@ -843,7 +869,7 @@ i1:     if (NewDischarge%Localization%Location2D) then
             select case (NewDischarge%Localization%DischVertical)
 
                 case (DischLayer_)
-                    !do not do nothing                 
+                    !do not do nothing
                 case (DischDepth_)
 
                     call GetData(NewDischarge%Localization%Kdepth,                      &
@@ -883,7 +909,7 @@ i1:     if (NewDischarge%Localization%Location2D) then
                         stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR76.'
 
                 case (DischBottom_, DischSurf_)
-                    !do not do nothing 
+                    !do not do nothing
                 case default
                     write(*,*) "VERTICAL DISCHARGE option not known ", NewDischarge%Localization%DischVertical
 
@@ -933,8 +959,8 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
                     stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR110'
-                                    
-                
+
+
                 call GetData(NewDischarge%Localization%TrackLocation,                   &
                              Me%ObjEnterData,                                           &
                              flag,                                                      &
@@ -945,9 +971,9 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                              STAT         = STAT_CALL)
                 if (STAT_CALL .NE. SUCCESS_)                                            &
                     stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR120'
-                
+
                 if (NewDischarge%Localization%TrackLocation) then
-                    
+
                     !Gets the root path from the file nomfich.dat
                     call ReadFileName("ROOT_SRT", RootPath, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) then
@@ -959,17 +985,17 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                         endif
                     endif
 
-                    !Construct name for the file                    
+                    !Construct name for the file
                     DischargeName = "location"//"_"//trim(NewDischarge%ID%name)
 
                     NewDischarge%Localization%TrackLocationFile =   trim(adjustl(RootPath      ))// &
                                                                     trim(adjustl(DischargeName ))// &
-                                                                    ".txt"  
-                    
+                                                                    ".txt"
+
                     !Opens the file
                     call UnitsManager(NewDischarge%Localization%TrackLocationFileUnitNumber,        &
                                         OPEN_FILE, STAT = STAT_CALL)
-                    
+
                     open(UNIT   = NewDischarge%Localization%TrackLocationFileUnitNumber,            &
                          FILE   = NewDischarge%Localization%TrackLocationFile, STATUS  = "UNKNOWN", &
                          IOSTAT  = STAT_CALL)
@@ -982,7 +1008,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
 
                 endif
 
-            endif i2   
+            endif i2
 
             call GetData(AuxName,                                                       &
                      Me%ObjEnterData,                                                   &
@@ -1004,7 +1030,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                 case ("Polygon")
                     NewDischarge%Localization%SpatialEmission = DischPolygon_
                 case ("XYZPoints")
-                    NewDischarge%Localization%SpatialEmission = DischXYZPoints_                    
+                    NewDischarge%Localization%SpatialEmission = DischXYZPoints_
                 case default
                     write(*,*) "SPATIAL EMISSION option not known ",trim(AuxName)," ????"
                     write(*,*) "The known options are : ","Point ", "Line ", "Polygon"
@@ -1077,7 +1103,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstDischargeLoc - ModuleDischarges - ERR210'
-            
+
             !MOHID Land Reservoirs Discharge
             if (flag == 0) then
                call GetData(NewDischarge%Localization%ReservoirID,                          &
@@ -1087,8 +1113,8 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                              keyword      ='RESERVOIR_ID',                                  &
                              ClientModule = 'ModuleDischarges',                             &
                              STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstDischargeLoc - ModuleDischarges - ERR220'        
-                
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstDischargeLoc - ModuleDischarges - ERR220'
+
                 !is an imposed outflow? to distinguish from other discharge types (abstraction and input)
                call GetData(NewDischarge%IsReservoirOutflow,                                &
                              Me%ObjEnterData,                                               &
@@ -1097,9 +1123,9 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                              keyword      ='IS_OUTFLOW',                                    &
                              ClientModule = 'ModuleDischarges',                             &
                              STAT         = STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ConstDischargeLoc - ModuleDischarges - ERR230'                      
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstDischargeLoc - ModuleDischarges - ERR230'
             endif
-            
+
         endif   i1
 
 
@@ -1122,7 +1148,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
         !----------------------------------------------------------------------
 
 
-        !Looks for a definition of the data base file. If there is one, this module assumes 
+        !Looks for a definition of the data base file. If there is one, this module assumes
         !that the discharge is time variable
         call GetData(NewDischarge%DataBaseFile,                                         &
                      Me%ObjEnterData,                                                   &
@@ -1135,7 +1161,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
 
         if (flag == 1) then
             NewDischarge%TimeSerieON = .true.
-        else 
+        else
             NewDischarge%TimeSerieON = .false.
         endif
 
@@ -1145,7 +1171,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
             call StartTimeSerieInput(NewDischarge%TimeSerie, NewDischarge%DataBaseFile, &
                                      Me%ObjTime, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Read_DataBaseFile - ModuleDischarges - ERR20'
-            
+
             call GetData(NewDischarge%UseOriginalValues,                                &
                          Me%ObjEnterData,                                               &
                          flag,                                                          &
@@ -1155,24 +1181,24 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Read_DataBaseFile - ModuleDischarges - ERR30'
-            
+
             call GetTimeSerieDataColumns (TimeSerieID = NewDischarge%TimeSerie,         &
                                           DataColumns = NewDischarge%TimeSerieMaxCol,   &
-                                          STAT        = STAT_CALL) 
+                                          STAT        = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Read_DataBaseFile - ModuleDischarges - ERR40'
 
-        end if 
-        
+        end if
+
 
         !----------------------------------------------------------------------
 
-    end subroutine Read_DataBaseFile 
+    end subroutine Read_DataBaseFile
 
     !--------------------------------------------------------------------------
 
 
     !--------------------------------------------------------------------------
-    
+
     subroutine Construct_FlowValues(NewDischarge, ClientNumber)
 
         !Arguments--------------------------------------------------------------
@@ -1187,8 +1213,8 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
         logical                                     :: BlockLayersFound
         integer                                     :: FirstLine, LastLine
         integer                                     :: iValue, iLine
-        
-        
+
+
         !----------------------------------------------------------------------
 
 
@@ -1219,25 +1245,25 @@ i1:     if (NewDischarge%TimeSerieON) then
             if (flag == 1) then
 
                 NewDischarge%WaterFlow%Variable = .true.
-                
+
                 if (NewDischarge%WaterFlow%FlowColumn > NewDischarge%TimeSerieMaxCol .or.   &
                     NewDischarge%WaterFlow%FlowColumn < 2) then
-                    
+
                     write(*,*)'Look at file', trim(Me%DataFile)
                     write(*,*)'FLOW_COLUMN not valid in discharge ', trim(NewDischarge%ID%Name)
                     stop 'Construct_FlowValues - ModuleDischarges - ERR20'
-                    
+
                 endif
-                
+
             else
                 write(*,*)
                 write(*,*)'Look at file                        : ', trim(Me%DataFile)
                 write(*,*)'FLOW_COLUMN not found in discharge  : ', trim(NewDischarge%ID%Name)
                 write(*,*)'Discharge flow will be assumed constant'
                 write(*,*)
-                NewDischarge%WaterFlow%Variable = .false.            
+                NewDischarge%WaterFlow%Variable = .false.
             endif
-            
+
         endif i1
 
 
@@ -1255,11 +1281,11 @@ i1:     if (NewDischarge%TimeSerieON) then
         if      (NewDischarge%DischargeType /= Normal       .and.                       &
                  NewDischarge%DischargeType /= FlowOver     .and.                       &
                  NewDischarge%DischargeType /= Valve        .and.                       &
-                 NewDischarge%DischargeType /= OpenMILink   .and.                       & 
+                 NewDischarge%DischargeType /= OpenMILink   .and.                       &
                  NewDischarge%DischargeType /= RatingCurve)   then
                  stop 'Construct_FlowValues - ModuleDischarges - ERR40'
         endif
-        
+
 i2:     if (NewDischarge%DischargeType == FlowOver) then
 
             call GetData(NewDischarge%FlowOver%WeirLength,                              &
@@ -1283,7 +1309,7 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                          ClientModule = 'ModuleDischarges',                             &
                          default      = 0.4,                                            &
                         STAT         = STAT_CALL)
-            
+
             if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR70'
 
             call GetData(NewDischarge%FlowOver%CrestHeigth,                             &
@@ -1294,18 +1320,18 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR80'
-            
+
             if (flag /= 1) then
                 write(*,*) 'Crest Height Missing'
                 stop ' Construct_FlowValues - ModuleDischarges - ERR90'
             endif
-            
+
             if (Me%ReferentialZ == Hydrographic_) then
                 NewDischarge%FlowOver%CrestHeigth =  - NewDischarge%FlowOver%CrestHeigth
-            endif                
-            
+            endif
+
         else if (NewDischarge%DischargeType == Valve) then i2
-        
+
 
             call GetData(NewDischarge%Valve%SectionType,                                &
                          Me%ObjEnterData,                                               &
@@ -1316,7 +1342,7 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR100'
-            
+
             if      (NewDischarge%Valve%SectionType == circular_area) then
 
                 call GetData(NewDischarge%Valve%Diameter,                                   &
@@ -1327,14 +1353,14 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                              ClientModule = 'ModuleDischarges',                             &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR102'
-                
+
                 if (flag /= 1) then
                     write(*,*) 'Valve diameter missing - circular section'
                     stop ' Construct_FlowValues - ModuleDischarges - ERR104'
                 endif
-                
+
             elseif  (NewDischarge%Valve%SectionType == rectangular_area) then
-            
+
 
                 call GetData(NewDischarge%Valve%Height,                                     &
                              Me%ObjEnterData,                                               &
@@ -1344,12 +1370,12 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                              ClientModule = 'ModuleDischarges',                             &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR106'
-                
+
                 if (flag /= 1) then
                     write(*,*) 'Valve height missing - rectangular section'
                     stop ' Construct_FlowValues - ModuleDischarges - ERR107'
                 endif
-                
+
                 call GetData(NewDischarge%Valve%Width,                                  &
                              Me%ObjEnterData,                                           &
                              flag,                                                      &
@@ -1358,16 +1384,16 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                              ClientModule = 'ModuleDischarges',                         &
                              STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR108'
-                
+
                 if (flag /= 1) then
                     write(*,*) 'Valve width missing - rectangular section'
                     stop ' Construct_FlowValues - ModuleDischarges - ERR109'
                 endif
-                                
+
             else
-            
+
                 stop ' Construct_FlowValues - ModuleDischarges - ERR110'
-            
+
             endif
 
             call GetData(NewDischarge%Valve%DischargeCoeficient,                        &
@@ -1391,8 +1417,8 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
 
             if (Me%ReferentialZ == Hydrographic_) then
                 NewDischarge%Valve%SillHeigth =  - NewDischarge%Valve%SillHeigth
-            endif                
-            
+            endif
+
 
             if (flag /= 1) then
 
@@ -1407,25 +1433,25 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
 
                 if (Me%ReferentialZ == Hydrographic_) then
                     NewDischarge%Valve%AxisHeigth =  - NewDischarge%Valve%AxisHeigth
-                endif  
-                
+                endif
+
                 if      (NewDischarge%Valve%SectionType == circular_area    ) then
-                
+
                     NewDischarge%Valve%SillHeigth  = NewDischarge%Valve%AxisHeigth - NewDischarge%Valve%Diameter / 2.
-                    
+
                 elseif  (NewDischarge%Valve%SectionType == rectangular_area ) then
-                
+
                     NewDischarge%Valve%SillHeigth  = NewDischarge%Valve%AxisHeigth - NewDischarge%Valve%Height / 2.
-                
-                endif                    
-            
+
+                endif
+
                 if (flag /= 1) then
                     write(*,*) 'Valve axis Missing'
                     stop ' Construct_FlowValues - ModuleDischarges - ERR138'
                 endif
-                                    
+
             endif
-            
+
             call GetData(NewDischarge%Valve%PipeLength,                                 &
                          Me%ObjEnterData,                                               &
                          flag,                                                          &
@@ -1436,7 +1462,7 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR136'
 
-            !manning coefficient 
+            !manning coefficient
             call GetData(NewDischarge%Valve%PipeManning,                                &
                          Me%ObjEnterData,                                               &
                          flag,                                                          &
@@ -1444,15 +1470,15 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
                          keyword      ='PIPE_MANNING',                                  &
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR137'      
-            
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR137'
+
             if (NewDischarge%Valve%PipeLength > 0. .and. flag == 0) then
                 write(*,*) 'need to define PIPE_MANNING'
                 stop 'Construct_FlowValues - ModuleDischarges - ERR138'
-            endif     
+            endif
 
         else if (NewDischarge%DischargeType == RatingCurve) then i2
-            
+
             !Get Block with rating curves values
             call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                   &
                             beginratingcurve, endratingcurve,                           &
@@ -1463,40 +1489,40 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
 
 cd1 :       if (STAT_CALL .EQ. SUCCESS_  .and. BlockLayersFound) then
 
-    
+
                     allocate(NewDischarge%RatingCurve%Level(LastLine - FirstLine -1))
                     allocate(NewDischarge%RatingCurve%Flow(LastLine - FirstLine -1))
                     NewDischarge%RatingCurve%nValues = LastLine - FirstLine -1
                     allocate(BufferLine(2))
-                    
-                    iValue = 1;                   
+
+                    iValue = 1;
                     do  iLine = FirstLine+1, LastLine-1
 
                         call GetData(BufferLine,                                            &
                                      Me%ObjEnterData,                                       &
                                      flag,                                                  &
                                      Buffer_Line = iLine,                                   &
-                                     STAT = STAT_CALL) 
+                                     STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_ .or. flag /= 2)             &
                             stop "Read Rating Curve Values - ModuleDischarges - ERR139"
 
                         NewDischarge%RatingCurve%Level(iValue) = BufferLine (1)
                         NewDischarge%RatingCurve%Flow(iValue) = BufferLine (2)
-                    
+
                         iValue = iValue + 1
-                        
+
                     enddo
 
                     deallocate (BufferLine)
-                    
-            else 
+
+            else
 
                 stop "Read Rating Curve Values - ModuleDischarges - ERR140"
 
-            endif cd1            
-            
-            
-            
+            endif cd1
+
+
+
         endif i2
 
         call GetData(NewDischarge%ByPass%ON,                                            &
@@ -1508,10 +1534,10 @@ cd1 :       if (STAT_CALL .EQ. SUCCESS_  .and. BlockLayersFound) then
                      ClientModule = 'ModuleDischarges',                                 &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR140'
-        
+
         if (NewDischarge%DischargeType == Valve .and. .not. NewDischarge%ByPass%ON) then
             write(*,*) 'In the case of a type "valve" discharge the discharge must also be "bypass"'
-            stop 'Construct_FlowValues - ModuleDischarges - ERR145'                    
+            stop 'Construct_FlowValues - ModuleDischarges - ERR145'
         endif
 
 i3:     if (NewDischarge%ByPass%ON) then
@@ -1548,7 +1574,7 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
 
 
             else i4
-            
+
                 call GetData(NewDischarge%ByPass%i,                                     &
                              Me%ObjEnterData,                                           &
                              flag,                                                      &
@@ -1578,8 +1604,8 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                 endif
 
             endif i4
-            
-            
+
+
             call GetData(NewDischarge%ByPass%k,                                         &
                          Me%ObjEnterData,                                               &
                          flag,                                                          &
@@ -1623,7 +1649,7 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR260'
 
-        endif i3         
+        endif i3
 
         call GetData(NewDischarge%FromIntake%ON,                                        &
                      Me%ObjEnterData, flag,                                             &
@@ -1675,17 +1701,17 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
 
                     write(*,*)"Discharge flow percentage of the water intake cannot be negative"
                     write(*,*)"Discharge name ", trim(adjustl(NewDischarge%ID%Name))
-                
+
                 end if
 
             end if
 
         end if
-        
+
         if (NewDischarge%DischargeType == OpenMILink) then
-        
+
             NewDischarge%WaterFlow%Variable = .true.
-        
+
         endif
         !Joao Sobrinho
         call GetData(NewDischarge%WaterFlow%Upscaling,                         &
@@ -1697,10 +1723,10 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                 default      = .false.,                                        &
                 STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR320'
-        
 
 
-     End Subroutine Construct_FlowValues  
+
+     End Subroutine Construct_FlowValues
 
     !--------------------------------------------------------------------------
 
@@ -1725,26 +1751,26 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                          SearchType = FromBlock,                                         &
                          ClientModule = 'ModuleDischarges',                              &
                          STAT       = STAT_CALL)
-                         
+
             if (STAT_CALL /= SUCCESS_) stop 'Construct_VariableLocation - ModuleDischarges - ERR10'
 
             if (flag == 1) then
 
-                NewDischarge%Localization%VariableX = .true. 
-                
+                NewDischarge%Localization%VariableX = .true.
+
                 if (NewDischarge%Localization%XColumn > NewDischarge%TimeSerieMaxCol .or.   &
                     NewDischarge%Localization%XColumn < 2) then
-                    
+
                     write(*,*)'Look at file', trim(Me%DataFile)
                     write(*,*)'X_COLUMN not valid in discharge ', trim(NewDischarge%ID%Name)
                     stop 'Construct_VariableLocation - ModuleDischarges - ERR20'
-                    
+
                 endif
-                           
+
             else
-                NewDischarge%Localization%VariableX = .false.            
+                NewDischarge%Localization%VariableX = .false.
             endif
-            
+
             !Searches for the Y location column (if the discharge as associated an input time serie)
             call GetData(NewDischarge%Localization%YColumn,                              &
                          Me%ObjEnterData, flag,                                          &
@@ -1753,26 +1779,26 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                          SearchType = FromBlock,                                         &
                          ClientModule = 'ModuleDischarges',                              &
                          STAT       = STAT_CALL)
-                         
+
             if (STAT_CALL /= SUCCESS_) stop 'Construct_VariableLocation - ModuleDischarges - ERR30'
 
             if (flag == 1) then
 
-                NewDischarge%Localization%VariableY = .true.            
-                
+                NewDischarge%Localization%VariableY = .true.
+
                 if (NewDischarge%Localization%YColumn > NewDischarge%TimeSerieMaxCol .or.   &
                     NewDischarge%Localization%YColumn < 2) then
-                    
+
                     write(*,*)'Look at file', trim(Me%DataFile)
                     write(*,*)'Y_COLUMN not valid in discharge ', trim(NewDischarge%ID%Name)
                     stop 'Construct_VariableLocation - ModuleDischarges - ERR40'
-                    
+
                 endif
-                
+
             else
-                NewDischarge%Localization%VariableY = .false.            
+                NewDischarge%Localization%VariableY = .false.
             endif
-            
+
         endif
 
         !----------------------------------------------------------------------
@@ -1790,7 +1816,7 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
         !External-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: flag
-        real, dimension(:), pointer                 :: Aux 
+        real, dimension(:), pointer                 :: Aux
 
         !----------------------------------------------------------------------
 
@@ -1803,10 +1829,10 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                      SearchType = FromBlock,                                             &
                      ClientModule = 'ModuleDischarges',                                  &
                      STAT       = STAT_CALL)
-                     
-        if   (flag /= 0 .and. flag /=2 .and. flag /=3 ) then    
+
+        if   (flag /= 0 .and. flag /=2 .and. flag /=3 ) then
             stop 'Construct_VelocityValues - ModuleDischarges - ERR10'
-        endif                 
+        endif
 
         NewDischarge%VelocityFlow%UScalar = Aux(1)
         NewDischarge%VelocityFlow%VScalar = Aux(2)
@@ -1826,26 +1852,26 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                          SearchType     = FromBlock,                                    &
                          ClientModule   = 'ModuleDischarges',                           &
                          STAT           = STAT_CALL)
-                         
+
             if (STAT_CALL /= SUCCESS_) then
                 stop 'Construct_VelocityValues - ModuleDischarges - ERR20'
-            endif                
+            endif
 
             if (flag == 1) then
 
-                NewDischarge%VelocityFlow%UVariable = .true.            
-                
+                NewDischarge%VelocityFlow%UVariable = .true.
+
                 if (NewDischarge%VelocityFlow%UColumn > NewDischarge%TimeSerieMaxCol .or. &
                     NewDischarge%VelocityFlow%UColumn < 2) then
-                    
+
                     write(*,*)'Look at file', trim(Me%DataFile)
                     write(*,*)'U_COLUMN not valid in discharge ', trim(NewDischarge%ID%Name)
                     stop 'Construct_VelocityValues - ModuleDischarges - ERR30'
-                    
-                endif                
-                
+
+                endif
+
             else
-                NewDischarge%VelocityFlow%UVariable = .false.            
+                NewDischarge%VelocityFlow%UVariable = .false.
             endif
 
             call GetData(NewDischarge%VelocityFlow%VColumn,                              &
@@ -1855,23 +1881,23 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                          SearchType = FromBlock,                                         &
                          ClientModule = 'ModuleDischarges',                              &
                          STAT       = STAT_CALL)
-                         
+
             if (STAT_CALL /= SUCCESS_) then
                 stop 'Construct_VelocityValues - ModuleDischarges - ERR40'
-            endif                              
+            endif
 
             if (flag == 1) then
                 NewDischarge%VelocityFlow%VVariable = .true.
-                
+
                 if (NewDischarge%VelocityFlow%VColumn > NewDischarge%TimeSerieMaxCol .or. &
                     NewDischarge%VelocityFlow%VColumn < 2) then
-                    
+
                     write(*,*)'Look at file', trim(Me%DataFile)
                     write(*,*)'V_COLUMN not valid in discharge ', trim(NewDischarge%ID%Name)
                     stop 'Construct_VelocityValues - ModuleDischarges - ERR50'
-                    
-                endif                
-                
+
+                endif
+
             else
                 NewDischarge%VelocityFlow%VVariable = .false.
             endif
@@ -1883,28 +1909,28 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
                          SearchType = FromBlock,                                         &
                          ClientModule = 'ModuleDischarges',                              &
                          STAT       = STAT_CALL)
-                         
+
             if (STAT_CALL /= SUCCESS_) then
                 stop 'Construct_VelocityValues - ModuleDischarges - ERR60'
-            endif                           
+            endif
 
             if (flag == 1) then
                 NewDischarge%VelocityFlow%WVariable = .true.
-                
+
                 if (NewDischarge%VelocityFlow%WColumn > NewDischarge%TimeSerieMaxCol .or. &
                     NewDischarge%VelocityFlow%WColumn < 2) then
-                    
+
                     write(*,*)'Look at file', trim(Me%DataFile)
                     write(*,*)'W_COLUMN not valid in discharge ', trim(NewDischarge%ID%Name)
                     stop 'Construct_VelocityValues - ModuleDischarges - ERR70'
-                    
-                endif                          
+
+                endif
             else
                 NewDischarge%VelocityFlow%WVariable = .false.
             endif
 
         endif
-        
+
         !----------------------------------------------------------------------
 
     end subroutine Construct_VelocityValues
@@ -1931,12 +1957,12 @@ do1 :   do
                                        beginproperty, endproperty, BlockFound,   &
                                        STAT = STAT_CALL)
 
-cd1 :       if      (STAT_CALL .EQ. SUCCESS_      ) then    
-cd2 :           if (BlockFound) then                                                  
-                    ! Construct a New Property 
+cd1 :       if      (STAT_CALL .EQ. SUCCESS_      ) then
+cd2 :           if (BlockFound) then
+                    ! Construct a New Property
                     call Construct_Property(NewDischarge,NewProperty)
 
-                    ! Add new Property to the WaterProperties List 
+                    ! Add new Property to the WaterProperties List
                     call Add_Property(NewDischarge,NewProperty)
                 else
                     exit do1    !No more blocks
@@ -1955,7 +1981,7 @@ cd2 :           if (BlockFound) then
 
 
     !--------------------------------------------------------------------------
-    !This subroutine reads all the information needed to construct a new property.           
+    !This subroutine reads all the information needed to construct a new property.
 
     subroutine Construct_Property(NewDischarge,NewProperty)
 
@@ -1981,8 +2007,8 @@ cd2 :           if (BlockFound) then
     end subroutine Construct_Property
 
     !--------------------------------------------------------------------------
-    !This subroutine reads all the information needed to construct the property values       
-    ! in the domain and in the boundaries            
+    !This subroutine reads all the information needed to construct the property values
+    ! in the domain and in the boundaries
 
     subroutine Construct_PropertyValues(NewDischarge,NewProperty)
 
@@ -1995,7 +2021,7 @@ cd2 :           if (BlockFound) then
         integer                                     :: flag, STAT_CALL
 
         !----------------------------------------------------------------------
-   
+
         call GetData(NewProperty%ConcColumn,                                            &
                      Me%ObjEnterData,                                                   &
                      flag,                                                              &
@@ -2006,7 +2032,7 @@ cd2 :           if (BlockFound) then
         if (flag == 1) then
 
             NewProperty%Variable = .true.
-            
+
         else
             NewProperty%Variable = .false.
         endif
@@ -2031,22 +2057,22 @@ ifvar:  if (NewProperty%Variable) then
                 call StartTimeSerieInput(NewProperty%TimeSerie, FileName,  Me%ObjTime, STAT = STAT_CALL)
 
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleDischarges - ERR10'
-                
+
                 call GetTimeSerieDataColumns (TimeSerieID = NewProperty%TimeSerie,      &
                                               DataColumns = NewProperty%TimeSerieMaxCol,&
-                                              STAT        = STAT_CALL) 
+                                              STAT        = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleDischarges - ERR20'
-                
+
                 if (NewProperty%ConcColumn > NewProperty%TimeSerieMaxCol .or.               &
                     NewProperty%ConcColumn < 2) then
-                    
+
                     write(*,*)'Look at file', trim(Me%DataFile)
                     write(*,*)'TIME_SERIE_COLUMN not valid in dicharge ', trim(NewDischarge%ID%Name)
                     write(*,*) 'Property name =',trim(NewProperty%ID%Name)
                     stop 'Construct_PropertyValues - ModuleDischarges - ERR30'
-                    
-                endif                     
-                
+
+                endif
+
 
             else
                 if (NewDischarge%TimeSerieON) then
@@ -2072,7 +2098,7 @@ ifvar:  if (NewProperty%Variable) then
         if(NewProperty%FromIntake)then
 
             if(.not. NewDischarge%FromIntake%ON)then
-                
+
                 write(*,*)"Property concentration cannot be determined from intake"
                 write(*,*)"because discharge is not based on intake"
                 write(*,*)"Property  : ", trim(adjustl(NewProperty%ID%Name))
@@ -2080,10 +2106,10 @@ ifvar:  if (NewProperty%Variable) then
                 stop      'Construct_PropertyValues - ModuleDischarges - ERR60'
 
             end if
-            
+
 
         endif
-        
+
         if (NewProperty%FromIntake .or. NewDischarge%ByPass%ON) then
 
             call GetData(NewProperty%IncreaseValue,                                     &
@@ -2094,7 +2120,7 @@ ifvar:  if (NewProperty%Variable) then
                          ClientModule = 'ModuleDischarges',                             &
                          STAT         = STAT_CALL)
             if(STAT_CALL /= SUCCESS_) stop 'Construct_PropertyValues - ModuleDischarges - ERR70'
-            
+
             if(flag .eq. 0 .and. NewProperty%FromIntake)then
 
                 write(*,*)"Discharge from intake property. Please define INCREASE_VALUE for :"
@@ -2102,7 +2128,7 @@ ifvar:  if (NewProperty%Variable) then
                 write(*,*)"Discharge name : ", trim(NewDischarge%ID%Name)
                 stop 'Construct_PropertyValues - ModuleDischarges -  ERR80'
 
-            end if 
+            end if
 
         end if
 
@@ -2114,7 +2140,7 @@ ifvar:  if (NewProperty%Variable) then
                      keyword      ='DEFAULTVALUE',                                      &
                      ClientModule ='ModuleDischarges',                                  &
                      default      = 0.0)
-                     
+
         if((.not. NewProperty%Variable) .and. (.not. NewProperty%FromIntake) .and. (flag .eq. 0))then
 
             write(*,*)"Please define concentration default value for property :"
@@ -2132,12 +2158,12 @@ ifvar:  if (NewProperty%Variable) then
 
 
     !--------------------------------------------------------------------------
-    ! This subroutine adds a new property to the Water Property List  
+    ! This subroutine adds a new property to the Water Property List
 
     subroutine Add_Property(NewDischarge,NewProperty)
 
-        !Arguments 
-          
+        !Arguments
+
         type(T_IndividualDischarge), pointer    :: NewDischarge
         type(T_property),            pointer    :: NewProperty
 
@@ -2155,11 +2181,11 @@ ifvar:  if (NewProperty%Variable) then
             NewDischarge%LastProperty      => NewProperty
             NewDischarge%PropertiesNumber  = &
                    NewDischarge%PropertiesNumber + 1
-        end if 
+        end if
 
         !----------------------------------------------------------------------
 
-    end subroutine Add_Property 
+    end subroutine Add_Property
 
     !--------------------------------------------------------------------------
 
@@ -2178,18 +2204,18 @@ ifvar:  if (NewProperty%Variable) then
             if(CurrentDischarge%FromIntake%ON)then
 
                 call Search_Discharge_ByName(Intake, STAT_CALL, trim(adjustl(CurrentDischarge%FromIntake%IntakeName)))
-                if (STAT_CALL/=SUCCESS_) then 
+                if (STAT_CALL/=SUCCESS_) then
                     write(*,*)'Can not find discharge with name ', trim(adjustl(CurrentDischarge%FromIntake%IntakeName)), '.'
                     stop      'Subroutine ConstructIntakeDischarges - ModuleDischarges. ERR01.'
                 else
                     CurrentDischarge%FromIntake%IntakeID = Intake%ID%IDNumber
-                    
+
                     !if intake flow is variable, and discharge depends on intake flow
                     !then it must also be variable
                     if(CurrentDischarge%FromIntake%AssociateFlow)then
                         CurrentDischarge%WaterFlow%Variable = Intake%WaterFlow%Variable
                     endif
-                    
+
                 endif
 
             end if
@@ -2231,12 +2257,12 @@ ifvar:  if (NewProperty%Variable) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    !SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR 
+    !SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR SELECTOR
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-                            
+
     !--------------------------------------------------------------------------
 
     Subroutine GetDischargesNumber(DischargesID, DischargesNumber, STAT)
@@ -2247,22 +2273,22 @@ ifvar:  if (NewProperty%Variable) then
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_         
+        integer                                     :: ready_
         integer                                     :: STAT_
- 
+
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-           
+
             DischargesNumber = Me%DischargesNumber
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -2292,12 +2318,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         integer, optional, dimension(:, :, :), pointer  :: OpenPoints3D
         real   , optional, dimension(:, :   ), pointer  :: WaterColumnZ
         real   , optional, dimension(:, :   ), pointer  :: Bathymetry
-        
+
         real,    optional, intent(OUT)                  :: CoordinateX, CoordinateY, Kdepth
-        logical, optional, intent(OUT)                  :: CoordinatesON        
+        logical, optional, intent(OUT)                  :: CoordinatesON
         type (T_Time), optional, intent (IN)            :: TimeX
         real,    optional, intent(OUT)                  :: XByPass, YByPass
-                
+
         integer, optional, intent(OUT)                  :: STAT
 
         !External--------------------------------------------------------------
@@ -2305,22 +2331,22 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         type(T_IndividualDischarge), pointer            :: DischargeX
 
         !Local-----------------------------------------------------------------
-        integer                                         :: ready_         
+        integer                                         :: ready_
         integer                                         :: STAT_
         integer                                         :: WorkSizeILB, WorkSizeIUB
-        integer                                         :: WorkSizeJLB, WorkSizeJUB        
+        integer                                         :: WorkSizeJLB, WorkSizeJUB
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ', DischargeIDNumber, '.'
                 stop       'Subroutine GetDischargesGridLocalization - ModuleDischarges. ERR01.'
             endif
@@ -2330,22 +2356,22 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             !    write(*,*)trim(adjustl(DischargeX%ID%Name))
             !    stop 'GetDischargesGridLocalization - ModuleDischarges - ERR01a'
             !endif
-            
+
             if (DischargeX%Localization%VariableX .and. present(TimeX)) then
                 DischargeX%Localization%CoordinateX  =                                  &
                     TimeSerieValue(DischargeX%TimeSerie, DischargeX%UseOriginalValues,  &
-                                   TimeX, DischargeX%Localization%XColumn)            
+                                   TimeX, DischargeX%Localization%XColumn)
             endif
 
             if (DischargeX%Localization%VariableY .and. present(TimeX)) then
                 DischargeX%Localization%CoordinateY  =                                  &
                     TimeSerieValue(DischargeX%TimeSerie, DischargeX%UseOriginalValues,  &
-                                   TimeX, DischargeX%Localization%YColumn)            
+                                   TimeX, DischargeX%Localization%YColumn)
             endif
 
             if (present(IGrid           )) IGrid              = DischargeX%Localization%GridCoordinates%I
             if (present(JGrid           )) JGrid              = DischargeX%Localization%GridCoordinates%J
-            
+
 
             if (present(CoordinateX     )) CoordinateX        = DischargeX%Localization%CoordinateX
             if (present(CoordinateY     )) CoordinateY        = DischargeX%Localization%CoordinateY
@@ -2363,7 +2389,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             if (present(YByPass         )) YByPass            = DischargeX%ByPass%Y
 
 
-            !If OpenPoints is present an DischargeX have alternative locations, 
+            !If OpenPoints is present an DischargeX have alternative locations,
             !check out which locations to use.
             if (present(WaterColumnZ)) then
 
@@ -2378,26 +2404,26 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
                 if (JGrid < WorkSizeJLB .or. JGrid > WorkSizeJUB)                       &
                     stop  'GetDischargesGridLocalization - ModuleDischarges. ERR03.'
-                
+
                 if (WaterColumnZ(IGrid, JGrid) <                                        &
                     DischargeX%Localization%MinimumDischargeDepth .and.                 &
-                    DischargeX%Localization%AlternativeLocations) then                    
-                                        
-                    
+                    DischargeX%Localization%AlternativeLocations) then
+
+
                     if (.not. DischargeX%Localization%StartFromLastDischargeLocation .or. &
                         DischargeX%Localization%GridCoordinates%OldI == FillValueInt) then
                         call FindDischargePointFromStart (DischargeX, OpenPoints3D, WaterColumnZ, Bathymetry, IGrid, JGrid,  &
                                                             WorkSizeILB, WorkSizeIUB, WorkSizeJLB, WorkSizeJUB  )
                     else
-                        
+
                         call FindDischargePointFromLast  (DischargeX, OpenPoints3D, WaterColumnZ, Bathymetry, IGrid, JGrid,  &
                                                             WorkSizeILB, WorkSizeIUB, WorkSizeJLB, WorkSizeJUB  )
 
                     endif
-                        
+
                     DischargeX%Localization%GridCoordinates%OldI = IGrid
                     DischargeX%Localization%GridCoordinates%OldJ = JGrid
-                                                
+
                     if (DischargeX%Localization%TrackLocation) then
                         !escrever discharge location
                         write (DischargeX%Localization%TrackLocationFileUnitNumber,'(A25, I10, I10, F10.5, F10.5, F10.5)')  &
@@ -2407,9 +2433,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
                 endif
             endif
-        
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -2441,21 +2467,21 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ', DischargeIDNumber, '.'
                 stop       'Subroutine GetDischargesGridLocalization - ModuleDischarges. ERR01.'
             endif
 
             ByPassON = DischargeX%ByPass%ON
-                    
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -2485,21 +2511,21 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ', DischargeIDNumber, '.'
                 stop       'Subroutine GetDischargesGridLocalization - ModuleDischarges. ERR01.'
             endif
 
             DischargeFromIntakeON = DischargeX%FromIntake%ON
-                    
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -2513,18 +2539,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
     !--------------------------------------------------------------------------
 
-    
-    !Starts at the initial discharge point and searches for nearby locations that are open points and 
+
+    !Starts at the initial discharge point and searches for nearby locations that are open points and
     !have a minimum watercolumn
     subroutine FindDischargePointFromStart (DischargeX, OpenPoints3D, WaterColumnZ, Bathymetry, newI, newJ, &
                                             WorkSizeILB, WorkSizeIUB, WorkSizeJLB, WorkSizeJUB)
-        
-        !Arguments-------------------------------------------------------------                
-        integer, optional, intent(OUT)                  :: newI, newJ        
+
+        !Arguments-------------------------------------------------------------
+        integer, optional, intent(OUT)                  :: newI, newJ
         integer, optional, dimension(:, :, :), pointer  :: OpenPoints3D
         real   , optional, dimension(:, :   ), pointer  :: WaterColumnZ
-        real   , optional, dimension(:, :   ), pointer  :: Bathymetry 
-                       
+        real   , optional, dimension(:, :   ), pointer  :: Bathymetry
+
         type(T_IndividualDischarge), pointer            :: DischargeX
 
         integer                                         :: WorkSizeILB, WorkSizeIUB
@@ -2542,19 +2568,19 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         real                                            :: Depth, DepthCurrent
         real                                            :: Bottom, BtomCurrent
         integer                                         :: i,j,k
-        
+
         !----------------------------------------------------------------------
 
         !Allocates temporary Matrix of possible discharge points
         allocate(PossibleDischargePoint(WorkSizeILB:WorkSizeIUB, WorkSizeJLB:WorkSizeJUB))
         PossibleDischargePoint = .true.
-                    
-        !Search the lowest point in the sourring points        
+
+        !Search the lowest point in the sourring points
         NewLocationFound = .false.
         i = DischargeX%Localization%GridCoordinates%I
         j = DischargeX%Localization%GridCoordinates%J
         k = DischargeX%Localization%GridCoordinates%K
-                    
+
         DepthCurrent  = WaterColumnZ(i, j)
         BtomCurrent   = Bathymetry   (i, j)
 
@@ -2562,14 +2588,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
         do while (.not. NewLocationFound)
 
-            MoveDirection = NONE_                    
-                            
-cd1 :       if (OpenPoints3D(i,j,k) == OpenPoint) then 
-                !neste caso compara-se as colunas de agua 
-                                
+            MoveDirection = NONE_
+
+cd1 :       if (OpenPoints3D(i,j,k) == OpenPoint) then
+                !neste caso compara-se as colunas de agua
+
                 !Point in the North
-                if (i < WorkSizeIUB) then                            
-                    Depth = WaterColumnZ(i+1, j)                               
+                if (i < WorkSizeIUB) then
+                    Depth = WaterColumnZ(i+1, j)
                     if (Depth >= DepthCurrent .and. PossibleDischargePoint(i+1, j)) then
                         MoveDirection = NORTH_
                         DepthCurrent  = Depth
@@ -2606,10 +2632,10 @@ cd1 :       if (OpenPoints3D(i,j,k) == OpenPoint) then
 
             else cd1
             !neste caso comparam-se as cotas (os openpoints n ficam todos bem com a minWC)
-                                
+
                 !Point in the North
-                if (i < WorkSizeIUB) then                            
-                    Bottom = Bathymetry(i+1, j)                               
+                if (i < WorkSizeIUB) then
+                    Bottom = Bathymetry(i+1, j)
                     if (Bottom >= BtomCurrent .and. PossibleDischargePoint(i+1, j)) then
                         MoveDirection = NORTH_
                         BtomCurrent   = Bottom
@@ -2645,7 +2671,7 @@ cd1 :       if (OpenPoints3D(i,j,k) == OpenPoint) then
 
             endif cd1
 
-                                            
+
             select case (MoveDirection)
 
                 case (NORTH_)
@@ -2676,27 +2702,27 @@ cd1 :       if (OpenPoints3D(i,j,k) == OpenPoint) then
             if (WaterColumnZ(i, j) > DischargeX%Localization%MinimumDischargeDepth) then
                 NewLocationFound = .true.
                 newI            = i
-                newJ            = j                         
+                newJ            = j
             endif
 
         enddo
-        
+
         !Deallocates temporary matrix
         deallocate(PossibleDischargePoint)
 
     end subroutine FindDischargePointFromStart
 
     !--------------------------------------------------------------------------
-        
+
     subroutine FindDischargePointFromLast (DischargeX, OpenPoints3D, WaterColumnZ, Bathymetry, newI, newJ, &
                                             WorkSizeILB, WorkSizeIUB, WorkSizeJLB, WorkSizeJUB)
-        
-        !Arguments-------------------------------------------------------------                
-        integer, optional, intent(OUT)                  :: newI, newJ        
+
+        !Arguments-------------------------------------------------------------
+        integer, optional, intent(OUT)                  :: newI, newJ
         integer, optional, dimension(:, :, :), pointer  :: OpenPoints3D
         real   , optional, dimension(:, :   ), pointer  :: WaterColumnZ
-        real   , optional, dimension(:, :   ), pointer  :: Bathymetry 
-                       
+        real   , optional, dimension(:, :   ), pointer  :: Bathymetry
+
         type(T_IndividualDischarge), pointer            :: DischargeX
 
         integer                                         :: WorkSizeILB, WorkSizeIUB
@@ -2715,20 +2741,20 @@ cd1 :       if (OpenPoints3D(i,j,k) == OpenPoint) then
         real                                            :: Bottom, BtomCurrent
         real                                            :: MinDischargeDepth
         integer                                         :: i,j,k
-        
+
         !----------------------------------------------------------------------
 
-    
+
         !Allocates temporary Matrix of possible discharge points
         allocate(PossibleDischargePoint(WorkSizeILB:WorkSizeIUB, WorkSizeJLB:WorkSizeJUB))
         PossibleDischargePoint = .true.
-                    
-        !Search the lowest point in the sourring points        
+
+        !Search the lowest point in the sourring points
         NewLocationFound = .false.
         i = DischargeX%Localization%GridCoordinates%OldI
         j = DischargeX%Localization%GridCoordinates%OldJ
         k = DischargeX%Localization%GridCoordinates%K
-                    
+
         DepthCurrent        = WaterColumnZ(i, j)
         MinDischargeDepth   = DischargeX%Localization%MinimumDischargeDepth
 
@@ -2737,13 +2763,13 @@ cd1 :       if (OpenPoints3D(i,j,k) == OpenPoint) then
 
         do while (.not. NewLocationFound)
 
-            MoveDirection = NONE_                    
+            MoveDirection = NONE_
 
-cd1 :       if (OpenPoints3D(i,j,k) == OpenPoint) then                                                     
-                                
+cd1 :       if (OpenPoints3D(i,j,k) == OpenPoint) then
+
                 !Point in the North
-                if (i < WorkSizeIUB .and. OpenPoints3D(i+1,j,k) == OpenPoint) then                            
-                    Depth = WaterColumnZ(i+1, j)                               
+                if (i < WorkSizeIUB .and. OpenPoints3D(i+1,j,k) == OpenPoint) then
+                    Depth = WaterColumnZ(i+1, j)
                     if ( MinDischargeDepth <= Depth .and. Depth < DepthCurrent .and. PossibleDischargePoint(i+1, j)) then
                         MoveDirection = NORTH_
                         DepthCurrent  = Depth
@@ -2777,14 +2803,14 @@ cd1 :       if (OpenPoints3D(i,j,k) == OpenPoint) then
                         DepthCurrent  = Depth
                     endif
                 endif
-            
+
             else cd1
-            !neste caso comparam-se as cotas (os openpoints n ficam todos bem com a minWC), 
+            !neste caso comparam-se as cotas (os openpoints n ficam todos bem com a minWC),
             !o antigo ponto de descarga deixou de ser Open Point.
 
                 !Point in the North
-                if (i < WorkSizeIUB) then                            
-                    Bottom = Bathymetry(i+1, j)                               
+                if (i < WorkSizeIUB) then
+                    Bottom = Bathymetry(i+1, j)
                     if (Bottom >= BtomCurrent .and. PossibleDischargePoint(i+1, j)) then
                         MoveDirection = NORTH_
                         BtomCurrent   = Bottom
@@ -2817,9 +2843,9 @@ cd1 :       if (OpenPoints3D(i,j,k) == OpenPoint) then
                         BtomCurrent   = Bottom
                     endif
                 endif
-                
-            endif cd1                                  
-            
+
+            endif cd1
+
             select case (MoveDirection)
 
                 case (NORTH_)
@@ -2850,11 +2876,11 @@ cd1 :       if (OpenPoints3D(i,j,k) == OpenPoint) then
             if (WaterColumnZ(i, j) > DischargeX%Localization%MinimumDischargeDepth) then
                 NewLocationFound = .true.
                 newI            = i
-                newJ            = j                         
+                newJ            = j
             endif
 
         enddo
-        
+
         !Deallocates temporary matrix
         deallocate(PossibleDischargePoint)
 
@@ -2875,13 +2901,13 @@ cd1 :       if (OpenPoints3D(i,j,k) == OpenPoint) then
         type(T_IndividualDischarge), pointer            :: DischargeX
 
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ', DischargeIDNumber
                 stop       'GetDischargesIDName - ModuleDischarges - ERR10'
             endif
@@ -2889,7 +2915,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             IDName = DischargeX%ID%name
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -2914,18 +2940,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         type(T_IndividualDischarge), pointer            :: DischargeX
 
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ', DischargeIDNumber
                 stop       'GetDischargesNodeID - ModuleDischarges - ERR01'
             endif
 
-            !Code below does not makes sense for drainage network. 
+            !Code below does not makes sense for drainage network.
             !If you want to impose discharge in Drainage Network and RunOff the code will not allow you to run.
             !Can be deleted in 2019 - Frank
             !if (DischargeX%Localization%Location2D) then
@@ -2937,7 +2963,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             NodeID = DischargeX%Localization%NodeID
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -2948,7 +2974,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
     end subroutine GetDischargesNodeID
 
     !--------------------------------------------------------------------------
-    
+
     !--------------------------------------------------------------------------
 
     subroutine GetDischargesReservoirID (DischargesID, DischargeIDNumber, ReservoirID, STAT)
@@ -2964,13 +2990,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         type(T_IndividualDischarge), pointer            :: DischargeX
 
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ', DischargeIDNumber
                 stop       'GetDischargesReservoirID - ModuleDischarges - ERR01'
             endif
@@ -2984,7 +3010,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             ReservoirID = DischargeX%Localization%ReservoirID
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -2994,7 +3020,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
     end subroutine GetDischargesReservoirID
 
-    !--------------------------------------------------------------------------    
+    !--------------------------------------------------------------------------
 
    subroutine GetIsReservoirOutflow(DischargesID, DischargeIDNumber, IsOutflow, STAT)
 
@@ -3012,21 +3038,21 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ', DischargeIDNumber, '.'
                 stop       'Subroutine GetIsReservoirOutflow - ModuleDischarges. ERR01.'
             endif
 
             IsOutflow = DischargeX%IsReservoirOutflow
-                    
+
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -3049,7 +3075,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         type (T_Lines),  pointer                    :: LineX
         type (T_Polygon), pointer                   :: PolygonX
         integer,                        intent(OUT) :: SpatialEmission
-        type (T_XYZPoints), pointer, optional       :: XYZPointsX        
+        type (T_XYZPoints), pointer, optional       :: XYZPointsX
         integer, optional,              intent(OUT) :: STAT
 
         !Local-----------------------------------------------------------------
@@ -3062,8 +3088,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -3071,7 +3097,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
 
-cd3 :       if (STAT_CALL/=SUCCESS_) then 
+cd3 :       if (STAT_CALL/=SUCCESS_) then
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
                 stop       'Subroutine GetDischargeSpatialEmission - ModuleDischarges. ERR01.'
             end if cd3
@@ -3086,7 +3112,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -3118,8 +3144,8 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -3127,7 +3153,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
 
-cd3 :       if (STAT_CALL/=SUCCESS_) then 
+cd3 :       if (STAT_CALL/=SUCCESS_) then
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
                 stop       'Subroutine GetDischargeSpatialEmission - ModuleDischarges. ERR01.'
             end if cd3
@@ -3138,7 +3164,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -3163,7 +3189,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         integer,                        intent(IN ) :: DischargeIDNumber
         integer,                        intent(OUT) :: nCells
         integer, optional,              intent(OUT) :: FlowDistribution
-                        
+
         integer, dimension(:), pointer, optional    :: VectorI, VectorJ, VectorK
         integer,                        optional    :: kmin, kmax
         integer, optional,              intent(OUT) :: STAT
@@ -3178,8 +3204,8 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -3187,7 +3213,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
 
-cd3 :       if (STAT_CALL/=SUCCESS_) then 
+cd3 :       if (STAT_CALL/=SUCCESS_) then
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
                     stop       'Subroutine GetDischargeFlowDistribution - ModuleDischarges. ERR01.'
             end if cd3
@@ -3211,7 +3237,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
                 call Read_Lock(mDischarges_, Me%InstanceID)
                 VectorJ => DischargeX%Localization%VectorJ
-            
+
             endif
 
             if (present(VectorK)) then
@@ -3220,24 +3246,24 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
                 VectorK => DischargeX%Localization%VectorK
 
             endif
-            
+
             if (present(kmin)) then
 
                 kmin = DischargeX%Localization%kmin
 
-            endif    
-            
+            endif
+
             if (present(kmax)) then
 
                 kmax = DischargeX%Localization%kmax
 
-            endif                       
+            endif
 
             nullify(DischargeX)
 
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -3248,8 +3274,8 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         !----------------------------------------------------------------------
 
     end Subroutine GetDischargeFlowDistribuiton
-    
-    
+
+
     !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
@@ -3273,8 +3299,8 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -3282,7 +3308,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
 
-cd3 :       if (STAT_CALL/=SUCCESS_) then 
+cd3 :       if (STAT_CALL/=SUCCESS_) then
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
                     stop       'Subroutine GetDistributionCoefMass - ModuleDischarges. ERR01.'
             end if cd3
@@ -3295,7 +3321,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -3310,7 +3336,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
     !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
-    
+
     subroutine GetDischargeWaterFlow(DischargesID, TimeX, DischargeIDNumber,            &
                                      SurfaceElevation, Flow, SurfaceElevation2,         &
                                      FlowDistribution, FlowArea, STAT)
@@ -3322,7 +3348,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         real   ,                        intent(IN)  :: SurfaceElevation
         real   ,                        intent(OUT) :: Flow
         real   , optional,              intent(IN)  :: SurfaceElevation2
-        real   , optional,              intent(IN)  :: FlowDistribution        
+        real   , optional,              intent(IN)  :: FlowDistribution
         real   , optional,              intent(OUT) :: FlowArea
         integer, optional,              intent(OUT) :: STAT
 
@@ -3339,22 +3365,23 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         real                                        :: PipeFriction, P, Rh
         real                                        :: dQ1, dQ2
         integer                                     :: iAux
+        real                                        :: DT_RunPeriod
          !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
-cd3 :       if (STAT_CALL/=SUCCESS_) then 
+cd3 :       if (STAT_CALL/=SUCCESS_) then
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
                 stop       'SetDischargeWaterFlow - ModuleDischarges - ERR01'
             end if cd3
-            
-            if (present(FlowArea)) FlowArea = -99. 
+
+            if (present(FlowArea)) FlowArea = -99.
 
 
             if(DischargeX%FromIntake%ON .and. DischargeX%FromIntake%AssociateFlow)then
@@ -3364,7 +3391,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
                 !DischargeX becomes the intake (flow is multiplied by -1.0 after it is determined
                 call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeX%FromIntake%IntakeID)
-cd31:           if (STAT_CALL/=SUCCESS_) then 
+cd31:           if (STAT_CALL/=SUCCESS_) then
                     write(*,*) 'Can not find intake discharge number ', DischargeIDNumber
                     stop       'SetDischargeWaterFlow - ModuleDischarges - ERR02'
                 end if cd31
@@ -3384,7 +3411,7 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
 
             elseif (DischargeX%DischargeType == FlowOver) then
 
-                !Q = cv * b * sqrt(2*g) * H^(1.5)            
+                !Q = cv * b * sqrt(2*g) * H^(1.5)
                 if (DischargeX%ByPass%ON .and. DischargeX%ByPass%Side == SideB) then
                     !Downstream of the Weir
                     H = SurfaceElevation2 - DischargeX%FlowOver%CrestHeigth
@@ -3392,23 +3419,23 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                 else
                     !Upstream of the Weir
                     H = SurfaceElevation  - DischargeX%FlowOver%CrestHeigth
-                endif            
-            
+                endif
+
                 if (H > 0) then
                     Flow = -sqrt(19.6) * DischargeX%FlowOver%DischargeCoeficient *       &
                                          DischargeX%FlowOver%WeirLength  * H ** 1.5
                 else
                     Flow = 0.
                 endif
-                
-                
+
+
                 if (DischargeX%ByPass%ON .and. DischargeX%ByPass%Side == SideB) then
                     Flow = - Flow
                 endif
-                
+
             elseif (DischargeX%DischargeType == RatingCurve) then
 
-                
+
                 if (SurfaceElevation < DischargeX%RatingCurve%Level(1)) then
                     Flow = 0.0
                 else if (SurfaceElevation > DischargeX%RatingCurve%Level(DischargeX%RatingCurve%nValues)) then
@@ -3419,22 +3446,22 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                     do while (SurfaceElevation >= DischargeX%RatingCurve%Level(iAux))
                         iAux = iAux + 1
                     enddo
-                        
-                        
+
+
                     dQ1 = SurfaceElevation - DischargeX%RatingCurve%Level(iAux-1)
                     dQ2 = DischargeX%RatingCurve%Level(iAux) - SurfaceElevation
-                    
+
                     Flow = -1.0 * (dQ1 * DischargeX%RatingCurve%Flow(iAux)             +           &
                             dQ2 * DischargeX%RatingCurve%Flow(iAux-1) )         /           &
                            (DischargeX%RatingCurve%Level(iAux)                  -           &
-                            DischargeX%RatingCurve%Level(iAux-1)) 
-                    
-                endif
-                    
-                
-                
+                            DischargeX%RatingCurve%Level(iAux-1))
 
-                                    
+                endif
+
+
+
+
+
             elseif (DischargeX%DischargeType == Valve) then
 
 
@@ -3448,83 +3475,83 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                     DownstreamH  = SurfaceElevation
                     FlowDir      = 1
                 endif
-                
-                
+
+
                 if      (DischargeX%Valve%SectionType == circular_area) then
-                
-                    D  = DischargeX%Valve%Diameter                    
-                    
+
+                    D  = DischargeX%Valve%Diameter
+
                 elseif  (DischargeX%Valve%SectionType == rectangular_area) then
-                
+
                     D = DischargeX%Valve%Height
-                
-                endif                 
+
+                endif
 
                 TopValveH    =   DischargeX%Valve%SillHeigth + D
                 BottomValveH =   DischargeX%Valve%SillHeigth
-                
+
                 H            = UpstreamH - max(DownstreamH, BottomValveH)
-                
-                C            = DischargeX%Valve%DischargeCoeficient                
-                
+
+                C            = DischargeX%Valve%DischargeCoeficient
+
 
                 !if the axis valve minus the radius is above the water level in both sides than there is no flow
                 if ( UpstreamH <= BottomValveH) then
-                
+
                     H    =  0.
-                    
+
                     Flow =  0.
 
                 else
-                    !pressure conditions    
+                    !pressure conditions
                     if (UpstreamH >= TopValveH) then
-                    
+
                         if      (DischargeX%Valve%SectionType == circular_area) then
-                        
+
                             A    = Pi * (D/2.)**2.
                             P    = Pi * D
-                            
+
                         elseif (DischargeX%Valve%SectionType == rectangular_area) then
-                        
+
                             A    = D * DischargeX%Valve%Width
                             P    = 2. * (D + DischargeX%Valve%Width)
 
-                        endif                                     
+                        endif
 
                     !free surface
                     else
-                    
+
                         Haux  = UpstreamH - BottomValveH
-                        
+
                         if      (DischargeX%Valve%SectionType == circular_area) then
-                        
+
                             Theta = 2.* acos(1.-2.*Haux/D)
                             A     = (Theta - sin(Theta))* D**2. / 8.
                             P     = Theta * D
-                            
+
                         elseif  (DischargeX%Valve%SectionType == rectangular_area) then
 
                             A    = Haux * DischargeX%Valve%Width
                             P    = 2 * Haux + DischargeX%Valve%Width
-                        
-                        endif                         
-                        
-                        
+
+                        endif
+
+
                         if (Haux < 0.01) then
                             !no flow in the pipe is assumed
                             C = 0.
-                        endif                    
-                        
-                    
+                        endif
+
+
                     endif
-                    
+
                     if (P > 0.) then
                         Rh  = A / P
                     else
-                        Rh  = 0. 
-                    endif                        
-                    
-                    
+                        Rh  = 0.
+                    endif
+
+
                     if (DischargeX%Valve%PipeLength > 0.) then
                         if (Rh > 0.) then
                         !based in BASIC HYDRAULIC PRINCIPLES OF OPEN-CHANNEL FLOW By Harvey E. Jobson and David C. Froehlich
@@ -3535,15 +3562,15 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
                             PipeFriction = 2. * Gravity * C**2. * DischargeX%Valve%PipeManning ** 2. * &
                                            DischargeX%Valve%PipeLength / Rh**1.3333
                             H = H / (1. + PipeFriction)
-                        endif                            
-                    endif    
+                        endif
+                    endif
 
                     Flow = sqrt(2.* Gravity) * C * A * sqrt(H)
-                    
+
                     if (present(FlowArea)) FlowArea = A
 
                     Flow = Flow * FlowDir
-                
+
                     if     (DischargeX%ByPass%OneWay) then
 
                         if ((DischargeX%ByPass%Side == SideA .and. FlowDir > 0.) .or.         &
@@ -3559,30 +3586,39 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
 
             if(AssociateIntakeFlowON)then
 
-                if(Flow <= 0)then 
+                if(Flow <= 0)then
                     !If the discharge comes from an intake then the flow
                     !from the intake must be negative, so that the flow
                     !of the discharge is positive
                     Flow = Flow * (-1.0) * FlowFraction
-                else 
+                else
                     write(*,*)"Discharge has flow based on intake"
                     write(*,*)"However, intake flow is positive and should be negative"
                     stop 'GetDischargeWaterFlow - ModuleDischarges - ERR03'
-                end if 
-               
+                end if
+
             end if
-            
-            
+
+
             if (present(FlowDistribution)) then
                 Flow = Flow * FlowDistribution
             endif
 
+            if (Me%SlowStart > 0.) then
+
+                DT_RunPeriod = TimeX - Me%BeginTime
+
+                if (DT_RunPeriod < Me%SlowStart) then
+                    Flow = Flow * DT_RunPeriod / Me%SlowStart
+                endif
+
+            endif
 
             nullify(DischargeX)
 
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -3595,9 +3631,9 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
     end subroutine GetDischargeWaterFlow
 
     !--------------------------------------------------------------------------
-    
+
     real function TimeSerieValue(TimeSerieID, UseOriginalValues, TimeX, XColumn)
-    
+
         !Arguments-------------------------------------------------------------
         integer,                        intent(IN ) :: TimeSerieID
         logical,                        intent(IN ) :: UseOriginalValues
@@ -3609,8 +3645,8 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
         real                                        :: Value1, Value2, NewValue
         logical                                     :: TimeCycle
         integer                                     :: STAT_CALL
-        !Begin-----------------------------------------------------------------        
-    
+        !Begin-----------------------------------------------------------------
+
         call GetTimeSerieValue(TimeSerieID, TimeX, XColumn, Time1, Value1,              &
                                Time2, Value2, TimeCycle, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'TimeSerieValue - ModuleDischarges - ERR20'
@@ -3618,22 +3654,22 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
         if (TimeCycle) then
             NewValue = Value1
         else
-            
+
             if(UseOriginalValues)then
-            
+
                 NewValue = Value1
-                
+
             else
-        
+
                 !Interpolates Value for current instant
                 call InterpolateValueInTime(TimeX, Time1, Value1, Time2, Value2,        &
                                             NewValue)
             end if
-            
+
         endif
-        
+
         TimeSerieValue = NewValue
-                
+
     end function TimeSerieValue
 
     !--------------------------------------------------------------------------
@@ -3657,13 +3693,13 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
-cd3 :       if (STAT_CALL/=SUCCESS_) then 
+cd3 :       if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ',DischargeIDNumber
                 stop       'SetDischargeWaterFlow - ModuleDischarges - ERR01'
             end if cd3
@@ -3674,10 +3710,10 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
                 DischargeX%WaterFlow%Scalar = Flow
 
             else
-            
+
                 write(*,*)  'SetDischargeWaterFlow can only be called if discharge type is OpenMILink (4)'
                 stop        'SetDischargeWaterFlow - ModuleDischarges - ERR02'
-            
+
             endif
 
 
@@ -3685,7 +3721,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -3720,13 +3756,13 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
-cd3 :       if (STAT_CALL/=SUCCESS_) then 
+cd3 :       if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ',DischargeIDNumber
                 stop       'SetDischargeInterceptionRatio - ModuleDischarges - ERR01'
             end if cd3
@@ -3737,7 +3773,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -3772,13 +3808,13 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
-cd3 :       if (STAT_CALL/=SUCCESS_) then 
+cd3 :       if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ',DischargeIDNumber
                 stop       'GetDischargeInterceptionRatio - ModuleDischarges - ERR01'
             end if cd3
@@ -3789,7 +3825,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -3802,8 +3838,8 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
     end subroutine GetDischargeInterceptionRatio
 
     !--------------------------------------------------------------------------
-        
-    
+
+
 
     subroutine GetDischargeFlowVelocity(DischargesID, TimeX, DischargeIDNumber,          &
                                         VelocityU, VelocityV, VelocityW, STAT)
@@ -3816,7 +3852,7 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
         type(T_Time),      intent(IN )              :: TimeX
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_         
+        integer                                     :: ready_
         integer                                     :: STAT_
         type(T_IndividualDischarge), pointer        :: DischargeX
         integer                                     :: STAT_CALL
@@ -3825,8 +3861,8 @@ cd3 :       if (STAT_CALL/=SUCCESS_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
@@ -3834,15 +3870,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
                 stop 'Subroutine GetDischargeFlowVelocity - ModuleDischarges. ERR01.'
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber = DischargeIDNumber)
-                
 
-cd3 :       if (STAT_CALL /= SUCCESS_) then 
+
+cd3 :       if (STAT_CALL /= SUCCESS_) then
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
                     stop 'Subroutine GetDischargeFlowVelocity - ModuleDischarges. ERR02.'
             end if cd3
 
 
-cd4 :       if (Present(VelocityU)) then 
+cd4 :       if (Present(VelocityU)) then
 
 cd2:            if (DischargeX%VelocityFlow%UVariable) then
 
@@ -3858,7 +3894,7 @@ cd2:            if (DischargeX%VelocityFlow%UVariable) then
 
             endif cd4
 
-cd5 :       if (Present(VelocityV)) then 
+cd5 :       if (Present(VelocityV)) then
 
 cd6:            if (DischargeX%VelocityFlow%VVariable) then
 
@@ -3873,7 +3909,7 @@ cd6:            if (DischargeX%VelocityFlow%VVariable) then
             endif cd5
 
 
-cd7 :       if (Present(VelocityW)) then 
+cd7 :       if (Present(VelocityW)) then
 
 cd8:            if (DischargeX%VelocityFlow%WVariable) then
 
@@ -3890,7 +3926,7 @@ cd8:            if (DischargeX%VelocityFlow%WVariable) then
             nullify(DischargeX)
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -3914,7 +3950,7 @@ cd8:            if (DischargeX%VelocityFlow%WVariable) then
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_         
+        integer                                     :: ready_
         integer                                     :: STAT_
         type(T_IndividualDischarge), pointer        :: DischargeX
         integer                                     :: STAT_CALL
@@ -3923,15 +3959,15 @@ cd8:            if (DischargeX%VelocityFlow%WVariable) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber = DischargeIDNumber)
-                
 
-cd3 :       if (STAT_CALL /= SUCCESS_) then 
+
+cd3 :       if (STAT_CALL /= SUCCESS_) then
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
                     stop 'Subroutine GetDischargeON - ModuleDischarges. ERR10.'
             end if cd3
@@ -3941,7 +3977,7 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
             nullify(DischargeX)
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -3956,36 +3992,36 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Checks if a discharge is of the type "upscalling"
-    !>@param[in] DischargesID, number, STAT_CALL    
+    !>@param[in] DischargesID, number, STAT_CALL
     logical function IsUpscaling(DischargesID, number)
-    
+
     !Arguments-----------------------------------------------------------------
     integer                                     :: DischargesID, number
     !local---------------------------------------------------------------------
     integer                                     :: ready_, STAT_CALL
     type(T_IndividualDischarge), pointer        :: DischargeX
     !--------------------------------------------------------------------------
-    
-    call Ready(DischargesID, ready_)    
-        
+
+    call Ready(DischargesID, ready_)
+
     if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
         call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=number)
-        if (STAT_CALL/=SUCCESS_) then 
+        if (STAT_CALL/=SUCCESS_) then
             write(*,*) 'Can not find discharge number ', number, '.'
             stop       'Function GetIsUpscaling - ModuleDischarges. ERR01.'
         endif
 
-        
+
         IsUpscaling = DischargeX%WaterFlow%Upscaling
-    else 
+    else
         IsUpscaling = .false.
     end if
-           
+
     return
-    
+
     end function IsUpscaling
-    
+
     !--------------------------------------------------------------------------
 
     subroutine GetDischargeConcentration(DischargesID, TimeX,DischargeIDNumber,         &
@@ -4012,66 +4048,66 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
                 stop  'GetDischargeConcentration - ModuleDischarges - ERR01'
             endif
-             
+
             call Search_Property(DischargeX, PropertyX, STAT_CALL, PropertyXIDNumber=PropertyIDNumber)
-            if (STAT_CALL/=SUCCESS_) then 
-                !If the proeprty is not found the program don't stop is return a error 
+            if (STAT_CALL/=SUCCESS_) then
+                !If the proeprty is not found the program don't stop is return a error
                 !not found
-                if (STAT_CALL /= NOT_FOUND_ERR_) then 
+                if (STAT_CALL /= NOT_FOUND_ERR_) then
                     stop  'GetDischargeConcentration - ModuleDischarges - ERR02'
                 endif
             endif
-            
+
 cd2 :       if (STAT_CALL == SUCCESS_) then
 
                 if(PropertyX%FromIntake)then
-                    
+
                     if (present(PropertyFromIntake)) PropertyFromIntake      = ON
                     PropertyIncreaseValue   = PropertyX%IncreaseValue
 
 
                     !DischargeX becomes the      discharge
                     call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeX%FromIntake%IntakeID)
-                        if (STAT_CALL/=SUCCESS_) then 
+                        if (STAT_CALL/=SUCCESS_) then
                         write(*,*) 'Can not find intake discharge number ', DischargeIDNumber
                         stop       'GetDischargeConcentration - ModuleDischarges - ERR03'
                     end if
 
                     call Search_Property(DischargeX, PropertyX, STAT_CALL, PropertyXIDNumber=PropertyIDNumber)
-                    if (STAT_CALL/=SUCCESS_) then 
-                        !If the proeprty is not found the program don't stop is return a error 
+                    if (STAT_CALL/=SUCCESS_) then
+                        !If the proeprty is not found the program don't stop is return a error
                         !not found
-                        if (STAT_CALL /= NOT_FOUND_ERR_) then 
+                        if (STAT_CALL /= NOT_FOUND_ERR_) then
                             stop  'GetDischargeConcentration - ModuleDischarges - ERR04'
                         endif
                     endif
                 else
-                    
+
                     if (present(PropertyFromIntake)) PropertyFromIntake = OFF
 
                 end if
-                                                                         
+
                 if (PropertyX%Variable) then
 
                     Concentration = TimeSerieValue(PropertyX%TimeSerie,                 &
                                                    DischargeX%UseOriginalValues, TimeX, &
                                                    PropertyX%ConcColumn)
                 else
- 
+
                     Concentration = PropertyX%Scalar
 
                 endif
-                
+
                 if (present(PropertyFromIntake)) then
                     if(PropertyFromIntake) then
                         Concentration = Concentration + PropertyIncreaseValue
@@ -4095,9 +4131,9 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
 
 
             end if cd2
-            
 
-        else 
+
+        else
 
             STAT_ = ready_
 
@@ -4112,9 +4148,9 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
     end Subroutine GetDischargeConcentration
 
     !--------------------------------------------------------------------------
-    
+
     subroutine GetIntakePosition(DischargesID, DischargeIDNumber, IntakeI, IntakeJ, IntakeK, STAT)
-                                      
+
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargesID
@@ -4133,19 +4169,19 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
                 stop  'GetIntakePosition - ModuleDischarges - ERR01'
             endif
 
             call Search_Discharge(IntakeX, STAT_CALL, DischargeXIDNumber=DischargeX%FromIntake%IntakeID)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
                 stop  'GetIntakeConcentration - ModuleDischarges - ERR03'
             endif
@@ -4153,7 +4189,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             IntakeI = IntakeX%Localization%GridCoordinates%I
             IntakeJ = IntakeX%Localization%GridCoordinates%J
             IntakeK = IntakeX%Localization%GridCoordinates%K
-                
+
 
             nullify(IntakeX)
 
@@ -4161,7 +4197,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
             STAT_ = SUCCESS_
 
-        else 
+        else
 
             STAT_ = ready_
 
@@ -4186,7 +4222,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         integer                                     :: DischargesID
         integer,           intent(IN)               :: DischargeIDNumber
         integer,           intent(IN)               :: PropertyIDNumber
-        real,              intent(OUT)              :: ConcIncrease        
+        real,              intent(OUT)              :: ConcIncrease
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
@@ -4199,33 +4235,33 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
-        
+        call Ready(DischargesID, ready_)
+
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
                 stop  'GetByPassConcIncrease - ModuleDischarges - ERR01'
             endif
-             
+
             call Search_Property(DischargeX, PropertyX, STAT_CALL, PropertyXIDNumber=PropertyIDNumber)
-            if (STAT_CALL/=SUCCESS_) then 
-                !If the proeprty is not found the program don't stop is return a error 
+            if (STAT_CALL/=SUCCESS_) then
+                !If the proeprty is not found the program don't stop is return a error
                 !not found
-                if (STAT_CALL /= NOT_FOUND_ERR_) then 
+                if (STAT_CALL /= NOT_FOUND_ERR_) then
                     stop  'GetByPassConcIncrease - ModuleDischarges - ERR02'
                 endif
             endif
-            
+
 cd2 :       if (STAT_CALL == SUCCESS_) then
 
                 if (DischargeX%ByPass%ON) then
                     ConcIncrease   = PropertyX%IncreaseValue
                 else
                     ConcIncrease   = 0.
-                endif                    
+                endif
 
                 nullify(PropertyX)
 
@@ -4244,9 +4280,9 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
 
 
             end if cd2
-            
 
-        else 
+
+        else
 
             STAT_ = ready_
 
@@ -4277,10 +4313,10 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
         !Begin-----------------------------------------------------------------
 
         STAT_  = NOT_FOUND_ERR_
-        
+
         !Tries a "quick find". Improves performance if the model has many discharges (e.g. RiverNetwork - SWAT)
         DischargeX => Me%CurrentDischarge
-        do while (associated(DischargeX)) 
+        do while (associated(DischargeX))
             if (DischargeX%ID%IDNumber==DischargeXIDNumber) then
                 STAT_ = SUCCESS_
                 Me%CurrentDischarge => DischargeX
@@ -4289,11 +4325,11 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
                 DischargeX => DischargeX%Next
             endif
         enddo
-        
+
         !Nothing found yet, start from beginning
         DischargeX => Me%FirstDischarge
 
-        do while (associated(DischargeX)) 
+        do while (associated(DischargeX))
             if (DischargeX%ID%IDNumber==DischargeXIDNumber) then
                 STAT_ = SUCCESS_
                 Me%CurrentDischarge => DischargeX
@@ -4320,7 +4356,7 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
 
         DischargeX => Me%FirstDischarge
 
-        do while (associated(DischargeX)) 
+        do while (associated(DischargeX))
             if (DischargeX%ID%Name == DischargeXIDName) then
                 STAT_ = SUCCESS_
                 Me%CurrentDischarge => DischargeX
@@ -4354,7 +4390,7 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
         !Tries a "quick find". Improves performance if the model has many discharges / properties
         !(e.g. RiverNetwork - SWAT)
         PropertyX => DischargeX%CurrProperty
-        do while (associated(PropertyX)) 
+        do while (associated(PropertyX))
             if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                 STAT_ = SUCCESS_
                 DischargeX%CurrProperty => PropertyX
@@ -4363,42 +4399,42 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
                 PropertyX => PropertyX%Next
             endif
         enddo
-        
-        
+
+
         !Nothing found yet, start from beginning
         PropertyX => DischargeX%FirstProperty
 
-        do while (associated(PropertyX)) 
+        do while (associated(PropertyX))
            if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
                 STAT_ = SUCCESS_
                 DischargeX%CurrProperty => PropertyX
                 return
            else
-               PropertyX => PropertyX%Next                 
+               PropertyX => PropertyX%Next
            endif
         enddo
 
         STAT_  = NOT_FOUND_ERR_ ! The PropertyX wasn't found
-                
+
 
         !----------------------------------------------------------------------
-      
+
     end subroutine Search_Property
 
     !--------------------------------------------------------------------------
-  
+
     subroutine GetDischargeParameters (DirectionX, DirectionY)
 
         !Arguments-------------------------------------------------------------
 
-        integer, optional, intent(OUT) :: DirectionX      
-        integer, optional, intent(OUT) :: DirectionY       
-    
+        integer, optional, intent(OUT) :: DirectionX
+        integer, optional, intent(OUT) :: DirectionY
+
         !----------------------------------------------------------------------
 
         if (present(DirectionX           )) DirectionX        = DirectionX_
         if (present(DirectionY           )) DirectionY        = DirectionY_
-                                                         
+
         !----------------------------------------------------------------------
 
     end subroutine GetDischargeParameters
@@ -4411,26 +4447,26 @@ cd2 :       if (STAT_CALL == SUCCESS_) then
 
         !Arguments--------------------------------------------------------------
         integer,                      intent (IN)     :: DischargeID, DischargeIDNumber
-        integer,                      intent (IN)     :: nCells                         
+        integer,                      intent (IN)     :: nCells
         integer, dimension(:),        pointer         :: VectorI, VectorJ, VectorK
         integer, optional,            intent (OUT)    :: STAT
 
         !Local-----------------------------------------------------------------
         type(T_IndividualDischarge),pointer           :: DischargeX
-        integer                                       :: ready_              
-        integer                                       :: STAT_, STAT_CALL           
+        integer                                       :: ready_
+        integer                                       :: STAT_, STAT_CALL
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargeID, ready_)  
-        
+        call Ready(DischargeID, ready_)
+
 cd1 :   if (ready_ == IDLE_ERR_)then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
 
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
                 stop  'Sub. SetLocationCellsZ - ModuleDischarges - ERR01'
             endif
@@ -4443,7 +4479,7 @@ cd1 :   if (ready_ == IDLE_ERR_)then
             DischargeX%Localization%nCells  =  nCells
 
             nullify(DischargeX)
-   
+
             STAT_ = SUCCESS_
 
         else cd1
@@ -4469,20 +4505,20 @@ cd1 :   if (ready_ == IDLE_ERR_)then
 
         !Local-----------------------------------------------------------------
         type(T_IndividualDischarge),pointer           :: DischargeX
-        integer                                       :: ready_              
-        integer                                       :: STAT_, STAT_CALL           
+        integer                                       :: ready_
+        integer                                       :: STAT_, STAT_CALL
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargeID, ready_)  
-        
+        call Ready(DischargeID, ready_)
+
 cd1 :   if (ready_ == IDLE_ERR_)then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
 
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
                 stop  'Sub. SetLayer - ModuleDischarges - ERR10'
             endif
@@ -4490,7 +4526,7 @@ cd1 :   if (ready_ == IDLE_ERR_)then
             DischargeX%Localization%GridCoordinates%K = K
 
             nullify(DischargeX)
-   
+
             STAT_ = SUCCESS_
 
         else cd1
@@ -4510,34 +4546,34 @@ cd1 :   if (ready_ == IDLE_ERR_)then
     subroutine SetDistributionCoefMass (DischargeID, DischargeIDNumber, DistributionCoefMass, STAT)
 
         !Arguments--------------------------------------------------------------
-        integer,                      intent (IN)     :: DischargeID, DischargeIDNumber                       
+        integer,                      intent (IN)     :: DischargeID, DischargeIDNumber
         real,    dimension(:),        pointer         :: DistributionCoefMass
         integer, optional,            intent (OUT)    :: STAT
 
         !Local-----------------------------------------------------------------
         type(T_IndividualDischarge),pointer           :: DischargeX
-        integer                                       :: ready_              
-        integer                                       :: STAT_, STAT_CALL           
+        integer                                       :: ready_
+        integer                                       :: STAT_, STAT_CALL
 
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargeID, ready_)  
-        
+        call Ready(DischargeID, ready_)
+
 cd1 :   if (ready_ == IDLE_ERR_)then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeIDNumber)
 
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) ' can not find discharge number ',DischargeIDNumber
                 stop  'Sub. SetDistributionCoefMass - ModuleDischarges - ERR01'
             endif
 
             DischargeX%Localization%DistributionCoefMass => DistributionCoefMass
- 
+
             nullify(DischargeX)
-   
+
             STAT_ = SUCCESS_
 
         else cd1
@@ -4552,7 +4588,7 @@ cd1 :   if (ready_ == IDLE_ERR_)then
 
     !--------------------------------------------------------------------------
 
-    !--------------------------------------------------------------------------    
+    !--------------------------------------------------------------------------
 
     subroutine UngetDischarges1Dinteger(DischargesID, Array, STAT)
 
@@ -4561,12 +4597,12 @@ cd1 :   if (ready_ == IDLE_ERR_)then
         integer,               intent(IN ) :: DischargesID
         integer, pointer,   dimension(:  ) :: Array
         integer, optional,     intent(OUT) :: STAT
-   
-        
+
+
 
         !External--------------------------------------------------------------
 
-        integer :: ready_   
+        integer :: ready_
 
         !Local-----------------------------------------------------------------
 
@@ -4576,7 +4612,7 @@ cd1 :   if (ready_ == IDLE_ERR_)then
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_) 
+        call Ready(DischargesID, ready_)
 
 cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             nullify(Array)
@@ -4584,7 +4620,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             call Read_UnLock(mDischarges_, Me%InstanceID, "UngetDischarges1Dinteger")
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -4597,8 +4633,8 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
-    
-    
+
+
     subroutine UngetDischarges1Dreal(DischargesID, Array, STAT)
 
         !Arguments-------------------------------------------------------------
@@ -4606,12 +4642,12 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer,               intent(IN ) :: DischargesID
         real,    pointer,   dimension(:  ) :: Array
         integer, optional,     intent(OUT) :: STAT
-   
-        
+
+
 
         !External--------------------------------------------------------------
 
-        integer :: ready_   
+        integer :: ready_
 
         !Local-----------------------------------------------------------------
 
@@ -4621,7 +4657,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_) 
+        call Ready(DischargesID, ready_)
 
 cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             nullify(Array)
@@ -4629,7 +4665,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
             call Read_UnLock(mDischarges_, Me%InstanceID, "UngetDischarges1Dreal")
 
             STAT_ = SUCCESS_
-        else 
+        else
             STAT_ = ready_
         end if cd1
 
@@ -4646,7 +4682,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    !MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MO 
+    !MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MODIFIER MO
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4660,7 +4696,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
         !Local-----------------------------------------------------------------
         type(T_IndividualDischarge),  pointer       :: DischargeX
-        integer                                     :: ready_, STAT_, STAT2_ 
+        integer                                     :: ready_, STAT_, STAT2_
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -4675,12 +4711,12 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
                     DischargeX%Localization%GridCoordinates%I = i
                     DischargeX%Localization%GridCoordinates%J = j
-          
+
                     STAT_ = SUCCESS_
 
                 endif
-        else              
-         
+        else
+
             STAT_ = ready_
 
         end if cd1
@@ -4703,7 +4739,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         !Local-----------------------------------------------------------------
         type(T_IndividualDischarge),  pointer       :: DischargeX
-        integer                                     :: ready_, STAT_, STAT2_ 
+        integer                                     :: ready_, STAT_, STAT2_
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -4718,12 +4754,12 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
                     DischargeX%ByPass%I = i
                     DischargeX%ByPass%J = j
-          
+
                     STAT_ = SUCCESS_
 
                 endif
-        else              
-         
+        else
+
             STAT_ = ready_
 
         end if cd1
@@ -4749,7 +4785,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         !Local-----------------------------------------------------------------
         type(T_IndividualDischarge),  pointer       :: DischargeX
-        integer                                     :: ready_, STAT_, STAT2_ 
+        integer                                     :: ready_, STAT_, STAT2_
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -4763,17 +4799,17 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 if (STAT2_ == SUCCESS_) then
 
                     if (Me%IgnoreON) then
-                        DischargeX%IgnoreON = .true. 
+                        DischargeX%IgnoreON = .true.
                         IgnoreOK            = .true.
                     else
                         IgnoreOK            = .false.
                     endif
-                                  
+
                     STAT_ = SUCCESS_
 
                 endif
-        else              
-         
+        else
+
             STAT_ = ready_
 
         end if cd1
@@ -4785,14 +4821,14 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !----------------------------------------------------------------------
 
     end subroutine TryIgnoreDischarge
-    
+
 !----------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    !DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR  
+    !DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR DESTRUCTOR
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -4804,7 +4840,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         integer, optional, intent(OUT)              :: STAT
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_, STAT_            
+        integer                                     :: ready_, STAT_
         type(T_IndividualDischarge), pointer        :: DischargeX, DischargeToKill
         integer                                     :: nUsers
 
@@ -4812,29 +4848,29 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         STAT_ = UNKNOWN_
 
-        call Ready(DischargesID, ready_)    
+        call Ready(DischargesID, ready_)
 
 cd1 :   if (ready_ .NE. OFF_ERR_) then
 
             nUsers = DeassociateInstance(mDISCHARGES_,  Me%InstanceID)
-  
+
             if (nUsers == 0) then
-                
+
                 nUsers = DeassociateInstance (mTIME_, Me%ObjTime)
                 if (nUsers == 0) stop 'Kill_Discharges - ModuleDischarges - ERR01'
 
                 ! Deallocates all the Discharges
                 DischargeX=> Me%FirstDischarge
 
-                do while(associated(DischargeX))  
+                do while(associated(DischargeX))
 
                     DischargeToKill => DischargeX
                     DischargeX      => DischargeX%Next
-                    
+
                     if (DischargeToKill%Localization%TrackLocation)  &
                         call UnitsManager (DischargeToKill%Localization%TrackLocationFileUnitNumber, CLOSE_FILE)
-                        
-                    call KillIndividualDischarge(DischargeToKill)                                        
+
+                    call KillIndividualDischarge(DischargeToKill)
 
                 end do
                 nullify   (Me%FirstDischarge,Me%LastDischarge)
@@ -4842,12 +4878,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 call DeallocateInstance
 
                 DischargesID = 0
-            
+
                 STAT_ = SUCCESS_
-            
+
             end if
 
-        else 
+        else
 
             STAT_ = ready_
 
@@ -4877,7 +4913,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
         CurrentDischarge => Me%FirstDischarge
 
-        do 
+        do
             if (CurrentDischarge%ID%IDnumber == DischargeToDelete%ID%IDnumber) then
 
                 Prev => CurrentDischarge%Prev
@@ -4907,7 +4943,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (DischargeToDelete%TimeSerie /= 0) then
 
                     call KillTimeSerie(DischargeToDelete%TimeSerie, STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Discharges; ModuleDischarges. ERR10.' 
+                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Discharges; ModuleDischarges. ERR10.'
 
                 end if
 
@@ -4915,11 +4951,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 PropertyX => DischargeToDelete%FirstProperty
 
 
-                do while(associated(PropertyX))  
+                do while(associated(PropertyX))
 
                     if (PropertyX%PropTimeSerie) then
                         call KillTimeSerie(PropertyX%TimeSerie, STAT = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Discharges; ModuleDischarges. ERR20.' 
+                        if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Discharges; ModuleDischarges. ERR20.'
                     endif
 
                     if (associated(PropertyX%Next)) then
@@ -4929,11 +4965,11 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                             stop 'Subroutine Kill_Discharges; ModuleDischarges. ERR30.'
 
                         nullify    (PropertyX%Prev)
-                    else 
+                    else
                         deallocate(PropertyX, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                                    &
-                            stop 'Subroutine Kill_Discharges; ModuleDischarges. ERR40.' 
-                                           
+                            stop 'Subroutine Kill_Discharges; ModuleDischarges. ERR40.'
+
                         nullify    (PropertyX)
                     end if
                 end do
@@ -4959,14 +4995,14 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     nullify   (DischargeToDelete%Localization%VectorK)
 
                 endif
-                
+
 
                 if (associated(DischargeToDelete%Localization%DistributionCoefMass)) then
 
                     deallocate(DischargeToDelete%Localization%DistributionCoefMass)
                     nullify   (DischargeToDelete%Localization%DistributionCoefMass)
 
-                endif                
+                endif
 
                 nullify(DischargeToDelete%FirstProperty, DischargeToDelete%LastProperty)
 
@@ -4979,7 +5015,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 return
 
             endif
-        
+
             CurrentDischarge => CurrentDischarge%Next
 
         enddo
@@ -5014,8 +5050,8 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
         !Deallocates instance
         deallocate (Me)
-        nullify    (Me) 
-            
+        nullify    (Me)
+
     end subroutine DeallocateInstance
 
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
@@ -5026,7 +5062,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine Ready (DischargesID, ready_) 
+    subroutine Ready (DischargesID, ready_)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargesID
@@ -5078,57 +5114,57 @@ cd1:    if (DischargesID > 0) then
     !DEC$ ENDIF
     !Return the number of Error Messages
     integer function GetNumberOfDischarges(DischargesID)
-    
+
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargesID
 
         !Local-----------------------------------------------------------------
-        integer                                     :: ready_         
+        integer                                     :: ready_
 
         if (.not. associated(FirstDischarges)) then
             GetNumberOfDischarges = - 99
 
-        else            
-        
-            call Ready(DischargesID, ready_)    
-        
+        else
+
+            call Ready(DischargesID, ready_)
+
             if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                 GetNumberOfDischarges = Me%DischargesNumber
-            else 
+            else
                 GetNumberOfDischarges = - 99
             end if
-       
-        end if 
-        
+
+        end if
+
         return
- 
+
     end function GetNumberOfDischarges
 
     !--------------------------------------------------------------------------
-    
+
     !DEC$ IFDEFINED (VF66)
     !dec$ attributes dllexport::GetDischargeName
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_GETDISCHARGENAME"::GetDischargeName
     !DEC$ ENDIF
     logical function GetDischargeName(DischargeID, DischargeNumber, DischargeName)
-    
+
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargeID
         integer                                     :: DischargeNumber
-        character(len=*)                            :: DischargeName        
-        
+        character(len=*)                            :: DischargeName
+
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: ready_         
+        integer                                     :: ready_
         type(T_IndividualDischarge), pointer        :: DischargeX
 
-        call Ready(DischargeID, ready_)    
-        
+        call Ready(DischargeID, ready_)
+
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
                 stop       'Subroutine GetDischargeType - ModuleDischarges. ERR01.'
             endif
@@ -5136,169 +5172,169 @@ cd1:    if (DischargesID > 0) then
             DischargeName =  trim(DischargeX%ID%Name)
 
             GetDischargeName = .true.
-        else 
+        else
             GetDischargeName = .false.
         end if
-           
+
         return
 
     end function GetDischargeName
-    
+
     !--------------------------------------------------------------------------
-    
+
     !DEC$ IFDEFINED (VF66)
     !dec$ attributes dllexport::GetDischargeType
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_GETDISCHARGETYPE"::GetDischargeType
     !DEC$ ENDIF
     integer function GetDischargeType(DischargeID, DischargeNumber)
-    
+
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargeID
         integer                                     :: DischargeNumber
-        
+
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: ready_         
+        integer                                     :: ready_
         type(T_IndividualDischarge), pointer        :: DischargeX
 
-        call Ready(DischargeID, ready_)    
-        
+        call Ready(DischargeID, ready_)
+
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
                 stop       'Subroutine GetDischargeType - ModuleDischarges. ERR01.'
             endif
 
             GetDischargeType = DischargeX%DischargeType
-        else 
+        else
             GetDischargeType = - 99
         end if
-           
+
         return
 
     end function GetDischargeType
 
     !--------------------------------------------------------------------------
-    
+
     !DEC$ IFDEFINED (VF66)
     !dec$ attributes dllexport::GetDischargeXCoordinate
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_GETDISCHARGEXCOORDINATE"::GetDischargeXCoordinate
     !DEC$ ENDIF
     real(8) function GetDischargeXCoordinate(DischargeID, DischargeNumber)
-    
+
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargeID
         integer                                     :: DischargeNumber
-        
+
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: ready_         
+        integer                                     :: ready_
         type(T_IndividualDischarge), pointer        :: DischargeX
 
-        call Ready(DischargeID, ready_)    
-        
+        call Ready(DischargeID, ready_)
+
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-        
+
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
                 stop       'Subroutine GetDischargeXCoordinate - ModuleDischarges. ERR01.'
             endif
 
             GetDischargeXCoordinate = DischargeX%Localization%CoordinateX
-        else 
+        else
             GetDischargeXCoordinate = - 99.0
         end if
-           
+
         return
 
     end function GetDischargeXCoordinate
-    
+
     !--------------------------------------------------------------------------
-    
+
     !DEC$ IFDEFINED (VF66)
     !dec$ attributes dllexport::GetDischargeYCoordinate
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_GETDISCHARGEYCOORDINATE"::GetDischargeYCoordinate
     !DEC$ ENDIF
     real(8) function GetDischargeYCoordinate(DischargeID, DischargeNumber)
-    
+
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargeID
         integer                                     :: DischargeNumber
-        
+
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: ready_         
+        integer                                     :: ready_
         type(T_IndividualDischarge), pointer        :: DischargeX
 
-        call Ready(DischargeID, ready_)    
-        
+        call Ready(DischargeID, ready_)
+
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-        
+
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
                 stop       'Subroutine GetDischargeYCoordinate - ModuleDischarges. ERR01.'
             endif
 
             GetDischargeYCoordinate = DischargeX%Localization%CoordinateY
-        else 
+        else
             GetDischargeYCoordinate = - 99.0
         end if
-           
+
         return
 
     end function GetDischargeYCoordinate
-    
+
     !--------------------------------------------------------------------------
-    
+
     !DEC$ IFDEFINED (VF66)
     !dec$ attributes dllexport::SetDischargeFlow
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_SETDISCHARGEFLOW"::SetDischargeFlow
     !DEC$ ENDIF
     logical function SetDischargeFlow(DischargeID, DischargeNumber, Flow)
-    
+
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargeID
         integer                                     :: DischargeNumber
         real(8)                                     :: Flow
-        
+
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: ready_         
+        integer                                     :: ready_
         type(T_IndividualDischarge), pointer        :: DischargeX
 
-        call Ready(DischargeID, ready_)    
-        
+        call Ready(DischargeID, ready_)
+
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-        
+
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
                 stop       'Subroutine SetDischargeFlow - ModuleDischarges. ERR01.'
             endif
-            
+
             DischargeX%WaterFlow%Scalar = Flow
-           
+
             SetDischargeFlow = .true.
 
         else
-        
+
             SetDischargeFlow = .false.
 
         end if
-           
+
         return
 
     end function SetDischargeFlow
 
-   
+
     !DEC$ IFDEFINED (VF66)
     !dec$ attributes dllexport::GetNumberOfDischargeProperties
     !DEC$ ELSE
@@ -5306,34 +5342,34 @@ cd1:    if (DischargesID > 0) then
     !DEC$ ENDIF
     !Return the number of Error Messages
     integer function GetNumberOfDischargeProperties(DischargeID, DischargeNumber)
-    
+
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargeID
         integer                                     :: DischargeNumber
-        
+
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: ready_
         type(T_IndividualDischarge), pointer        :: DischargeX
-                 
 
-        call Ready(DischargeID, ready_)    
-        
+
+        call Ready(DischargeID, ready_)
+
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-        
+
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
                 stop       'Subroutine GetNumberOfDischargeProperties - ModuleDischarges. ERR01.'
             endif
             GetNumberOfDischargeProperties = DischargeX%PropertiesNumber
-        else 
+        else
             GetNumberOfDischargeProperties = -99
         end if
-           
+
     end function GetNumberOfDischargeProperties
-    
-    
+
+
     !DEC$ IFDEFINED (VF66)
     !dec$ attributes dllexport::GetDischargePropertyID
     !DEC$ ELSE
@@ -5341,25 +5377,25 @@ cd1:    if (DischargesID > 0) then
     !DEC$ ENDIF
     !Return the number of Error Messages
     integer function GetDischargePropertyID(DischargeID, DischargeNumber, idx)
-    
+
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargeID
         integer                                     :: DischargeNumber
         integer                                     :: idx
-        
+
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: ready_         
+        integer                                     :: ready_
         type (T_Property), pointer                  :: Property
         integer                                     :: iProp
         type(T_IndividualDischarge), pointer        :: DischargeX
 
-        call Ready(DischargeID, ready_)    
-        
+        call Ready(DischargeID, ready_)
+
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
                 stop       'Subroutine GetDischargePropertyID - ModuleDischarges. ERR01.'
             endif
@@ -5367,78 +5403,78 @@ cd1:    if (DischargesID > 0) then
             Property => DischargeX%FirstProperty
             iProp = 1
             do while (associated (Property))
-                 
+
                  if (iProp == idx) then
-                 
+
                     GetDischargePropertyID = Property%ID%IDNumber
                     return
-                 
+
                  endif
-                 
+
                  Property => Property%Next
                  iProp = iProp + 1
             enddo
-        
+
             GetDischargePropertyID = -99
-        else 
+        else
             GetDischargePropertyID = -99
         end if
-           
+
     end function GetDischargePropertyID
-    
+
 
     !--------------------------------------------------------------------------
-    
+
     !DEC$ IFDEFINED (VF66)
     !dec$ attributes dllexport::SetDischargeConcentration
     !DEC$ ELSE
     !dec$ attributes dllexport,alias:"_SETDISCHARGECONCENTRATION"::SetDischargeConcentration
     !DEC$ ENDIF
     logical function SetDischargeConcentration(DischargeID, DischargeNumber, PropertyIDNumber, Concentration)
-    
+
         !Arguments-------------------------------------------------------------
         integer                                     :: DischargeID
         integer                                     :: DischargeNumber
         integer                                     :: PropertyIDNumber
         real(8)                                     :: Concentration
-        
+
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        integer                                     :: ready_         
+        integer                                     :: ready_
         type(T_IndividualDischarge), pointer        :: DischargeX
         type(T_Property), pointer                   :: PropertyX
 
-        call Ready(DischargeID, ready_)    
-        
+        call Ready(DischargeID, ready_)
+
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-        
+
             call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=DischargeNumber)
-            if (STAT_CALL/=SUCCESS_) then 
+            if (STAT_CALL/=SUCCESS_) then
                 write(*,*) 'Can not find discharge number ', DischargeNumber, '.'
                 stop       'Subroutine SetDischargeConcentration - ModuleDischarges. ERR01.'
             endif
-            
+
             call Search_Property(DischargeX, PropertyX, STAT_CALL, PropertyXIDNumber=PropertyIDNumber)
             if (STAT_CALL==SUCCESS_) then
-            
+
                 PropertyX%Scalar = Concentration
-            
+
                 SetDischargeConcentration = .true.
             else
-            
+
                 SetDischargeConcentration = .false.
-            endif 
+            endif
 
         else
-        
+
             SetDischargeConcentration = .false.
 
         end if
-           
+
         return
 
-    end function SetDischargeConcentration    
-    
+    end function SetDischargeConcentration
+
     !--------------------------------------------------------------------------
 
 #endif
@@ -5448,6 +5484,5 @@ end module ModuleDischarges
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Tï¿½cnico, Technical University of Lisbon.
 !----------------------------------------------------------------------------------------------------------
-

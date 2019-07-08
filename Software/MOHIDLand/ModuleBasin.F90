@@ -2078,14 +2078,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         allocate(Me%SCSCNRunOffModel%InfRate%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         Me%SCSCNRunOffModel%InfRate%Field = FillValueReal
+        
         allocate(Me%SCSCNRunOffModel%VegGrowthStage%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        Me%SCSCNRunOffModel%VegGrowthStage%Field = FillValueReal
         call ConstructOneProperty (Me%SCSCNRunOffModel%VegGrowthStage, "VegGrowthStage",  &
                                    "<BeginVegGrowthStage>", "<EndVegGrowthStage>")
-        
-        allocate(Me%SCSCNRunOffModel%ImpFrac%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+ 
+        allocate(Me%SCSCNRunOffModel%ImpFrac%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))              
+        Me%SCSCNRunOffModel%ImpFrac%Field = FillValueReal
         call ConstructOneProperty (Me%SCSCNRunOffModel%ImpFrac, "ImpFrac", "<BeginImpFrac>", "<EndImpFrac>")
         
         allocate(Me%SCSCNRunOffModel%CurveNumber%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        Me%SCSCNRunOffModel%CurveNumber%Field = FillValueReal
         call ConstructOneProperty (Me%SCSCNRunOffModel%CurveNumber, "CurveNumber", "<BeginCurveNumber>", "<EndCurveNumber>")
         
         !verify input
@@ -6312,11 +6316,12 @@ cd0:    if (Exist) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        integer                                     :: STAT_CALL
+        integer                                     :: STAT_CALL, i, j
         integer                                     :: ILB, IUB, JLB, JUB
         character (Len = StringLength)              :: UnLockToWhichModules
         character (Len = StringLength)              :: LockToWhichModules
         character (Len = StringLength)              :: OptionsType
+        real, dimension(:, :), pointer              :: OLFlowToChannels
         !Begin-----------------------------------------------------------------
             
         if (MonitorPerformance) call StartWatch ("ModuleBasin", "OverLandProcesses")
@@ -6334,12 +6339,35 @@ cd0:    if (Exist) then
        
         !Runoff automatic has the most recent water column
         call ModifyRunOff   (Me%ObjRunOff, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OverLandProcesses - ModuleBasin - ERR01'
-
+        if (STAT_CALL /= SUCCESS_) stop 'OverLandProcesses - ModuleBasin - ERR01'  
+        
+        
         !Re-Locks External 
         LockToWhichModules = 'AllModules'
         OptionsType        = 'ModifyBasin'
         call ReadLockExternalVar (LockToWhichModules, OptionsType)
+        
+        
+        !in case there is no DN (e.g. SWMM OpenMI) account for this flux also
+        if (Me%VerifyGlobalMass .and. .not. Me%Coupled%DrainageNetwork) then
+            Me%MB%OLFlowToRiver = 0.0            
+            
+            call GetFlowToChannels  (Me%ObjRunOff, OLFlowToChannels, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OverLandProcesses - ModuleBasin - ERR010'            
+            
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                    Me%MB%OLFlowToRiver = Me%MB%OLFlowToRiver + OLFlowToChannels(i, j) * Me%CurrentDT
+                endif
+            enddo
+            enddo        
+            
+            call UnGetRunOff            (Me%ObjRunOff, OLFlowToChannels, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OverLandProcesses - ModuleBasin - ERR020'             
+            
+        endif         
+        
         
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "OverLandProcesses")
 
