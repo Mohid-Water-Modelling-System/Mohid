@@ -3682,12 +3682,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
+            !if (WaterPoints3D(i, j, k) == WaterPoint) then
 
-            if (WaterPoints3D(i, j, k) == WaterPoint) then
+            DWZ(i, j, k) = (SZZ(i, j, k-1) - SZZ(i, j, k  )) * WaterPoints3D(i, j, k)
 
-                DWZ(i, j, k) = SZZ(i, j, k-1) - SZZ(i, j, k  )
-
-            endif
+            !endif
         enddo
         enddo
         !$OMP END DO NOWAIT
@@ -3703,10 +3702,10 @@ cd1:    if (FacesOption == MinTickness) then
             do j = JLB+1, JUB
             do i = ILB  , IUB
 
-                if (WaterPoints3D(i, j - 1, k) == WaterPoint .and.                            &
-                    WaterPoints3D(i, j    , k) == WaterPoint) then
-                    DUZ(i, j, k) =  min(DWZ(i, j-1, k), DWZ(i, j, k))
-                endif
+                !if (WaterPoints3D(i, j - 1, k) == WaterPoint .and.                            &
+                    !WaterPoints3D(i, j    , k) == WaterPoint) then
+                DUZ(i, j, k) = (min(DWZ(i, j-1, k), DWZ(i, j, k))) * WaterPoints3D(i, j-1, k) *  WaterPoints3D(i, j, k)
+                !endif
 
             enddo
             enddo
@@ -3721,12 +3720,12 @@ cd1:    if (FacesOption == MinTickness) then
             do j = JLB  , JUB
             do i = ILB+1, IUB
 
-                if (WaterPoints3D(i - 1, j, k) == WaterPoint .and.                            &
-                    WaterPoints3D(i    , j, k) == WaterPoint) then
+                !if (WaterPoints3D(i - 1, j, k) == WaterPoint .and.                            &
+                !    WaterPoints3D(i    , j, k) == WaterPoint) then
 
-                    DVZ(i, j, k) =  min(DWZ(i-1, j, k), DWZ(i, j, k))
+                DVZ(i, j, k) =  (min(DWZ(i-1, j, k), DWZ(i, j, k))) * WaterPoints3D(i - 1, j, k) * WaterPoints3D(i, j, k)
 
-                endif
+                !endif
 
             enddo
             enddo
@@ -3742,7 +3741,7 @@ cd1:    if (FacesOption == MinTickness) then
                                    STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'ComputeAreas - Geometry - ERR01'
+                stop 'ComputeDistances - Geometry - ERR01'
             !! $OMP END MASTER
 
             !! $OMP BARRIER
@@ -3754,14 +3753,14 @@ cd1:    if (FacesOption == MinTickness) then
             do j = JLB+1, JUB
             do i = ILB  , IUB
 
-                if (WaterPoints3D(i, j - 1, k) == WaterPoint .and.                            &
-                    WaterPoints3D(i, j    , k) == WaterPoint) then
+                !if (WaterPoints3D(i, j - 1, k) == WaterPoint .and.                            &
+                !    WaterPoints3D(i, j    , k) == WaterPoint) then
 
-                    DUZ(i, j, k) =  (DWZ(i, j, k)     * DUX(i, j - 1) +                  &
-                                     DWZ(i, j - 1, k) * DUX(i, j))    /                  &
-                                    (DUX(i, j - 1)    + DUX(i, j))
+                DUZ(i, j, k) =  ((DWZ(i, j, k)     * DUX(i, j - 1) +                  &
+                                    DWZ(i, j - 1, k) * DUX(i, j))    /                  &
+                                (DUX(i, j - 1)    + DUX(i, j))) * WaterPoints3D(i, j - 1, k) * WaterPoints3D(i, j, k)
 
-                endif
+                !endif
 
             enddo
             enddo
@@ -3777,14 +3776,14 @@ cd1:    if (FacesOption == MinTickness) then
             do j = JLB  , JUB
             do i = ILB+1, IUB
 
-                if (WaterPoints3D(i - 1, j, k) == WaterPoint .and.                            &
-                    WaterPoints3D(i    , j, k) == WaterPoint) then
+                !if (WaterPoints3D(i - 1, j, k) == WaterPoint .and.                            &
+                !    WaterPoints3D(i    , j, k) == WaterPoint) then
 
-                    DVZ(i, j, k) =  (DWZ(i, j, k)     * DVY(i - 1, j) +                  &
-                                     DWZ(i - 1, j, k) * DVY(i, j))    /                  &
-                                    (DVY(i - 1, j)    + DVY(i, j))
+                DVZ(i, j, k) =  ((DWZ(i, j, k)     * DVY(i - 1, j) +                  &
+                                    DWZ(i - 1, j, k) * DVY(i, j))    /                  &
+                                (DVY(i - 1, j)    + DVY(i, j))) * WaterPoints3D(i - 1, j, k) * WaterPoints3D(i, j, k)
 
-                endif
+                !endif
 
             enddo
             enddo
@@ -3815,9 +3814,9 @@ cd1:    if (FacesOption == MinTickness) then
         do j = JLB, JUB
         do i = ILB, IUB
 
-            if (WaterPoints3D(i, j, k) == WaterPoint) then
-                DZZ(i, j, k) =  (DWZ(i, j, k+1) + DWZ(i, j, k)) / 2.0
-            endif
+            !if (WaterPoints3D(i, j, k) == WaterPoint) then
+            DZZ(i, j, k) =  ((DWZ(i, j, k+1) + DWZ(i, j, k)) / 2.0) * WaterPoints3D(i, j, k)
+            !endif
 
         enddo
         enddo
@@ -3832,12 +3831,13 @@ cd1:    if (FacesOption == MinTickness) then
         do j = JLB+1, JUB
         do i = ILB  , IUB
 
-            if (WaterPoints3D(i, j - 1, k) == WaterPoint .and.                            &
-                WaterPoints3D(i, j    , k) == WaterPoint) then
+            !if (WaterPoints3D(i, j - 1, k) == WaterPoint .and.                            &
+            !    WaterPoints3D(i, j    , k) == WaterPoint) then
 
-                DZE(i, j, k) =  (DUZ(i, j, k+1) + DUZ(i, j, k)) / 2.
+            DZE(i, j, k) = ((DUZ(i, j, k+1) + DUZ(i, j, k)) / 2.0) * &
+                            WaterPoints3D(i, j - 1, k) * WaterPoints3D(i, j, k)
 
-            endif
+            !endif
 
         enddo
         enddo
@@ -3852,12 +3852,13 @@ cd1:    if (FacesOption == MinTickness) then
         do j = JLB  , JUB
         do i = ILB+1, IUB
 
-            if (WaterPoints3D(i - 1, j, k) == WaterPoint .and.                            &
-                WaterPoints3D(i    , j, k) == WaterPoint) then
+            !if (WaterPoints3D(i - 1, j, k) == WaterPoint .and.                            &
+            !    WaterPoints3D(i    , j, k) == WaterPoint) then
 
-                DZI(i, j, k) =  (DVZ(i, j, k+1) + DVZ(i, j, k)) / 2.
+            DZI(i, j, k) = ((DVZ(i, j, k+1) + DVZ(i, j, k)) / 2.0) * &
+                             WaterPoints3D(i - 1, j, k) * WaterPoints3D(i, j, k)
 
-            endif
+            !endif
 
         enddo
         enddo
@@ -4117,7 +4118,7 @@ cd1:    if (FacesOption == MinTickness) then
         if (MonitorPerformance) call StartWatch ("ModuleGeometry", "ComputeAreas")
 
         CHUNK = Chunk_J(JLB,JUB)
-        !$OMP PARALLEL PRIVATE(i,j,k,WaterLevel)
+        !$OMP PARALLEL PRIVATE(i,j,k)
 
         do k = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -4126,25 +4127,8 @@ cd1:    if (FacesOption == MinTickness) then
             !Calculo das areas nas faces nos pontos de calculo U's (AREA_U(I,J,K))
 !PCL
             Me%Areas%AreaU(i, j, k) = DUZ(i, j, k) * DYY (i, j)
-
 !PCL
             Me%Areas%AreaV(i, j, k) = DVZ(i, j, k) * DXX (i, j)
-
-            if (Me%Areas%Impermeability) then
-
-                WaterLevel = max(-Me%Distances%SZZ(i, j, KUB), -Me%Distances%SZZ(i, j+1, KUB))
-
-                Me%Areas%AreaU(i, j, k) = Me%Areas%AreaU(i, j, k) *             &
-                                         (Me%Areas%Coef_U(k) + WaterLevel * Me%Areas%CoefX_U(k))
-
-                WaterLevel = max(-Me%Distances%SZZ(i, j, KUB), -Me%Distances%SZZ(i+1, j, KUB))
-
-                Me%Areas%AreaV(i, j, k) = Me%Areas%AreaV(i, j, k) *             &
-                                         (Me%Areas%Coef_V(k) + WaterLevel * Me%Areas%CoefX_V(k))
-
-
-
-            endif
 
         enddo
         enddo
@@ -4152,6 +4136,33 @@ cd1:    if (FacesOption == MinTickness) then
         enddo
 
         !$OMP END PARALLEL
+        
+        if (Me%Areas%Impermeability) then        
+        
+            !$OMP PARALLEL PRIVATE(i,j,k,WaterLevel)
+
+            do k = KLB, KUB
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+                    WaterLevel = max(-Me%Distances%SZZ(i, j, KUB), -Me%Distances%SZZ(i, j+1, KUB))
+
+                    Me%Areas%AreaU(i, j, k) = Me%Areas%AreaU(i, j, k) *             &
+                                             (Me%Areas%Coef_U(k) + WaterLevel * Me%Areas%CoefX_U(k))
+
+                    WaterLevel = max(-Me%Distances%SZZ(i, j, KUB), -Me%Distances%SZZ(i+1, j, KUB))
+
+                    Me%Areas%AreaV(i, j, k) = Me%Areas%AreaV(i, j, k) *             &
+                                             (Me%Areas%Coef_V(k) + WaterLevel * Me%Areas%CoefX_V(k))
+
+            enddo
+            enddo
+            !$OMP END DO
+            enddo
+
+            !$OMP END PARALLEL
+        endif
 
         if (MonitorPerformance) call StopWatch ("ModuleGeometry", "ComputeAreas")
 
@@ -4159,11 +4170,8 @@ cd1:    if (FacesOption == MinTickness) then
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DXX, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)stop 'ComputeAreas - Geometry - ERR02'
 
-
-
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid, DYY, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ComputeAreas - Geometry - ERR03'
-
 
         !nullify local pointer
         nullify(DUZ, DVZ)
@@ -4183,36 +4191,38 @@ cd1:    if (FacesOption == MinTickness) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                                 :: i, j, k
-        integer                                 :: CHUNK
+        !integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
+        !integer                                 :: i, j, k
+        !integer                                 :: CHUNK
 
         !Worksize
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
+        !ILB = Me%WorkSize%ILB
+        !IUB = Me%WorkSize%IUB
+        !
+        !JLB = Me%WorkSize%JLB
+        !JUB = Me%WorkSize%JUB
+        !
+        !KLB = Me%WorkSize%KLB
+        !KUB = Me%WorkSize%KUB
 
         if (MonitorPerformance) call StartWatch ("ModuleGeometry", "StoreVolumeZOld")
+        
+        Me%Volumes%VolumeZOld = Me%Volumes%VolumeZ
 
-        CHUNK = Chunk_J(JLB,JUB)
-        !$OMP PARALLEL PRIVATE(i,j,k)
-
-        do k = KLB, KUB
-        !$OMP DO SCHEDULE(STATIC, CHUNK)
-        do j = JLB, JUB
-        do i = ILB, IUB
-            Me%Volumes%VolumeZOld(i, j ,k) = Me%Volumes%VolumeZ(i, j ,k)
-        enddo
-        enddo
-        !$OMP END DO
-        enddo
-
-        !$OMP END PARALLEL
+        !CHUNK = Chunk_J(JLB,JUB)
+        !!$OMP PARALLEL PRIVATE(i,j,k)
+        !
+        !do k = KLB, KUB
+        !!$OMP DO SCHEDULE(STATIC, CHUNK)
+        !do j = JLB, JUB
+        !do i = ILB, IUB
+        !    Me%Volumes%VolumeZOld(i, j ,k) = Me%Volumes%VolumeZ(i, j ,k)
+        !enddo
+        !enddo
+        !!$OMP END DO
+        !enddo
+        !
+        !!$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleGeometry", "StoreVolumeZOld")
 

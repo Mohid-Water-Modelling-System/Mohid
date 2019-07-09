@@ -51143,97 +51143,100 @@ cd3:        if (Me%ComputeOptions%Residual) then
         !$OMP END DO
         !$OMP END PARALLEL
 
-        do j = JLB, JUB
-        do i = ILB, IUB
-            if (Me%External_Var%WaterPoints3D (i  ,j  ,KUB) == WaterPoint) then
-                kbottom = Me%External_Var%KFloor_Z(i, j)
-                !By default the vertical velocity in the faces that are not compute is zero
-                !Do not apply it to surface points (correction by Hernani Theias)
-                !Me%Velocity%Vertical%Cartesian (i, j, kbottom : KUB) = &
-                !Me%Velocity%Vertical%Cartesian (i, j, kbottom : KUB) * &
-                !Me%External_Var%ComputeFaces3D_W(i, j, kbottom : KUB)
+        if ( .NOT. Me%OutPut%Simple) then
+            
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (Me%External_Var%WaterPoints3D (i  ,j  ,KUB) == WaterPoint) then
+                    kbottom = Me%External_Var%KFloor_Z(i, j)
+                    !By default the vertical velocity in the faces that are not compute is zero
+                    !Do not apply it to surface points (correction by Hernani Theias)
+                    !Me%Velocity%Vertical%Cartesian (i, j, kbottom : KUB) = &
+                    !Me%Velocity%Vertical%Cartesian (i, j, kbottom : KUB) * &
+                    !Me%External_Var%ComputeFaces3D_W(i, j, kbottom : KUB)
 
-                do k = kbottom, KUB
-                    Me%Velocity%Vertical%Cartesian (i, j, k) = &
-                    Me%Velocity%Vertical%Cartesian (i, j, k) * &
-                    Me%External_Var%ComputeFaces3D_W(i, j, k)
-                enddo
-
-
-                do k = kbottom, KUB
-                    Me%OutPut%Vorticity3D(i, j, k) = 0.
-
-                    !dw/dy
-                    Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     +   &
-                    0.5*(Me%OutPut%CenterW(i, j, k) - Me%OutPut%CenterW(i-1, j, k) * &
-                    Me%External_Var%WaterPoints3D (i-1,j,k))/ &
-                    Me%External_Var%DZY(i-1, j)
-
-                    Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     +   &
-                    0.5*(-Me%OutPut%CenterW(i, j, k) + Me%OutPut%CenterW(i+1, j, k) * &
-                    Me%External_Var%WaterPoints3D (i+1,j,k))/ &
-                    Me%External_Var%DZY(i, j)
-
-                    !dw/dx
-                    Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     +   &
-                    0.5*(Me%OutPut%CenterW(i, j, k) - Me%OutPut%CenterW(i, j-1, k) * &
-                    Me%External_Var%WaterPoints3D (i,j-1,k))/ &
-                    Me%External_Var%DZX(i, j-1)
-
-                    Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     +   &
-                    0.5*(-Me%OutPut%CenterW(i, j, k) + Me%OutPut%CenterW(i, j+1, k) * &
-                    Me%External_Var%WaterPoints3D (i,j+1,k))/ &
-                    Me%External_Var%DZX(i, j)
-
-                    !dv/dz
-                    Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     -   &
-                    0.5*(Me%OutPut%CenterV(i, j, k) - Me%OutPut%CenterV(i, j, k-1) * &
-                    Me%External_Var%WaterPoints3D (i,j,k-1))/ &
-                    Me%External_Var%DWZ(i, j, k)
-
-                    Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     -   &
-                    0.5*(-Me%OutPut%CenterV(i, j, k) + Me%OutPut%CenterV(i, j, k+1) * &
-                    Me%External_Var%WaterPoints3D (i,j,k+1))/ &
-                    Me%External_Var%DWZ(i, j, k)
-
-                    !du/dz
-                    Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     -   &
-                    0.5*(Me%OutPut%CenterU(i, j, k) - Me%OutPut%CenterU(i, j, k-1) * &
-                    Me%External_Var%WaterPoints3D (i,j,k-1))/ &
-                    Me%External_Var%DWZ(i, j, k)
-
-                    Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     -   &
-                    0.5*(-Me%OutPut%CenterU(i, j, k) + Me%OutPut%CenterU(i, j, k+1) * &
-                    Me%External_Var%WaterPoints3D (i,j,k+1))/ &
-                    Me%External_Var%DWZ(i, j, k)
-
-                    !dv/dx
-                    Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     -   &
-                    0.5*(Me%OutPut%CenterV(i, j, k) - Me%OutPut%CenterV(i, j-1, k) * &
-                    Me%External_Var%WaterPoints3D (i,j-1,k))/ &
-                    Me%External_Var%DZX(i, j-1)
-
-                    Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     -   &
-                    0.5*(-Me%OutPut%CenterV(i, j, k) + Me%OutPut%CenterV(i, j+1, k) * &
-                    Me%External_Var%WaterPoints3D (i,j+1,k))/ &
-                    Me%External_Var%DZX(i, j)
+                    do k = kbottom, KUB
+                        Me%Velocity%Vertical%Cartesian (i, j, k) = &
+                        Me%Velocity%Vertical%Cartesian (i, j, k) * &
+                        Me%External_Var%ComputeFaces3D_W(i, j, k)
+                    enddo
 
 
-                    !du/dy
-                    Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     -   &
-                    0.5*(Me%OutPut%CenterU(i, j, k) - Me%OutPut%CenterU(i-1, j, k) * &
-                    Me%External_Var%WaterPoints3D (i-1,j,k))/ &
-                    Me%External_Var%DZY(i-1, j)
+                    do k = kbottom, KUB
+                        Me%OutPut%Vorticity3D(i, j, k) = 0.
 
-                    Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     -   &
-                    0.5*(-Me%OutPut%CenterU(i, j, k) + Me%OutPut%CenterU(i+1, j, k) * &
-                    Me%External_Var%WaterPoints3D (i+1,j,k))/ &
-                    Me%External_Var%DZY(i, j)
+                        !dw/dy
+                        Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     +   &
+                        0.5*(Me%OutPut%CenterW(i, j, k) - Me%OutPut%CenterW(i-1, j, k) * &
+                        Me%External_Var%WaterPoints3D (i-1,j,k))/ &
+                        Me%External_Var%DZY(i-1, j)
 
-                enddo
-            endif
-        enddo
-        enddo
+                        Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     +   &
+                        0.5*(-Me%OutPut%CenterW(i, j, k) + Me%OutPut%CenterW(i+1, j, k) * &
+                        Me%External_Var%WaterPoints3D (i+1,j,k))/ &
+                        Me%External_Var%DZY(i, j)
+
+                        !dw/dx
+                        Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     +   &
+                        0.5*(Me%OutPut%CenterW(i, j, k) - Me%OutPut%CenterW(i, j-1, k) * &
+                        Me%External_Var%WaterPoints3D (i,j-1,k))/ &
+                        Me%External_Var%DZX(i, j-1)
+
+                        Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     +   &
+                        0.5*(-Me%OutPut%CenterW(i, j, k) + Me%OutPut%CenterW(i, j+1, k) * &
+                        Me%External_Var%WaterPoints3D (i,j+1,k))/ &
+                        Me%External_Var%DZX(i, j)
+
+                        !dv/dz
+                        Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     -   &
+                        0.5*(Me%OutPut%CenterV(i, j, k) - Me%OutPut%CenterV(i, j, k-1) * &
+                        Me%External_Var%WaterPoints3D (i,j,k-1))/ &
+                        Me%External_Var%DWZ(i, j, k)
+
+                        Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     -   &
+                        0.5*(-Me%OutPut%CenterV(i, j, k) + Me%OutPut%CenterV(i, j, k+1) * &
+                        Me%External_Var%WaterPoints3D (i,j,k+1))/ &
+                        Me%External_Var%DWZ(i, j, k)
+
+                        !du/dz
+                        Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     -   &
+                        0.5*(Me%OutPut%CenterU(i, j, k) - Me%OutPut%CenterU(i, j, k-1) * &
+                        Me%External_Var%WaterPoints3D (i,j,k-1))/ &
+                        Me%External_Var%DWZ(i, j, k)
+
+                        Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     -   &
+                        0.5*(-Me%OutPut%CenterU(i, j, k) + Me%OutPut%CenterU(i, j, k+1) * &
+                        Me%External_Var%WaterPoints3D (i,j,k+1))/ &
+                        Me%External_Var%DWZ(i, j, k)
+
+                        !dv/dx
+                        Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     -   &
+                        0.5*(Me%OutPut%CenterV(i, j, k) - Me%OutPut%CenterV(i, j-1, k) * &
+                        Me%External_Var%WaterPoints3D (i,j-1,k))/ &
+                        Me%External_Var%DZX(i, j-1)
+
+                        Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     -   &
+                        0.5*(-Me%OutPut%CenterV(i, j, k) + Me%OutPut%CenterV(i, j+1, k) * &
+                        Me%External_Var%WaterPoints3D (i,j+1,k))/ &
+                        Me%External_Var%DZX(i, j)
+
+
+                        !du/dy
+                        Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     -   &
+                        0.5*(Me%OutPut%CenterU(i, j, k) - Me%OutPut%CenterU(i-1, j, k) * &
+                        Me%External_Var%WaterPoints3D (i-1,j,k))/ &
+                        Me%External_Var%DZY(i-1, j)
+
+                        Me%OutPut%Vorticity3D(i, j, k) = Me%OutPut%Vorticity3D(i, j, k)     -   &
+                        0.5*(-Me%OutPut%CenterU(i, j, k) + Me%OutPut%CenterU(i+1, j, k) * &
+                        Me%External_Var%WaterPoints3D (i+1,j,k))/ &
+                        Me%External_Var%DZY(i, j)
+
+                    enddo
+                endif
+            enddo
+            enddo
+        endif
 
 
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "ModifyMatrixesOutput")

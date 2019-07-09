@@ -1231,7 +1231,7 @@ iIC:                    if (IsolatedCell) then
 
             !Gets KFloorZ
             call GetGeometryKFloor(Me%ObjGeometry, Z = KFloorZ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'UpdateComputeFacesW - ModuleMap - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'UpdateUnsaturatedComputeFaces3D - ModuleMap - ERR10'
 
 
             !ComputeFacesU / ComputeFacesV            
@@ -1270,7 +1270,7 @@ iIC:                    if (IsolatedCell) then
             enddo
 
             call UnGetGeometry     (Me%ObjGeometry, KFloorZ, STAT = STAT_CALL)       
-            if (STAT_CALL /= SUCCESS_) stop 'UpdateComputeFacesW - ModuleMap - ERR20'
+            if (STAT_CALL /= SUCCESS_) stop 'UpdateUnsaturatedComputeFaces3D - ModuleMap - ERR20'
 
             !Updates all points which have at least one Computeface
             call UpdateOpenPoints3D()
