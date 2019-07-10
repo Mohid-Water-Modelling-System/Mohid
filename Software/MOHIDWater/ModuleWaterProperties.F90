@@ -196,7 +196,7 @@ Module ModuleWaterProperties
                                           GetDischargeFlowDistribuiton, UnGetDischarges,        &
                                           GetDischargeON, GetByPassConcIncrease,                &
                                           GetDischargeFromIntakeON, GetIntakePosition,          &
-                                          GetDistributionCoefMass, Kill_Discharges
+                                          GetDistributionCoefMass, IsUpscaling, Kill_Discharges
     use ModuleTimeSerie,            only: StartTimeSerie, StartTimeSerieInput, WriteTimeSerie,  &
                                           GetNumberOfTimeSeries, GetTimeSerieLocation,          &
                                           CorrectsCellsTimeSerie, TryIgnoreTimeSerie,           &
@@ -286,12 +286,14 @@ Module ModuleWaterProperties
                                           UngetHydrodynamic, GetHydroAltimAssim, GetVertical1D, &
                                           GetXZFlow, GetHydrodynamicAirOptions,                 &
                                           GetVelocityModulus, GetPointDischargesState
+    
 
     use ModuleBivalve,              only: GetBivalveListDeadIDS, GetBivalveNewBornParameters,   &
                                           GetBivalveNewborns, GetBivalveOtherParameters,        &
                                           UpdateBivalvePropertyList, UnGetBivalve
 
-    use ModuleTwoWay,               only: PrepTwoWay, UngetTwoWayExternal_Vars, ModifyTwoWay
+    use ModuleTwoWay,               only: PrepTwoWay, UngetTwoWayExternal_Vars, ModifyTwoWay,  &
+                                          UpscaleDischarge_WP, GetUpscalingDischarge
 
 #ifdef _ENABLE_CUDA
     use ModuleCuda
@@ -546,7 +548,7 @@ Module ModuleWaterProperties
     private ::      Ready
     private ::          LocateObjWaterProperties
     private ::          LocateObjFather
-    private ::          LocateObjSon   !Joao Sobrinho
+    private ::          LocateObjSon
 
     private ::              ReadLockExternalVar
     private ::              ReadUnlockExternalVar
@@ -883,7 +885,7 @@ Module ModuleWaterProperties
          real                                   :: C_CHLA
          real,    pointer, dimension(:,:,:)     :: Aux3D
          real,    pointer, dimension(:,:)       :: Aux2D
-         real(4), pointer, dimension(:,:,:)     :: Aux3Dreal4           => null() !Joao Sobrinho
+         real(4), pointer, dimension(:,:,:)     :: Aux3Dreal4           => null()
         logical                                 :: Simple               = .false.
     end type T_OutPut
 
@@ -932,7 +934,7 @@ Module ModuleWaterProperties
         real                                    :: OffSet               = FillValueReal
         logical                                 :: TimeSerie            = .false.
         logical                                 :: OutputHDF            = .false.
-        logical                                 :: OutputReal4          = .true. !Joao Sobrinho
+        logical                                 :: OutputReal4          = .true.
         logical                                 :: OutputSurfaceHDF     = .false.
         logical                                 :: OutputProfile        = .false.
         logical                                 :: OutputHDFSedVel      = .false.
@@ -1038,6 +1040,7 @@ Module ModuleWaterProperties
          type(T_Coupling)                       :: LightExtinction
          type(T_Coupling)                       :: Discharges
          type(T_Coupling)                       :: DischargesTracking
+         type(T_Coupling)                       :: UpscalingDischarge
          type(T_Coupling)                       :: HydroIntegration
          type(T_Coupling)                       :: DataAssimilation
          type(T_Coupling)                       :: AltimetryAssimilation ! nogueira e guillaume
@@ -1235,8 +1238,8 @@ Module ModuleWaterProperties
         real(8), pointer, dimension(:,:,:)      :: CellMass
 
         logical                                 :: FirstIteration   = .true.
-        logical                                 :: Start2way        = .false. !Joao Sobrinho
-        logical                                 :: WriteHDFReal4    = .true. !Joao Sobrinho
+        logical                                 :: Start2way        = .false.
+        logical                                 :: WriteHDFReal4    = .true.
         logical                                 :: OxygenSaturation = .false.
         logical                                 :: CO2_PP_Output    = .false.
         logical                                 :: O2_Sat_Output    = .false.
@@ -4841,6 +4844,10 @@ do1 :   do while (associated(PropertyX))
 
                     call GetDischargeFlowDistribuiton(Me%ObjDischarges, dis,            &
                                                       Me%Discharge%nCells(dis), STAT = STAT_CALL)
+                    
+                    if (IsUpscaling(Me%ObjDischarges, dis)) then
+                        Me%Coupled%UpscalingDischarge%Yes = .true.
+                    endif
 
                     if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_Sub_Modules - ModuleWaterProperties - ERR60')
 
@@ -9554,7 +9561,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
         if (STAT_CALL /= SUCCESS_)                                                       &
             call CloseAllAndStop ('ReadSubModelOptions - ModuleWaterProperties - ERR40')
 
-        if (NewProperty%Submodel%TwoWay .and. .not. NewProperty%SubModel%ON) then   !Joao Sobrinho
+        if (NewProperty%Submodel%TwoWay .and. .not. NewProperty%SubModel%ON) then
 
             write(*,*) 'Keyword TWO_WAY must ONLY be defined in nested son domains'
             call CloseAllAndStop ('ReadSubModelOptions - ModuleWaterProperties - ERR50')
@@ -9563,7 +9570,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
 
         if (NewProperty%Submodel%TwoWay)then
 
-            !Period during which the two way is not computed (to avoid assimilation of instabilities) Joao Sobrinho
+            !Period during which the two way is not computed (to avoid assimilation of instabilities)
             call GetData(NewProperty%Submodel%TwoWayWaitPeriod,                               &
                         Me%ObjEnterData, iflag,                                               &
                         Keyword      = 'TWO_WAY_WAIT_PERIOD',                                 &
@@ -11733,7 +11740,7 @@ ifMS:   if (Me%DDecomp%MasterOrSlave) then
                 CurrentProperty => CurrentProperty%Next
 
             enddo
-            !Joao Sobrinho
+            
             if(Me%WriteHDFReal4)then
 
                 nullify(Me%Output%Aux3Dreal4)
@@ -12404,7 +12411,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (.not. Me%VirtualRun) then
 #endif _USE_SEQASSIMILATION
 
-            !Joao Sobrinho
+            
             if (.not. associated (Me%Next))then
                 Call ComputeTwoWay (WaterPropertiesID, Me%ExternalVar%Now)
             endif
@@ -13105,7 +13112,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if(InitialField)then
 
-                Me%WPFatherInstanceID = ObjWaterPropertiesFather%InstanceID   !Joao Sobrinho
+                Me%WPFatherInstanceID = ObjWaterPropertiesFather%InstanceID
 
                 if(PropertyFather%Evolution%Variable .and. .not. PropertySon%Evolution%Variable) then
                     write(*,*)'Property father is variable and property son is not.'
@@ -14284,11 +14291,11 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                         endif
                     endif
 
-                    if (Property%Evolution%Discharges)then
+                    if (Property%Evolution%Discharges)then !Joao sobrinnho
 
                         call SetDischarges (Me%ObjAdvectionDiffusion, Me%Discharge%Flow,    &
-                                                Property%DischConc,   Me%Discharge%I,       &
-                                                Me%Discharge%J,       Me%Discharge%K,       &
+                                                Property%DischConc,   Me%Discharge%i,       &
+                                                Me%Discharge%j,       Me%Discharge%k,       &
                                                 Me%Discharge%kmin,    Me%Discharge%kmax,    &
                                                 Me%Discharge%Vert,    Me%Discharge%Number,  &
                                                 Me%Discharge%Ignore,  Me%Discharge%nCells,  &
@@ -19243,42 +19250,31 @@ do1 :   do while (associated(PropertyX))
     !Begin------------------------------------------------------------------------------
     if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "ComputeTwoWay")
 
-
     if(.not. Me%Start2way)then
 
         PropertyX => Me%FirstProperty
 
         ID = WaterPropertiesID
         do while (associated(PropertyX))
-
             if (PropertyX%Submodel%TwoWay) then
-
                 if (CurrentTime - Me%BeginTime .gt. PropertyX%Submodel%TwoWayWaitPeriod)then
 
                     Me%Start2way = .true.
                     exit
-
                 endif
-
             endif
             PropertyX => PropertyX%Next
         enddo
-
         nullify(PropertyX)
-
     endif
-
 
     if (Me%Start2way)then
 
             do ID = WaterPropertiesID, 2, -1
-
                 if(ID == WaterPropertiesID)then
                     !does nothing
                 else
-
                     call Ready (ID, ready_) ! points Me% to domain "ID"
-
                 endif
 
                 FatherWaterpropertiesID = Me%WPFatherInstanceID    ! Changes ID to Father
@@ -19287,11 +19283,9 @@ do1 :   do while (associated(PropertyX))
                 if (FatherWaterpropertiesID > 0) then
                     call UpdateFatherModelWP(ID, FatherWaterpropertiesID)
                 endif
-
             enddo
 
             call Ready (WaterPropertiesID, ready_) ! swithes back to the final Domain
-
     endif
 
     if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "ComputeTwoWay")
@@ -19308,17 +19302,17 @@ do1 :   do while (associated(PropertyX))
         !Arguments--------------------------------------------------------------------------------------------
         integer                                 :: SonWaterPropertiesID, FatherWaterPropertiesID
         !Local variables--------------------------------------------------------------------------------------
-        !type (T_WaterProperties), pointer       :: ObjWaterPropertiesSon
         type (T_WaterProperties), pointer       :: ObjWaterPropertiesFather
-        !type (T_Property), pointer              :: PropertyX, PropertySon
         type (T_Property), pointer              :: PropertyX, PropertyFather
+        real(8), dimension(:,:,:), pointer      :: FatherFlow
         integer                                 :: STAT_CALL
+        logical                                 :: FirstTime
 
         !Begin------------------------------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "UpdateFatherModelWP")
+        FirstTime = .true.
 
         !Me% is pointing to Son domain!
-
         PropertyX => Me%FirstProperty
 
         call LocateObjFather(ObjWaterPropertiesFather, FatherWaterPropertiesID) !Gets father solution
@@ -19327,8 +19321,18 @@ do1 :   do while (associated(PropertyX))
                          FatherID          = FatherWaterPropertiesID, &
                          CallerID          = mWATERPROPERTIES_,       &
                          STAT              = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR01.'
-
+        if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - failed PrepTwoWay'
+        
+        if (ObjWaterPropertiesFather%Coupled%UpscalingDischarge%Yes) then
+            !Get matrix from hydrodynamic module
+            call GetDischargesFluxes(FatherWaterPropertiesID, Discharges = FatherFlow, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - failed getdischargeFluxes matrix'
+            !Update the matrix with upscaling flux
+            call GetUpscalingDischarge(FatherWaterPropertiesID, FatherFlow, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - failed to get upscaling discharge flow'
+        endif
+        
+        
         !Assimilates all the properties with twoway option ON
         do while (associated(PropertyX))
             
@@ -19336,7 +19340,6 @@ do1 :   do while (associated(PropertyX))
                                         PropertyX%ID%IDNumber, STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_)then
 
-                !if (PropertySon%Submodel%TwoWay)then
                 if (PropertyX%Submodel%TwoWay)then
 
                     if(PropertyX%Evolution%NextCompute == PropertyFather%Evolution%LastCompute)then
@@ -19349,6 +19352,22 @@ do1 :   do while (associated(PropertyX))
                                            TD               = PropertyX%Submodel%TwoWayTimeDecay,   &
                                            STAT             = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR02.'
+                        
+                        if (ObjWaterPropertiesFather%Coupled%UpscalingDischarge%Yes) then
+                            call UpscaleDischarge_WP(FatherID    = FatherWaterPropertiesID,                 &
+                                                     Prop        = PropertyFather%Concentration,            &
+                                                     PropVector  = PropertyFather%DischConc,                &
+                                                     Flow        = FatherFlow,                              &
+                                                     FlowVector  = ObjWaterPropertiesFather%Discharge%Flow, &
+                                                     dI          = ObjWaterPropertiesFather%Discharge%i,    &
+                                                     dJ          = ObjWaterPropertiesFather%Discharge%j,    &
+                                                     dK          = ObjWaterPropertiesFather%Discharge%k,    &
+                                                     Kmin        = ObjWaterPropertiesFather%Discharge%kmin, &
+                                                     Kmax        = ObjWaterPropertiesFather%Discharge%kmin, &
+                                                     FirstTime   = FirstTime)
+                            FirstTime = .false.
+                        endif
+                        
 
                     endif
                 endif
@@ -19370,6 +19389,10 @@ do1 :   do while (associated(PropertyX))
                                       CallerID          = mWATERPROPERTIES_,       &
                                       STAT              = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR04.'
+        
+        call unGetHydrodynamic(FatherWaterPropertiesID, FatherFlow, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) &
+            call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR05.')
 
     if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "UpdateFatherModelWP")
 
@@ -19980,7 +20003,7 @@ do3:            do k = kbottom, KUB
         real,    dimension(:    ), pointer          :: DistributionCoef
         integer, dimension(:    ), pointer          :: VectorI, VectorJ, VectorK
         real                                        :: AuxFlowIJ
-        integer                                     :: nCells, n, AuxCell
+        integer                                     :: nCells, n, AuxCell, Aux
         integer                                     :: FlowDistribution
         real                                        :: ByPassConcIncrease
         integer                                     :: IntakeI, IntakeJ, IntakeK, kmin, kmax
@@ -19991,7 +20014,6 @@ do3:            do k = kbottom, KUB
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "WaterPropDischarges")
 
         KUB = Me%WorkSize%KUB
-
 
         !WaterColumnZ
         call GetGeometryWaterColumn(Me%ObjGeometry, WaterColumn = WaterColumnZ, STAT = STAT_CALL)
@@ -20005,8 +20027,6 @@ do3:            do k = kbottom, KUB
         Actual          =  Me%ExternalVar%Now
 
         KFloor_Z        => Me%ExternalVar%KFloor_Z
-
-
 
         if (Me%Coupled%DischargesTracking%Yes) then
 
@@ -20027,12 +20047,41 @@ do3:            do k = kbottom, KUB
 
         endif
 
-
         AuxCell = 0
 
         !For all Discharges
 dd:     do dis = 1, Me%Discharge%Number
+            
+            if (IsUpscaling(Me%ObjDischarges, dis))then
+                !Do nothing, as module twoway will be the one managing this discharge
+                call GetDischargeFlowDistribuiton(Me%ObjDischarges, dis, nCells, FlowDistribution, &
+                                              VectorI, VectorJ, VectorK, kmin, kmax, STAT = STAT_CALL)
 
+                if (STAT_CALL/=SUCCESS_)                                                     &
+                call CloseAllAndStop ('WaterPropDischarges - Failed GetDischargeFlowDistribuiton in upscaling')
+                ! skips adresses correspondent to upscaling discharges
+                
+                if (Me%FirstIteration)then
+                    Aux = AuxCell
+                    if (AuxCell == 0)Aux = 1
+                    
+                    !need to get i, j , k for adv dif.
+                    do n = Aux, nCells
+                        Me%Discharge%Flow   (n) = 0.
+                        Me%Discharge%i      (n) = VectorI(n)
+                        Me%Discharge%j      (n) = VectorJ(n)
+                        Me%Discharge%k      (n) = VectorK(n)
+                        Me%Discharge%kmin   (n) = kmin
+                        Me%Discharge%kmax   (n) = kmax                            
+                    enddo
+                endif
+                
+                AuxCell = AuxCell + nCells
+                
+                Me%Discharge%Vert   (dis) = DischVertical
+                cycle
+            endif
+            
             call GetDischargeON(Me%ObjDischarges,dis, IgnoreOK, STAT = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('WaterPropDischarges - ModuleWaterProperties - ERR40')
@@ -20096,7 +20145,7 @@ dd:     do dis = 1, Me%Discharge%Number
 
 i11:        if (nCells > 1) then
                 !allocate(DistributionCoef(1:nCells))
-i22:                if      (FlowDistribution == DischByCell_       ) then
+i22:            if      (FlowDistribution == DischByCell_       ) then
 
                     !DistributionCoef(1:nCells) = 1./float(nCells)
 
@@ -22567,7 +22616,7 @@ AO:     if (Actual >= SurfaceOutTime) then
                                          WorkJLB, WorkJUB, WorkKUB, WorkKUB, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)  &
                         call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR60')
-! Joao Sobrinho
+
                    if (Me%WriteHDFReal4)then
                         call SetMatrixValue(Me%Output%Aux3Dreal4, Me%Size, PropertyX%Concentration)
 
@@ -26127,7 +26176,7 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
                         call CloseAllAndStop ('KillWaterProperties - ModuleWaterProperties - ERR386')
                     nullify   (Me%OutPut%Aux2D)
                 end if
-                !Joao Sobrinho
+                
                 if (associated(Me%OutPut%Aux3Dreal4)) then
                     deallocate(Me%OutPut%Aux3Dreal4, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
@@ -27015,7 +27064,9 @@ cd1:    if (WaterPropertiesID > 0) then
 
     !--------------------------------------------------------------------------
 
-   !Joao Sobrinho - gets son solution
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Gets Son Object Me%
     subroutine LocateObjSon (ObjWaterPropertiesID, ObjWaterPropertiesSon)
 
         !Arguments-------------------------------------------------------------
