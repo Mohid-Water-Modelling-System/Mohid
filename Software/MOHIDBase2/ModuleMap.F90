@@ -1233,66 +1233,38 @@ iIC:                    if (IsolatedCell) then
             call GetGeometryKFloor(Me%ObjGeometry, Z = KFloorZ, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'UpdateUnsaturatedComputeFaces3D - ModuleMap - ERR10'
 
-!Joao Sobrinho
-            !!ComputeFacesU / ComputeFacesV            
-            !do j = JLB+1, JUB
-            !do i = ILB  , IUB
-            !    if (Me%WaterPoints3D(i, j, KUB) == 1) then
-            !        do k = KFloorZ(i,j), KUB
-            !            if (Me%WaterPoints3D(i, j, k) == 1 .and. Me%WaterPoints3D(i, j-1, k) == 1) then
-            !                Me%ComputeFaces3D%U(i, j  , k) = 1
-            !            endif
-            !        enddo
-            !    endif
-            !enddo
-            !enddo
-            
             !ComputeFacesU / ComputeFacesV            
             do j = JLB+1, JUB
             do i = ILB  , IUB
-            do k = KFloorZ(i,j), KUB
-                Me%ComputeFaces3D%U(i, j, k) = Me%WaterPoints3D(i, j, KUB) * Me%WaterPoints3D(i, j, k) * &
-                                               Me%WaterPoints3D(i, j-1, k)
+                if (Me%WaterPoints3D(i, j, KUB) == 1) then
+                    do k = KFloorZ(i,j), KUB
+                        if (Me%WaterPoints3D(i, j, k) == 1 .and. Me%WaterPoints3D(i, j-1, k) == 1) then
+                            Me%ComputeFaces3D%U(i, j  , k) = 1
+                        endif
+                    enddo
+                endif
             enddo
             enddo
-            enddo
-            
-            !do j = JLB  , JUB
-            !do i = ILB+1, IUB
-            !    if (Me%WaterPoints3D(i, j, KUB) == 1) then
-            !        do k = KFloorZ(i,j), KUB
-            !            if (Me%WaterPoints3D(i, j, k) == 1 .and. Me%WaterPoints3D(i-1, j, k) == 1) then
-            !                Me%ComputeFaces3D%V(i, j, k) = 1
-            !            endif
-            !        enddo
-            !    endif
-            !enddo
-            !enddo
             
             do j = JLB  , JUB
             do i = ILB+1, IUB
-            do k = KFloorZ(i,j), KUB
-                Me%ComputeFaces3D%V(i, j, k) = Me%WaterPoints3D(i, j, KUB) * Me%WaterPoints3D(i, j, k) * &
-                                               Me%WaterPoints3D(i-1, j, k)
-            enddo
+                if (Me%WaterPoints3D(i, j, KUB) == 1) then
+                    do k = KFloorZ(i,j), KUB
+                        if (Me%WaterPoints3D(i, j, k) == 1 .and. Me%WaterPoints3D(i-1, j, k) == 1) then
+                            Me%ComputeFaces3D%V(i, j, k) = 1
+                        endif
+                    enddo
+                endif
             enddo
             enddo
 
-            !do j = JLB  , JUB
-            !do i = ILB  , IUB
-            !    if (Me%WaterPoints3D(i, j, KUB) == 1) then
-            !        do k = KFloorZ(i,j)+1, KUB
-            !            Me%ComputeFaces3D%W(i, j, k) = 1
-            !        enddo
-            !    endif
-            !enddo
-            !enddo
-            
             do j = JLB  , JUB
             do i = ILB  , IUB
-            do k = KFloorZ(i,j)+1, KUB
-                Me%ComputeFaces3D%W(i, j, k) = Me%WaterPoints3D(i, j, KUB)
-            enddo
+                if (Me%WaterPoints3D(i, j, KUB) == 1) then
+                    do k = KFloorZ(i,j)+1, KUB
+                        Me%ComputeFaces3D%W(i, j, k) = 1
+                    enddo
+                endif
             enddo
             enddo
 
@@ -1825,8 +1797,25 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
         enddo
         !$OMP END DO
 
-        !obtain the U WetFaces
+        !obtain the U WetFaces !Joao sobrinho
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        
+        !do j = JLB+1, JUB
+        !do i = ILB, IUB
+        !    if (Me%OpenPoints3D(i, j, k) == 1 .or. Me%OpenPoints3D(i, j-1, k) == 1) then
+        !        Me%WetFaces%U(i, j, k) = 1
+        !    else
+        !        Me%WetFaces%U(i, j, k) = 0       
+        !    endif
+        !
+        !    if (Me%OpenPoints3D(i, JLB, k) == 1) then
+        !        Me%WetFaces%U(i, JLB, k) = 1
+        !    else
+        !        Me%WetFaces%U(i, JLB, k) = 0       
+        !    endif
+        !enddo
+        !enddo
+        
         do j = JLB+1, JUB
         do i = ILB, IUB
             if (Me%OpenPoints3D(i, j, k) == 1 .or. Me%OpenPoints3D(i, j-1, k) == 1) then
@@ -1834,12 +1823,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
             else
                 Me%WetFaces%U(i, j, k) = 0       
             endif
-        
-            if (Me%OpenPoints3D(i, JLB, k) == 1) then
-                Me%WetFaces%U(i, JLB, k) = 1
-            else
-                Me%WetFaces%U(i, JLB, k) = 0       
-            endif
+            Me%WetFaces%U(i, JLB, k) = Me%OpenPoints3D(i, JLB, k)
         enddo
         enddo
         !$OMP END DO
@@ -1854,12 +1838,7 @@ cd0 :   if (ready_ .EQ. IDLE_ERR_) then
                 Me%WetFaces%V(i, j, k) = 0       
             endif
         enddo
-        
-        if (Me%OpenPoints3D(ILB, j, k) == 1) then
-            Me%WetFaces%V(ILB, j, k) = 1
-        else
-            Me%WetFaces%V(ILB, j, k) = 0       
-        endif
+            Me%WetFaces%V(ILB, j, k) = Me%OpenPoints3D(ILB, j, k)
         enddo
         !$OMP END DO
     
