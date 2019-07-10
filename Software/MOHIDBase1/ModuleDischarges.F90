@@ -89,6 +89,7 @@ Module ModuleDischarges
     public  :: GetDischargeFlowDistribuiton
     public  :: GetDischargeON
     public  :: IsUpscaling
+    public  :: UpscalingDischargeType
     public  :: GetDistributionCoefMass
     public  :: SetLocationCellsZ
     public  :: SetLayer
@@ -180,10 +181,11 @@ Module ModuleDischarges
     end type T_Property
 
     type       T_WaterFlow
-        logical                                 :: Variable      = .false.
-        integer                                 :: FlowColumn    = null_int
-        real                                    :: scalar        = FillValueReal
-        logical                                 :: Upscaling     = .false.
+        logical                                 :: Variable        = .false.
+        integer                                 :: FlowColumn      = null_int
+        real                                    :: scalar          = FillValueReal
+        logical                                 :: Upscaling       = .false.
+        integer                                 :: UpscalingMethod = 1
     end type T_WaterFlow
 
 
@@ -910,12 +912,15 @@ i1:     if (NewDischarge%Localization%Location2D) then
 
                 case (DischBottom_, DischSurf_)
                     !do not do nothing
+
+                case (DischProfile_)
+                    !do nothing
                 case default
                     write(*,*) "VERTICAL DISCHARGE option not known ", NewDischarge%Localization%DischVertical
 
                     write(*,*) "The known options are : "," Bottom=",DischBottom_," Surface=",DischSurf_,&
                                                           " Layer =",DischLayer_, " Depth  =",DischDepth_,&
-                                                          " Uniform=",DischUniform_
+                                                          " Uniform=",DischUniform_, "Profile =",DischProfile_
                     stop 'Subroutine ConstDischargeLoc - ModuleDischarges. ERR80'
 
             end select
@@ -1094,7 +1099,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
 
         else    i1
 
-            !Darinage Network Dishcarge
+            !Drainage Network Dishcarge
             call GetData(NewDischarge%Localization%NodeID,                              &
                          Me%ObjEnterData,                                               &
                          flag,                                                          &
@@ -1713,17 +1718,31 @@ i4:         if (NewDischarge%Localization%CoordinatesON) then
             NewDischarge%WaterFlow%Variable = .true.
 
         endif
-        !Joao Sobrinho
+
         call GetData(NewDischarge%WaterFlow%Upscaling,                         &
                 Me%ObjEnterData,                                               &
                 flag,                                                          &
                 FromBlock,                                                     &
-                keyword      ='UPSCALING_DISCHARGE',                           &
+                keyword      ='UPSCALING',                                     &
                 ClientModule = 'ModuleDischarges',                             &
                 default      = .false.,                                        &
                 STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR320'
+        if (STAT_CALL /= SUCCESS_) stop 'Invalid value for Keyword UPSCALING - Construct_FlowValues'
 
+        call GetData(NewDischarge%WaterFlow%UpscalingMethod,                   &
+                Me%ObjEnterData,                                               &
+                flag,                                                          &
+                FromBlock,                                                     &
+                keyword      ='UPSCALING_METHOD',                              &
+                ClientModule = 'ModuleDischarges',                             &
+                default      = 1,                                              &
+                STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Invalid value for Keyword UPSCALING_METHOD - Construct_FlowValues'
+
+        if (NewDischarge%WaterFlow%Upscaling) then
+            NewDischarge%WaterFlow%scalar = 0.
+            NewDischarge%Localization%FlowDistribution = DischByCell_
+        endif
 
 
      End Subroutine Construct_FlowValues
@@ -3992,7 +4011,7 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Checks if a discharge is of the type "upscalling"
-    !>@param[in] DischargesID, number, STAT_CALL
+    !>@param[in] DischargesID, number
     logical function IsUpscaling(DischargesID, number)
 
     !Arguments-----------------------------------------------------------------
@@ -4021,6 +4040,37 @@ cd3 :       if (STAT_CALL /= SUCCESS_) then
     return
 
     end function IsUpscaling
+    !-------------------------------------------------------------
+
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Checks which method is defined in a discharge of the type "upscalling"
+    !>@param[in] DischargesID, number
+    integer function UpscalingDischargeType (DischargesID, number)
+    !Arguments-----------------------------------------------------------------
+    integer                                     :: DischargesID, number
+    !local---------------------------------------------------------------------
+    integer                                     :: ready_, STAT_CALL
+    type(T_IndividualDischarge), pointer        :: DischargeX
+    !--------------------------------------------------------------------------
+    call Ready(DischargesID, ready_)
+
+    if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+
+        call Search_Discharge(DischargeX, STAT_CALL, DischargeXIDNumber=number)
+        if (STAT_CALL/=SUCCESS_) then
+            write(*,*) 'Can not find discharge number ', number, '.'
+            stop       'Function UpscalingDischargeType - ModuleDischarges. ERR01.'
+        endif
+
+        UpscalingDischargeType = DischargeX%WaterFlow%UpscalingMethod
+    else
+        UpscalingDischargeType = 1
+    end if
+
+    return
+
+    end function UpscalingDischargeType
 
     !--------------------------------------------------------------------------
 
