@@ -25685,7 +25685,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
             call NullGradProp3D_W(Me%WaterFluxes%Z)
         else
             if (Me%ComputeOptions%WaveForcing3D /= GLM) then
-                call ComputeCartesianVertVelocity(Grid = Grid)
+                call ComputeCartesianVertVelocity_Waves(Grid = Grid)
                 call Boundary_VerticalFlow (Grid)
             else
                 call ComputeCartesianVertVelocity_Waves(Grid = Grid)
@@ -38217,13 +38217,6 @@ do1:    do DischargeID = 1, DischargesNumber
 
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR60'
 
-                DT_RunPeriod = Me%CurrentTime - Me%BeginTime
-
-                if (Me%ComputeOptions%WaterDischargesSlowStart > 0.) then
-                    DischargeFlow = DischargeFlow * DT_RunPeriod / Me%ComputeOptions%WaterDischargesSlowStart
-                endif
-
-
                 if (DirectionXY == DirectionX_) then
 
                     call GetDischargeFlowVelocity(Me%ObjDischarges,                       &
@@ -38308,7 +38301,7 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
 
                 !$OMP PARALLEL PRIVATE(k,AuxFlowK,MomentumDischarge,SectionHeight)
 
- dn:            do n=1, nCells
+dn:             do n=1, nCells
                     !$OMP MASTER
                     if (nCells > 1) then
                         i         = VectorI(n)
@@ -38316,22 +38309,20 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
                         kd        = VectorK(n)
 
                         call GetDischargeWaterFlow(Me%ObjDischarges,                        &
-                                                    Me%CurrentTime, DischargeID,             &
-                                                    Me%WaterLevel%Old(I, J),                 &
-                                                    AuxFlowIJ,                               &
-                                                    SurfaceElevation2 = WaterLevelByPass,    &
-                                                    FlowDistribution  = DistributionCoef(n), &
-                                                    STAT              = STAT_CALL)
+                                                   Me%CurrentTime, DischargeID,             &
+                                                   Me%WaterLevel%Old(I, J),                 &
+                                                   AuxFlowIJ,                               &
+                                                   SurfaceElevation2 = WaterLevelByPass,    &
+                                                   FlowDistribution  = DistributionCoef(n), &
+                                                   STAT              = STAT_CALL)
 
                         if (STAT_CALL/=SUCCESS_)                                            &
                             stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
-
+                    
                     endif
 
-                    if (STAT_CALL/=SUCCESS_)                                            &
-                        stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
-
-                endif
+                    iNorth = i+di
+                    jEast =  j+dj
 
                     if (DischVertical == DischUniform_) then
 
@@ -38368,7 +38359,7 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
                     !$OMP BARRIER
 
                     !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-dk:                  do k = kmin,kmax
+    dk:             do k = kmin,kmax
 
                         AuxFlowK = AuxFlowIJ
 
@@ -38429,10 +38420,10 @@ dk:                  do k = kmin,kmax
                         if (Me%OutPut%TimeSerieDischON) then
                             if (dj==1) then
                                 Me%OutPut%TimeSerieDischProp(DischargeID,2) = Me%OutPut%TimeSerieDischProp(DischargeID,2) + &
-                                                                                MomentumDischarge
+                                                                              MomentumDischarge
                             else
                                 Me%OutPut%TimeSerieDischProp(DischargeID,3) = Me%OutPut%TimeSerieDischProp(DischargeID,3) + &
-                                                                                MomentumDischarge
+                                                                              MomentumDischarge
                             endif
                         endif
 
@@ -38450,14 +38441,14 @@ dk:                  do k = kmin,kmax
                     if (dj==1) then
                         if (Me%OutPut%TimeSerieDischProp(DischargeID,1) /=0) then
                             Me%OutPut%TimeSerieDischProp(DischargeID,2) = Me%OutPut%TimeSerieDischProp(DischargeID,2)/ &
-                                                                            Me%OutPut%TimeSerieDischProp(DischargeID,1)
+                                                                          Me%OutPut%TimeSerieDischProp(DischargeID,1)
                         else
                             Me%OutPut%TimeSerieDischProp(DischargeID,2) = 0.
                         endif
                     else
-                        if (Me%OutPut%TimeSerieDischProp(DischargeID,1) /=0) then
+                       if (Me%OutPut%TimeSerieDischProp(DischargeID,1) /=0) then
                             Me%OutPut%TimeSerieDischProp(DischargeID,3) = Me%OutPut%TimeSerieDischProp(DischargeID,3)/ &
-                                                                            Me%OutPut%TimeSerieDischProp(DischargeID,1)
+                                                                          Me%OutPut%TimeSerieDischProp(DischargeID,1)
                         else
                             Me%OutPut%TimeSerieDischProp(DischargeID,3) = 0.
                         endif
@@ -38488,7 +38479,6 @@ dk:                  do k = kmin,kmax
         nullify (KFloor_UV           )
         nullify (WaterColumnUV       )
         nullify (DUZ_VZ              )
-
 
         !Disposes pointer to the Bathymetry
         call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
