@@ -345,6 +345,7 @@ Module ModuleHydrodynamic
 
     private ::              Compute_Velocity
     private ::                  Velocity_ExplicitForces
+    private ::                  Velocity_ExplicitForces2
     private ::                  Velocity_VerticalAdvection
     private ::                  Velocity_VerticalDiffusion
     private ::                  VelVerticalDiffusionBoundaries
@@ -412,6 +413,8 @@ Module ModuleHydrodynamic
     private ::          ModifyMatrixesOutput
 
     private ::          ComputeFloodRisk
+    
+    private ::      FaceDensityUpdate
 
 #ifdef _USE_SEQASSIMILATION
     !Copy subroutines usable in sequential data assimilation to change variables' value
@@ -1917,6 +1920,7 @@ Module ModuleHydrodynamic
                                           VECW_3D   => null(), &
                                           VECG_2D   => null(), &
                                           VECW_2D   => null()
+        real, dimension(:,:,:), pointer :: FaceDensity => null()
 
         !Auxiliar flux properties
         real(8), pointer, dimension(:,:,:) :: Aux3DFlux => null()
@@ -9931,6 +9935,10 @@ ic1:    if (Me%CyclicBoundary%ON) then
             Me%Emersion%TotalSimulationTime = 0.0
 
         endif
+        
+        allocate (Me%FaceDensity(ILB:IUB, JLB:JUB, KLB:KUB))
+        
+        Me%FaceDensity = SigmaDensityReference
 
       !----------------------------------------------------------------------
 
@@ -25685,7 +25693,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
             call NullGradProp3D_W(Me%WaterFluxes%Z)
         else
             if (Me%ComputeOptions%WaveForcing3D /= GLM) then
-                call ComputeCartesianVertVelocity_Waves(Grid = Grid)
+                call ComputeCartesianVertVelocity(Grid = Grid)
                 call Boundary_VerticalFlow (Grid)
             else
                 call ComputeCartesianVertVelocity_Waves(Grid = Grid)
@@ -25912,6 +25920,12 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
              call AssociateDirectionX
 
         endif
+        
+        if(Me%ComputeOptions%LocalDensity) then
+            call FaceDensityUpdate
+        else
+            call SetMatrixValue( Me%FaceDensity, Me%Size, SigmaDensityReference)
+        endif
 
     End Subroutine  ChangeDirection
 
@@ -25947,6 +25961,12 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
              call AssociateDirectionY
 
+        endif
+        
+        if(Me%ComputeOptions%LocalDensity) then
+            call FaceDensityUpdate
+        else
+            call SetMatrixValue( Me%FaceDensity, Me%Size, SigmaDensityReference)
         endif
 
     End Subroutine  MaintainDirection
@@ -40913,7 +40933,9 @@ do3:            do K=kbottom, KUB
         !Local----------------------------------------------------------------
         real(8), dimension(:,:,:), pointer :: Volume_UV
 
-        real,    dimension(:,:,:), pointer :: Density, SZZ, DUZ_VZ, Wave3DExplicit_Acceleration
+        real,    dimension(:,:,:), pointer :: SZZ, DUZ_VZ, Wave3DExplicit_Acceleration
+        
+        !real,    dimension(:,:,:), pointer :: Density, SZZ, DUZ_VZ, Wave3DExplicit_Acceleration
 
         real,    dimension(:,:  ), pointer :: DUX_VY, DYY_XX, DZX_ZY, TauWaves_UV, WaveLength, &
                                               Waterlevel, WaterColumnUV
@@ -40925,7 +40947,9 @@ do3:            do K=kbottom, KUB
 
         real,  dimension(:,:), allocatable :: WAVN
 
-        real                               :: force_2D, TauFace, FaceDensity, WlevFace, BathyFace, Vprofile
+        real                               :: force_2D, TauFace, WlevFace, BathyFace, Vprofile
+        
+        !real                               :: force_2D, TauFace, FaceDensity, WlevFace, BathyFace, Vprofile !Sobrinho
 
         integer                            :: di, dj, i, j, k, Kbottom, iSouth, jWest
 
@@ -40960,8 +40984,8 @@ do3:            do K=kbottom, KUB
 
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
         KFloor_UV            => Me%External_Var%KFloor_UV
-
-        Density              => Me%External_Var%Density
+        
+        !Density              => Me%External_Var%Density !sobrinho
 
         TauWaves_UV          => Me%External_Var%TauWaves_UV
 
@@ -41019,17 +41043,17 @@ do3:            do K=kbottom, KUB
                 SUZ_VZ(KUB) = WlevFace
 
     dok1:       do k = Kbottom, KUB
-
-                    if (Me%ComputeOptions%LocalDensity) then
-
-                        FaceDensity  = Face_Interpolation(Density(I, J, k),                  &
-                                                          Density(iSouth, jWest, k),       &
-                                                          DUX_VY(I, J), DUX_VY(iSouth, jWest))
-                    else
-
-                        FaceDensity  = SigmaDensityReference
-
-                    endif
+                    
+                    !if (Me%ComputeOptions%LocalDensity) then !Sobrinho
+                    !
+                    !    FaceDensity  = Face_Interpolation(Density(I, J, k),                  &
+                    !                                      Density(iSouth, jWest, k),       &
+                    !                                      DUX_VY(I, J), DUX_VY(iSouth, jWest))
+                    !else
+                    !
+                    !    FaceDensity  = SigmaDensityReference
+                    !
+                    !endif
 
                     if ( WAVN(i,j) * WaterColumnUV(I,J) < 50.) then  ! (stability threshold)
 
@@ -41054,8 +41078,12 @@ do3:            do K=kbottom, KUB
                     !                                     * Vprofile
 
                     ![m/s^2]                            = [m/s^2] +  [M*m/s^2] / [m^3] / [M/m^3] * [m/m]
+                    !Wave3DExplicit_Acceleration(i,j,k)  = Wave3DExplicit_Acceleration(i,j,k)           & !Sobrinho
+                    !                                      + force_2D / Volume_UV(i, j, k) / FaceDensity  &
+                    !                                      * Vprofile
+                    
                     Wave3DExplicit_Acceleration(i,j,k)  = Wave3DExplicit_Acceleration(i,j,k)           &
-                                                          + force_2D / Volume_UV(i, j, k) / FaceDensity  &
+                                                          + force_2D / Volume_UV(i, j, k) / Me%FaceDensity(i, j, k)  &
                                                           * Vprofile
 
 
@@ -41087,7 +41115,8 @@ do3:            do K=kbottom, KUB
         nullify(ComputeFaces3D_UV)
         nullify(KFloor_UV)
 
-        nullify(TauWaves_UV, Density)
+        nullify(TauWaves_UV)
+        !nullify(TauWaves_UV, Density)
         nullify(WaveLength)
 
         nullify(WaterColumnUV, Waterlevel)
@@ -45249,6 +45278,356 @@ dok:            do k = kbottom + 1, KUB
         !Local---------------------------------------------------------------------
         real(8), dimension(:,:,:), pointer :: Volume_UV, Horizontal_Transport,           &
                                               ECoef_3D
+        
+        real,    dimension(:,:,:), pointer :: Inertial_Aceleration,             &
+                                              Rox3XY, DCoef_3D, FCoef_3D, TiCoef_3D,     &
+                                              Relax_Aceleration, PressureCorrect,        &
+                                              Altim_Relax_Aceleration
+        
+        !real,    dimension(:,:,:), pointer :: Density, Inertial_Aceleration,             &
+        !                                      Rox3XY, DCoef_3D, FCoef_3D, TiCoef_3D,     &
+        !                                      Relax_Aceleration, PressureCorrect,        &
+        !                                      Altim_Relax_Aceleration
+
+        real,    dimension(:,:),   pointer :: DZX_ZY, DUX_VY,                            &
+                                              WaterLevel_New, WaterLevel_Old,            &
+                                              AtmPressure, TidePotentialLevel
+
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
+        integer, dimension(:,:),   pointer :: KFloor_UV, BoundaryFacesUV
+
+        real                               :: DT_Velocity, Alpha
+
+        real                               :: WaterPressure_Aceleration,          &
+                                              AtmosphericPressure_Aceleration,                 &
+                                              Barotropic_Aceleration, Baroclinic_Aceleration,  &
+                                              Transport_Aceleration, TidePotentialAceleration
+        
+        !real                               :: FaceDensity, WaterPressure_Aceleration,          &
+        !                                      AtmosphericPressure_Aceleration,                 &
+        !                                      Barotropic_Aceleration, Baroclinic_Aceleration,  &
+        !                                      Transport_Aceleration, TidePotentialAceleration !Sobrinho
+
+        integer                            :: I, J, K, kbottom, di, dj, iSouth, jWest
+        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
+
+        real                               :: TimeCoef, DT_RunPeriod
+        real                               :: TimeCoef2
+        real,    dimension(:,:  ), pointer :: Coriolis_Freq
+
+        !$ integer                            :: CHUNK
+
+        !Begin---------------------------------------------------------------------
+
+
+        !Begin - Shorten variables name
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+
+        di  = Me%Direction%di
+        dj  = Me%Direction%dj
+
+        DT_Velocity = Me%Velocity%DT
+
+        DCoef_3D                => Me%Coef%D3%D
+        ECoef_3D                => Me%Coef%D3%E
+        FCoef_3D                => Me%Coef%D3%F
+        TiCoef_3D               => Me%Coef%D3%Ti
+
+        Rox3XY                  => Me%Forces%Rox3XY
+        Horizontal_Transport    => Me%Forces%Horizontal_Transport
+        Inertial_Aceleration    => Me%Forces%Inertial_Aceleration
+        TidePotentialLevel      => Me%Forces%TidePotentialLevel
+        Relax_Aceleration       => Me%Forces%Relax_Aceleration
+        Altim_Relax_Aceleration => Me%Forces%Altim_Relax_Aceleration
+
+        WaterLevel_New          => Me%WaterLevel%New
+        WaterLevel_Old          => Me%WaterLevel%Old
+
+        PressureCorrect         => Me%NonHydrostatic%PressureCorrect
+
+        !Density                 => Me%External_Var%Density !Sobrinho
+        AtmPressure             => Me%External_Var%AtmosphericPressure
+
+        Volume_UV               => Me%External_Var%Volume_UV
+
+        ComputeFaces3D_UV       => Me%External_Var%ComputeFaces3D_UV
+        KFloor_UV               => Me%External_Var%KFloor_UV
+
+        BoundaryFacesUV         => Me%External_Var%BoundaryFacesUV
+
+        DZX_ZY                  => Me%External_Var%DZX_ZY
+        DUX_VY                  => Me%External_Var%DUX_VY
+
+
+        !End - Shorten variables name
+
+        if (Me%ComputeOptions%Turbine) then
+            call GetTurbineAcceleration(Me%ObjTurbine, Me%Forces%Turbine_Acceleration)
+            !Falta gestao de STAT
+        endif
+
+        if (Me%TidePotential%Compute) then
+
+            Alpha = Me%TidePotential%Alpha
+
+        else
+
+            Alpha = 1.
+
+        endif
+
+        if (Me%ComputeOptions%AtmosphereRAMP) then
+
+            TimeCoef = Me%ComputeOptions%AtmosphereCoef
+
+        elseif (Me%ComputeOptions%BaroclinicRamp) then
+
+            DT_RunPeriod = Me%CurrentTime - Me%ComputeOptions%RAMP_BeginTime
+
+            Coriolis_Freq => Me%External_Var%Coriolis_Freq
+
+        endif
+
+        !$ CHUNK = CHUNK_J(JLB, JUB)
+
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleHydrodynamic", "Velocity_ExplicitForces")
+        endif
+
+        !Sobrinho
+        !griflet: removed critical. Added TimeCoef to private variables.
+        !$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest,kbottom, &
+        !$OMP                   WaterPressure_Aceleration,TidePotentialAceleration, &
+        !$OMP                   AtmosphericPressure_Aceleration,Barotropic_Aceleration, &
+        !$OMP                   Baroclinic_Aceleration,Transport_Aceleration,TimeCoef2)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+doj:     do j = JLB, JUB
+doi:     do i = ILB, IUB
+
+Cov1:       if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
+
+                iSouth     = i - di
+                jWest      = j - dj
+
+                kbottom = KFloor_UV(i, j)
+
+                !griflet: this was the important step to make the
+                !code thread safe. The FIRSTPRIVATE clause could have been used
+                !but I'm more reliant on good old fortran logic, rather than
+                !openmp logic ;)
+                if (Me%ComputeOptions%atmosphereRAMP) TimeCoef2 = TimeCoef
+
+dok:            do  k = kbottom, KUB
+                    
+                    !if (Me%ComputeOptions%LocalDensity) then !Sobrinho
+                    !
+                    !    !!! $OMP CRITICAL (VEF1_FNC01)
+                    !    FaceDensity    = Face_Interpolation(Density(i, j, k),            &
+                    !                                        Density(iSouth, jWest, k), &
+                    !                                        DUX_VY(i, j),                &
+                    !                                        DUX_VY(iSouth, jWest))
+                    !    !!! $OMP END CRITICAL (VEF1_FNC01)
+                    !else
+                    !
+                    !    FaceDensity    = SigmaDensityReference
+                    !
+                    !endif
+
+
+                    !Aceleration due the coriolis and centrifugal force
+
+                    ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
+                    TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Inertial_Aceleration(i, j, k)
+
+
+                    ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
+                    if (Me%Relaxation%Force)   then
+                        !!!! $OMP CRITICAL (VEF1_FNC023)
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *          &
+                                                                  Relax_aceleration(i, j, k)
+                        !!!! $OMP END CRITICAL (VEF1_FNC023)
+                    endif
+
+                    ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
+                    if (Me%ComputeOptions%Obstacle)                                     &
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *         &
+                                                                  Me%Forces%ObstacleDrag_Aceleration(i, j, k)
+
+
+                    ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
+                    if (Me%ComputeOptions%Turbine)                                      &
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity*          &
+                                                                  Me%Forces%Turbine_Acceleration(i, j, k)
+
+                    if (Me%ComputeOptions%Scraper)                                      &
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *         &
+                                                                  Me%Forces%Scraper_Aceleration(i, j, k)
+
+                    if (Me%ThinWalls%ON .and. Me%ThinWalls%CloseFlag == 0)              &
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *         &
+                                                                  Me%Forces%ThinWalls_Dissipation(i,j,k)
+
+
+                    !Aceleration due to barotropic water Pressure
+
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    WaterPressure_Aceleration  = Gravity * (WaterLevel_New(iSouth, jWest) - &
+                                                 WaterLevel_New(i, j)) /                    &
+                                                 DZX_ZY(iSouth, jWest)
+
+                    !Deformation "crosta terrestre" - Tide Potential
+                    WaterPressure_Aceleration  = Alpha * WaterPressure_Aceleration
+
+
+                    if (Me%NonHydrostatic%ON .and. Me%NonHydroStatic%PressureCorrection .and. PressureBackwardInTime) then
+
+                        ![m/s^2]           = [m/s^2]  +     [m^2/s^2] / [m]
+                        WaterPressure_Aceleration = WaterPressure_Aceleration +            &
+                                             (PressureCorrect(iSouth, jWest, k) -          &
+                                              PressureCorrect(i     , j    , k))/          &
+                                              DZX_ZY(iSouth, jWest)
+                    endif
+
+
+                    !Aceleration due the tide potential
+                    ![m/s^2]                   = [m/s^2] * [m] / [m]
+                    TidePotentialAceleration   = - Gravity * (TidePotentialLevel(iSouth, jWest) - &
+                                                 TidePotentialLevel(i, j)) /                      &
+                                                 DZX_ZY(iSouth, jWest)
+
+
+                    if (Me%ComputeOptions%AtmPressure) then
+                    !Aceleration due to Atmospheric Pressure
+                        ![m/s^2]                        = [M*m/s^2/m^2] / [M/m^3] / [m]
+                        AtmosphericPressure_Aceleration = (AtmPressure(iSouth, jWest) - AtmPressure(i, j)) / &
+                                                           Me%FaceDensity(i, j, k) / DZX_ZY(iSouth, jWest)
+
+                        if (Me%ComputeOptions%atmosphereRAMP) then
+
+                            if (TimeCoef2 < 1) then
+
+                                AtmosphericPressure_Aceleration = TimeCoef2 * AtmosphericPressure_Aceleration
+
+                            endif
+
+                        endif
+
+                    else
+
+                        AtmosphericPressure_Aceleration = 0.
+
+                    endif
+
+
+                    !Aceleration due to Barotropic Pressure
+
+                    Barotropic_Aceleration = WaterPressure_Aceleration + AtmosphericPressure_Aceleration + &
+                                             TidePotentialAceleration
+
+                    ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
+                    TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Barotropic_Aceleration
+
+                    !Aceleration due to Baroclinic Pressure
+
+                    ![m/s^2]               = [m/s^2] * [M/m^3] / [M/m^3]
+                    Baroclinic_Aceleration = Gravity * Rox3XY(i, j, k) / Me%FaceDensity(i, j, k)
+
+                    ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
+                    TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Baroclinic_Aceleration
+
+
+
+                    !Aceleration due to Horizontal transport = advection + diffusion
+                    ![m/s^2]              = [m^4/s^2] / [m^3]
+                    Transport_Aceleration = Horizontal_Transport (i, j, k) / Volume_UV(i, j, k)
+
+
+                    !Aceleration due to Horizontal transport = advection + diffusion
+
+                    ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
+                    TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Transport_Aceleration
+
+                    ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
+                    if (Me%ComputeOptions%AltimetryAssimilation%flag .and.                          &
+                        Me%CurrentTime .ge. Me%ComputeOptions%AltimetryAssimilation%NextCompute)    &
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *                     &
+                                             Altim_Relax_Aceleration(i, j, k)
+
+
+                enddo dok
+
+            endif Cov1
+
+        enddo doi
+        enddo doj
+
+        !griflet: added NOWAIT
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleHydrodynamic", "Velocity_ExplicitForces")
+        endif
+
+        if (Me%ComputeOptions%Turbine) then
+            call UnGetTurbineAcceleration(Me%ObjTurbine, Me%Forces%Turbine_Acceleration)
+        endif
+
+        !Nullify auxiliar pointers
+        nullify(DCoef_3D)
+        nullify(ECoef_3D)
+        nullify(FCoef_3D)
+        nullify(TiCoef_3D)
+
+        nullify(Rox3XY)
+        nullify(Horizontal_Transport)
+        nullify(Inertial_Aceleration)
+        nullify(TidePotentialLevel)
+        nullify(Relax_Aceleration)
+        nullify(Altim_Relax_Aceleration)
+
+        nullify(WaterLevel_New, WaterLevel_Old)
+
+        !nullify(Density)!Sobrinho
+        nullify(AtmPressure)
+
+        nullify(Volume_UV)
+
+        nullify(ComputeFaces3D_UV)
+        nullify(KFloor_UV)
+
+        nullify(DZX_ZY)
+        nullify(DUX_VY)
+        nullify(Coriolis_Freq)
+
+    end Subroutine Velocity_ExplicitForces
+    
+    Subroutine Velocity_ExplicitForces2(PressureBackwardInTime)
+
+        !Variables Categories
+            !Geometry  : WaterLevel_New, DUX_VY, DZX_ZY
+            !WaterProp : Density
+            !Forces    : Inertial_Aceleration, Horizontal_Transport, ROX3, AtmPressure
+            !Time      : DT_Velocity
+            !Mapping   : ComputeFaces3D_UV, KFloor_UV, Direction
+            !Equations : TiCoef_3D
+
+         !Variables Direction Dependent
+            !DUX_VY, DZX_ZY, ComputeFaces3D_UV, KFloor_UV, Direction
+
+        !Arguments------------------------------------------------------------
+        logical                            :: PressureBackwardInTime
+
+
+        !Local---------------------------------------------------------------------
+        real(8), dimension(:,:,:), pointer :: Volume_UV, Horizontal_Transport,           &
+                                              ECoef_3D
 
         real,    dimension(:,:,:), pointer :: Density, Inertial_Aceleration,             &
                                               Rox3XY, DCoef_3D, FCoef_3D, TiCoef_3D,     &
@@ -45360,6 +45739,64 @@ dok:            do k = kbottom + 1, KUB
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Velocity_ExplicitForces")
         endif
+        
+        !Aceleration due the coriolis and centrifugal force
+        where(ComputeFaces3D_UV==1)
+            ![m/s]    = [m/s]     +     [s]     *       [m/s^2]
+            TiCoef_3D = TiCoef_3D + DT_Velocity * Inertial_Aceleration * DT_Velocity
+        end where
+        
+        if (Me%Relaxation%Force) then
+            where(ComputeFaces3D_UV==1)
+                ![m/s]    = [m/s]     +     [s]     *     [m/s^2]
+                TiCoef_3D = TiCoef_3D + DT_Velocity * Relax_aceleration
+            end where            
+        endif
+        
+        if (Me%ComputeOptions%Obstacle) then
+            where(ComputeFaces3D_UV==1)
+                ![m/s]    = [m/s]     +     [s]     *     [m/s^2]
+                TiCoef_3D = TiCoef_3D + DT_Velocity * Me%Forces%ObstacleDrag_Aceleration
+            end where            
+        endif
+        
+        if (Me%ComputeOptions%Turbine) then
+            where(ComputeFaces3D_UV==1)
+                ![m/s]    = [m/s]     +     [s]     *     [m/s^2]
+                TiCoef_3D = TiCoef_3D + DT_Velocity * Me%Forces%Turbine_Acceleration
+            end where            
+        endif  
+        
+        if (Me%ComputeOptions%Scraper) then
+            where(ComputeFaces3D_UV==1)
+                ![m/s]    = [m/s]     +     [s]     *     [m/s^2]
+                TiCoef_3D = TiCoef_3D + DT_Velocity * Me%Forces%Scraper_Aceleration
+            end where            
+        endif
+        
+        if (Me%ThinWalls%ON) then
+            if (Me%ThinWalls%CloseFlag) then
+                where(ComputeFaces3D_UV==1)
+                    ![m/s]    = [m/s]     +     [s]     *     [m/s^2]
+                    TiCoef_3D = TiCoef_3D + DT_Velocity * Me%Forces%ThinWalls_Dissipation
+                end where
+            endif
+        endif
+        
+        where(ComputeFaces3D_UV==1)
+            !Aceleration due to Horizontal transport = advection + diffusion
+            ![m/s]    = [m/s]     +     [s]     *     [m^4/s^2]        / [m^3]
+            TiCoef_3D = TiCoef_3D + DT_Velocity * Horizontal_Transport / Volume_UV
+        end where
+        
+        if (Me%ComputeOptions%AltimetryAssimilation%flag) then
+            if (Me%CurrentTime .ge. Me%ComputeOptions%AltimetryAssimilation%NextCompute) then
+                where(ComputeFaces3D_UV==1)
+                    ![m/s]    = [m/s]     +     [s]     *     [m/s^2]
+                    TiCoef_3D = TiCoef_3D + DT_Velocity * Altim_Relax_Aceleration
+                end where
+            endif
+        endif
 
         !griflet: removed critical. Added TimeCoef to private variables.
         !$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest,kbottom,FaceDensity, &
@@ -45398,41 +45835,6 @@ dok:            do  k = kbottom, KUB
                         FaceDensity    = SigmaDensityReference
 
                     endif
-
-
-                    !Aceleration due the coriolis and centrifugal force
-
-                    ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
-                    TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Inertial_Aceleration(i, j, k)
-
-
-                    ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
-                    if (Me%Relaxation%Force)   then
-                        !!!! $OMP CRITICAL (VEF1_FNC023)
-                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *          &
-                                                                  Relax_aceleration(i, j, k)
-                        !!!! $OMP END CRITICAL (VEF1_FNC023)
-                    endif
-
-                    ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
-                    if (Me%ComputeOptions%Obstacle)                                     &
-                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *         &
-                                                                  Me%Forces%ObstacleDrag_Aceleration(i, j, k)
-
-
-                    ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
-                    if (Me%ComputeOptions%Turbine)                                      &
-                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity*          &
-                                                                  Me%Forces%Turbine_Acceleration(i, j, k)
-
-                    if (Me%ComputeOptions%Scraper)                                      &
-                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *         &
-                                                                  Me%Forces%Scraper_Aceleration(i, j, k)
-
-                    if (Me%ThinWalls%ON .and. Me%ThinWalls%CloseFlag == 0)              &
-                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *         &
-                                                                  Me%Forces%ThinWalls_Dissipation(i,j,k)
-
 
                     !Aceleration due to barotropic water Pressure
 
@@ -45500,26 +45902,7 @@ dok:            do  k = kbottom, KUB
 
                     ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
                     TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Baroclinic_Aceleration
-
-
-
-                    !Aceleration due to Horizontal transport = advection + diffusion
-                    ![m/s^2]              = [m^4/s^2] / [m^3]
-                    Transport_Aceleration = Horizontal_Transport (i, j, k) / Volume_UV(i, j, k)
-
-
-                    !Aceleration due to Horizontal transport = advection + diffusion
-
-                    ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
-                    TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Transport_Aceleration
-
-                    ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
-                    if (Me%ComputeOptions%AltimetryAssimilation%flag .and.                          &
-                        Me%CurrentTime .ge. Me%ComputeOptions%AltimetryAssimilation%NextCompute)    &
-                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *                     &
-                                             Altim_Relax_Aceleration(i, j, k)
-
-
+                    
                 enddo dok
 
             endif Cov1
@@ -45566,7 +45949,7 @@ dok:            do  k = kbottom, KUB
         nullify(DUX_VY)
         nullify(Coriolis_Freq)
 
-   end Subroutine Velocity_ExplicitForces
+   end Subroutine Velocity_ExplicitForces2
 
     !------------------------------------------------------------------------------
 
@@ -46314,7 +46697,9 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
 
         !Local---------------------------------------------------------------------
         real(8), dimension(:,:,:), pointer :: Volume_UV
-        real,    dimension(:,:,:), pointer :: TiCoef_3D, Density, DUZ_VZ
+        real,    dimension(:,:,:), pointer :: TiCoef_3D, DUZ_VZ
+        
+        !real,    dimension(:,:,:), pointer :: TiCoef_3D, Density, DUZ_VZ !Sobrinho
 
         real,    dimension(:,:  ), pointer :: DUX_VY, DYY_XX, DZX_ZY, TauWaves_UV,       &
                                               WaterColumnUV
@@ -46325,7 +46710,9 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         real                               :: DT_Velocity
 
         real,    dimension(:,:  ), pointer :: AuxTauWaves_UV
-        real                               :: Aux_2D, TauFace, FaceDensity
+        real                               :: Aux_2D, TauFace
+        
+        !real                               :: Aux_2D, TauFace, FaceDensity !Sobrinho
 
         real                               :: SmoothCoef, RunPeriod
 
@@ -46360,7 +46747,7 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
         KFloor_UV            => Me%External_Var%KFloor_UV
 
-        Density              => Me%External_Var%Density
+        !Density              => Me%External_Var%Density !Sobrinho
 
         TauWaves_UV          => Me%External_Var%TauWaves_UV
         DUZ_VZ               => Me%External_Var%DUZ_VZ
@@ -46411,20 +46798,20 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
                 Aux_2D  =  SmoothCoef * DT_Velocity * DZX_ZY(iSouth, jWest) * DYY_XX(I, J) * TauFace
 
     dok1:       do k = Kbottom, KUB
-
-                    if (Me%ComputeOptions%LocalDensity) then
-
-                        FaceDensity  = Face_Interpolation(Density(I, J, k),             &
-                                                          Density(iSouth, jWest, k),    &
-                                                          DUX_VY(I, J), DUX_VY(iSouth, jWest))
-                    else
-
-                        FaceDensity  = SigmaDensityReference
-
-                    endif
+                    
+                    !if (Me%ComputeOptions%LocalDensity) then !Sobrinho
+                    !
+                    !    FaceDensity  = Face_Interpolation(Density(I, J, k),             &
+                    !                                      Density(iSouth, jWest, k),    &
+                    !                                      DUX_VY(I, J), DUX_VY(iSouth, jWest))
+                    !else
+                    !
+                    !    FaceDensity  = SigmaDensityReference
+                    !
+                    !endif
 
                     ![m/s]                                 [M*m/s] / [m^3] / [M/m^3]
-                    TiCoef_3D(i,j,k)  = TiCoef_3D(i,j,k) + Aux_2D / Volume_UV(i, j, k) / FaceDensity &
+                    TiCoef_3D(i,j,k)  = TiCoef_3D(i,j,k) + Aux_2D / Volume_UV(i, j, k) / Me%FaceDensity(i, j, k) &
                                                          * DUZ_VZ(i, j, k) / WaterColumnUV(i, j)
 
                 enddo dok1
@@ -46457,7 +46844,8 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         nullify(ComputeFaces3D_UV)
         nullify(KFloor_UV)
 
-        nullify(TauWaves_UV, Density)
+        nullify(TauWaves_UV)
+        !nullify(TauWaves_UV, Density) Sobrinho
         nullify(DUZ_VZ, WaterColumnUV)
 
 
@@ -46586,10 +46974,13 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
 
         !Local---------------------------------------------------------------------
         real(8), dimension(:,:,:), pointer :: Volume_UV, ECoef_3D
-
+        
         real,    dimension(:,:,:), pointer :: DCoef_3D, FCoef_3D, TiCoef_3D,             &
-                                              Velocity_UV_Old, Velocity_VU_New, Density, &
-                                              DUZ_VZ
+                                              Velocity_UV_Old, Velocity_VU_New, DUZ_VZ
+        
+        !real,    dimension(:,:,:), pointer :: DCoef_3D, FCoef_3D, TiCoef_3D,             & Sobrinho
+        !                                      Velocity_UV_Old, Velocity_VU_New, Density, &
+        !                                      DUZ_VZ
 
         real,    dimension(:,:  ), pointer :: DUX_VY, DYY_XX, DXX_YY, DZX_ZY, ChezyVelUV,&
                                               TauWind_UV, WaterColumnUV
@@ -46601,7 +46992,8 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
 
         real                               :: CellFace_BottomFace, CellFace_TopFace, SmoothCoef, RunPeriod
 
-        real                               :: DT_Z, TauFace, FaceDensity, Coef, WaterColumn2D
+        real                               :: DT_Z, TauFace, Coef, WaterColumn2D
+        !real                               :: DT_Z, TauFace, FaceDensity, Coef, WaterColumn2D !Sobrinho
         real(8)                            :: TotalVolume
 
         integer                            :: di, dj, i, j, Kbottom, iSouth, jWest, i_North, j_East, k
@@ -46655,7 +47047,7 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         ChezyVelUV           => Me%External_Var%ChezyVelUV
         TauWind_UV           => Me%External_Var%TauWind_UV
 
-        Density              => Me%External_Var%Density
+        !Density              => Me%External_Var%Density !Sobrinho
 
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
         KFloor_UV            => Me%External_Var%KFloor_UV
@@ -46674,7 +47066,7 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         endif
 
         !$OMP PARALLEL PRIVATE(i,j,iSouth,jWest,i_North,j_East,Kbottom,CellFace_BottomFace) &
-        !$OMP PRIVATE(FaceDensity,SmoothCoef,RunPeriod,TauFace,DT_Z,CellFace_TopFace) &
+        !$OMP PRIVATE(SmoothCoef,RunPeriod,TauFace,DT_Z,CellFace_TopFace) &
         !$OMP PRIVATE(TotalVolume,Coef,k)
 
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -46731,18 +47123,18 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
                 !Surface boundary condition (Wind)
 
                 if (Me%ComputeOptions%Wind /= NoWind_) then
-
-                    if (Me%ComputeOptions%LocalDensity) then
-                        !!!! $OMP CRITICAL (VVDB1_FNC01)
-                        FaceDensity  = Face_Interpolation(Density(I, J, KUB),                &
-                                                          Density(iSouth, jWest, KUB),     &
-                                                          DUX_VY(I, J), DUX_VY(iSouth, jWest))
-                        !!!! $OMP END CRITICAL (VVDB1_FNC01)
-                    else
-
-                        FaceDensity  = SigmaDensityReference
-
-                    endif
+                    
+                    !if (Me%ComputeOptions%LocalDensity) then !Sobrinho
+                    !    !!!! $OMP CRITICAL (VVDB1_FNC01)
+                    !    FaceDensity  = Face_Interpolation(Density(I, J, KUB),                &
+                    !                                      Density(iSouth, jWest, KUB),     &
+                    !                                      DUX_VY(I, J), DUX_VY(iSouth, jWest))
+                    !    !!!! $OMP END CRITICAL (VVDB1_FNC01)
+                    !else
+                    !
+                    !    FaceDensity  = SigmaDensityReference
+                    !
+                    !endif
 
 
                     SmoothCoef = 1.
@@ -46795,8 +47187,8 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
                     DT_Z                      = DT_Velocity / Volume_UV(i, j, KUB)       &
                                                 * DZX_ZY(iSouth, jWest) * DYY_XX(I, J)
 
-                    ![m/s]                    = [s/m] * [M*m/s^2/m^2] / [M/m^3]
-                    CellFace_TopFace        = DT_Z * TauFace / FaceDensity
+                    ![m/s]                    = [s/m] * [M*m/s^2/m^2] / [M/m^3] !Sobrinho
+                    CellFace_TopFace        = DT_Z * TauFace / Me%FaceDensity(i, j, KUB)
                 else
 
                     CellFace_TopFace        = 0.
@@ -46881,7 +47273,7 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
         nullify(ChezyVelUV)
         nullify(TauWind_UV)
 
-        nullify(Density)
+        !nullify(Density) Sobrinho
 
         nullify(DYY_XX)
         nullify(DUX_VY)
@@ -46945,9 +47337,15 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
         real                               :: AuxPressure, AuxImplicit, AuxExplicit,  &
                                               WaterColumn_High, DT_AUX, DT_AreaCell1, &
                                               DT_AreaCell2, AreaCell1, AreaCell2,     &
-                                              SurfaceFaceDensity,                     &
                                               AtmosphericExplicit,                    &
                                               TidePotentialExplicit
+        
+        !real                               :: AuxPressure, AuxImplicit, AuxExplicit,  & !Sobrinho
+        !                                      WaterColumn_High, DT_AUX, DT_AreaCell1, &
+        !                                      DT_AreaCell2, AreaCell1, AreaCell2,     &
+        !                                      SurfaceFaceDensity,                     &
+        !                                      AtmosphericExplicit,                    &
+        !                                      TidePotentialExplicit
 
         !Begin---------------------------------------------------------------------
 
@@ -46979,9 +47377,11 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
 
         RadCoef_2D           => Me%Coef%D2%Rad
         TiRadCoef_2D         => Me%Coef%D2%TiRad
+        
+        !Sobrinho  - SurfaceFaceDensity passou a Me%FaceDensity
 
         !$OMP PARALLEL PRIVATE(i,j,iSouth, jWest, kbottom,AuxPressure, AuxImplicit, AuxExplicit,WaterColumn_High, DT_AUX), &
-        !$OMP& PRIVATE(DT_AreaCell1,DT_AreaCell2, AreaCell1, AreaCell2,SurfaceFaceDensity,AtmosphericExplicit,TidePotentialExplicit)
+        !$OMP& PRIVATE(DT_AreaCell1,DT_AreaCell2, AreaCell1, AreaCell2,AtmosphericExplicit,TidePotentialExplicit)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNKJ)
     doj: do j = Me%WorkSize%JLB, Me%WorkSize%JUB
     doi: do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -47033,25 +47433,29 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
                     !atmospheric pressure effect but for speed up the program and to simplify the
                     !code was used the surface density. This aproximation dosen't introduce
                     !a large error (<0.3 %).
-
-                    if (Me%ComputeOptions%LocalDensity) then
-
-                        ![M/m^3]
-                        SurfaceFaceDensity = Face_Interpolation(Me%External_Var%Density(I,       J,    Me%WorkSize%KUB),     &
-                                                                Me%External_Var%Density(iSouth, jWest, Me%WorkSize%KUB),     &
-                                                                Me%External_Var%DUX_VY (I,       J),                         &
-                                                                Me%External_Var%DUX_VY (iSouth, jWest))
-                    else
-
-                        SurfaceFaceDensity = SigmaDensityReference
-
-                    endif
+                    
+                    !if (Me%ComputeOptions%LocalDensity) then !Sobrinho
+                    !
+                    !    ![M/m^3]
+                    !    SurfaceFaceDensity = Face_Interpolation(Me%External_Var%Density(I,       J,    Me%WorkSize%KUB),     &
+                    !                                            Me%External_Var%Density(iSouth, jWest, Me%WorkSize%KUB),     &
+                    !                                            Me%External_Var%DUX_VY (I,       J),                         &
+                    !                                            Me%External_Var%DUX_VY (iSouth, jWest))
+                    !else
+                    !
+                    !    SurfaceFaceDensity = SigmaDensityReference
+                    !
+                    !endif
 
 
                     ![m^3/s]                  = [m*s]       *  [M*m/s^2/m^2] / [M/m^3]
                     AtmosphericExplicit       = AuxPressure * (Me%External_Var%AtmosphericPressure(iSouth, jWest) -     &
                                                                Me%External_Var%AtmosphericPressure(I, J)) /             &
-                                                               SurfaceFaceDensity
+                                                               Me%FaceDensity(i, j, Me%WorkSize%KUB)
+                    
+                    !AtmosphericExplicit       = AuxPressure * (Me%External_Var%AtmosphericPressure(iSouth, jWest) -     &
+                    !                                           Me%External_Var%AtmosphericPressure(I, J)) /             &
+                    !                                           SurfaceFaceDensity  !Sobrinho
                 else
 
                     AtmosphericExplicit       = 0.
@@ -47185,9 +47589,14 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         real(8), dimension(:,:  ), pointer :: ECoef_2D,ECoef_2D_Aux
 
         real,    dimension(:,:,:), pointer :: Area_UV, Velocity_UV_Old, Velocity_VU_New, &
-                                              Density, Inertial_Aceleration, Rox3XY,     &
+                                              Inertial_Aceleration, Rox3XY,     &
                                               Vertical_Viscosity, DUZ_VZ,                &
                                               Relax_Aceleration, PressureCorrect
+        
+        !real,    dimension(:,:,:), pointer :: Area_UV, Velocity_UV_Old, Velocity_VU_New, &!Sobrinho
+        !                                      Density, Inertial_Aceleration, Rox3XY,     &
+        !                                      Vertical_Viscosity, DUZ_VZ,                &
+        !                                      Relax_Aceleration, PressureCorrect
 
         real,    dimension(:,:  ), pointer :: DCoef_2D, FCoef_2D, TiCoef_2D,             &
                                               DUX_VY, DVY_UX, DYY_XX, DZX_ZY, DXX_YY,    &
@@ -47207,10 +47616,15 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         integer                            :: I, J, kbottom, di, dj, iSouth, I_North, J_East, jWest
 
-        real                               :: FC, FC_Area, VelModXY, FaceDensity,        &
+        real                               :: FC, FC_Area, VelModXY,         &
                                               DUZ, ViscAux, AuxImplicit, AuxExplicit,    &
                                               DT_AUX, DT_AreaCell1, DT_AreaCell2,        &
                                               AreaCell1, AreaCell2, BottomViscCoef      !, CoefRelax
+        
+        !real                               :: FC, FC_Area, VelModXY, FaceDensity,        & !Sobrinho
+        !                                      DUZ, ViscAux, AuxImplicit, AuxExplicit,    &
+        !                                      DT_AUX, DT_AreaCell1, DT_AreaCell2,        &
+        !                                      AreaCell1, AreaCell2, BottomViscCoef      !, CoefRelax
 
         real                               :: WaterColumn2D
 
@@ -47268,7 +47682,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         DXX_YY               => Me%External_Var%DXX_YY
         DZX_ZY               => Me%External_Var%DZX_ZY
 
-        Density              => Me%External_Var%Density
+        !Density              => Me%External_Var%Density !Sobrinho
 
         Volume_UV            => Me%External_Var%Volume_UV
         Area_UV              => Me%External_Var%Area_UV
@@ -47398,18 +47812,18 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     AuxExplicit  = AuxExplicit  + FC_Area * (Velocity_UV_Old(I, J, kbottom) + StokesVel_UV_Old(I, J, kbottom))
                 endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-                if (Me%ComputeOptions%LocalDensity) then
-
-                    ![M/m^3]
-                    FaceDensity = Face_Interpolation(Density(I,J,kbottom), Density(iSouth, jWest,kbottom), &
-                                                     DUX_VY(I, J), DUX_VY(iSouth, jWest))
-
-                else
-                    ![M/m^3]
-                    FaceDensity = SigmaDensityReference
-
-                endif
+                
+                !if (Me%ComputeOptions%LocalDensity) then
+                !
+                !    ![M/m^3]
+                !    FaceDensity = Face_Interpolation(Density(I,J,kbottom), Density(iSouth, jWest,kbottom), &
+                !                                     DUX_VY(I, J), DUX_VY(iSouth, jWest))
+                !
+                !else
+                !    ![M/m^3]
+                !    FaceDensity = SigmaDensityReference
+                !
+                !endif
 
 
                 !Atmospheric pressure
@@ -47420,7 +47834,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     AuxExplicit  = AuxExplicit  + FC_Area * DT_Velocity *              &
                                                   (AtmPressure(iSouth, jWest) -      &
                                                   AtmPressure(I,J))/                   &
-                                                  FaceDensity / DZX_ZY(iSouth, jWest)
+                                                  Me%FaceDensity(i, j, kbottom) / DZX_ZY(iSouth, jWest)
                 endif
 
 
@@ -47480,7 +47894,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                 !baroclinic pressure in the bottom layer
                 ![m^3/s]     = [m^3/s]      + [m^2] * [s] * [M/m^3] * [m/s^2] / [M/m^3]
                 AuxExplicit  = AuxExplicit  + FC_Area * DT_Velocity *                    &
-                                              Rox3XY(I, J, kbottom)   * Gravity / FaceDensity
+                                              Rox3XY(I, J, kbottom)   * Gravity / Me%FaceDensity(i, j, kbottom)
 
 
                 ! Shear stress between the first and the second layer
@@ -47617,7 +48031,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         nullify(AtmPressure)
 
-        nullify(Density)
+        !nullify(Density) !Sobrinho
 
         nullify(DYY_XX)
         nullify(DUX_VY)
@@ -47771,11 +48185,17 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         !Local---------------------------------------------------------------------
         integer                                 :: i, j, k, kbottom, iSouth, jWest
-        real                                    :: FaceDensity, SurfaceFaceDensity, AuxExplicit,                            &
+        real                                    :: AuxExplicit,                            &
                                                    DT_AUX, DT_AreaCell1, DT_AreaCell2,                                      &
                                                    AreaCell1, AreaCell2, TauFace,                                           &
                                                    Transport_Aceleration, SmoothCoef, RunPeriod,                            &
                                                    Aux_2D, Taw_Face, Two_Face
+        
+        !real                                    :: FaceDensity, SurfaceFaceDensity, AuxExplicit,                            &
+        !                                           DT_AUX, DT_AreaCell1, DT_AreaCell2,                                      &
+        !                                           AreaCell1, AreaCell2, TauFace,                                           &
+        !                                           Transport_Aceleration, SmoothCoef, RunPeriod,                            &
+        !                                           Aux_2D, Taw_Face, Two_Face ! Sobrinho
 
 
         !Begin---------------------------------------------------------------------
@@ -47787,9 +48207,9 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         endif
 
         call SetMatrixValue(Me%Coef%D2%Tiaux,  Me%WorkSize2D, 0.0)
-
+!Sobrinho
         !$OMP PARALLEL PRIVATE( i, j, k, kbottom, iSouth, jWest),                &
-        !$OMP& PRIVATE(FaceDensity, SurfaceFaceDensity, AuxExplicit),            &
+        !$OMP& PRIVATE(AuxExplicit),            &
         !$OMP& PRIVATE(DT_AUX, DT_AreaCell1, DT_AreaCell2),                      &
         !$OMP& PRIVATE(AreaCell1, AreaCell2, TauFace),                           &
         !$OMP& PRIVATE(Transport_Aceleration, SmoothCoef, RunPeriod),            &
@@ -47822,19 +48242,19 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                 endif
 
                 do  k = kbottom, Me%WorkSize%KUB
-
-                    if (Me%ComputeOptions%LocalDensity) then
-
-                        ![M/m^3]
-                        FaceDensity  = Face_Interpolation(Me%External_Var%Density(I,J,K),                                   &
-                                                          Me%External_Var%Density(iSouth, jWest,K),                         &
-                                                          Me%External_Var%DUX_VY(I, J),                                     &
-                                                          Me%External_Var%DUX_VY(iSouth, jWest))
-                    else
-                        ![M/m^3]
-                        FaceDensity = SigmaDensityReference
-
-                    endif
+                    
+                    !if (Me%ComputeOptions%LocalDensity) then
+                    !
+                    !    ![M/m^3]
+                    !    FaceDensity  = Face_Interpolation(Me%External_Var%Density(I,J,K),                                   &
+                    !                                      Me%External_Var%Density(iSouth, jWest,K),                         &
+                    !                                      Me%External_Var%DUX_VY(I, J),                                     &
+                    !                                      Me%External_Var%DUX_VY(iSouth, jWest))
+                    !else
+                    !    ![M/m^3]
+                    !    FaceDensity = SigmaDensityReference
+                    !
+                    !endif
 
                     !Horizontal Transport - Advection, diffusion
 
@@ -47895,13 +48315,13 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     ![m^3/s]     = [m^3/s]      + [m^2] * [s] * [M/m^3] * [m/s^2] / [M/m^3]
                     AuxExplicit  = AuxExplicit  + Me%External_Var%Area_UV(I, J, K) * Me%Velocity%DT *                       &
                                                   Me%Forces%Rox3XY (I, J, K) *                                              &
-                                                  Gravity / FaceDensity
+                                                  Gravity / Me%FaceDensity(i, j, k)
 
 
-                    if (Me%WaveStress%ON) then
+                    if (Me%WaveStress%ON) then !Sobrinho
 
                         ![m^3/s]           = [m^3/s] +  [m^2]        * [M * m/s] / [M/m^3] / [m^3] * [m] / [m]
-                        AuxExplicit = AuxExplicit +  Me%External_Var%Area_UV  (I, J, K) * Aux_2D / FaceDensity  / &
+                        AuxExplicit = AuxExplicit +  Me%External_Var%Area_UV  (I, J, K) * Aux_2D / Me%FaceDensity(i, j, k) /&
                                                      Me%External_Var%Volume_UV(i, j, k) * Me%External_Var%DUZ_VZ(i, j, k) / &
                                                      Me%External_Var%WaterColumnUV(i, j)
 
@@ -47922,7 +48342,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                 if (Me%ComputeOptions%Wind /= NoWind_) then
 
                     !The last k of the dok Cyclic is KUB - surface layer
-                    SurfaceFaceDensity = FaceDensity
+                    !SurfaceFaceDensity = FaceDensity Sobrinho
 
                     SmoothCoef = 1.
 
@@ -47970,10 +48390,10 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     endif
 
                     TauFace  = TauFace * SmoothCoef
-
+!Sobrinho
                     ![m^3/s]     = [m^3/s]     + [M*m/s^2/m^2] * [m] * [s] / [M/m^3]
                     AuxExplicit  = AuxExplicit + TauFace * Me%External_Var%DYY_XX(I, J) *                                   &
-                                                 Me%Velocity%DT / SurfaceFaceDensity
+                                                 Me%Velocity%DT / Me%FaceDensity(i, j, Me%WorkSize%KUB)
                 endif
 
                 ! Surface momentum flux from waves to ocean due to wave breaking
@@ -49230,8 +49650,65 @@ do5:            do i = ILB, IUB
     end subroutine ComputeFloodRisk
 
     !--------------------------------------------------------------------------
-    ! This subroutine is responsable for computing fluxes between boxes
 
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Contructs Updates facedensity matrix.  
+    subroutine FaceDensityUpdate
+    
+        !External-------------------------------------------------------------
+        real,    dimension(:,:  ), pointer :: DUX_VY
+        real,    dimension(:,:,:), pointer :: Density
+
+        !Local-----------------------------------------------------------------
+        integer :: i, j, k, KUB, iSouth, jWest, di, dj, IUB, JUB, ILB, JLB, KLB
+        !$ integer                            :: CHUNK
+        
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+        
+        di  = Me%Direction%di
+        dj  = Me%Direction%dj
+        
+        DUX_VY   => Me%External_Var%DUX_VY
+        
+        Density  => Me%External_Var%Density
+        if (associated(Density))then
+       
+            !$ CHUNK = CHUNK_K(KLB, KUB)
+           !$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest)
+           !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do k=KLB, KUB        
+            do j=JLB, JUB
+            do i=ILB, IUB
+
+                iSouth = i - di
+                jWest  = j - dj
+                if (Me%External_Var%ComputeFaces3D_UV(i, j, k)==Covered) then
+                
+                    Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k),                &
+                                                        Density(iSouth, jWest, k),     &
+                                                        DUX_VY(i, j), DUX_VY(iSouth, jWest))
+                endif
+            
+            enddo
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+        endif
+        
+        nullify(Density, DUX_VY) 
+    
+    end subroutine FaceDensityUpdate
+    
+    
+    ! This subroutine is responsable for computing fluxes between boxes
     subroutine ComputeBoxesWaterFluxes
 
         !Arguments-------------------------------------------------------------
@@ -55948,6 +56425,9 @@ ic1:    if (Me%CyclicBoundary%ON) then
             nullify (Me%Forces%Wave3DExplicit_Acceleration)
 
         endif
+        
+        deallocate (Me%FaceDensity)
+        nullify (Me%FaceDensity)
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
