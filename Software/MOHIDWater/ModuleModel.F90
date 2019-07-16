@@ -1043,6 +1043,7 @@ il:         if (Me%RunLagrangian) then
 
 #endif
 
+
 #ifdef _USE_SEQASSIMILATION
             !Sequential data assimilation (Ang)
             if (Me%RunSeqAssimilation) then

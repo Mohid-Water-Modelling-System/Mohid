@@ -414,7 +414,10 @@ Module ModuleHydrodynamic
 
     private ::          ComputeFloodRisk
     
-    private ::      FaceDensityUpdate
+    !private ::      FaceDensityUpdate
+    !private ::      FaceDensityUpdate2
+    !private ::      FaceDensityUpdate3
+    private ::      FaceDensityUpdate4
 
 #ifdef _USE_SEQASSIMILATION
     !Copy subroutines usable in sequential data assimilation to change variables' value
@@ -9938,7 +9941,7 @@ ic1:    if (Me%CyclicBoundary%ON) then
         
         allocate (Me%FaceDensity(ILB:IUB, JLB:JUB, KLB:KUB))
         
-        Me%FaceDensity = SigmaDensityReference
+        Me%FaceDensity(:,:,:) = SigmaDensityReference
 
       !----------------------------------------------------------------------
 
@@ -16108,7 +16111,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 call ReadLock_ModuleWaves
             endif
 #endif
-
             call One_Iteration
 
             !Computes the energy extracted by the turbines
@@ -16572,14 +16574,12 @@ cd1:            if (MethodStatistic == Value3DStatLayers) then
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
 
-
-
             if(InitialField) then
                 Me%FatherInstanceID = HydrodynamicFatherID
 
                 call TestSubModelOptionsConsistence (ObjHydrodynamicFather%ComputeOptions%Continuous)
                 call GetComputeTimeStep             (ObjHydrodynamicFather%ObjTime, DT_Father)
-
+                
                 if (Me%ComputeOptions%TwoWay)then
                     call AllocateTwoWayAux(HydrodynamicFatherID, HydrodynamicID)
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
@@ -16599,7 +16599,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
                 Me%SubModel%FatherKUB = ObjHydrodynamicFather%WorkSize%KUB
 
                 call ConstructTimeInterpolation     (DT_Father)
-
             endif
 
             call SetMatrixValue(Me%SubModel%DUZ_Old, Me%Size, Me%SubModel%DUZ_New)
@@ -16614,13 +16613,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
                                     WetFaces_UFather, WetFaces_VFather,                  &
                                     UFather, VFather, ZFather, DUZFather, DVZFather)
 
-
                 call ReadNextOrInitialField (UFather, VFather, DUZFather, DVZFather,     &
                                        FluxXFather, FluxYFather, ZFather, Open3DFather,  &
                                        Faces3D_UFather, Faces3D_VFather,                 &
                                        WetFaces_UFather, WetFaces_VFather, InitialField, &
                                        ObjHydrodynamicFather%ObjHorizontalGrid)
-
 
                 !Unget Father information
                 call ReadUnLockFather(ObjHydrodynamicFather,                             &
@@ -16628,7 +16625,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
                                       Open3DFather, Faces3D_UFather, Faces3D_VFather,    &
                                       WetFaces_UFather, WetFaces_VFather,                &
                                       UFather, VFather, ZFather, DUZFather, DVZFather)
-
 
                 if (.not. InitialField) then
 
@@ -16653,26 +16649,21 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
 
             endif
             if      (Me%SubModel%VertComunic == FatherSonEqualDim) then
-
                 call ActualizeSubModelValues(InitialField)
 
             else if (Me%SubModel%VertComunic == Father2DSon3D) then
-
                 call ActualizeSon3DWithFather2D (InitialField)
 
             else if ((Me%SubModel%VertComunic == FatherSonDifDim) .or.                   &
                       (Me%SubModel%VertComunic == Father3DSon2D)) then
-
                 !Ang: new implementation
                 call ActualizeSon3DWithFather3D (InitialField)
 
             endif
-
 !            if (Me%SubModel%DeadZone .and. InitialField  .and.           &
             if (InitialField  .and.                                                     &
                 .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart)                                      &
                 call Initial_Geometry(Me%WaterLevel%New)
-
 
             STAT_ = SUCCESS_
         else cd1
@@ -17478,7 +17469,6 @@ cd11:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
 
         !Begin-----------------------------------------------------------------
 
-
         call GetGeometryWaterColumn(Me%ObjGeometry,                          &
                                     WaterColumnU= WaterColumnU, WaterColumnV= WaterColumnV,  &
                                     STAT = status)
@@ -17549,7 +17539,6 @@ cd11:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
 cd3:    if (InitialField) then
 
             ErrorOccured = .false.
-
             CHUNK = CHUNK_J(JLB, JUB + 1)
 
             !$OMP PARALLEL PRIVATE(i,j,DeadZoneSon,NullValue,i_thick,j_thick) &
@@ -17740,7 +17729,7 @@ cd5:            if ((Faces3D_VSon        (i, j, KUB) == Covered   .or.          
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
-
+            
             if (ErrorOccured .and. .not. Me%SubModel%MissingNull)        &
                 call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR06")
 
@@ -17750,7 +17739,6 @@ cd5:            if ((Faces3D_VSon        (i, j, KUB) == Covered   .or.          
 cd66:   if ((InitialField .and. .not. Me%ComputeOptions%Continuous) .or. &
              Me%Relaxation%WaterLevel                               .or. &
              Me%ComputeOptions%BarotropicRadia == FlatherLocalSolution_)  then
-
             CHUNK = CHUNK_J(JLB, JUB)
             !$OMP PARALLEL PRIVATE(i,j,DeadZoneSon)
 
@@ -17806,7 +17794,6 @@ cd6:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon)
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
-
             if (Me%SubModel%MissingNull) then
 
                  call RemoveLowerSpikes (Me%SubModel%Z, Water3DSon,                     &
@@ -17825,7 +17812,6 @@ cd6:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon)
         else cd66
 
             CHUNK = CHUNK_J(JLB, JUB)
-
             !$OMP PARALLEL PRIVATE(i,j,DeadZoneSon)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
@@ -17875,7 +17861,6 @@ cd67:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) 
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
-
             if (Me%SubModel%MissingNull)                                                &
                 call RemoveLowerSpikes (Me%SubModel%Z, Water3DSon,                      &
                                         Bathymetry, MinWaterColumn,                     &
@@ -17886,7 +17871,6 @@ cd67:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) 
         endif cd66
 
         CHUNK = CHUNK_J(JLB, JUB + 1)
-
         !$OMP PARALLEL PRIVATE(i,j,k,DeadZoneSon,NullValue,Kbottom) &
         !$OMP PRIVATE(RelativeThickness,i_thick,j_thick)
 
@@ -18385,7 +18369,6 @@ cd99:       if ((ImposedTangFacesVSon(i, j, KUB) == Imposed  .or.               
         enddo
         !$OMP END DO
         !$OMP END PARALLEL
-
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "ActualizeSon3DWithFather2D")
 
         !Tihs is only done for graphical reasons
@@ -18451,7 +18434,6 @@ cd11:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
                 Me%SubModel%DVZ_Next(:,:,:)
 
         endif cd11
-
 
         call UnGetGeometry(Me%ObjGeometry,                               &
                            WaterColumnU, STAT = status)
@@ -25922,7 +25904,10 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         endif
         
         if(Me%ComputeOptions%LocalDensity) then
-            call FaceDensityUpdate
+            !call FaceDensityUpdate
+            !call FaceDensityUpdate2
+            !call FaceDensityUpdate3
+            call FaceDensityUpdate4
         else
             call SetMatrixValue( Me%FaceDensity, Me%Size, SigmaDensityReference)
         endif
@@ -25964,7 +25949,10 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         endif
         
         if(Me%ComputeOptions%LocalDensity) then
-            call FaceDensityUpdate
+            !call FaceDensityUpdate
+            !call FaceDensityUpdate2
+            !call FaceDensityUpdate3
+            call FaceDensityUpdate4
         else
             call SetMatrixValue( Me%FaceDensity, Me%Size, SigmaDensityReference)
         endif
@@ -45571,6 +45559,7 @@ dok:            do  k = kbottom, KUB
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
+
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Velocity_ExplicitForces")
         endif
@@ -45605,6 +45594,7 @@ dok:            do  k = kbottom, KUB
         nullify(DZX_ZY)
         nullify(DUX_VY)
         nullify(Coriolis_Freq)
+        
 
     end Subroutine Velocity_ExplicitForces
     
@@ -47260,7 +47250,7 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "VelVerticalDiffusionBoundaries")
         endif
-
+        
         !Nullify auxiliar pointers
         nullify(DCoef_3D)
         nullify(ECoef_3D)
@@ -47290,7 +47280,6 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
 ! Modified by Matthias DELPEY - 08/09/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         nullify(Taw_UV, Two_UV)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 
 
     End Subroutine VelVerticalDiffusionBoundaries
@@ -48207,6 +48196,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         endif
 
         call SetMatrixValue(Me%Coef%D2%Tiaux,  Me%WorkSize2D, 0.0)
+        
 !Sobrinho
         !$OMP PARALLEL PRIVATE( i, j, k, kbottom, iSouth, jWest),                &
         !$OMP& PRIVATE(AuxExplicit),            &
@@ -48468,6 +48458,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
+        
 
         if (Me%ComputeOptions%Turbine) then
             call UnGetTurbineAcceleration(Me%ObjTurbine, Me%Forces%Turbine_Acceleration)
@@ -49662,8 +49653,7 @@ do5:            do i = ILB, IUB
         real,    dimension(:,:,:), pointer :: Density
 
         !Local-----------------------------------------------------------------
-        integer :: i, j, k, KUB, iSouth, jWest, di, dj, IUB, JUB, ILB, JLB, KLB
-        !$ integer                            :: CHUNK
+        integer :: i, j, k, KUB, iSouth, jWest, di, dj, IUB, JUB, ILB, JLB, KLB, it, kbottom
         
         IUB = Me%WorkSize%IUB
         ILB = Me%WorkSize%ILB
@@ -49680,32 +49670,233 @@ do5:            do i = ILB, IUB
         Density  => Me%External_Var%Density
         if (associated(Density))then
        
-            !$ CHUNK = CHUNK_K(KLB, KUB)
-           !$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest)
-           !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do k=KLB, KUB        
-            do j=JLB, JUB
-            do i=ILB, IUB
-
-                iSouth = i - di
-                jWest  = j - dj
-                if (Me%External_Var%ComputeFaces3D_UV(i, j, k)==Covered) then
+            do it = 1, 100
                 
-                    Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k),                &
-                                                        Density(iSouth, jWest, k),     &
-                                                        DUX_VY(i, j), DUX_VY(iSouth, jWest))
-                endif
+                if ((KUB - KLB) >= openmp_num_threads) then
+                   !$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest)
+                   !$OMP DO SCHEDULE(DYNAMIC,1)
+                    do k=KLB, KUB        
+                    do j=JLB, JUB
+                    do i=ILB, IUB
+
+                        iSouth = i - di
+                        jWest  = j - dj
+                        if (Me%External_Var%ComputeFaces3D_UV(i, j, k)==Covered) then
+                
+                            Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k),                &
+                                                                Density(iSouth, jWest, k),     &
+                                                                DUX_VY(i, j), DUX_VY(iSouth, jWest))
+                        endif
             
+                    enddo
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
+                
+                else
+                    
+                   !$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest, kbottom)
+                   !$OMP DO SCHEDULE(DYNAMIC,1)  
+                    do j=JLB, JUB
+                    do i=ILB, IUB
+                        iSouth = i - di
+                        jWest  = j - dj
+                        kbottom = Me%External_Var%KFloor_UV(i, j)
+                        if (Me%External_Var%ComputeFaces3D_UV(i, j, KUB)==Covered) then
+                        
+                            do k=kbottom, KUB
+                
+                                Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k),                &
+                                                                    Density(iSouth, jWest, k),     &
+                                                                    DUX_VY(i, j), DUX_VY(iSouth, jWest))
+                    
+                            enddo
+                        endif
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
+                endif
+                
             enddo
-            enddo
-            enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
         endif
         
         nullify(Density, DUX_VY) 
     
     end subroutine FaceDensityUpdate
+    
+    subroutine FaceDensityUpdate2
+    
+        !External-------------------------------------------------------------
+        real,    dimension(:,:  ), pointer :: DUX_VY
+        real,    dimension(:,:,:), pointer :: Density
+
+        !Local-----------------------------------------------------------------
+        integer :: i, j, k, KUB, iSouth, jWest, di, dj, IUB, JUB, ILB, JLB, KLB, kbottom, it
+        
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+        
+        di  = Me%Direction%di
+        dj  = Me%Direction%dj
+        
+        DUX_VY   => Me%External_Var%DUX_VY
+        
+        Density  => Me%External_Var%Density
+        if (associated(Density))then
+       
+            do it = 1, 100
+               !$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest, kbottom)
+               !$OMP DO SCHEDULE(DYNAMIC,1)  
+                do j=JLB, JUB
+                do i=ILB, IUB
+                    iSouth = i - di
+                    jWest  = j - dj
+                    kbottom = Me%External_Var%KFloor_UV(i, j)
+                    if (Me%External_Var%ComputeFaces3D_UV(i, j, KUB)==Covered) then
+                        
+                        do k=kbottom, KUB
+                
+                            Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k),                &
+                                                                Density(iSouth, jWest, k),     &
+                                                                DUX_VY(i, j), DUX_VY(iSouth, jWest))
+                    
+                        enddo
+                    endif
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
+            enddo
+        endif
+        
+        nullify(Density, DUX_VY) 
+    
+    end subroutine FaceDensityUpdate2
+    
+    subroutine FaceDensityUpdate3
+    
+        !External-------------------------------------------------------------
+        real,    dimension(:,:  ), pointer :: DUX_VY
+        real,    dimension(:,:,:), pointer :: Density
+
+        !Local-----------------------------------------------------------------
+        integer :: i, j, k, KUB, iSouth, jWest, IUB, JUB, ILB, JLB, KLB, it
+        !$ integer                            :: CHUNK
+        
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+        
+        DUX_VY   => Me%External_Var%DUX_VY
+        
+        Density  => Me%External_Var%Density
+        if (associated(Density))then
+       
+            do it = 1, 100
+                !$ CHUNK = CHUNK_K(KLB, KUB)
+               !$OMP PARALLEL PRIVATE( i,j,k)
+               !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do k=KLB, KUB        
+                do j=JLB, JUB
+                do i=ILB, IUB
+
+                    if (Me%External_Var%ComputeFaces3D_UV(i, j, k)==Covered) then
+                
+                        Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k),                &
+                                                        Density(i - Me%Direction%di, j - Me%Direction%dj, k),     &
+                                                        DUX_VY(i, j), DUX_VY(i - Me%Direction%di, j - Me%Direction%dj))
+                    endif
+            
+                enddo
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
+            enddo
+        endif
+        
+        nullify(Density, DUX_VY) 
+    
+    end subroutine FaceDensityUpdate3
+    
+    subroutine FaceDensityUpdate4
+    
+        !External-------------------------------------------------------------
+        real,    dimension(:,:  ), pointer :: DUX_VY
+        real,    dimension(:,:,:), pointer :: Density
+
+        !Local-----------------------------------------------------------------
+        integer :: i, j, k, KUB, iSouth, jWest, IUB, JUB, ILB, JLB, KLB, it
+        
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+        
+        DUX_VY   => Me%External_Var%DUX_VY
+        
+        Density  => Me%External_Var%Density
+        if (associated(Density))then
+       
+            do it = 1, 100
+                if (Me%Direction%di == 1) then
+                    
+                   !$OMP PARALLEL PRIVATE( i,j,k)
+                   !$OMP DO SCHEDULE(DYNAMIC,1)
+                    do k=KLB, KUB        
+                    do j=JLB, JUB
+                    do i=ILB, IUB
+
+                        if (Me%External_Var%ComputeFaces3D_UV(i, j, k)==Covered) then
+                
+                            Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k),                &
+                                                       Density(i - 1, j, k),     &
+                                                       DUX_VY(i, j), DUX_VY(i - 1, j))
+                        endif
+            
+                    enddo
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
+                    
+                else
+                   !$OMP PARALLEL PRIVATE( i,j,k)
+                   !$OMP DO SCHEDULE(DYNAMIC,1)
+                    do k=KLB, KUB        
+                    do j=JLB, JUB
+                    do i=ILB, IUB
+
+                        if (Me%External_Var%ComputeFaces3D_UV(i, j, k)==Covered) then
+                
+                            Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k),                &
+                                                       Density(i, j - 1, k),     &
+                                                       DUX_VY(i, j), DUX_VY(i, j - 1))
+                        endif
+            
+                    enddo
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    !$OMP END PARALLEL
+                endif
+            enddo
+        endif
+        
+        nullify(Density, DUX_VY) 
+    
+    end subroutine FaceDensityUpdate4
     
     
     ! This subroutine is responsable for computing fluxes between boxes

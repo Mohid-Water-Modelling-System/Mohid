@@ -1534,18 +1534,14 @@ Module ModuleFunctions
         !endif
         
         if (present(MapMatrix))then
-            !$OMP PARALLEL
-            !$OMP WORKSHARE
-            where (MapMatrix == 1) Matrix = ValueX
-            !$OMP END WORKSHARE
-            !$OMP END PARALLEL
+            !$OMP PARALLEL WORKSHARE
+                where (MapMatrix == 1) Matrix(:,:,:) = ValueX
+            !$OMP END PARALLEL WORKSHARE
             
         else
-            !$OMP PARALLEL
-            !$OMP WORKSHARE
-            Matrix = ValueX
-            !$OMP END WORKSHARE
-            !$OMP END PARALLEL
+            !$OMP PARALLEL WORKSHARE
+                Matrix(:,:,:) = ValueX
+            !$OMP END PARALLEL WORKSHARE
         endif
 
     end subroutine SetMatrixValues3D_R8_Constant
@@ -1795,17 +1791,13 @@ Module ModuleFunctions
             endif
         else
             if (present(MapMatrix))then
-            !$OMP PARALLEL
-            !$OMP WORKSHARE
-                where (MapMatrix == 1) Matrix = InMatrix
-            !$OMP END WORKSHARE
-            !$OMP END PARALLEL
+                !!$OMP PARALLEL WORKSHARE
+                where (MapMatrix == 1) Matrix(:,:,:) = InMatrix(:,:,:)
+                !!$OMP END PARALLEL WORKSHARE
             else
-            !$OMP PARALLEL
-            !$OMP WORKSHARE
-                Matrix = InMatrix
-            !$OMP END WORKSHARE
-            !$OMP END PARALLEL
+               ! !$OMP PARALLEL WORKSHARE
+                Matrix(:,:,:) = InMatrix(:,:,:)
+                !!$OMP END PARALLEL WORKSHARE
             endif
         endif
 
