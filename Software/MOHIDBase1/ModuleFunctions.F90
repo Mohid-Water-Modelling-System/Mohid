@@ -1584,7 +1584,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, chunk)
+            !$OMP DO SCHEDULE(STATIC, chunk)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1632,7 +1632,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J, K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC, CHUNK)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1678,7 +1678,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J, K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1725,7 +1725,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J, K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1752,20 +1752,10 @@ Module ModuleFunctions
         !Local-----------------------------------------------------------------
         integer                                         :: i, j, k
         integer                                         :: CHUNK
-        logical                                         :: Mismatch
 
         !Begin-----------------------------------------------------------------
 
         CHUNK = CHUNK_K(Size%KLB, Size%KUB)
-        !Mismatch = .false.
-        !
-        !if (size(InMatrix, 3) .NE. size(Matrix, 3)) then
-        !    Mismatch = .true.
-        !elseif (size(InMatrix, 2) .NE. size(Matrix, 2)) then
-        !    Mismatch = .true.
-        !endif
-        ! 
-        !if (Mismatch) then
         if (present(MapMatrix)) then
             !$OMP PARALLEL PRIVATE(I,J,K)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -1782,7 +1772,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1793,17 +1783,6 @@ Module ModuleFunctions
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         endif
-        !else
-            !if (present(MapMatrix))then
-            !    !!$OMP PARALLEL WORKSHARE
-            !    where (MapMatrix == 1) Matrix(:,:,:) = InMatrix(:,:,:)
-            !    !!$OMP END PARALLEL WORKSHARE
-            !else
-            !   ! !$OMP PARALLEL WORKSHARE
-            !    Matrix(:,:,:) = InMatrix(:,:,:)
-            !    !!$OMP END PARALLEL WORKSHARE
-            !endif
-        !endif
 
     end subroutine SetMatrixValues3D_R8_FromMatrix
 
@@ -1841,7 +1820,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC, CHUNK)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
