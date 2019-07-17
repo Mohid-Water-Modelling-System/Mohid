@@ -414,10 +414,7 @@ Module ModuleHydrodynamic
 
     private ::          ComputeFloodRisk
     
-    !private ::      FaceDensityUpdate
-    !private ::      FaceDensityUpdate2
-    !private ::      FaceDensityUpdate3
-    private ::      FaceDensityUpdate4
+    private ::      FaceDensityUpdate
 
 #ifdef _USE_SEQASSIMILATION
     !Copy subroutines usable in sequential data assimilation to change variables' value
@@ -25904,10 +25901,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         endif
         
         if(Me%ComputeOptions%LocalDensity) then
-            !call FaceDensityUpdate
-            !call FaceDensityUpdate2
-            !call FaceDensityUpdate3
-            call FaceDensityUpdate4
+            call FaceDensityUpdate
         else
             call SetMatrixValue( Me%FaceDensity, Me%Size, SigmaDensityReference)
         endif
@@ -25949,10 +25943,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         endif
         
         if(Me%ComputeOptions%LocalDensity) then
-            !call FaceDensityUpdate
-            !call FaceDensityUpdate2
-            !call FaceDensityUpdate3
-            call FaceDensityUpdate4
+            call FaceDensityUpdate
         else
             call SetMatrixValue( Me%FaceDensity, Me%Size, SigmaDensityReference)
         endif
@@ -49645,88 +49636,8 @@ do5:            do i = ILB, IUB
     
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !> Contructs Updates facedensity matrix.  
+    !> Constructs Updates facedensity matrix.
     subroutine FaceDensityUpdate
-    
-        !External-------------------------------------------------------------
-        real,    dimension(:,:  ), pointer :: DUX_VY
-        real,    dimension(:,:,:), pointer :: Density
-
-        !Local-----------------------------------------------------------------
-        integer :: i, j, k, KUB, iSouth, jWest, di, dj, IUB, JUB, ILB, JLB, KLB, it, kbottom
-        
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
-        
-        di  = Me%Direction%di
-        dj  = Me%Direction%dj
-        
-        DUX_VY   => Me%External_Var%DUX_VY
-        
-        Density  => Me%External_Var%Density
-        if (associated(Density))then
-       
-            do it = 1, 100
-                
-                if ((KUB - KLB) >= openmp_num_threads) then
-                   !$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest)
-                   !$OMP DO SCHEDULE(DYNAMIC,1)
-                    do k=KLB, KUB        
-                    do j=JLB, JUB
-                    do i=ILB, IUB
-
-                        iSouth = i - di
-                        jWest  = j - dj
-                        if (Me%External_Var%ComputeFaces3D_UV(i, j, k)==Covered) then
-                
-                            Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k),                &
-                                                                Density(iSouth, jWest, k),     &
-                                                                DUX_VY(i, j), DUX_VY(iSouth, jWest))
-                        endif
-            
-                    enddo
-                    enddo
-                    enddo
-                    !$OMP END DO
-                    !$OMP END PARALLEL
-                
-                else
-                    
-                   !$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest, kbottom)
-                   !$OMP DO SCHEDULE(DYNAMIC,1)  
-                    do j=JLB, JUB
-                    do i=ILB, IUB
-                        iSouth = i - di
-                        jWest  = j - dj
-                        kbottom = Me%External_Var%KFloor_UV(i, j)
-                        if (Me%External_Var%ComputeFaces3D_UV(i, j, KUB)==Covered) then
-                        
-                            do k=kbottom, KUB
-                
-                                Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k),                &
-                                                                    Density(iSouth, jWest, k),     &
-                                                                    DUX_VY(i, j), DUX_VY(iSouth, jWest))
-                    
-                            enddo
-                        endif
-                    enddo
-                    enddo
-                    !$OMP END DO
-                    !$OMP END PARALLEL
-                endif
-                
-            enddo
-        endif
-        
-        nullify(Density, DUX_VY) 
-    
-    end subroutine FaceDensityUpdate
-    
-    subroutine FaceDensityUpdate2
     
         !External-------------------------------------------------------------
         real,    dimension(:,:  ), pointer :: DUX_VY
@@ -49749,155 +49660,33 @@ do5:            do i = ILB, IUB
         
         Density  => Me%External_Var%Density
         if (associated(Density))then
-       
-            do it = 1, 100
-               !$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest, kbottom)
-               !$OMP DO SCHEDULE(DYNAMIC,1)  
-                do j=JLB, JUB
-                do i=ILB, IUB
-                    iSouth = i - di
-                    jWest  = j - dj
-                    kbottom = Me%External_Var%KFloor_UV(i, j)
-                    if (Me%External_Var%ComputeFaces3D_UV(i, j, KUB)==Covered) then
+                   !$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest, kbottom)
+                   !$OMP DO SCHEDULE(DYNAMIC,1)  
+                    do j=JLB, JUB
+                    do i=ILB, IUB
+                        iSouth = i - di
+                        jWest  = j - dj
+                        kbottom = Me%External_Var%KFloor_UV(i, j)
+                        if (Me%External_Var%ComputeFaces3D_UV(i, j, KUB)==Covered) then
                         
-                        do k=kbottom, KUB
+                            do k=kbottom, KUB
                 
-                            Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k),                &
-                                                                Density(iSouth, jWest, k),     &
-                                                                DUX_VY(i, j), DUX_VY(iSouth, jWest))
+                                Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k),                &
+                                                                    Density(iSouth, jWest, k),     &
+                                                                    DUX_VY(i, j), DUX_VY(iSouth, jWest))
                     
-                        enddo
-                    endif
-                enddo
-                enddo
-                !$OMP END DO
-                !$OMP END PARALLEL
-            enddo
-        endif
-        
-        nullify(Density, DUX_VY) 
-    
-    end subroutine FaceDensityUpdate2
-    
-    subroutine FaceDensityUpdate3
-    
-        !External-------------------------------------------------------------
-        real,    dimension(:,:  ), pointer :: DUX_VY
-        real,    dimension(:,:,:), pointer :: Density
-
-        !Local-----------------------------------------------------------------
-        integer :: i, j, k, KUB, iSouth, jWest, IUB, JUB, ILB, JLB, KLB, it
-        !$ integer                            :: CHUNK
-        
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
-        
-        DUX_VY   => Me%External_Var%DUX_VY
-        
-        Density  => Me%External_Var%Density
-        if (associated(Density))then
-       
-            do it = 1, 100
-                !$ CHUNK = CHUNK_K(KLB, KUB)
-               !$OMP PARALLEL PRIVATE( i,j,k)
-               !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                do k=KLB, KUB        
-                do j=JLB, JUB
-                do i=ILB, IUB
-
-                    if (Me%External_Var%ComputeFaces3D_UV(i, j, k)==Covered) then
-                
-                        Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k),                &
-                                                        Density(i - Me%Direction%di, j - Me%Direction%dj, k),     &
-                                                        DUX_VY(i, j), DUX_VY(i - Me%Direction%di, j - Me%Direction%dj))
-                    endif
-            
-                enddo
-                enddo
-                enddo
-                !$OMP END DO
-                !$OMP END PARALLEL
-            enddo
-        endif
-        
-        nullify(Density, DUX_VY) 
-    
-    end subroutine FaceDensityUpdate3
-    
-    subroutine FaceDensityUpdate4
-    
-        !External-------------------------------------------------------------
-        real,    dimension(:,:  ), pointer :: DUX_VY
-        real,    dimension(:,:,:), pointer :: Density
-
-        !Local-----------------------------------------------------------------
-        integer :: i, j, k, KUB, iSouth, jWest, IUB, JUB, ILB, JLB, KLB, it
-        
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
-        
-        DUX_VY   => Me%External_Var%DUX_VY
-        
-        Density  => Me%External_Var%Density
-        if (associated(Density))then
-       
-            do it = 1, 100
-                if (Me%Direction%di == 1) then
-                    
-                   !$OMP PARALLEL PRIVATE( i,j,k)
-                   !$OMP DO SCHEDULE(DYNAMIC,1)
-                    do k=KLB, KUB        
-                    do j=JLB, JUB
-                    do i=ILB, IUB
-
-                        if (Me%External_Var%ComputeFaces3D_UV(i, j, k)==Covered) then
-                
-                            Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k),                &
-                                                       Density(i - 1, j, k),     &
-                                                       DUX_VY(i, j), DUX_VY(i - 1, j))
+                            enddo
                         endif
-            
-                    enddo
                     enddo
                     enddo
                     !$OMP END DO
                     !$OMP END PARALLEL
-                    
-                else
-                   !$OMP PARALLEL PRIVATE( i,j,k)
-                   !$OMP DO SCHEDULE(DYNAMIC,1)
-                    do k=KLB, KUB        
-                    do j=JLB, JUB
-                    do i=ILB, IUB
-
-                        if (Me%External_Var%ComputeFaces3D_UV(i, j, k)==Covered) then
                 
-                            Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k),                &
-                                                       Density(i, j - 1, k),     &
-                                                       DUX_VY(i, j), DUX_VY(i, j - 1))
-                        endif
-            
-                    enddo
-                    enddo
-                    enddo
-                    !$OMP END DO
-                    !$OMP END PARALLEL
-                endif
-            enddo
         endif
         
         nullify(Density, DUX_VY) 
     
-    end subroutine FaceDensityUpdate4
-    
+    end subroutine FaceDensityUpdate
     
     ! This subroutine is responsable for computing fluxes between boxes
     subroutine ComputeBoxesWaterFluxes

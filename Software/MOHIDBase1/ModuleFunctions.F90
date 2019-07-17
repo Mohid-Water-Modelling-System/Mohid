@@ -1504,7 +1504,7 @@ Module ModuleFunctions
         !Begin-----------------------------------------------------------------
 
         !CHUNK = CHUNK_K(Size%KLB, Size%KUB)
-
+        !
         !if (present(MapMatrix)) then
         !    !$OMP PARALLEL PRIVATE(I,J,K)
         !    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -1534,14 +1534,18 @@ Module ModuleFunctions
         !endif
         
         if (present(MapMatrix))then
-            !$OMP PARALLEL WORKSHARE
+            !$OMP PARALLEL
+            !$OMP WORKSHARE
                 where (MapMatrix == 1) Matrix(:,:,:) = ValueX
-            !$OMP END PARALLEL WORKSHARE
+            !$OMP END WORKSHARE NOWAIT
+            !$OMP END PARALLEL
             
         else
-            !$OMP PARALLEL WORKSHARE
+            !$OMP PARALLEL
+            !$OMP WORKSHARE
                 Matrix(:,:,:) = ValueX
-            !$OMP END PARALLEL WORKSHARE
+            !$OMP END WORKSHARE NOWAIT
+            !$OMP END PARALLEL
         endif
 
     end subroutine SetMatrixValues3D_R8_Constant
@@ -1737,11 +1741,11 @@ Module ModuleFunctions
 
     !--------------------------------------------------------------------------
 
-    subroutine SetMatrixValues3D_R8_FromMatrix (Matrix, MSize, InMatrix, MapMatrix)
+    subroutine SetMatrixValues3D_R8_FromMatrix (Matrix, Size, InMatrix, MapMatrix)
 
         !Arguments-------------------------------------------------------------
         real(8), dimension(:, :, :), pointer            :: Matrix
-        type (T_Size3D)                                 :: MSize
+        type (T_Size3D)                                 :: Size
         real(8), dimension(:, :, :), pointer            :: InMatrix
         integer, dimension(:, :, :), pointer, optional  :: MapMatrix
 
@@ -1752,54 +1756,54 @@ Module ModuleFunctions
 
         !Begin-----------------------------------------------------------------
 
-        CHUNK = CHUNK_K(MSize%KLB, MSize%KUB)
-        Mismatch = .false.
-        
-        if (size(InMatrix, 3) .NE. size(Matrix, 3)) then
-            Mismatch = .true.
-        elseif (size(InMatrix, 2) .NE. size(Matrix, 2)) then
-            Mismatch = .true.
-        endif
-         
-        if (Mismatch) then
-            if (present(MapMatrix)) then
-                !$OMP PARALLEL PRIVATE(I,J,K)
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-                do k = MSize%KLB, MSize%KUB
-                do j = MSize%JLB, MSize%JUB
-                do i = MSize%ILB, MSize%IUB
-                    if (MapMatrix(i, j, k) == 1) then
-                        Matrix (i, j, k) = InMatrix(i, j, k)
-                    endif
-                enddo
-                enddo
-                enddo
-                !$OMP END DO NOWAIT
-                !$OMP END PARALLEL
-            else
-                !$OMP PARALLEL PRIVATE(I,J,K)
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-                do k = MSize%KLB, MSize%KUB
-                do j = MSize%JLB, MSize%JUB
-                do i = MSize%ILB, MSize%IUB
+        CHUNK = CHUNK_K(Size%KLB, Size%KUB)
+        !Mismatch = .false.
+        !
+        !if (size(InMatrix, 3) .NE. size(Matrix, 3)) then
+        !    Mismatch = .true.
+        !elseif (size(InMatrix, 2) .NE. size(Matrix, 2)) then
+        !    Mismatch = .true.
+        !endif
+        ! 
+        !if (Mismatch) then
+        if (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1) then
                     Matrix (i, j, k) = InMatrix(i, j, k)
-                enddo
-                enddo
-                enddo
-                !$OMP END DO NOWAIT
-                !$OMP END PARALLEL
-            endif
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
         else
-            if (present(MapMatrix))then
-                !!$OMP PARALLEL WORKSHARE
-                where (MapMatrix == 1) Matrix(:,:,:) = InMatrix(:,:,:)
-                !!$OMP END PARALLEL WORKSHARE
-            else
-               ! !$OMP PARALLEL WORKSHARE
-                Matrix(:,:,:) = InMatrix(:,:,:)
-                !!$OMP END PARALLEL WORKSHARE
-            endif
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                Matrix (i, j, k) = InMatrix(i, j, k)
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
         endif
+        !else
+            !if (present(MapMatrix))then
+            !    !!$OMP PARALLEL WORKSHARE
+            !    where (MapMatrix == 1) Matrix(:,:,:) = InMatrix(:,:,:)
+            !    !!$OMP END PARALLEL WORKSHARE
+            !else
+            !   ! !$OMP PARALLEL WORKSHARE
+            !    Matrix(:,:,:) = InMatrix(:,:,:)
+            !    !!$OMP END PARALLEL WORKSHARE
+            !endif
+        !endif
 
     end subroutine SetMatrixValues3D_R8_FromMatrix
 
