@@ -23,8 +23,7 @@
     !PELAGIC_MODEL             : WaterQuality
     !NITROGEN                  : 1
     !PHOSPHOR                  : 1
-    !IMPOSE_FILTRATION         : 0        !  0/1     .only if water quality, no feedback
-    !COMPLEX_FILTRATION        : 0        !  0/1
+    !FEEDING_MODEL             : 1/2/3    ! 1 - Impose filtration/2 - Simple filtration/3 - Complex filtration
     !CORRECT_FILTRATION        : 1        !  0/1     .only important if population
     !INDEX_OUTPUTS             : 2
     !MASS_BALANCE              : 0      !  0/1     .only no predators. same NC or with life + complex filtration
