@@ -2078,14 +2078,18 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         allocate(Me%SCSCNRunOffModel%InfRate%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
         Me%SCSCNRunOffModel%InfRate%Field = FillValueReal
+        
         allocate(Me%SCSCNRunOffModel%VegGrowthStage%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        Me%SCSCNRunOffModel%VegGrowthStage%Field = FillValueReal
         call ConstructOneProperty (Me%SCSCNRunOffModel%VegGrowthStage, "VegGrowthStage",  &
                                    "<BeginVegGrowthStage>", "<EndVegGrowthStage>")
-        
-        allocate(Me%SCSCNRunOffModel%ImpFrac%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+ 
+        allocate(Me%SCSCNRunOffModel%ImpFrac%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))              
+        Me%SCSCNRunOffModel%ImpFrac%Field = FillValueReal
         call ConstructOneProperty (Me%SCSCNRunOffModel%ImpFrac, "ImpFrac", "<BeginImpFrac>", "<EndImpFrac>")
         
         allocate(Me%SCSCNRunOffModel%CurveNumber%Field (Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+        Me%SCSCNRunOffModel%CurveNumber%Field = FillValueReal
         call ConstructOneProperty (Me%SCSCNRunOffModel%CurveNumber, "CurveNumber", "<BeginCurveNumber>", "<EndCurveNumber>")
         
         !verify input
