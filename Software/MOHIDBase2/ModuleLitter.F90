@@ -97,6 +97,8 @@ Module ModuleLitter
         character(PathLength)                           :: ConstructData        = null_str
         character(PathLength)                           :: ResultsHDF           = null_str
         character(PathLength)                           :: Nomfich              = null_str
+        character(PathLength)                           :: LitterIni            = null_str        
+        character(PathLength)                           :: LitterFin            = null_str                
     end type T_Files    
     
     type T_ExtVar
@@ -139,8 +141,10 @@ Module ModuleLitter
         integer                                         :: Number               = null_int
         integer,       dimension(:,:), pointer          :: AuxInt2D             => null()
         character (len = PathLength)                    :: OutputFile           = null_str
+        character (len = PathLength)                    :: HotStartFile         = null_str        
         character (len = PathLength)                    :: InputGridFile        = null_str        
         integer                                         :: ObjHDF5              = 0
+        integer                                         :: ObjHDF5_2            = 0        
         integer                                         :: ObjHorizontalGrid    = 0 
         type (T_Size2D)                                 :: Size
         type (T_Size2D)                                 :: WorkSize
@@ -243,6 +247,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructLitter - ModuleLitter - ERR10'
             
             
+            
             call ConstructFromLitterBlock
             
            
@@ -250,6 +255,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call KillEnterData     (EnterDataID     = Me%ObjEnterData,                  &
                                     STAT            = STAT_CALL) 
             if (STAT_CALL /= SUCCESS_) stop 'ConstructLitter - ModuleLitter - ERR20'
+            
+            call ReadLitterBeach            
             
             !Returns ID
             ObjLitterID          = Me%InstanceID
@@ -366,6 +373,30 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_  ) then
             Me%Files%ResultsHDF = trim(Me%Files%ResultsHDF)//"5"
         endif
 
+        !Initial Particle Litter List HDF File
+        Message   ='Initial list of litter particles in HDF format.'
+        call ReadFileName  (KEYWORD     = 'LITTER_INI',                                 &
+                            FILE_NAME   = Me%Files%LitterIni,                           &
+                            Message     = Message,                                      &
+                            TIME_END    = Me%ExtVar%EndTime,                            &
+                            Extension   = 'hdf5',                                       &
+                            FilesInput  = Me%Files%Nomfich,                             &
+                            STAT        = STAT_CALL)                           
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFilesNames - ModuleLitter - ERR50'
+        
+        !Final Particle Litter List HDF File
+        Message   ='Final list of litter particles in HDF format.'
+        call ReadFileName  (KEYWORD     = 'LITTER_FIN',                                 &
+                            FILE_NAME   = Me%Files%LitterFin,                           &
+                            Message     = Message,                                      &
+                            TIME_END    = Me%ExtVar%EndTime,                            &
+                            Extension   = 'hdf5',                                       &
+                            FilesInput  = Me%Files%Nomfich,                             &
+                            STAT        = STAT_CALL)                           
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructFilesNames - ModuleLitter - ERR60'
+        
+
+        
         !----------------------------------------------------------------------
 
     end subroutine ConstructFilesNames
@@ -835,7 +866,7 @@ i1:         if (GridsFound) then
                 deallocate(Bathymetry   )
                 deallocate(WaterPoints2D)                
 
-                allocate(Me%OutputGrids%Individual(nGrids)%AuxInt2D(Size%ILB:Size%IUB, Size%JLB:Size%JUB))                
+                allocate(Me%OutputGrids%Individual(nGrids)%AuxInt2D(Size%ILB:Size%IUB, Size%JLB:Size%JUB))     
                 
             else i1
             
@@ -848,17 +879,54 @@ i1:         if (GridsFound) then
 
 
     end subroutine ReadIndividualOutputGrids
-                
+               
+        
     !--------------------------------------------------------------------------
+        
+    type(T_Time) function HDF5TimeInstant(Instant, HDF5ID)
 
+        !Arguments-------------------------------------------------------------
+        integer                                 :: Instant
+        integer                                 :: HDF5ID
+        
 
-    !--------------------------------------------------------------------------
+        !Local-----------------------------------------------------------------
+!        type(T_Time)                            :: TimeInstant
+        real,    dimension(:), pointer          :: TimeVector
+        integer                                 :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+        
+        allocate(TimeVector(6))
+
+        call HDF5SetLimits  (HDF5ID, 1, 6, STAT = STAT_CALL)        
+
+        call HDF5ReadWindow (HDF5ID         = HDF5ID,                                   &
+                             GroupName      = "/Time",                                  &
+                             Name           = "Time",                                   &
+                             Array1D        = TimeVector,                               &
+                             OutputNumber   = Instant,                                  &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'HDF5TimeInstant - ModuleField4D - ERR01'
+
+        call SetDate(HDF5TimeInstant, Year     = TimeVector(1), Month  = TimeVector(2), &
+                                      Day      = TimeVector(3), Hour   = TimeVector(4), &
+                                      Minute   = TimeVector(5), Second = TimeVector(6))
+
+                                     
+        deallocate(TimeVector)
+
+    end function HDF5TimeInstant
+
+!--------------------------------------------------------------------------    
+        
 
     subroutine AllocateNewParticle (NewPartic, nP, nArea)
 
         !Arguments-------------------------------------------------------------
         type (T_Particle), pointer                  :: NewPartic
         integer                                     :: nP, nArea
+        
         
         !Local-----------------------------------------------------------------
         
@@ -997,11 +1065,9 @@ i1:         if (CurrentPartic%ID == ParticleToDelete%ID) then
             stop 'DeleteParticle - ModuleLitter - ERR10'
         endif
         
-        
-        
-
     end subroutine DeleteParticle    
-
+    
+   
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
@@ -1367,10 +1433,15 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !Arguments---------------------------------------------------------------
 
         !Local-------------------------------------------------------------------
-        integer                             :: STAT_CALL, HDF5_READWRITE
+        integer                             :: STAT_CALL, HDF5_CREATE, HDF5_READWRITE
 
         !------------------------------------------------------------------------
 
+        !Writes final results in the lagrangian transient results. 
+        !This way the user can do quick figures using the lagrangian model grid
+        
+        Me%ObjHDF5 = 0
+        
         !Gets File Access Code
         call GetHDF5FileAccess  (HDF5_READWRITE = HDF5_READWRITE)
     
@@ -1380,21 +1451,78 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
 
         if (Me%ParticleList%Number > 0) then
-            call WriteAllParticlesBeach
+            call WriteAllParticlesBeach(WriteTime = .false.)
         endif            
         
         !Closes HDF File
         call KillHDF5      (Me%ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'WriteLitterBeach - ModuleLitter - ERR20'
         
+        !Write the particle list in a specific file to make more clear the hot start process
+        
+        Me%ObjHDF5 = 0
+
+        if (Me%ParticleList%Number > 0) then
+            
+            !Gets File Access Code
+            call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)            
+            
+            !Opens HDF File
+            call ConstructHDF5      (Me%ObjHDF5, trim(Me%Files%LitterFin), HDF5_CREATE, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteLitterBeach - ModuleLitter - ERR30'            
+            
+            call WriteAllParticlesBeach(WriteTime = .True.)
+            
+            !Closes HDF File
+            call KillHDF5      (Me%ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteLitterBeach - ModuleLitter - ERR40'     
+        
+        endif            
+        
+   
 
     end subroutine WriteLitterBeach
 
     !------------------------------------------------------------------------
     
-    subroutine WriteAllParticlesBeach()
+    subroutine ReadLitterBeach()
 
         !Arguments---------------------------------------------------------------
+
+        !Local-------------------------------------------------------------------
+        integer                             :: STAT_CALL, HDF5_READ
+        logical                             :: FileExists
+        !------------------------------------------------------------------------
+        
+        inquire (FILE=trim(Me%Files%LitterIni), EXIST = FileExists)        
+        
+        if (FileExists) then
+            
+            !Gets File Access Code
+            call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+            
+            Me%ObjHDF5 = 0
+
+            !Opens HDF File
+            call ConstructHDF5      (Me%ObjHDF5, trim(Me%Files%LitterIni), HDF5_READ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteLitterBeach - ModuleLitter - ERR30'
+
+            call ReadAllParticlesBeach
+        
+            !Closes HDF File
+            call KillHDF5      (Me%ObjHDF5, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteLitterBeach - ModuleLitter - ERR40'        
+            
+        endif            
+
+    end subroutine ReadLitterBeach
+    
+    !------------------------------------------------------------------------    
+    
+    subroutine WriteAllParticlesBeach(WriteTime)
+
+        !Arguments---------------------------------------------------------------
+        logical                                 :: WriteTime
 
         !Local-------------------------------------------------------------------
         integer     , dimension(:),   pointer   :: ID          
@@ -1409,6 +1537,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         type (T_Particle), pointer              :: CurrentPartic
         integer                                 :: STAT_CALL, nP, nPtotal
         character (len = StringLength)          :: GroupName, PropertyName, UnitsName
+        real        , dimension(:),   pointer   :: Time6
 
         !------------------------------------------------------------------------
 
@@ -1450,6 +1579,40 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             CurrentPartic => CurrentPartic%Next
         enddo
         
+        if (WriteTime) then
+    
+            !Read time 
+            call HDF5SetLimits (HDF5ID  = Me%ObjHDF5,                                       &
+                                ILB     = 1,                                                &
+                                IUB     = 6,                                                &
+                                STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR10'
+
+            GroupName    = "/"
+            PropertyName = "Time"    
+            UnitsName    = "YY,MM,DD,HH,MM,SS"
+            
+            allocate(Time6(1:6))
+            
+            call ExtractDate   (Time1   = Me%ExtVar%EndTime,                                &
+                                Year    = Time6(1),                                         &
+                                Month   = Time6(2),                                         &
+                                Day     = Time6(3),                                         &
+                                Hour    = Time6(4),                                         & 
+                                Minute  = Time6(5),                                         & 
+                                Second  = Time6(6))                 
+        
+            call HDF5WriteData (HDF5ID      = Me%ObjHDF5,                                   &
+                                GroupName   = trim(GroupName)//trim(PropertyName),          &
+                                Name        = trim(PropertyName),                           & 
+                                Units       = trim(UnitsName),                              &             
+                                Array1D     = Time6,                                        &
+                                STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR20'
+            
+            deallocate(Time6)
+        
+        endif        
         GroupName = "/Results/BeachLitter/"
         
         !Output matrixes 1D - HDF5       
@@ -1457,7 +1620,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                             ILB     = 1,                                                &
                             IUB     = Me%ParticleList%Number,                           &
                             STAT    = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR30'
 
         PropertyName = "Longitude"    
         UnitsName    = "o"
@@ -1468,7 +1631,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                             Units       = trim(UnitsName),                              & 
                             Array1D     = Longitude,                                    &
                             STAT        = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR20'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR40'
 
         PropertyName = "Latitude"    
         UnitsName    = "o"
@@ -1479,7 +1642,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                             Units       = trim(UnitsName),                              & 
                             Array1D     = Latitude,                                     &
                             STAT        = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR30'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR50'
 
         PropertyName = "Particle_ID"    
         UnitsName    = "-"        
@@ -1490,7 +1653,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                             Units       = trim(UnitsName),                              & 
                             Array1D     = ID,                                           &
                             STAT        = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR40'    
+        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR60'    
         
 
         PropertyName = "Age"    
@@ -1502,7 +1665,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                             Units       = trim(UnitsName),                              & 
                             Array1D     = Age,                                          &
                             STAT        = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR50'          
+        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR70'          
         
 
         PropertyName = "Origin_ID"    
@@ -1514,7 +1677,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                             Units       = trim(UnitsName),                              & 
                             Array1D     = Origin,                                       &
                             STAT        = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR60'          
+        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR80'          
 
         PropertyName = "BeachArea_ID"    
         UnitsName    = "-"        
@@ -1525,7 +1688,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                             Units       = trim(UnitsName),                              & 
                             Array1D     = BeachAreaID,                                  &
                             STAT        = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR70'                  
+        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR90'                  
 
         PropertyName = "Coast_Type"    
         UnitsName    = "-"        
@@ -1536,7 +1699,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                             Units       = trim(UnitsName),                              & 
                             Array1D     = CoastType,                                    &
                             STAT        = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR80'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR100'
 
         PropertyName = "Beach_Period"    
         UnitsName    = "seconds"           
@@ -1547,7 +1710,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                             Units       = trim(UnitsName),                              & 
                             Array1D     = BeachPeriod,                                  &
                             STAT        = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR80'        
+        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR110'        
         
         !Output matrixes 1D - HDF5       
         call HDF5SetLimits (HDF5ID  = Me%ObjHDF5,                                       &
@@ -1556,7 +1719,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                             JLB     = 1,                                                &
                             JUB     = 6,                                                &
                             STAT    = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR90'
+        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR120'
 
         PropertyName = "Beach_Time"    
         UnitsName    = "o"
@@ -1567,7 +1730,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                             Units       = trim(UnitsName),                              & 
                             Array2D     = BeachTime,                                    &
                             STAT        = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR100'        
+        if (STAT_CALL /= SUCCESS_) stop 'WriteAllParticlesBeach - ModuleLitter - ERR130'        
         
         deallocate(ID         )  
         deallocate(BeachTime  )
@@ -1584,6 +1747,257 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
     
     
     !------------------------------------------------------------------------    
+    
+    subroutine ReadAllParticlesBeach()
+
+        !Arguments---------------------------------------------------------------
+
+        !Local-------------------------------------------------------------------
+        integer     , dimension(:),   pointer   :: ID          
+        real        , dimension(:,:), pointer   :: BeachTime
+        real(8)     , dimension(:),   pointer   :: Longitude   
+        real(8)     , dimension(:),   pointer   :: Latitude    
+        real(8)     , dimension(:),   pointer   :: Age         
+        integer     , dimension(:),   pointer   :: Origin      
+        integer     , dimension(:),   pointer   :: BeachAreaID 
+        integer     , dimension(:),   pointer   :: CoastType   
+        real(8)     , dimension(:),   pointer   :: BeachPeriod
+        type (T_Particle), pointer              :: CurrentPartic
+        integer                                 :: STAT_CALL, nP, nPtotal
+        character (len = StringLength)          :: GroupName, PropertyName, UnitsName
+        logical                                 :: GroupExists
+        real        , dimension(:),   pointer   :: Time6
+        type (T_Time)                           :: TimeAux
+
+        !------------------------------------------------------------------------
+        
+        GroupName = "/Results/BeachLitter/"
+        
+        
+        call GetHDF5GroupExist (HDF5ID      = Me%ObjHDF5,                               &
+                                GroupName   = trim(GroupName),                          &
+                                Exist       = GroupExists,                              & 
+                                STAT        = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadAllParticlesBeach - ModuleLitter - ERR10'        
+        
+ex:     if (GroupExists) then
+    
+            !Read time 
+            call HDF5SetLimits (HDF5ID  = Me%ObjHDF5,                                   &
+                                ILB     = 1,                                            &
+                                IUB     = 6,                                            &
+                                STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadAllParticlesBeach - ModuleLitter - ERR20'
+
+            GroupName    = "/"
+            PropertyName = "Time"                
+            UnitsName    = "o"
+            
+            allocate(Time6(1:6))
+        
+            call HDF5ReadData  (HDF5ID      = Me%ObjHDF5,                               &
+                                GroupName   = trim(GroupName)//trim(PropertyName),      &
+                                Name        = trim(PropertyName),                       & 
+                                Array1D     = Time6,                                    &
+                                STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadAllParticlesBeach - ModuleLitter - ERR30'
+            
+            call SetDate   (Time1   = TimeAux,                                          &
+                            Year    = Time6(1),                                         &
+                            Month   = Time6(2),                                         &
+                            Day     = Time6(3),                                         &
+                            Hour    = Time6(4),                                         & 
+                            Minute  = Time6(5),                                         & 
+                            Second  = Time6(6))          
+            
+            if (TimeAux /= Me%ExtVar%StartTime) then
+                write(*,*) 'Litter fin file date different from the start time of the run'
+                write(*,*) 'Litter fin date ', ConvertTimeToString(TimeAux, ":")
+                write(*,*) 'Run start time  ', ConvertTimeToString(Me%ExtVar%StartTime, ":")                
+                stop 'ReadAllParticlesBeach - ModuleLitter - ERR40'
+            endif                
+            
+            deallocate(Time6)
+
+            
+            GroupName = "/Results/BeachLitter/"        
+            PropertyName = "Longitude"    
+            UnitsName    = "o"
+        
+            call GetHDF5ArrayDimensions(HDF5ID    = Me%ObjHDF5,                         &
+                                        GroupName = trim(GroupName)//trim(PropertyName),&
+                                        ItemName  = trim(PropertyName),                 &
+                                        Imax      = Me%ParticleList%Number,             & 
+                                        STAT      = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadAllParticlesBeach - ModuleLitter - ERR20'        
+
+            nPtotal = Me%ParticleList%Number
+        
+            allocate(ID         (1:nPtotal))  
+            allocate(BeachTime  (1:nPtotal,1:6))
+            allocate(Longitude  (1:nPtotal))
+            allocate(Latitude   (1:nPtotal))
+            allocate(Age        (1:nPtotal))
+            allocate(Origin     (1:nPtotal))
+            allocate(BeachAreaID(1:nPtotal))
+            allocate(CoastType  (1:nPtotal))         
+            allocate(BeachPeriod(1:nPtotal))     
+            
+
+            !Output matrixes 1D - HDF5       
+            call HDF5SetLimits (HDF5ID  = Me%ObjHDF5,                                       &
+                                ILB     = 1,                                                &
+                                IUB     = Me%ParticleList%Number,                           &
+                                STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadAllParticlesBeach - ModuleLitter - ERR30'
+
+            PropertyName = "Longitude"    
+            UnitsName    = "o"
+        
+            call HDF5ReadData  (HDF5ID      = Me%ObjHDF5,                                   &
+                                GroupName   = trim(GroupName)//trim(PropertyName),          &
+                                Name        = trim(PropertyName),                           & 
+                                Array1D     = Longitude,                                    &
+                                STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadAllParticlesBeach - ModuleLitter - ERR40'
+
+            PropertyName = "Latitude"    
+            UnitsName    = "o"
+        
+            call HDF5ReadData  (HDF5ID      = Me%ObjHDF5,                                   &
+                                GroupName   = trim(GroupName)//trim(PropertyName),          &
+                                Name        = trim(PropertyName),                           & 
+                                Array1D     = Latitude,                                     &
+                                STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadAllParticlesBeach - ModuleLitter - ERR50'
+
+            PropertyName = "Particle_ID"    
+            UnitsName    = "-"        
+        
+            call HDF5ReadData  (HDF5ID      = Me%ObjHDF5,                                   &
+                                GroupName   = trim(GroupName)//trim(PropertyName),          &
+                                Name        = trim(PropertyName),                           & 
+                                Array1D     = ID,                                           &
+                                STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadAllParticlesBeach - ModuleLitter - ERR60'    
+        
+
+            PropertyName = "Age"    
+            UnitsName    = "seconds"        
+        
+            call HDF5ReadData  (HDF5ID      = Me%ObjHDF5,                                   &
+                                GroupName   = trim(GroupName)//trim(PropertyName),          &
+                                Name        = trim(PropertyName),                           & 
+                                Array1D     = Age,                                          &
+                                STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadAllParticlesBeach - ModuleLitter - ERR70'          
+        
+
+            PropertyName = "Origin_ID"    
+            UnitsName    = "-"        
+        
+            call HDF5ReadData  (HDF5ID      = Me%ObjHDF5,                                   &
+                                GroupName   = trim(GroupName)//trim(PropertyName),          &
+                                Name        = trim(PropertyName),                           & 
+                                Array1D     = Origin,                                       &
+                                STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadAllParticlesBeach - ModuleLitter - ERR80'          
+
+            PropertyName = "BeachArea_ID"    
+            UnitsName    = "-"        
+        
+            call HDF5ReadData  (HDF5ID      = Me%ObjHDF5,                                   &
+                                GroupName   = trim(GroupName)//trim(PropertyName),          &
+                                Name        = trim(PropertyName),                           & 
+                                Array1D     = BeachAreaID,                                  &
+                                STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadAllParticlesBeach - ModuleLitter - ERR90'                  
+
+            PropertyName = "Coast_Type"    
+            UnitsName    = "-"        
+        
+            call HDF5ReadData  (HDF5ID      = Me%ObjHDF5,                                   &
+                                GroupName   = trim(GroupName)//trim(PropertyName),          &
+                                Name        = trim(PropertyName),                           & 
+                                Array1D     = CoastType,                                    &
+                                STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadAllParticlesBeach - ModuleLitter - ERR100'
+
+            PropertyName = "Beach_Period"    
+            UnitsName    = "seconds"           
+        
+            call HDF5ReadData  (HDF5ID      = Me%ObjHDF5,                                   &
+                                GroupName   = trim(GroupName)//trim(PropertyName),          &
+                                Name        = trim(PropertyName),                           & 
+                                Array1D     = BeachPeriod,                                  &
+                                STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadAllParticlesBeach - ModuleLitter - ERR110'        
+        
+            !Output matrixes 1D - HDF5       
+            call HDF5SetLimits (HDF5ID  = Me%ObjHDF5,                                       &
+                                ILB     = 1,                                                &
+                                IUB     = Me%ParticleList%Number,                           &
+                                JLB     = 1,                                                &
+                                JUB     = 6,                                                &
+                                STAT    = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadAllParticlesBeach - ModuleLitter - ERR120'
+
+            PropertyName = "Beach_Time"    
+            UnitsName    = "o"
+        
+            call HDF5ReadData (HDF5ID      = Me%ObjHDF5,                                    &
+                                GroupName   = trim(GroupName)//trim(PropertyName),          &
+                                Name        = trim(PropertyName),                           & 
+                                Array2D     = BeachTime,                                    &
+                                STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadAllParticlesBeach - ModuleLitter - ERR130'        
+            
+         
+            do nP = 1, nPtotal
+            
+                nullify  (CurrentPartic)
+                allocate (CurrentPartic)
+                nullify  (CurrentPartic%Next)
+                nullify  (CurrentPartic%Prev)            
+            
+                CurrentPartic%Longitude      = Longitude   (nP) 
+                CurrentPartic%Latitude       = Latitude    (nP) 
+                CurrentPartic%Age            = Age         (nP) 
+                CurrentPartic%ID             = ID          (nP) 
+                CurrentPartic%Origin         = Origin      (nP) 
+                CurrentPartic%BeachAreaID    = BeachAreaID (nP) 
+                CurrentPartic%CoastType      = CoastType   (nP) 
+                CurrentPartic%BeachPeriod    = BeachPeriod (nP) 
+            
+                call SetDate   (Time1   = CurrentPartic%BeachTime,                          &
+                                Year    = BeachTime(nP, 1),                                 &
+                                Month   = BeachTime(nP, 2),                                 &
+                                Day     = BeachTime(nP, 3),                                 &
+                                Hour    = BeachTime(nP, 4),                                 & 
+                                Minute  = BeachTime(nP, 5),                                 & 
+                                Second  = BeachTime(nP, 6)) 
+
+                call InsertParticleToBeachList (CurrentPartic)
+        
+            enddo        
+            
+            deallocate(ID         )  
+            deallocate(BeachTime  )
+            deallocate(Longitude  )
+            deallocate(Latitude   )
+            deallocate(Age        )
+            deallocate(Origin     )
+            deallocate(BeachAreaID)
+            deallocate(CoastType  )   
+            deallocate(BeachPeriod)           
+        
+        endif ex
+            
+    end subroutine ReadAllParticlesBeach
+    
+    
+    !------------------------------------------------------------------------    
+    
     
     subroutine DeallocateInstance ()
 

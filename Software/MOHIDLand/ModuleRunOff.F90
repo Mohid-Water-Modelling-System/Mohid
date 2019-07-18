@@ -60,7 +60,8 @@ Module ModuleRunOff
                                         GetChannelsBottomLevel, UnGetDrainageNetwork,    &
                                         GetChannelsID,GetChannelsVolume,                 &
                                         GetChannelsMaxVolume, GetChannelsActiveState,    &
-                                        GetChannelsTopArea, GetChannelsVelocity
+                                        GetChannelsTopArea, GetChannelsVelocity,         &
+                                        GetHasTwoGridPoints
     use ModuleDischarges        ,only : Construct_Discharges, GetDischargesNumber,       &
                                         GetDischargesGridLocalization,                   &
                                         GetDischargeWaterFlow, GetDischargesIDName,      &
@@ -467,6 +468,7 @@ Module ModuleRunOff
         type (T_ImposedLevelTS)                     :: ImposedLevelTS
 !        integer                                     :: MaxIterations        = 5
         logical                                     :: SimpleChannelInteraction = .false.
+        logical                                     :: ChannelHasTwoGridPoints = .false.
         logical                                     :: LimitToCriticalFlow  = .true.
         integer                                     :: FaceWaterColumn      = WCMaxBottom_
 !        real                                        :: MaxVariation         = null_real
@@ -1144,6 +1146,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      Default      = .false.,                                &
                      STAT         = STAT_CALL)                                  
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR380'        
+        
+        !Check if DN link is made with more than one margin
+        if (Me%SimpleChannelInteraction  .and. Me%ObjDrainageNetwork /= 0) then
+            call GetHasTwoGridPoints(Me%ObjDrainageNetwork, Me%ChannelHasTwoGridPoints, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleRunOff - ERR0385'
+        endif
         
         !Routes D4 Points
         call GetData(Me%RouteDFourPoints,                                   &
@@ -5461,7 +5469,17 @@ doIter:         do while (iter <= Niter)
                     
                         !call OverLandChannelInteraction_2
                         !call OverLandChannelInteraction
-                        call OverLandChannelInteraction_6
+                        
+                        !TODO: Remove this and have only one method!! This is a workaround
+                        !Try to use the in _6 the code from _2 where water exits the river (celerity limited)
+                        if (Me%ChannelHasTwoGridPoints) then
+                            !new method adapted to hydraulic simulation with two grid points per river node (e.g. UKBenchmark Test7)
+                            call OverLandChannelInteraction_6
+                        else
+                            !old method that is stable on normal cases only one cell per river node (e.g. Trancao sample generates "rendilhado"
+                            !when water exits the river if _6 method is used but is stable with this one _2)
+                            call OverLandChannelInteraction_2
+                        endif
                     else
                         !Calculates flow from channels to land -> First ever implement approach
                         call FlowFromChannels
