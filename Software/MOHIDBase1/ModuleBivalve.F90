@@ -17,36 +17,39 @@
     !
     !DataFile example
     !
-    !DT                   : 1800.
-    !DENSITY_UNITS        : 0 !0:m2, 1:m3
-    !BIVALVE_OUTPUT_TIME  : 0 1800.
-    !PELAGIC_MODEL        : WaterQuality
-    !NITROGEN             : 1
-    !PHOSPHOR             : 1
-    !SIMPLE_FILTRATION    : 0
-    !CONSTANT_FOOD        : 0
-    !CORRECT_FILTRATION   : 1
-    !INDEX_OUTPUT         : 411 ! cell for time serie results
-    !MASS_BALANCE         : 1 ! only works with no predation + the same NC ratio food/bivalve (or with life) + complex filtrat
-    !MIN_NUMBER           : 1 ! minimum number of organism in a cohort
-    !TESTING_PARAMETERS   : 0 ! 0/1, the name of the output file will incude the parameters
-    !MIN_SPAWN_TIME       : 86400 ! seconds, minimum time between spawning events
+    !DT                        : 60
+    !DENSITY_UNITS             : 0        ! 0:m2 1:m3 .
+    !BIVALVE_OUTPUT_TIME       : 0. 86400.
+    !PELAGIC_MODEL             : WaterQuality
+    !NITROGEN                  : 1
+    !PHOSPHOR                  : 1
+    !IMPOSE_FILTRATION         : 0        !  0/1     .only if water quality, no feedback
+    !COMPLEX_FILTRATION        : 0        !  0/1
+    !CORRECT_FILTRATION        : 1        !  0/1     .only important if population
+    !INDEX_OUTPUTS             : 2
+    !MASS_BALANCE              : 0      !  0/1     .only no predators. same NC or with life + complex filtration
+    !FEEDBACK_ON_WATER         : 1        ! If there is feedback on the water properties
+    !MIN_NUMBER                : 0.0001   !          .minimum number of organisms in a cohort
+    !TESTING_PARAMETERS        : 0        !  0/1     .the name of the output file will incude the parameters
+    !MIN_SPAWN_TIME            : 86400    !  seconds .minimum time between spawning events
+    !
     !
     !<begin_species>
-    !NAME                 : bivalve1
-    !DESCRIPTION          : Mytilus edulis
-    !TESTING_FILENAME     : All_ParameterTest.dat
-    !POPULATION           : 1
-    !FEED_ON_LARVAE       : 0
-    !LARVAE_MAXSIZE       : 0.026 !cm
-    !NUMBER_OF_COHORTS    : 1
-    !MIN_OBS_LENGTH       : 0.1
-    !COHORT_OUTPUT        : 1
-    !BYSIZE_OUTPUT        : 1
-    !!SIZE_STEP            : 1        !1cm classes from 0 to the maximum size of the species
-    !!MAX_SIZECLASS        : 10       !maximum size for size distribution representation
+    !!OYSTER: parameters mix from Thomas etal.2016, vanderVeer etal., 2006, Addmypet
+    !NAME                      : bivalve1
+    !DESCRIPTION               : Mytilus edulis (mussel)
+    !TESTING_FILENAME          : All_ParameterTest.dat
+    !POPULATION                : 0        !
+    !FEED_ON_LARVAE            : 0        !
+    !LARVAE_MAXSIZE            : 0.26     ! cm
+    !NUMBER_OF_COHORTS         : 1        !
+    !MIN_OBS_LENGTH            : 0.1      !
+    !COHORT_OUTPUT             : 1        !
+    !BYSIZE_OUTPUT             : 0        !
+    !!SIZE_STEP                 : 1        ! cm . classes from 0 to the maximum size of the species
+    !!MAX_SIZECLASS             : 10       !    . maximum size for size distribution representation
     !<<begin_size_classes>>
-    !0.0
+    !0
     !0.026
     !0.03
     !0.05
@@ -56,89 +59,102 @@
     !0.5
     !1.2
     !2.6
-    !3.
-    !4.
-    !6.
-    !8.
-    !10.
-    !12.
-    !14.
-    !16.
+    !3
+    !4
+    !6
+    !8
+    !10
+    !12
+    !14
+    !16
     !<<end_size_classes>>
     !
-    !RESERVES_nH          : 1.8      !molH/molC, chemical index of hydrogen in bivalve reserves (Kooijman 2010)
-    !RESERVES_nO          : 0.53     !molO/molC, chemical index of oxygen in bivalve reserves (Kooijman 2010)
-    !RESERVES_nN          : 0.18     !molN/molC, chemical index of nitrogen in bivalve reserves
-    !RESERVES_nP          : 0.006    !molP/molC, chemical index of phosphorus in bivalve reserves
+    !RESERVES_nH               : 1.8      ! molH/molC .  chemical index of hydrogen in bivalve reserves  
+    !RESERVES_nO               : 0.53     ! molO/molC .  chemical index of Oxygen in bivalve reserves
+    !RESERVES_nN               : 0.15     ! molN/molC .  chemical index of Nitrogen in bivalve reserves
+    !RESERVES_nP               : 0.006    ! molP/molC .  chemical index of Hydrogen in bivalve reserves
     !
-    !STRUCTURE_nH         : 1.8      !molH/molC, chemical index of hydrogen in bivalve structure
-    !STRUCTURE_nO         : 0.53     !molO/molC, chemical index of oxygen in bivalve structure
-    !STRUCTURE_nN         : 0.18     !molN/molC, chemical index of nitrogen in bivalve structure
-    !STRUCTURE_nP         : 0.006    !molP/molC, chemical index of phosphorus in bivalve structure
+    !STRUCTURE_nH              : 1.8      ! molH/molC .  chemical index of hydrogen in bivalve structure  
+    !STRUCTURE_nO              : 0.53     ! molO/molC .  chemical index of Oxygen in bivalve structure
+    !STRUCTURE_nN              : 0.15     ! molN/molC .  chemical index of Nitrogen in bivalve structure
+    !STRUCTURE_nP              : 0.006    ! molP/molC .  chemical index of Hydrogen in bivalve structure
     !
-    !Tref                 : 293      !293, K, Rate Temperature reference (van der Veer etal., 2006)
-    !TA                   : 7022     !7022, K, Arrhenius temperature (van der Veer etal., 2006)
-    !TL                   : 275      !273, K, Lower Boundary tolerance range (van der Veer etal., 2006)
-    !TH                   : 296      !290, K, Upper Boundary tolerance range (van der Veer etal., 2006)
-    !TAL                  : 45430    !45430, K, Arrhenius temperature for lower boundary (van der Veer etal., 2006)
-    !TAH                  : 31376    !31376, K, Arrhenius temperature for upper boundary (van der Veer etal., 2006)
+    !Tref                      : 293      !293. K. Rate Temperature reference (van der Veer etal.. 2006)
+    !TA                        : 7022     !7022. K. Arrhenius temperature (van der Veer etal.. 2006)
+    !TL                        : 275      !273. K. Lower Boundary tolerance range (van der Veer etal.. 2006)
+    !TH                        : 296      !290. K. Upper Boundary tolerance range (van der Veer etal.. 2006)
+    !TAL                       : 45430    !45430. K. Arrhenius temperature for lower boundary (van der Veer etal.. 2006)
+    !TAH                       : 31376    !31376. K. Arrhenius temperature for upper boundary (van der Veer etal.. 2006)
     !
-    !F_FIX                : 1        !1, adim, constant food density parameter (only if simple filtration)
-    !PXM_FIX              : 94.79    !80.5, Jd-1cm-2, bivalve surface-specific ingestion rate if fix 
-    !DELTA_M              : 0.297    !0.297, cm(volumetric)/cm(real), shape coefficient  (Saraiva etal., inpress)
-    !LIFE_SPAN            : 24       !24, years, max life span for a mussel under natural conditions (Sukhotin et al. (2007))
-    !M_VELOCITY           : 0.0      !/d, fraction of individuals that die due to high velocity
-    !MAX_VELOCITY         : 0.5      !m/s, maximum  water velocity tolerable for this species
-    !M_NATURAL            : 0.50000E-02
-    !M_SPAT               : 0.9
-    !M_STARVATION        : 0        ! Use an extra starvation mortality?
-    !DENSITYLIMIT         : 1        ! density limitation?
-    !DENSITY_MAXVALUE     : 3000     !3000 #/m2, maxium density found in field observations       
-    !V_COND               : 0.056    !0.056, cm/d, energy conductance (Saraiva etal., in press)
-    !KAPPA                : 0.67     !0.67, adim, allocation fraction to growth/somatic maintenace (Saraiva etal., in press)
-    !KAP_R                : 0.95     !0.95, adim, fraction of flux allocated to reproduction (Kooijman, 2010)
-    !pM                   : 11.6     !11.6, J/(d.cm3), volume specific somatic maintenace energy flux (Saraiva etal., inpress)
-    !EG                   : 5993     !5993, J/cm3(volumetric), energy costs for structural volume growth (Saraiva etal., inpress)
-    !EH_B                 : 2.95e-5  !2.99e-5, J, Maturity threshold for birth (Saraiva etal., inpress)
-    !EH_P                 : 1.58e2   !1.58e2, J, Maturity threshold for puberty (Saraiva etal., inpress)
-    !CRM                  : 0.096    !0.096, m3/d.cm2, maximum clearance rate (Saraiva etal., 2011)
-    !JX1FM                : 4.8e-4   !4.8e-4, molC/(d.cm2), algae maximum surface area-specific filtration rate (Thomas etal., 2011)
-    !JX0FM                : 3.5      !3.5, g/(d.cm2), inorganic material maximum surface area-specific filtration rate (Saraiva etal.
-    !RO_X1                : 0.4      !0.4, adim, algae binding probability (Saraiva etal., inpress)
-    !RO_X0                : 0.4      !0.4, adim, inorganic material binding probability (Saraiva etal., inpress)
-    !JX1IM                : 1.3e4    !1.3e-4, molC/(d.cm2), algae maximum surface area-specific ingestion rate (Saraiva etal., 2011)
-    !JX0IM                : 0.11     !0.11, g/(d.cm2), inorganic material maximum surface area-specific ingestion rate (Saraiva etal.
-    !YEX                  : 0.75     !0.65, molCE/molCV, yield coeficienct of reserves in algae structure
-    !uece!
-    !K_SED                : 40       !mg/l half saturation constant for non food items
-    !GSR_MIN              : 0.1      !0.1, molC(gam)/molC(struc), minimum gonado-somatic ratio in the organism (Cardoso et al., 2007)
-    !GSR_SPAWN            : 0.2      !0.2, molC(gam)/molC(struc), gonado-somatic ratio to spawn (Saraiva etal., submited)
-    !T_SPAWN              : 9.6      !9.6, C, minimum temperature for spawning (Hummel etal., 1989)
-    !ME_0                 : 1.49e-10 !1.48e-10, molC(reser), reserves in an embryo at optimal food conditions (Saraiva etal., submite
-    !ME_B                 : 6.0e-11  !1.0e-7, molC, reserves in a new born individual at optimal food conditions (Saraiva etal., subm
-    !MV_B                 : 7.92e-11 !7.52e-11, molC, structure in a new born individual at optimal food conditions (Saraiva etal., s
-    !MH_B                 : 4.24e-11 !4.24e-11, molC, maturity in a new born individual at optimal food conditions (Saraiva etal., su
-    !L_B                  : 7.3e-3   !7.3e-3, molC, length in a new born individual at optimal food conditions (Saraiva etal., submit
-    !DV                   : 0.2      !0.2, g(dw)/cm3, bivalve structure and reserves specific density (Rosland etal., 2009 and Brey,
-    !MU_E                 : 6.97e5   !6.97e5, J/molC(reser), chemical potential of reserves (van der Veer etal., 2006)
-    !SIMPLE_ASSI          : 0        !0, 0/1 option to compute simple assimilation
-    !SIMPLE_TEMP          : 1        !0, 0/1 option to compute simple temperature
+    !F_FIX                     : 1        !1. adim. constant food density parameter (only if simple filtration)
+    !PAM_FIX                   : 94.79    !80.5. Jd-1cm-2. bivalve surface-specific assimilation rate if fix 
+    !
+    !DELTA_M                   : 0.297    !0.297   . cm(volumetric)/cm(real). shape coefficient  (Saraiva etal.2011b)
+    !E_M                       : 1438     ! J/cm-3 .  Maximum reserves density  (Saraiva etal.2011b)
+    !LIFE_SPAN                 : 24       !24. years. max life span for a mussel under natural conditions 
+    !
+    !M_VELOCITY                : 0        ! /d  .  fraction of individuals that die due to high velocity
+    !MAX_VELOCITY              : 0.5      ! m/s  .  maximum  water velocity tolerable for this species
+    !M_NATURAL                 : 0        ! adim .  natural mortality  (Saraiva etal 2017)
+    !M_SPAT                    : 0        ! adim .  initial egg mortality  (Saraiva etal 2017)
+    !M_STARVATION              : 0        ! 0/1  .  mortality by starvation
+    !DENSITYLIMIT              : 0        ! 0/1  .  mortality by density
+    !DENSITY_MAXVALUE          : 0        ! #/m3 .  maximum allowed density per cell
+    !
+    !V_COND                    : 0.056    !0.056. cm/d. energy conductance (Saraiva etal.. in press)
+    !KAPPA                     : 0.67     !0.67. adim. allocation fraction to growth/somatic maintenace 
+    !KAP_R                     : 0.95     !0.95. adim. fraction of flux allocated to reproduction (Kooijman. 2010)
+    !pM                        : 11.6     !11.6. J/(d.cm3). volume specific somatic maintenace energy flux 
+    !EG                        : 5993     !5993. J/cm3(volumetric). energy costs for structural volume growth 
+    !EH_B                      : 2.95e-5  !2.99e-5. J. Maturity threshold for birth (Saraiva etal.. inpress)
+    !EH_P                      : 1.58e2   !1.58e2. J. Maturity threshold for puberty (Saraiva etal.. inpress)
+    !CRM                       : 0.096    !0.096. m3/d.cm2. maximum clearance rate (Saraiva etal.. 2011)
+    !JX1FM                     : 4.8e-4   !4.8e-4. molC/(d.cm2). algae maximum surface area-specific filtration rate
+    !JX0FM                     : 3.5      !3.5. g/(d.cm2). inorganic material maximum surface area-specific filtration rate 
+    !RO_X1                     : 0.4      !0.4. adim. algae binding probability (Saraiva etal.. inpress)
+    !RO_X0                     : 0.4      !0.4. adim. inorganic material binding probability (Saraiva etal.. inpress)
+    !JX1IM                     : 1.3e4    !1.3e-4. molC/(d.cm2). algae maximum surface area-specific ingestion rate (
+    !JX0IM                     : 0.11     !0.11. g/(d.cm2). inorganic material maximum surface area-specific ingestion rate 
+    !K_FOOD                    : 0.093    ! mgC/l       .  half saturation constant for food  (Rosland etal. 2009)
+    !K_SED                     : 20       ! mg/l        .  half saturation constant for inorganic material  (HAVE TO CHECK )
+    !YEX                       : 0.75     ! molCE/molCV .  yield coeficienct of reserves in algae structure  (assumed)
+    !GSR_MIN                   : 0.1      !0.1. molC(gam)/molC(struc). minimum gonado-somatic ratio in the organism 
+    !GSR_SPAWN                 : 0.2      !0.2. molC(gam)/molC(struc). gonado-somatic ratio to spawn (Saraiva etal.. submited)
+    !T_SPAWN                   : 9.6      !9.6. C. minimum temperature for spawning (Hummel etal.. 1989)
+    !ME_0                      : 1.49e-10 !1.48e-10. molC(reser). reserves in an embryo at optimal food conditions (
+    !ME_B                      : 6.0e-11  !1.0e-7. molC. reserves in a new born individual at optimal food conditions 
+    !MV_B                      : 7.92e-11 !7.52e-11. molC. structure in a new born individual at optimal food conditions 
+    !MH_B                      : 4.24e-11 !4.24e-11. molC. maturity in a new born individual at optimal food conditions 
+    !L_B                       : 7.3e-3   !7.3e-3. molC. length in a new born individual at optimal food conditions 
+    !DV                        : 0.2      !0.2. g(dw)/cm3. bivalve structure and reserves specific density 
+    !MU_E                      : 6.97e5   !6.97e5. J/molC(reser). chemical potential of reserves (van der Veer etal.. 2006)
+    !SIMPLE_ASSI               : 0        !0. 0/1 option to compute simple assimilation
+    !SIMPLE_TEMP               : 1        !0. 0/1 option to compute simple temperature
     !
     !<<begin_particle>>
-    !NAME                 : phytoplankton
-    !DESCRIPTION          : description
-    !ORGANIC              : 1       !1/0, is this an organic particle?
-    !SILICA_USE           : 0       !1/0, does it have silica?, just important in case of life model (diatoms)
-    !RATIO_VARIABLE       : 0       !1/0, the N/C and P/C ratios of this property are variable?
-    !RATIOHC              : 0.15    !0.15, mgH/mgC in the food, same as bivalve
-    !RATIOOC              : 0.71    !0.71, mgO/mgC in the food, same as bivalve
-    !RATIONC              : 0.3396     !0.3, 0.18, Redfield, to define if RATIO_VARIABLE:0 and FOOD:1 and ORGANIC:1, must be equal to wq
-    !RATIOPC              : 0.07    !0.07, 0.024, Redfield, to define if RATIO_VARIABLE:0 and FOOD:1 and ORGANIC:1, must be equal to wq
-    !RATIOSiC             : 0.89    !0.89, to define if RATIO_VARIABLE:0 and FOOD:1 and ORGANIC:1, must be equal to wq
-    !RATIOCHLC            : 0.017   !0.017, to define if RATIO_VARIABLE:0 and FOOD:1 and ORGANIC:1, must be equal to wq
-    !SIZE                 : 0.2     !0.2, to define if FOOD:1, cm, mean size of property
-    !F_E                  : 0.8     !0.5, to define if FOOD:1, molCReserves/molCTotalFood, fraction of reserves in the food
+    !NAME                      : phytoplankton
+    !DESCRIPTION               : The food
+    !ORGANIC                   : 1        ! 1/0 .  is this an organic particle?
+    !SILICA_USE                : 0        ! 1/0 .  does it have silica?  just important in case of life model. diatoms
+    !RATIO_VARIABLE            : 0        ! 1/0 .  the N/C and P/C ratios of this property are variable?
+    !RATIOHC                   : 0.18     ! mgH/mgC    .  in the algae  (Combine Redfield. 1958 and Ho etal. 2003)
+    !RATIOOC                   : 1.18     ! mO/mgC     .  in the food  (Combine Redfield. 1958 and Ho etal. 2003)
+    !RATIONC                   : 0.15     ! mgN/mgC    .  to define if RATIO_VARIABLE:0 and ORGANIC:1 must be equal to wq 
+    !RATIOPC                   : 0.02     ! mgP/mgC    .  to define if RATIO_VARIABLE:0 and ORGANIC:1 must be equal to wq
+    !RATIOSiC                  : 0.024    ! mgSi/mgC   .  to define if RATIO_VARIABLE:0 and ORGANIC:1 must be equal to wq 
+    !RATIOCHLC                 : 0.017    ! mgChla/mgC .  to define if RATIO_VARIABLE:0 and ORGANIC:1 must be equal to wq
+    !SIZE                      : 0.2      ! cm         .   to define if ORGANIC:1 mean size of property
+    !F_E                       : 0.5      ! adim       .  reserve fraction in algal biomass
     !<<end_particle>>
+    !
+    !<<begin_particle>>
+    !NAME                      : cohesive sediment
+    !DESCRIPTION               : description
+    !ORGANIC                   : 0        ! 1/0 .  is this an organic particle?
+    !SIZE                      : 0.2      ! cm .  to define if ORGANIC:1 cm mean size of property
+    !<<end_particle>>
+    !
+    !<end_species>
     !
     !<<begin_predator>>
     !NAME                 : shrimp
@@ -241,7 +257,7 @@
     private ::                          ComputeFiltrationRate
     private ::                          ComputeIngestAssimiRate
     private ::                          UpdateLarvaeOnMatrixMass
-    private ::                          UpdateMatrixMass
+    private ::                      UpdateMatrixMass
     private ::                  ComputeSomaticMaintenance
     private ::                  ComputeMobilization
     private ::                  ComputeReservesDynamics
@@ -301,8 +317,10 @@
         logical                          :: ImposeFiltration   = .false.
         logical                          :: ComplexFiltration  = .false.
         logical                          :: SimpleFiltration   = .true.
+        integer                          :: FeedingModel       = null_int  !1. imposed;2.simple;3.complex
         logical                          :: CorrectFiltration  = .true.
         logical                          :: MassBalance        = .false.
+        logical                          :: FeedbackOnWater    = .false.
         character(len=StringLength)      :: PelagicModel       = null_str
     end type T_ComputeOptions 
 
@@ -1015,7 +1033,7 @@ cd2:    if(flag==0)then
             stop 'ConstructGlobalVariables - ModuleBivalve - ERR03'
         end if cd2
 
-cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%ComputeOptions%PelagicModel .ne. LifeModel))then
+cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%ComputeOptions%PelagicModel .ne. 'LifeModel'))then
             write(*,*)'Pelagic model to couple with ModuleBivalve must be one of the following:'
             write(*,*)trim(WaterQualityModel)
             write(*,*)trim(LifeModel)
@@ -1042,6 +1060,25 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
         if(STAT_CALL .NE. SUCCESS_)                                           &
         stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR40'
 
+
+        call GetData(Me%ComputeOptions%FeedingModel                        , &
+                    Me%ObjEnterData, flag                                  , &
+                    SearchType   = FromFile                                , &
+                    keyword      = 'FEEDING_MODEL'                         , &
+                    Default      = 0                                       , &
+                    ClientModule = 'ModuleBivalve'                         , &
+                    STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_)                                          &
+        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR50'
+
+        if(Me%ComputeOptions%FeedingModel .eq. 0)then
+            write(*,*)'FEEDING_MODEL should be one of the following three options:'
+            write(*,*)'1 - Impose filtration'
+            write(*,*)'2 - Simple filtration'
+            write(*,*)'3 - Complex filtration'
+            write(*,*)'Please check the manual'
+            stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR52'
+        end if 
 
         call GetData(Me%ComputeOptions%ImposeFiltration                    , &
                     Me%ObjEnterData, flag                                  , &
@@ -1092,6 +1129,31 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
         if(STAT_CALL .NE. SUCCESS_)                                          &
         stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR70'
 
+        call GetData(Me%ComputeOptions%FeedbackOnWater                     , &
+                    Me%ObjEnterData, flag                                  , &
+                    SearchType   = FromFile                                , &
+                    keyword      = 'FEEDBACK_ON_WATER'                     , &
+                    Default      = .true.                                  , &
+                    ClientModule = 'ModuleBivalve'                         , &
+                    STAT         = STAT_CALL)
+        if(STAT_CALL .NE. SUCCESS_)                                          &
+        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR80'
+        
+        if((Me%ComputeOptions%FeedingModel .eq. 1) .and. (Me%ComputeOptions%FeedbackOnWater))then
+            write(*,*)'FEEDBACK_ON_WATER option only works if FEEDING_MODEL is not 0'
+            stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR81'
+        end if 
+        
+        if(.not. Me%ComputeOptions%FeedbackOnWater) then
+            write(*,*)'FEEDBACK_ON_WATER option is 0'
+        end if 
+
+        if(Me%ComputeOptions%FeedbackOnWater) then
+            write(*,*)'FEEDBACK_ON_WATER option is 1'
+            write(*,*)'please check the food definition on water properties file'
+            write(*,*)'to make sure this will really have an effect.'
+        end if 
+
         call GetData(Me%MinNumber                                         , &
                     Me%ObjEnterData, flag                                 , &
                     SearchType   = FromFile                               , &
@@ -1100,7 +1162,7 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
                     ClientModule = 'ModuleBivalve'                        , &
                     STAT         = STAT_CALL)
         if(STAT_CALL .NE. SUCCESS_)                                         &
-        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR80'
+        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR90'
 
         call GetData(Me%DT_OutputTime                                    , &
                     Me%ObjEnterData, flag                                , &
@@ -1110,7 +1172,7 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
                     ClientModule = 'ModuleBivalve'                       , &
                     STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                       &
-        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR90'
+        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR100'
         
         call GetData(Me%Testing_Parameters                               , &
                     Me%ObjEnterData, flag                                , &
@@ -1120,7 +1182,7 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
                     ClientModule = 'ModuleBivalve'                       , &
                     STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                       &
-        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR100'
+        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR110'
         
         call GetData(Me%DensityUnits                                     , &
                     Me%ObjEnterData, flag                                , &
@@ -1130,7 +1192,7 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
                     ClientModule = 'ModuleBivalve'                       , &
                     STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                       &
-        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR110'
+        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR120'
         
         call GetData(Me%IndexOutputs                                     , &
                     Me%ObjEnterData, flag                                , &
@@ -1141,7 +1203,7 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
         if (STAT_CALL .NE. SUCCESS_)then
             !By default 30 values are read so this error always exist.
             if (STAT_CALL /= SIZE_ERR_) then 
-                stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR120'
+                stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR130'
             else
                 Me%nIndexOutputs = flag
             endif
@@ -1158,13 +1220,13 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                                       &
-        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR130'
+        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR140'
         
         if(Me%Old)then
             
             call ReadFileName("BIV_INI", Me%InitialFileName, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                       &
-            stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR140'
+            stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR150'
             
             call ReadInitialBivalveFile
 
@@ -1172,7 +1234,7 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
 
         call ReadFileName("BIV_FIN", Me%FinalFileName, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                       &
-        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR150'
+        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR160'
         
         allocate(Me%ExternalVar%InitialPhyto (Me%Array%ILB:Me%Array%IUB))
         allocate(Me%ExternalVar%InitialShrimp(Me%Array%ILB:Me%Array%IUB))
@@ -1187,7 +1249,7 @@ cd3:    if((Me%ComputeOptions%PelagicModel .ne. WaterQualityModel .and. Me%Compu
                      STAT         = STAT_CALL)
 
         if (STAT_CALL .NE. SUCCESS_)                           &
-        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR160'
+        stop 'Subroutine ConstructGlobalVariables - ModuleBivalve - ERR170'
 
         Me%NextSpawnTime   =  Me%InitialDate
         Me%SpawningAllowed = .true. 
@@ -5824,15 +5886,15 @@ d1:         do while(associated(Species))
         !Choose feeding processes model
         if (CheckIfOpenPoint == OpenPoint) then
             
-            if(Me%ComputeOptions%ImposeFiltration)  then  
+            if(Me%ComputeOptions%FeedingModel .eq. 1)  then  
             
-                call ComputeImposeFiltration (Index) !fedding is imposed by an f value
+                call ComputeImposeFiltration (Index) !fedding is imposed by an f value, only if only one particle is food
                 
-            else if (Me%ComputeOptions%SimpleFiltration)   then !fedding is computed by the simple model based on f
+            else if (Me%ComputeOptions%FeedingModel .eq. 2)   then !fedding is computed by the simple model based on f
                       
                 call ComputeSimpleFeeding (Index)
 
-            else if (Me%ComputeOptions%ComplexFiltration)   then !fedding is computed by the complex model with pseudofaeces
+            else if (Me%ComputeOptions%FeedingModel .eq. 2)   then !fedding is computed by the complex model with pseudofaeces
                
                 call ComputeComplexFeeding (Index)
                 
@@ -5963,8 +6025,6 @@ d2:         do while(associated(Cohort))
 
                 end if !(M_H .gt. MHb) feeding
 
-                Cohort%FeedingOn = 0.0
-
                 Cohort => Cohort%Next
 
             end do d2
@@ -6036,7 +6096,7 @@ d2:         do while(associated(Cohort))
         type(T_Species)  ,   pointer        :: Species
         type(T_Cohort)   ,   pointer        :: Cohort
         type(T_Particles),   pointer        :: Particles
-        integer                             :: M_H, Number
+        integer                             :: M_H, Number, par
         real                                :: PXM_FIX, mu_E, YEX
         real                                :: K_Food,K_Sed
         real                                :: C_AtomicMass, H_AtomicMass, O_AtomicMass
@@ -6174,17 +6234,48 @@ d2:         do while(associated(Cohort))
                     Cohort%Processes%FaecesContributionFood%P    = Cohort%Processes%IngestionFood%P - &
                                                                    Cohort%Processes%Assimilation%P
 
+                    
+                    !Fill the matrix Cohort%FeedingOn(particles, Fil/Ing/Assi) with the values computed before
+                    !assuming all food comes from phytoplankton
+                
+                    par = 0
+                    Cohort%FeedingOn = 0.0
+
+                    Particles => Species%FirstParticles
+                    do while(associated(Particles))
+                        par = par + 1 !count which property
+                        
+                        if (Particles%ID%Name .eq. 'phytoplankton') then
+                            !store value in the Filtered column, in molC or molC/d.ind                            
+                            Cohort%FeedingOn(par,1) = Cohort%Processes%FilteredFood%C
+                            Cohort%FeedingOn(par,2) = Cohort%Processes%IngestionFood%C
+                            Cohort%FeedingOn(par,3) = Cohort%Processes%Assimilation%C
+                        else
+                            !store value in the Filtered column, in molC or molC/d.ind
+                            Cohort%FeedingOn(par,1) = 0.0
+                            Cohort%FeedingOn(par,2) = 0.0
+                            Cohort%FeedingOn(par,3) = 0.0
+                            
+                        end if
+                    Particles => Particles%Next
+                    end do 
+                
                 else ! if not (M_H .gt. MHb), dont feed
 
                     call ImposeNoFiltrationProcess (Cohort)
 
                 end if !(M_H .gt. MHb) feeding
 
-                Cohort%FeedingOn = 0.0
 
                 Cohort => Cohort%Next
 
             end do d2
+
+            if (Me%ComputeOptions%FeedbackOnWater) then
+
+                call UpdateMatrixMass (Species, Index)
+                
+            end if !update matrix mass
 
             Species => Species%Next
 
@@ -6317,7 +6408,11 @@ d2:         do while(associated(Cohort))
         Species => Me%FirstSpecies
         do while(associated(Species))
         
-            call UpdateMatrixMass (Species, Index)
+            if (Me%ComputeOptions%FeedbackOnWater) then
+
+                call UpdateMatrixMass (Species, Index)
+                
+            end if !update matrix mass
 
             Species => Species%Next
         end do 
@@ -6836,12 +6931,12 @@ d2:         do while(associated(Cohort))
         type(T_Cohort)   ,       pointer     :: Cohort
         type(T_Particles),       pointer     :: Particles
         real                                 :: ro_X1, ro_X0, JX1Im, JX0Im, YEX
-        integer                              :: par, Vol
+        integer                              :: par
         real                                 :: IngDenominator !, ComputedYEX
         real                                 :: FilteredByCohort,IngestedByCohort, AssimilatedByCohort
         real                                 :: r_C, r_N, r_P
         real                                 :: AssimilatedStructure, AssimilatedReserves
-        real                                 :: PXM_FIX, mu_E, TempCorrection
+        real                                 :: PXM_FIX, mu_E, TempCorrection, Vol
 
         !Begin-----------------------------------------------------------------
 
@@ -6852,17 +6947,17 @@ d2:         do while(associated(Cohort))
         YEX            = Species%IndividualParameters%YEX
         PXM_FIX        = Species%IndividualParameters%PXM_FIX 
         mu_E           = Species%IndividualParameters%mu_E
-        TempCorrection  = Species%AuxiliarParameters%TempCorrection         
+        TempCorrection = Species%AuxiliarParameters%TempCorrection         
 
 
         !Compute ingestion and assimilation, molC/d/individual
         Cohort => Species%FirstCohort
         do while(associated(Cohort))
         
+            Vol    = Cohort%BivalveCondition%Vol        
+
             if (Cohort%Dead .eq. 0) then
                 
-                Vol    = Cohort%BivalveCondition%Vol        
-
 
                 !Because ro_Xi and JXiIm are the same for all organic particles
                 IngDenominator = 1 + (ro_X1 * Cohort%Processes%FilteredFood%C)    / JX1Im    + &
@@ -7246,9 +7341,10 @@ d2:         do while(associated(Cohort))
         integer                             :: Number, par, POMcheck
         integer                             :: ParticlesIndex
         integer                             :: PropertyIndexC,PropertyIndexN, PropertyIndexP, PropertyIndexChl  
-        real                                :: FilteredByCohort,IngestedByCohort, AssimilatedByCohort
+        real                                :: FilteredByCohort,IngestedByCohort, AssimilatedByCohort, test
         real                                :: PseudoFaecesByCohort,FaecesByCohort,FaecesByCohortN, FaecesByCohortP
         real                                :: C_AtomicMass, H_AtomicMass, O_AtomicMass, N_AtomicMass, P_AtomicMass
+
 
         
         !Begin-----------------------------------------------------------------
@@ -7317,7 +7413,7 @@ d2:         do while(associated(Cohort))
                                                                        FilteredByCohort)                            * &
                                                                        Me%ExternalVar%Mass(Number, Index) * Me%DTDay
 
-                    else !(Particles%Organic .eq. 0)
+                    else !if not (Particles%Organic .eq. 0)
                     
                         if (Particles%ID%Name .eq.'particulate organic matter') then
                         
@@ -7377,11 +7473,11 @@ d2:         do while(associated(Cohort))
                             
                                 ParticlesIndex = SearchPropIndex(GetPropertyIDNumber(Particles%ID%Name))
                                 
+                                test =  Me%ExternalVar%Mass (ParticlesIndex, Index)
                                 Me%ExternalVar%Mass (ParticlesIndex, Index) = Me%ExternalVar%Mass (ParticlesIndex, Index) - &
                                                                             FilteredByCohort                              * &
                                                                             Me%ExternalVar%Mass(Number, Index)            * &
                                                                             C_AtomicMass * Me%DTDay
-
                                 !check if there is mass loss
                                 if (Me%ExternalVar%Mass (ParticlesIndex, Index) .lt. 0.0) then
                                 
@@ -7715,7 +7811,6 @@ d2:         do while(associated(Cohort))
         MHb     = Species%AuxiliarParameters%MHb  
         kJ      = Species%AuxiliarParameters%kJ
         TempCorrection = Species%AuxiliarParameters%TempCorrection         
-
 
         Vol     = Cohort%BivalveCondition%Vol
 
