@@ -1283,7 +1283,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
                 Matrix (i, j) = InMatrix(i, j)
@@ -1329,7 +1329,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1377,7 +1377,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1425,7 +1425,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1473,7 +1473,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1498,55 +1498,56 @@ Module ModuleFunctions
         integer, dimension(:, :, :), pointer, optional  :: MapMatrix
 
         !Local-----------------------------------------------------------------
-        integer                                         :: i, j, k
-        !integer                                         :: CHUNK
+        integer                                         :: i, j, k, it
+        integer                                         :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
-        !CHUNK = CHUNK_K(Size%KLB, Size%KUB)
-        !
-        !if (present(MapMatrix)) then
-        !    !$OMP PARALLEL PRIVATE(I,J,K)
-        !    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        !    do k = Size%KLB, Size%KUB
-        !    do j = Size%JLB, Size%JUB
-        !    do i = Size%ILB, Size%IUB
-        !        if (MapMatrix(i, j, k) == 1) then
-        !            Matrix (i, j, k) = ValueX
-        !        endif
-        !    enddo
-        !    enddo
-        !    enddo
-        !    !$OMP END DO NOWAIT
-        !    !$OMP END PARALLEL
-        !else
-        !    !$OMP PARALLEL PRIVATE(I,J,K)
-        !    !$OMP DO SCHEDULE(DYNAMIC, chunk)
-        !    do k = Size%KLB, Size%KUB
-        !    do j = Size%JLB, Size%JUB
-        !    do i = Size%ILB, Size%IUB
-        !        Matrix (i, j, k) = ValueX
-        !    enddo
-        !    enddo
-        !    enddo
-        !    !$OMP END DO NOWAIT
-        !    !$OMP END PARALLEL
-        !endif
+        CHUNK = CHUNK_K(Size%KLB, Size%KUB)
         
-        if (present(MapMatrix))then
-            !$OMP PARALLEL
-            !$OMP WORKSHARE
-                where (MapMatrix == 1) Matrix(:,:,:) = ValueX
-            !$OMP END WORKSHARE NOWAIT
+        if (present(MapMatrix)) then
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1) then
+                    Matrix (i, j, k) = ValueX
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(STATIC)
+            do k = Size%KLB, Size%KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                Matrix (i, j, k) = ValueX
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
             !$OMP END PARALLEL
             
-        else
-            !$OMP PARALLEL
-            !$OMP WORKSHARE
-                Matrix(:,:,:) = ValueX
-            !$OMP END WORKSHARE NOWAIT
-            !$OMP END PARALLEL
         endif
+        
+        !if (present(MapMatrix))then
+        !    !$OMP PARALLEL
+        !    !$OMP WORKSHARE
+        !        where (MapMatrix == 1) Matrix(:,:,:) = ValueX
+        !    !$OMP END WORKSHARE NOWAIT
+        !    !$OMP END PARALLEL
+        !    
+        !else
+        !    !$OMP PARALLEL
+        !    !$OMP WORKSHARE
+        !        Matrix(:,:,:) = ValueX
+        !    !$OMP END WORKSHARE NOWAIT
+        !    !$OMP END PARALLEL
+        !endif
 
     end subroutine SetMatrixValues3D_R8_Constant
 
@@ -1584,7 +1585,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(STATIC, chunk)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1632,7 +1633,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J, K)
-            !$OMP DO SCHEDULE(STATIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1820,7 +1821,7 @@ Module ModuleFunctions
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE(I,J,K)
-            !$OMP DO SCHEDULE(STATIC, CHUNK)
+            !$OMP DO SCHEDULE(STATIC)
             do k = Size%KLB, Size%KUB
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
