@@ -69,6 +69,8 @@ Module ModuleFunctions
     public  :: SetMatrixValue
     public  :: SetMatrixValueAllocatable
     public  :: GetPointer
+    public  :: AddMAtrixtimesScalar
+    public  :: AddMatrixtimesScalarDivByMatrix
 #ifdef _USE_SEQASSIMILATION
     public  :: InvSingularDiagMatrix2D
     public  :: CholeskyFactorization
@@ -1498,7 +1500,7 @@ Module ModuleFunctions
         integer, dimension(:, :, :), pointer, optional  :: MapMatrix
 
         !Local-----------------------------------------------------------------
-        integer                                         :: i, j, k, it
+        integer                                         :: i, j, k
         integer                                         :: CHUNK
 
         !Begin-----------------------------------------------------------------
@@ -1534,20 +1536,12 @@ Module ModuleFunctions
             
         endif
         
-        !if (present(MapMatrix))then
-        !    !$OMP PARALLEL
-        !    !$OMP WORKSHARE
+        !if (present(MapMatrix))then !left it here to test with MPI
         !        where (MapMatrix == 1) Matrix(:,:,:) = ValueX
-        !    !$OMP END WORKSHARE NOWAIT
-        !    !$OMP END PARALLEL
-        !    
         !else
-        !    !$OMP PARALLEL
-        !    !$OMP WORKSHARE
         !        Matrix(:,:,:) = ValueX
-        !    !$OMP END WORKSHARE NOWAIT
-        !    !$OMP END PARALLEL
         !endif
+        
 
     end subroutine SetMatrixValues3D_R8_Constant
 
@@ -1904,6 +1898,121 @@ Module ModuleFunctions
         ptr => matrix
 
     end function GetPointer3D_R8
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Adds the product of matrixB by a scalar, to matrixA
+    !>@param[in] MatrixA, MatrixB, Scalar, Size, MapMatrix, DoMethod, Kfloor   
+    subroutine AddMAtrixtimesScalar(MatrixA, MatrixB, Scalar, Size, MapMatrix, DoMethod, Kfloor)
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), pointer, intent (INOUT) :: MatrixA
+        real, dimension(:, :, :), pointer, intent (IN)    :: MatrixB
+        type (T_Size3D)                                   :: Size
+        integer, dimension(:, :, :), pointer, intent (IN) :: MapMatrix
+        real, intent(IN)                                  :: Scalar
+        integer, intent(IN)                               :: DoMethod
+        integer, dimension(:,:), pointer, intent(IN)      :: KFloor
+        !Local-----------------------------------------------------------------
+        integer                                           :: i, j, k, kbottom, KUB, KLB
+        integer                                           :: CHUNK
+        !Begin-----------------------------------------------------------------
+        
+        KUB = Size%KUB
+        KLB = Size%KLB
+        
+        if (DoMethod == 1) then
+            CHUNK = CHUNK_J(KLB, KUB)
+            !$OMP PARALLEL PRIVATE(I,J,K, kbottom)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, KUB) == 1) then
+                    kbottom = KFloor(i, j)
+                    do k = kbottom, KUB
+                        MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k) * Scalar
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            CHUNK = CHUNK_K(KLB, KUB)
+            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = KLB, KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1) then
+                    MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k) * Scalar
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+            
+        endif
+    end subroutine AddMAtrixtimesScalar
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Adds the product of matrixB by a scalar, to matrixA
+    !>@param[in] MatrixA, MatrixB, Scalar, Size, MapMatrix, DoMethod, Kfloor   
+    subroutine AddMatrixtimesScalarDivByMatrix(MatrixA, MatrixB, MatrixC, Scalar, Size, MapMatrix, DoMethod, Kfloor)
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), pointer, intent (INOUT) :: MatrixA
+        real, dimension(:, :, :), pointer, intent (IN)    :: MatrixB, MatrixC
+        type (T_Size3D)                                   :: Size
+        integer, dimension(:, :, :), pointer, intent (IN) :: MapMatrix
+        real, intent(IN)                                  :: Scalar
+        integer, intent(IN)                               :: DoMethod
+        integer, dimension(:,:), pointer, intent(IN)      :: KFloor
+        !Local-----------------------------------------------------------------
+        integer                                           :: i, j, k, kbottom, KUB, KLB
+        integer                                           :: CHUNK
+        real                                              :: Aux
+        !Begin-----------------------------------------------------------------
+        
+        KUB = Size%KUB
+        KLB = Size%KLB
+        Aux = 0
+        if (DoMethod == 1) then
+            CHUNK = CHUNK_J(KLB, KUB)
+            !$OMP PARALLEL PRIVATE(I,J,K, kbottom) FIRSTPRIVATE(Aux)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, KUB) == 1) then
+                    kbottom = KFloor(i, j)
+                    do k = kbottom, KUB
+                        Aux = MatrixB(i, j, k) * Scalar / MatrixC(i, j, k)
+                        MatrixA(i, j, k) = MatrixA(i, j, k) + Aux
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+        else
+            CHUNK = CHUNK_K(KLB, KUB)
+            !$OMP PARALLEL PRIVATE(I,J,K) FIRSTPRIVATE(Aux)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = KLB, KUB
+            do j = Size%JLB, Size%JUB
+            do i = Size%ILB, Size%IUB
+                if (MapMatrix(i, j, k) == 1) then
+                    Aux = MatrixB(i, j, k) * Scalar / MatrixC(i, j, k)
+                    MatrixA(i, j, k) = MatrixA(i, j, k) + Aux
+                endif
+            enddo
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            !$OMP END PARALLEL
+            
+        endif
+        end subroutine AddMatrixtimesScalarDivByMatrix
 
     !--------------------------------------------------------------------------
     ! Function Pad

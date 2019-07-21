@@ -268,6 +268,8 @@ Module ModuleModel
 #endif _USE_SEQASSIMILATION
 
         !$ logical                              :: FatherModelFlag = .false.
+        
+        integer                                 :: DoCycle_method = 1
 
         !Instance of other Modules
         integer                                 :: ObjTime                      = 0
@@ -632,6 +634,16 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             !!$       write(*,*) "OPENMP: WARNING, OPENMP_NUM_THREADS should be defined in the father model only!"
             !!$    endif
             !$ endif
+            
+            !keyword to diferentiate do cycle implementations. 1 - DoJDoIDoK. 2 - DoK,DoJ,DoI
+            !If in doubt use 1 (good for when the domain has many landpoints)
+            call GetData         (Me%DoCycle_method, ObjEnterData, flag,                 &
+                                  SearchType    =  FromFile,                            &
+                                  keyword       = 'DOCYCLE_METHOD',                      &
+                                  default       = 1,                                    &
+                                  ClientModule  = 'ModuleModel',                        &
+                                  STAT          = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - failed to get OPENMP_METHOD'
                   
             call KillEnterData    (ObjEnterData, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructModel - ModuleModel - ERR150'
@@ -838,6 +850,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                          DischargesID     = Me%ObjDischarges,           &
                                          WavesID          = Me%ObjWaves,                &
                                          TwoWayID         = Me%ObjTwoWay,               &
+                                         DoCycle_method   = Me%DoCycle_method,          &
 #ifdef _ENABLE_CUDA
                                          CudaID           = Me%ObjCuda,                 &
 #endif
