@@ -45776,6 +45776,9 @@ dok:            do  k = kbottom, KUB
         
     end subroutine AddBarotropicForce
     
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Adds AddWaterPressure_acceleration to TiCoef_3D - direction North-South
     Subroutine AddWaterPressure_acceleration_S (PressureBackwardInTime)
         !Arguments------------------------------------------------------------
         logical                            :: PressureBackwardInTime
@@ -45873,6 +45876,9 @@ dok:            do  k = kbottom, KUB
         
     end subroutine AddWaterPressure_acceleration_S
     
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Adds AddWaterPressure_acceleration to TiCoef_3D - direction East-West
     Subroutine AddWaterPressure_acceleration_W (PressureBackwardInTime)
         !Arguments------------------------------------------------------------
         logical                            :: PressureBackwardInTime
@@ -46054,7 +46060,7 @@ dok:            do  k = kbottom, KUB
     !------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !> Adds BarotropicForce to TiCoef_3D
+    !> Adds AddAtmPressure to TiCoef_3D
     Subroutine AddAtmPressure
         !Arguments------------------------------------------------------------
         !Local---------------------------------------------------------------------
@@ -46075,6 +46081,8 @@ dok:            do  k = kbottom, KUB
         JLB = Me%WorkSize%JLB
         KUB = Me%WorkSize%KUB
         
+        DT_Velocity = Me%Velocity%DT
+        TiCoef_3D               => Me%Coef%D3%Ti
         AtmPressure             => Me%External_Var%AtmosphericPressure
         ComputeFaces3D_UV       => Me%External_Var%ComputeFaces3D_UV
         KFloor_UV               => Me%External_Var%KFloor_UV
@@ -46131,6 +46139,7 @@ dok:            do  k = kbottom, KUB
             !$OMP END PARALLEL
         endif
         
+        nullify(TiCoef_3D)
         nullify(AtmPressure)
         nullify(ComputeFaces3D_UV)
         nullify(KFloor_UV)
