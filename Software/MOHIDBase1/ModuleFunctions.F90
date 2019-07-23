@@ -1913,7 +1913,7 @@ Module ModuleFunctions
         integer, intent(IN)                               :: DoMethod
         integer, dimension(:,:), pointer, intent(IN)      :: KFloor
         !Local-----------------------------------------------------------------
-        integer                                           :: i, j, k, kbottom, KUB, KLB
+        integer                                           :: i, j, k, kbottom, KUB, KLB, JUB, JLB
         integer                                           :: CHUNK
         !Begin-----------------------------------------------------------------
         
@@ -1921,7 +1921,7 @@ Module ModuleFunctions
         KLB = Size%KLB
         
         if (DoMethod == 1) then
-            CHUNK = CHUNK_J(KLB, KUB)
+            CHUNK = CHUNK_J(JLB, JUB)
             !$OMP PARALLEL PRIVATE(I,J,K, kbottom)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Size%JLB, Size%JUB
@@ -1969,7 +1969,7 @@ Module ModuleFunctions
         integer, intent(IN)                               :: DoMethod
         integer, dimension(:,:), pointer, intent(IN)      :: KFloor
         !Local-----------------------------------------------------------------
-        integer                                           :: i, j, k, kbottom, KUB, KLB
+        integer                                           :: i, j, k, kbottom, KUB, KLB, JUB, JLB
         integer                                           :: CHUNK
         real                                              :: Aux
         !Begin-----------------------------------------------------------------
@@ -1978,7 +1978,7 @@ Module ModuleFunctions
         KLB = Size%KLB
         Aux = 0
         if (DoMethod == 1) then
-            CHUNK = CHUNK_J(KLB, KUB)
+            CHUNK = CHUNK_J(JLB, JUB)
             !$OMP PARALLEL PRIVATE(I,J,K, kbottom) FIRSTPRIVATE(Aux)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Size%JLB, Size%JUB

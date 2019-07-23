@@ -49849,7 +49849,9 @@ do5:            do i = ILB, IUB
         real,    dimension(:,:  ), pointer :: DUX_VY
         real,    dimension(:,:,:), pointer :: Density
         !Local-----------------------------------------------------------------
-        integer :: i, j, k, KUB, IUB, JUB, ILB, JLB, KLB, kbottom, CHUNK
+        integer                            :: i, j, k, KUB, IUB, JUB, ILB, JLB, KLB, kbottom
+        
+        !$ integer                         :: CHUNK
         !Begin-------------------------------------------------------------------------
         
         IUB = Me%WorkSize%IUB
@@ -49865,7 +49867,7 @@ do5:            do i = ILB, IUB
                 if (Me%Docycle_method == 1)then
                     !Good for domains with many land points
                     if (Me%Direction%di == 1) then
-                        CHUNK = CHUNK_J(JLB, JUB)
+                        !$CHUNK = CHUNK_J(JLB, JUB)
                         !$OMP PARALLEL PRIVATE( i, j, k, kbottom)
                         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)  
                         do j=JLB, JUB
@@ -49882,9 +49884,9 @@ do5:            do i = ILB, IUB
                         !$OMP END DO
                         !$OMP END PARALLEL
                     else
+                        !$CHUNK = CHUNK_J(JLB, JUB)
                         !$OMP PARALLEL PRIVATE( i, j, k, kbottom)
                         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-                        CHUNK = CHUNK_J(JLB, JUB)
                         do j=JLB, JUB
                         do i=ILB, IUB
                             kbottom = Me%External_Var%KFloor_UV(i, j)
@@ -49901,7 +49903,7 @@ do5:            do i = ILB, IUB
                     endif
                 else
                     if (Me%Direction%di == 1)then
-                        CHUNK = CHUNK_K(JLB, JUB)
+                        !$CHUNK = CHUNK_K(KLB, KUB)
                         !$OMP PARALLEL PRIVATE( i,j,k)
                         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                         do k=KLB, KUB
@@ -49917,7 +49919,7 @@ do5:            do i = ILB, IUB
                         !$OMP END DO
                         !$OMP END PARALLEL 
                     else
-                        CHUNK = CHUNK_K(JLB, JUB)
+                        !$CHUNK = CHUNK_K(KLB, KUB)
                         !$OMP PARALLEL PRIVATE( i,j,k)
                         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                         do k=KLB, KUB
