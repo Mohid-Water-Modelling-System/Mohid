@@ -55,7 +55,8 @@ Module ModuleAssimilation
     use ModuleFillMatrix,       only: ConstructFillMatrix, GetDefaultValue, KillFillMatrix, &
                                       ModifyFillMatrix, GetAnalyticCelerityON,              &
                                       GetFilenameHDF, GetAnalyticCelerity, UngetFillMatrix
-    use ModuleFunctions,        only: ConstructPropertyID, Density, Sigma, CHUNK_J
+    use ModuleFunctions,        only: ConstructPropertyID, Density, Sigma, CHUNK_J, CHUNK_K, SetMatrixValue, &
+                                      SetMatrixValueAllocatable
 
     implicit none
 
@@ -248,7 +249,9 @@ Module ModuleAssimilation
         type(T_Time)                            :: EndTime      
         type(T_Time)                            :: ActualTime
         type(T_Size3D)                          :: Size
+        type(T_Size2D)                          :: Size2D !Sobrinho
         type(T_Size3D)                          :: WorkSize
+        type(T_Size2D)                          :: WorkSize2D !Sobrinho
         type(T_Files)                           :: Files
         type(T_OutPut)                          :: OutPut
         type(T_External )                       :: ExternalVar              ! J. Nogueira Assim
@@ -373,6 +376,13 @@ Module ModuleAssimilation
             call GetGeometrySize(Me%ObjGeometry, Size = Me%Size, WorkSize = Me%WorkSize, &
                                  STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)stop 'StartAssimilation - ModuleAssimilation - ERR02'
+            
+            call GetHorizontalGridSize(Me%ObjHorizontalGrid,                                &
+                                       Size     = Me%Size2D,                                &
+                                       WorkSize = Me%WorkSize2D,                            &
+                                       STAT     = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                stop 'StartAssimilation - ModuleAssimilation - failed to get size2D'
 
             !Read the name file of the Assimilation module
             call ReadAssimilationFilesName
@@ -2988,7 +2998,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         !Local-----------------------------------------------------------------
 
-        Integer i, j, k, kspl, kmin, kbottom
+        Integer i, j, k, kspl, kmin, kbottom, CHUNK
 
 
         Real    Mean_WaterLevel_Diference,                                                  &
@@ -3010,13 +3020,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         Real,Pointer,Dimension (:,:,:):: SigmaDensAnalyzed
 
-        Real,Pointer,Dimension (:,:)::   Observation_Error,                                 &
-                                         Model_Error,                                       &
-                                         Gain
+        Real,Pointer,Dimension (:,:)::   Gain
 
         !Parameter-----------------------------------------------------------------
 
-        Real, Parameter                             ::ModelError        =    1.0
+        !Real, Parameter                             ::ModelError        =    1.0 Sobrinho
         Real, Parameter                             ::ErrorMax          =    0.8
         Real, Parameter                             ::ReferenceDensity  = 1023.0
         Real, Parameter                             ::Gravity           =    9.806
@@ -3052,63 +3060,43 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         PressureAnomaly                 => Me%Altimetric_Assim%PressureAnomaly
         SigmaDensAnalyzed               => Me%Altimetric_Assim%SigmaDensAnalyzed
 
-        Observation_Error               => Me%Altimetric_Assim%Observation_Error
-        Model_Error                     => Me%Altimetric_Assim%Model_Error
         Gain                            => Me%Altimetric_Assim%Gain
 
         DepthLimit                      = Me%Altimetric_Assim%AltimetricDepth
 
 
-
 !   2D variables inicialization
-
-        do i=ILB, IUB
-        do j=JLB, JUB
-
-            WaterLevelAnalyzed(i,j) = WaterLevelModel(i,j)
-
-        enddo
-        enddo
-
-        do i=ILB, IUB
-        do j=JLB, JUB
-
-    !        if (present(VarianceFieldToAssimilate)) then
-    !       Guillaume :
-           if(Me%Altimetric_Assim%UseVarianceField) then
-                Observation_Error(i,j) = VarianceFieldToAssimilate(i,j)
-                Model_Error(i,j) = ModelError
-            else
-                Observation_Error(i,j) = 0.
-                Model_Error(i,j) = ModelError
-           endif
-
-        enddo
-        enddo
+        !Sobrinho
+        call SetMatrixValue(WaterLevelAnalyzed, Me%WorkSize2D, WaterLevelModel)
+        
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j)
+        if(Me%Altimetric_Assim%UseVarianceField) then
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j=JLB, JUB
+            do i=ILB, IUB
+                Me%Altimetric_Assim%Observation_Error(i,j) = VarianceFieldToAssimilate(i,j)
+                Me%Altimetric_Assim%Model_Error(i,j) = 1.0
+            enddo
+            enddo
+            !$OMP END DO
+        else
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do i=ILB, IUB
+            do j=JLB, JUB
+                Me%Altimetric_Assim%Observation_Error(i,j) = 0.
+                Me%Altimetric_Assim%Model_Error(i,j) = 1.0
+            enddo
+            enddo
+            !$OMP END DO
+        endif
+        !$OMP END PARALLEL
     
 !   3D variables inicialization
-
-        do k=KLB, KUB
-        do j=JLB, JUB
-        do i=ILB, IUB
-
-            TemperatureAnalyzed(i,j,k) = Temperature(i,j,k)
-
-        enddo
-        enddo
-        enddo
-    
-        do k=KLB, KUB
-        do j=JLB, JUB
-        do i=ILB, IUB
-
-            SalinityAnalyzed(i,j,k) = Salinity(i,j,k)
-
-        enddo
-        enddo
-        enddo
-
-
+        !Sobrinho
+        call SetMatrixValue(TemperatureAnalyzed, Me%WorkSize2D, Temperature)
+        
+        call SetMatrixValue(SalinityAnalyzed, Me%WorkSize2D, Salinity)
 
 
 !-----------------------------------------------------------------------------------------
@@ -3139,34 +3127,36 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 !              Gain(i,j) = Model_Error(i,j)
 !            enddo
 !            enddo
-
-            do j=JLB, JUB
-            do i=ILB, IUB
-                Gain(i,j) = Model_Error(i,j)/(Model_Error(i,j) + Observation_Error(i,j))
-            enddo
-            enddo
-
+        !$OMP PARALLEL PRIVATE(i,j)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        do j=JLB, JUB
+        do i=ILB, IUB
+            Gain(i,j) = Me%Altimetric_Assim%Model_Error(i,j)/(Me%Altimetric_Assim%Model_Error(i,j) + &
+                        Me%Altimetric_Assim%Observation_Error(i,j))
+        enddo
+        enddo
+        !$OMP END DO
 
 !   Compute diferences between mesure and model taking into account the Gain
-
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j=JLB, JUB
         do i=ILB, IUB
             Delta_WaterLevel(i,j) = WaterLevelToAssimilate(i,j) - WaterLevelModel(i,j)
             Delta_WaterLevel(i,j) = Gain(i,j) * Delta_WaterLevel(i,j)
         enddo
         enddo
-
+        !$OMP END DO
+        !$OMP END PARALLEL
 !
 !       Compute average diference between model and mesures including only points with  
 !   reliable data.The criteria is: open points (points with water) and data with small 
 !   error.
 !
-
         Total_Area = 0.
         Mean_WaterLevelToAssimilate = 0.
-        do i=ILB, IUB
         do j=JLB, JUB
-            if(OpenPoints3D(i,j,KUB).eq.OpenPoint .and. Observation_Error(i,j).lt.ErrorMax)then
+        do i=ILB, IUB
+            if(OpenPoints3D(i,j,KUB).eq.OpenPoint .and. Me%Altimetric_Assim%Observation_Error(i,j).lt.ErrorMax)then
                 Total_Area = Total_Area + CellArea(i,j)
                 Mean_WaterLevel_Diference = Mean_WaterLevel_Diference                       &
                                            + Delta_WaterLevel(i,j) * CellArea(i,j) 
@@ -3186,10 +3176,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 !   The anomaly value (Delta_WaterLevel - Mean_WaterLevel_Diference) is converted to 
 !   pressure anomaly
 !
-
-        do i=ILB, IUB
+        !$OMP PARALLEL PRIVATE(i,j)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j=JLB, JUB
-            if(OpenPoints3D(i,j,KUB).eq.OpenPoint .and. Observation_Error(i,j).lt.ErrorMax)then
+        do i=ILB, IUB
+            if(OpenPoints3D(i,j,KUB).eq.OpenPoint .and. Me%Altimetric_Assim%Observation_Error(i,j).lt.ErrorMax)then
                 PressureAnomaly(i,j) = ReferenceDensity * Gravity *                         &
                                       (Delta_WaterLevel(i,j) - Mean_WaterLevel_Diference)
             else
@@ -3197,7 +3188,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             endif
         enddo
         enddo
-
+        !$OMP END DO
+        !$OMP END PARALLEL
 !----------------------------------------------------------------------------------------
 !----------------------------------------------------------------------------------------
 !
@@ -3232,9 +3224,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 !         Depth(i,j,k) = -1.0*[SZZ(i,j,KUB)+ZCellCenter(i,j,k)]
 !
 
-
-do1 :   do i=ILB, IUB
-do2 :   do j=JLB, JUB
+do1 :   do j=JLB, JUB
+do2 :   do i=ILB, IUB
 
             kbottom = KFloor_Z(i,j)      ! This assumption enssure that bottom is not moved
 
@@ -4025,10 +4016,11 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
                     if (PropertyX%Field%TypeZUV == TypeZ_) then
                         if (GetPropertyIDNumber(PropertyX%ID%Name) == VelocityU_) then
 
-                            CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+                            !CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB) Sobrinho
+                            CHUNK = CHUNK_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
                             !$OMP PARALLEL PRIVATE(i,j,k)
-                            do k = Me%WorkSize%KLB,Me%WorkSize%KUB
                             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                            do k = Me%WorkSize%KLB,Me%WorkSize%KUB
                             do j = Me%WorkSize%JLB,Me%WorkSize%JUB
                             do i = Me%WorkSize%ILB,Me%WorkSize%IUB
                     
@@ -4041,8 +4033,8 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
 
                             enddo
                             enddo
-                            !$OMP END DO
                             enddo
+                            !$OMP END DO
                             !$OMP END PARALLEL
 
                             deallocate(Matrix3D)
@@ -4051,10 +4043,11 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
 
                         if (GetPropertyIDNumber(PropertyX%ID%Name) == VelocityV_) then
 
-                            CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+                            !CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB) Sobrinho
+                            CHUNK = CHUNK_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
                             !$OMP PARALLEL PRIVATE(i,j,k)
-                            do k = Me%WorkSize%KLB,Me%WorkSize%KUB
                             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                            do k = Me%WorkSize%KLB,Me%WorkSize%KUB
                             do j = Me%WorkSize%JLB,Me%WorkSize%JUB
                             do i = Me%WorkSize%ILB,Me%WorkSize%IUB
                     
@@ -4067,8 +4060,8 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
 
                             enddo
                             enddo
-                            !$OMP END DO
                             enddo
+                            !$OMP END DO
                             !$OMP END PARALLEL
 
                             deallocate(Matrix3D)

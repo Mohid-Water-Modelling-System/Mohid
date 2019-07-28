@@ -17156,10 +17156,13 @@ cd7:            if (Faces3D_USon(i, j, k) == Covered .and. .not. DeadZoneSon) th
             enddo
 
         endif cd8
-
-
-        do k = KLB, KUB
+        !$OMP MASTER
+        CHUNK = CHUNK_K(KLB, KUB) !Sobrinho
+        !$OMP END MASTER
+        !$OMP BARRIER
+!Sobrinho        
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        do k = KLB, KUB
         do j = JLB, JUB + 1
         do i = ILB, IUB
 
@@ -17225,8 +17228,8 @@ cd77:       if ((ImposedTangFacesUSon(i, j, k) == Imposed  .or.                 
 
         enddo
         enddo
-        !$OMP END DO
         enddo
+        !$OMP END DO
 
         !$OMP MASTER
         CHUNK = CHUNK_J(JLB, JUB)
@@ -17306,11 +17309,15 @@ cd9:            if (Faces3D_VSon(i, j, k) == Covered .and. .not. DeadZoneSon) th
             !$OMP END DO
             enddo
 
-        endif cd10
-
-
-        do k = KLB, KUB
+             endif cd10
+!Sobrinho
+        !$OMP MASTER
+        CHUNK = CHUNK_K(KLB, KUB)
+        !$OMP END MASTER
+        !$OMP BARRIER
+        
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        do k = KLB, KUB
         do j = JLB, JUB
         do i = ILB, IUB + 1
 
@@ -17374,8 +17381,8 @@ cd99:       if ((ImposedTangFacesVSon(i, j, k) == Imposed  .or.                 
 
         enddo
         enddo
-        !$OMP END DO
         enddo
+        !$OMP END DO
 
         !$OMP END PARALLEL
 
@@ -22100,20 +22107,24 @@ cd12:   if (Me%SubModel%InterPolTime .and. InitialField) then
     !--------------------------------------------------------------------------
     subroutine AddSubmodelWaterLevel
     !Arguments-------------------------------------------------------------
-    integer                         :: i, j, STAT_CALL
-
+    integer                         :: i, j, STAT_CALL, Chunk
+    ! Begin ------------------------------------------------------------
+    
+        CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
         call GetWaterPoints2D(Me%ObjHorizontalMap, &
-                              Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+                                Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
         stop 'AddSubmodelWaterLevel - ModuleHydrodynamic - ERR01'
-
+        !$OMP PARALLEL PRIVATE(I,J,K)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     Me%Submodel%Z_Next(i, j) = Me%Submodel%Z_Next(i, j) + Me%Submodel%WaterLevelIncrease * &
                     (Me%External_Var%WaterPoints2D(i, j))
         enddo
         enddo
-
+        !$OMP END DO
+        !$OMP END PARALLEL
         call UnGetHorizontalMap(Me%ObjHorizontalMap, &
                                 Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
@@ -26692,11 +26703,10 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         CHUNK = CHUNK_J(JLB,JUB)
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Compute_Velocity")
-
+!Sobrinho
         !$OMP PARALLEL PRIVATE(i,j,k,Coef,FaceAdjacentToWater)
-
-        do  k = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do  k = KLB, KUB
         do  j = JLB, JUB
         do  i = ILB, IUB
             ! Large values (FillReal_Value) in non covered faces
@@ -26724,8 +26734,8 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
         enddo
         enddo
-        !$OMP END DO
         enddo
+        !$OMP END DO
         !$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Compute_Velocity")
@@ -32315,8 +32325,9 @@ cd0:    if      (Me%Direction%XY == DirectionX_) then
         endif cd0
 
         !--------------------------------------------------------------------------
-
+! Sobrinho
         !$OMP PARALLEL PRIVATE(i,j,k)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNKJ)
 doj:    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 doi:    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -32328,19 +32339,17 @@ cd2:            if(BoundaryFacesUV(i     , j     ) == Not_Boundary .and.        
 
 cd3:                if (ExteriorFacesUV(i, j) == Exterior) then
 
-                       !$OMP DO SCHEDULE(DYNAMIC,CHUNKK)
+
                        do k = Me%WorkSize%KLB,  Me%WorkSize%KUB
                             Velocity_UV_New(i, j, k) = Velocity_UV_New(i + di, j + dj, k)
                        enddo
-                       !$OMP END DO
 
                     else if (ExteriorFacesUV(i + di, j + dj) == Exterior) then cd3
 
-                        !$OMP DO SCHEDULE(DYNAMIC,CHUNKK)
                         do k = Me%WorkSize%KLB,  Me%WorkSize%KUB
                             Velocity_UV_New(i + di, j + dj, k) = Velocity_UV_New(i, j, k)
                         enddo
-                        !$OMP END DO
+                        
 
                     endif cd3
 
@@ -32350,6 +32359,7 @@ cd3:                if (ExteriorFacesUV(i, j) == Exterior) then
 
         enddo doi
         enddo doj
+        !$OMP END DO
         !$OMP END PARALLEL
 
 
@@ -32444,11 +32454,11 @@ cd3:                if (ExteriorFacesUV(i, j) == Exterior) then
 
 cd1:    if (VelNormalBoundary == NULL_VALUE) then
 
-            CHUNK = CHUNK_J(JLB, JUB + dj)
-
+            !CHUNK = CHUNK_J(JLB, JUB + dj) Sobrinho
+            CHUNK = CHUNK_K(KLB, KUB)
             !$OMP PARALLEL PRIVATE(i,j,k)
-            dok: do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            dok: do k = KLB, KUB
             doj: do j = JLB, JUB + dj
             doi: do i = ILB, IUB + di
 
@@ -32475,8 +32485,8 @@ cd1:    if (VelNormalBoundary == NULL_VALUE) then
 
             enddo doi
             enddo doj
-            !$OMP END DO NOWAIT
             enddo dok
+            !$OMP END
             !$OMP END PARALLEL
 
         else if (VelNormalBoundary == NULL_GRADIENT) then  cd1
@@ -32638,11 +32648,11 @@ cd3:            if (ImposedNormalFacesUV(i, j, k) == Imposed) then
 
 cd1:    if (VelTangentialBoundary == NULL_VALUE) then
 
-            CHUNK = CHUNK_J(JLB, JUB)
+            !CHUNK = CHUNK_J(JLB, JUB) Sobrinho
+            CHUNK = CHUNK_K(KLB, KUB)
             !$OMP PARALLEL PRIVATE(i,j,k)
-
-            dok: do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            dok: do k = KLB, KUB
             doj: do j = JLB, JUB
             doi: do i = ILB, IUB
 
@@ -32675,8 +32685,8 @@ cd1:    if (VelTangentialBoundary == NULL_VALUE) then
 
             enddo doi
             enddo doj
-            !$OMP END DO
             enddo dok
+            !$OMP END DO
             !$OMP END PARALLEL
 
         else if (VelTangentialBoundary == NULL_GRADIENT) then cd1
@@ -32799,10 +32809,11 @@ cd5:     if (Me%SubModel%Set) then
                 call StartWatch ("ModuleHydrodynamic", "VelSubModelNormalOB")
             endif
 
-            CHUNK = CHUNK_J(JLB, JUB + dj)
+            !CHUNK = CHUNK_J(JLB, JUB + dj) Sobrinho
+            CHUNK = CHUNK_K(KLB, KUB)
             !$OMP PARALLEL PRIVATE(i,j,k)
-            dok2: do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            dok2: do k = KLB, KUB
             doj2: do j = JLB, JUB + dj
             doi2: do i = ILB, IUB + di
 
@@ -32816,8 +32827,8 @@ cd4:            if (Me%External_Var%ImposedNormalFacesUV(i, j, k) == Imposed) th
 
             enddo doi2
             enddo doj2
-            !$OMP END DO NOWAIT
             enddo dok2
+            !$OMP END DO NOWAIT
             !$OMP END PARALLEL
 
             if (MonitorPerformance) then
@@ -32830,8 +32841,6 @@ cd4:            if (Me%External_Var%ImposedNormalFacesUV(i, j, k) == Imposed) th
 
 
         endif cd5
-
-
 
         !Nullify auxiliar pointers
         nullify(ImposedNormalFacesUV)
@@ -32892,11 +32901,11 @@ cd5:     if (Me%SubModel%Set) then
                 call StartWatch ("ModuleHydrodynamic", "VelSubModelTangentialOB")
             endif
 
-            CHUNK = CHUNK_J(JLB, JUB)
-
+            !CHUNK = CHUNK_J(JLB, JUB) Sobrinho
+            CHUNK = CHUNK_K(KLB, KUB)
             !$OMP PARALLEL PRIVATE(i,j,k)
-            dok2: do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            dok2: do k = KLB, KUB
             doj2: do j = JLB, JUB
             doi2: do i = ILB, IUB
 
@@ -32911,8 +32920,8 @@ cd4:            if (ImposedTangentialFacesUV(i, j, k) == Imposed) then
 
             enddo doi2
             enddo doj2
-            !$OMP END DO NOWAIT
             enddo dok2
+            !$OMP END DO NOWAIT
             !$OMP END PARALLEL
 
             if (MonitorPerformance) then
@@ -34420,15 +34429,16 @@ cd4:        if (Me%SubModel%ON) then
         if (Me%ComputeOptions%MomentumDischarge)                            &
             call ModifyMomentumDischarge
 
-        !$ CHUNK = CHUNK_J(JLB, JUB)
+        !!$ CHUNK = CHUNK_J(JLB, JUB) Sobrinho
+        !$ CHUNK = CHUNK_K(KLB, KUB)
 
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Modify_Horizontal_Transport")
         endif
 
         !$OMP PARALLEL PRIVATE(i,j,k)
-        do  k = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do  k = KLB, KUB
         do  j = JLB, JUB
         do  i = ILB, IUB
 
@@ -34445,8 +34455,8 @@ cd4:        if (Me%SubModel%ON) then
 
         enddo
         enddo
-        !$OMP END DO NOWAIT
         enddo
+        !$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
         if (MonitorPerformance) then
@@ -34505,25 +34515,26 @@ cd1:    if (Me%Submodel%ON) then
 
 cd2:        if (Me%ComputeOptions%NullBoundaryHorAdv) then
 
-                CHUNK = CHUNK_J(JLB, JUB)
+                !CHUNK = CHUNK_J(JLB, JUB) Sobrinho
+                CHUNK = CHUNK_K(KLB, KUB)
 
                 if (MonitorPerformance) then
                     call StartWatch ("ModuleHydrodynamic", "Modify_Advection_Bound")
                 endif
 
                 !$OMP PARALLEL PRIVATE(i,j,k)
-do4 :           do  k = KLB, KUB
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-do5 :           do  j = JLB, JUB
-do6 :           do  i = ILB, IUB
+                do4 : do  k = KLB, KUB
+                do5 : do  j = JLB, JUB
+                do6 : do  i = ILB, IUB
                     !Horizontal Advection null in the boundary faces
                     Horizontal_Transport (i, j, k) = Horizontal_Transport (i, j, k) * &
                                                      (1. - BoundaryFacesUV(i, j))
 
                 end do do6
                 end do do5
-                !$OMP END DO
                 end do do4
+                !$OMP END DO
                 !$OMP END PARALLEL
 
                 if (MonitorPerformance) then
@@ -34632,8 +34643,8 @@ do6 :           do  i = ILB, IUB
 
         call SetMatrixValue( Me%Aux3DFlux, Me%Size, dble(0.))
 
-        !$ CHUNK = CHUNK_J(JLB,JUB)
-
+        !$ CHUNK = CHUNK_K(KLB,KUB)
+        !Sobrinho
         !griflet: Avoid inner parallel zones, avoid all barriers and critical sections...
         !and you'll be fine.
         !$OMP PARALLEL PRIVATE( i,j,k, &
@@ -34732,8 +34743,8 @@ cd0:        if (ComputeFlux) then
     enddo dok
         !$OMP END DO
 
-        do k=KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        do k=KLB, KUB
         do j=JLB, JUB
         do i=ILB, IUB
 
@@ -34744,9 +34755,8 @@ cd0:        if (ComputeFlux) then
 
         enddo
         enddo
-        !$OMP END DO NOWAIT
         enddo
-
+        !$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
         if (MonitorPerformance) then
@@ -34972,9 +34982,14 @@ cd0:        if (ComputeFlux) then
     enddo doi
 
         !$OMP END DO
-
+!Sobrinho
+        !$OMP MASTER
+        !$ CHUNK = CHUNK_K(KLB,KUB)
+        !$OMP END MASTER
+        !$OMP BARRIER
+    
+        !$OMP DO SCHEDULE(DYNAMIC,ChunkK)
         do k=KLB, KUB
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j=JLB, JUB
         do i=ILB, IUB
 
@@ -34985,9 +35000,8 @@ cd0:        if (ComputeFlux) then
 
         enddo
         enddo
-        !$OMP END DO NOWAIT
         enddo
-
+        !$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
         if (MonitorPerformance) then
@@ -35250,8 +35264,8 @@ dok1:           do k = Kbottom, KUB
         enddo doj
         !$OMP END DO
 
+        !$OMP DO SCHEDULE(DYNAMIC,ChunkK)
         do k=KLB, KUB
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j=JLB, JUB
         do i=ILB, IUB
 
@@ -35263,9 +35277,8 @@ dok1:           do k = Kbottom, KUB
 
         enddo
         enddo
-        !$OMP END DO NOWAIT
         enddo
-
+        !$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
         if (MonitorPerformance) then
@@ -36836,17 +36849,20 @@ cd1:                if (ConservativeHorDif) then
         enddo doj
         enddo doi
         !$OMP END DO
-
+!Sobrinho
+        !$OMP MASTER
+        !$ CHUNK = CHUNK_K(KLB,KUB)
+        !$OMP END MASTER
+        !$OMP BARRIER
+        !$OMP DO SCHEDULE(DYNAMIC,ChunkK)
         do k=KLB, KUB
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j=JLB, JUB
         do i=ILB, IUB
             Horizontal_Transport(i, j, k) = Horizontal_Transport(i, j, k) + Me%Aux3DFlux(i, j, k)
         enddo
         enddo
-        !$OMP END DO NOWAIT
         enddo
-
+        !$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
         !Nullify auxiliar pointers
@@ -37126,17 +37142,21 @@ cd2:                    if (ConservativeHorDif) then
         enddo doj
         enddo doi
         !$OMP END DO
-
+!Sobrinho
+        !$OMP MASTER
+        !$ CHUNK = CHUNK_K(KLB,KUB)
+        !$OMP END MASTER
+        !$OMP BARRIER
+    
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)    
         do k=KLB, KUB
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j=JLB, JUB
         do i=ILB, IUB
             Horizontal_Transport(i, j, k)= Horizontal_Transport(i, j, k) + Me%Aux3DFlux(i, j, k)
         enddo
         enddo
-        !$OMP END DO NOWAIT
         enddo
-
+        !$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
         if (MonitorPerformance) then
@@ -42206,10 +42226,14 @@ cd3:    if (Me%SubModel%ON) then
 
 cd5:        if (Me%SubModel%Set) then
 
-                CHUNK = CHUNK_J(JLB, JUB + dj)
-
-                dok2: do k = KLB, KUB
+                !CHUNK = CHUNK_J(JLB, JUB + dj) Sobrinho
+                !$OMP MASTER
+                CHUNK = CHUNK_K(KLB, KUB)
+                !$OMP END MASTER
+                !$OMP BARRIER
+                
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                dok2: do k = KLB, KUB
                 doj2: do j = JLB, JUB + dj
                 doi2: do i = ILB, IUB + di
 
@@ -42246,8 +42270,8 @@ cd11:               if (ComputeFaces3D_UV(i, j, k) == Covered) then
 
                 enddo doi2
                 enddo doj2
-                !$OMP END DO
                 enddo dok2
+                !$OMP END DO
 
             else cd5
 
@@ -43709,8 +43733,8 @@ dok:     do k=KUB,kbottom,-1
 
         endif
 
-        CHUNK = CHUNK_J(JLB, JUB)
-
+        !CHUNK = CHUNK_J(JLB, JUB) Sobrinho
+        CHUNK = CHUNK_K(KLB, KUB)
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Modify_VerticalWaterFlow")
         endif
@@ -43720,10 +43744,9 @@ dok:     do k=KUB,kbottom,-1
 
             !$OMP PARALLEL PRIVATE(i,j,k,dVdt,WestFlux,EastFlux,SouthFlux) &
             !$OMP PRIVATE(NorthFlux)
-
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             !Fluxes divergence
             do k = KLB, KUB
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
             !   dVdt =  dble(Evolution) * (Volume_Z_New(i, j, k) - Volume_Z_Old(i, j, k)) / &
@@ -43748,11 +43771,15 @@ dok:     do k=KUB,kbottom,-1
 
             enddo
             enddo
-            !$OMP END DO
             enddo
+            !$OMP END DO
 
 cd5:        if (Me%SubModel%ON) then
-
+                !$OMP MASTER
+                CHUNK = CHUNK_J(JLB, JUB)
+                !$OMP END MASTER
+                !$OMP BARRIER
+                
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 !Fluxes divergence
                 doj4: do j = JLB, JUB
@@ -43811,12 +43838,12 @@ cd4:                if (BoundaryPoints(i, j) == Boundary) then
 
             !$OMP END PARALLEL
 
-        else !NO DISCHARGES
-
+        else !NO DISCHARGES Sobrinho
+            CHUNK = CHUNK_K(KLB, KUB)
             !$OMP PARALLEL PRIVATE(i,j,k,dVdt,WestFlux,EastFlux,SouthFlux) &
             !$OMP PRIVATE(NorthFlux)
-            do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do k = KLB, KUB
             do j = JLB, JUB
             do i = ILB, IUB
 !               dVdt =  dble(Evolution) * (Volume_Z_New(i, j, k) - Volume_Z_Old(i, j, k)) / &
@@ -43838,13 +43865,16 @@ cd4:                if (BoundaryPoints(i, j) == Boundary) then
 
             enddo
             enddo
-            !$OMP END DO
             enddo
+            !$OMP END DO
 
             if (Me%SubModel%ON) then
-
+                !$OMP MASTER
+                CHUNK = CHUNK_J(JLB, JUB)
+                !$OMP END MASTER
+                !$OMP BARRIER
+                
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-
                 !Fluxes divergence
                 do j = JLB, JUB
                 do i = ILB, IUB
@@ -43949,15 +43979,15 @@ cd4:                if (BoundaryPoints(i, j) == Boundary) then
 
         !Begin--------------------------------------------------------------------------
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-
+        !CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) Sobrinho
+        CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Filter_3D_Fluxes")
         endif
 
         !$OMP PARALLEL PRIVATE(i,j,k)
-        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             !Vertical flux null at the open boundary points
@@ -43965,8 +43995,8 @@ cd4:                if (BoundaryPoints(i, j) == Boundary) then
                                             (1. - Me%External_Var%BoundaryPoints(i, j))
         enddo
         enddo
-        !$OMP END DO
         enddo
+        !$OMP END DO
         !$OMP END PARALLEL
 
         if (MonitorPerformance) then
@@ -45201,16 +45231,16 @@ dok:            do k = kbottom + 1, KUB
 
         !Begin--------------------------------------------------------------------------
 
-        CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+        CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+        !CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) Sobrinho
 
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Compute_VerticalVelocity")
         endif
 
         !$OMP PARALLEL PRIVATE(i,j,k)
-
-        do k = Me%WorkSize%KLB, Me%WorkSize%KUB+1
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        do k = Me%WorkSize%KLB, Me%WorkSize%KUB+1
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
@@ -45224,8 +45254,8 @@ dok:            do k = kbottom + 1, KUB
 
         enddo
         enddo
-        !$OMP END DO
         enddo
+        !$OMP END DO
         !$OMP END PARALLEL
 
         if (MonitorPerformance) then
@@ -50215,15 +50245,15 @@ do3:            do  k = kbottom, KUB
 
             call SetMatrixValue(Me%Energy%CenterW, Me%Size, 0.)
 
-            CHUNK = CHUNK_J(WorkJLB, WorkJUB)
-
+            !CHUNK = CHUNK_J(WorkJLB, WorkJUB) Sobrinho
+            CHUNK = CHUNK_K(WorkKLB, WorkKUB)
             if (MonitorPerformance) then
                 call StartWatch ("ModuleHydrodynamic", "ComputeSystemEnergy")
             endif
 
             !$OMP PARALLEL PRIVATE(i,j,k)
-            do k = WorkKLB, WorkKUB
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do k = WorkKLB, WorkKUB
             do j = WorkJLB, WorkJUB
             do i = WorkILB, WorkIUB
                 if (k == WorkKLB) then
@@ -50236,8 +50266,8 @@ do3:            do  k = kbottom, KUB
                 endif
             enddo
             enddo
-            !$OMP END DO
             enddo
+            !$OMP END DO
             !$OMP END PARALLEL
 
             !Inits variables
@@ -50307,8 +50337,8 @@ do3:            do  k = kbottom, KUB
             CHUNK = CHUNK_I(WorkILB, WorkIUB)
 
             !Calculates Kinetic Energy and Potential Energy of all the sistem
-            do i = WorkILB, WorkIUB
             do j = WorkJLB, WorkJUB
+            do i = WorkILB, WorkIUB
             do k = WorkKLB, WorkKUB
 
                 if (WaterPoints3D(i, j, k) == WaterPoint .and. BoundaryPoints(i,j) /= Boundary) then
@@ -51352,12 +51382,12 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
                 call CenterVelocity(CenterU = Me%OutPut%CenterUaux, CenterV = Me%OutPut%CenterVaux, &
                                     VectorType = ResidualVelocity)
-
+                CHUNK = CHUNK_K(WorkKLB, WorkKUB)
                 !$OMP PARALLEL PRIVATE(i,j,k)
-
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                !Sobrinho
                 !Calculates residual modulus
                 do k = WorkKLB, WorkKUB
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = WorkJLB, WorkJUB
                 do i = WorkILB, WorkIUB
 
@@ -51372,8 +51402,8 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
                 enddo
                 enddo
-                !$OMP END DO
                 enddo
+                !$OMP END DO
                 !$OMP END PARALLEL
 
                 call HDF5SetLimits(ObjHDF5, WorkILB, WorkIUB,                            &
@@ -51400,10 +51430,9 @@ cd3:        if (Me%ComputeOptions%Residual) then
                                     VectorType = ResidualFlux)
 
                 !$OMP PARALLEL PRIVATE(i,j,k)
-
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 !Calculates residual flux modulus
                 do k = WorkKLB, WorkKUB
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = WorkJLB, WorkJUB
                 do i = WorkILB, WorkIUB
 
@@ -51418,9 +51447,9 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
                 enddo
                 enddo
-                !$OMP END DO
                 enddo
-
+                !$OMP END DO
+                
                 !$OMP MASTER
                 call HDF5WriteData  (ObjHDF5, "/Residual/Flux/X", &
                                      "Flux X", "m2/s", Array3D = Me%OutPut%CenterUaux, STAT = STAT_CALL)
@@ -51437,8 +51466,8 @@ cd3:        if (Me%ComputeOptions%Residual) then
                 !$OMP BARRIER
 
                 !Calculates residual flux by area.  This a kind of conservative average velocity.
-                do k = WorkKLB, WorkKUB
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do k = WorkKLB, WorkKUB
                 do j = WorkJLB, WorkJUB
                 do i = WorkILB, WorkIUB
 
@@ -51455,8 +51484,8 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
                 enddo
                 enddo
-                !$OMP END DO
                 enddo
+                !$OMP END DO
                 !$OMP END PARALLEL
 
                 call HDF5WriteData  (ObjHDF5, "/Residual/FluxVel/X",                 &
@@ -51474,9 +51503,8 @@ cd3:        if (Me%ComputeOptions%Residual) then
                 call SetMatrixValue(Me%OutPut%CenterWaux, Me%Size, 0.)
 
                 !$OMP PARALLEL PRIVATE(i,j,k)
-
-                do k = WorkKLB, WorkKUB
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do k = WorkKLB, WorkKUB
                 do j = WorkJLB, WorkJUB
                 do i = WorkILB, WorkIUB
 
@@ -51491,8 +51519,8 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
                 enddo
                 enddo
-                !$OMP END DO
                 enddo
+                !$OMP END DO
                 !$OMP END PARALLEL
 
                 call HDF5WriteData  (ObjHDF5, "/Residual/Velocity/Z",                &
@@ -52003,16 +52031,15 @@ cd3:        if (Me%ComputeOptions%Residual) then
         endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-        CHUNK = CHUNK_J(JLB, JUB)
-
+        !CHUNK = CHUNK_J(JLB, JUB) Sobrinho
+        CHUNK = CHUNK_K(KLB, KUB)
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "ModifyMatrixesOutput")
         endif
 
         !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
-
-        do k = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = KLB, KUB
         do j = JLB, JUB
         do i = ILB, IUB
 
@@ -52039,9 +52066,14 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
         enddo
         enddo
-        !$OMP END DO NOWAIT
         enddo
-
+        !$OMP END DO
+        
+        !$OMP MASTER
+        CHUNK = CHUNK_J(JLB, JUB) !Sobrinho
+        !$OMP END MASTER
+        !$OMP BARRIER
+        
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
@@ -52308,7 +52340,8 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
         endif
 
-        CHUNK = CHUNK_J(JLB, JUB)
+        !CHUNK = CHUNK_J(JLB, JUB) Sobrinho
+        CHUNK = CHUNK_K(KLB, KUB)
 
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "CenterVelocity")
@@ -52318,9 +52351,9 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
         !Interpolates CenterVelocities
         if (Me%External_Var%Distortion .and. Simple)then
-
-            do k = KLB, KUB
+            
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do k = KLB, KUB
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -52344,14 +52377,13 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
             enddo
             enddo
-            !$OMP END DO
             enddo
+            !$OMP END DO
 
 
         elseif(Me%External_Var%Distortion .and. Double)then
-
-            do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do k = KLB, KUB
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -52377,14 +52409,12 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
             enddo
             enddo
-            !$OMP END DO
             enddo
-
+            !$OMP END DO
 
         elseif((.not. Me%External_Var%Distortion) .and. Simple)then
-
-            do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do k = KLB, KUB
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -52412,13 +52442,13 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
             enddo
             enddo
-            !$OMP END DO
             enddo
+            !$OMP END DO
 
         elseif((.not. Me%External_Var%Distortion) .and. Double)then
 
-            do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do k = KLB, KUB
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -52447,9 +52477,8 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
             enddo
             enddo
-            !$OMP END DO
             enddo
-
+            !$OMP END DO
         endif
 
         !$OMP END PARALLEL
