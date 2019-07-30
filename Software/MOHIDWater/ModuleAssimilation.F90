@@ -47,7 +47,7 @@ Module ModuleAssimilation
     use ModuleHorizontalGrid,   only: WriteHorizontalGrid, UnGetHorizontalGrid,             &
                                       GetGridCellArea, GetXYCellZ,                          &
                                       GetDDecompMPI_ID, GetDDecompON,                       &
-                                      GetGridOutBorderPolygon, RotateVectorFieldToGrid
+                                      GetGridOutBorderPolygon, RotateVectorFieldToGrid, GetHorizontalGridSize
     use ModuleHorizontalMap,    only: GetWaterPoints2D, UngetHorizontalMap, GetWaterFaces2D 
     use ModuleGeometry,         only: GetGeometrySize, GetGeometryDistances, UngetGeometry, &
                                       GetGeometryKFloor
@@ -3094,10 +3094,31 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     
 !   3D variables inicialization
         !Sobrinho
-        call SetMatrixValue(TemperatureAnalyzed, Me%WorkSize2D, Temperature)
-        
-        call SetMatrixValue(SalinityAnalyzed, Me%WorkSize2D, Salinity)
+        CHUNK = CHUNK_K(KLB, KUB)
+        !$OMP PARALLEL PRIVATE(I,J,K)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k=KLB, KUB
+        do j=JLB, JUB
+        do i=ILB, IUB
 
+            TemperatureAnalyzed(i,j,k) = Temperature(i,j,k)
+
+        enddo
+        enddo
+        enddo
+        !$OMP END DO NOWAIT
+        
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k=KLB, KUB
+        do j=JLB, JUB
+        do i=ILB, IUB
+
+            SalinityAnalyzed(i,j,k) = Salinity(i,j,k)
+
+        enddo
+        enddo
+        enddo
+        !$OMP END PARALLEL
 
 !-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------

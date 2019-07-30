@@ -21662,7 +21662,7 @@ cd10:   if (CurrentTime > Me%SpecificHeat%LastActualization) then
             case (UNESCOState_)
                 !Sobrinho - called a parallelized routine instead of a function inside a
                 !Non parallelized cycle
-                call ComputeSpecificHeatUNESCO (S, T, SZZ)
+                call ComputeSpecificHeatUNESCO (S, T, SZZ, WaterPoints3D)
 
                 case default
 
@@ -21730,7 +21730,7 @@ cd10:   if (CurrentTime > Me%SpecificHeat%LastActualization) then
     !>@Brief
     !> Computes SpecificHeatUNESCO
     !>@param[in] salinity, temperature, depth
-    subroutine ComputeSpecificHeatUNESCO (s, t, Depth)
+    subroutine ComputeSpecificHeatUNESCO (s, t, Depth, WaterPoints3D)
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
@@ -21745,7 +21745,7 @@ cd10:   if (CurrentTime > Me%SpecificHeat%LastActualization) then
         !Begin-----------------------------------------------------------------
         CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
         
-        !$OMP PARALLEL PRIVATE(i,j,k, p, sr, a, b, c, cp0, cp1, ccp2)
+        !$OMP PARALLEL PRIVATE(i,j,k, p, sr, a, b, c, cp0, cp1, cp2)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB

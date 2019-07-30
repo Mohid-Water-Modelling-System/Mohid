@@ -331,6 +331,12 @@ Module ModuleHydrodynamic
     private ::                  Modify_WaveForces3D
     private ::                  ModifyRelaxHorizAdv
     private ::                  Modify_InertiaForces
+    private ::                  Modify_InertiaForces2
+    private ::                      InertialForces_Coriolis_Y
+    private ::                      InertialForces_Coriolis_X
+    private ::                      InertialForces_Centrifugal_Cir
+    private ::                      InertialForces_Centrifugal_Y
+    private ::                      InertialForces_Centrifugal_X
     private ::                  Modify_ROX3
     private ::                  ModifyTidePotential
     private ::                  ModifyRelaxAceleration
@@ -22115,7 +22121,7 @@ cd12:   if (Me%SubModel%InterPolTime .and. InitialField) then
                                 Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
         stop 'AddSubmodelWaterLevel - ModuleHydrodynamic - ERR01'
-        !$OMP PARALLEL PRIVATE(I,J,K)
+        !$OMP PARALLEL PRIVATE(I,J)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -23447,8 +23453,7 @@ cd1:    if (Evolution == Solve_Equations_) then
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
-                    if(Me%External_Var%ComputeFaces3D_U (i ,j ,WorkKUB) == WaterPoint)  &
-                    then
+                    if(Me%External_Var%ComputeFaces3D_U (i ,j ,WorkKUB) == WaterPoint) then
                         kbottomU = Me%External_Var%KFloor_U(i, j)
                         do k = kbottomU, WorkKUB
                         Me%Velocity%Horizontal%U%New (i,j,k) = Me%Geostroph%U(i,j,k) +  &
@@ -23464,8 +23469,7 @@ cd1:    if (Evolution == Solve_Equations_) then
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
-                    if(Me%External_Var%ComputeFaces3D_V (i ,j ,WorkKUB) == WaterPoint)  &
-                    then
+                    if(Me%External_Var%ComputeFaces3D_V (i ,j ,WorkKUB) == WaterPoint) then
                         kbottomV = Me%External_Var%KFloor_V(i, j)
                         do k = kbottomV, WorkKUB
                         Me%Velocity%Horizontal%V%New (i,j,k) = Me%Geostroph%V(i,j,k) +  &
@@ -23478,13 +23482,13 @@ cd1:    if (Evolution == Solve_Equations_) then
                 enddo
                 !$OMP END DO
                 !$OMP END PARALLEL
-
+                
                 if (MonitorPerformance) then
                     call StopWatch ("ModuleHydrodynamic", "MomentumMassConservation")
                 endif
-
-                Me%Velocity%Horizontal%U%Old (:,:,:) = Me%Velocity%Horizontal%U%New (:,:,:)
-                Me%Velocity%Horizontal%V%Old (:,:,:) = Me%Velocity%Horizontal%V%New (:,:,:)
+                
+                call SetMatrixValue(Me%Velocity%Horizontal%U%Old, Me%Size, Me%Velocity%Horizontal%U%New)
+                call SetMatrixValue(Me%Velocity%Horizontal%V%Old, Me%Size, Me%Velocity%Horizontal%V%New)
 
 ! Modified by Matthias DELPEY - 19/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -23494,62 +23498,45 @@ cd1:    if (Evolution == Solve_Equations_) then
                     Me%StokesVel%Horizontal%V%Old (:,:,:) =  Me%StokesVel%Horizontal%V%New (:,:,:)
 
                 endif
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 
                 !Unfetch the reference variables
                 call UnGetAssimilation( Me%ObjAssimilation,                             &
                                     Me%Geostroph%Reference_U_barotropic,                &
                                     STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'MomentumMassConservation - ModuleHydrodynamic - ERR050'
+                if (STAT_CALL /= SUCCESS_) stop 'MomentumMassConservation - ModuleHydrodynamic - ERR050'
 
                 call UnGetAssimilation( Me%ObjAssimilation,                             &
                                     Me%Geostroph%Reference_V_barotropic,                &
                                     STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'MomentumMassConservation - ModuleHydrodynamic - ERR060'
+                if (STAT_CALL /= SUCCESS_) stop 'MomentumMassConservation - ModuleHydrodynamic - ERR060'
 
                 call UnGetAssimilation( Me%ObjAssimilation,                             &
                                     Me%Geostroph%Coef_U_barotropic,                     &
                                     STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'MomentumMassConservation - ModuleHydrodynamic - ERR070'
+                if (STAT_CALL /= SUCCESS_) stop 'MomentumMassConservation - ModuleHydrodynamic - ERR070'
 
                 call UnGetAssimilation( Me%ObjAssimilation,                             &
                                     Me%Geostroph%Coef_V_barotropic,                     &
                                     STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                              &
-                    stop 'MomentumMassConservation - ModuleHydrodynamic - ERR080'
-
-
+                if (STAT_CALL /= SUCCESS_) stop 'MomentumMassConservation - ModuleHydrodynamic - ERR080'
             else
 
-            !Initialize velocity without barotropic correction
-
-            Me%Velocity%Horizontal%U%New (:,:,:) = Me%Geostroph%U(:,:,:)
-            Me%Velocity%Horizontal%V%New (:,:,:) = Me%Geostroph%V(:,:,:)
-            Me%Velocity%Horizontal%U%Old (:,:,:) = Me%Velocity%Horizontal%U%New (:,:,:)
-            Me%Velocity%Horizontal%V%Old (:,:,:) = Me%Velocity%Horizontal%V%New (:,:,:)
+                !Initialize velocity without barotropic correction
+                call SetMatrixValue(Me%Velocity%Horizontal%U%New, Me%Size, Me%Geostroph%U)
+                call SetMatrixValue(Me%Velocity%Horizontal%V%New, Me%Size, Me%Geostroph%V)
+                call SetMatrixValue(Me%Velocity%Horizontal%U%Old, Me%Size, Me%Velocity%Horizontal%U%New)
+                call SetMatrixValue(Me%Velocity%Horizontal%V%Old, Me%Size, Me%Velocity%Horizontal%V%New)            
 
 ! Modified by Matthias DELPEY - 19/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
                 if (Me%ComputeOptions%WaveForcing3D == GLM) then
 
                     Me%StokesVel%Horizontal%U%Old (:,:,:) =  Me%StokesVel%Horizontal%U%New (:,:,:)
                     Me%StokesVel%Horizontal%V%Old (:,:,:) =  Me%StokesVel%Horizontal%V%New (:,:,:)
-
                 endif
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-
             endif
-
-
         endif
-
 
         call ModifyWaterDischarges
 
@@ -32486,7 +32473,7 @@ cd1:    if (VelNormalBoundary == NULL_VALUE) then
             enddo doi
             enddo doj
             enddo dok
-            !$OMP END
+            !$OMP END DO
             !$OMP END PARALLEL
 
         else if (VelNormalBoundary == NULL_GRADIENT) then  cd1
@@ -34175,7 +34162,7 @@ cd3:                   if (Manning) then
 
         !Inertial aceleration
         if (Me%ComputeOptions%InertiaForces)                                    &
-            call Modify_InertiaForces
+            call Modify_InertiaForces2
 
         !Obstacle drag
         if (Me%ComputeOptions%Obstacle)                                         &
@@ -39418,7 +39405,6 @@ do3:            do k = kbottom, KUB
         !Arguments------------------------------------------------------------
 
 
-
         !Local---------------------------------------------------------------------
         real,    dimension(:,:,:), pointer :: Velocity_UV_New, Velocity_VU_New, Inertial_Aceleration
         real,    dimension(:,:),   pointer :: DXX_YY, DYY_XX, DUX_VY, DVY_UX, DZX_ZY, Coriolis_Freq
@@ -39444,7 +39430,7 @@ do3:            do k = kbottom, KUB
 
         !$ integer                            :: CHUNK
 
-        !------------initialization----
+        !------------initialization---------------------------------------------------------
 
         !Begin - Shorten variables name
 
@@ -39491,17 +39477,13 @@ do3:            do k = kbottom, KUB
 
             !Gets XX (radius when the grid coordinates are circular
             call GetHorizontalGrid(Me%ObjHorizontalGrid, XX = XX, STAT = status)
-            if (status /= SUCCESS_)                                                      &
-                call SetError (FATAL_, INTERNAL_, "Modify_InertiaForces - Hydrodynamic - ERR02")
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "Modify_InertiaForces - Hydrodynamic - ERR02")
 
             !Gets Origin of the Bathymetry
             call GetGridOrigin(Me%ObjHorizontalGrid, Xorig, Yorig, STAT = status)
-            if (status /= SUCCESS_)                                                      &
-                call SetError (FATAL_, INTERNAL_, "Modify_InertiaForces - Hydrodynamic - ERR03")
-
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "Modify_InertiaForces - Hydrodynamic - ERR03")
 
         endif
-
 
         !------------Main cicle--------
 
@@ -39666,9 +39648,7 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
 
             !Gets XX and YY
             call UngetHorizontalGrid(Me%ObjHorizontalGrid, XX, STAT = status)
-            if (status /= SUCCESS_)                                                      &
-                call SetError (FATAL_, INTERNAL_, "Modify_InertiaForces - Hydrodynamic - ERR02")
-
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "Modify_InertiaForces - Hydrodynamic - ERR02")
 
         endif
 
@@ -39690,6 +39670,568 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
     End Subroutine Modify_InertiaForces
 
     !End------------------------------------------------------------------------------
+    
+    Subroutine Modify_InertiaForces2
+
+        ! X direction (Coriolis_Force(Vvar, Volume_U, Coriolis_Freq, DXX, DUX, KFloorU, CoveredFacesX, &
+        !              ILB, IUB, JLB, JUB, KUB, Direction=1, Inertial_Aceleration)
+        ! Y direction (Coriolis_Force(Uvar, Volume_V, Coriolis_Freq, DYY, DVY, KFloorV, CoveredFacesY, &
+        !              ILB, IUB, JLB, JUB, KUB, Direction=0, Inertial_Aceleration)
+
+        !Arguments------------------------------------------------------------
+
+        !Local---------------------------------------------------------------------
+        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
+        integer, dimension(:,:),   pointer :: KFloor_UV
+
+        real,    dimension(:  ),   pointer :: XX
+        
+        integer                            :: i, j, k, kbottom
+        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
+
+        integer                            :: FATAL_, INTERNAL_, ICOORD_TIP, CIRCULAR,   &
+                                                status, Iaux
+        real                               :: Xorig, Yorig
+        !$ integer                            :: CHUNK
+
+        !------------initialization---------------------------------------------------------
+        !Begin - Shorten variables name
+
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+
+        !End - Shorten variables name
+        !Gets the type of Coordinates
+        call GetCoordTypeList(CIRCULAR  = CIRCULAR)
+
+        call GetGridCoordType(Me%ObjHorizontalGrid, ICOORD_TIP, STAT = status)
+        if (status /= SUCCESS_)                                                          &
+            call SetError (FATAL_, INTERNAL_, "Modify_InertiaForces - Hydrodynamic - ERR01")
+
+        if (ICOORD_TIP == CIRCULAR .and. Me%ComputeOptions%CentrifugalForce) then
+
+            !Gets XX (radius when the grid coordinates are circular
+            call GetHorizontalGrid(Me%ObjHorizontalGrid, XX = XX, STAT = status)
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "Modify_InertiaForces - Hydrodynamic - ERR02")
+
+            !Gets Origin of the Bathymetry
+            call GetGridOrigin(Me%ObjHorizontalGrid, Xorig, Yorig, STAT = status)
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "Modify_InertiaForces - Hydrodynamic - ERR03")
+
+        endif
+
+        !------------Main cicle--------
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleHydrodynamic", "Modify_InertiaForces")
+        endif
+        
+        !$ CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE( i,j,k,kbottom)        
+        if (Me%Direction%di == 1)then
+           !$OMP DO SCHEDULE(DYNAMIC,CHUNK) 
+            do  j = JLB, JUB
+            do  i = ILB, IUB
+                if (Me%External_Var%ComputeFaces3D_V(i, j, KUB) == Covered) then
+                    kbottom = Me%External_Var%KFloor_V(i, j)
+                    do k=kbottom, KUB
+                        Me%Forces%Inertial_Aceleration(i, j, k) = 0.
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO
+        else
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do  j = JLB, JUB
+            do  i = ILB, IUB
+                if (Me%External_Var%ComputeFaces3D_U(i, j, KUB) == Covered) then
+                    kbottom = Me%External_Var%KFloor_U(i, j)
+                    do k=kbottom, KUB
+                        Me%Forces%Inertial_Aceleration(i, j, k) = 0.
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO 
+        endif
+        !$OMP END PARALLEL
+        
+        if (Me%ComputeOptions%Coriolis) then
+            if (Me%Direction%di == 1) then
+                call InertialForces_Coriolis_Y (Me%External_Var%ComputeFaces3D_V, Me%External_Var%KFloor_V,           &
+                     Me%External_Var%LandBoundaryFacesU, Me%Velocity%Horizontal%U%New, Me%External_Var%Coriolis_Freq, &
+                     Me%External_Var%DYY, Me%External_Var%DVY, Me%Forces%Inertial_Aceleration)
+            else    
+                call InertialForces_Coriolis_X (Me%External_Var%ComputeFaces3D_U, Me%External_Var%KFloor_U,           &
+                     Me%External_Var%LandBoundaryFacesV, Me%Velocity%Horizontal%V%New, Me%External_Var%Coriolis_Freq, &
+                     Me%External_Var%DXX, Me%External_Var%DUX, Me%Forces%Inertial_Aceleration)
+            endif
+        endif
+        
+        !--------------------------------------Centrifugal_force------------------------------------------------------------
+        if (Me%ComputeOptions%CentrifugalForce) then
+            if (ICOORD_TIP == CIRCULAR) then
+                if (Me%Direction%di == 1) then
+                    !Do nothing because centrifugal force will be zero
+                else    
+                    call InertialForces_Centrifugal_Cir (Me%External_Var%ComputeFaces3D_U, Me%External_Var%KFloor_U,           &
+                         Me%External_Var%LandBoundaryFacesV, Me%Velocity%Horizontal%V%New, Xorig, XX,  &
+                         Me%External_Var%DXX, Me%External_Var%DUX, Me%Forces%Inertial_Aceleration)
+                endif
+            else
+                if (Me%Direction%di == 1) then
+                    call InertialForces_Centrifugal_Y (Me%External_Var%ComputeFaces3D_V, Me%External_Var%KFloor_V,    &
+                         Me%External_Var%LandBoundaryFacesU, Me%External_Var%DXX, Me%External_Var%DYY,                &
+                         Me%External_Var%DUX, Me%External_Var%DVY, Me%External_Var%DZY, Me%Velocity%Horizontal%U%New, & 
+                         Me%Velocity%Horizontal%V%New, Me%Forces%Inertial_Aceleration)
+                else    
+                    call InertialForces_Centrifugal_X (Me%External_Var%ComputeFaces3D_U, Me%External_Var%KFloor_U,    &
+                         Me%External_Var%LandBoundaryFacesV, Me%External_Var%DXX, Me%External_Var%DYY,                &
+                         Me%External_Var%DUX, Me%External_Var%DVY, Me%External_Var%DZX, Me%Velocity%Horizontal%U%New, & 
+                         Me%Velocity%Horizontal%V%New, Me%Forces%Inertial_Aceleration)
+                endif
+            endif
+        endif        
+          
+         if (MonitorPerformance) then
+            call StopWatch ("ModuleHydrodynamic", "Modify_InertiaForces")
+        endif
+
+        if (ICOORD_TIP == CIRCULAR) then
+            !Gets XX and YY
+            call UngetHorizontalGrid(Me%ObjHorizontalGrid, XX, STAT = status)
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "Modify_InertiaForces - Hydrodynamic - ERR02")
+        endif
+
+    end Subroutine Modify_InertiaForces2
+    
+    !End--------------------------------------------------------------------------------------------
+    
+    subroutine InertialForces_Coriolis_X (ComputeFaces3D_U, KFloor_U, LandBoundaryFacesV, Velocity_V_New, &
+        Coriolis_Freq, DXX, DUX, Inertial_Aceleration)
+    
+        !Arguments--------------------------------------------------------------------------
+        real,    dimension(:,:,:), pointer, intent(IN)    :: Velocity_V_New
+        real,    dimension(:,:,:), pointer, intent(INOUT) :: Inertial_Aceleration
+        integer, dimension(:,:,:), pointer, intent(IN)    :: ComputeFaces3D_U, LandBoundaryFacesV
+        real,    dimension(:,:),   pointer, intent(IN)    :: DXX, DUX, Coriolis_Freq
+        integer, dimension(:,:),   pointer, intent(IN)    :: KFloor_U
+        !Locals ------------------------------------------------------------------------------
+        real                                              :: VUvar1, VUvar2, VUAverage, F_UV, Coriolis_Aceleration
+        integer                                           :: NoLand1, NoLand2, Flag1, Flag2, Iaux, kbottom, &
+                                                             IUB, ILB, JUB, JLB, KUB, KLB, i, j, k
+        !$ integer                                        :: CHUNK
+        !Begin---------------------------------------------------------------------------------
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+        !$ CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE( i,j,k,kbottom,VUvar1,NoLand1,Flag1,Flag2, &
+        !$OMP                   VUvar2,NoLand2,VUAverage,F_UV,Coriolis_Aceleration,Iaux)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        do  j = JLB, JUB
+        do  i = ILB, IUB
+            if (ComputeFaces3D_U(i, j, KUB) == Covered) then
+                kbottom = KFloor_U(i, j)
+                
+                do k=kbottom, KUB
+                    !Null gradient is admitted in the land boundary.
+                    Flag1 = LandBoundaryFacesV(i+1, j-1, k) + LandBoundaryFacesV(i+1, j, k)
+                    if (Flag1 == 0) then
+                        VUvar1 = (Velocity_V_New(i+1, j-1, k) * DXX(i+1, j) + &
+                                  Velocity_V_New(i+1, j  , k) * DXX(i+1, j-1))/ (DXX(i+1, j-1) + DXX(i+1, j))
+                        NoLand1  = 1
+                    else
+                        VUvar1 = (1 - LandBoundaryFacesV(i+1, j-1, k)) * Velocity_V_New(i+1, j-1, k) + &
+                                 (1 - LandBoundaryFacesV(i+1, j  , k)) * Velocity_V_New(i+1, j, k)
+                        NoLand1  = 2 - Flag1
+                    endif
+                    
+                    Flag2 = LandBoundaryFacesV(i, j-1, k) + LandBoundaryFacesV(i, j, k)
+
+                    if (Flag2 == 0) then
+                        VUvar2 = (Velocity_V_New(i, j-1, k) * DXX(i, j)   + &
+                                  Velocity_V_New(i,   j, k) * DXX(i, j-1))/ (DXX(i, j-1) + DXX(i, j))
+                        NoLand2  = 1
+                    else
+                        VUvar2 = (1 - LandBoundaryFacesV(i, j-1, k)) * Velocity_V_New(i, j-1, k) + &
+                                 (1 - LandBoundaryFacesV(i,   j, k)) * Velocity_V_New(i,   j, k)
+                        NoLand2  = 2 - Flag2
+                    endif
+
+                    Iaux = NoLand1 + NoLand2
+
+                    if (Iaux > 0) then
+                        VUAverage  = (VUvar1 * NoLand1 + VUvar2 * NoLand2) / real(Iaux)
+                    else
+                        VUAverage  = 0.
+                    endif
+
+                    ! Interpolates Coriolis_Freq for the face
+                    F_UV = (DUX(i, j-1) * Coriolis_Freq(i, j) + DUX(i, j) * Coriolis_Freq(i, j-1)) / &
+                           (DUX(i, j-1) + DUX(i, j))
+                    ! Compute aceleration force
+                    ![m/s^2]                 =            [s^-1] * [m/s]
+                    Coriolis_Aceleration     = F_UV * VUAverage
+                    Inertial_Aceleration(i, j, k) = Inertial_Aceleration(i, j, k) + Coriolis_Aceleration
+                enddo
+            end if
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL          
+
+    end subroutine InertialForces_Coriolis_X
+    
+    !End----------------------------------------------------------------------------------------
+    
+    subroutine InertialForces_Coriolis_Y (ComputeFaces3D_V, KFloor_V, LandBoundaryFacesU, Velocity_U_New, &
+        Coriolis_Freq, DYY, DVY, Inertial_Aceleration)
+    
+        !Arguments--------------------------------------------------------------------------
+        real,    dimension(:,:,:), pointer, intent(IN)    :: Velocity_U_New
+        real,    dimension(:,:,:), pointer, intent(INOUT) :: Inertial_Aceleration
+        integer, dimension(:,:,:), pointer, intent(IN)    :: ComputeFaces3D_V, LandBoundaryFacesU
+        real,    dimension(:,:),   pointer, intent(IN)    :: DYY, DVY, Coriolis_Freq
+        integer, dimension(:,:),   pointer, intent(IN)    :: KFloor_V
+        !Locals ------------------------------------------------------------------------------
+        real                                              :: VUvar1, VUvar2, VUAverage, F_UV, Coriolis_Aceleration
+        integer                                           :: NoLand1, NoLand2, Flag1, Flag2, Iaux, kbottom, &
+                                                             IUB, ILB, JUB, JLB, KUB, KLB, i, j, k
+        !$ integer                                        :: CHUNK
+        !Begin---------------------------------------------------------------------------------
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+        !$ CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE( i,j,k,kbottom,VUvar1,NoLand1,Flag1,Flag2, &
+        !$OMP                   VUvar2,NoLand2,VUAverage,F_UV,Coriolis_Aceleration,Iaux)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)    
+        do  j = JLB, JUB
+        do  i = ILB, IUB
+
+            if (ComputeFaces3D_V(i, j, KUB) == Covered) then
+                kbottom = KFloor_V(i, j)
+
+                do k=kbottom, KUB
+                    !Null gradient is admitted in the land boundary.
+                    Flag1 = LandBoundaryFacesU(i-1, j+1, k) + LandBoundaryFacesU(i  , j+1, k)
+                    if (Flag1 == 0) then
+                        VUvar1 = (Velocity_U_New(i-1, j+1, k) * DYY(i, j+1) + &
+                                  Velocity_U_New(i  , j+1, k) * DYY(i-1, j+1))/ (DYY(i-1, j+1) + DYY(i, j+1))
+                        NoLand1  = 1
+                    else
+                        VUvar1 = (1 - LandBoundaryFacesU(i-1, j+1, k)) * Velocity_U_New(i-1, j+1, k) + &
+                                 (1 - LandBoundaryFacesU(i  , j+1, k)) * Velocity_U_New(i  , j+1, k)
+                        NoLand1  = 2 - Flag1
+                    endif
+                        
+                    Flag2 = LandBoundaryFacesU(i-1, j, k) + LandBoundaryFacesU(i, j, k)
+
+                    if (Flag2 == 0) then
+                        VUvar2 = (Velocity_U_New(i-1, j, k) * DYY(i, j)   + &
+                                  Velocity_U_New(i,   j, K) * DYY(i-1, j))/ (DYY(i-1, j) +  DYY(i, j))
+                        NoLand2  = 1
+                    else
+                        VUvar2 = (1 - LandBoundaryFacesU(i-1, j, k)) * Velocity_U_New(i-1, j, k) + &
+                                 (1 - LandBoundaryFacesU(i,   j, k)) * Velocity_U_New(i,   j, k)
+                        NoLand2  = 2 - Flag2
+                    endif
+
+                    Iaux = NoLand1 + NoLand2
+
+                    if (Iaux > 0) then
+                        VUAverage  = (VUvar1 * NoLand1 + VUvar2 * NoLand2) / real(Iaux)
+                    else
+                        VUAverage  = 0.
+                    endif
+
+                    ! Interpolates Coriolis_Freq for the face
+                    F_UV = (DVY(i-1, j) * Coriolis_Freq(i, j) + DVY(i, j) * Coriolis_Freq(i-1, j)) / &
+                            (DVY(i-1, j) + DVY(i, j))
+                    ! Compute aceleration force
+                    ![m/s^2]                 =            [s^-1] * [m/s]
+                    Coriolis_Aceleration     = -(F_UV) * VUAverage
+                    Inertial_Aceleration(i, j, k) = Inertial_Aceleration(i, j, k) +  Coriolis_Aceleration
+                enddo
+            end if
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL    
+    
+    end subroutine InertialForces_Coriolis_Y
+    
+    !End -------------------------------------------------------------------------------------
+    
+    subroutine InertialForces_Centrifugal_Cir(ComputeFaces3D_U, KFloor_U, LandBoundaryFacesV, Velocity_V_New, &
+        Xorig, XX, DXX, DUX, Inertial_Aceleration)
+    
+        !Arguments--------------------------------------------------------------------------
+        real,    dimension(:,:,:), pointer, intent(IN)    :: Velocity_V_New
+        real,    dimension(:,:,:), pointer, intent(INOUT) :: Inertial_Aceleration
+        integer, dimension(:,:,:), pointer, intent(IN)    :: ComputeFaces3D_U, LandBoundaryFacesV
+        real,    dimension(:,:),   pointer, intent(IN)    :: DXX, DUX
+        integer, dimension(:,:),   pointer, intent(IN)    :: KFloor_U
+        real,    dimension(:  ),   pointer, intent(IN)    :: XX
+        real                              , intent(IN)    :: Xorig
+        !Locals ------------------------------------------------------------------------------
+        real                                              :: VUvar1, VUvar2, VUAverage, Radius, Centrifugal_Aceleration
+        integer                                           :: NoLand1, NoLand2, Flag1, Flag2, Iaux, kbottom, &
+                                                             IUB, ILB, JUB, JLB, KUB, KLB, i, j, k
+        !$ integer                                        :: CHUNK
+        !Begin---------------------------------------------------------------------------------
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB        
+        
+        !$ CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE( i,j,k,kbottom,VUvar1,NoLand1,Flag1,Flag2,Radius, &
+        !$OMP                   VUvar2,NoLand2,VUAverage,Centrifugal_Aceleration,Iaux)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)    
+        do  j = JLB, JUB
+        do  i = ILB, IUB
+            if (ComputeFaces3D_U(i, j, KUB) == Covered) then
+                kbottom = KFloor_U(i, j)
+                
+                do k=kbottom, KUB
+                    !Null gradient is admitted in the land boundary.
+                    Flag1 = LandBoundaryFacesV(i+1, j-1, k) + LandBoundaryFacesV(i+1, j, k)
+                    if (Flag1 == 0) then
+                        VUvar1 = (Velocity_V_New(i+1, j-1, k) * DXX(i+1, j) + &
+                                  Velocity_V_New(i+1, j  , k) * DXX(i+1, j-1))/ (DXX(i+1, j-1) + DXX(i+1, j))
+                        NoLand1  = 1
+                    else
+                        VUvar1 = (1 - LandBoundaryFacesV(i+1, j-1, k)) * Velocity_V_New(i+1, j-1, k) + &
+                                 (1 - LandBoundaryFacesV(i+1, j  , k)) * Velocity_V_New(i+1, j, k)
+                        NoLand1  = 2 - Flag1
+                    endif
+                    
+                    Flag2 = LandBoundaryFacesV(i, j-1, k) + LandBoundaryFacesV(i, j, k)
+
+                    if (Flag2 == 0) then
+                        VUvar2 = (Velocity_V_New(i, j-1, k) * DXX(i, j)   + &
+                                  Velocity_V_New(i,   j, k) * DXX(i, j-1))/ (DXX(i, j-1) + DXX(i, j))
+                        NoLand2  = 1
+                    else
+                        VUvar2 = (1 - LandBoundaryFacesV(i, j-1, k)) * Velocity_V_New(i, j-1, k) + &
+                                 (1 - LandBoundaryFacesV(i,   j, k)) * Velocity_V_New(i,   j, k)
+                        NoLand2  = 2 - Flag2
+                    endif
+
+                    Iaux = NoLand1 + NoLand2
+
+                    if (Iaux > 0) then
+                        VUAverage  = (VUvar1 * NoLand1 + VUvar2 * NoLand2) / real(Iaux)
+                    else
+                        VUAverage  = 0.
+                    endif
+                    
+                    Radius      = Xorig + XX(j)
+                    ![m/s^2]                =    [m/s]   *   [m/s]    / [m]
+                    Centrifugal_Aceleration =  VUAverage * VUAverage / Radius
+                    ![m/s^2]                 =            [m/s^2]  + [m/s^2]
+                    Inertial_Aceleration(i, j, k) = Inertial_Aceleration(i, j, k) + Centrifugal_Aceleration
+                enddo
+            end if
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+    
+    end subroutine InertialForces_Centrifugal_Cir
+    ! End-------------------------------------------------------------------------------
+    
+    subroutine InertialForces_Centrifugal_Y(ComputeFaces3D_V, KFloor_V, LandBoundaryFacesU, DXX, DYY, DUX, DVY, DZY, &
+        Velocity_U_New, Velocity_V_New, Inertial_Aceleration)
+    
+        !Arguments--------------------------------------------------------------------------
+        real,    dimension(:,:,:), pointer, intent(IN)    :: Velocity_U_New, Velocity_V_New
+        real,    dimension(:,:,:), pointer, intent(INOUT) :: Inertial_Aceleration
+        integer, dimension(:,:,:), pointer, intent(IN)    :: ComputeFaces3D_V, LandBoundaryFacesU
+        real,    dimension(:,:),   pointer, intent(IN)    :: DYY, DXX, DVY, DUX, DZY
+        integer, dimension(:,:),   pointer, intent(IN)    :: KFloor_V
+        !Locals ------------------------------------------------------------------------------
+        real                                              :: VUvar1, VUvar2, VUAverage, Centrifugal_Aceleration, &
+                                                             Area, dydx, dx2, dx1, dxdy, f_Curvature
+        integer                                           :: NoLand1, NoLand2, Flag1, Flag2, Iaux, kbottom, &
+                                                             IUB, ILB, JUB, JLB, KUB, KLB, i, j, k
+        !$ integer                                        :: CHUNK
+        !Begin---------------------------------------------------------------------------------
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+        !$ CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE( i,j,k,kbottom,VUvar1,NoLand1,Flag1,Flag2, f_Curvature, Area, dydx, dx2, dx1, dxdy, &
+        !$OMP                   VUvar2,NoLand2,VUAverage,Centrifugal_Aceleration,Iaux)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)    
+        do  j = JLB, JUB
+        do  i = ILB, IUB
+            if (ComputeFaces3D_V(i, j, KUB) == Covered) then
+                kbottom = KFloor_V(i, j)
+
+                do k=kbottom, KUB
+                    !Null gradient is admitted in the land boundary.
+                    Flag1 = LandBoundaryFacesU(i-1, j+1, k) + LandBoundaryFacesU(i  , j+1, k)
+                    if (Flag1 == 0) then
+                        VUvar1 = (Velocity_U_New(i-1, j+1, k) * DYY(i, j+1) + &
+                                  Velocity_U_New(i  , j+1, k) * DYY(i-1, j+1))/ (DYY(i-1, j+1) + DYY(i, j+1))
+                        NoLand1  = 1
+                    else
+                        VUvar1 = (1 - LandBoundaryFacesU(i-1, j+1, k)) * Velocity_U_New(i-1, j+1, k) + &
+                                 (1 - LandBoundaryFacesU(i  , j+1, k)) * Velocity_U_New(i  , j+1, k)
+                        NoLand1  = 2 - Flag1
+                    endif
+                        
+                    Flag2 = LandBoundaryFacesU(i-1, j, k) + LandBoundaryFacesU(i, j, k)
+
+                    if (Flag2 == 0) then
+                        VUvar2 = (Velocity_U_New(i-1, j, k) * DYY(i, j)   + &
+                                  Velocity_U_New(i,   j, K) * DYY(i-1, j))/ (DYY(i-1, j) +  DYY(i, j))
+                        NoLand2  = 1
+                    else
+                        VUvar2 = (1 - LandBoundaryFacesU(i-1, j, k)) * Velocity_U_New(i-1, j, k) + &
+                                 (1 - LandBoundaryFacesU(i,   j, k)) * Velocity_U_New(i,   j, k)
+                        NoLand2  = 2 - Flag2
+                    endif
+
+                    Iaux = NoLand1 + NoLand2
+
+                    if (Iaux > 0) then
+                        VUAverage  = (VUvar1 * NoLand1 + VUvar2 * NoLand2) / real(Iaux)
+                    else
+                        VUAverage  = 0.
+                    endif
+
+                    Area      = DZY(i-1, j) * DXX(i, j)
+
+                    dydx      = DUX(i, j) - DUX(i-1, j)
+
+                    dx2       = (DYY(i-1, j+1) + DYY(i  , j+1)) / 2.
+                    dx1       = (DYY(i  , j  ) + DYY(i-1, j  )) / 2.
+
+                    dxdy      = dx2 - dx1
+                    ! [s-1]     =   [m/s * m / m^2]
+                    f_Curvature =   (VUAverage * dydx - Velocity_V_New(i, j, k) * dxdy) / Area
+                    ![m/s^2]                =           [m/s] * [s-1]
+                    Centrifugal_Aceleration =  VUAverage * f_Curvature
+                    ![m/s^2]                 =            [m/s^2]  + [m/s^2]
+                    Inertial_Aceleration(i, j, k) = Inertial_Aceleration(i, j, k) + Centrifugal_Aceleration
+                enddo
+            end if
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+    
+    end subroutine InertialForces_Centrifugal_Y
+    
+    !End----------------------------------------------------------------------------
+    
+    subroutine InertialForces_Centrifugal_X(ComputeFaces3D_U, KFloor_U, LandBoundaryFacesV, DXX, DYY, DUX, DVY, DZX, &
+        Velocity_U_New, Velocity_V_New, Inertial_Aceleration)
+    
+        !Arguments--------------------------------------------------------------------------
+        real,    dimension(:,:,:), pointer, intent(IN)    :: Velocity_U_New, Velocity_V_New
+        real,    dimension(:,:,:), pointer, intent(INOUT) :: Inertial_Aceleration
+        integer, dimension(:,:,:), pointer, intent(IN)    :: ComputeFaces3D_U, LandBoundaryFacesV
+        real,    dimension(:,:),   pointer, intent(IN)    :: DYY, DXX, DVY, DUX, DZX
+        integer, dimension(:,:),   pointer, intent(IN)    :: KFloor_U
+        !Locals ------------------------------------------------------------------------------
+        real                                              :: VUvar1, VUvar2, VUAverage, Centrifugal_Aceleration, &
+                                                             Area, dydx, dx2, dx1, dxdy, f_Curvature
+        integer                                           :: NoLand1, NoLand2, Flag1, Flag2, Iaux, kbottom, &
+                                                             IUB, ILB, JUB, JLB, KUB, KLB, i, j, k
+        !$ integer                                        :: CHUNK
+        !Begin---------------------------------------------------------------------------------
+        IUB = Me%WorkSize%IUB
+        ILB = Me%WorkSize%ILB
+        JUB = Me%WorkSize%JUB
+        JLB = Me%WorkSize%JLB
+        KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
+        !$ CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE( i,j,k,kbottom,VUvar1,NoLand1,Flag1,Flag2, f_Curvature, Area, dydx, dx2, dx1, dxdy, &
+        !$OMP                   VUvar2,NoLand2,VUAverage,Centrifugal_Aceleration,Iaux)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)    
+        do  j = JLB, JUB
+        do  i = ILB, IUB
+            if (ComputeFaces3D_U(i, j, KUB) == Covered) then
+                kbottom = KFloor_U(i, j)
+                
+                do K=kbottom, KUB
+                    !Null gradient is admitted in the land boundary.
+                    Flag1 = LandBoundaryFacesV(i+1, j-1, k) + LandBoundaryFacesV(i+1, j, k)
+                    if (Flag1 == 0) then
+                        VUvar1 = (Velocity_V_New(i+1, j-1, k) * DXX(i+1, j) + &
+                                  Velocity_V_New(i+1, j  , k) * DXX(i+1, j-1))/ (DXX(i+1, j-1) + DXX(i+1, j))
+                        NoLand1  = 1
+                    else
+                        VUvar1 = (1 - LandBoundaryFacesV(i+1, j-1, k)) * Velocity_V_New(i+1, j-1, k) + &
+                                 (1 - LandBoundaryFacesV(i+1, j  , k)) * Velocity_V_New(i+1, j, k)
+                        NoLand1  = 2 - Flag1
+                    endif
+                    
+                    Flag2 = LandBoundaryFacesV(i, j-1, k) + LandBoundaryFacesV(i, j, k)
+
+                    if (Flag2 == 0) then
+                        VUvar2 = (Velocity_V_New(i, j-1, k) * DXX(i, j)   + &
+                                  Velocity_V_New(i,   j, k) * DXX(i, j-1))/ (DXX(i, j-1) + DXX(i, j))
+                        NoLand2  = 1
+                    else
+                        VUvar2 = (1 - LandBoundaryFacesV(i, j-1, k)) * Velocity_V_New(i, j-1, k) + &
+                                 (1 - LandBoundaryFacesV(i,   j, k)) * Velocity_V_New(i,   j, k)
+                        NoLand2  = 2 - Flag2
+                    endif
+
+                    Iaux = NoLand1 + NoLand2
+
+                    if (Iaux > 0) then
+                        VUAverage  = (VUvar1 * NoLand1 + VUvar2 * NoLand2) / real(Iaux)
+                    else
+                        VUAverage  = 0.
+                    endif
+
+                    Area      = DZX(i, j-1) * DYY(i, j)
+
+                    dydx      = DVY(i, j) - DVY(i, j-1)
+
+                    dx2       = (DXX(i+1, j-1) + DXX(i+1, j  )) / 2.
+                    dx1       = (DXX(i  , j  ) + DXX(i  , j-1)) / 2.
+
+                    dxdy      = dx2 - dx1
+                    ! [s-1]     =   [m/s * m / m^2]
+                    f_Curvature =   (VUAverage * dydx - Velocity_U_New(i, j, k) * dxdy) / Area
+                    ![m/s^2]                =           [m/s] * [s-1]
+                    Centrifugal_Aceleration =  VUAverage * f_Curvature
+                    ![m/s^2]                 =            [m/s^2]  + [m/s^2]
+                    Inertial_Aceleration(i, j, k) = Inertial_Aceleration(i, j, k) + Centrifugal_Aceleration
+                enddo
+            end if
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+    
+    end subroutine InertialForces_Centrifugal_X
+    
+    !End------------------------------------------------------------------------------------------------
 
     Subroutine ModifyRelaxAceleration
 
@@ -42283,11 +42825,11 @@ cd11:               if (ComputeFaces3D_UV(i, j, k) == Covered) then
 
         endif cd3
 
-        !$OMP BARRIER
-
 cd6:    if (Me%ComputeOptions%BaroclinicRadia == Horizontal_) then
-
+            !$OMP MASTER
             CHUNK = CHUNK_J(JLB, JUB + dj)
+            !$OMP END MASTER
+            !$OMP BARRIER
 
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
     doj3:   do j = JLB, JUB + dj
@@ -43839,7 +44381,6 @@ cd4:                if (BoundaryPoints(i, j) == Boundary) then
             !$OMP END PARALLEL
 
         else !NO DISCHARGES Sobrinho
-            CHUNK = CHUNK_K(KLB, KUB)
             !$OMP PARALLEL PRIVATE(i,j,k,dVdt,WestFlux,EastFlux,SouthFlux) &
             !$OMP PRIVATE(NorthFlux)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -45743,27 +46284,28 @@ dok:            do  k = kbottom, KUB
     !----------------------------------------------------------------------------------------------------------------
         
         !Add Baroclinic force (no need for a new routine as this is the only cycle of the routine)
-        
-        !$ CHUNK = CHUNK_J(JLB, JUB)        
-        !$OMP PARALLEL PRIVATE( i,j,k,kbottom, Baroclinic_Aceleration)
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        do j = JLB, JUB
-        do i = ILB, IUB
-            if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
-                kbottom = KFloor_UV(i, j)
+        if (Me%ComputeOptions%Baroclinic) then
+            !$ CHUNK = CHUNK_J(JLB, JUB)        
+            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, Baroclinic_Aceleration)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
+                    kbottom = KFloor_UV(i, j)
 
-                do  k = kbottom, KUB  
-                    !Aceleration due to Baroclinic Pressure
-                    ![m/s^2]               = [m/s^2] * [M/m^3] / [M/m^3]
-                    Baroclinic_Aceleration = Gravity * Rox3XY(i, j, k) / Me%FaceDensity(i, j, k)
-                    ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
-                    TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Baroclinic_Aceleration
-                enddo
-            endif
-        enddo
-        enddo
-        !$OMP END DO NOWAIT
-        !$OMP END PARALLEL
+                    do  k = kbottom, KUB  
+                        !Aceleration due to Baroclinic Pressure
+                        ![m/s^2]               = [m/s^2] * [M/m^3] / [M/m^3]
+                        Baroclinic_Aceleration = Gravity * Rox3XY(i, j, k) / Me%FaceDensity(i, j, k)
+                        ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
+                        TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Baroclinic_Aceleration
+                    enddo
+                endif
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+        endif
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Velocity_ExplicitForces")
@@ -45870,7 +46412,7 @@ dok:            do  k = kbottom, KUB
                 endif
             enddo
             enddo
-            !$OMP END DO NOWAIT
+            !$OMP END DO
             !$OMP END PARALLEL 
         else
             !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration)
@@ -45893,7 +46435,7 @@ dok:            do  k = kbottom, KUB
                 endif
             enddo
             enddo
-            !$OMP END DO NOWAIT
+            !$OMP END DO
             !$OMP END PARALLEL
         endif
         
@@ -45968,7 +46510,7 @@ dok:            do  k = kbottom, KUB
                 endif
             enddo
             enddo
-            !$OMP END DO NOWAIT
+            !$OMP END DO
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration)
@@ -45992,7 +46534,7 @@ dok:            do  k = kbottom, KUB
                 endif
             enddo
             enddo
-            !$OMP END DO NOWAIT
+            !$OMP END DO
             !$OMP END PARALLEL
         endif
         
@@ -46056,7 +46598,7 @@ dok:            do  k = kbottom, KUB
                 endif
             enddo
             enddo
-            !$OMP END DO NOWAIT
+            !$OMP END DO
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotentialAceleration)
@@ -46076,7 +46618,7 @@ dok:            do  k = kbottom, KUB
                 endif
             enddo
             enddo
-            !$OMP END DO NOWAIT
+            !$OMP END DO
             !$OMP END PARALLEL
         endif
         nullify(TiCoef_3D)
@@ -46142,7 +46684,7 @@ dok:            do  k = kbottom, KUB
                 endif
             enddo
             enddo
-            !$OMP END DO NOWAIT
+            !$OMP END DO
             !$OMP END PARALLEL
         else
             !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmosphericPressure_Aceleration)
@@ -46165,7 +46707,7 @@ dok:            do  k = kbottom, KUB
                 endif
             enddo
             enddo
-            !$OMP END DO NOWAIT
+            !$OMP END DO
             !$OMP END PARALLEL
         endif
         
@@ -49127,7 +49669,6 @@ subroutine ModifyWaterDischarges
 
         !Arguments-------------------------------------------------------------
 
-
         !Local-----------------------------------------------------------------
         real,    dimension(:,:  ), pointer :: AddSurfaceWater
         type (T_Time)                      :: CurrentTime
@@ -49421,8 +49962,8 @@ cd2:    if (Me%ComputeOptions%SurfaceWaterFlux .and. .not. Me%State%Initial) the
 
             !$OMP PARALLEL PRIVATE(i,j)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-do2:            do j = JLB, JUB
-do3:            do i = ILB, IUB
+            do2: do j = JLB, JUB
+            do3: do i = ILB, IUB
 
 !                    !Precipitation Condition : AddSurfaceWater(i, j) > 0
 !                    !Evaporation   Condition : AddSurfaceWater(i, j) < 0
@@ -49431,9 +49972,8 @@ do3:            do i = ILB, IUB
 
                     !if (OpenPoints3D (i, j, KUB) == OpenPoint) then
 
-                        Me%WaterFluxes%Discharges(i, j, KUB)     =                      &
-                            Me%WaterFluxes%Discharges(i, j, KUB) +                      &
-                            AddSurfaceWater(i, j) * OpenPoints3D (i, j, KUB)
+                    Me%WaterFluxes%Discharges(i, j, KUB) = Me%WaterFluxes%Discharges(i, j, KUB) +    &
+                                                           AddSurfaceWater(i, j) * OpenPoints3D (i, j, KUB)
 
             enddo do3
             enddo do2

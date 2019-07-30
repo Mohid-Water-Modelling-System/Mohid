@@ -1922,7 +1922,7 @@ Module ModuleFunctions
         
         if (DoMethod == 1) then
             CHUNK = CHUNK_J(JLB, JUB)
-            !$OMP PARALLEL PRIVATE(I,J,K, kbottom)
+            !$OMP PARALLEL PRIVATE(i,j,k, kbottom)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1934,11 +1934,11 @@ Module ModuleFunctions
                 endif
             enddo
             enddo
-            !$OMP END DO NOWAIT
+            !$OMP END DO
             !$OMP END PARALLEL
         else
             CHUNK = CHUNK_K(KLB, KUB)
-            !$OMP PARALLEL PRIVATE(I,J,K)
+            !$OMP PARALLEL PRIVATE(i,j,k)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = KLB, KUB
             do j = Size%JLB, Size%JUB
@@ -1949,7 +1949,7 @@ Module ModuleFunctions
             enddo
             enddo
             enddo
-            !$OMP END DO NOWAIT
+            !$OMP END DO
             !$OMP END PARALLEL
             
         endif
@@ -1957,8 +1957,8 @@ Module ModuleFunctions
     
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !>Adds the product of matrixB by a scalar, to matrixA
-    !>@param[in] MatrixA, MatrixB, Scalar, Size, MapMatrix, DoMethod, Kfloor   
+    !>Adds the product of matrixB by a scalar and divided by a matrixC, to matrixA
+    !>@param[in] MatrixA, MatrixB, MatrixC, Scalar, Size, MapMatrix, DoMethod, Kfloor   
     subroutine AddMatrixtimesScalarDivByMatrix(MatrixA, MatrixB, MatrixC, Scalar, Size, MapMatrix, DoMethod, Kfloor)
         !Arguments-------------------------------------------------------------
         real, dimension(:, :, :), pointer, intent (INOUT) :: MatrixA
@@ -1976,10 +1976,9 @@ Module ModuleFunctions
         
         KUB = Size%KUB
         KLB = Size%KLB
-        Aux = 0
         if (DoMethod == 1) then
             CHUNK = CHUNK_J(JLB, JUB)
-            !$OMP PARALLEL PRIVATE(I,J,K, kbottom) FIRSTPRIVATE(Aux)
+            !$OMP PARALLEL PRIVATE(i,j,k, kbottom, Aux)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
@@ -1992,11 +1991,11 @@ Module ModuleFunctions
                 endif
             enddo
             enddo
-            !$OMP END DO NOWAIT
+            !$OMP END DO
             !$OMP END PARALLEL
         else
             CHUNK = CHUNK_K(KLB, KUB)
-            !$OMP PARALLEL PRIVATE(I,J,K) FIRSTPRIVATE(Aux)
+            !$OMP PARALLEL PRIVATE(i,j,k, Aux)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do k = KLB, KUB
             do j = Size%JLB, Size%JUB
@@ -2008,7 +2007,7 @@ Module ModuleFunctions
             enddo
             enddo
             enddo
-            !$OMP END DO NOWAIT
+            !$OMP END DO
             !$OMP END PARALLEL
             
         endif
