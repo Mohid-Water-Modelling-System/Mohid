@@ -4379,9 +4379,8 @@ em4:        do em =1, Me%EulerModelNumber
 #ifdef _LITTER_
         if (Me%LitterON) then
             call ConstructLitter(ObjLitterID    = Me%ObjLitter,                         &
+                                 TimeID         = Me%ExternalVar%ObjTime,               &
                                  Nomfich        = Me%Files%Nomfich,                     &
-                                 StartTime      = Me%ExternalVar%BeginTime,             &                                 
-                                 EndTime        = Me%ExternalVar%EndTime,               &
                                  ModelDomain    = Me%GridsBounds,                       &
                                  STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR420'

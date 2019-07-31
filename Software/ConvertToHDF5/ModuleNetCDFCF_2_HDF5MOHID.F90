@@ -111,6 +111,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         real                                    :: UnitsFactor
         logical                                 :: RefAttribute
         character(len=StringLength)             :: RefAttributeName
+        character(len=StringLength)             :: RefDateName
         real                                    :: RefDateOffSet
         logical                                 :: RefDateOffSetFromAtt
         character(len=StringLength)             :: RefDateOffSetProp
@@ -2461,7 +2462,16 @@ BF:         if (BlockFound) then
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR80'    
-                    
+
+                    call GetData(Me%Date%RefDateName,                                   &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlock,                              &
+                                 keyword      = 'REF_DATE_NAME',                        &
+                                 default      = trim(null_str),                         &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR82'    
+                               
                     !off-set in seconds
                     call GetData(Me%Date%RefDateOffSet,                                 &
                                  Me%ObjEnterData, iflag,                                &
@@ -5682,10 +5692,13 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             call GetNetCDFMatrix(ncid, n, Me%Date%ValueIn) 
             
             if (Me%Date%RefAttribute) then
-            
-                status=NF90_GET_ATT(ncid,n,trim(Me%Date%RefAttributeName), ref_date)
-                if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
-                
+
+                if (Me%Date%RefDateName ==  trim(null_str)) then
+                    status=NF90_GET_ATT(ncid,n,trim(Me%Date%RefAttributeName), ref_date)
+                    if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+                else
+                    ref_date = trim(Me%Date%RefDateName) 
+                endif
                 
                 
                 tmax = len_trim(ref_date)
