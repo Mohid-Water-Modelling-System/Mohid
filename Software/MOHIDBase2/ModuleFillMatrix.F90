@@ -5815,7 +5815,8 @@ if4D:       if (CurrentHDF%Field4D) then
             call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR200'
         
-            if (Me%BackTracking) then  
+            !Backtracking time inversion is also done in the ModuleField4D    
+            if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then  
                 call BacktrackingTime(Now)
             else   
                 Now = CurrentTime
@@ -7624,7 +7625,8 @@ if4D:   if (CurrentHDF%Field4D) then
 
         !Begin-----------------------------------------------------------------
         
-        if (Me%Backtracking) then
+        !Backtracking time inversion is also done in the ModuleField4D    
+        if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then  
             Instant = CurrentHDF%NumberOfInstants - InstantIn + 1
         else
             Instant = InstantIn
@@ -10526,7 +10528,8 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadNewField - ModuleFillMatrix - ERR10'
 
-        if (Me%BackTracking) then  
+        !Backtracking time inversion is also done in the ModuleField4D    
+        if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then  
             call BacktrackingTime(Now)
         else   
             Now = CurrentTime
@@ -10539,7 +10542,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                                        CurrentHDF       = CurrentHDF)
         
         else
-            call ModifyField4D(Field4DID        = CurrentHDF%ObjField4D,                    &
+            call ModifyField4D(Field4DID        = CurrentHDF%ObjField4D,                &
                                PropertyIDNumber = Me%PropertyID%IDNumber,               & 
                                CurrentTime      = Now,                                  & 
                                Matrix3D         = Me%Matrix3D,                          &
@@ -10819,7 +10822,8 @@ i1:     if (.not.(CurrentHDF%Previous4DValue <= Generic_4D_Value_ .and.         
         call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ModifyHDFInput2DHarmonics - ModuleFillMatrix - ERR10'
 
-        if (Me%BackTracking) then  
+        !Backtracking time inversion is also done in the ModuleField4D    
+        if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then  
             call BacktrackingTime(Now)
         else   
             Now = CurrentTime
@@ -11185,7 +11189,8 @@ i2:         if (Me%PredictDTMethod == 2) then
         call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadNewField - ModuleFillMatrix - ERR10'
 
-        if (Me%BackTracking) then  
+        !Backtracking time inversion is also done in the ModuleField4D    
+        if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then  
             call BacktrackingTime(Now)
         else   
             Now = CurrentTime
@@ -11194,13 +11199,15 @@ i2:         if (Me%PredictDTMethod == 2) then
         ReadNewField_ = .false.
         
         if (.not. Me%AccumulateValues) then
-            if (Me%BackTracking) then  
+        !Backtracking time inversion is also done in the ModuleField4D    
+        if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then  
                 if (Now .le. CurrentHDF%NextTime) ReadNewField_ = .true.
             else            
                 if (Now .ge. CurrentHDF%NextTime) ReadNewField_ = .true.
             endif
         else
-            if (Me%BackTracking) then  
+            !Backtracking time inversion is also done in the ModuleField4D    
+            if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then  
                 if (Now .lt. CurrentHDF%NextTime) ReadNewField_ = .true.
             else            
                 if (Now .gt. CurrentHDF%NextTime) ReadNewField_ = .true.
@@ -11215,7 +11222,8 @@ i2:         if (Me%PredictDTMethod == 2) then
             
             do 
 
-                if (Me%BackTracking) then  
+                !Backtracking time inversion is also done in the ModuleField4D    
+                if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then  
                     if (Now .gt. CurrentHDF%NextTime) exit
                 else            
                     if (Now .lt. CurrentHDF%NextTime) exit
@@ -11223,7 +11231,8 @@ i2:         if (Me%PredictDTMethod == 2) then
                 
                 CurrentHDF%PreviousInstant  = CurrentHDF%NextInstant
                     
-                if (Me%BackTracking) then
+                !Backtracking time inversion is also done in the ModuleField4D    
+                if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then  
                     if(CurrentHDF%NextInstant .gt. 1)then
                         CurrentHDF%NextInstant  = CurrentHDF%NextInstant - 1
                     else
@@ -11267,7 +11276,8 @@ i2:         if (Me%PredictDTMethod == 2) then
                 
             enddo
             
-            if (Me%BackTracking) then
+            !Backtracking time inversion is also done in the ModuleField4D    
+            if (Me%BackTracking .and. .not. CurrentHDF%Field4D) then  
                 if(Now .lt. CurrentHDF%NextTime)then
                     write(*,*)
                     write(*,*)'----------Backtracking mode-----------'
