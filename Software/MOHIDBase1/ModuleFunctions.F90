@@ -1919,7 +1919,8 @@ Module ModuleFunctions
         
         KUB = Size%KUB
         KLB = Size%KLB
-        
+        JUB = Size%JUB
+        JLB = Size%JLB
         if (DoMethod == 1) then
             CHUNK = CHUNK_J(JLB, JUB)
             !$OMP PARALLEL PRIVATE(i,j,k, kbottom)
@@ -1976,6 +1977,8 @@ Module ModuleFunctions
         
         KUB = Size%KUB
         KLB = Size%KLB
+        JUB = Size%JUB
+        JLB = Size%JLB
         if (DoMethod == 1) then
             CHUNK = CHUNK_J(JLB, JUB)
             !$OMP PARALLEL PRIVATE(i,j,k, kbottom, Aux)

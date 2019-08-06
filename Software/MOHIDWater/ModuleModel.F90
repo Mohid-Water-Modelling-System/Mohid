@@ -326,7 +326,7 @@ Module ModuleModel
     !In this subroutine is read the model structure (number of parallel models and their sub-models)
     ! and the necessary memory is allocate and store in a structure of pointer lists
 
-    subroutine ConstructModel (LagInstance, ModelNames, ModelPaths, NumberOfModels,		&
+    subroutine ConstructModel (LagInstance, ModelNames, ModelPaths, NumberOfModels,     &
                                ObjLagrangianGlobal, ModelID, InitialSystemTime,         &
                                MPI_ID, MasterID, LastSlaveID, ModelPath, STAT)
 

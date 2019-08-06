@@ -206,7 +206,7 @@ program MohidWater
     integer                                                 :: ObjLagrangianGlobal  = 0
     integer,                      dimension(:,:), pointer   :: LagInstance          => null()
     character(len=StringLength),  dimension(:  ), pointer   :: ModelNames           => null()
-    character(len=PathLength),    dimension(:  ), pointer   :: ModelPaths			=> null()
+    character(len=PathLength),    dimension(:  ), pointer   :: ModelPaths           => null()
     real, dimension(:), allocatable                         :: ModelDTs
 
 

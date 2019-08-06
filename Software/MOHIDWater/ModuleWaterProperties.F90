@@ -34,7 +34,7 @@
 !   PRESSURE_CORRECTION         : 0/1               0           !Check if density is computed with (1) or
 !   DENSITY_COHESIVE_SED        : real           [2600 kg/m3]   !Cohesive sediments density
 !
-!   REFERENCE_SPECIFICHEAT      : real           [4200 J/kg/ºC] !Reference Water Specific Heat
+!   REFERENCE_SPECIFICHEAT      : real           [4200 J/kg/ยบC] !Reference Water Specific Heat
 !   SPECIFICHEAT_METHOD         : int               3           !Specific Heat computation default method
 !
 !   SMALLDEPTH_LIMIT            : real            null_real     !Water column thickness below which homogeneous
@@ -14510,7 +14510,7 @@ cd6 :               if (PropertyComputeBoxTimeSerie) then
                             !CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) Sobrinho
                             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
                             !$OMP PARALLEL PRIVATE(I,J,K)
-                            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                            !$OMP DO SCHEDULE(STATIC, CHUNK)
                             do2 : do K = Me%WorkSize%KLB, Me%WorkSize%KUB
                             do3 : do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                             do4 : do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -14524,7 +14524,7 @@ cd6 :               if (PropertyComputeBoxTimeSerie) then
                             !Sobrinho
                             if (Me%WorkSize%KUB > Me%WorkSize%KLB) then
                                 !$OMP PARALLEL PRIVATE(I,J,K)
-                                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                                !$OMP DO SCHEDULE(STATIC, CHUNK)
                                 do5 : do K = Me%WorkSize%KLB, Me%WorkSize%KUB
                                 do6 : do J = Me%WorkSize%JLB, Me%WorkSize%JUB
                                 do7 : do I = Me%WorkSize%ILB, Me%WorkSize%IUB
@@ -19949,7 +19949,7 @@ do3:            do k = kbottom, KUB
                                 SpecifHeat                         /                    &
                                 Me%ExternalVar%DWZ(i, j, k)
 
-                    !The water temperature can not be below 0ºC
+                    !The water temperature can not be below 0ยบC
                     !unless the ADDOFFSET option is activated
                     !so that the water temperature can take negative values
                     if (AuxT < - Temperature%Concentration(i, j, k))then
@@ -20257,7 +20257,7 @@ dn:         do n=1, nCells
                                         if  ((PropertyX%ID%IDNumber == Temperature_) .and. (.not. Me%TempFirstTimeWarning)) then
 
                                             call SetError(WARNING_, INTERNAL_, &
-                                   "Positive discharge without user defined concentration - discharge temperature = 0ºC", ON)
+                                   "Positive discharge without user defined concentration - discharge temperature = 0ยบC", ON)
                                             Me%TempFirstTimeWarning = .true.
 
                                         endif
@@ -21415,7 +21415,7 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                 end select
 
             end if
-            !Sobrinho - Testar aqui o if
+            !Sobrinho - Testar aqui o if e o firstprivate
             !$OMP PARALLEL PRIVATE(I,J,K)
             !$OMP DO SCHEDULE(DYNAMIC, ChunkK)
             do k = KLB, KUB
@@ -21664,7 +21664,7 @@ cd10:   if (CurrentTime > Me%SpecificHeat%LastActualization) then
                 !Non parallelized cycle
                 call ComputeSpecificHeatUNESCO (S, T, SZZ, WaterPoints3D)
 
-                case default
+            case default
 
             end select
 
@@ -24604,7 +24604,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
                 end if
 
-                !no CeQual o fluxo de CO2 é actualizado no ICarbon. O CO2 nao é variavel de estado
+                !no CeQual o fluxo de CO2 รฉ actualizado no ICarbon. O CO2 nao รฉ variavel de estado
                 if (PropertyX%ID%IDNumber == ICarbon_        )then
 
                     if(PropertyX%Evolution%SurfaceFluxes    )CarbonDioxideFluxYes   = .true.
@@ -27343,5 +27343,5 @@ end Module ModuleWaterProperties
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon.
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Tรฉcnico, Technical University of Lisbon.
 !----------------------------------------------------------------------------------------------------------
