@@ -21415,7 +21415,7 @@ cd10:   if (CurrentTime > Me%Density%LastActualization) then
                 end select
 
             end if
-            !Sobrinho - Testar aqui o if e o firstprivate
+
             !$OMP PARALLEL PRIVATE(I,J,K)
             !$OMP DO SCHEDULE(DYNAMIC, ChunkK)
             do k = KLB, KUB
