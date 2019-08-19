@@ -71,6 +71,7 @@ Module ModuleFunctions
     public  :: GetPointer
     public  :: AddMAtrixtimesScalar
     public  :: AddMatrixtimesScalarDivByMatrix
+    public  :: SumMatrixes
 #ifdef _USE_SEQASSIMILATION
     public  :: InvSingularDiagMatrix2D
     public  :: CholeskyFactorization
@@ -103,6 +104,7 @@ Module ModuleFunctions
 
     !Advection routines
     public  :: ComputeAdvectionFace
+    public  :: ComputeAdvectionFace_TVD_Superbee
     public  :: ComputeAdvection1D_V2
     public  :: ComputeAdvection1D
     public  :: ComputeAdvection3D
@@ -332,6 +334,8 @@ Module ModuleFunctions
 
     !wind waves lnear theory
     public :: WaveLengthHuntsApproximation
+    
+    public :: THOMASZ_NewType2
 
     !types -------------------------------------------------------------------
 
@@ -1921,7 +1925,7 @@ Module ModuleFunctions
         KLB = Size%KLB
         JUB = Size%JUB
         JLB = Size%JLB
-        if (DoMethod == 1) then
+        if (DoMethod == 0) then
             CHUNK = CHUNK_J(JLB, JUB)
             !$OMP PARALLEL PRIVATE(i,j,k, kbottom)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -1979,7 +1983,7 @@ Module ModuleFunctions
         KLB = Size%KLB
         JUB = Size%JUB
         JLB = Size%JLB
-        if (DoMethod == 1) then
+        if (DoMethod == 0) then
             CHUNK = CHUNK_J(JLB, JUB)
             !$OMP PARALLEL PRIVATE(i,j,k, kbottom, Aux)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -2014,8 +2018,45 @@ Module ModuleFunctions
             !$OMP END PARALLEL
             
         endif
-        end subroutine AddMatrixtimesScalarDivByMatrix
+    end subroutine AddMatrixtimesScalarDivByMatrix
+    
+    !End-------------------------------------------------------------------------
+    
+    subroutine SumMatrixes(MatrixA, Size, MatrixB)
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), pointer, intent (INOUT) :: MatrixA
+        real, dimension(:, :, :), pointer, intent (IN)    :: MatrixB
+        type (T_Size3D)                                   :: Size
+        !Local-----------------------------------------------------------------
+        integer                                           :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB
+        integer                                           :: CHUNK
+        !Begin-----------------------------------------------------------------
+        
+        KUB = Size%KUB
+        KLB = Size%KLB
+        JUB = Size%JUB
+        JLB = Size%JLB
+        IUB = Size%IUB
+        ILB = Size%ILB
+        
+        CHUNK = CHUNK_K(KLB, KUB)
+        
+        !$OMP PARALLEL PRIVATE(i,j,k)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+            MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL 
 
+    end subroutine SumMatrixes
+    
+    
+    !End-------------------------------------------------------------------------
     !--------------------------------------------------------------------------
     ! Function Pad
     ! Returns an upperbound value for padding a matrix.
@@ -3215,6 +3256,106 @@ do4 :       DO II = KLB+1, KUB+1
         endif
 #endif
     end subroutine THOMASZ_NewType
+
+
+    subroutine THOMASZ_NewType2 (ILB, IUB,                                        &
+                                 JLB, JUB,                                        &
+                                 KLB, KUB,                                        &
+                                 Thomas,                                          &
+                                 RES,                                             &
+                                 WaterPoints                                      &
+#ifdef _ENABLE_CUDA
+                                 , CudaID                                         &
+                                 , SaveResults                                    &
+#endif _ENABLE_CUDA
+                                )
+
+        !Arguments---------------------------------------------------------------
+        integer,                         intent(IN)     :: ILB, IUB
+        integer,                         intent(IN)     :: JLB, JUB
+        integer,                         intent(IN)     :: KLB, KUB
+        real,    dimension(:,:,:), pointer              :: RES
+        integer, dimension(:,:,:), pointer, intent(IN)  :: WaterPoints  
+        type(T_THOMAS), pointer                         :: Thomas
+
+#ifdef _ENABLE_CUDA
+        ! Solve Thomas on a CUDA device
+        integer                                         :: CudaID
+        logical                                         :: SaveResults
+#endif _ENABLE_CUDA
+
+        !Local-------------------------------------------------------------------
+        type(T_VECGW), pointer                          :: VEC
+        integer                                         :: TID
+        !$ integer                                      :: CHUNK !
+        integer :: I, J, K
+        integer :: II, MM
+        real :: AUX
+
+        !------------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleFunctions", "THOMASZ")
+
+
+#ifdef _USE_CUDA
+            write(*,*) ' Solving Thomas for Z'
+
+        ! This method can solve Thomas for any dimension. Dim 0 = X, 1 = Y, 2 = Z
+        call SolveThomas(CudaID, ILB, IUB, JLB, JUB, KLB, KUB,                     &
+                          Thomas%COEF3%D, Thomas%COEF3%E, Thomas%COEF3%F,           &
+                          Thomas%TI, RES, 2)
+#else
+        !$ CHUNK = CHUNK_J(JLB,JUB) !
+
+        !$OMP PARALLEL PRIVATE(J,I,K,II,MM,TID,VEC,AUX)
+        TID = 1
+        !$ TID = 1 + omp_get_thread_num() !
+        VEC => Thomas%VEC(TID)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+do2 :   DO J = JLB, JUB
+do1 :   DO I = ILB, IUB
+            ! JPW: Changed 1 to KLB for consistency. Results should be the same as long as KLB = 1
+            !VEC%W(KLB) =-Thomas%COEF3%F (I, J, KLB) / Thomas%COEF3%E(I, J, KLB)
+            !VEC%G(KLB) = Thomas%TI(I, J, KLB) / Thomas%COEF3%E(I, J, KLB)
+            ! JPW: Original
+            if (WaterPoints(I, J, KUB) == 1) then
+                VEC%W(KLB) =-Thomas%COEF3%F (I, J, 1) / Thomas%COEF3%E(I, J, 1)
+                VEC%G(KLB) = Thomas%TI(I, J, 1) / Thomas%COEF3%E(I, J, 1)
+
+    do3 :       DO K  = KLB+1, KUB+1
+                    AUX = Thomas%COEF3%E(I, J, K) + Thomas%COEF3%D(I, J, K) * VEC%W(K-1)
+                    IF (abs(AUX) > 0) then
+                        VEC%W(K) = -Thomas%COEF3%F(I, J, K) / AUX
+                        VEC%G(K) = (Thomas%TI(I, J, K) - Thomas%COEF3%D(I, J, K) * VEC%G(K-1)) / AUX
+                    ELSE
+                            !write(*,*) 'i, j, k: ', I, J, K
+                            !write(*,*) 'ERROR: Instability in THOMASZ - ModuleFunctions - ERR10'
+                    END IF
+                END DO do3
+
+                RES(I, J, KUB+1) = VEC%G(KUB+1)
+
+    do4 :       DO II = KLB+1, KUB+1
+                    MM            = KUB + KLB + 1 - II
+                    RES(I, J, MM) = VEC%W(MM) * RES(I, J, MM+1) + VEC%G(MM)
+                END DO do4
+            endif
+            
+        END DO do1
+        END DO do2
+        !$OMP END DO NOWAIT
+        !$OMP END PARALLEL
+
+#endif
+        if (MonitorPerformance) call StopWatch ("ModuleFunctions", "THOMASZ")
+
+#ifdef _ENABLE_CUDA
+        if(SaveResults) then
+            ! Correctness test only
+            ! call SaveThomas(CudaID, RES, 2);
+        endif
+#endif
+    end subroutine THOMASZ_NewType2
 
     !--------------------------------------------------------------------------
 
@@ -8695,8 +8836,78 @@ i5:         if      (TVD_Limitation == MinMod) then
         CFace(4) =  (1. - Theta) * Cup1(4) + Theta * CupHighOrder(4)
 
     end subroutine ComputeAdvectionFace
+                                    
+    subroutine ComputeAdvectionFace_TVD_Superbee(Prop, V, du, dt, QFace, CFace)
 
+        !Arguments---------------------------------------------------
 
+        real(8), dimension(4), intent(IN)   :: V
+        real,    dimension(4), intent(IN)   :: du, Prop
+        real   ,               intent(IN)   :: dt
+        real(8),               intent(IN)   :: QFace
+        real,   dimension(4) , intent(OUT)  :: CFace
+
+        !Local-------------------------------------------------------
+        real                                :: Cr, Theta, dC, r
+        real,   dimension(4)                :: Cup1, CupHighOrder
+
+        !Begin-------------------------------------------------------
+        CFace (1:4) = 0.
+        
+        Cup1        (1:4) = 0.
+        CupHighOrder(1:4) = 0.
+            
+        if (QFace > 0) then
+                
+            Cup1(2) = 1.
+            Cr      = Courant (QFace,V(2),dt)
+                
+            CupHighOrder(3) = 1.
+
+            dC  = (Prop(3)-Prop(2)) / (du(3) + du(2))
+
+            if (abs(dC)< MinValue ) then
+                if (dc>= 0) then
+                    dc =   MinValue
+                else
+                    dc = - MinValue
+                endif
+            endif
+
+            r = (Prop(2)-Prop(1))/ ((du(2) + du(1)) * dC)
+                
+            Theta = max(0.,min(1.,2.*r),min(r, 2.))
+
+            Theta = 0.5 * Theta * (1. - Cr)
+                
+        else
+                
+            Cup1(3) = 1.
+            Cr      = Courant (QFace,V(3),dt)
+                
+            CupHighOrder(2) = 1.
+
+            dC  = (Prop(2)-Prop(3)) / (du(3) + du(2))
+
+            if (abs(dC)< MinValue ) then
+                if (dc>= 0) then
+                    dc =   MinValue
+                else
+                    dc = - MinValue
+                endif
+            endif
+
+            r = (Prop(3)-Prop(4))/ ((du(3) + du(4)) * dC)
+                
+            Theta = max(0.,min(1.,2.*r),min(r, 2.))
+
+            Theta = 0.5 * Theta * (1. - Cr)
+        endif
+            
+        CFace(2) =  (1. - Theta) * Cup1(2) + Theta * CupHighOrder(2)
+        CFace(3) =  (1. - Theta) * Cup1(3) + Theta * CupHighOrder(3)
+
+    end subroutine ComputeAdvectionFace_TVD_Superbee
 
     real function Courant (QFace,V,dt)
 
