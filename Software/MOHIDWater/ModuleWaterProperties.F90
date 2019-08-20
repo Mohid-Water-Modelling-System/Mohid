@@ -14078,14 +14078,15 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         !Local-----------------------------------------------------------------
         type (T_Property), pointer              :: Property
         type (T_Time)                           :: Actual
-        real                                    :: ImpExp_AdvXX, ImpExp_AdvYY
+        real                                    :: ImpExp_AdvXX, ImpExp_AdvYY, firstSchmidt
         integer                                 :: ILB, IUB
         integer                                 :: JLB, JUB
         integer                                 :: KLB, KUB
         integer                                 :: I, J, K
         integer, pointer, dimension(:,:,:)      :: OpenPoints3D
         integer                                 :: CHUNK
-        logical                                 :: ComputeBoxTimeSerie, PropertyComputeBoxTimeSerie
+        logical                                 :: ComputeBoxTimeSerie, PropertyComputeBoxTimeSerie, &
+                                                   OptimizeFlag, FirstWaterProperty
 
         !----------------------------------------------------------------------
 
@@ -14136,6 +14137,21 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
                 call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR22')
 
         endif
+        !check is schmidt is equal for all property
+        firstSchmidt = Property%evolution%Advec_Difus_Parameters%SchmidtNumberH
+        OptimizeFlag = .true.
+        do while (associated(Property))
+            if (Property%evolution%Advec_Difus_Parameters%SchmidtNumberH /= firstSchmidt) OptimizeFlag = .false.
+            if (Property%evolution%NoDifFluxCells == .true.)                              OptimizeFlag = .false.
+            if (Property%evolution%Advec_Difus_Parameters%NullDif == .true.)              OptimizeFlag = .false.
+            
+            Property => Property%Next
+        enddo
+        if (Me%Coupled%AdvectionDiffusion%NumberOfProperties < 2) OptimizeFlag = .false.
+        
+        FirstWaterProperty = .true.
+        
+        Property => Me%FirstProperty
 
 do1 :   do while (associated(Property))
 cd1 :       if (Property%Evolution%AdvectionDiffusion) then
@@ -14312,6 +14328,7 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                     else
                             PropertyComputeBoxTimeSerie = .false.
                     endif
+                    
 
                     call AdvectionDiffusion(Me%ObjAdvectionDiffusion,                       &
                             Property%Concentration,                                         &
@@ -14356,9 +14373,13 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                             NoFluxU           = Me%NoFlux%U,                                &
                             NoFluxV           = Me%NoFlux%V,                                &
                             NoFluxW           = Me%NoFlux%W,                                &
+                            Optimize          = OptimizeFlag,                               &
+                            FirstProperty     = FirstWaterProperty,                         &
                             STAT              = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                            &
                         call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR110')
+                    
+                    FirstWaterProperty = .false.
 
                     if (Property%Evolution%Discharges)then
 

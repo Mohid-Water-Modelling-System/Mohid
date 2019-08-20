@@ -106,6 +106,7 @@ Module ModuleFunctions
     public  :: ComputeAdvectionFace
     public  :: ComputeAdvectionFace_TVD_Superbee
     public  :: ComputeAdvection1D_V2
+    public  :: ComputeAdvection1D_TVD_Superbee
     public  :: ComputeAdvection1D
     public  :: ComputeAdvection3D
 
@@ -8640,8 +8641,56 @@ i1:         if (ComputePoints(i-1) == Compute .and. ComputePoints(i) == Compute)
 
 
     end subroutine ComputeAdvection1D_V2
+                                     
+     !-----------------------------------------------------------------------------------                           
 
+    subroutine ComputeAdvection1D_TVD_SuperBee(ilb, iub, dt, du, Prop, Q, V, ComputePoints, &
+    D_flux, E_flux)
 
+        !Arguments---------------------------------------------------
+        real(8), dimension(:), intent(IN)  :: Q, V
+        real,    dimension(:), intent(IN)  :: du, Prop
+        integer, dimension(:), intent(IN)  :: ComputePoints
+        real   ,               intent(IN)  :: dt
+        integer,               intent(IN)  :: ilb, iub
+
+        real,    dimension(:), intent(OUT) :: D_flux, E_flux
+        !Local-------------------------------------------------------
+        real(8), dimension(4)              :: V4
+        real,    dimension(4)              :: CFace, Prop4, du4
+        real(8)                            :: QFace
+        integer                            :: i
+
+        !Begin-------------------------------------------------------
+
+        do i = ilb, iub
+            if (ComputePoints(i-1) == Compute .and. ComputePoints(i) == Compute) then
+
+                QFace = Q(i)
+
+                if     ((QFace > 0 ) .and. (ComputePoints(i-2) /= Compute)) then
+                    !NearBoundary = .true.  CFace(2) = 1 so D_Flux(i) = QFace * 1
+                    D_Flux(i) = QFace
+                elseif ((QFace <= 0) .and. (ComputePoints(i+1) /= Compute)) then
+                        !NearBoundary = .true.  CFace(3) = 1 so E_Flux(i) = QFace * 1
+                    E_Flux(i) = QFace
+                else
+                    
+                    Prop4(1) = Prop(i-2);Prop4(2) = Prop(i-1);Prop4(3) = Prop(i);Prop4(4) = Prop(i+1);
+                    du4  (1) = du  (i-2);du4  (2) = du  (i-1);du4  (3) = du  (i);du4  (4) = du  (i+1);
+                                         V4   (2) = V   (i-1);V4   (3) = V   (i)
+
+                    call ComputeAdvectionFace_TVD_Superbee(Prop4, V4, du4, dt, QFace, CFace)
+
+                    D_Flux(i) = QFace * CFace(2)
+                    E_Flux(i) = QFace * CFace(3)
+                endif
+            endif
+        enddo
+
+    end subroutine ComputeAdvection1D_TVD_SuperBee
+    
+    !---------------------------------------------------------------------------------------------
 
     subroutine ComputeAdvectionFace(Prop, V, du, dt, QFace, VolumeRelMax,                &
                                     Method, TVD_Limitation, NearBoundary, Upwind2, CFace)

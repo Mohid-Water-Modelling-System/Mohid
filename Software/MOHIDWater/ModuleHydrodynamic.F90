@@ -108,7 +108,7 @@ Module ModuleHydrodynamic
     use ModuleGridData,         only : GetGridData, WriteGridData, UngetGridData,        &
                                        ConstructGridData, GetGridDataEvolution,          &
                                        KillGridData
-    use ModuleProfile,          only : StartProfile, WriteProfile, KillProfile
+    use ModuleProfile,          only : StartProfile, WriteProfile, KillProfile, GetProfileNextOutputTime
     use ModuleDischarges,       only : Construct_Discharges, GetDischargesNumber,        &
                                        GetDischargesGridLocalization, GetDischargeON,    &
                                        GetDischargeWaterFlow, GetDischargeFlowVelocity,  &
@@ -126,7 +126,7 @@ Module ModuleHydrodynamic
                                        GetNumberOfTimeSeries, TryIgnoreTimeSerie,        &
                                        GetTimeSerieValue, WriteTimeSerie,                &
                                        GetTimeSerieName, WriteTimeSerieLine,             &
-                                       KillTimeSerie
+                                       GetTimeSerieNextOutput, KillTimeSerie 
     use ModuleHorizontalMap,    only : GetWaterPoints2D, GetBoundaries, GetBoundaryFaces,&
                                        GetExteriorBoundaryFaces, UnGetHorizontalMap,     &
                                        GetLandPoints2D
@@ -450,6 +450,7 @@ Module ModuleHydrodynamic
     private ::              CenterVelocity
     private ::              Statistics_OutPut
     private ::          OutPut_TimeSeries
+    private ::          OutputTimeSeries_FileOK
     private ::          ModifyMatrixesOutput
 
     private ::          ComputeFloodRisk
@@ -35078,18 +35079,13 @@ cd0:        if (ComputeFlux) then
                     
                 else
                     
-                    du4(1) = DZY(i-3, j);
-                    du4(2) = DZY(i-2, j);
-                    du4(3) = DZY(i-1, j);
-                    du4(4) = DZY(i  , j);
-
-                    V4 (2) = Volume_V(i-1,  j,  k);
-                    V4 (3) = Volume_V(i,    j,  k);
+                    du4(1) = DZY(i-3, j); du4(2) = DZY(i-2, j); du4(3) = DZY(i-1, j); du4(4) = DZY(i, j);
+                    
+                    V4 (2) = Volume_V(i-1,j,k); 
+                    V4 (3) = Volume_V(i  ,j,k);
                 
-                    Vel4(1) = Velocity_V_Old(i-2, j, k);
-                    Vel4(2) = Velocity_V_Old(i-1, j, k);
-                    Vel4(3) = Velocity_V_Old(i  , j, k);
-                    Vel4(4) = Velocity_V_Old(i+1, j, k);
+                    Vel4(1) = Velocity_V_Old(i-2, j, k); Vel4(2) = Velocity_V_Old(i-1, j, k);
+                    Vel4(3) = Velocity_V_Old(i  , j, k); Vel4(4) = Velocity_V_Old(i+1, j, k);
 
                     call ComputeAdvectionFace_TVD_Superbee(Vel4, V4, du4, Me%Velocity%DT, FaceFlux_WestSouth, CFace)
 
@@ -35166,18 +35162,13 @@ cd0:        if (ComputeFlux) then
                     Me%Aux3DFlux(i, j, k) = dble(Velocity_U_Old(i, j  , k)) * FaceFlux_WestSouth ![m/s*m^3/s]
                     
                 else
-                    du4(1) = DZX(i, j-3);
-                    du4(2) = DZX(i, j-2);
-                    du4(3) = DZX(i, j-1);
-                    du4(4) = DZX(i, j  );
+                    du4(1) = DZX(i, j-3); du4(2) = DZX(i, j-2); du4(3) = DZX(i, j-1); du4(4) = DZX(i, j  );
 
                     V4 (2) = Volume_U (i, j-1,  k);
                     V4 (3) = Volume_U (i, j  ,  k);
                 
-                    Vel4(1) = Velocity_U_Old(i, j-2, k);
-                    Vel4(2) = Velocity_U_Old(i, j-1, k);
-                    Vel4(3) = Velocity_U_Old(i, j  , k);
-                    Vel4(4) = Velocity_U_Old(i, j+1, k);
+                    Vel4(1) = Velocity_U_Old(i, j-2, k); Vel4(2) = Velocity_U_Old(i, j-1, k);
+                    Vel4(3) = Velocity_U_Old(i, j  , k); Vel4(4) = Velocity_U_Old(i, j+1, k);
                     
                     call ComputeAdvectionFace_TVD_Superbee(Vel4, V4, du4, Me%Velocity%DT, FaceFlux_WestSouth, CFace)
 
@@ -36033,17 +36024,13 @@ dok1:           do k = Kbottom, KUB
                                 Me%Aux3DFlux(i, j, k) = dble(Velocity_V_Old(i, j  , k)) * FaceFlux_SouthWest ![m/s*m^3/s]
                                 
                             else
-                                du4 (1) = DXX(i, j-2)
-                                du4 (2) = DXX(i, j-1)
-                                du4 (3) = DXX(i, j  )
-                                du4 (4) = DXX(i, j+1)
+                                du4(1) = DXX(i, j-2); du4(2) = DXX(i, j-1); du4(3) = DXX(i, j); du4(4) = DXX(i, j+1)
+                                
                                 V4  (2) = Volume_V(i, j-1, k);
                                 V4  (3) = Volume_V(i, j  , k);
                                 
-                                Vel4(1) = Velocity_V_Old(i, j-2, k)
-                                Vel4(2) = Velocity_V_Old(i, j-1, k)
-                                Vel4(3) = Velocity_V_Old(i, j  , k)
-                                Vel4(4) = Velocity_V_Old(i, j+1, k)
+                                Vel4(1) = Velocity_V_Old(i, j-2, k); Vel4(2) = Velocity_V_Old(i, j-1, k)
+                                Vel4(3) = Velocity_V_Old(i, j  , k); Vel4(4) = Velocity_V_Old(i, j+1, k)
                                 
                                 call ComputeAdvectionFace_TVD_Superbee(Vel4, V4, du4, Me%Velocity%DT, &
                                     FaceFlux_SouthWest, CFace)
@@ -36132,18 +36119,13 @@ dok1:           do k = Kbottom, KUB
                                 
                             else
 
-                                du4(1) = DYY(i-2, j)
-                                du4(2) = DYY(i-1, j)
-                                du4(3) = DYY(i  , j)
-                                du4(4) = DYY(i+1, j)
+                                du4(1) = DYY(i-2, j); du4(2) = DYY(i-1, j); du4(3) = DYY(i, j); du4(4) = DYY(i+1, j)
 
                                 V4 (2) = Volume_U(i-1, j, k);
                                 V4 (3) = Volume_U(i  , j, k);
                                 
-                                Vel4(1) = Velocity_U_Old(i-2, j, k);
-                                Vel4(2) = Velocity_U_Old(i-1, j, k);
-                                Vel4(3) = Velocity_U_Old(i  , j, k);
-                                Vel4(4) = Velocity_U_Old(i+1, j, k);
+                                Vel4(1) = Velocity_U_Old(i-2, j, k); Vel4(2) = Velocity_U_Old(i-1, j, k);
+                                Vel4(3) = Velocity_U_Old(i  , j, k); Vel4(4) = Velocity_U_Old(i+1, j, k);
                                 
                                 call ComputeAdvectionFace_TVD_Superbee(Vel4, V4, du4, Me%Velocity%DT,    &
                                                           FaceFlux_SouthWest, CFace)
@@ -53526,7 +53508,9 @@ do5:            do i = ILB, IUB
 
         !Local-----------------------------------------------------------------
         real,  dimension(:), pointer        :: AuxFlow
-        logical                             :: OutPutFileOK, OutPutSurfaceFileOK
+        logical                             :: OutPutFileOK, OutPutSurfaceFileOK, TimeSeriesFileOK, &
+                                              OutPutWindowFileOK, ProfileFileOK
+        type (T_Time)                       :: NextProfileOutput
         integer                             :: NextOutPut, STAT_CALL, iW, dis
         real                                :: DT_Model
         real                                :: Year, Month, Day, Hour, Minute, Second
@@ -53538,19 +53522,72 @@ do5:            do i = ILB, IUB
 
         Me%OutPut%Run_End       = .false.
 
-        OutPutFileOK = .false.
+        OutPutFileOK        = .false.
+        ProfileFileOK       = .false.
+        TimeSeriesFileOK    = .false.
+        OutPutWindowFileOK  = .false.
+        OutPutSurfaceFileOK = .false.
 
-        if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or.                            &
-            Me%OutPut%ProfileON   .or. Me%OutPut%HDF5_Surface_ON.or.                    &
-            Me%OutW%OutPutWindowsON)then
-
-            call ModifyMatrixesOutput
+        !if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or.                            &
+        !    Me%OutPut%ProfileON   .or. Me%OutPut%HDF5_Surface_ON.or.                    &
+        !    Me%OutW%OutPutWindowsON)then
+        
+            if (Me%OutPut%TimeSerieON) then
+                call OutputTimeSeries_FileOK (TimeSeriesFileOK)
+            endif
+           
+            if (Me%OutPut%hdf5ON) then
+                NextOutPut = Me%OutPut%NextOutPut
+                if (NextOutPut <= Me%OutPut%Number) then
+                    if (Me%CurrentTime >= Me%OutPut%OutTime(NextOutPut)) then
+                        OutPutFileOK = .true.
+                    endif
+                endif
+            endif
+        
+            if (Me%OutW%OutPutWindowsON)  then
+                do iW = 1, Me%OutW%WindowsNumber
+                    if (Me%OutW%OutPutWindows(iW)%ON) then
+                        NextOutPut = Me%OutW%OutPutWindows(iW)%NextOutPut
+                        OutPutWindowFileOK = .false.
+                        if (NextOutPut <= Me%OutW%OutPutWindows(iW)%Number) then
+                            if (Me%CurrentTime >= Me%OutW%OutPutWindows(iW)%OutTime(NextOutPut)) then
+                                OutPutWindowFileOK = .true.
+                            endif
+                        endif
+                    endif
+                enddo   
+            endif
+        
+            if(Me%OutPut%HDF5_Surface_ON)then
+                OutPutSurfaceFileOK = .false.
+                if (Me%OutPut%NextSurfaceOutPut <= Me%OutPut%NumberSurfaceOutputs) then
+                    if (Me%CurrentTime >= Me%OutPut%SurfaceOutTime(Me%OutPut%NextSurfaceOutPut)) then
+                        OutPutSurfaceFileOK = .true.
+                    endif
+                endif
+            endif
+            
+            if (Me%OutPut%ProfileON) then
+                call GetProfileNextOutputTime(Me%ObjProfile, NextProfileOutput, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Hydrodynamic_OutPut - ModuleHydrodynamic - ERR01'
+            
+                if (Me%CurrentTime >= NextProfileOutput) ProfileFileOK = .true.
+            endif
+            
+            if (ProfileFileOK .or. OutPutFileOK .or. TimeSeriesFileOK .or. OutPutWindowFileOK .or. &
+            OutPutSurfaceFileOK) then
+                
+                call ModifyMatrixesOutput
+            endif
+            
+            !call ModifyMatrixesOutput
 
             if(Me%OutPut%FloodRisk)then
                 call ComputeFloodRisk
             endif
 
-        end if
+        !end if
 
 
 
@@ -56618,6 +56655,40 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
     end subroutine OutPut_TimeSeries
 
+    !--------------------------------------------------------------------------
+    
+    subroutine OutputTimeSeries_FileOK(FileOk)
+        !Local-----------------------------------------------------------
+        integer                       :: STAT_CALL, TimeSerieNumber, dn
+        type (T_Time)                 :: NextTimeOutput, NextTimeSerieOutput
+        Logical                       :: FirstTime, FileOk
+        
+        !Begin-----------------------------------------------------------
+        call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR10'
+        
+        FirstTime = .false.
+        FileOk    = .false.
+
+        do dn = 1, TimeSerieNumber
+            
+            call GetTimeSerieNextOutput(Me%ObjTimeSerie, dn, NextTimeOutput, STAT  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries_FileOK - ModuleHydrodynamic - ERR01'
+            
+            if (FirstTime) then
+                NextTimeSerieOutput = NextTimeOutput
+            else
+                if (NextTimeOutput .ge. NextTimeSerieOutput) then
+                    NextTimeSerieOutput = NextTimeOutput
+                endif
+            endif
+
+        enddo
+        
+        if (Me%CurrentTime >= NextTimeSerieOutput) FileOk = .true. 
+
+    end subroutine OutputTimeSeries_FileOK
+    
     !--------------------------------------------------------------------------
 
     subroutine OutPut_Profile
