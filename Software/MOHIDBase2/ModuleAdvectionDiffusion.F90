@@ -4807,7 +4807,7 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         CHUNK = Chunk_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
         
-        !$OMP PARALLEL PRIVATE(i,j,k,AuxJ_left, AuxJ_right, Gradient) 
+        !$OMP PARALLEL PRIVATE(i,j,k,AuxJ, Gradient) 
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB

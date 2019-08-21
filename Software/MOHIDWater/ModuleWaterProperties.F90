@@ -14142,8 +14142,8 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         OptimizeFlag = .true.
         do while (associated(Property))
             if (Property%evolution%Advec_Difus_Parameters%SchmidtNumberH /= firstSchmidt) OptimizeFlag = .false.
-            if (Property%evolution%NoDifFluxCells == .true.)                              OptimizeFlag = .false.
-            if (Property%evolution%Advec_Difus_Parameters%NullDif == .true.)              OptimizeFlag = .false.
+            if (Property%evolution%NoDifFluxCells)                                        OptimizeFlag = .false.
+            if (Property%evolution%Advec_Difus_Parameters%NullDif)                        OptimizeFlag = .false.
             
             Property => Property%Next
         enddo

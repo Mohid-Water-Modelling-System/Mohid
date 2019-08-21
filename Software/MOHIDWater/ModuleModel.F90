@@ -636,7 +636,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             !$ endif
             
             !keyword to diferentiate do cycle implementations. 1 - DoJDoIDoK. 2 - DoK,DoJ,DoI
-            !If in doubt use 1 (good for when the domain has many landpoints)
+            !use 2: when the domain has many landpoints - however, not sure if it loses efficiency as the number of processors grow
             call GetData         (Me%DoCycle_method, ObjEnterData, flag,                 &
                                   SearchType    =  FromFile,                            &
                                   keyword       = 'DOCYCLE_METHOD',                      &
