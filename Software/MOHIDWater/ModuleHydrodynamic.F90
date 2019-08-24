@@ -47546,7 +47546,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         KLB = Me%WorkSize%KLB
         CHUNK = CHUNK_J(JLB, JUB)
         
-        !$OMP PARALLEL PRIVATE(i, j, k, szzxp1, dzxp1, szzxm1, dzxm1, dszdx, velusup, veluinf, velu, kbottom)
+        !$OMP PARALLEL PRIVATE(i, j, k,szzxp1,dzxp1,szzxm1,dzxm1,dszdx,velusup,veluinf,velu,kbottom,Flag1,Flag2,Flag3)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
@@ -47625,7 +47625,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         KLB = Me%WorkSize%KLB
         CHUNK = CHUNK_J(JLB, JUB)
         
-        !$OMP PARALLEL PRIVATE(i, j, k, szzyp1, dzyp1, szzym1, dzym1, dszdy, velvsup, velvinf, velv, kbottom)
+        !$OMP PARALLEL PRIVATE(i, j, k,szzyp1,dzyp1,szzym1,dzym1,dszdy,velvsup,velvinf,velv,kbottom,Flag1,Flag2,Flag3)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
@@ -48716,7 +48716,7 @@ dok:            do  k = kbottom, KUB
             !$OMP END PARALLEL 
         else
             if (Me%Docycle_method == 0) then
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration, SurfaceGradient)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
@@ -48809,7 +48809,7 @@ dok:            do  k = kbottom, KUB
         
         !$ CHUNK = CHUNK_J(JLB, JUB)
         if (Me%NonHydrostatic%ON .and. Me%NonHydroStatic%PressureCorrection .and. PressureBackwardInTime) then
-            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration)
+            !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration, SurfaceGradient)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
@@ -48839,7 +48839,7 @@ dok:            do  k = kbottom, KUB
             !$OMP END PARALLEL
         else
             if (Me%Docycle_method == 0) then
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration, SurfaceGradient)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
@@ -48863,7 +48863,7 @@ dok:            do  k = kbottom, KUB
                 !$OMP END DO NOWAIT
                 !$OMP END PARALLEL
             else
-                !$OMP PARALLEL PRIVATE( i,j,k, WaterPressure_Aceleration)
+                !$OMP PARALLEL PRIVATE( i,j,k, WaterPressure_Aceleration, SurfaceGradient)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do k = KLB, KUB
                 do j = JLB, JUB
@@ -48934,7 +48934,7 @@ dok:            do  k = kbottom, KUB
         !$ CHUNK = CHUNK_J(JLB, JUB)
         if (Me%Direction%di == 1)then
             if (Me%Docycle_method == 0) then
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotentialAceleration)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotentialAceleration, TPGradient)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
@@ -48954,7 +48954,7 @@ dok:            do  k = kbottom, KUB
                 !$OMP END DO NOWAIT
                 !$OMP END PARALLEL
             else
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotentialAceleration)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotentialAceleration, TPGradient)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do k = KLB, KUB
                 do j = JLB, JUB
@@ -48976,7 +48976,7 @@ dok:            do  k = kbottom, KUB
             
         else
             if (Me%Docycle_method == 0) then
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotentialAceleration)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotentialAceleration, TPGradient)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
@@ -48996,7 +48996,7 @@ dok:            do  k = kbottom, KUB
                 !$OMP END DO NOWAIT
                 !$OMP END PARALLEL
             else
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotentialAceleration)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotentialAceleration, TPGradient)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do k = KLB, KUB
                 do j = JLB, JUB
@@ -49063,7 +49063,7 @@ dok:            do  k = kbottom, KUB
         !$ CHUNK = CHUNK_J(JLB, JUB)
         if (Me%Direction%di == 1)then
             if (Me%Docycle_method == 0) then
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmosphericPressure_Aceleration)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmosphericPressure_Aceleration, AtmGradient, Aux)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
@@ -49087,7 +49087,7 @@ dok:            do  k = kbottom, KUB
                 !$OMP END DO NOWAIT
                 !$OMP END PARALLEL
             else
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmosphericPressure_Aceleration)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmosphericPressure_Aceleration, AtmGradient, Aux)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do k = KLB, KUB
                 do j = JLB, JUB
@@ -49113,7 +49113,7 @@ dok:            do  k = kbottom, KUB
             
         else
             if (Me%Docycle_method == 0) then
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmosphericPressure_Aceleration)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmosphericPressure_Aceleration, AtmGradient, Aux)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
@@ -49138,7 +49138,7 @@ dok:            do  k = kbottom, KUB
                 !$OMP END DO NOWAIT
                 !$OMP END PARALLEL
             else
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmosphericPressure_Aceleration)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmosphericPressure_Aceleration, AtmGradient, Aux)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do k = KLB, KUB
                 do j = JLB, JUB
@@ -49467,16 +49467,11 @@ dok1:           do  k = Kbottom + 1, KUB
 
         !Arguments------------------------------------------------------------
         !Local---------------------------------------------------------------------
-        real                               :: ImplicitVertAdvection
         !griflet: needed to initialize outside of the parallel zone of the code
         real                               :: DT
         
         integer                            :: STAT_CALL
         !Begin---------------------------------------------------------------------
-
-        !Begin - Shorten variables name
-        ImplicitVertAdvection   =  Me%ComputeOptions%ImplicitVertAdvection
-        !End - Shorten variables name
 
         !griflet: this call must be made outside of the parallelized zone.
         call GetComputeTimeStep(Me%ObjTime, DT, STAT = STAT_CALL)
