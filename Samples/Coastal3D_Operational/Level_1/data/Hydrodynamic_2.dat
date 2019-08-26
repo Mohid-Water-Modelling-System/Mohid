@@ -1,0 +1,37 @@
+
+
+WATER_DISCHARGES          : 1
+TIME_SERIE_DISCHARGES     : 1
+
+
+CONTINUOUS                : 1
+
+IMPOSE_INVERTED_BAROMETER : 0
+OPERATIONAL_MODEL_DEFAULT : 1
+!1 = true (default - no fes2014) 0 = false (with fes2014) 
+ASSIMILA_ONE_FIELD        : 1
+
+
+
+
+RESIDUAL                 : 1
+ENERGY                   : 1
+
+OUTPUT_TIME              : 0  86400
+SURFACE_OUTPUT_TIME      : 0  3600
+RESTART_FILE_OUTPUT_TIME  : 43200 43200
+RESTART_FILE_OVERWRITE   : 0
+
+
+TIME_SERIE                : 1
+TIME_SERIE_LOCATION       : ../../generalData/timeSeries/TimeSerieLocation.dat
+
+<beginoutput>
+<<beginoutwindow>>
+OUTPUT_TIME_W            : 0 900.
+KLB_KUB_W                : 1 -99
+ILB_IUB_W                : 1 10
+JLB_JUB_W                : 1 10
+<<endoutwindow>>
+<endoutput>
+

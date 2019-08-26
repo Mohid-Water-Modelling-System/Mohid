@@ -2471,8 +2471,8 @@ do1:            do i=1, DynamicPropertiesNumber
                     allocate(DynamicPropNameList  (DynamicPropertiesNumber))
                     allocate(DynamicPropNumberList(DynamicPropertiesNumber))
             
-                    DynamicPropNameList  (1:DynamicPropertiesNumber-1) = TempPropNameList  (1:DynamicPropertiesNumber)
-                    DynamicPropNumberList(1:DynamicPropertiesNumber-1) = TempPropNumberList(1:DynamicPropertiesNumber)
+                    DynamicPropNameList  (1:DynamicPropertiesNumber-1) = TempPropNameList  (1:DynamicPropertiesNumber-1)
+                    DynamicPropNumberList(1:DynamicPropertiesNumber-1) = TempPropNumberList(1:DynamicPropertiesNumber-1)
            
                     DynamicPropNameList  (DynamicPropertiesNumber) = trim(PropertyName)
                     DynamicPropNumberList(DynamicPropertiesNumber) = UniqueIDNumber

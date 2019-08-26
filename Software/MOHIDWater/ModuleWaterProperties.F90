@@ -205,7 +205,8 @@ Module ModuleWaterProperties
     use ModuleLightExtinction,      only: ConstructLightExtinction, ModifyLightExtinctionField, &
                                           GetLightExtinctionOptions, KillLightExtinction,       &
                                           GetShortWaveExtinctionField, UnGetLightExtinction,    &
-                                          GetLongWaveExtinctionCoef, GetRadiationPercentages
+                                          GetLongWaveExtinctionCoef, GetRadiationPercentages,   &
+                                          UpdateLightExtinctionSatellite
     use ModuleFillMatrix,           only: ConstructFillMatrix, GetDefaultValue, KillFillMatrix, &
                                           ModifyFillMatrix, GetIfMatrixRemainsConstant
     use ModuleHorizontalMap,        only: GetOpenPoints2D, GetWaterPoints2D, GetBoundaries,     &
@@ -262,7 +263,8 @@ Module ModuleWaterProperties
                                           SpecificHeatUNESCO, ComputeT90_Chapra,                &
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
-                                          ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad
+                                          ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
+                                          SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977
     use mpi
 #else _USE_MPI
     use ModuleFunctions,            only: SigmaLeendertse, SigmaUNESCO, SigmaWang,              &
@@ -274,7 +276,8 @@ Module ModuleWaterProperties
                                           SpecificHeatUNESCO, ComputeT90_Chapra,                &
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
-                                          ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad
+                                          ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
+                                          SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977
 #endif _USE_MPI
 
     use ModuleTurbulence,           only: GetHorizontalViscosity, GetVerticalDiffusivity,       &
@@ -596,6 +599,10 @@ Module ModuleWaterProperties
 
     character(LEN = StringLength), parameter    :: shading_begin        = '<begin_shading>'
     character(LEN = StringLength), parameter    :: shading_end          = '<end_shading>'
+    character(LEN = StringLength), parameter    :: SW_Kd_2D_begin       = '<begin_SW_Kd_2D>'
+    character(LEN = StringLength), parameter    :: SW_Kd_2D_end         = '<end_SW_Kd_2D>'
+    
+    
 
     !T90 Calc Method
     integer, parameter                          :: Canteras             = 1
@@ -1089,6 +1096,7 @@ Module ModuleWaterProperties
         real, pointer, dimension(:,:,:)         :: LongWaveTop
         logical                                 :: Exists
         type       (T_Property_2D)              :: Shading
+        type       (T_Property_2D)              :: ShortWave_Kd_2D
     end type T_Radiation
 
     type       T_DischargeTimeSerie
@@ -2465,6 +2473,7 @@ cd2 :           if (BlockFound) then
                                             PointsToFill3D       = Me%ExternalVar%WaterPoints3D,         &
                                             Matrix3D             = NewSpecies%SettlementProbability,     &
                                             TypeZUV              = TypeZ_,                               &
+                                            ClientID             = ClientNumber,                         &   
                                             STAT                 = STAT_CALL)
                  if (STAT_CALL /= SUCCESS_)                                                              &
                      call CloseAllAndStop ('ConstructSpeciesSettlement - ModuleWaterProperties - ERR20')
@@ -5229,6 +5238,7 @@ do1 :   do while (associated(PropertyX))
                                      PointsToFill2D    = Me%ExternalVar%WaterPoints2D,  &
                                      Matrix2D          = Me%SolarRadiation%Shading%Field, &
                                      TypeZUV           = TypeZ_,                        &
+                                     ClientID          = ClientNumber,                  &
                                      STAT              = STAT_CALL)
             if (STAT_CALL  /= SUCCESS_) call CloseAllAndStop ('CoupleLightExtinction - ModuleInterfaceSedimentWater - ERR90')
 
@@ -5247,13 +5257,104 @@ do1 :   do while (associated(PropertyX))
 
         call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
         if (STAT_CALL  /= SUCCESS_) call CloseAllAndStop ('CoupleLightExtinction - ModuleWaterProperties - ERR130')
-
+        
+        call ConstructRadiationProp2D(Property_2D = Me%SolarRadiation%ShortWave_Kd_2D,  &
+                                      block_begin = SW_Kd_2D_begin,                     &
+                                      block_end   = SW_Kd_2D_end)
+        
+         if (Me%SolarRadiation%ShortWave_Kd_2D%ON) then
+        
+            call UpdateLightExtinctionSatellite(LightExtinctionID = Me%ObjLightExtinction,                    &
+                                                SatelliteKd2D     = Me%SolarRadiation%ShortWave_Kd_2D%Field,  &
+                                                STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('CoupleLightExtinction - ModuleWaterProperties - ERR140')        
+            
+        endif                        
+        
         Me%Coupled%LightExtinction%NextCompute = Me%ExternalVar%Now
 
     end subroutine CoupleLightExtinction
 
 
     !--------------------------------------------------------------------------
+
+    subroutine ConstructRadiationProp2D(Property_2D, block_begin, block_end)
+
+        !Arguments--------------------------------------------------------------
+        type (T_Property_2D)                            :: Property_2D
+        character(len=*)                                :: block_begin, block_end
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: STAT_CALL
+        integer                                         :: ILB, IUB, JLB, JUB, ClientNumber
+        logical                                         :: BlockFound       = .false.
+
+        !----------------------------------------------------------------------
+
+
+        ILB = Me%Size%ILB
+        IUB = Me%Size%IUB        
+        JLB = Me%Size%JLB
+        JUB = Me%Size%JUB        
+
+        Property_2D%ON  = .false.
+
+        call ExtractBlockFromBuffer(Me%ObjEnterData, ClientNumber,                      &
+                                    block_begin, block_end, BlockFound,                 &
+                                    STAT = STAT_CALL)
+        if (STAT_CALL  /= SUCCESS_) then
+            call CloseAllAndStop ('ConstructRadiationProp2D - ModuleWaterProperties - ERR10')
+        endif
+        
+        if(BlockFound)then
+
+            nullify (Property_2D%Field)
+            allocate(Property_2D%Field(ILB:IUB, JLB:JUB))
+
+            Property_2D%ON = .true.
+
+            call ConstructFillMatrix(PropertyID        = Property_2D%ID,                &
+                                     EnterDataID       = Me%ObjEnterData,               &
+                                     TimeID            = Me%ObjTime,                    &
+                                     HorizontalGridID  = Me%ObjHorizontalGrid,          &
+                                     ExtractType       = FromBlock,                     &
+                                     PointsToFill2D    = Me%ExternalVar%WaterPoints2D,  &
+                                     Matrix2D          = Property_2D%Field,             &
+                                     TypeZUV           = TypeZ_,                        &
+                                     ClientID          = ClientNumber,                  &
+                                     STAT              = STAT_CALL)
+            if (STAT_CALL  /= SUCCESS_) then
+                call CloseAllAndStop ('ConstructRadiationProp2D - ModuleInterfaceSedimentWater - ERR20')
+            endif                
+            
+            if (Property_2D%ID%SolutionFromFile) then
+                
+                Property_2D%Constant = .false. 
+                
+            else
+                
+                Property_2D%Constant = .true. 
+                
+                call KillFillMatrix(Property_2D%ID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL  /= SUCCESS_) then
+                    call CloseAllAndStop ('ConstructRadiationProp2D - ModuleWaterProperties - ERR40')
+                endif                    
+
+            endif        
+            
+            call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+            if (STAT_CALL  /= SUCCESS_) then
+                call CloseAllAndStop ('ConstructRadiationProp2D - ModuleWaterProperties - ERR50')
+            endif                
+
+        endif
+
+        call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL)
+        if (STAT_CALL  /= SUCCESS_) call CloseAllAndStop ('ConstructRadiationProp2D - ModuleWaterProperties - ERR60')
+    
+    end subroutine ConstructRadiationProp2D
+    
+    !-----------------------------------------------------------------------------------
 
 
     subroutine CoupleWaterQuality
@@ -6715,10 +6816,10 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         call Construct_PropertyState    (NewProperty)
 
         !Construct property values
-        call Construct_PropertyValues   (NewProperty)
+        call Construct_PropertyValues   (NewProperty, ClientNumber)
 
         !Construct property evolution parameters
-        call Construct_PropertyEvolution(NewProperty,ClientNumber)
+        call Construct_PropertyEvolution(NewProperty, ClientNumber)
 
         !Defines the property output
         call Construct_PropertyOutPut   (NewProperty, FromBlock)
@@ -7099,10 +7200,11 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
     !This subroutine reads all the information needed to construct the property values
     ! in the domain and in the boundaries
 
-    subroutine Construct_PropertyValues(NewProperty)
+    subroutine Construct_PropertyValues(NewProperty, ClientNumber)
 
         !Arguments-------------------------------------------------------------
         type(T_property), pointer       :: NewProperty
+        integer                         :: ClientNumber
 
         !External--------------------------------------------------------------
         integer                         :: STAT_CALL
@@ -7428,6 +7530,7 @@ cd1 :   if (.not.NewProperty%Old) then
                                        PointsToFill3D       = Me%ExternalVar%WaterPoints3D, &
                                        Matrix3D             = NewProperty%Concentration,    &
                                        TypeZUV              = TypeZ_,                       &
+                                       ClientID             = ClientNumber,                 &
                                        STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
                 call CloseAllAndStop ('Construct_PropertyValues - ModuleWaterProperties - ERR110')
@@ -8889,15 +8992,15 @@ case1 : select case(PropertyID)
             !Begin Block      : <beginproperty>
             !End Block        : <endproperty>
         !<EndKeyword>
-        call GetData(NewProperty%evolution%Advec_Difus_Parameters%NumericStability,      &
+        call GetData(NewProperty%evolution%Advec_Difus_Parameters%NumericStability,     &
                      Me%ObjEnterData, iflag,                                            &
-                     SearchType = FromBlock,                                             &
-                     keyword    = 'ADV_DIF_NUM_STABILITY',                               &
-                     default    = .FALSE.,                                               &
-                     ClientModule = 'ModuleWaterProperties',                             &
+                     SearchType = FromBlock,                                            &
+                     keyword    = 'ADV_DIF_NUM_STABILITY',                              &
+                     default    = .FALSE.,                                              &
+                     ClientModule = 'ModuleWaterProperties',                            &
                      STAT       = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR01')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR10')
 
         !<BeginKeyword>
             !Keyword          : SCHMIDT_NUMBER_H
@@ -8916,15 +9019,15 @@ case1 : select case(PropertyID)
             !Begin Block      : <beginproperty>
             !End Block        : <endproperty>
         !<EndKeyword>
-        call GetData(NewProperty%evolution%Advec_Difus_Parameters%SchmidtNumberH,        &
+        call GetData(NewProperty%evolution%Advec_Difus_Parameters%SchmidtNumberH,       &
                      Me%ObjEnterData, iflag,                                            &
-                     SearchType = FromBlock,                                             &
-                     keyword    = 'SCHMIDT_NUMBER_H',                                    &
-                     Default    = 1.0,                                                   &
-                     ClientModule = 'ModuleWaterProperties',                             &
+                     SearchType = FromBlock,                                            &
+                     keyword    = 'SCHMIDT_NUMBER_H',                                   &
+                     Default    = 1.0,                                                  &
+                     ClientModule = 'ModuleWaterProperties',                            &
                      STAT       = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR02')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR20')
 
         !<BeginKeyword>
             !Keyword          : SCHMIDT_COEF_V
@@ -8943,15 +9046,15 @@ case1 : select case(PropertyID)
             !Begin Block      : <beginproperty>
             !End Block        : <endproperty>
         !<EndKeyword>
-        call GetData(NewProperty%evolution%Advec_Difus_Parameters%SchmidtCoefV,          &
+        call GetData(NewProperty%evolution%Advec_Difus_Parameters%SchmidtCoefV,         &
                      Me%ObjEnterData, iflag,                                            &
-                     SearchType = FromBlock,                                             &
-                     keyword    = 'SCHMIDT_COEF_V',                                      &
-                     Default    = 1.0,                                                   &
-                     ClientModule = 'ModuleWaterProperties',                             &
+                     SearchType = FromBlock,                                            &
+                     keyword    = 'SCHMIDT_COEF_V',                                     &
+                     Default    = 1.0,                                                  &
+                     ClientModule = 'ModuleWaterProperties',                            &
                      STAT       = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR03')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR30')
 
         !<BeginKeyword>
             !Keyword          : SCHMIDT_BACKGROUND_V
@@ -8970,15 +9073,15 @@ case1 : select case(PropertyID)
             !Begin Block      : <beginproperty>
             !End Block        : <endproperty>
         !<EndKeyword>
-        call GetData(NewProperty%evolution%Advec_Difus_Parameters%SchmidtBackgroundV,    &
+        call GetData(NewProperty%evolution%Advec_Difus_Parameters%SchmidtBackgroundV,   &
                      Me%ObjEnterData, iflag,                                            &
-                     SearchType = FromBlock,                                             &
-                     keyword    = 'SCHMIDT_BACKGROUND_V',                                &
-                     Default    = 1.e-8,                                                 &
-                     ClientModule = 'ModuleWaterProperties',                             &
+                     SearchType = FromBlock,                                            &
+                     keyword    = 'SCHMIDT_BACKGROUND_V',                               &
+                     Default    = 1.e-8,                                                &
+                     ClientModule = 'ModuleWaterProperties',                            &
                      STAT       = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR04')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR40')
 
 
         !<BeginKeyword>
@@ -8996,15 +9099,15 @@ case1 : select case(PropertyID)
             !Begin Block      : <beginproperty>
             !End Block        : <endproperty>
         !<EndKeyword>
-        call GetData(NewProperty%evolution%Advec_Difus_Parameters%AdvectionV_imp_exp,    &
+        call GetData(NewProperty%evolution%Advec_Difus_Parameters%AdvectionV_imp_exp,   &
                      Me%ObjEnterData, iflag,                                            &
-                     SearchType = FromBlock,                                             &
-                     keyword    = 'ADVECTION_V_IMP_EXP',                                 &
-                     Default    = 0.0,                                                   &
-                     ClientModule = 'ModuleWaterProperties',                             &
+                     SearchType = FromBlock,                                            &
+                     keyword    = 'ADVECTION_V_IMP_EXP',                                &
+                     Default    = 0.0,                                                  &
+                     ClientModule = 'ModuleWaterProperties',                            &
                      STAT       = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR06')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR50')
 
         NewProperty%evolution%Advec_Difus_Parameters%AdvectionV_imp_exp =               &
             1. - NewProperty%evolution%Advec_Difus_Parameters%AdvectionV_imp_exp
@@ -9024,15 +9127,15 @@ case1 : select case(PropertyID)
             !Begin Block      : <beginproperty>
             !End Block        : <endproperty>
         !<EndKeyword>
-        call GetData(NewProperty%evolution%Advec_Difus_Parameters%DiffusionV_imp_exp,    &
+        call GetData(NewProperty%evolution%Advec_Difus_Parameters%DiffusionV_imp_exp,   &
                      Me%ObjEnterData,iflag,                                             &
-                     SearchType = FromBlock,                                             &
-                     keyword    = 'DIFFUSION_V_IMP_EXP',                                 &
-                     Default    = 0.,                                                    &
-                     ClientModule = 'ModuleWaterProperties',                             &
+                     SearchType = FromBlock,                                            &
+                     keyword    = 'DIFFUSION_V_IMP_EXP',                                &
+                     Default    = 0.,                                                   &
+                     ClientModule = 'ModuleWaterProperties',                            &
                      STAT       = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR07')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR60')
 
         NewProperty%evolution%Advec_Difus_Parameters%DiffusionV_imp_exp = 1. -          &
             NewProperty%evolution%Advec_Difus_Parameters%DiffusionV_imp_exp
@@ -9052,15 +9155,15 @@ case1 : select case(PropertyID)
             !Begin Block      : <beginproperty>
             !End Block        : <endproperty>
         !<EndKeyword>
-        call GetData(NewProperty%evolution%Advec_Difus_Parameters%NullDif,               &
+        call GetData(NewProperty%evolution%Advec_Difus_Parameters%NullDif,              &
                      Me%ObjEnterData, iflag,                                            &
-                     SearchType = FromBlock,                                             &
-                     keyword    = 'NULLDIF',                                             &
-                     Default    = .false.,                                               &
-                     ClientModule = 'ModuleWaterProperties',                             &
+                     SearchType = FromBlock,                                            &
+                     keyword    = 'NULLDIF',                                            &
+                     Default    = .false.,                                              &
+                     ClientModule = 'ModuleWaterProperties',                            &
                      STAT       = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR08')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR70')
 
 
         !<BeginKeyword>
@@ -9079,22 +9182,22 @@ case1 : select case(PropertyID)
             !Begin Block      : <beginproperty>
             !End Block        : <endproperty>
         !<EndKeyword>
-        call GetData(NewProperty%evolution%Advec_Difus_Parameters%DecayTime,             &
+        call GetData(NewProperty%evolution%Advec_Difus_Parameters%DecayTime,            &
                      Me%ObjEnterData, iflag,                                            &
-                     SearchType = FromBlock,                                             &
-                     keyword    = 'DECAY_TIME',                                          &
-                     Default    = 0.,                                                    &
-                     ClientModule = 'ModuleWaterProperties',                             &
+                     SearchType = FromBlock,                                            &
+                     keyword    = 'DECAY_TIME',                                         &
+                     Default    = 0.,                                                   &
+                     ClientModule = 'ModuleWaterProperties',                            &
                      STAT       = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR09')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR80')
 
-        call GetBoundaryConditionList(MassConservation   = MassConservation,             &
-                              ImposedValue               = ImposedValue,                 &
-                              NullGradient               = NullGradient,                 &
-                              SubModel                   = SubModel,                     &
-                              Orlanski                   = Orlanski,                     &
-                              MassConservNullGrad        = MassConservNullGrad,          &
+        call GetBoundaryConditionList(MassConservation   = MassConservation,            &
+                              ImposedValue               = ImposedValue,                &
+                              NullGradient               = NullGradient,                &
+                              SubModel                   = SubModel,                    &
+                              Orlanski                   = Orlanski,                    &
+                              MassConservNullGrad        = MassConservNullGrad,         &
                               CyclicBoundary             = CyclicBoundary)
 
         !<BeginKeyword>
@@ -9113,47 +9216,47 @@ case1 : select case(PropertyID)
             !Begin Block      : <beginproperty>
             !End Block        : <endproperty>
         !<EndKeyword>
-        call GetData(BoundaryCondition,                                                  &
+        call GetData(BoundaryCondition,                                                 &
                      Me%ObjEnterData, iflag,                                            &
-                     SearchType   = FromBlock,                                           &
-                     keyword      = 'BOUNDARY_CONDITION',                                &
-                     Default      = MassConservation,                                    &
-                     ClientModule = 'ModuleWaterProperties',                             &
+                     SearchType   = FromBlock,                                          &
+                     keyword      = 'BOUNDARY_CONDITION',                               &
+                     Default      = MassConservation,                                   &
+                     ClientModule = 'ModuleWaterProperties',                            &
                      STAT       = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR10')
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR90')
 
-        if (BoundaryCondition /= MassConservation              .and.                     &
-            BoundaryCondition /= ImposedValue                  .and.                     &
-            BoundaryCondition /= SubModel                      .and.                     &
-            BoundaryCondition /= NullGradient                  .and.                     &
-            BoundaryCondition /= CyclicBoundary                .and.                     &
-            BoundaryCondition /= Orlanski                      .and.                     &
-            BoundaryCondition /= MassConservNullGrad                )                    &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR11')
+        if (BoundaryCondition /= MassConservation              .and.                    &
+            BoundaryCondition /= ImposedValue                  .and.                    &
+            BoundaryCondition /= SubModel                      .and.                    &
+            BoundaryCondition /= NullGradient                  .and.                    &
+            BoundaryCondition /= CyclicBoundary                .and.                    &
+            BoundaryCondition /= Orlanski                      .and.                    &
+            BoundaryCondition /= MassConservNullGrad                )                   &
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR100')
 
 
         NewProperty%evolution%Advec_Difus_Parameters%BoundaryCondition = BoundaryCondition
 
 
 
-        if (BoundaryCondition == SubModel .and. .not. NewProperty%SubModel%ON)           &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR11b')
+        if (BoundaryCondition == SubModel .and. .not. NewProperty%SubModel%ON)          &
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR110')
 
 
 cd1:    if (BoundaryCondition == Orlanski) then
 
-            allocate(NewProperty%evolution%Advec_Difus_Parameters%PropOld                &
+            allocate(NewProperty%evolution%Advec_Difus_Parameters%PropOld               &
                      (ILB:IUB,JLB:JUB,KLB:KUB), STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR12')
+            if (STAT_CALL /= SUCCESS_)                                                  &
+                call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR120')
 
 
             do k = WorkKLB, WorkKUB
             do j = WorkJLB, WorkJUB
             do i = WorkILB, WorkIUB
 
-                NewProperty%evolution%Advec_Difus_Parameters%PropOld(i, j, k) =          &
+                NewProperty%evolution%Advec_Difus_Parameters%PropOld(i, j, k) =         &
                     NewProperty%Concentration(i, j, k)
             enddo
             enddo
@@ -9184,7 +9287,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
                      ClientModule = 'ModuleWaterProperties',                            &
                      STAT       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR13')
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR130')
 
         NewProperty%evolution%Advec_Difus_Parameters%AdvectionH_imp_exp =               &
             1. - NewProperty%evolution%Advec_Difus_Parameters%AdvectionH_imp_exp
@@ -9204,7 +9307,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
                      STAT       = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - WaterProperties - ERR10')
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - WaterProperties - ERR140')
 
         call GetData(NewProperty%evolution%Advec_Difus_Parameters%TVDLimitationH,       &
                      Me%ObjEnterData, iflag,                                            &
@@ -9215,7 +9318,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
                      STAT       = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - WaterProperties - ERR20')
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - WaterProperties - ERR150')
 
         call GetData(NewProperty%evolution%Advec_Difus_Parameters%AdvMethodV,           &
                      Me%ObjEnterData, iflag,                                            &
@@ -9226,7 +9329,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
                      STAT       = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - WaterProperties - ERR30')
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - WaterProperties - ERR160')
 
         call GetData(NewProperty%evolution%Advec_Difus_Parameters%TVDLimitationV,       &
                      Me%ObjEnterData, iflag,                                            &
@@ -9237,7 +9340,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
                      STAT       = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - WaterProperties - ERR40')
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - WaterProperties - ERR170')
 
 
         call GetData(NewProperty%evolution%Advec_Difus_Parameters%VolumeRelMax,         &
@@ -9249,7 +9352,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
                      STAT       = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - WaterProperties - ERR50')
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - WaterProperties - ERR180')
 
 
         if (NewProperty%evolution%Advec_Difus_Parameters%AdvMethodH == UpwindOrder2 .or.&
@@ -9275,7 +9378,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
 
             write(*,*) 'If the advection of mass in the horizontal is implicit'
             write(*,*) 'the advection method can not be a second or third order upwind'
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - WaterProperties - ERR60.')
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - WaterProperties - ERR190.')
 
         endif
 
@@ -9285,7 +9388,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
 
             write(*,*) 'If the advection of mass in the vertical is implicit'
             write(*,*) 'the advection method can not be a second or third order upwind'
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - WaterProperties - ERR70.')
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - WaterProperties - ERR200.')
 
         endif
 
@@ -9305,15 +9408,15 @@ cd1:    if (BoundaryCondition == Orlanski) then
             !Begin Block      : <beginproperty>
             !End Block        : <endproperty>
         !<EndKeyword>
-        call GetData(NewProperty%evolution%Advec_Difus_Parameters%AdvectionNudging,   &
+        call GetData(NewProperty%evolution%Advec_Difus_Parameters%AdvectionNudging,     &
                      Me%ObjEnterData, iflag,                                            &
-                     keyword    = 'ADVECTION_NUDGING',                                &
-                     default    = .false.,                                                  &
+                     keyword    = 'ADVECTION_NUDGING',                                  &
+                     default    = .false.,                                              &
                      SearchType = FromBlock,                                            &
                      ClientModule = 'ModuleWaterProperties',                            &
                      STAT       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
-            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR71')
+            call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR210')
 
         if ( BoundaryCondition /= NullGradient .and. NewProperty%evolution%Advec_Difus_Parameters%AdvectionNudging ) then
             write(*,*) 'WARNING: When ADVECTION_NUDGING is ACTIVATED the BOUNDARY_CONDITION should be NULLGRADIENT.'
@@ -9342,7 +9445,7 @@ cd1:    if (BoundaryCondition == Orlanski) then
                      ClientModule = 'ModuleWaterProperties',                            &
                      STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                  &
-                call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR72')
+                call CloseAllAndStop ('Read_Advec_Difus_Parameters - ModuleWaterProperties - ERR220')
 
         endif
 
@@ -10869,17 +10972,18 @@ cd1 :   if (STAT_CALL .EQ. SUCCESS_     ) then
 cd2 :       if (BlockFound) then
 
 
-                call ConstructFillMatrix  (PropertyID           = Me%Density%ID,                    &
-                                        EnterDataID          = Me%ObjEnterData,                  &
-                                        TimeID               = Me%ObjTime,                       &
-                                        HorizontalGridID     = Me%ObjHorizontalGrid,             &
-                                        GeometryID           = Me%ObjGeometry,                   &
-                                        ExtractType          = FromBlock,                        &
-                                        PointsToFill3D       = Me%ExternalVar%WaterPoints3D,     &
-                                        Matrix3D             = Me%Density%Sigma,                 &
-                                        TypeZUV              = TypeZ_,                           &
+                call ConstructFillMatrix  (PropertyID           = Me%Density%ID,            &
+                                        EnterDataID          = Me%ObjEnterData,             &
+                                        TimeID               = Me%ObjTime,                  &
+                                        HorizontalGridID     = Me%ObjHorizontalGrid,        &
+                                        GeometryID           = Me%ObjGeometry,              &
+                                        ExtractType          = FromBlock,                   &
+                                        PointsToFill3D       = Me%ExternalVar%WaterPoints3D,&
+                                        Matrix3D             = Me%Density%Sigma,            &
+                                        TypeZUV              = TypeZ_,                      &
+                                        ClientID             = ClientNumber,                &
                                         STAT                 = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                          &
+                if (STAT_CALL /= SUCCESS_)                                                  &
                     call CloseAllAndStop ('ConstructDensity - ModuleWaterProperties - ERR90')
 
 
@@ -11262,6 +11366,7 @@ cd2 :       if (BlockFound) then
                                            PointsToFill3D       = Me%ExternalVar%WaterPoints3D,     &
                                            Matrix3D             = Me%SpecificHeat%Field,            &
                                            TypeZUV              = TypeZ_,                           &
+                                           ClientID             = ClientNumber,                     &             
                                            STAT                 = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                          &
                     call CloseAllAndStop ('ConstructSpecificHeat - ModuleWaterProperties - ERR07')
@@ -21602,7 +21707,7 @@ cd10:   if (CurrentTime > Me%SpecificHeat%LastActualization) then
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB, KUB
         integer                                     :: i, j, k, kbottom
-        real                                        :: LongWaveExtinctionCoef
+        real                                        :: LongWaveExtinctionCoef, SWCoef
         real                                        :: SWPercentage, LWPercentage
         integer                                     :: CHUNK
 
@@ -21622,16 +21727,32 @@ cd10:   if (CurrentTime > Me%SpecificHeat%LastActualization) then
 
         SurfaceRadiation => Me%ExtSurface%SurfaceRadiation
 
-        call Compute_SWExtCoefField
+        if (Me%SolarRadiation%ShortWave_Kd_2D%ON) then                                   
+            if (.not.Me%SolarRadiation%ShortWave_Kd_2D%Constant) then                           
+                call ModifyFillMatrix (FillMatrixID   = Me%SolarRadiation%ShortWave_Kd_2D%ID%ObjFillMatrix, &
+                                       Matrix2D       = Me%SolarRadiation%ShortWave_Kd_2D%Field,            &
+                                       PointsToFill2D = Me%ExternalVar%WaterPoints2D,                       &
+                                       STAT           = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR10')
+            
+                call UpdateLightExtinctionSatellite(LightExtinctionID = Me%ObjLightExtinction,                    &
+                                                    SatelliteKd2D     = Me%SolarRadiation%ShortWave_Kd_2D%Field,  &
+                                                    STAT              = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR20')
+            endif                            
+        else            
+            call Compute_SWExtCoefField
+        endif                
 
+            
         call GetShortWaveExtinctionField(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR02')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR30')       
 
         call GetLongWaveExtinctionCoef(Me%ObjLightExtinction, LongWaveExtinctionCoef,STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR03')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR40')
 
         call GetRadiationPercentages(Me%ObjLightExtinction, SWPercentage, LWPercentage, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR04')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR50')
 
         CHUNK = CHUNK_J(JLB, JUB)
 
@@ -21648,6 +21769,16 @@ do3 :   do i = ILB, IUB
 cd1 :       if (Me%ExternalVar%WaterPoints3D(i, j, KUB) == WaterPoint) then
 
                 kbottom = Me%ExternalVar%KFloor_Z(i, j)
+                
+                if (Me%SolarRadiation%ShortWave_Kd_2D%ON) then  
+                
+                    SWCoef = ShortWaveExtinctionField(i,j,KUB)
+                
+                    SWPercentage           = SWPercentage_PaulsonSimpson1977 (SWCoef)
+                    LWPercentage           = 1. - SWPercentage
+                    LongWaveExtinctionCoef = LWCoef_PaulsonSimpson1977       (SWCoef)
+                    
+                endif                    
 
                 SWRadiation(i, j, KUB) = SurfaceRadiation(i, j) * SWPercentage
                 LWRadiation(i, j, KUB) = SurfaceRadiation(i, j) * LWPercentage
@@ -21708,7 +21839,7 @@ do9:                do k=kbottom, KUB
         endif
 
         call UnGetLightExtinction(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR04')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ModifySolarRadiation - ModuleWaterProperties - ERR60')
 
         !Nullify auxiliar variables
         nullify(SWRadiation)
@@ -21923,10 +22054,11 @@ do9:                do k=kbottom, KUB
 
     !--------------------------------------------------------------------------
 
-    subroutine OutPut_Results_HDF(iW)
+    subroutine OutPut_Results_HDF(iW, StoppingModel)
 
         !Arguments-------------------------------------------------------------
         integer, optional                  :: iW
+        logical, optional                  :: StoppingModel
 
         !External--------------------------------------------------------------
         integer                            :: STAT_CALL
@@ -21945,12 +22077,19 @@ do9:                do k=kbottom, KUB
         logical                            :: SimpleOutPut
         character(len=StringLength)        :: AuxGroup
         real(8)                            :: AuxPeriod, TotalTime
+        logical                            :: StoppingModel_
 
         !----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "OutPut_Results_HDF")
 
         SimpleOutPut = .false.
+        
+        if (present(StoppingModel)) then
+            StoppingModel_ = StoppingModel
+        else
+            StoppingModel_ = .false. 
+        endif            
 
         !Saida das diferentes propriedades
         Actual = Me%ExternalVar%Now
@@ -22109,7 +22248,7 @@ sp:                     if (.not. SimpleOutPut) then
                         call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR100')
                     endif
 
-                    if (PropertyX%Evolution%DataAssimilation /= NoNudging .and. .not. SimpleOutPut) then
+                    if (PropertyX%Evolution%DataAssimilation /= NoNudging .and. .not. SimpleOutPut .and. .not. StoppingModel_) then
                     
     i4 :                if (PropertyX%SubModel%ON) then
 
@@ -22118,13 +22257,15 @@ sp:                     if (.not. SimpleOutPut) then
 
                         else i4
 
-                            call GetAssimilationField(AssimilationID  = Me%ObjAssimilation, &
-                                                      ID              = PropertyX%ID%IDNumber,&
-                                                      N_Field         = 1,                  &
-                                                      GroupOutPutName = PropertyX%Assimilation%GroupOutPutName,&
+                            call GetAssimilationField(AssimilationID  = Me%ObjAssimilation,                     &
+                                                      ID              = PropertyX%ID%IDNumber,                  &
+                                                      N_Field         = 1,                                      &
+                                                      GroupOutPutName = PropertyX%Assimilation%GroupOutPutName, &
                                                       STAT            = STAT_CALL)
 
                             if (STAT_CALL /= SUCCESS_) then
+                                write(*,*) 'Property name: ', trim(PropertyX%ID%Name)
+                                write(*,*) 'OutPut_Results_HDF - ModuleWaterProperties - ERR105'
                                 call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR105')
                             endif
                         end if i4                    
@@ -25603,7 +25744,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !----------------------------------------------------------------------
 
         if (Me%OutPut%Yes) &
-            call OutPut_Results_HDF
+            call OutPut_Results_HDF(StoppingModel = .true.)
 
         if (Me%Coupled%TimeSerie%Yes) &
             call KillTimeSerie(Me%ObjTimeSerie, STAT = STAT_CALL)
@@ -26689,7 +26830,22 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
             if (STAT_CALL .NE. SUCCESS_)call CloseAllAndStop ('KillSolarRadiation - ModuleWaterProperties - ERR50')
             nullify    (Me%SolarRadiation%Shading%Field)
         endif
-
+        
+        if (Me%SolarRadiation%ShortWave_Kd_2D%ON) then
+            
+            deallocate(Me%SolarRadiation%ShortWave_Kd_2D%Field,  STAT = STAT_CALL)
+            if (STAT_CALL .NE. SUCCESS_)call CloseAllAndStop ('KillSolarRadiation - ModuleWaterProperties - ERR60')
+            nullify    (Me%SolarRadiation%ShortWave_Kd_2D%Field)
+            
+            if (.not.Me%SolarRadiation%ShortWave_Kd_2D%Constant) then
+                
+                call KillFillMatrix(Me%SolarRadiation%ShortWave_Kd_2D%ID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL  /= SUCCESS_) then
+                    call CloseAllAndStop ('KillSolarRadiation - ModuleWaterProperties - ERR70')
+                endif                  
+                
+            endif                
+        endif
 
     end subroutine KillSolarRadiation
 

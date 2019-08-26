@@ -111,6 +111,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         real                                    :: UnitsFactor
         logical                                 :: RefAttribute
         character(len=StringLength)             :: RefAttributeName
+        character(len=StringLength)             :: RefDateName
         real                                    :: RefDateOffSet
         logical                                 :: RefDateOffSetFromAtt
         character(len=StringLength)             :: RefDateOffSetProp
@@ -168,13 +169,15 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         real                                    :: Default
         type (T_ValueIn)                        :: ValueIn        
         real, dimension(:,:),     pointer       :: Value2DOut
+        logical                                 :: InvertReferential = .false. 
     end type  T_Bathym
 
     private :: T_Mapping
     type       T_Mapping
         character(len=StringLength)             :: NetCDFName
-        logical                                 :: ON       = .true.
-        logical                                 :: Dim3D    = .true.
+        logical                                 :: ON           = .true.
+        logical                                 :: Dim3D        = .true.
+        logical                                 :: From2D_To_3D = .false. 
         real                                    :: Limit
         integer                                 :: Instant
         type (T_ValueIn)                        :: ValueIn        
@@ -186,9 +189,11 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     type       T_Field
         type(T_PropertyID)                      :: ID
         integer                                 :: Dim
+        logical                                 :: From2D_To_3D        
         character(len=StringLength)             :: NetCDFName
         real                                    :: Add, Multiply, MinValue
         real                                    :: UnitsScale
+        real                                    :: UnitsAdd        
         type (T_ValueIn)                        :: ValueIn        
         real, dimension(:,:),     pointer       :: Value2DOut
         real, dimension(:,:,:),   pointer       :: Value3DOut
@@ -215,6 +220,17 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         character(len=StringLength)             :: ReflectivityName
         integer                                 :: DirectionReferential
         real                                    :: Limit
+        logical                                 :: Energy2Power
+        character(len=StringLength)             :: EnergyName
+        integer, dimension(:), pointer          :: EnergyStartingHours        
+        integer                                 :: N_EnergyStartH
+        logical                                 :: AvModelStart2Inst
+        character(len=StringLength)             :: AvModelStartName
+        !integer, dimension(:), pointer          :: AvModelStartingHours        
+        !integer                                 :: N_AvModelStartH
+        logical                                 :: VerticalZ_2D
+        character(len=StringLength)             :: Surface
+        character(len=StringLength)             :: Bottom        
     end type  T_Field
 
     type T_NetCDF_Out                                         
@@ -342,6 +358,12 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         call WriteAverageInDepth
         
         call WriteReflectivity2Precipitation
+        
+        call WriteEnergy2Power
+        
+        call WriteAvModelStart2Inst
+        
+        call WriteVerticalZ_2D
        
         if (Me%OutNetCDF) call WriteTimeNetCDF(DefDimTime=.false.)
     
@@ -566,6 +588,113 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         enddo    
         
     end subroutine WriteComputeDirection
+    
+    !------------------------------------------------------------------------
+    !------------------------------------------------------------------------    
+
+    subroutine WriteVerticalZ_2D
+    
+        !Local-----------------------------------------------------------------
+        integer                                     :: inst, i, j, iP, iPb, iPs
+        integer                                     :: STAT_CALL
+        logical                                     :: Found
+        !Begin-----------------------------------------------------------------
+        
+        do iP = 1, Me%PropNumber
+        
+            if (Me%Field(iP)%VerticalZ_2D) then
+        
+                !Found Bottom
+                Found = .false.
+                do iPb = 1, Me%PropNumber
+                    if (trim(Me%Field(iPb)%ID%Name)==trim(Me%Field(iP)%Bottom)) then
+                        Found = .true.
+                        exit
+                    endif
+                enddo
+                if (.not. Found) stop 'WriteVerticalZ_2D - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+
+                !Found Surface
+                Found = .false.
+                do iPs = 1, Me%PropNumber
+                    if (trim(Me%Field(iPs)%ID%Name)==trim(Me%Field(iP)%Surface)) then
+                        Found = .true.
+                        exit
+                    endif
+                enddo
+                if (.not. Found) stop 'WriteVerticalZ_2D - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+
+
+                do inst=1, Me%Date%TotalInstOut
+                    !Read Bottom
+
+                    allocate(Me%Field(iPb)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    allocate(Me%Field(iP)%Value3DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,0:2))
+                    
+                    call ReadFieldHDF5(iPb, inst)
+
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        if (Me%Field(iPb)%Value2DOut(i, j) > -500) then
+                            Me%Field(iP)%Value3DOut(i,j,0) = Me%Field(iPb)%Value2DOut(i, j)
+                        else
+                            Me%Field(iP)%Value3DOut(i,j,0) = 0
+                        endif                            
+                    enddo
+                    enddo
+                    
+
+                    
+                    allocate(Me%Field(iPs)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                                 
+                    
+                    !Read component Y                    
+                    call ReadFieldHDF5(iPs, inst)
+                    
+                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                        if (Me%Field(iPs)%Value2DOut(i, j) > -500) then
+                            Me%Field(iP)%Value3DOut(i,j,1) = - Me%Field(iPs)%Value2DOut(i, j)
+                        else
+                            Me%Field(iP)%Value3DOut(i,j,1) =   Me%Field(iPb)%Value2DOut(i, j)
+                        endif                            
+                    enddo
+                    enddo           
+
+                    !Write Vertical Z 2D
+                    if (Me%OutHDF5) then
+                        call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,  &
+                                                         Me%WorkSize%JLB, Me%WorkSize%JUB,  &
+                                                         0, 1,                              &
+                                                         STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteVerticalZ_2D - ModuleNetCDFCF_2_HDF5MOHID - ERR30' 
+
+                        call HDF5WriteData  (Me%ObjHDF5, "/Grid/VerticalZ", "Vertical",         &
+                                             "m", Array3D = Me%Field(iP)%Value3DOut, OutputNumber = inst, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'WriteVerticalZ_2D - ModuleNetCDFCF_2_HDF5MOHID - ERR40'  
+                        
+                    !    if (inst == 1) then
+                    !        
+                    !        call HDF5SetLimits  (Me%ObjHDF5, Me%WorkSize%ILB, Me%WorkSize%IUB,  &
+                    !                                         Me%WorkSize%JLB, Me%WorkSize%JUB,  &
+                    !                                         STAT = STAT_CALL)
+                    !        if (STAT_CALL /= SUCCESS_) stop 'WriteVerticalZ_2D - ModuleNetCDFCF_2_HDF5MOHID - ERR30' 
+                    !
+                    !        call HDF5WriteData  (Me%ObjHDF5, "/Grid", "Bathymetry",         &
+                    !                             "m", Array2D = Me%Field(iPb)%Value2DOut, STAT = STAT_CALL)
+                    !        if (STAT_CALL /= SUCCESS_) stop 'WriteVerticalZ_2D - ModuleNetCDFCF_2_HDF5MOHID - ERR40'  
+                    !    endif                                                    
+                    endif
+                    
+                    deallocate(Me%Field(iPs)%Value2DOut)
+                    deallocate(Me%Field(iPb)%Value2DOut)
+                    deallocate(Me%Field(iP)%Value3DOut)
+
+                enddo
+            endif                
+        enddo    
+        
+    end subroutine WriteVerticalZ_2D
     
     !------------------------------------------------------------------------
 
@@ -935,6 +1064,186 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     
     !------------------------------------------------------------------------       
 
+    !------------------------------------------------------------------------
+    
+    subroutine WriteEnergy2Power
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, iP, iPt
+        logical                                     :: Found
+        !Begin-----------------------------------------------------------------
+
+        
+        do iP = 1, Me%PropNumber
+        
+            if (Me%Field(iP)%Energy2Power) then
+        
+                !Found property to be average in depth
+                Found = .false.
+                do iPt = 1, Me%PropNumber
+                    if (trim(Me%Field(iPt)%ID%Name)==trim(Me%Field(iP)%EnergyName)) then
+                        Found = .true.
+                        exit
+                    endif
+                enddo
+                if (.not. Found) stop 'WriteEnergy2Power - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+
+
+                if      (Me%Field(iPt)%Dim/=2) then
+                    stop 'WriteEnergy2Power - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+                endif
+
+                allocate(Me%Field(iPt)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+
+                if      (Me%Field(iP)%Dim/=2) then
+                    stop 'WriteAverageInDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                endif
+                    
+                allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    
+                !Compute Power from Energy
+
+                do i=1, Me%Date%TotalInstOut
+                !Read 2D property           
+                    if      (i == 1) then
+                        
+                        call ComputePowerFromEnergy(iPt, iP, 1, Option = "Start")    
+                        
+                    elseif  (i == Me%Date%TotalInstOut) then
+                        
+                        call ComputePowerFromEnergy(iPt, iP, Me%Date%TotalInstOut, Option = "End")                         
+                        
+                    elseif (ModelStartHour(Me%Field(ip)%EnergyStartingHours, Me%Field(ip)%N_EnergyStartH, i)) then
+                        !Compute Power from Energy
+                        call ComputePowerFromEnergy(iPt, iP, i, Option = "ReStart") 
+                    else
+                        !Compute Power from Energy
+                        call ComputePowerFromEnergy(iPt, iP, i, Option = "Normal") 
+                    endif
+                    
+
+                    !Write Power
+                    if (Me%OutHDF5) then
+                        call WriteFieldHDF5  (iP, i)    
+                    endif
+
+                    if (Me%OutNetCDF) then
+                        call WriteFieldNetCDF(iP, i)                        
+                    endif
+                        
+                enddo
+            
+                deallocate(Me%Field(iPt)%Value2DOut)
+                nullify   (Me%Field(iPt)%Value2DOut)
+                deallocate(Me%Field(iP )%Value2DOut)
+                nullify   (Me%Field(iP )%Value2DOut)
+                
+            endif                
+        enddo    
+        
+    end subroutine WriteEnergy2Power
+    
+    !------------------------------------------------------------------------
+    
+    subroutine WriteAvModelStart2Inst
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, iP, iPt
+        logical                                     :: Found
+        !Begin-----------------------------------------------------------------
+
+        
+        do iP = 1, Me%PropNumber
+        
+            if (Me%Field(iP)%AvModelStart2Inst) then
+        
+                !Found property to be average in depth
+                Found = .false.
+                do iPt = 1, Me%PropNumber
+                    if (trim(Me%Field(iPt)%ID%Name)==trim(Me%Field(iP)%AvModelStartName)) then
+                        Found = .true.
+                        exit
+                    endif
+                enddo
+                if (.not. Found) stop 'WriteAvModelStart2Inst - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+
+
+                if      (Me%Field(iPt)%Dim/=2) then
+                    stop 'WriteAvModelStart2Inst - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+                endif
+
+                allocate(Me%Field(iPt)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+
+                if      (Me%Field(iP)%Dim/=2) then
+                    stop 'WriteAverageInDepth - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                endif
+                    
+                allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    
+                !Compute Instant value from average since model start
+
+                do i=1, Me%Date%TotalInstOut
+                !Read 2D property           
+                    if      (i == 1) then
+                        
+                        call ComputeInstFromAvgSinceModelStart(iPt, iP, 1, Option = "Start")    
+                        
+                    elseif  (i == Me%Date%TotalInstOut) then
+                        
+                        call ComputeInstFromAvgSinceModelStart(iPt, iP, Me%Date%TotalInstOut, Option = "End")                         
+                        
+                    else
+                        !Compute Power from Energy
+                        call ComputeInstFromAvgSinceModelStart(iPt, iP, i, Option = "Normal") 
+                    endif
+                    
+
+                    !Write Power
+                    if (Me%OutHDF5) then
+                        call WriteFieldHDF5  (iP, i)    
+                    endif
+
+                    if (Me%OutNetCDF) then
+                        call WriteFieldNetCDF(iP, i)                        
+                    endif
+                        
+                enddo
+            
+                deallocate(Me%Field(iPt)%Value2DOut)
+                nullify   (Me%Field(iPt)%Value2DOut)
+                deallocate(Me%Field(iP )%Value2DOut)
+                nullify   (Me%Field(iP )%Value2DOut)
+                
+            endif                
+        enddo    
+        
+    end subroutine WriteAvModelStart2Inst
+    
+    
+    !------------------------------------------------------------------------       
+    logical function ModelStartHour(StartingHours, nTotal, i)
+
+        !Arguments-------------------------------------------------------------
+        integer, dimension(:), pointer              :: StartingHours
+        integer                                     :: nTotal, i
+
+        !Local-----------------------------------------------------------------
+        real                                        :: hour
+        integer                                     :: n 
+        logical                                     :: Aux
+        !Begin-----------------------------------------------------------------
+
+        Aux = .false.
+        
+        do n=1, nTotal
+            call ExtractDate(Time1 = HDF5TimeInstant(i), hour = hour) 
+            if (int(hour) == StartingHours(n)) then
+                Aux = .true.
+                exit
+            endif
+        enddo            
+                
+        ModelStartHour = Aux
+        
+    end function ModelStartHour
 
     !------------------------------------------------------------------------     
 
@@ -1209,8 +1518,206 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     
     !------------------------------------------------------------------------    
 
+    subroutine ComputePowerFromEnergy(iPt, iP, inst, Option) 
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: iPt, iP, inst
+        character(len=*)                            :: Option
+        !Local-----------------------------------------------------------------
+        real,   dimension(:,:), pointer             :: Power, Energy
+        real                                        :: dt
+        integer                                     :: iStart, iEnd, i, j
+        logical                                     :: NullEnergy
+        !Begin-----------------------------------------------------------------
+        
+    !------------------------------------------------------------------------    
+        Power => Me%Field(iP)%Value2DOut    
+                    
+        Energy => Me%Field(iPt)%Value2DOut    
+                    
+                   
+        Power(:,:) = 0.
+        
+        if      (Option == "Start")  then
+            iEnd    = inst+1 
+            iStart  = inst
+        elseif  (Option == "Normal") then
+            iEnd    = inst+1 
+            iStart  = inst-1               
+        elseif  (Option == "End"  .or. Option == "ReStart" ) then                
+            iEnd    = inst
+            iStart  = inst-1               
+        endif                
+            
+        dt = HDF5TimeInstant(iEnd) - HDF5TimeInstant(iStart)
+            
+        call ReadFieldHDF5(iPt, iEnd)
+                    
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if(Me%Mapping%Value2DOut(i,j) == 1) then
+                Power(i, j) =  Energy(i, j) /dt
+            endif
+        enddo
+        enddo  
+        
+        NullEnergy = ModelStartHour(Me%Field(ip)%EnergyStartingHours, Me%Field(ip)%N_EnergyStartH, iStart)
+        
+        if (.not. NullEnergy) then
+            
+            call ReadFieldHDF5(iPt, iStart)            
+            
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if(Me%Mapping%Value2DOut(i,j) == 1) then
+                    Power(i, j) =  Power(i, j) - Energy(i, j) /dt
+                endif
+            enddo
+            enddo
+            
+        endif                        
+            
+        if  (Option == "ReStart") then
+
+            iEnd    = inst+1 
+            iStart  = inst
+            
+            dt = HDF5TimeInstant(iEnd) - HDF5TimeInstant(iStart)            
+            
+            call ReadFieldHDF5(iPt, iEnd)            
+            
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if(Me%Mapping%Value2DOut(i,j) == 1) then
+                   Power(i, j) =  (Power(i, j) + Energy(i, j) /dt) * 0.5
+                endif
+            enddo
+            enddo         
+            
+        endif
+            
+    end subroutine ComputePowerFromEnergy
+    
+    !------------------------------------------------------------------------    
+    
     !------------------------------------------------------------------------    
 
+    subroutine ComputeInstFromAvgSinceModelStart(iPt, iP, inst, Option) 
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: iPt, iP, inst
+        character(len=*)                            :: Option
+        !Local-----------------------------------------------------------------
+        real,   dimension(:,:), pointer             :: ValueInst, Average
+        real                                        :: EndPeriod, StartPeriod, dt
+        integer                                     :: iStart, iEnd, i, j
+!        logical                                     :: NullAverage
+        !Begin-----------------------------------------------------------------
+        
+    !------------------------------------------------------------------------    
+        ValueInst => Me%Field(iP)%Value2DOut    
+                    
+        Average => Me%Field(iPt)%Value2DOut    
+                    
+                   
+        ValueInst(:,:) = 0.
+        
+        if      (Option == "Start")  then
+            iEnd    = inst+1
+            iStart  = inst
+        elseif  (Option == "Normal") then
+            iEnd    = inst+1 
+            iStart  = inst-1               
+        elseif  (Option == "End"  .or. Option == "ReStart" ) then                
+            iEnd    = inst
+            iStart  = inst-1               
+        endif                
+            
+        EndPeriod   = HDF5TimeInstant(iEnd  ) - HDF5TimeInstant(1)
+        StartPeriod = HDF5TimeInstant(iStart) - HDF5TimeInstant(1)
+        dt          = EndPeriod - StartPeriod
+            
+        call ReadFieldHDF5(iPt, iEnd)
+                    
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if(Me%Mapping%Value2DOut(i,j) == 1) then
+                ValueInst(i, j) =  Average(i, j) * EndPeriod / dt
+            endif
+        enddo
+        enddo  
+        
+        
+        !NullAverage = ModelStartHour(Me%Field(ip)%AvModelStartingHours, Me%Field(ip)%N_AvModelStartH, iStart)
+        
+        !if (.not. NullAverage) then
+            
+            call ReadFieldHDF5(iPt, iStart)            
+            
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if(Me%Mapping%Value2DOut(i,j) == 1) then
+                    ValueInst(i, j) =  ValueInst(i, j) - Average(i, j) * StartPeriod / dt
+                endif
+            enddo
+            enddo
+            
+        !endif                        
+            
+        if  (Option == "ReStart") then
+
+            iEnd    = inst+1 
+            iStart  = inst
+            
+            dt = HDF5TimeInstant(iEnd) - HDF5TimeInstant(iStart)            
+            
+            call ReadFieldHDF5(iPt, iEnd)            
+            
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if(Me%Mapping%Value2DOut(i,j) == 1) then
+                   ValueInst(i, j) =  (ValueInst(i, j) + Average(i, j)) * 0.5
+                endif
+            enddo
+            enddo         
+            
+        endif
+            
+    end subroutine ComputeInstFromAvgSinceModelStart
+    
+    !------------------------------------------------------------------------     
+
+    type(T_Time) function HDF5TimeInstant(Instant)
+
+        !Arguments-------------------------------------------------------------
+        integer                                 :: Instant
+
+        !Local-----------------------------------------------------------------
+        real,    dimension(:), pointer          :: TimeVector
+        integer                                 :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        call HDF5SetLimits  (Me%ObjHDF5, 1, 6)
+
+        allocate(TimeVector(6))
+
+        call HDF5ReadData   (HDF5ID         = Me%ObjHDF5,                               &
+                             GroupName      = "/Time",                                  &
+                             Name           = "Time",                                   &
+                             Array1D        = TimeVector,                               &
+                             OutputNumber   = Instant,                                  &
+                             STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)stop 'HDF5TimeInstant - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+            
+        call SetDate(HDF5TimeInstant, Year     = TimeVector(1), Month  = TimeVector(2), &
+                                      Day      = TimeVector(3), Hour   = TimeVector(4), &
+                                      Minute   = TimeVector(5), Second = TimeVector(6))
+        deallocate(TimeVector)
+            
+    end function HDF5TimeInstant
+
+    !------------------------------------------------------------------------    
 
     subroutine ComputePrecipitation(Reflectivity, Precipitation, it, Step1) 
     
@@ -1312,8 +1819,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                         else if     (Me%Field(iP)%DirectionReferential == NauticalCurrent_) then
                             Me%Field(iP)%Value3DOut(i,j,k) = 90. -  Me%Field(iP)%Value3DOut(i,j,k)
                         endif
-                                                    
-        
+
                         if      (Me%Field(iP)%Value3DOut(i,j,k)>360.)then
                              Me%Field(iP)%Value3DOut(i,j,k) = Me%Field(iP)%Value3DOut(i,j,k) - 360.
                         else if (Me%Field(iP)%Value3DOut(i,j,k)<0.  )then
@@ -1838,7 +2344,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     subroutine ReadTimeOptions
 
         !Local-----------------------------------------------------------------
-        real, dimension(6)                          :: AuxTime
+        real, dimension(6)                          :: AuxTime, DefaultTime
         logical                                     :: BlockFound
         integer                                     :: iflag, STAT_CALL
         !begin-----------------------------------------------------------------
@@ -1863,10 +2369,10 @@ BF:         if (BlockFound) then
                 if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
 
                !The time in netcdf is assumed in days from 1950/1/1 : 0h:0m:0s (Mercator Ocean convention)
-                AuxTime(:) = 0.
-                AuxTime(1) = 1950
-                AuxTime(2) = 1
-                AuxTime(3) = 1
+                DefaultTime(:) = 0.
+                DefaultTime(1) = 1950
+                DefaultTime(2) = 1
+                DefaultTime(3) = 1
 
                 call GetData(AuxTime,                                                   &
                              Me%ObjEnterData, iflag,                                    &
@@ -1875,6 +2381,8 @@ BF:         if (BlockFound) then
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR20'    
+                
+                if (iflag /= 6) AuxTime = DefaultTime
     
 
                 call SetDate (Me%Date%RefDateTimeIn, Year    = AuxTime(1),              &
@@ -1954,7 +2462,16 @@ BF:         if (BlockFound) then
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR80'    
-                    
+
+                    call GetData(Me%Date%RefDateName,                                   &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlock,                              &
+                                 keyword      = 'REF_DATE_NAME',                        &
+                                 default      = trim(null_str),                         &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR82'    
+                               
                     !off-set in seconds
                     call GetData(Me%Date%RefDateOffSet,                                 &
                                  Me%ObjEnterData, iflag,                                &
@@ -2084,7 +2601,7 @@ BF:         if (BlockFound) then
                              default      = "longitude",                                &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
-
+                
                 call GetData(Me%LongLat%Starts180W,                                     &
                              Me%ObjEnterData, iflag,                                    &
                              SearchType   = FromBlockInBlock,                           &
@@ -2179,6 +2696,15 @@ BF:         if (BlockFound) then
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
                 
+
+                call GetData(Me%Bathym%InvertReferential,                               &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlock,                                  &
+                             keyword      = 'BATHYM_INVERT_REFERENTIAL',                &
+                             default      = .false.,                                    &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadTimeOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR85'                
                 
                 Me%Bathym%ValueIn%Dim      = 2
                 
@@ -2227,6 +2753,15 @@ BF:         if (BlockFound) then
                              ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR35'   
+                
+                call GetData(Me%Mapping%From2D_To_3D,                                   &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      = 'FROM_2D_TO_3D',                            &
+                             default      = .false.,                                    & 
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR37'
                 
                 call GetData(Me%Mapping%Limit,                                          &
                              Me%ObjEnterData, iflag,                                    &
@@ -2503,6 +3038,7 @@ BF:         if (BlockFound) then
         logical                                     :: BlockFound
         integer                                     :: iflag, STAT_CALL, ip
         logical                                     :: check
+        integer, dimension(12)                      :: Aux1DInt
         !begin-----------------------------------------------------------------
 
         do ip = 1, Me%PropNumber 
@@ -2551,6 +3087,16 @@ BF:         if (BlockFound) then
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR45'    
+                    
+                    call GetData(Me%Field(ip)%UnitsAdd,                                 &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'UNITS_ADD',                            &
+                                 default      = 0.,                                     &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR45'    
+                    
 
                     call GetData(Me%Field(ip)%MinValue,                                 &
                                  Me%ObjEnterData, iflag,                                &
@@ -2570,6 +3116,19 @@ BF:         if (BlockFound) then
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR60'    
+                    
+                    call GetData(Me%Field(ip)%From2D_To_3D,                             &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'FROM_2D_TO_3D',                        &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR65'    
+                    
+                    if (Me%Field(ip)%From2D_To_3D .and. Me%Field(ip)%Dim /= 2)  then
+                        stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR67'
+                    endif
                     
                     if (Me%Field(ip)%Dim /= 2 .and. Me%Field(ip)%Dim /= 3)              &
                         stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR70'    
@@ -2992,7 +3551,134 @@ BF:         if (BlockFound) then
                         endif                           
 
                     endif           
-            
+                    
+                    call GetData(Me%Field(ip)%Energy2Power,                             &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'ENERGY_2_POWER',                       &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)       
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2780'
+                    
+                    if (Me%Field(ip)%Energy2Power) then
+                        
+                        call GetData(Me%Field(ip)%EnergyName,                           &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlockInBlock,                   &
+                                     keyword      = 'ENERGY_NAME',                      &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)       
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2790'   
+
+                        if (iflag == 0) then
+                            stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2800'
+                        endif   
+                        
+                        call GetData(Aux1DInt,                                          &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlockInBlock,                   &
+                                     keyword      = 'ENERGY_STARTING_HOURS',            &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)       
+                        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= SIZE_ERR_) then
+                            stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2810'   
+                        endif
+                        
+                        if (iflag == 0) then
+                            stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2820'
+                        else
+                            Me%Field(ip)%N_EnergyStartH = iflag
+                            allocate(Me%Field(ip)%EnergyStartingHours(1:iflag))
+                            Me%Field(ip)%EnergyStartingHours(1:iflag) = Aux1DInt(1:iflag)
+                        endif                           
+
+                    endif        
+                    
+                    call GetData(Me%Field(ip)%AvModelStart2Inst,                        &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'AVERAGE_MODEL_START_2_INST',           &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)       
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2830'
+                    
+                    if (Me%Field(ip)%AvModelStart2Inst) then
+                        
+                        call GetData(Me%Field(ip)%AvModelStartName,                     &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlockInBlock,                   &
+                                     keyword      = 'AVERAGE_MODEL_START_NAME',         &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)       
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2840'   
+
+                        if (iflag == 0) then
+                            stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2850'
+                        endif   
+                        
+                        !call GetData(Aux1DInt,                                          &
+                        !             Me%ObjEnterData, iflag,                            &
+                        !             SearchType   = FromBlockInBlock,                   &
+                        !             keyword      = 'AVERAGE_MODEL_STARTING_HOURS',     &
+                        !             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                        !             STAT         = STAT_CALL)       
+                        !if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= SIZE_ERR_) then
+                        !    stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2860'   
+                        !endif
+                        !
+                        !if (iflag == 0) then
+                        !    stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2870'
+                        !else
+                        !    Me%Field(ip)%N_AvModelStartH = iflag
+                        !    allocate(Me%Field(ip)%AvModelStartingHours(1:iflag))
+                        !    Me%Field(ip)%AvModelStartingHours(1:iflag) = Aux1DInt(1:iflag)
+                        !endif                           
+
+                    endif                      
+                    
+                    call GetData(Me%Field(ip)%VerticalZ_2D,                             &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'VERTICAL_Z_2D',                        &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)       
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2880'
+                    
+                    if (Me%Field(ip)%VerticalZ_2D) then
+                        
+                        call GetData(Me%Field(ip)%Bottom,                               &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlockInBlock,                   &
+                                     keyword      = 'BOTTOM_NAME',                      &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)       
+                        if (STAT_CALL /= SUCCESS_) then
+                            stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2890'   
+                        endif
+                        
+                        if (iflag == 0) then
+                            stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2900'
+                        endif   
+                        
+                        call GetData(Me%Field(ip)%Surface,                              &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlockInBlock,                   &
+                                     keyword      = 'SURFACE_NAME',                     &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)       
+                        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= SIZE_ERR_) then
+                            stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2910'   
+                        endif
+                        
+                        if (iflag == 0) then
+                            stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2920'
+                        endif                           
+
+                    endif        
+
                 else BF
                 
                     stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR3000'    
@@ -3046,11 +3732,12 @@ BF:         if (BlockFound) then
         Me%ReadPropNumber = Me%PropNumber
        
         do iP = 1, Me%PropNumber
-        
-            if (Me%Field(iP)%ComputeIntensity .or. Me%Field(iP)%Rotation             .or. &
-                Me%Field(iP)%Beaufort         .or. Me%Field(iP)%ComputeRH            .or. &
-                Me%Field(iP)%WaveBeaufort     .or. Me%Field(iP)%ComputeDirection     .or. &
-                Me%Field(iP)%AverageInDepth   .or. Me%Field(iP)%Reflectivity2Precipitation) then
+                                                                                                    
+            if (Me%Field(iP)%ComputeIntensity .or. Me%Field(iP)%Rotation                   .or. &
+                Me%Field(iP)%Beaufort         .or. Me%Field(iP)%ComputeRH                  .or. &
+                Me%Field(iP)%WaveBeaufort     .or. Me%Field(iP)%ComputeDirection           .or. &
+                Me%Field(iP)%AverageInDepth   .or. Me%Field(iP)%Reflectivity2Precipitation .or. &
+                Me%Field(iP)%Energy2Power     .or. Me%Field(iP)%AvModelStart2Inst) then
             
                 Me%ReadPropNumber = Me%ReadPropNumber - 1
             
@@ -3858,10 +4545,11 @@ BF:             if (BlockFound) then
         do iP = 1, Me%PropNumber
             do iT =1, Me%Date%NumberInst
         
-                if (Me%Field(iP)%ComputeIntensity     .or. Me%Field(iP)%Rotation       .or.  &
-                    Me%Field(iP)%Beaufort             .or. Me%Field(iP)%WaveBeaufort   .or.  &
-                    Me%Field(iP)%ComputeDirection     .or. Me%Field(iP)%AverageInDepth .or.  &
-                    Me%Field(iP)%Reflectivity2Precipitation) then
+                if (Me%Field(iP)%ComputeIntensity           .or. Me%Field(iP)%Rotation       .or.  &
+                    Me%Field(iP)%Beaufort                   .or. Me%Field(iP)%WaveBeaufort   .or.  &
+                    Me%Field(iP)%ComputeDirection           .or. Me%Field(iP)%AverageInDepth .or.  &
+                    Me%Field(iP)%Reflectivity2Precipitation .or. Me%Field(iP)%Energy2Power   .or.  &
+                    Me%Field(iP)%AvModelStart2Inst) then
                 
                     WriteProp       = .false.
                 
@@ -3882,10 +4570,11 @@ BF:             if (BlockFound) then
                     Me%OutCountProp = Me%OutCountProp + 1
                 endif
 
-                if (.not. (Me%Field(iP)%ComputeIntensity      .or. Me%Field(iP)%Rotation .or.     &
-                           Me%Field(iP)%Beaufort              .or. Me%Field(iP)%WaveBeaufort .or. &
-                           Me%Field(iP)%ComputeDirection      .or. Me%Field(iP)%AverageInDepth.or.&
-                           Me%Field(iP)%Reflectivity2Precipitation))  &
+                if (.not. (Me%Field(iP)%ComputeIntensity            .or. Me%Field(iP)%Rotation .or.     &
+                           Me%Field(iP)%Beaufort                    .or. Me%Field(iP)%WaveBeaufort .or. &
+                           Me%Field(iP)%ComputeDirection            .or. Me%Field(iP)%AverageInDepth.or.&
+                           Me%Field(iP)%Reflectivity2Precipitation  .or. Me%Field(iP)%Energy2Power  .or.&
+                           Me%Field(iP)%AvModelStart2Inst))  &
                     call DeAllocateValueIn(Me%Field(iP)%ValueIn)
             enddo
         enddo
@@ -4180,156 +4869,159 @@ i5:         if (Me%OutHDF5) then
         real(8)                                         :: Depthx
         integer                                         :: i, j, k, mask, l, kin, ic
         !Begin-----------------------------------------------------------------
-!        do iT = 1, Me%Date%NumberInst
         
-            if      (Me%Field(iP)%Dim==3) then 
-                allocate(Me%Field(iP)%Value3DOut(Me%Size%ILB:Me%Size%IUB,               &
-                                                 Me%Size%JLB:Me%Size%JUB,               &
-                                                 Me%Size%KLB:Me%Size%KUB))
+        
+        if      (Me%Field(iP)%Dim==3) then 
+            allocate(Me%Field(iP)%Value3DOut(Me%Size%ILB:Me%Size%IUB,                   &
+                                                Me%Size%JLB:Me%Size%JUB,                &
+                                                Me%Size%KLB:Me%Size%KUB))
                                                  
-            else if (Me%Field(iP)%Dim==2) then 
-                allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,               &
-                                                 Me%Size%JLB:Me%Size%JUB))
+        else if (Me%Field(iP)%Dim==2) then 
+            allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,                   &
+                                                Me%Size%JLB:Me%Size%JUB))
 
-            endif                            
-            
-            
-            if       (Me%Field(iP)%Dim==3) then
-            
-                if (Me%Depth%Interpolate) allocate(ValueAux(1:Me%Depth%kmax),DepthAux(1:Me%Depth%kmax))
-            
-                do k= Me%WorkSize%KLB, Me%WorkSize%KUB                    
-                do j= Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i= Me%WorkSize%ILB, Me%WorkSize%IUB
-                
-                    if (Me%Mapping%Value3DOut(i,j,k) == 1) then
+        endif             
 
-                        if (.not. Me%Depth%Interpolate) then
+                            
+            
+        if       (Me%Field(iP)%Dim==3) then
+            
+            if (Me%Depth%Interpolate) allocate(ValueAux(1:Me%Depth%kmax),DepthAux(1:Me%Depth%kmax))
+            
+            do k= Me%WorkSize%KLB, Me%WorkSize%KUB                    
+            do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i= Me%WorkSize%ILB, Me%WorkSize%IUB
                 
-                            if (Me%Depth%InvertLayers) then
-                                kin = Me%WorkSize%KUB - k + Me%WorkSize%KLB
-                            else
-                                kin = k
-                            endif    
+                if (Me%Mapping%Value3DOut(i,j,k) == 1) then
+
+                    if (.not. Me%Depth%Interpolate) then
                 
-                            Me%Field(iP)%Value3DOut(i, j, k) = GetNetCDFValue(Me%Field(iP)%ValueIn,  Dim1 = j+1, &
-                                                                              Dim2 = i+1, Dim3 = kin, Dim4 = 1)
+                        if (Me%Depth%InvertLayers) then
+                            kin = Me%WorkSize%KUB - k + Me%WorkSize%KLB
                         else
-                            ic  = Me%Depth%kmax + 1
-                            do l= Me%Depth%kmax,1,-1
-                            
-                                if (Me%Depth%InvertLayers) then
-                                    kin = Me%Depth%kmax - l + 1
-                                else
-                                    kin = l
-                                endif    
-                                
-                                Depthx = GetCellInDepth(i, j, l,Me%Depth%kmax, iT)
-                                
-                                if (Depthx > -100) then
-                                    
-                                    ic = l
-                                    
-                                    ValueAux(l)= GetNetCDFValue(Me%Field(iP)%ValueIn,  Dim1 = j+1, &
-                                                                Dim2 = i+1, Dim3 = kin, Dim4 = 1)
-                                                                
-                                    DepthAux(l)= Depthx
-                                else
-                                    exit
-                                endif
-                            enddo
-                            
-                            if (ic > Me%Depth%kmax) then
-                                stop 'WriteFieldAllInst - ModuleNetCDFCF_2_HDF5MOHID - ERR10' 
-                            endif
-
-                            Me%Field(iP)%Value3DOut(i, j, k) = InterpolateProfileR8 (Me%Depth%ZLevels(k), &
-                                                               Me%Depth%kmax-ic+1, DepthAux(ic:Me%Depth%kmax), &
-                                                               ValueAux(ic:Me%Depth%kmax))
-                        endif
-                                                                              
-                        Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%Add +           &
-                            Me%Field(iP)%Value3DOut(i, j, k)* Me%Field(iP)%Multiply
-                        
-                        Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%Value3DOut(i, j, k) * Me%Field(iP)%UnitsScale
-                        
-                        if (Me%Field(iP)%Value3DOut(i, j, k) < Me%Field(iP)%MinValue) then
-                            Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%MinValue
-                        endif                                     
-
-                    else 
-                        Me%Field(iP)%Value3DOut(i, j, k) = FillValueReal
-                    endif                
-                enddo
-                enddo
-                enddo
+                            kin = k
+                        endif    
                 
-                if (Me%Depth%Interpolate) deallocate(DepthAux, ValueAux)
-                
-            else if  (Me%Field(iP)%Dim==2) then
-            
-                do j= Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i= Me%WorkSize%ILB, Me%WorkSize%IUB
-                
-                    if (Me%Depth%Dim3D) then
-                        mask = Me%Mapping%Value3DOut(i,j,Me%WorkSize%KUB)
+                        Me%Field(iP)%Value3DOut(i, j, k) = GetNetCDFValue(Me%Field(iP)%ValueIn,  Dim1 = j+1, &
+                                                                            Dim2 = i+1, Dim3 = kin, Dim4 = 1)
                     else
-                        mask = Me%Mapping%Value2DOut(i,j)
+                        ic  = Me%Depth%kmax + 1
+                        do l= Me%Depth%kmax,1,-1
+                            
+                            if (Me%Depth%InvertLayers) then
+                                kin = Me%Depth%kmax - l + 1
+                            else
+                                kin = l
+                            endif    
+                                
+                            Depthx = GetCellInDepth(i, j, l,Me%Depth%kmax, iT)
+                                
+                            if (Depthx > -100) then
+                                    
+                                ic = l
+                                    
+                                ValueAux(l)= GetNetCDFValue(Me%Field(iP)%ValueIn,  Dim1 = j+1, &
+                                                            Dim2 = i+1, Dim3 = kin, Dim4 = 1)
+                                                                
+                                DepthAux(l)= Depthx
+                            else
+                                exit
+                            endif
+                        enddo
+                            
+                        if (ic > Me%Depth%kmax) then
+                            stop 'WriteFieldAllInst - ModuleNetCDFCF_2_HDF5MOHID - ERR10' 
+                        endif
+
+                        Me%Field(iP)%Value3DOut(i, j, k) = InterpolateProfileR8 (Me%Depth%ZLevels(k), &
+                                                            Me%Depth%kmax-ic+1, DepthAux(ic:Me%Depth%kmax), &
+                                                            ValueAux(ic:Me%Depth%kmax))
                     endif
                     
-                    if (mask == 1) then
-                        if (Me%Field(iP)%ValueIn%Dim == 3) then
-                            Me%Field(iP)%Value2DOut(i, j) = GetNetCDFValue(Me%Field(iP)%ValueIn,  &
-                                                                Dim1 = j+1, Dim2 = i+1, Dim3 = 1)
-                        else
-                            Me%Field(iP)%Value2DOut(i, j) = GetNetCDFValue(Me%Field(iP)%ValueIn,  &
-                                                                Dim1 = j+1, Dim2 = i+1, Dim3 = 1, Dim4 = 1)
-                        endif
-                        Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%Value2DOut(i, j) * Me%Field(iP)%Multiply + Me%Field(iP)%Add
+                    Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%Value3DOut(i, j, k) * Me%Field(iP)%Multiply 
+                    
+                    Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%Value3DOut(i, j, k) + Me%Field(iP)%Add
+                    
+                    Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%Value3DOut(i, j, k) * Me%Field(iP)%UnitsScale
+                    
+                    Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%Value3DOut(i, j, k) + Me%Field(iP)%UnitsAdd 
                         
-                        Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%Value2DOut(i, j) * Me%Field(iP)%UnitsScale
+                    if (Me%Field(iP)%Value3DOut(i, j, k) < Me%Field(iP)%MinValue) then
+                        Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%MinValue
+                    endif                                     
+
+                else 
+                    Me%Field(iP)%Value3DOut(i, j, k) = FillValueReal
+                endif                
+            enddo
+            enddo
+            enddo
+                
+            if (Me%Depth%Interpolate) deallocate(DepthAux, ValueAux)
+                
+        else if  (Me%Field(iP)%Dim==2) then
+            
+            do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i= Me%WorkSize%ILB, Me%WorkSize%IUB
+                
+                if (Me%Depth%Dim3D) then
+                    mask = Me%Mapping%Value3DOut(i,j,Me%WorkSize%KUB)
+                else
+                    mask = Me%Mapping%Value2DOut(i,j)
+                endif
+                    
+                if (mask == 1) then
+                    if (Me%Field(iP)%ValueIn%Dim == 3) then
+                        Me%Field(iP)%Value2DOut(i, j) = GetNetCDFValue(Me%Field(iP)%ValueIn,  &
+                                                            Dim1 = j+1, Dim2 = i+1, Dim3 = 1)
+                    else
+                        Me%Field(iP)%Value2DOut(i, j) = GetNetCDFValue(Me%Field(iP)%ValueIn,  &
+                                                            Dim1 = j+1, Dim2 = i+1, Dim3 = 1, Dim4 = 1)
+                    endif
+                    Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%Value2DOut(i, j) * Me%Field(iP)%Multiply + Me%Field(iP)%Add
                         
-                        if (Me%Field(iP)%Value2DOut(i, j) < Me%Field(iP)%MinValue) then
-                            Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%MinValue
-                        endif                              
+                    Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%Value2DOut(i, j) * Me%Field(iP)%UnitsScale + Me%Field(iP)%UnitsAdd
+                        
+                    if (Me%Field(iP)%Value2DOut(i, j) < Me%Field(iP)%MinValue) then
+                        Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%MinValue
+                    endif                              
                         
                                                          
-                    else 
-                        Me%Field(iP)%Value2DOut(i, j) = FillValueReal
-                    endif                
+                else 
+                    Me%Field(iP)%Value2DOut(i, j) = FillValueReal
+                endif                
                     
-                enddo
-                enddo
+            enddo
+            enddo
                 
-            endif
+        endif
 
             
-            if (Me%Field(iP)%CenterX) then
+        if (Me%Field(iP)%CenterX) then
             
-                call CenterProp(iP, CenterX = .true.)
+            call CenterProp(iP, CenterX = .true.)
             
-            endif
+        endif
             
-            if (Me%Field(iP)%CenterY) then
+        if (Me%Field(iP)%CenterY) then
             
-                call CenterProp(iP, CenterY = .true.)            
+            call CenterProp(iP, CenterY = .true.)            
             
-            endif
+        endif
             
-            if (Me%OutHDF5) then
-                call WriteFieldHDF5  (iP, iFinal)    
-            endif
+        if (Me%OutHDF5) then
+            call WriteFieldHDF5  (iP, iFinal)    
+        endif
 
-            if (Me%OutNetCDF) then
-                call WriteFieldNetCDF(iP, iFinal)    
-            endif
- !       enddo    
+        if (Me%OutNetCDF) then
+            call WriteFieldNetCDF(iP, iFinal)    
+        endif
  
-            if      (Me%Field(iP)%Dim==3) then
-                deallocate(Me%Field(iP)%Value3DOut)
-            else if (Me%Field(iP)%Dim==2) then 
-                deallocate(Me%Field(iP)%Value2DOut)
-            endif    
+        if      (Me%Field(iP)%Dim==3) then
+            deallocate(Me%Field(iP)%Value3DOut)
+        else if (Me%Field(iP)%Dim==2) then 
+            deallocate(Me%Field(iP)%Value2DOut)
+        endif    
     
     end subroutine WriteFieldAllInst
 !------------------------------------------------------------------------
@@ -4788,25 +5480,50 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB,        &
                                              Me%WorkSize%KLB, Me%WorkSize%KUB,          &
                                              STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'WriteGrid3DHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
+            if (STAT_CALL /= SUCCESS_)stop 'WriteGrid3DHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
 
 
             call HDF5WriteData  (Me%ObjHDF5, "/Grid",                                   &
                                  "WaterPoints3D", "-",                                  &
                                  Array3D = Mask3D,                                      &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'WriteGrid3DHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+            if (STAT_CALL /= SUCCESS_)stop 'WriteGrid3DHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
 
             if (Me%WindowOut%ON) deallocate(Mask3D)
             nullify(Mask3D)            
        
         else
+            
+            if (Me%Mapping%From2D_To_3D) then
+                
+                allocate(Mask3D(WorkILB:WorkIUB, WorkJLB:WorkJUB, 0:2))
+                
+                call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB,        &
+                                     1, 1, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'WriteGrid3DHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR40'   
 
-            call HDF5WriteData  (Me%ObjHDF5, "/Grid",                                   &
-                                 "WaterPoints2D", "-",                                  &
-                                 Array2D = Mask2D,                                      &
-                                 STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'WriteGrid3DHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                do j = WorkJLB, WorkJUB
+                do i = WorkILB, WorkIUB
+                    Mask3D(i,j,1) = Mask2D(i, j)
+                enddo
+                enddo
+                
+                call HDF5WriteData  (Me%ObjHDF5, "/Grid",                                   &
+                                     "WaterPoints3D", "-",                                  &
+                                     Array3D = Mask3D,                                      &
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'WriteGrid3DHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                                
+                
+            else                
+
+                call HDF5WriteData  (Me%ObjHDF5, "/Grid",                                   &
+                                     "WaterPoints2D", "-",                                  &
+                                     Array2D = Mask2D,                                      &
+                                     STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_)stop 'WriteGrid3DHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
+                
+            endif                
         
             if (Me%WindowOut%ON) deallocate(Mask2D)
             nullify(Mask2D)
@@ -4975,10 +5692,13 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
             call GetNetCDFMatrix(ncid, n, Me%Date%ValueIn) 
             
             if (Me%Date%RefAttribute) then
-            
-                status=NF90_GET_ATT(ncid,n,trim(Me%Date%RefAttributeName), ref_date)
-                if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
-                
+
+                if (Me%Date%RefDateName ==  trim(null_str)) then
+                    status=NF90_GET_ATT(ncid,n,trim(Me%Date%RefAttributeName), ref_date)
+                    if (status /= nf90_noerr) stop 'ReadTimeNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+                else
+                    ref_date = trim(Me%Date%RefDateName) 
+                endif
                 
                 
                 tmax = len_trim(ref_date)
@@ -5808,10 +6528,20 @@ i2:                 if (Me%Depth%Interpolate) then
                 
         if (Me%Bathym%ON) then 
             
-            call AllocateValueIn(Me%Bathym%ValueIn, Dim1 = Me%LongLat%jmax, Dim2 = Me%LongLat%imax)
-
             status = nf90_inq_varid(ncid, trim(Me%Bathym%NetCDFName), bn)
-            if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'            
+            if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR60'      
+
+            status = nf90_inquire_variable(ncid, bn, ndims = Me%Bathym%ValueIn%Dim)
+            if (status /= nf90_noerr) stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR70'
+
+            if      (Me%Bathym%ValueIn%Dim == 2) then
+                call AllocateValueIn(Me%Bathym%ValueIn, Dim1 = Me%LongLat%jmax, Dim2 = Me%LongLat%imax)
+            elseif  (Me%Bathym%ValueIn%Dim == 3) then
+                call AllocateValueIn(Me%Bathym%ValueIn, Dim1 = Me%LongLat%jmax, Dim2 = Me%LongLat%imax, Dim3 = Me%Date%NumberInst)
+            else
+                stop 'ReadBathymNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
+            endif                
+
             
             call GetNetCDFMatrix(ncid, bn, Me%Bathym%ValueIn) 
             
@@ -5821,14 +6551,39 @@ i2:                 if (Me%Depth%Interpolate) then
         allocate(Me%Bathym%Value2DOut(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
         
         if (Me%Bathym%ON) then 
+            
+            if      (Me%Bathym%ValueIn%Dim == 2) then            
         
-            do j= Me%WorkSize%JLB, Me%WorkSize%JUB
-            do i= Me%WorkSize%ILB, Me%WorkSize%IUB
-                Me%Bathym%Value2DOut(i,j) = GetNetCDFValue(Me%Bathym%ValueIn,  Dim1 = j+1, Dim2 = i+1)
+                do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i= Me%WorkSize%ILB, Me%WorkSize%IUB
+                    Me%Bathym%Value2DOut(i,j) = GetNetCDFValue(Me%Bathym%ValueIn,  Dim1 = j+1, Dim2 = i+1)
                 
-                if (Me%Bathym%Value2DOut(i,j) < -50) Me%Bathym%Value2DOut(i,j) = -99.
-            enddo
-            enddo
+                    if (Me%Bathym%Value2DOut(i,j) < -50) Me%Bathym%Value2DOut(i,j) = -99.
+                enddo
+                enddo
+                                    
+            elseif  (Me%Bathym%ValueIn%Dim == 3) then
+
+                do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i= Me%WorkSize%ILB, Me%WorkSize%IUB
+                    Me%Bathym%Value2DOut(i,j) = GetNetCDFValue(Me%Bathym%ValueIn,  Dim1 = j+1, Dim2 = i+1, Dim3 = 1)
+                
+                    if (Me%Bathym%Value2DOut(i,j) < -98) Me%Bathym%Value2DOut(i,j) = -99.
+                enddo
+                enddo
+            endif    
+            
+            if (Me%Bathym%InvertReferential) then
+                
+                do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i= Me%WorkSize%ILB, Me%WorkSize%IUB
+                    if (Me%Bathym%Value2DOut(i,j) > -98) then
+                        Me%Bathym%Value2DOut(i,j) = - Me%Bathym%Value2DOut(i,j)
+                    endif                        
+                enddo
+                enddo
+                                    
+            endif
         
         else
 
@@ -5848,6 +6603,7 @@ i2:                 if (Me%Depth%Interpolate) then
         integer                                 :: ncid, iP
         logical                                 :: WriteProp
         integer                                 :: inst
+        real(8)                                 :: Aux
         
         !Local-----------------------------------------------------------------
         integer                                 :: status, pn, numDims, Layer
@@ -5905,6 +6661,20 @@ i2:                 if (Me%Depth%Interpolate) then
             endif                
             WriteProp = .true.
         endif
+        
+            
+        !Read add_ofset
+        status=NF90_GET_ATT(ncid,pn,"add_offset", Aux)
+        if (status == nf90_noerr) then
+            Me%Field(iP)%Add = Aux
+        endif            
+            
+        !Read scale_factor
+        status=NF90_GET_ATT(ncid,pn,"scale_factor", Aux)
+        if (status == nf90_noerr) then
+            Me%Field(iP)%Multiply = Aux
+        endif            
+
         
     end subroutine ReadFieldNetCDF
 
@@ -7074,8 +7844,54 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             WorkJLB = 1
             WorkJUB = Me%WindowOut%JUB - Me%WindowOut%JLB + 1
         endif
+        
+        if (Me%Field(ip)%From2D_To_3D) then
+            
+            allocate(Aux3D(WorkILB:WorkIUB, WorkJLB:WorkJUB, 0:2))
+            
 
-        if      (Me%Field(iP)%Dim==2) then
+            if (Me%WindowOut%ON) then
+
+                do j = WorkJLB, WorkJUB
+                do i = WorkILB, WorkIUB                
+                    Aux3D(i,j,1) = Me%Field(iP)%Value2DOut(i+ Me%WindowOut%ILB - 1,j+ Me%WindowOut%JLB - 1)
+                enddo
+                enddo
+            else
+                do j = WorkJLB, WorkJUB
+                do i = WorkILB, WorkIUB                
+                    Aux3D(i,j,1) = Me%Field(iP)%Value2DOut(i,j)
+                enddo
+                enddo
+            endif  
+            
+            do j = WorkJLB, WorkJUB
+            do i = WorkILB, WorkIUB  
+                if (Me%Mapping%Value2DOut(i+ Me%WindowOut%ILB - 1,j+ Me%WindowOut%JLB - 1) == 0) then
+                    Aux3D(i,j,1) = FillValueReal
+                endif
+            enddo
+            enddo
+        
+            call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB,                 &
+                                 WorkJUB, 1, 1, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR01'        
+            
+            if (Me%Field(iP)%Accumulated2StepGFS) then
+                stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR55'
+            endif                
+
+            call HDF5WriteData  (Me%ObjHDF5, "/Results/"//trim(Me%Field(iP)%ID%Name),   &
+                                 trim(Me%Field(iP)%ID%Name),                            &
+                                 trim(Me%Field(iP)%ID%Units),                           &
+                                 Array3D = Aux3D,                                       &
+                                 OutputNumber = iFinal, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR05'
+            
+            deallocate(Aux3D)
+            
+
+        elseif  (Me%Field(iP)%Dim==2) then
         
         
             call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB, STAT = STAT_CALL)
@@ -7305,6 +8121,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             if (STAT_CALL /= SUCCESS_) stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR60'
             
             if (Me%WindowOut%ON) deallocate(Aux3D)
+            
         else 
 
             stop 'WriteFieldHDF5 - ModuleNetCDFCF_2_HDF5MOHID - ERR70'
@@ -7726,8 +8543,10 @@ if1:   if(present(Int2D) .or. present(Int3D))then
             if (associated(Me%Mapping%Value3DOut )) deallocate(Me%Mapping%Value3DOut)
 
             do ip = 1, Me%PropNumber   
-                if (associated(Me%Field(iP)%Value2DOut)) deallocate(Me%Field(iP)%Value2DOut)
-                if (associated(Me%Field(iP)%Value3DOut)) deallocate(Me%Field(iP)%Value3DOut)
+                if (associated(Me%Field(iP)%Value2DOut          )) deallocate(Me%Field(iP)%Value2DOut          )
+                if (associated(Me%Field(iP)%Value3DOut          )) deallocate(Me%Field(iP)%Value3DOut          )
+                if (associated(Me%Field(ip)%EnergyStartingHours )) deallocate(Me%Field(iP)%EnergyStartingHours )
+                !if (associated(Me%Field(ip)%AvModelStartingHours)) deallocate(Me%Field(iP)%AvModelStartingHours)
             enddo
             deallocate(Me%Field)
 

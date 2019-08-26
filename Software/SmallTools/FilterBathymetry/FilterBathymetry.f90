@@ -41,7 +41,7 @@ program MohidBatimFilter
     !Filter methods
     integer                                     :: SigmaSmooth_     = 1
     integer                                     :: Average_         = 2    
-    integer                                     :: Percentile50_    = 3
+    integer                                     :: Percentile_      = 3
     
 
     !Instances
@@ -69,6 +69,7 @@ program MohidBatimFilter
     real                                        :: SlopeLimit, Hmin, Hmax
     integer                                     :: FilterMethod
     logical                                     :: PersistentFilter
+    real                                        :: PercentileValue
 
     !Working variables
     integer, dimension(:,:), pointer            :: WaterPoints2D
@@ -139,6 +140,7 @@ program MohidBatimFilter
                      SearchType   = FromFile,                           &
                      keyword      = 'FILTER_RADIUS',                    &
                      ClientModule = 'MohidBatimFilter',                 &
+                     Default      = 2,                                  &
                      STAT         = STAT_CALL)        
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - MohidBatimFilter - ERR40'
 
@@ -175,12 +177,27 @@ program MohidBatimFilter
                      Default      = SigmaSmooth_,                                       &
                      ClientModule = 'MohidBatimFilter',                                 &
                      STAT         = STAT_CALL)        
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - MohidBatimFilter - ERR75'
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - MohidBatimFilter - ERR71'
         
         if (FilterMethod /= SigmaSmooth_ .and.                                          &
             FilterMethod /= Average_     .and.                                          &
-            FilterMethod /= Percentile50_) then
-            stop 'ReadOptions - MohidBatimFilter - ERR76'
+            FilterMethod /= Percentile_) then
+            stop 'ReadOptions - MohidBatimFilter - ERR72'
+        endif
+            
+        if (FilterMethod == Percentile_) then    
+            call GetData(PercentileValue,                                               &
+                         ObjEnterData, iflag   ,                                        &
+                         SearchType   = FromFile,                                       &
+                         keyword      = 'PERCENTILE_VALUE',                             &
+                         Default      = 0.5,                                            &
+                         ClientModule = 'MohidBatimFilter',                             &
+                         STAT         = STAT_CALL)        
+            if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - MohidBatimFilter - ERR73'            
+        endif
+        
+        if (PercentileValue < 0 .or. PercentileValue > 1) then
+            stop 'ReadOptions - MohidBatimFilter - ERR74'            
         endif
     
 
@@ -334,7 +351,7 @@ program MohidBatimFilter
         integer                                     :: i, j, NValues
         real                                        :: AuxSum
         real,   dimension(:), pointer               :: AuxBat
-        integer                                     :: iw, jw, Counter, i50, ii, jj
+        integer                                     :: iw, jw, Counter, iPer, ii, jj
 
         !Begin-----------------------------------------------------------------
         
@@ -382,7 +399,7 @@ program MohidBatimFilter
                                 Counter = Counter + 1
                                 if     (FilterMethod == Average_) then                                
                                     AuxSum  = AuxSum  + Bathymetry(iw, jw)
-                                elseif (FilterMethod == Percentile50_) then         
+                                elseif (FilterMethod == Percentile_) then         
                                     AuxBat(Counter) =  Bathymetry(iw, jw)
                                 endif                                    
                             endif
@@ -393,11 +410,11 @@ program MohidBatimFilter
                     enddo
                     if      (FilterMethod == Average_) then                                
                         NewBathymetry(i, j) = Factor * Bathymetry(i, j) + (1. - Factor) * AuxSum / real(Counter)
-                    else if (FilterMethod == Percentile50_) then         
+                    else if (FilterMethod == Percentile_) then         
                         call Insertion_Sort(AuxBat)
-                        i50 = int(real(Counter)/2.)
-                        if (i50 > 0) then
-                            NewBathymetry(i, j) = AuxBat(i50)
+                        iPer = int(real(Counter)*PercentileValue)
+                        if (iPer > 0) then
+                            NewBathymetry(i, j) = AuxBat(iPer)
                         endif                            
                     endif  
                     
