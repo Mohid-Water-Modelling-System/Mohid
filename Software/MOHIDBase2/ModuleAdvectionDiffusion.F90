@@ -1676,11 +1676,11 @@ cd2 :   if (Me%State%HorAdv) then
 
 
         if (KUBWS > 1) then
-            if (Me%ExternalVar%NoDifFlux) then
+            !if (Me%ExternalVar%NoDifFlux) then
                 call VerticalDiffusion ()
-            else
-                call VerticalDiffusion2 ()
-            endif
+            !else
+                !call VerticalDiffusion2 ()
+            !endif
             
             if (.not. Me%ExternalVar%AdvectionNudging) then
                 if (.not. Me%Vertical1D) call VerticalAdvection()
@@ -4038,6 +4038,8 @@ doi2 :  do i = ILB, IUB
         KLB = Me%WorkSize%KLB ; KUB = Me%WorkSize%KUB
         
         JLB_Aux = JLB + 1 ; JUB_Aux = JUB + 1
+        
+        UseOptimizedversion = .false.
 
         CHUNK = CHUNK_I(ILB, IUB)
         !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX,DT2,DT1)
@@ -4713,9 +4715,11 @@ doi4 :      do i = ILB, IUB
         !----------------------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorizontalDiffusion")
 
-        call HorizontalDiffusionXX2()
+        !call HorizontalDiffusionXX2()
+        call HorizontalDiffusionXX()
         
-        if (.not. Me%XZFlow) call HorizontalDiffusionYY2()
+        !if (.not. Me%XZFlow) call HorizontalDiffusionYY2()
+        if (.not. Me%XZFlow) call HorizontalDiffusionYY()
                 
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "HorizontalDiffusion")
 

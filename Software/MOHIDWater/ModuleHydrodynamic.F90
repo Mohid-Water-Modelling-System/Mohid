@@ -46277,7 +46277,7 @@ cd4:                if (BoundaryPoints(i, j) == Boundary) then
         integer, dimension(:,:,:), pointer :: WaterPoints3D
         integer, dimension(:,:  ), pointer :: BoundaryPoints
         
-        real                               :: Evolution, DT
+        real                               :: Evolution, DT, AccumulatedDischarge
         logical                            :: DischargesON
         integer                            :: I, J, K, IUB, ILB, JUB, JLB, KUB, KLB
         integer                            :: STAT_CALL
@@ -46294,11 +46294,7 @@ cd4:                if (BoundaryPoints(i, j) == Boundary) then
 
         call GetComputeTimeStep(Me%ObjTime, DT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Modify_VerticalWaterFlow - ModuleHydrodynamic - ERR00.'
-
-        WaterPoints3D     => Me%External_Var%WaterPoints3D
-        BoundaryPoints    => Me%External_Var%BoundaryPoints 
         
-        WaterFlux_Z       => Me%WaterFluxes%Z
         DischargeFlow     => Me%WaterFluxes%Discharges
         !End - Shorten variables name
 
@@ -46331,13 +46327,15 @@ cd4:                if (BoundaryPoints(i, j) == Boundary) then
         endif
         
         if (DischargesON) then
-            !$OMP PARALLEL PRIVATE(i,j,k)
+            !$OMP PARALLEL PRIVATE(i,j,k, AccumulatedDischarge)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
-                if (WaterPoints3D(i, j, KUB) == 1) then
-                    do k = KLB, KUB
-                        WaterFlux_Z(i, j, k + 1) = WaterFlux_Z(i, j, k + 1) + DischargeFlow(i, j, k)
+                if (Me%External_Var%WaterPoints3D(i, j, KUB) == 1) then
+                    AccumulatedDischarge = DischargeFlow(i, j, KLB)
+                    do k = KLB + 1, KUB
+                        Me%WaterFluxes%Z(i, j, k) = Me%WaterFluxes%Z(i, j, k) + AccumulatedDischarge
+                        AccumulatedDischarge      = AccumulatedDischarge      + DischargeFlow(i, j, k)
                     enddo
                 endif
             enddo
@@ -46345,262 +46343,17 @@ cd4:                if (BoundaryPoints(i, j) == Boundary) then
             !$OMP END DO
             !$OMP END PARALLEL
         endif
-        
-        !if Submodel ----------------------------------------------------------------------------------------------
-            
-        !if (Me%SubModel%ON) then
-        !    if (Evolution == 1)then
-        !        call WaterFlux_Z_Submodel_VarGrid (Me%External_Var%Volume_Z_New, Me%External_Var%Volume_Z_Old,   &
-        !                Me%WaterFluxes%X, Me%WaterFluxes%Y, Me%WaterFluxes%Z, Me%SubModel%qX, Me%SubModel%qY,       &
-        !                Me%External_Var%DXX, Me%External_Var%DYY, Me%External_Var%ComputeFaces3D_U,                 &
-        !                Me%External_Var%ComputeFaces3D_V, Me%External_Var%ImposedNormalFacesU,                      &
-        !                Me%External_Var%ImposedNormalFacesV, Me%External_Var%ImposedTangentialFacesU,               &
-        !                Me%External_Var%ImposedTangentialFacesV, Me%External_Var%BoundaryPoints, DT)
-        !    else
-        !        call WaterFlux_Z_Submodel_FixGrid (Me%WaterFluxes%X, Me%WaterFluxes%Y, Me%WaterFluxes%Z,         &
-        !                Me%SubModel%qX, Me%SubModel%qY, Me%External_Var%DXX, Me%External_Var%DYY,                   &
-        !                Me%External_Var%ComputeFaces3D_U, Me%External_Var%ComputeFaces3D_V,                         &
-        !                Me%External_Var%ImposedNormalFacesU, Me%External_Var%ImposedNormalFacesV,                   &
-        !                Me%External_Var%ImposedTangentialFacesU, Me%External_Var%ImposedTangentialFacesV,           &
-        !                Me%External_Var%BoundaryPoints)
-        !    endif
-        !    
-        !    if (DischargesON) then
-        !        !$OMP PARALLEL PRIVATE(i,j,k)
-        !        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        !        do j = JLB, JUB
-        !        do i = ILB, IUB
-        !            if (BoundaryPoints(i, j) == 1) then
-        !                if (WaterPoints3D(i, j, KUB)) then
-        !                    do k = KLB, KUB
-        !                        WaterFlux_Z(i, j, k + 1) = WaterFlux_Z(i, j, k + 1) + DischargeFlow(i, j, k)
-        !                    enddo
-        !                endif
-        !            endif
-        !        enddo
-        !        enddo
-        !        !$OMP END DO
-        !        !$OMP END PARALLEL
-        !    endif
-        !endif
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_VerticalWaterFlow")
         endif
 
         !Nullify auxiliar pointers
-        nullify(WaterPoints3D, WaterFlux_Z, DischargeFlow, BoundaryPoints)
+        nullify(DischargeFlow, BoundaryPoints)
 
     end Subroutine Modify_VerticalWaterFlow
     
     !---------------------------------------------------------------------------------------
-    !>@author Joao Sobrinho Maretec
-    !>@Brief
-    !>Computes vertical waterflow for a variable grid at the boundary when the domain is a subdomain
-    !>@param[in] Volume_Z_New, Volume_Z_Old, WaterFlux_X, WaterFlux_Y, WaterFlux_Z, qX, qY, DXX, DYY, &
-    !>ComputeFaces3D_U, ComputeFaces3D_V, ImposedNormalFacesU, ImposedNormalFacesV, ImposedTangentialFacesU, &                 &
-    !>ImposedTangentialFacesV, BoundaryPoints, DT
-    !subroutine WaterFlux_Z_Submodel_VarGrid (Volume_Z_New, Volume_Z_Old, WaterFlux_X, WaterFlux_Y, WaterFlux_Z, qX, &
-    !    qY, DXX, DYY, ComputeFaces3D_U, ComputeFaces3D_V, ImposedNormalFacesU, ImposedNormalFacesV,                 &
-    !    ImposedTangentialFacesU, ImposedTangentialFacesV, BoundaryPoints, DT)
-    !
-    !    !Arguments-----------------------------------------------------------------
-    !    real(8), dimension(:,:,:), pointer, intent(INOUT) :: WaterFlux_Z
-    !                                          
-    !    real(8), dimension(:,:,:), pointer, intent(IN)    :: Volume_Z_New, Volume_Z_Old,    &
-    !                                                         WaterFlux_X, WaterFlux_Y, qX, qY
-    !
-    !    real,    dimension(:,:)  , pointer, intent(IN)    :: DXX, DYY
-    !
-    !    integer, dimension(:,:,:), pointer, intent(IN)    :: ComputeFaces3D_U, ComputeFaces3D_V,        &
-    !                                                         ImposedNormalFacesU, ImposedNormalFacesV,  &
-    !                                                         ImposedTangentialFacesU, ImposedTangentialFacesV
-    !
-    !    integer, dimension(:,:  ), pointer, intent(IN)    :: BoundaryPoints
-    !    real,                               intent(IN)    :: DT
-    !    !Local---------------------------------------------------------------------
-    !    real(8)                                           :: dVdt, dV, Aux1, Aux2, Aux3,              &
-    !                                                         WestFlux, EastFlux, SouthFlux, NorthFlux
-    !                                          
-    !    integer                                           :: I, J, K, IUB, ILB, JUB, JLB, KUB, KLB, CHUNK
-    !    !Begin--------------------------------------------------------------------------
-    !
-    !    IUB = Me%WorkSize%IUB
-    !    ILB = Me%WorkSize%ILB
-    !    JUB = Me%WorkSize%JUB
-    !    JLB = Me%WorkSize%JLB
-    !    KUB = Me%WorkSize%KUB
-    !    KLB = Me%WorkSize%KLB
-    !    CHUNK = CHUNK_J(JLB, JUB)
-    !    
-    !    !$OMP PARALLEL PRIVATE(i,j,k,dVdt,WestFlux,EastFlux,SouthFlux, NorthFlux, dV, Aux1, Aux2, Aux3)
-    !    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-    !    !Fluxes divergence
-    !    do j = JLB, JUB
-    !    do i = ILB, IUB
-    !
-    !        if (BoundaryPoints(i, j) == 1) then
-    !
-    !            do k = KLB, KUB
-    !
-    !                dV   =  Volume_Z_New(i, j, k) - Volume_Z_Old(i, j, k)
-    !                dVdt =  dV / dble(DT)
-    !                
-    !                !West Face----------------------------------------------------------------------
-    !                Aux1 = WaterFlux_X             (i, j, k)  * dble(ComputeFaces3D_U       (i, j, k))
-    !                Aux2 = qX                      (i, j, k)  * dble(DYY                    (i, j   ))
-    !                Aux3 = dble(ImposedNormalFacesU(i, j, k)) + dble(ImposedTangentialFacesU(i, j, k))
-    !                            
-    !                WestFlux = Aux1 + Aux2 * Aux3
-    !                            
-    !                !East Face-----------------------------------------------------------------------
-    !                Aux1 = WaterFlux_X             (i, j+1, k)  * dble(ComputeFaces3D_U       (i, j+1, k))
-    !                Aux2 = qX                      (i, j+1, k)  * dble(DYY                    (i, j+1   ))
-    !                Aux3 = dble(ImposedNormalFacesU(i, j+1, k)) + dble(ImposedTangentialFacesU(i, j+1, k))
-    !                            
-    !                EastFlux = Aux1 + Aux2 * Aux3
-    !                            
-    !                !Bottom Face
-    !                WaterFlux_Z(i, j, k + 1) = WaterFlux_Z(i, j, k) + WestFlux - EastFlux - dVdt       
-    !            enddo
-    !        endif
-    !    enddo
-    !    enddo
-    !    !$OMP END DO
-    !                
-    !    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-    !    do j = JLB, JUB
-    !    do i = ILB, IUB
-    !
-    !        if (BoundaryPoints(i, j) == 1) then
-    !
-    !            do k = KLB, KUB        
-    !                !South Face----------------------------------------------------------------------
-    !                Aux1 = WaterFlux_Y             (i, j, k)  * dble(ComputeFaces3D_V       (i, j, k))
-    !                Aux2 = qY                      (i, j, k)  * dble(DXX                    (i, j   ))
-    !                Aux3 = dble(ImposedNormalFacesV(i, j, k)) + dble(ImposedTangentialFacesV(i, j, k))
-    !                            
-    !                SouthFlux = Aux1 + Aux2 * Aux3
-    !                            
-    !                !North Face-----------------------------------------------------------------------
-    !                Aux1 = WaterFlux_Y             (i+1, j, k)  * dble(ComputeFaces3D_V       (i+1, j, k))
-    !                Aux2 = qY                      (i+1, j, k)  * dble(DXX                    (i+1, j   ))
-    !                Aux3 = dble(ImposedNormalFacesV(i+1, j, k)) + dble(ImposedTangentialFacesV(i+1, j, k))
-    !                            
-    !                NorthFlux = Aux1 + Aux2 * Aux3
-    !                            
-    !                !Bottom Face
-    !                WaterFlux_Z(i, j, k + 1) = WaterFlux_Z(i, j, k + 1) + SouthFlux - NorthFlux     
-    !            enddo
-    !        endif
-    !    enddo
-    !    enddo
-    !    !$OMP END DO
-    !    !$OMP END PARALLEL
-    !
-    !end subroutine WaterFlux_Z_Submodel_VarGrid
-    !
-    !!--------------------------------------------------------------------------------------
-    !!>@author Joao Sobrinho Maretec
-    !!>@Brief
-    !!>Computes vertical waterflow for a fixed grid at the boundary when the domain is a subdomain
-    !!>@param[in] Volume_Z_New, Volume_Z_Old, WaterFlux_X, WaterFlux_Y, WaterFlux_Z, qX, qY, DXX, DYY, &
-    !!>ComputeFaces3D_U, ComputeFaces3D_V, ImposedNormalFacesU, ImposedNormalFacesV, ImposedTangentialFacesU, &                 &
-    !!>ImposedTangentialFacesV, BoundaryPoints
-    !subroutine WaterFlux_Z_Submodel_FixGrid (WaterFlux_X, WaterFlux_Y, WaterFlux_Z, qX, qY, DXX, DYY,                 &
-    !    ComputeFaces3D_U, ComputeFaces3D_V, ImposedNormalFacesU, ImposedNormalFacesV, ImposedTangentialFacesU,        &
-    !    ImposedTangentialFacesV, BoundaryPoints)
-    !
-    !    !Arguments-----------------------------------------------------------------
-    !    real(8), dimension(:,:,:), pointer, intent(INOUT) :: WaterFlux_Z
-    !                                          
-    !    real(8), dimension(:,:,:), pointer, intent(IN)    :: WaterFlux_X, WaterFlux_Y, qX, qY
-    !
-    !    real,    dimension(:,:)  , pointer, intent(IN)    :: DXX, DYY
-    !
-    !    integer, dimension(:,:,:), pointer, intent(IN)    :: ComputeFaces3D_U, ComputeFaces3D_V,        &
-    !                                                         ImposedNormalFacesU, ImposedNormalFacesV,  &
-    !                                                         ImposedTangentialFacesU, ImposedTangentialFacesV
-    !
-    !    integer, dimension(:,:  ), pointer, intent(IN)    :: BoundaryPoints
-    !    !Local---------------------------------------------------------------------
-    !    real(8)                                           :: Aux1, Aux2, Aux3,              &
-    !                                                         WestFlux, EastFlux, SouthFlux, NorthFlux
-    !                                          
-    !    integer                                           :: I, J, K, IUB, ILB, JUB, JLB, KUB, KLB, CHUNK
-    !    !Begin--------------------------------------------------------------------------
-    !
-    !    IUB = Me%WorkSize%IUB
-    !    ILB = Me%WorkSize%ILB
-    !    JUB = Me%WorkSize%JUB
-    !    JLB = Me%WorkSize%JLB
-    !    KUB = Me%WorkSize%KUB
-    !    KLB = Me%WorkSize%KLB
-    !    CHUNK = CHUNK_J(JLB, JUB)
-    !    
-    !    !$OMP PARALLEL PRIVATE(i,j,k,dVdt,WestFlux,EastFlux,SouthFlux, NorthFlux, dV, Aux1, Aux2, Aux3)
-    !    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-    !    !Fluxes divergence
-    !    do j = JLB, JUB
-    !    do i = ILB, IUB
-    !
-    !        if (BoundaryPoints(i, j) == 1) then
-    !
-    !            do k = KLB, KUB       
-    !                !West Face----------------------------------------------------------------------
-    !                Aux1 = WaterFlux_X             (i, j, k)  * dble(ComputeFaces3D_U       (i, j, k))
-    !                Aux2 = qX                      (i, j, k)  * dble(DYY                    (i, j   ))
-    !                Aux3 = dble(ImposedNormalFacesU(i, j, k)) + dble(ImposedTangentialFacesU(i, j, k))
-    !                            
-    !                WestFlux = Aux1 + Aux2 * Aux3
-    !                            
-    !                !East Face-----------------------------------------------------------------------
-    !                Aux1 = WaterFlux_X             (i, j+1, k)  * dble(ComputeFaces3D_U       (i, j+1, k))
-    !                Aux2 = qX                      (i, j+1, k)  * dble(DYY                    (i, j+1   ))
-    !                Aux3 = dble(ImposedNormalFacesU(i, j+1, k)) + dble(ImposedTangentialFacesU(i, j+1, k))
-    !                            
-    !                EastFlux = Aux1 + Aux2 * Aux3
-    !                            
-    !                !Bottom Face
-    !                WaterFlux_Z(i, j, k + 1) = WaterFlux_Z(i, j, k) + WestFlux - EastFlux
-    !                            
-    !            enddo
-    !        endif
-    !    enddo
-    !    enddo
-    !    !$OMP END DO
-    !                
-    !    !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-    !    do j = JLB, JUB
-    !    do i = ILB, IUB
-    !
-    !        if (BoundaryPoints(i, j) == 1) then
-    !
-    !            do k = KLB, KUB        
-    !                !South Face----------------------------------------------------------------------
-    !                Aux1 = WaterFlux_Y             (i, j, k)  * dble(ComputeFaces3D_V       (i, j, k))
-    !                Aux2 = qY                      (i, j, k)  * dble(DXX                    (i, j   ))
-    !                Aux3 = dble(ImposedNormalFacesV(i, j, k)) + dble(ImposedTangentialFacesV(i, j, k))
-    !                            
-    !                WestFlux = Aux1 + Aux2 * Aux3
-    !                            
-    !                !North Face-----------------------------------------------------------------------
-    !                Aux1 = WaterFlux_Y             (i+1, j, k)  * dble(ComputeFaces3D_V       (i+1, j, k))
-    !                Aux2 = qY                      (i+1, j, k)  * dble(DXX                    (i+1, j   ))
-    !                Aux3 = dble(ImposedNormalFacesV(i+1, j, k)) + dble(ImposedTangentialFacesV(i+1, j, k))
-    !                            
-    !                EastFlux = Aux1 + Aux2 * Aux3
-    !                            
-    !                !Bottom Face
-    !                WaterFlux_Z(i, j, k + 1) = WaterFlux_Z(i, j, k + 1) + SouthFlux - NorthFlux
-    !                            
-    !            enddo
-    !        endif
-    !    enddo
-    !    enddo
-    !    !$OMP END DO
-    !    !$OMP END PARALLEL
-    !end subroutine WaterFlux_Z_Submodel_FixGrid
     
     !----------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
@@ -46633,7 +46386,7 @@ cd4:                if (BoundaryPoints(i, j) == Boundary) then
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
-            if (Me%External_Var%WaterPoints3D(i, j, KUB) == 1) then
+            if (Me%External_Var%WaterPoints3D(i, j, k) == 1) then
                 
                 dV   =  Volume_Z_New(i, j, k) - Volume_Z_Old(i, j, k)
                 dVdt =   dV / dble(DT)
@@ -46678,9 +46431,9 @@ cd4:                if (BoundaryPoints(i, j) == Boundary) then
         !$OMP PARALLEL PRIVATE(i,j,k, WestFace, EastFace, SouthFace, NorthFace)
         do k = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        do i = ILB, IUB
         do j = JLB, JUB
-            if (Me%External_Var%WaterPoints3D(i, j, KUB) == 1) then
+        do i = ILB, IUB
+            if (Me%External_Var%WaterPoints3D(i, j, k) == 1) then
 
                 WestFace  = WaterFlux_X(i  , j  , k) * dble(ComputeFaces3D_U(i  , j  , k))
                 EastFace  = WaterFlux_X(i  , j+1, k) * dble(ComputeFaces3D_U(i  , j+1, k))
@@ -46720,20 +46473,6 @@ cd4:                if (BoundaryPoints(i, j) == Boundary) then
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Filter_3D_Fluxes")
         endif
-
-        !!$OMP PARALLEL PRIVATE(i,j,k)
-        !do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-        !!$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        !do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-        !do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-        !    !Vertical flux null at the open boundary points
-        !    Me%WaterFluxes%Z(i, j, k + 1) = Me%WaterFluxes%Z(i, j, k + 1) *    &
-        !                                    (1. - Me%External_Var%BoundaryPoints(i, j))
-        !enddo
-        !enddo
-        !!$OMP END DO
-        !enddo
-        !!$OMP END PARALLEL
         
         !$OMP PARALLEL PRIVATE(i,j,k)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
