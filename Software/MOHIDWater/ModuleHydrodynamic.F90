@@ -26810,7 +26810,8 @@ cd2D:   if (KUB == 1) then !If the model is 2D then the implicit direction is in
 
             ! Use CUDA to solve the Thomas algorithm, ID of ModuleCuda is needed
             ! Save results while computing velocity in X direction
-            call THOMASZ(ILB, IUB, JLB, JUB, KLB, KUB, Me%THOMAS, Velocity_UV_New       &
+            call THOMASZ_NewType2(ILB, IUB, JLB, JUB, KLB, KUB, Me%THOMAS, Velocity_UV_New, &
+                                  Me%External_Var%OpenPoints3D  &
 #ifdef _ENABLE_CUDA
                          , Me%ObjCuda,                                                  &
                          .FALSE.                                                        &
@@ -46333,7 +46334,7 @@ cd4:                if (BoundaryPoints(i, j) == Boundary) then
             do i = ILB, IUB
                 if (Me%External_Var%WaterPoints3D(i, j, KUB) == 1) then
                     AccumulatedDischarge = DischargeFlow(i, j, KLB)
-                    do k = KLB + 1, KUB
+                    do k = KLB + 1, KUB + 1
                         Me%WaterFluxes%Z(i, j, k) = Me%WaterFluxes%Z(i, j, k) + AccumulatedDischarge
                         AccumulatedDischarge      = AccumulatedDischarge      + DischargeFlow(i, j, k)
                     enddo

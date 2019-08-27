@@ -33,7 +33,7 @@ Module ModuleAdvectionDiffusion
     use ModuleGlobalData
     use ModuleFunctions     , only : OrlanskiCelerity2D, THOMAS_3D, THOMASZ, ComputeAdvection1D_V2,     &
                                      SetMatrixValue, Chunk_J, Chunk_K, Chunk_I, T_THOMAS, T_VECGW, T_D_E_F, Pad, &
-                                     ComputeAdvection1D_TVD_Superbee
+                                     ComputeAdvection1D_TVD_Superbee, THOMASZ_NewType2
     use ModuleTime          , only : GetComputeCurrentTime, T_Time, KillComputeTime, &
                                      null_time, operator(+), operator(-),            &
                                      operator (.eq.), operator (.ne.)
@@ -1819,11 +1819,21 @@ cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitSchem
             ! If the model is 3D the vertical diffusion must be implicit so is necessary to 
             ! compute the vertical diffusion  implicitly
             
-            call THOMASZ(ILBWS, IUBWS,                                                  &
+!            call THOMASZ(ILBWS, IUBWS,                                                  &
+!                         JLBWS, JUBWS,                                                  &
+!                         KLBWS, KUBWS,                                                  &
+!                         Me%THOMAS,                                                     &
+!                         Me%ExternalVar%PROP                                            &
+!#ifdef _ENABLE_CUDA
+!                         , Me%ObjCuda,                                                  &
+!                         .FALSE.                                                        &
+!#endif _ENABLE_CUDA
+!                        )
+            call THOMASZ_NewType2(ILBWS, IUBWS,                                         &
                          JLBWS, JUBWS,                                                  &
                          KLBWS, KUBWS,                                                  &
                          Me%THOMAS,                                                     &
-                         Me%ExternalVar%PROP                                            &
+                         Me%ExternalVar%PROP, Me%ExternalVar%OpenPoints3D               &
 #ifdef _ENABLE_CUDA
                          , Me%ObjCuda,                                                  &
                          .FALSE.                                                        &
@@ -4814,8 +4824,8 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !$OMP PARALLEL PRIVATE(i,j,k,AuxJ, Gradient) 
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExternalVar%ComputeFacesU3D(i, j, k) == 1) then
                 
                 Gradient  = Me%ExternalVar%PROP(i, j, k) -  Me%ExternalVar%PROP   (i, j-1, k)
