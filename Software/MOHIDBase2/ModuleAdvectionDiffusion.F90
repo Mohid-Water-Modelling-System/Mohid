@@ -1640,8 +1640,7 @@ cd5 :       if (Me%State%CellFluxes) then
         !Local-----------------------------------------------------------------
         integer                             :: ILBWS, IUBWS, JLBWS, JUBWS, KLBWS, KUBWS
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                             :: i, j, k, di, dj
-        integer                             :: CHUNK
+        integer                             :: di, dj
         integer                             :: STAT_CALL
 
         !----------------------------------------------------------------------
@@ -1749,28 +1748,31 @@ cd2 :   if (Me%State%HorAdv) then
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_1")
 
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_2")
+        
+!        ! At this stage the variable TICOEF3 have null values in the land points
+!        ! We want that all proprieties in land points have the value of Null_Real.
+        call SetMatrixValue (Me%TICOEF3, Me%Size, Null_Real, Me%ExternalVar%LandPoints3D)
 
-        CHUNK = CHUNK_J(JLB,JUB)
-        !$OMP PARALLEL PRIVATE(i,j,k)
+!        CHUNK = CHUNK_J(JLB,JUB)
+!        !$OMP PARALLEL PRIVATE(i,j,k)
+!
 
-        ! At this stage the variable TICOEF3 have null values in the land points
-        ! We want that all proprieties in land points have the value of Null_Real.
-dok7 :  do k = KLB, KUB
-        !$OMP DO SCHEDULE (DYNAMIC,CHUNK)
-doj7 :  do j = JLB, JUB
-doi7 :  do i = ILB, IUB
-
-            if (Me%ExternalVar%LandPoints3D(i,j,k) == 1) then
-                Me%TICOEF3(i,j,k)= Null_Real
-            endif
-
-                 
-        end do doi7
-        end do doj7
-        !$OMP END DO NOWAIT
-        end do dok7
-
-        !$OMP END PARALLEL
+!dok7 :  do k = KLB, KUB
+!        !$OMP DO SCHEDULE (DYNAMIC,CHUNK)
+!doj7 :  do j = JLB, JUB
+!doi7 :  do i = ILB, IUB
+!
+!            if (Me%ExternalVar%LandPoints3D(i,j,k) == 1) then
+!                Me%TICOEF3(i,j,k)= Null_Real
+!            endif
+!
+!                 
+!        end do doi7
+!        end do doj7
+!        !$OMP END DO NOWAIT
+!        end do dok7
+!
+!        !$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_2")
 
@@ -2721,19 +2723,6 @@ nulldif:If (Me%ExternalVar%NullDif) Then
         !--------------------------------------------------------------------------
 
     end function SmallDepthCell
-    
-    !logical function SmallDepthCell2 (i, j) 
-    !
-    !    !Arguments-------------------------------------------------------------
-    !    integer                             :: i, j
-    !
-    !    !Begin-----------------------------------------------------------------
-    !
-    !    SmallDepthCell2 = Me%ExternalVar%SmallDepths(i,j)
-    !    
-    !    !--------------------------------------------------------------------------
-    !
-    !end function SmallDepthCell2 
 
     !--------------------------------------------------------------------------
     !
@@ -3159,13 +3148,13 @@ doi3 :          do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 if (Me%ExternalVar%ComputeFacesW3D(i, j  , Me%WorkSize%KUB) == 1) then
                     !Start at the first computefacesW3D
                     Kbottom = Me%ExternalVar%KFloorZ(i, j)
-                    Volume_BottomCell = Me%ExternalVar%VolumeZ(i,j,Kbottom)
-                    PROP_BottomCell   = Me%ExternalVar%PROP    (i,   j, Kbottom)
+                    Volume_BottomCell = Me%ExternalVar%VolumeZ(i, j, Kbottom)
+                    PROP_BottomCell   = Me%ExternalVar%PROP   (i, j, Kbottom)
                         
                     do k = Kbottom + 1, Me%WorkSize%KUB
                         !                                               Me%ExternalVar%PROP(i, j, k - 1)
-                        AdvFluxZ = (Me%COEF3_VertAdv%D_flux(i, j, k) *  PROP_BottomCell                                          &
-                                 +  Me%COEF3_VertAdv%E_flux(i, j, k) *  Me%ExternalVar%PROP(i, j, k    ))                    &
+                        AdvFluxZ = (Me%COEF3_VertAdv%D_flux(i, j, k) *  PROP_BottomCell                     &
+                                 +  Me%COEF3_VertAdv%E_flux(i, j, k) *  Me%ExternalVar%PROP(i, j, k    ))   &
                                  *  Me%ExternalVar%DTProp
                             
                         Me%TICOEF3(i,j,k-1) = Me%TICOEF3(i,j,k-1) - AdvFluxZ / Volume_BottomCell
@@ -3999,6 +3988,22 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "VolumeVariation")
 
         CHUNK = Chunk_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+        
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%ExternalVar%OpenPoints3D(i, j, Me%WorkSize%KUB) == 1) then
+                
+                DT_V              = dble(Me%ExternalVar%DTProp) / Me%ExternalVar%VolumeZ(i,j,k)
+                Me%COEF3%E(i,j,k) = Me%COEF3%E(i,j,k) + DT_V * Me%ExternalVar%Wflux_Z(i,j,Me%WorkSize%KUB+1)
+                
+            else
+                
+            endif
+            
+            
+        end do
+        end do
+        
         !$OMP PARALLEL PRIVATE(i,j,k,DT_V) 
 
 dok1:   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
@@ -4202,7 +4207,7 @@ fl:                         if (Flow > 0.) then
             if (.not. Me%XZFlow) call HorizontalAdvectionYY(ImpExp_AdvYY)
         else
             if (.not. Me%XZFlow) call HorizontalAdvectionYY_Nudge(ImpExp_AdvYY)
-    endif
+        endif
 
 cd1:    if (ImpExp_AdvYY == ImplicitScheme .or. ImpExp_AdvXX == ImplicitScheme) then 
 
@@ -6173,7 +6178,8 @@ cd1 :   if (ready_ /= OFF_ERR_) then
                 deallocate(Me%TICOEF3, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                             &
                     stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR21'
-                nullify   (Me%TICOEF3) 
+                nullify   (Me%TICOEF3)
+                
 #endif
                 deallocate(Me%AdvectionTi,Me%AdvectionE, Me%AdvectionD, Me%AdvectionF)
                 nullify   (Me%AdvectionTi,Me%AdvectionE, Me%AdvectionD, Me%AdvectionF) 
