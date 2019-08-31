@@ -1753,27 +1753,6 @@ cd2 :   if (Me%State%HorAdv) then
 !        ! We want that all proprieties in land points have the value of Null_Real.
         call SetMatrixValue (Me%TICOEF3, Me%Size, Null_Real, Me%ExternalVar%LandPoints3D)
 
-!        CHUNK = CHUNK_J(JLB,JUB)
-!        !$OMP PARALLEL PRIVATE(i,j,k)
-!
-
-!dok7 :  do k = KLB, KUB
-!        !$OMP DO SCHEDULE (DYNAMIC,CHUNK)
-!doj7 :  do j = JLB, JUB
-!doi7 :  do i = ILB, IUB
-!
-!            if (Me%ExternalVar%LandPoints3D(i,j,k) == 1) then
-!                Me%TICOEF3(i,j,k)= Null_Real
-!            endif
-!
-!                 
-!        end do doi7
-!        end do doj7
-!        !$OMP END DO NOWAIT
-!        end do dok7
-!
-!        !$OMP END PARALLEL
-
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_2")
 
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_TH")
@@ -3980,7 +3959,7 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Local-----------------------------------------------------------------
         real(8)                                     :: DT_V
-        integer                                     :: i, j, k
+        integer                                     :: i, j, k, KUBSup
         integer                                     :: CHUNK
 
         !----------------------------------------------------------------------
@@ -3989,23 +3968,27 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         CHUNK = Chunk_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
         
+        KUBSup = Me%WorkSize%KUB+1
+        
+        !$OMP PARALLEL PRIVATE(i,j,k,DT_V) 
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExternalVar%OpenPoints3D(i, j, Me%WorkSize%KUB) == 1) then
-                
-                DT_V              = dble(Me%ExternalVar%DTProp) / Me%ExternalVar%VolumeZ(i,j,k)
-                Me%COEF3%E(i,j,k) = Me%COEF3%E(i,j,k) + DT_V * Me%ExternalVar%Wflux_Z(i,j,Me%WorkSize%KUB+1)
-                
-            else
+                ! if WFLUX_Z(i,j,KUB+1) different from zero corrects the mass fluxes 
+                ! to maintain the global mass
+                !In the surface layer the follow is true:
+                ! Vreal = VolumeZ + dt*FluxZ(kub+1)
+                ! d(VC)/dt = (C(t+dt)*Vreal(t+dt) - C(t)*V(t))/ dt = (C(t+dt) * (VolumeZ + dt *FluxZ(kub+1)) -C(t)*V(t))/ dt 
+                ! C(t+dt)* (1 + dt * FluxZ(kub+1) / VolumeZ)  = C(t)*V(t) / VolumeZ + Transporte 
+                DT_V              = dble(Me%ExternalVar%DTProp) / Me%ExternalVar%VolumeZ(i,j,Me%WorkSize%KUB)
+                Me%COEF3%E(i,j,Me%WorkSize%KUB) = Me%COEF3%E(i,j,Me%WorkSize%KUB) + DT_V * Me%ExternalVar%Wflux_Z(i,j,KUBSup)
                 
             endif
-            
-            
         end do
         end do
+        !$OMP END DO
         
-        !$OMP PARALLEL PRIVATE(i,j,k,DT_V) 
-
 dok1:   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -4013,24 +3996,10 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
 cd1:       if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
 
-                Me%TICOEF3(i,j,k) =                                   &
-                                   Me%TICOEF3(i,j,k)                  &
-                                 + Me%ExternalVar%PROP(i,j,k)         &
-                                 * (Me%ExternalVar%VolumeZOld(i,j,k)  &
-                                 /  Me%ExternalVar%VolumeZ(i,j,k)   )
-
-                
-
-                ! if WFLUX_Z(i,j,KUB+1) different from zero corrects the mass fluxes 
-                ! to maintain the global mass
-                !In the surface layer the follow is true:
-                ! Vreal = VolumeZ + dt*FluxZ(kub+1)
-                ! d(VC)/dt = (C(t+dt)*Vreal(t+dt) - C(t)*V(t))/ dt = (C(t+dt) * (VolumeZ + dt *FluxZ(kub+1)) -C(t)*V(t))/ dt 
-                ! C(t+dt)* (1 + dt * FluxZ(kub+1) / VolumeZ)  = C(t)*V(t) / VolumeZ + Transporte
-                if (k == Me%WorkSize%KUB)  then
-                    DT_V              = dble(Me%ExternalVar%DTProp) / Me%ExternalVar%VolumeZ(i,j,k)
-                    Me%COEF3%E(i,j,k) = Me%COEF3%E(i,j,k) + DT_V * Me%ExternalVar%Wflux_Z(i,j,Me%WorkSize%KUB+1)
-                endif
+                Me%TICOEF3(i,j,k) =Me%TICOEF3(i,j,k)                  &
+                                  + Me%ExternalVar%PROP(i,j,k)         &
+                                  * (Me%ExternalVar%VolumeZOld(i,j,k)  &
+                                  /  Me%ExternalVar%VolumeZ(i,j,k)   )
             
             else cd1 !This is important for the tidal flats points to maintain 
                      !their concentration when they are not covered 
