@@ -3264,7 +3264,7 @@ do4 :       DO II = KLB+1, KUB+1
                                  KLB, KUB,                                        &
                                  Thomas,                                          &
                                  RES,                                             &
-                                 OpenPoints                                       &
+                                 WaterPoints                                      &
 #ifdef _ENABLE_CUDA
                                  , CudaID                                         &
                                  , SaveResults                                    &
@@ -3276,7 +3276,7 @@ do4 :       DO II = KLB+1, KUB+1
         integer,                         intent(IN)     :: JLB, JUB
         integer,                         intent(IN)     :: KLB, KUB
         real,    dimension(:,:,:), pointer              :: RES
-        integer, dimension(:,:,:), pointer, intent(IN)  :: OpenPoints  
+        integer, dimension(:,:,:), pointer, intent(IN)  :: WaterPoints  
         type(T_THOMAS), pointer                         :: Thomas
 
 #ifdef _ENABLE_CUDA
@@ -3319,7 +3319,7 @@ do1 :   DO I = ILB, IUB
             !VEC%W(KLB) =-Thomas%COEF3%F (I, J, KLB) / Thomas%COEF3%E(I, J, KLB)
             !VEC%G(KLB) = Thomas%TI(I, J, KLB) / Thomas%COEF3%E(I, J, KLB)
             ! JPW: Original
-            if (OpenPoints(I, J, KUB) == 1) then
+            if (WaterPoints(I, J, KUB) == 1) then
                 VEC%W(KLB) =-Thomas%COEF3%F (I, J, 1) / Thomas%COEF3%E(I, J, 1)
                 VEC%G(KLB) = Thomas%TI(I, J, 1) / Thomas%COEF3%E(I, J, 1)
 

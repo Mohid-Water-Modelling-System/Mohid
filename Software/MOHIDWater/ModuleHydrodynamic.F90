@@ -1966,7 +1966,7 @@ Module ModuleHydrodynamic
         !Auxiliar flux properties
         real(8), pointer, dimension(:,:,:) :: Aux3DFlux => null()
         
-        integer                            :: Docycle_method
+        integer                            :: Docycle_method = 1
 
         !Instance of ModuleGridData
         integer :: ObjGridData              = 0
@@ -26810,8 +26810,15 @@ cd2D:   if (KUB == 1) then !If the model is 2D then the implicit direction is in
 
             ! Use CUDA to solve the Thomas algorithm, ID of ModuleCuda is needed
             ! Save results while computing velocity in X direction
+!            call THOMASZ(ILB, IUB, JLB, JUB, KLB, KUB, Me%THOMAS, Velocity_UV_New &
+!#ifdef _ENABLE_CUDA
+!                         , Me%ObjCuda,                                                  &
+!                         .FALSE.                                                        &
+!#endif _ENABLE_CUDA
+!                        )
+                         
             call THOMASZ_NewType2(ILB, IUB, JLB, JUB, KLB, KUB, Me%THOMAS, Velocity_UV_New, &
-                                  Me%External_Var%OpenPoints3D  &
+                                  Me%External_Var%WaterPoints3D  &
 #ifdef _ENABLE_CUDA
                          , Me%ObjCuda,                                                  &
                          .FALSE.                                                        &
@@ -46274,9 +46281,7 @@ cd4:                if (BoundaryPoints(i, j) == Boundary) then
         !Arguments------------------------------------------------------------
         integer                            :: Grid
         !Local---------------------------------------------------------------------
-        real(8), dimension(:,:,:), pointer :: WaterFlux_Z, DischargeFlow
-        integer, dimension(:,:,:), pointer :: WaterPoints3D
-        integer, dimension(:,:  ), pointer :: BoundaryPoints
+        real(8), dimension(:,:,:), pointer :: DischargeFlow
         
         real                               :: Evolution, DT, AccumulatedDischarge
         logical                            :: DischargesON
@@ -46350,7 +46355,7 @@ cd4:                if (BoundaryPoints(i, j) == Boundary) then
         endif
 
         !Nullify auxiliar pointers
-        nullify(DischargeFlow, BoundaryPoints)
+        nullify(DischargeFlow)
 
     end Subroutine Modify_VerticalWaterFlow
     
@@ -48306,7 +48311,7 @@ dok:            do  k = kbottom, KUB
         
         if (Me%ComputeOptions%Baroclinic) then
             !$OMP PARALLEL PRIVATE( i,j,k,kbottom, Baroclinic_Aceleration)
-            if (Me%Docycle_method == 0) then
+            if (Me%Docycle_method == 2) then
                 !$ CHUNK = CHUNK_J(JLB, JUB)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB

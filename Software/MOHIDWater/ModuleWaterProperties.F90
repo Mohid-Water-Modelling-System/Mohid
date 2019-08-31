@@ -469,6 +469,7 @@ Module ModuleWaterProperties
     private ::          SmallDepthsMixing_Processes
     private ::      InstantaneouslyMixing
     private ::      SetLimitsConcentration
+    private ::      SetLimitsProperty
     private ::      FreeVerticalMovements_Processes
     private ::      Bottom_Processes
     private ::      ModifySolarRadiation
@@ -855,6 +856,7 @@ Module ModuleWaterProperties
 
         logical                                 :: NoAdvFluxCells       = .false.
         logical                                 :: NoDifFluxCells       = .false.
+        logical                                 :: SetLimitsTrigger     = .false.
     end type T_Evolution
 
     type       T_LocalAssimila
@@ -1257,6 +1259,8 @@ Module ModuleWaterProperties
         logical                                 :: PhreeqCOnlyForStart = .false.
 
         logical                                 :: Continuous = .false.
+        
+        integer                                 :: Docycle_method = 1
 
 #ifdef _USE_SEQASSIMILATION
         integer, pointer, dimension(:)          :: PropertiesID
@@ -1392,6 +1396,7 @@ Module ModuleWaterProperties
                                          FreeVerticalMovementID,             &
                                          TurbGOTMID,                         &
                                          TwoWayID,                           &
+                                         Docycle_method,                     &
 #ifdef _ENABLE_CUDA
                                          CudaID,                             &
 #endif
@@ -1413,6 +1418,7 @@ Module ModuleWaterProperties
         integer                                     :: FreeVerticalMovementID
         integer                                     :: TurbGOTMID
         integer                                     :: TwoWayID
+        integer                                     :: Docycle_method
 #ifdef _ENABLE_CUDA
         integer                                     :: CudaID
 #endif
@@ -1469,6 +1475,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if(TurbGOTMID /= 0)then
                 Me%ObjTurbGOTM       = AssociateInstance (mTURBGOTM_,       TurbGOTMID    )
             endif
+            
+            Me%Docycle_method = Docycle_method
 
             call ReadLockExternalVar
 
@@ -4699,6 +4707,7 @@ do1 :   do while (associated(PropertyX))
                                          Me%ObjTime,                     &
                                          Vertical1D = Me%ExternalVar%Vertical1D, &
                                          XZFlow     = Me%ExternalVar%XZFlow, &
+                                         Docycle_method = Me%Docycle_method, &
 #ifdef _ENABLE_CUDA
                                          ObjCudaID  = CudaID,            &
 #endif
@@ -12309,7 +12318,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !Sets Limits to the concentration
             if (Me%Coupled%MinimumConcentration%Yes .or.      &
                 Me%Coupled%MaximumConcentration%Yes)          &
-                call SetLimitsConcentration !('Physical Processes')
+                call SetLimitsConcentration(PhysicalProcesses = .true.) !('Physical Processes')
 
             if (Me%Coupled%FreeVerticalMovement%Yes)          &
                 call FreeVerticalMovements_Processes
@@ -12320,7 +12329,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !Sets Limits to the concentration
             if (Me%Coupled%MinimumConcentration%Yes .or.      &
                 Me%Coupled%MaximumConcentration%Yes)          &
-                call SetLimitsConcentration !('Bottom Processes')
+                call SetLimitsConcentration(PhysicalProcesses = .false.) !('Bottom Processes')
 
             if (Me%SolarRadiation%Exists)                       &
                 call ModifySolarRadiation
@@ -12343,7 +12352,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !Sets Limits to the concentration
             if (Me%Coupled%MinimumConcentration%Yes .or.      &
                 Me%Coupled%MaximumConcentration%Yes)          &
-                call SetLimitsConcentration !('Surface Processes')
+                call SetLimitsConcentration(PhysicalProcesses = .false.) !('Surface Processes')
 
             if (Me%Coupled%WQM%Yes)                           &
                 call WaterQuality_Processes
@@ -12370,14 +12379,14 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (Me%Coupled%MinimumConcentration%Yes .or.      &
                 Me%Coupled%MaximumConcentration%Yes)          &
-                call SetLimitsConcentration !('WaterQuality Processes')
+                call SetLimitsConcentration(PhysicalProcesses = .false.) !('WaterQuality Processes')
 
             if (Me%Coupled%Bivalve%Yes)                       &
                 call Bivalve_Processes
 
             if (Me%Coupled%MinimumConcentration%Yes .or.      &
                 Me%Coupled%MaximumConcentration%Yes)          &
-                call SetLimitsConcentration !('Bivalve Processes')
+                call SetLimitsConcentration(PhysicalProcesses = .false.) !('Bivalve Processes')
 
             if (Me%Coupled%Partition%Yes)                     &
                 call Partition_Processes
@@ -14141,16 +14150,22 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         firstSchmidt = Property%evolution%Advec_Difus_Parameters%SchmidtNumberH
         OptimizeFlag = .true.
         do while (associated(Property))
-            if (Property%evolution%Advec_Difus_Parameters%SchmidtNumberH /= firstSchmidt) OptimizeFlag = .false.
-            if (Property%evolution%NoDifFluxCells)                                        OptimizeFlag = .false.
-            if (Property%evolution%Advec_Difus_Parameters%NullDif)                        OptimizeFlag = .false.
+            if (Property%Evolution%AdvectionDiffusion) then
+                if (Property%evolution%Advec_Difus_Parameters%SchmidtNumberH /= firstSchmidt) OptimizeFlag = .false.
+                if (Property%evolution%NoDifFluxCells)                                        OptimizeFlag = .false.
+                if (Property%evolution%Advec_Difus_Parameters%NullDif)                        OptimizeFlag = .false.
+                if (Property%evolution%Advec_Difus_Parameters%AdvMethodH /= P2_TVD)           OptimizeFlag = .false.
+                if (Property%evolution%Advec_Difus_Parameters%AdvMethodV /= P2_TVD)           OptimizeFlag = .false.
+                if (Property%evolution%Advec_Difus_Parameters%TVDLimitationH /= SuperBee)     OptimizeFlag = .false.
+                if (Property%evolution%Advec_Difus_Parameters%TVDLimitationV /= SuperBee)     OptimizeFlag = .false.
+            endif
             
+
             Property => Property%Next
         enddo
         if (Me%Coupled%AdvectionDiffusion%NumberOfProperties < 2) OptimizeFlag = .false.
-        
+        OptimizeFlag = .true.
         FirstWaterProperty = .true.
-        
         Property => Me%FirstProperty
 
 do1 :   do while (associated(Property))
@@ -14329,7 +14344,6 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                             PropertyComputeBoxTimeSerie = .false.
                     endif
                     
-
                     call AdvectionDiffusion(Me%ObjAdvectionDiffusion,                       &
                             Property%Concentration,                                         &
                             Property%evolution%Advec_Difus_Parameters%SchmidtNumberH,       &
@@ -14362,6 +14376,7 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                             Me%ExternalVar%Visc_H,                                          &
                             Me%ExternalVar%Diff_V,                                          &
                             CellFluxes        = PropertyComputeBoxTimeSerie,               &
+                            WaterPoints3D     = Me%ExternalVar%WaterPoints3D,              &
                             ReferenceProp     = Property%Assimilation%Field,                &
                             BoundaryCondition = Property%evolution%Advec_Difus_Parameters%BoundaryCondition, &
                             DecayTime         = Property%evolution%Advec_Difus_Parameters%DecayTime,         &
@@ -15212,6 +15227,8 @@ cd5:                if (TotalVolume > 0.) then
         if (Me%ExternalVar%Now .GE. Me%Coupled%WQM%NextCompute) then
 
             do while(associated(PropertyX))
+                
+                PropertyX%Evolution%SetLimitsTrigger = .true.
 
                 call Modify_Interface(InterfaceID       = Me%ObjInterface,              &
                                       PropertyID        = PropertyX%ID%IDNumber,        &
@@ -15327,6 +15344,8 @@ cd5:                if (TotalVolume > 0.) then
         PropertyX => Me%FirstProperty
 
         if (Me%ExternalVar%Now .GE. Me%Coupled%CEQUALW2%NextCompute) then
+            
+            PropertyX%Evolution%SetLimitsTrigger = .true.
 
             do while(associated(PropertyX))
 
@@ -15448,7 +15467,8 @@ cd5:                if (TotalVolume > 0.) then
         if (Me%ExternalVar%Now .GE. Me%Coupled%Life%NextCompute) then
 
             do while(associated(PropertyX))
-
+                
+                PropertyX%Evolution%SetLimitsTrigger = .true.
 
                 call Modify_Interface(InterfaceID       = Me%ObjInterface,              &
                                       PropertyID        = PropertyX%ID%IDNumber,        &
@@ -15616,6 +15636,8 @@ cd5:                if (TotalVolume > 0.) then
             if (PropertyX%Evolution%MacroAlgae) then
 
                 if (Me%ExternalVar%Now .GE.PropertyX%Evolution%NextCompute) then
+                    
+                    PropertyX%Evolution%SetLimitsTrigger = .true.
 
                     call Modify_Interface(InterfaceID   = Me%ObjInterfaceMacroAlgae,        &
                                           PropertyID    = PropertyX%ID%IDNumber,            &
@@ -16099,6 +16121,8 @@ cd5:                if (TotalVolume > 0.) then
             if (PropertyX%Evolution%SeagrassesLeaves) then
 
                     if (Me%ExternalVar%Now .GE. PropertyX%Evolution%NextCompute) then
+                        
+                        PropertyX%Evolution%SetLimitsTrigger = .true.
 
                          call Modify_Interface(InterfaceID   = Me%ObjSeagrassWaterInteraction,  &
                                           PropertyID    = PropertyX%ID%IDNumber,            &
@@ -16578,6 +16602,8 @@ cd5:                if (TotalVolume > 0.) then
             if (PropertyX%Evolution%WWTPQ) then
 
                 if (Me%ExternalVar%Now .GE.PropertyX%Evolution%NextCompute) then
+                    
+                    PropertyX%Evolution%SetLimitsTrigger = .true.
 
                    call Modify_Interface(InterfaceID   = Me%ObjInterface,               &
                                          PropertyID    = PropertyX%ID%IDNumber,         &
@@ -16734,6 +16760,8 @@ cd5:                if (TotalVolume > 0.) then
 
             if (PropertyX%Evolution%PhreeqC) then
             if (Me%ExternalVar%Now .GE.PropertyX%Evolution%NextCompute .or. is_starting) then
+                
+                PropertyX%Evolution%SetLimitsTrigger = .true.
 
                 select case (PropertyX%ID%IDNumber)
                 case (Temperature_, Pressure_, Density_, WaterSaturation_, CellPorosity_, &
@@ -16827,6 +16855,8 @@ cd5:                if (TotalVolume > 0.) then
             if (PropertyX%Evolution%Bivalve) then
 
                 if (Me%ExternalVar%Now .GE.PropertyX%Evolution%NextCompute) then
+                    
+                    PropertyX%Evolution%SetLimitsTrigger = .true.
 
                    call Modify_Interface(InterfaceID     = Me%ObjInterfaceBivalve,           &
                                          PropertyID      = PropertyX%ID%IDNumber,            &
@@ -18182,7 +18212,7 @@ do3:                        do k = kbottom, KUB
             !$OMP PARALLEL PRIVATE(I,J,K)
             do k = WKLB,WKUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do j = WILB,WJUB
+            do j = WJLB,WJUB
             do i = WILB,WIUB
                 if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
 
@@ -18219,6 +18249,8 @@ do3:                        do k = kbottom, KUB
 do1:    do while (associated(Property))
 cd0:        if (Property%Evolution%FreeVerticalMovement) then
 cd1:            if (Me%ExternalVar%Now.GE.Property%Evolution%NextCompute) then
+    
+                    Property%Evolution%SetLimitsTrigger = .true.
 
                     call Modify_FreeVerticalMovement(Me%ObjFreeVerticalMovement,        &
                                                      Property%Concentration,            &
@@ -18671,6 +18703,8 @@ do3:                                do k = kbottom, KUB
 do1 :   do while (associated(Property))
 cd1 :   if (Property%Evolution%SurfaceFluxes) then
 cd2 :   if (Actual.GE.Property%Evolution%NextCompute) then
+    
+            Property%Evolution%SetLimitsTrigger = .true.
 
 
 case1 :     select case(Property%ID%IDNumber)
@@ -18973,6 +19007,8 @@ case1 :     select case(Property%ID%IDNumber)
 do1 :   do while (associated(PropertyX))
             if (PropertyX%Evolution%BottomFluxes) then
                 if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
+                    
+                    PropertyX%Evolution%SetLimitsTrigger = .true.
 
                     if (MonitorPerformance) then
                         call StartWatch ("ModuleWaterProperties", "Bottom_Processes")
@@ -19121,6 +19157,8 @@ do3:            do k = kbottom, KUB
 do1 :   do while (associated(PropertyX))
             if (PropertyX%Evolution%FirstOrderDecay) then
                 if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
+                    
+                    PropertyX%Evolution%SetLimitsTrigger = .true.
 
                     AuxName = GetPropertyName(PropertyX%Evolution%T90PropertyID)
 
@@ -19448,6 +19486,8 @@ do1 :   do while (associated(PropertyX))
 do1 :   do while (associated(PropertyX))
             if (PropertyX%Evolution%DecayRateProperty) then
                 if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
+                    
+                    PropertyX%Evolution%SetLimitsTrigger = .true.
 
                     if (PropertyX%Evolution%T90Variable) then
 
@@ -19707,6 +19747,8 @@ do1 :   do while (associated(PropertyX))
 do1 :   do while (associated(PropertyX))
             if (PropertyX%Evolution%OxygenSaturation) then
                 if(Me%ExternalVar%Now .ge. PropertyX%Evolution%NextCompute)then
+                    
+                    PropertyX%Evolution%SetLimitsTrigger = .true.
 
                     call Search_Property(Temperature, PropertyXID = Temperature_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) then
@@ -19801,101 +19843,34 @@ do1 :   do while (associated(PropertyX))
     !--------------------------------------------------------------------------
     ! This subroutine is responsable for imposing the minimum or maximum concentration
     ! of a property
-    subroutine SetLimitsConcentration
+    subroutine SetLimitsConcentration(PhysicalProcesses)
 
         !Arguments-------------------------------------------------------------
-
+        logical, optional, intent(IN)               :: PhysicalProcesses
         !External--------------------------------------------------------------
         type (T_Property), pointer                  :: Property
-        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                                     :: i, j, k, CHUNK
 
         !Begin----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "SetLimitsConcentration")
-
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
-
-        !CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB) Sobrinho
-        CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
-        Property => Me%FirstProperty
-
-do1 :   do while (associated(Property))
-
-cd1 :       if (Property%Evolution%MinConcentration) then
-
-                !$OMP PARALLEL PRIVATE(I,J,K)
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-                do k=Me%WorkSize%KLB, Me%WorkSize%KUB
-                do j=Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i=Me%WorkSize%ILB, Me%WorkSize%IUB
-
-                    if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
-
-                        if (Property%Concentration(i, j, k) < Property%MinValue) then
-
-                            ! mass created
-                            Property%Mass_created(i, j, k) = Property%Mass_Created(i, j, k)   +  &
-                                                   (Property%MinValue                -  &
-                                                    Property%Concentration(i, j, k)) *  &
-                                                    Me%ExternalVar%VolumeZ (i, j, k)
-
-                            Property%Concentration(i, j, k) = Property%MinValue
-
-                        endif
-
-                    endif
-
-                enddo
-                enddo
-                enddo
-                !$OMP END DO
-                !$OMP END PARALLEL
-
-            endif cd1
-
-cd2 :       if (Property%Evolution%MaxConcentration) then
-
-                !$OMP PARALLEL PRIVATE(I,J,K)
-                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-                do k=Me%WorkSize%KLB, Me%WorkSize%KUB
-                do j=Me%WorkSize%JLB, Me%WorkSize%JUB
-                do i=Me%WorkSize%ILB, Me%WorkSize%IUB
-
-                    if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
-
-                        if (Property%Concentration(i, j, k) > Property%MaxValue) then
-
-                            !mass destroid
-                            Property%Mass_Destroid(i, j, k) = Property%Mass_Destroid(i, j, k)   +  &
-                                                   (Property%MaxValue                -  &
-                                                    Property%Concentration(i, j, k)) *  &
-                                                    Me%ExternalVar%VolumeZ (i, j, k)
-
-                            Property%Concentration(i, j, k) = Property%MaxValue
-
-                        endif
-
-
-                    endif
-
-                enddo
-                enddo
-                enddo
-                !$OMP END DO
-                !$OMP END PARALLEL
-
-        end if cd2
-
-        Property => Property%Next
-
-        end do do1
-
+        
+        if (PhysicalProcesses) then
+            Property => Me%FirstProperty
+            do while (associated(Property))
+                call SetLimitsProperty(Property)
+                Property => Property%Next
+            enddo
+        else
+            Property => Me%FirstProperty
+            do while (associated(Property))
+                if (Property%Evolution%SetLimitsTrigger) then
+                    call SetLimitsProperty (Property)
+                    Property%Evolution%SetLimitsTrigger = .false.
+                endif
+                Property => Property%Next
+            enddo
+        endif
+        
         nullify(Property)
 
         if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "SetLimitsConcentration")
@@ -19904,6 +19879,143 @@ cd2 :       if (Property%Evolution%MaxConcentration) then
 
     end subroutine SetLimitsConcentration
 
+    !--------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Sets concentration to its min or max value, if needed.
+    !>@param[in] Property
+    subroutine SetLimitsProperty(Property)
+
+        !External--------------------------------------------------------------
+        type (T_Property), pointer                  :: Property
+        integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB, Kbottom
+        integer                                     :: i, j, k, CHUNK
+
+        !Begin----------------------------------------------------------------------
+
+        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "SetLimitsProperty")
+
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        KLB = Me%WorkSize%KLB
+        KUB = Me%WorkSize%KUB
+
+        CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+
+cd1 :       if (Property%Evolution%MinConcentration) then
+                !$OMP PARALLEL PRIVATE(I,J,K, Kbottom)
+                if (Me%Docycle_method == 2) then
+                    CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+                    
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+                        if (Me%ExternalVar%WaterPoints3D(i, j, Me%WorkSize%KUB) == 1) then
+                            Kbottom = Me%ExternalVar%KFloor_Z(i, j)
+                            do k=Kbottom, Me%WorkSize%KUB
+                            
+                                if (Property%Concentration(i, j, k) < Property%MinValue) then
+                                    ! mass created
+                                    Property%Mass_created(i, j, k) = Property%Mass_Created(i, j, k)              +  &
+                                                           (Property%MinValue - Property%Concentration(i, j, k)) *  &
+                                                            Me%ExternalVar%VolumeZ (i, j, k)
+
+                                    Property%Concentration(i, j, k) = Property%MinValue
+                                endif
+                            enddo
+                        endif
+                    enddo
+                    enddo
+                    !$OMP END DO
+                    
+                else
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    do k=Me%WorkSize%KLB, Me%WorkSize%KUB
+                    do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                        if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
+
+                            if (Property%Concentration(i, j, k) < Property%MinValue) then
+                                ! mass created
+                                Property%Mass_created(i, j, k) = Property%Mass_Created(i, j, k)              +  &
+                                                       (Property%MinValue - Property%Concentration(i, j, k)) *  &
+                                                        Me%ExternalVar%VolumeZ (i, j, k)
+
+                                Property%Concentration(i, j, k) = Property%MinValue
+                            endif
+
+                        endif
+                    enddo
+                    enddo
+                    enddo
+                    !$OMP END DO
+                endif
+                !$OMP END PARALLEL
+            endif cd1
+
+cd2 :       if (Property%Evolution%MaxConcentration) then
+
+                !$OMP PARALLEL PRIVATE(I,J,K, Kbottom)
+                CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
+    
+                if (Me%Docycle_method == 2) then
+                    
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+                        
+                        if (Me%ExternalVar%WaterPoints3D(i, j, Me%WorkSize%KUB) == 1) then
+                            Kbottom = Me%ExternalVar%KFloor_Z(i, j)
+
+                            do k = Kbottom, Me%WorkSize%KUB
+                                if (Property%Concentration(i, j, k) > Property%MaxValue) then
+                                    !mass destroid
+                                    Property%Mass_Destroid(i, j, k) = Property%Mass_Destroid(i, j, k)            +  &
+                                                           (Property%MaxValue - Property%Concentration(i, j, k)) *  &
+                                                            Me%ExternalVar%VolumeZ (i, j, k)
+
+                                    Property%Concentration(i, j, k) = Property%MaxValue
+                                endif
+                            enddo
+                        endif
+                    enddo
+                    enddo
+                    !$OMP END DO 
+                else
+                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                    do k=Me%WorkSize%KLB, Me%WorkSize%KUB
+                    do j=Me%WorkSize%JLB, Me%WorkSize%JUB
+                    do i=Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                        if (Me%ExternalVar%WaterPoints3D(i, j, k) == 1) then
+
+                            if (Property%Concentration(i, j, k) > Property%MaxValue) then
+
+                                !mass destroid
+                                Property%Mass_Destroid(i, j, k) = Property%Mass_Destroid(i, j, k)             +  &
+                                                       (Property%MaxValue -  Property%Concentration(i, j, k)) *  &
+                                                        Me%ExternalVar%VolumeZ (i, j, k)
+
+                                Property%Concentration(i, j, k) = Property%MaxValue
+                            endif
+                        endif
+                    enddo
+                    enddo
+                    enddo
+                    !$OMP END DO 
+                endif
+                !$OMP END PARALLEL
+
+        end if cd2
+
+        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "SetLimitsProperty")
+
+        !----------------------------------------------------------------------
+
+    end subroutine SetLimitsProperty
     !--------------------------------------------------------------------------
 
 

@@ -886,6 +886,8 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
                                            FreeVerticalMovementID = Me%ObjFreeVerticalMovement, &
                                            TurbGOTMID       = Me%ObjTurbGOTM,           &
                                            TwoWayID         = Me%ObjTwoWay,             &
+                                           DoCycle_method   = Me%DoCycle_method,        &
+                                            
 #ifdef _ENABLE_CUDA
                                            CudaID           = Me%ObjCuda,                 &
 #endif _ENABLE_CUDA
