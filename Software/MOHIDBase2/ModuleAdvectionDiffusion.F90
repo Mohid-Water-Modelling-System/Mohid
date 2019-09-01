@@ -2969,7 +2969,7 @@ st:     if (Me%State%VertAdv) then
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             
                     if (Me%ExternalVar%OpenPoints3D (i,j,Me%WorkSize%KUB) == 1) then
-                        call ComputeAdvection1D_TVD_SuperBee( KLB_Aux, KUB_Aux,             &
+                        call ComputeAdvection1D_TVD_SuperBee_2( KLB_Aux, KUB_Aux,             &
                                                 Me%ExternalVar%DTProp,                      &
                                                 Me%ExternalVar%DWZ          (i,j,:),        &
                                                 Me%ExternalVar%PROP         (i,j,:),        &
@@ -4490,7 +4490,7 @@ st:     if (Me%State%HorAdv) then
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do i = ILB, IUB
 
-                    call ComputeAdvection1D_TVD_SuperBee(JLB_Aux, JUB_Aux, Me%ExternalVar%DTProp,                 &
+                    call ComputeAdvection1D_TVD_SuperBee_2(JLB_Aux, JUB_Aux, Me%ExternalVar%DTProp,                 &
                                             Me%ExternalVar%DUX          (i,:),                                    &
                                             Me%ExternalVar%PROP         (i,:,k),                                  &
                                             Me%ExternalVar%Wflux_X      (i,:,k),                                  &
@@ -4900,7 +4900,7 @@ st:     if (Me%State%HorAdv) then
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do j = JLB, JUB
 
-                    call ComputeAdvection1D_TVD_SuperBee(ILB_Aux, IUB_Aux, Me%ExternalVar%DTProp,                 &
+                    call ComputeAdvection1D_TVD_SuperBee_2(ILB_Aux, IUB_Aux, Me%ExternalVar%DTProp,                 &
                                             Me%ExternalVar%DVY          (:,j),                                    &
                                             Me%ExternalVar%PROP         (:,j,k),                                  &
                                             Me%ExternalVar%Wflux_Y      (:,j,k),                                  &
