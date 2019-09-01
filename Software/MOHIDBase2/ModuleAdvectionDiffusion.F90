@@ -33,7 +33,7 @@ Module ModuleAdvectionDiffusion
     use ModuleGlobalData
     use ModuleFunctions     , only : OrlanskiCelerity2D, THOMAS_3D, THOMASZ, ComputeAdvection1D_V2,     &
                                      SetMatrixValue, Chunk_J, Chunk_K, Chunk_I, T_THOMAS, T_VECGW, T_D_E_F, Pad, &
-                                     ComputeAdvection1D_TVD_Superbee, THOMASZ_NewType2
+                                     ComputeAdvection1D_TVD_SuperBee_2, THOMASZ_NewType2
     use ModuleTime          , only : GetComputeCurrentTime, T_Time, KillComputeTime, &
                                      null_time, operator(+), operator(-),            &
                                      operator (.eq.), operator (.ne.)
@@ -1724,9 +1724,9 @@ cd2 :   if (Me%State%HorAdv) then
 
         if (KUBWS > 1) then
             if (Me%ExternalVar%Optimize) then
-                call VerticalDiffusion ()
-            else
                 call VerticalDiffusion2 ()
+            else
+                call VerticalDiffusion ()
             endif
             
             if (.not. Me%ExternalVar%AdvectionNudging) then
@@ -3790,7 +3790,7 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
     doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
     doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-            if (Me%ExternalVar%ComputeFacesW3D(i, j, k  ) == 1) then
+            if (Me%ExternalVar%ComputeFacesW3D(i, j, Me%WorkSize%KUB) == 1) then
                 
                 Kbottom        = Me%ExternalVar%KFloorZ(i, j)
                 PropBottomCell = Me%ExternalVar%PROP   (i, j, Kbottom)
@@ -3808,10 +3808,10 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             !$OMP END DO
             
         else
-    dok1:   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+    dok2:   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-    doj1:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-    doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+    doj2:   do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+    doi2:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if (Me%ExternalVar%ComputeFacesW3D(i, j, k  ) == 1) then
                 Me%Fluxes%DifFluxZ(i, j, k) =                                               &
                               Me%Fluxes%DifFluxZ(i, j, k)                                   &
@@ -3820,10 +3820,10 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                             *(Me%ExternalVar%PROP(i, j, k  )                                &
                             - Me%ExternalVar%PROP(i, j, k-1))
             endif
-            end do doi1
-            end do doj1
+            end do doi2
+            end do doj2
             !$OMP END DO NOWAIT
-            end do dok1 
+            end do dok2 
         endif
 
         !$OMP END PARALLEL

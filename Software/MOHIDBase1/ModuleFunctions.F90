@@ -8747,6 +8747,7 @@ i1:         if (ComputePoints(i-1) == Compute .and. ComputePoints(i) == Compute)
                         D_Flux(i) = QFace * CFace(2)
                         E_Flux(i) = QFace * CFace(3)
                     endif
+                endif
             endif
         enddo
 
@@ -9031,10 +9032,8 @@ i5:         if      (TVD_Limitation == MinMod) then
 
         !Local-------------------------------------------------------
         real                                :: Cr, Theta, dC, r
-
         !Begin-------------------------------------------------------
-        CFace (1:4) = 0.
-      
+        
         Cr      = Courant (QFace,V(2),dt)
 
         dC  = (Prop(3)-Prop(2)) / (du(3) + du(2))
@@ -9071,9 +9070,7 @@ i5:         if      (TVD_Limitation == MinMod) then
 
         !Local-------------------------------------------------------
         real                                :: Cr, Theta, dC, r
-
         !Begin-------------------------------------------------------
-        CFace (1:4) = 0.
         
         Cr  = Courant (QFace,V(3),dt)
 
