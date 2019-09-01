@@ -1431,6 +1431,8 @@ cd11 :      if (present(CellFluxes)) then
             Me%ExternalVar%Schmidt_H           = Schmidt_H
             Me%ExternalVar%DTProp              = DTProp
             
+            if(Me%Vertical1D) Me%ExternalVar%Optimize = .false.
+            
             if (Me%State%VertDif) then
                 if (Me%ExternalVar%Optimize) then
                     if (Me%FirstProperty) then
@@ -1457,8 +1459,10 @@ cd8 :       if (Me%State%VertAdv) then
                 Me%ExternalVar%TVDLimitationV   = TVDLimitationV
                 
                 if (Me%ExternalVar%Optimize) then
-                    call SetMatrixValue (Me%COEF3_VertAdv%D_flux, Me%Size, 0.0)
-                    call SetMatrixValue (Me%COEF3_VertAdv%E_flux, Me%Size, 0.0)
+                    if (Me%FirstProperty) then
+                        call SetMatrixValue (Me%COEF3_VertAdv%D_flux, Me%Size, 0.0)
+                        call SetMatrixValue (Me%COEF3_VertAdv%E_flux, Me%Size, 0.0)
+                    endif
                 else
                     call SetMatrixValue (Me%COEF3_VertAdv%C_flux, Me%Size, 0.0)
                     call SetMatrixValue (Me%COEF3_VertAdv%D_flux, Me%Size, 0.0)
@@ -1669,20 +1673,31 @@ cd5 :       if (Me%State%CellFluxes) then
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_1")
 
         !Inicializacao dos coeficientes DCOEF3,ECOEF3,FCOEF3 e independent term
-        call SetMatrixValue (Me%COEF3%D, Me%Size, 0.0)
-        call SetMatrixValue (Me%COEF3%E, Me%Size, dble(1.0))
-        call SetMatrixValue (Me%COEF3%F, Me%Size, 0.0)
-        call SetMatrixValue (Me%TICOEF3, Me%Size, 0.0)
+        if (Me%ExternalVar%Optimize) then
+            if (Me%FirstProperty) then
+                call SetMatrixValue (Me%COEF3%D, Me%Size, 0.0)
+                call SetMatrixValue (Me%COEF3%E, Me%Size, dble(1.0))
+                call SetMatrixValue (Me%COEF3%F, Me%Size, 0.0)
+                call SetMatrixValue (Me%TICOEF3, Me%Size, 0.0)
+            endif
+        else
+            call SetMatrixValue (Me%COEF3%D, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3%E, Me%Size, dble(1.0))
+            call SetMatrixValue (Me%COEF3%F, Me%Size, 0.0)
+            call SetMatrixValue (Me%TICOEF3, Me%Size, 0.0)
+        endif
+        
      
 cd2 :   if (Me%State%HorAdv) then
             
              if (Me%ExternalVar%Optimize) then
+                 if (Me%FirstProperty) then
+                    call SetMatrixValue (Me%COEF3_HorAdvXX%D_flux, Me%Size, 0.0)
+                    call SetMatrixValue (Me%COEF3_HorAdvXX%E_flux, Me%Size, 0.0)
 
-                call SetMatrixValue (Me%COEF3_HorAdvXX%D_flux, Me%Size, 0.0)
-                call SetMatrixValue (Me%COEF3_HorAdvXX%E_flux, Me%Size, 0.0)
-
-                call SetMatrixValue (Me%COEF3_HorAdvYY%D_flux, Me%Size, 0.0)
-                call SetMatrixValue (Me%COEF3_HorAdvYY%E_flux, Me%Size, 0.0)
+                    call SetMatrixValue (Me%COEF3_HorAdvYY%D_flux, Me%Size, 0.0)
+                    call SetMatrixValue (Me%COEF3_HorAdvYY%E_flux, Me%Size, 0.0)
+                 endif   
             else
                 call SetMatrixValue (Me%COEF3_HorAdvXX%C_flux, Me%Size, 0.0)
                 call SetMatrixValue (Me%COEF3_HorAdvXX%D_flux, Me%Size, 0.0)
@@ -4033,26 +4048,7 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         CHUNK = Chunk_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
         
-        KUBSup = Me%WorkSize%KUB+1
-        
         !$OMP PARALLEL PRIVATE(i,j,k,DT_V) 
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-            if (Me%ExternalVar%OpenPoints3D(i, j, Me%WorkSize%KUB) == 1) then
-                ! if WFLUX_Z(i,j,KUB+1) different from zero corrects the mass fluxes 
-                ! to maintain the global mass
-                !In the surface layer the follow is true:
-                ! Vreal = VolumeZ + dt*FluxZ(kub+1)
-                ! d(VC)/dt = (C(t+dt)*Vreal(t+dt) - C(t)*V(t))/ dt = (C(t+dt) * (VolumeZ + dt *FluxZ(kub+1)) -C(t)*V(t))/ dt 
-                ! C(t+dt)* (1 + dt * FluxZ(kub+1) / VolumeZ)  = C(t)*V(t) / VolumeZ + Transporte 
-                DT_V              = dble(Me%ExternalVar%DTProp) / Me%ExternalVar%VolumeZ(i,j,Me%WorkSize%KUB)
-                Me%COEF3%E(i,j,Me%WorkSize%KUB) = Me%COEF3%E(i,j,Me%WorkSize%KUB) + DT_V * Me%ExternalVar%Wflux_Z(i,j,KUBSup)
-                
-            endif
-        end do
-        end do
-        !$OMP END DO
         
 dok1:   do k = Me%WorkSize%KLB, Me%WorkSize%KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -4061,11 +4057,19 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
 cd1:       if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
 
-                Me%TICOEF3(i,j,k) =Me%TICOEF3(i,j,k)                  &
-                                  + Me%ExternalVar%PROP(i,j,k)         &
+                Me%TICOEF3(i,j,k) = Me%ExternalVar%PROP(i,j,k)         &
                                   * (Me%ExternalVar%VolumeZOld(i,j,k)  &
                                   /  Me%ExternalVar%VolumeZ(i,j,k)   )
-            
+                
+                if (k == Me%WorkSize%KUB) then
+                
+                    DT_V              = dble(Me%ExternalVar%DTProp) / Me%ExternalVar%VolumeZ(i,j,k)
+                    Me%COEF3%E(i,j,k) = dble(1.0) + DT_V * Me%ExternalVar%Wflux_Z(i,j, Me%WorkSize%KUB)
+                elseif (Me%ExternalVar%Optimize) then
+                    !Initialize so that the setmatrixvalue does not need to be called for every property
+                    Me%COEF3%E(i,j,k) = dble(1.0)
+                endif
+                
             else cd1 !This is important for the tidal flats points to maintain 
                      !their concentration when they are not covered 
 
@@ -4132,8 +4136,6 @@ dnc:        do   nc = 1, Me%ExternalVar%DischnCells(dis)
                 do k=kmin, kmax
                     WaterColumn = WaterColumn + Me%ExternalVar%DWZ(i,j,k)
                 enddo
-                
-               
 
 dk:             do k=kmin, kmax
 
@@ -4578,13 +4580,38 @@ cd6:    if (ImpExp_AdvXX == ExplicitScheme)  then !ExplicitScheme = 0
                 !$OMP PARALLEL
             endif
 
-        else if (ImpExp_AdvXX == ImplicitScheme) then cd6 !ImplicitScheme = 1
+    else if (ImpExp_AdvXX == ImplicitScheme) then cd6 !ImplicitScheme = 1
             !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX,DT2,DT1)
+        if (Me%ExternalVar%Optimize) then
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 dok4 :      do k = KLB, KUB
 doj4 :      do j = JLB, JUB
 doi4 :      do i = ILB, IUB
 
+            if (Me%ExternalVar%ComputeFacesU3D(i, j  , k) == 1) then
+
+                DT2 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j  ,k)
+                DT1 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j-1,k)
+
+                Me%COEF3%D(i,j  ,k) =        0            - Me%COEF3_HorAdvXX%D_flux(i,   j, k) * DT2
+                Me%COEF3%E(i,j  ,k) = Me%COEF3%E(i,j  ,k) - Me%COEF3_HorAdvXX%E_flux(i,   j, k) * DT2
+
+                Me%COEF3%E(i,j-1,k) = Me%COEF3%E(i,j-1,k) + Me%COEF3_HorAdvXX%D_flux(i,   j, k) * DT1
+                Me%COEF3%F(i,j-1,k) =        0            + Me%COEF3_HorAdvXX%E_flux(i,   j, k) * DT1
+
+            endif
+
+            end do doi4
+            end do doj4
+            end do dok4
+            !$OMP END DO
+            
+        else
+            
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+dok4 :      do k = KLB, KUB
+doj4 :      do j = JLB, JUB
+doi4 :      do i = ILB, IUB
 
             if (Me%ExternalVar%ComputeFacesU3D(i, j  , k) == 1) then
 
@@ -4605,15 +4632,14 @@ doi4 :      do i = ILB, IUB
 !                      The aux variables
 !                      Me%COEF3_VertAdv%C_flux and are not used Me%COEF3_VertAdv%G_flux
 
-
             endif
-
 
             end do doi4
             end do doj4
             end do dok4
-            !$OMP END DO NOWAIT 
-            !$OMP END PARALLEL
+            !$OMP END DO NOWAIT   
+        endif
+        !$OMP END PARALLEL
         else cd6
 
             stop 'sub. HorizontalAdvectionXX - ModuleAdvectionDiffusion - ERR01'
