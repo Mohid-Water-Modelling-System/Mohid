@@ -14153,13 +14153,14 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
             if (Property%Evolution%AdvectionDiffusion) then
                 if (Property%evolution%Advec_Difus_Parameters%SchmidtNumberH /= firstSchmidt) OptimizeFlag = .false.
                 if (Property%evolution%NoDifFluxCells)                                        OptimizeFlag = .false.
+                if (Property%evolution%NoAdvFluxCells)                                        OptimizeFlag = .false.
                 if (Property%evolution%Advec_Difus_Parameters%NullDif)                        OptimizeFlag = .false.
                 if (Property%evolution%Advec_Difus_Parameters%AdvMethodH /= P2_TVD)           OptimizeFlag = .false.
                 if (Property%evolution%Advec_Difus_Parameters%AdvMethodV /= P2_TVD)           OptimizeFlag = .false.
                 if (Property%evolution%Advec_Difus_Parameters%TVDLimitationH /= SuperBee)     OptimizeFlag = .false.
                 if (Property%evolution%Advec_Difus_Parameters%TVDLimitationV /= SuperBee)     OptimizeFlag = .false.
+                if (Property%evolution%Advec_Difus_Parameters%AdvectionNudging)               OptimizeFlag = .false.
             endif
-            
 
             Property => Property%Next
         enddo

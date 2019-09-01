@@ -2043,7 +2043,7 @@ Module ModuleFunctions
         CHUNK = CHUNK_K(KLB, KUB)
         
         !$OMP PARALLEL PRIVATE(i,j,k)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        !$OMP DO SCHEDULE(STATIC, CHUNK)
         do k = KLB, KUB
         do j = JLB, JUB
         do i = ILB, IUB
