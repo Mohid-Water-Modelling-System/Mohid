@@ -4574,7 +4574,7 @@ cd6:    if (ImpExp_AdvXX == ExplicitScheme)  then !ExplicitScheme = 0
                 end do doj3
                 end do dok3
                 !$OMP END DO NOWAIT
-                !$OMP PARALLEL
+                !$OMP END PARALLEL
             endif
 
     else if (ImpExp_AdvXX == ImplicitScheme) then cd6 !ImplicitScheme = 1
