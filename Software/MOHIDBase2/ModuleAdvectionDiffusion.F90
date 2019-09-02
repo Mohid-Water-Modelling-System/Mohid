@@ -1675,11 +1675,12 @@ cd5 :       if (Me%State%CellFluxes) then
         !Inicializacao dos coeficientes DCOEF3,ECOEF3,FCOEF3 e independent term
         if (Me%ExternalVar%Optimize) then
             if (Me%FirstProperty) then
-                call SetMatrixValue (Me%COEF3%D, Me%Size, 0.0)
-                call SetMatrixValue (Me%COEF3%E, Me%Size, dble(1.0))
-                call SetMatrixValue (Me%COEF3%F, Me%Size, 0.0)
                 call SetMatrixValue (Me%TICOEF3, Me%Size, 0.0)
+                call SetMatrixValue (Me%COEF3%E, Me%Size, dble(1.0))
             endif
+            call SetMatrixValue (Me%COEF3%D, Me%Size, 0.0)
+            call SetMatrixValue (Me%COEF3%F, Me%Size, 0.0)
+            
         else
             call SetMatrixValue (Me%COEF3%D, Me%Size, 0.0)
             call SetMatrixValue (Me%COEF3%E, Me%Size, dble(1.0))
@@ -1762,14 +1763,10 @@ cd2 :   if (Me%State%HorAdv) then
             call OpenBoundaryCondition() 
 
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_1")
-
-        if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_2")
         
 !        ! At this stage the variable TICOEF3 have null values in the land points
 !        ! We want that all proprieties in land points have the value of Null_Real.
         call SetMatrixValue (Me%TICOEF3, Me%Size, Null_Real, Me%ExternalVar%LandPoints3D)
-
-        if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_2")
 
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "AdvectionDiffusionIteration_TH")
 
@@ -4039,7 +4036,7 @@ doi1:   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Local-----------------------------------------------------------------
         real(8)                                     :: DT_V
-        integer                                     :: i, j, k, KUBSup
+        integer                                     :: i, j, k
         integer                                     :: CHUNK
 
         !----------------------------------------------------------------------
@@ -4064,7 +4061,7 @@ cd1:       if (Me%ExternalVar%OpenPoints3D(i, j, k) == 1) then
                 if (k == Me%WorkSize%KUB) then
                 
                     DT_V              = dble(Me%ExternalVar%DTProp) / Me%ExternalVar%VolumeZ(i,j,k)
-                    Me%COEF3%E(i,j,k) = dble(1.0) + DT_V * Me%ExternalVar%Wflux_Z(i,j, Me%WorkSize%KUB)
+                    Me%COEF3%E(i,j,k) = dble(1.0) + DT_V * Me%ExternalVar%Wflux_Z(i,j, k + 1)
                 elseif (Me%ExternalVar%Optimize) then
                     !Initialize so that the setmatrixvalue does not need to be called for every property
                     Me%COEF3%E(i,j,k) = dble(1.0)
@@ -4593,11 +4590,11 @@ doi4 :      do i = ILB, IUB
                 DT2 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j  ,k)
                 DT1 = Me%ExternalVar%DTProp / Me%ExternalVar%VolumeZ(i,j-1,k)
 
-                Me%COEF3%D(i,j  ,k) =        0            - Me%COEF3_HorAdvXX%D_flux(i,   j, k) * DT2
+                Me%COEF3%D(i,j  ,k) = Me%COEF3%D(i,j  ,k) - Me%COEF3_HorAdvXX%D_flux(i,   j, k) * DT2
                 Me%COEF3%E(i,j  ,k) = Me%COEF3%E(i,j  ,k) - Me%COEF3_HorAdvXX%E_flux(i,   j, k) * DT2
 
                 Me%COEF3%E(i,j-1,k) = Me%COEF3%E(i,j-1,k) + Me%COEF3_HorAdvXX%D_flux(i,   j, k) * DT1
-                Me%COEF3%F(i,j-1,k) =        0            + Me%COEF3_HorAdvXX%E_flux(i,   j, k) * DT1
+                Me%COEF3%F(i,j-1,k) = Me%COEF3%F(i,j-1,k) + Me%COEF3_HorAdvXX%E_flux(i,   j, k) * DT1
 
             endif
 
@@ -4609,9 +4606,9 @@ doi4 :      do i = ILB, IUB
         else
             
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-dok4 :      do k = KLB, KUB
-doj4 :      do j = JLB, JUB
-doi4 :      do i = ILB, IUB
+dok5 :      do k = KLB, KUB
+doj5 :      do j = JLB, JUB
+doi5 :      do i = ILB, IUB
 
             if (Me%ExternalVar%ComputeFacesU3D(i, j  , k) == 1) then
 
@@ -4634,9 +4631,9 @@ doi4 :      do i = ILB, IUB
 
             endif
 
-            end do doi4
-            end do doj4
-            end do dok4
+            end do doi5
+            end do doj5
+            end do dok5
             !$OMP END DO NOWAIT   
         endif
         !$OMP END PARALLEL
