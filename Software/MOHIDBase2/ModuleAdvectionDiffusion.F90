@@ -1860,26 +1860,26 @@ cd3:    if (KUBWS == 1 .and. ImpExp_AdvXX == ImplicitScheme) then !ImplicitSchem
             ! If the model is 3D the vertical diffusion must be implicit so is necessary to 
             ! compute the vertical diffusion  implicitly
             
-            call THOMASZ(ILBWS, IUBWS,                                                  &
-                         JLBWS, JUBWS,                                                  &
-                         KLBWS, KUBWS,                                                  &
-                         Me%THOMAS,                                                     &
-                         Me%ExternalVar%PROP                                            &
-#ifdef _ENABLE_CUDA
-                         , Me%ObjCuda,                                                  &
-                         .FALSE.                                                        &
-#endif _ENABLE_CUDA
-                        )
-!            call THOMASZ_NewType2(ILBWS, IUBWS,                                         &
+!            call THOMASZ(ILBWS, IUBWS,                                                  &
 !                         JLBWS, JUBWS,                                                  &
 !                         KLBWS, KUBWS,                                                  &
 !                         Me%THOMAS,                                                     &
-!                         Me%ExternalVar%PROP, Me%ExternalVar%WaterPoints3D             &
+!                         Me%ExternalVar%PROP                                            &
 !#ifdef _ENABLE_CUDA
 !                         , Me%ObjCuda,                                                  &
 !                         .FALSE.                                                        &
 !#endif _ENABLE_CUDA
 !                        )
+            call THOMASZ_NewType2(ILBWS, IUBWS,                                         &
+                         JLBWS, JUBWS,                                                  &
+                         KLBWS, KUBWS,                                                  &
+                         Me%THOMAS,                                                     &
+                         Me%ExternalVar%PROP, Me%ExternalVar%WaterPoints3D             &
+#ifdef _ENABLE_CUDA
+                         , Me%ObjCuda,                                                  &
+                         .FALSE.                                                        &
+#endif _ENABLE_CUDA
+                        )
 
         endif cd3
 
