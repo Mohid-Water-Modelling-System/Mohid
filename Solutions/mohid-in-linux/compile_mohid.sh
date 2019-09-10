@@ -21,7 +21,7 @@ IS_DEBUG=false                   # default : false
 #### libraries path ####
 DIR_REQ=$HOME/apps_intel
 ZLIB=$DIR_REQ/zlib-1.2.11
-HDF5=$DIR_REQ/hdf5-1.8.15
+HDF5=$DIR_REQ/hdf5-1.8.17
 NETCDF=$DIR_REQ/netcdf-4.4.1.1
 MPI=$DIR_REQ/mpich-3.2
 #MPI=/opt/intel/compilers_and_libraries/linux/mpi/intel64
@@ -31,8 +31,8 @@ IPHREEQC=$DIR_REQ/iphreeqc-3.3.11-12535
 PHREEQCRM=$DIR_REQ/phreeqcrm-3.3.11-12535
 
 #### Activate modules ####
-USE_OPENMP=true                  # default : true
-USE_MPI=false                    # default : false
+USE_OPENMP=false                  # default : true
+USE_MPI=true                 # default : false
 
 USE_HDF=true                     # default : true
 USE_NETCDF=true                  # default : true
@@ -584,7 +584,8 @@ MOHID_BASE_2(){
     ModuleFillMatrix  \
     ModuleChainReactions  \
     ModuleAtmosphere      \
-    ModuleTwoWay)
+    ModuleUpscallingDischarges \
+    ModuleTwoWay )
 
   COMPILE_MOHID_BASE modules_Mohid_Base_2 "mohidbase2"
 }
