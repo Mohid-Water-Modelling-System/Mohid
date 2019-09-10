@@ -14165,7 +14165,7 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
             Property => Property%Next
         enddo
         if (Me%Coupled%AdvectionDiffusion%NumberOfProperties < 2) OptimizeFlag = .false.
-        OptimizeFlag = .true.
+
         FirstWaterProperty = .true.
         Property => Me%FirstProperty
 

@@ -26712,7 +26712,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
                     endif
                 endif
                 if (UseOptimizedRoutine) then
-                    call Velocity_VerticalAdvection2! ok
+                    call Velocity_VerticalAdvection2
                 else
                     call Velocity_VerticalAdvection
                 endif
@@ -34349,7 +34349,7 @@ cd1:    if (Me%ComputeOptions%HorizontalAdvection) then
             endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-            call Modify_Advection_UY_VX2
+            call Modify_Advection_UY_VX2 !Sobrinho
 
             call Modify_Advection_UX_VY2
 
@@ -34417,9 +34417,9 @@ cd3:        if (Me%ComputeOptions%BiHarmonic) then
                 endif
 
 
-                call Modify_Diffusion_UY_VX2  ( Aux_UY_VX, Biharmonic = .true.)
+                call Modify_Diffusion_UY_VX2  ( Aux_UY_VX, Biharmonic = .true.) !Sobrinho
 
-                call Modify_Diffusion_UX_VY2  ( Aux_UX_VY, Biharmonic = .true.)
+                call Modify_Diffusion_UX_VY2  ( Aux_UX_VY, Biharmonic = .true.) !Sobrinho
 
 cd44:           if (Me%SubModel%ON) then
 
@@ -49380,7 +49380,7 @@ dok1:           do  k = Kbottom + 1, KUB
             do i=Me%WorkSize%ILB, Me%WorkSize%IUB
                 !This if impose in the open boundary gradient null for the vertical advection
                 if (ComputeFaces3D_V(i, j, Me%WorkSize%KUB) == Covered .and. WaterColumnV(i, j) > WaterColumn2D .and. &
-                .not. (BoundaryFacesV  (i, j) == Boundary.and. &
+                .not. (BoundaryFacesV  (i, j) == Boundary .and. &
                        (.not. Me%CyclicBoundary%ON .or. &
                              (Me%CyclicBoundary%ON .and. Me%CyclicBoundary%Direction == Me%Direction%YX)))) then
 
@@ -49388,7 +49388,7 @@ dok1:           do  k = Kbottom + 1, KUB
 
                     do  k = Kbottom + 1, Me%WorkSize%KUB
 
-                        Face_Flux    = (WaterFlux_Z(i-1, j, k) + WaterFlux_Z(i, j, k))/2.
+                        Face_Flux    = (WaterFlux_Z(i-1, j, k) + WaterFlux_Z(i, j, k)) / 2.
                         
                         V4 (2) = Area_V(i, j, k - 1) * DZY(i-1, j); V4 (3) = Area_V(i, j, k) * DZY(i-1, j);
 
@@ -49540,6 +49540,8 @@ dok1:           do  k = Kbottom + 1, KUB
                     Kbottom = KFloor_U(i, j)
 
                     do  k = Kbottom + 1, Me%WorkSize%KUB
+                        
+                        Face_Flux = (WaterFlux_Z(i, j-1, k) + WaterFlux_Z(i, j, k)) / 2.
 
                         V4 (2) = Area_U(i, j, k - 1) * DZX(i, j-1); V4(3) = Area_U(i, j, k) * DZX(i, j-1);
 
@@ -53332,60 +53334,60 @@ do5:            do i = ILB, IUB
         !    Me%OutPut%ProfileON   .or. Me%OutPut%HDF5_Surface_ON.or.                    &
         !    Me%OutW%OutPutWindowsON)then
         
-            if (Me%OutPut%TimeSerieON) then
-                call OutputTimeSeries_FileOK (TimeSeriesFileOK)
-            endif
-           
-            if (Me%OutPut%hdf5ON) then
-                NextOutPut = Me%OutPut%NextOutPut
-                if (NextOutPut <= Me%OutPut%Number) then
-                    if (Me%CurrentTime >= Me%OutPut%OutTime(NextOutPut)) then
-                        OutPutFileOK = .true.
-                    endif
+        if (Me%OutPut%TimeSerieON) then
+            call OutputTimeSeries_FileOK (TimeSeriesFileOK)
+        endif
+            
+        if (Me%OutPut%hdf5ON) then
+            NextOutPut = Me%OutPut%NextOutPut
+            if (NextOutPut <= Me%OutPut%Number) then
+                if (Me%CurrentTime >= Me%OutPut%OutTime(NextOutPut)) then
+                    OutPutFileOK = .true.
                 endif
             endif
-        
-            if (Me%OutW%OutPutWindowsON)  then
-                do iW = 1, Me%OutW%WindowsNumber
-                    if (Me%OutW%OutPutWindows(iW)%ON) then
-                        NextOutPut = Me%OutW%OutPutWindows(iW)%NextOutPut
-                        OutPutWindowFileOK = .false.
-                        if (NextOutPut <= Me%OutW%OutPutWindows(iW)%Number) then
-                            if (Me%CurrentTime >= Me%OutW%OutPutWindows(iW)%OutTime(NextOutPut)) then
-                                OutPutWindowFileOK = .true.
-                            endif
+        endif
+            
+        if (Me%OutW%OutPutWindowsON)  then
+            do iW = 1, Me%OutW%WindowsNumber
+                if (Me%OutW%OutPutWindows(iW)%ON) then
+                    NextOutPut = Me%OutW%OutPutWindows(iW)%NextOutPut
+                    OutPutWindowFileOK = .false.
+                    if (NextOutPut <= Me%OutW%OutPutWindows(iW)%Number) then
+                        if (Me%CurrentTime >= Me%OutW%OutPutWindows(iW)%OutTime(NextOutPut)) then
+                            OutPutWindowFileOK = .true.
                         endif
                     endif
-                enddo   
-            endif
-        
-            if(Me%OutPut%HDF5_Surface_ON)then
-                OutPutSurfaceFileOK = .false.
-                if (Me%OutPut%NextSurfaceOutPut <= Me%OutPut%NumberSurfaceOutputs) then
-                    if (Me%CurrentTime >= Me%OutPut%SurfaceOutTime(Me%OutPut%NextSurfaceOutPut)) then
-                        OutPutSurfaceFileOK = .true.
-                    endif
+                endif
+            enddo   
+        endif
+            
+        if(Me%OutPut%HDF5_Surface_ON)then
+            OutPutSurfaceFileOK = .false.
+            if (Me%OutPut%NextSurfaceOutPut <= Me%OutPut%NumberSurfaceOutputs) then
+                if (Me%CurrentTime >= Me%OutPut%SurfaceOutTime(Me%OutPut%NextSurfaceOutPut)) then
+                    OutPutSurfaceFileOK = .true.
                 endif
             endif
+        endif
             
-            if (Me%OutPut%ProfileON) then
-                call GetProfileNextOutputTime(Me%ObjProfile, NextProfileOutput, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'Hydrodynamic_OutPut - ModuleHydrodynamic - ERR01'
+        if (Me%OutPut%ProfileON) then
+            call GetProfileNextOutputTime(Me%ObjProfile, NextProfileOutput, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Hydrodynamic_OutPut - ModuleHydrodynamic - ERR01'
             
-                if (Me%CurrentTime >= NextProfileOutput) ProfileFileOK = .true.
-            endif
+            if (Me%CurrentTime >= NextProfileOutput) ProfileFileOK = .true.
+        endif
             
-            if (ProfileFileOK .or. OutPutFileOK .or. TimeSeriesFileOK .or. OutPutWindowFileOK .or. &
-            OutPutSurfaceFileOK) then
+        if (ProfileFileOK .or. OutPutFileOK .or. TimeSeriesFileOK .or. OutPutWindowFileOK .or. &
+        OutPutSurfaceFileOK) then
                 
-                call ModifyMatrixesOutput
-            endif
+            call ModifyMatrixesOutput
+        endif
             
-            !call ModifyMatrixesOutput
+        !call ModifyMatrixesOutput !Sobrinho
 
-            if(Me%OutPut%FloodRisk)then
-                call ComputeFloodRisk
-            endif
+        if(Me%OutPut%FloodRisk)then
+            call ComputeFloodRisk
+        endif
 
         !end if
 
