@@ -683,6 +683,7 @@ MOHID_TOOLS(){
       exit 1
   fi
   modules_Mohid_Tools=( \
+    MohidDDC \
     BasinDelimiter \
     ConvertGridDataToHDF5 \
     ConvertHDF5ToGridData \
@@ -693,7 +694,6 @@ MOHID_TOOLS(){
     HDF5Exporter \
     HDF5Extractor \
     HDF5Statistics \
-    MainDDC \
     #Shell \   ## error
     )
 
@@ -771,7 +771,7 @@ MOHID_TOOLS(){
         ModuleHDF5Statistics)
         COMPILE_MOHID_TOOLS modules_HDF5Statistics "$tool"
 
-    elif [ $tool = 'MainDDC' ]; then
+    elif [ $tool = 'MohidDDC' ]; then
       modules_DDC=( \
         ModuleHashTable \
         ModuleDDC)
