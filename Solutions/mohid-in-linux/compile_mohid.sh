@@ -180,6 +180,7 @@ WARNINGS_FLAGS=
 OPENMP_FLAGS=
 OPT_FLAGS=
 OTH_FLAGS=
+FPE3_FLAGS=
 if [[ $FC == *"gfortran"* ]]; then
     LANG_FLAGS='-cpp -fdefault-real-8 -fdefault-double-8'
     if [ $IS_DEBUG == true ]; then
@@ -216,6 +217,8 @@ elif [[ $FC == *"ifort"* ]]; then
     OPT_FLAGS="-O1 -convert little_endian -fPIC -heap-arrays 64 -fp-model source" #-mcmodel=large
   
     OTH_FLAGS=" -xHost -ip -fpe0  -fpp "
+    
+    FPE3_FLAGS=" -xHost -ip -fpe3  -fpp " 
     
     MODOUT="-module "
 fi
@@ -683,6 +686,7 @@ MOHID_TOOLS(){
       exit 1
   fi
   modules_Mohid_Tools=( \
+    Convert2netcdf \
     MohidDDC \
     BasinDelimiter \
     ConvertGridDataToHDF5 \
@@ -776,11 +780,29 @@ MOHID_TOOLS(){
         ModuleHashTable \
         ModuleDDC)
         COMPILE_MOHID_TOOLS modules_DDC "$tool"
+    
 
     elif [ $tool = 'Shell' ]; then
       modules_Shell=( \
         ModuleShell)
         COMPILE_MOHID_TOOLS modules_Shell "$tool"
+    
+    elif [ $tool = 'Convert2netcdf' ]; then
+      CCFLAGS2="$WARNINGS_FLAGS $DEBUG_FLAGS $LANG_FLAGS $OPENMP_FLAGS $OPT_FLAGS $FPE3_FLAGS $FPP_DEFINES"
+      if [ $OPT_VERBOSE == 1 ]; then
+        echo
+        echo " $FC $CCFLAGS2 $BASE1_SRC/build/*${Obj} $BASE2_SRC/build/*${Obj} src/${tool}$F90  $INCLUDES $LIBS -o bin/${tool}${Exe}"
+        echo
+      fi
+      $FC $CCFLAGS2 $BASE1_SRC/build/*${Obj} $BASE2_SRC/build/*${Obj} src/${tool}$F90 $INCLUDES $LIBS -o bin/${tool}${Exe}
+      
+      if [ ! -f "bin/${tool}${Exe}" ];  then
+        echo -e "${ERROR} bin/${tool}${Exe} File not created!"
+        exit 0
+      else
+        echo -e " compile ${tool} ${OK}                                                      "
+        echo
+      fi
 
     elif [ -f "src/${tool}$F90" ];  then
 
@@ -789,7 +811,6 @@ MOHID_TOOLS(){
         echo " $FC $CCFLAGS $BASE1_SRC/build/*${Obj} $BASE2_SRC/build/*${Obj} src/${tool}$F90  $INCLUDES $LIBS -o bin/${tool}${Exe}"
         echo
       fi
-
       $FC $CCFLAGS $BASE1_SRC/build/*${Obj} $BASE2_SRC/build/*${Obj} src/${tool}$F90  $INCLUDES $LIBS -o bin/${tool}${Exe}
 
       if [ ! -f "bin/${tool}${Exe}" ];  then
