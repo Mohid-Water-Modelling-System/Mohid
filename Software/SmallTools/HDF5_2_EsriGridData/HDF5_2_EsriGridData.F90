@@ -678,7 +678,7 @@ d11:    do l = 1, Me%FieldNumber
                 
                 if (Me%ExportXYZ) then
                 
-                    call Export_To_XYZ(Aux3D, k, ILB, IUB, JLB, JUB, Me%OutputESRI(l))
+                    call Export_To_XYZ(Aux3DOut, k, ILB, IUB, JLB, JUB, Me%OutputESRI(l))
                 
                 endif 
                 

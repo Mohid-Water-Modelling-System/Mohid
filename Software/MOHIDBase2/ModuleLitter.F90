@@ -102,9 +102,11 @@ Module ModuleLitter
     end type T_Files    
     
     type T_ExtVar
+        integer                                         :: ObjTime              = 0
         type(T_Time)                                    :: CurrentTime
         type(T_Time)                                    :: StartTime                      
         type(T_Time)                                    :: EndTime              
+        logical                                         :: Backtracking         = .false. 
         type (T_polygon), pointer                       :: ModelDomain          => null()
         integer                                         :: nParticles           = null_int
         real(8), dimension(:), pointer                  :: Longitude            => null()
@@ -197,13 +199,12 @@ Module ModuleLitter
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructLitter(ObjLitterID, Nomfich, StartTime, EndTime, ModelDomain, STAT)
+    subroutine ConstructLitter(ObjLitterID, TimeID, Nomfich, ModelDomain, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                         :: ObjLitterID 
+        integer                                         :: TimeID 
         character(len=*)                                :: Nomfich
-        type (T_Time)                                   :: StartTime
-        type (T_Time)                                   :: EndTime
         type (T_Polygon), pointer                       :: ModelDomain
         integer, optional, intent(OUT)                  :: STAT     
 
@@ -230,12 +231,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call AllocateInstance
             
             Me%Files%Nomfich        = Nomfich
-            Me%ExtVar%StartTime     = StartTime            
-            Me%ExtVar%CurrentTime   = StartTime                        
-            Me%ExtVar%EndTime       = EndTime
+
             Me%ExtVar%ModelDomain   => ModelDomain
             
-            Me%LastAtualization     = StartTime
+            Me%ExtVar%ObjTime       = AssociateInstance (mTIME_, TimeID)
+            
+            call GetExternalTime
             
             call ConstructFilesNames
             
@@ -313,6 +314,36 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 
     !------------------------------------------------------------------------------
+    
+    subroutine GetExternalTime
+    
+        !Arguments-------------------------------------------------------------
+                                                    
+        !Local-----------------------------------------------------------------
+        integer                 :: STAT_CALL
+        !Begin-----------------------------------------------------------------
+    
+        !Gets Time
+        call GetComputeTimeLimits(Me%ExtVar%ObjTime,                                    &
+                                  BeginTime = Me%ExtVar%StartTime,                      &
+                                  EndTime   = Me%ExtVar%EndTime,                        &
+                                  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'GetExternalTime - ModuleLitter - ERR10'
+
+
+        ! Check if the simulation goes backward in time or forward in time (default mode)
+        call GetBackTracking(Me%ExtVar%ObjTime,                                         &
+                             Me%ExtVar%BackTracking, STAT = STAT_CALL)                    
+        if (STAT_CALL /= SUCCESS_) stop 'GetExternalTime - ModuleLitter - ERR20'
+
+        Me%ExtVar%CurrentTime   = Me%ExtVar%StartTime                        
+        Me%LastAtualization     = Me%ExtVar%StartTime    
+            
+            
+    end subroutine GetExternalTime
+    
+    !------------------------------------------------------------------------------    
+    
 
     subroutine ConstructFilesNames
 
@@ -1267,12 +1298,11 @@ i2:         if (CurrentPartic%BeachPeriod >= Me%BeachAreas%Individual(nArea)%Age
         integer                                     :: nGrid, nTotalGrids
         integer                                     :: iOut, STAT_CALL, I, J
         logical                                     :: HaveDomain
-        type (T_Time)                               :: Aux
+        type (T_Time)                               :: Aux, OutTime
         real, dimension(6), target                  :: AuxTime
-        real, dimension(:), pointer                 :: TimePtr        
-        
+        real, dimension(:), pointer                 :: TimePtr      
+        real                                        :: TotalTime, AuxPeriod
         !----------------------------------------------------------------------
-        
         
         nTotalGrids = Me%OutputGrids%Number
         
@@ -1280,11 +1310,15 @@ d1:     do nGrid = 1, nTotalGrids
 
             iOut = Me%OutputGrids%Individual(nGrid)%NextOutput
             
-        
-i1:         if (Me%ExtVar%CurrentTime >=  Me%OutputGrids%Individual(nGrid)%OutTime(iOut)) then
+            OutTime = Me%OutputGrids%Individual(nGrid)%OutTime(iOut)
+            
+i1:         if (Me%ExtVar%CurrentTime >=  OutTime) then
+    
+                if (Me%ExtVar%Backtracking) then
+                    iOut = Me%OutputGrids%Individual(nGrid)%Number - iOut + 1 
+                endif          
 
                 Me%OutputGrids%Individual(nGrid)%AuxInt2D(:,:) = 0
-        
         
                 CurrentPartic => Me%ParticleList%First
 
@@ -1318,8 +1352,22 @@ d2:             do while (associated(CurrentPartic))
                     CurrentPartic => CurrentPartic%Next
                     
                 enddo   d2
+
+                if (Me%ExtVar%Backtracking) then
+                    
+                    TotalTime = Me%ExtVar%EndTime - Me%ExtVar%StartTime                  
+                    AuxPeriod = OutTime           - Me%ExtVar%StartTime
+                    AuxPeriod = TotalTime         - AuxPeriod
+                    
+                    Aux = Me%ExtVar%StartTime   + AuxPeriod
+                    
+                else
+                    
+                    Aux = OutTime
+                    
+                endif 
                 
-                Aux = Me%OutputGrids%Individual(nGrid)%OutTime(iOut)
+                !Aux = Me%OutputGrids%Individual(nGrid)%OutTime(iOut)
                 
                 !Writes the Instant - HDF 5
                 call ExtractDate   (Aux, AuxTime(1), AuxTime(2), AuxTime(3),          &
@@ -1358,7 +1406,7 @@ d2:             do while (associated(CurrentPartic))
                                    STAT         = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'OutputNumberGrid - ModuleLitter - ERR60'
                 
-                Me%OutputGrids%Individual(nGrid)%NextOutput = iOut + 1                
+                Me%OutputGrids%Individual(nGrid)%NextOutput = Me%OutputGrids%Individual(nGrid)%NextOutput + 1                
                 
                 
             endif i1                
@@ -1406,7 +1454,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             nUsers = DeassociateInstance(mLitter_,  Me%InstanceID)
 
             if (nUsers == 0) then
-
+                
                 !Deallocates Instance
                 call DeallocateInstance ()
 
@@ -2039,7 +2087,7 @@ ex:     if (GroupExists) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        integer                         :: STAT_CALL, iG
+        integer                         :: STAT_CALL, iG, nUsers
         !Begin-----------------------------------------------------------------        
 
         !Deallocates variables
@@ -2071,7 +2119,10 @@ ex:     if (GroupExists) then
         if (associated(Me%OutputGrids%Individual)) then            
             deallocate(Me%OutputGrids%Individual)            
             nullify   (Me%OutputGrids%Individual)                    
-        endif                    
+        endif           
+        
+        nUsers = DeassociateInstance (mTIME_,   Me%ExtVar%ObjTime)
+        if (nUsers == 0) stop 'DeallocateVariables - ModuleLitter - ERR30'        
         
             
     end subroutine DeallocateVariables
