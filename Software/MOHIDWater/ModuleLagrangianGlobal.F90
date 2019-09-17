@@ -3988,6 +3988,8 @@ d2:     do em =1, Me%EulerModelNumber
             Me%OutPut%NextOutPut = 1
         endif
 
+        Me%OutPut%WriteRestartFile = .false. 
+
         call GetOutPutTime(Me%ObjEnterData,                                             &
                            CurrentTime = Me%ExternalVar%Now,                            &
                            EndTime     = Me%ExternalVar%EndTime,                        &
@@ -4537,6 +4539,7 @@ BF:         if (BlockFound) then
         integer                                     :: dir
         integer                                     :: iLine, FirstLine, LastLine, nClasses 
         logical                                     :: BlockFound
+        type (T_Time)                               :: AuxTimeStart, AuxTimeStop
 
         !Begin-----------------------------------------------------------------
 
@@ -4710,6 +4713,17 @@ ET:     if (NewOrigin%EmissionTemporal == Continuous_) then
                              Default      = Me%ExternalVar%EndTime,              &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR340'
+                
+                if (Me%ExternalVar%Backtracking) then  
+                    
+                    AuxTimeStart = NewOrigin%StopEmission
+                    AuxTimeStop = NewOrigin%StartEmission 
+                    
+                    call BacktrackingTime(NowIn = AuxTimeStop,  NowOut = NewOrigin%StopEmission)                       
+                    call BacktrackingTime(NowIn = AuxTimeStart, NowOut = NewOrigin%StartEmission)                       
+                    
+                endif                                    
+                
                 
             endif
 
@@ -23938,6 +23952,28 @@ d1:     do em =1, Me%EulerModelNumber
 
     end subroutine Search_Property
 
+    !-------------------------------------------------------------------------
+    subroutine BacktrackingTime(NowIn, NowOut)
+
+        !Arguments------------------------------------------------------------
+        type (T_Time), intent(IN )                      :: NowIn
+        type (T_Time), intent(OUT)                      :: NowOut
+        !Local----------------------------------------------------------------
+        real(8)                                         :: TotalTime, AuxPeriod
+
+        !Begin----------------------------------------------------------------
+
+        TotalTime = Me%ExternalVar%EndTime - Me%ExternalVar%BeginTime                  
+        AuxPeriod = NowIn      - Me%ExternalVar%BeginTime
+        AuxPeriod = TotalTime  - AuxPeriod
+                    
+        NowOut    = Me%ExternalVar%BeginTime + AuxPeriod        
+
+    end subroutine BacktrackingTime
+    
+    !-------------------------------------------------------------------------
+    
+
     !--------------------------------------------------------------------------
 
     subroutine ParticleOutput ()
@@ -23971,7 +24007,7 @@ d1:     do em =1, Me%EulerModelNumber
         real, dimension(:),       pointer           :: MaximumDepth
         integer                                     :: OutPutLines, JetTotalParticles, em, em1, emMax, emp
         type (T_Position)                           :: Position
-        real(8)                                     :: AverageX, AverageY, Stdv, RadiusOfInfluence,AuxPeriod,TotalTime
+        real(8)                                     :: AverageX, AverageY, Stdv, RadiusOfInfluence !,AuxPeriod,TotalTime
         integer                                     :: ParticSurface
         !Begin--------------------------------------------------------------------------
         
@@ -24062,11 +24098,13 @@ i0:             if (Me%RunOnline .and. em == emMax .and. Me%Online%EmissionTempo
                 endif i0
                 
                 if (Me%ExternalVar%Backtracking) then  
-                    TotalTime = Me%ExternalVar%EndTime - Me%ExternalVar%BeginTime                  
-                    AuxPeriod = Actual     - Me%ExternalVar%BeginTime
-                    AuxPeriod = TotalTime  - AuxPeriod
+                    !TotalTime = Me%ExternalVar%EndTime - Me%ExternalVar%BeginTime                  
+                    !AuxPeriod = Actual     - Me%ExternalVar%BeginTime
+                    !AuxPeriod = TotalTime  - AuxPeriod
+                    !
+                    !Aux = Me%ExternalVar%BeginTime + AuxPeriod
                     
-                    Aux = Me%ExternalVar%BeginTime + AuxPeriod
+                    call BacktrackingTime(NowIn = Actual, NowOut = Aux)                    
                 else
                     Aux = Actual
                 endif                 
@@ -27091,6 +27129,11 @@ dg:         do ig = 1, Me%NGroups
                     
                     endif
                     
+                    if (j < WS_JLB .or. j > WS_JUB .or. i < WS_ILB .or. i > WS_IUB) then
+                        write(*,*) 'ig, em, i, j=', ig, em, i, j
+                        stop 'FillGridConcentration - ModuleLagrangianGlobal - ERR15'
+                    endif
+                    
                     if (Me%State%Deposition) then
                         
                         if (CurrentPartic%Deposited) then
@@ -27126,6 +27169,13 @@ cd1:                if (.not. CurrentPartic%Deposited) then
                             k = GetLayer4Level(Me%EulerModel(em)%ObjGeometry, i, j, CurrentPartic%Position%Z, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'FillGridConcentration - ModuleLagrangianGlobal - ERR20'
                         endif
+                        
+                        if (k < WS_KLB .or. k > WS_KUB) then
+                            write(*,*) 'ig, em, i, j, k=', ig, em, i, j, k
+                            write(*,*) 'assumed k = KUB'
+                            k = WS_KUB
+                            !stop 'FillGridConcentration - ModuleLagrangianGlobal - ERR25'
+                        endif                        
 
 
                         Me%EulerModel(em)%Lag2Euler%GridTracerNumber(i, j, k, ig) = &
