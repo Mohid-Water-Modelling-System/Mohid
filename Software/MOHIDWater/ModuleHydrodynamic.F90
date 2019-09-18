@@ -38313,11 +38313,9 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
                             stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
 
                     endif
-
-                    if (STAT_CALL/=SUCCESS_)                                            &
-                        stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
-
-                endif
+                    
+                    iNorth = i+di
+                    jEast =  j+dj
 
                     if (DischVertical == DischUniform_) then
 
