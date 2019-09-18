@@ -38208,15 +38208,7 @@ do1:    do DischargeID = 1, DischargesNumber
                                            DischargeFlow,                       &
                                            SurfaceElevation2 = WaterLevelByPass,&
                                            STAT = STAT_CALL)
-
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR60'
-
-                DT_RunPeriod = Me%CurrentTime - Me%BeginTime
-
-                if (Me%ComputeOptions%WaterDischargesSlowStart > 0.) then
-                    DischargeFlow = DischargeFlow * DT_RunPeriod / Me%ComputeOptions%WaterDischargesSlowStart
-                endif
-
 
                 if (DirectionXY == DirectionX_) then
 
