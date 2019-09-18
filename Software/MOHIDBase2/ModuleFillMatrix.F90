@@ -309,7 +309,8 @@ Module ModuleFillMatrix
         real                                        :: Period           = null_real
         real                                        :: AverageValue     = null_real
         real                                        :: DepthValue       = null_real
-        real                                        :: CoefValue        = null_real 
+        real                                        :: CoefValue        = null_real
+        real                                        :: Dif              = null_real
         logical                                     :: SlowStartON      = .false. 
        ! WaveType = 1 (Sine), WaveType = 2 (Cnoidal), WaveType = 3 (solitary)
         integer                                     :: WaveType      = null_int
@@ -4759,7 +4760,17 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
                      default      = .true.,                                             &
                      ClientModule = 'ModuleFillMatrix',                                 &
                      STAT         = STAT_CALL)                                      
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR126'        
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR126'
+        
+        !Gets the dif coef.
+        call GetData(Me%AnalyticWave%Dif,                                               &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'DIF_VALUE',                                        &
+                     default      = 1e-5,                                               &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR127'        
         
         
         !Gets the file name of the Bathymetry
@@ -4808,7 +4819,7 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
                 AuxL = sqrt(Gravity*H) * T
                 Dif  = - FillValueReal 
                 
-                do while (Dif>1e-5)
+                do while (Dif > Me%AnalyticWave%Dif)
                    AuxL1 = Gravity / (2*Pi)* T**2. * tanh(2*Pi*H/AuxL)
                    Dif   = abs(AuxL1 - AuxL)
                    AuxL  = AuxL1

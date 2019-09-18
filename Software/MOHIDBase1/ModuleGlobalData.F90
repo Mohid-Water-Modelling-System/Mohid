@@ -976,6 +976,7 @@ Module ModuleGlobalData
     integer, parameter :: DischDepth_                       = 3
     integer, parameter :: DischLayer_                       = 4
     integer, parameter :: DischUniform_                     = 5
+    integer, parameter :: DischProfile_                     = 6
 
 
 !_______________________________________________________________________________________________
