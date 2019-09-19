@@ -43597,7 +43597,7 @@ dok:     do k=KUB,kbottom,-1
 
 !        real                               :: DT_Elevation, Evolution
         real                               :: Evolution, DT
-        real(8)                            :: dVdt,                            &
+        real(8)                            :: dVdt, Discharge,                           &
                                               WestFlux, EastFlux, SouthFlux, NorthFlux
 
         logical                            :: DischargesON
