@@ -4100,11 +4100,11 @@ cd1:    if (FacesOption == MinTickness) then
 
         if (MonitorPerformance) call StartWatch ("ModuleGeometry", "ComputeAreas")
 
-        CHUNK = Chunk_J(JLB,JUB)
+        CHUNK = Chunk_K(KLB,KUB)
+        !Sobrinho
         !$OMP PARALLEL PRIVATE(i,j,k)
-
-        do k = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = KLB, KUB
         do j = JLB, JUB
         do i = ILB, IUB
             !Calculo das areas nas faces nos pontos de calculo U's (AREA_U(I,J,K))
@@ -4115,17 +4115,15 @@ cd1:    if (FacesOption == MinTickness) then
 
         enddo
         enddo
-        !$OMP END DO
         enddo
-
+        !$OMP END DO
         !$OMP END PARALLEL
         
         if (Me%Areas%Impermeability) then        
-        
+        !Sobrinho
             !$OMP PARALLEL PRIVATE(i,j,k,WaterLevel)
-
-            do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do k = KLB, KUB
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -4141,9 +4139,8 @@ cd1:    if (FacesOption == MinTickness) then
 
             enddo
             enddo
-            !$OMP END DO
             enddo
-
+            !$OMP END DO
             !$OMP END PARALLEL
         endif
 
@@ -4174,38 +4171,33 @@ cd1:    if (FacesOption == MinTickness) then
         !Arguments-------------------------------------------------------------
 
         !Local-----------------------------------------------------------------
-        !integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
-        !integer                                 :: i, j, k
-        !integer                                 :: CHUNK
+        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
+        integer                                 :: i, j, k
+        integer                                 :: CHUNK
 
-        !Worksize
-        !ILB = Me%WorkSize%ILB
-        !IUB = Me%WorkSize%IUB
-        !
-        !JLB = Me%WorkSize%JLB
-        !JUB = Me%WorkSize%JUB
-        !
-        !KLB = Me%WorkSize%KLB
-        !KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB
+        IUB = Me%WorkSize%IUB
+        
+        JLB = Me%WorkSize%JLB
+        JUB = Me%WorkSize%JUB
+        
+        KLB = Me%WorkSize%KLB
+        KUB = Me%WorkSize%KUB
 
         if (MonitorPerformance) call StartWatch ("ModuleGeometry", "StoreVolumeZOld")
-        
-        Me%Volumes%VolumeZOld = Me%Volumes%VolumeZ
 
-        !CHUNK = Chunk_J(JLB,JUB)
-        !!$OMP PARALLEL PRIVATE(i,j,k)
-        !
-        !do k = KLB, KUB
-        !!$OMP DO SCHEDULE(STATIC, CHUNK)
-        !do j = JLB, JUB
-        !do i = ILB, IUB
-        !    Me%Volumes%VolumeZOld(i, j ,k) = Me%Volumes%VolumeZ(i, j ,k)
-        !enddo
-        !enddo
-        !!$OMP END DO
-        !enddo
-        !
-        !!$OMP END PARALLEL
+        CHUNK = Chunk_K(KLB,KUB)
+        !$OMP PARALLEL PRIVATE(i,j,k)
+        !$OMP DO SCHEDULE(STATIC, CHUNK)
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+            Me%Volumes%VolumeZOld(i, j ,k) = Me%Volumes%VolumeZ(i, j ,k)
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleGeometry", "StoreVolumeZOld")
 
