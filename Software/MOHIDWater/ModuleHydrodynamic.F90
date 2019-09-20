@@ -389,7 +389,6 @@ Module ModuleHydrodynamic
     private ::              Filter_3D_Fluxes
     private ::              Compute_VerticalVelocity
     private ::              ComputeCartesianVertVelocity
-    private ::              ComputeCartesianVertVelocity_Waves
     private ::              ComputeCartesianNH
     private ::              Boundary_VerticalFlow
     private ::                  ComputeBaroclinicVertVelocity
@@ -10258,12 +10257,6 @@ i3:                 if (SpatialEmission == DischPoint_) then
 
                     endif i3
 
-                    !call GetGeometryKFloor(Me%ObjGeometry,                  &
-                    !                        Z = Me%External_Var%KFloor_Z,    &
-                    !                        STAT = STAT_CALL)
-                    !
-                    !if (STAT_CALL /= SUCCESS_)                              &
-                    !    stop 'Construct_Sub_Modules - ModuleHydrodynamic - Failed to get Kfloor_Z.'
 
 c1:                 select case (DischVertical)
 
@@ -10312,26 +10305,17 @@ n1:                         do nC =1, nCells
 
                         end select c1
 
-                        !call UnGetGeometry(Me%ObjGeometry,                      &
-                        !                        Me%External_Var%KFloor_Z,        &
-                        !                        STAT = STAT_CALL)
-                        !
-                        !if (STAT_CALL /= SUCCESS_)                              &
-                        !    stop 'Construct_Sub_Modules - ModuleHydrodynamic - Failed to unget Kfloor_Z'
-
-
                     if (SpatialEmission /= DischPoint_) then
                         call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR360'
 
-                    elseif (SpatialEmission == DischPoint_) then
+                    else
 
                         if (DischVertical == DischProfile_) then !Only for upscaling for now
                             call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Failed using SetLocationCellsZ for profile discharge'
                         endif
 
-                    else
                         if (DischVertical == DischBottom_ .or. DischVertical == DischSurf_) then
                             call SetLayer (Me%ObjDischarges, dn, VectorK(nCells), STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR370'
@@ -25684,13 +25668,8 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
            !null gradient in the open boundary.
             call NullGradProp3D_W(Me%WaterFluxes%Z)
         else
-            if (Me%ComputeOptions%WaveForcing3D /= GLM) then
-                call ComputeCartesianVertVelocity(Grid = Grid)
-                call Boundary_VerticalFlow (Grid)
-            else
-                call ComputeCartesianVertVelocity_Waves(Grid = Grid)
-                call Boundary_VerticalFlow (Grid)
-            endif
+            call ComputeCartesianVertVelocity(Grid = Grid)
+            call Boundary_VerticalFlow (Grid)
         endif
 
         if (Me%CyclicBoundary%ON) then
@@ -38214,15 +38193,7 @@ do1:    do DischargeID = 1, DischargesNumber
                                            DischargeFlow,                       &
                                            SurfaceElevation2 = WaterLevelByPass,&
                                            STAT = STAT_CALL)
-
                 if (STAT_CALL /= SUCCESS_) stop 'ModifyMomentumDischarge - ModuleHydrodynamic - ERR60'
-
-                DT_RunPeriod = Me%CurrentTime - Me%BeginTime
-
-                if (Me%ComputeOptions%WaterDischargesSlowStart > 0.) then
-                    DischargeFlow = DischargeFlow * DT_RunPeriod / Me%ComputeOptions%WaterDischargesSlowStart
-                endif
-
 
                 if (DirectionXY == DirectionX_) then
 
@@ -38327,11 +38298,9 @@ i2:                 if      (FlowDistribution == DischByCell_       ) then
                             stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
 
                     endif
-
-                    if (STAT_CALL/=SUCCESS_)                                            &
-                        stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR120'
-
-                endif
+                    
+                    iNorth = i+di
+                    jEast =  j+dj
 
                     if (DischVertical == DischUniform_) then
 
@@ -43628,7 +43597,7 @@ dok:     do k=KUB,kbottom,-1
 
 !        real                               :: DT_Elevation, Evolution
         real                               :: Evolution, DT
-        real(8)                            :: dVdt,                            &
+        real(8)                            :: dVdt, Discharge,                           &
                                               WestFlux, EastFlux, SouthFlux, NorthFlux
 
         logical                            :: DischargesON
@@ -43692,6 +43661,8 @@ dok:     do k=KUB,kbottom,-1
         endif
 
         DischargesON = .false.
+        
+        Discharge    = 0.
 
         if (associated(DischargeFlow)) then
 
@@ -43705,191 +43676,107 @@ dok:     do k=KUB,kbottom,-1
             call StartWatch ("ModuleHydrodynamic", "Modify_VerticalWaterFlow")
         endif
 
+        !$OMP PARALLEL PRIVATE(i,j,k,dVdt,Discharge,WestFlux,EastFlux,SouthFlux) &
+        !$OMP PRIVATE(NorthFlux)
 
-        if (DischargesON) then
+        !Fluxes divergence
+dok3:   do k = KLB, KUB
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+doj3:   do j = JLB, JUB
+doi3:   do i = ILB, IUB
+!            dVdt =  dble(Evolution) * (Volume_Z_New(i, j, k) - Volume_Z_Old(i, j, k)) / &
+!                    dble(DT_Elevation )
+            dVdt =  dble(Evolution) * (Volume_Z_New(i, j, k) - Volume_Z_Old(i, j, k)) / &
+                    dble(DT)
+                    !E preciso alterar esta parte para que se possa calcular fluxos verticais independentemente
+                    !de como sao calculados os fluxos horizontais
 
-            !$OMP PARALLEL PRIVATE(i,j,k,dVdt,WestFlux,EastFlux,SouthFlux) &
-            !$OMP PRIVATE(NorthFlux)
+            if (DischargesON) Discharge = DischargeFlow (i    , j    , k)
+
+
+            WaterFlux_Z(i, j, k + 1) = WaterFlux_Z          (i    , j    , k)     +      &  !Bottom Face
+                                       WaterFlux_X          (i    , j    , k)     *      &
+                                       dble(ComputeFaces3D_U(i    , j    , k))    -      &  !West Face
+                                       WaterFlux_X          (i    , j + 1, k)     *      &
+                                       dble(ComputeFaces3D_U(i    , j + 1, k))    +      &  !East Face
+                                       WaterFlux_Y          (i    , j    , k)     *      &
+                                       dble(ComputeFaces3D_V(i    , j    , k))    -      &  !South Face
+                                       WaterFlux_Y          (i + 1, j    , k)     *      &
+                                       dble(ComputeFaces3D_V(i + 1, j    , k))    +      &  !North Face
+                                       Discharge                                  *      &
+                                       dble(WaterPoints3D   (i    , j    , k))    -      &  !Discharges contribution
+                                       dVdt
+
+        enddo doi3
+        enddo doj3
+        !$OMP END DO
+        enddo dok3
+
+cd5:    if (Me%SubModel%ON) then
+
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 
             !Fluxes divergence
-            do k = KLB, KUB
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do j = JLB, JUB
-            do i = ILB, IUB
-            !   dVdt =  dble(Evolution) * (Volume_Z_New(i, j, k) - Volume_Z_Old(i, j, k)) / &
-            !           dble(DT_Elevation )
-                dVdt =  dble(Evolution) * (Volume_Z_New(i, j, k) - Volume_Z_Old(i, j, k)) / &
-                        dble(DT)
-                        !E preciso alterar esta parte para que se possa calcular fluxos verticais independentemente
-                        !de como sao calculados os fluxos horizontais
+            doj4: do j = JLB, JUB
+            doi4: do i = ILB, IUB
 
-                WaterFlux_Z(i, j, k + 1) = WaterFlux_Z          (i    , j    , k)     +      &  !Bottom Face
-                                           WaterFlux_X          (i    , j    , k)     *      &
-                                           dble(ComputeFaces3D_U(i    , j    , k))    -      &  !West Face
-                                           WaterFlux_X          (i    , j + 1, k)     *      &
-                                           dble(ComputeFaces3D_U(i    , j + 1, k))    +      &  !East Face
-                                           WaterFlux_Y          (i    , j    , k)     *      &
-                                           dble(ComputeFaces3D_V(i    , j    , k))    -      &  !South Face
-                                           WaterFlux_Y          (i + 1, j    , k)     *      &
-                                           dble(ComputeFaces3D_V(i + 1, j    , k))    +      &  !North Face
-                                           DischargeFlow        (i    , j    , k)     *      &
-                                           dble(WaterPoints3D   (i    , j    , k))    -      &  !Discharges
-                                           dVdt
 
-            enddo
-            enddo
+cd4:            if (BoundaryPoints(i, j) == Boundary) then
+
+                    dok4: do k = KLB, KUB
+
+                            dVdt =  dble(Evolution) * (Volume_Z_New(i, j, k) - Volume_Z_Old(i, j, k)) / &
+                                dble(DT)
+
+                            if (DischargesON) Discharge = DischargeFlow (i    , j    , k)
+
+
+                            !West Face
+                            WestFlux = WaterFlux_X(i, j, k) * dble(ComputeFaces3D_U(i, j, k)) + &
+                                       qX         (i, j, k) * dble(DYY             (i, j   )) * &
+                                       (dble(ImposedNormalFacesU    (i,   j, k))              + &
+                                        dble(ImposedTangentialFacesU(i,   j, k)))
+
+                            !East Face
+                            EastFlux = WaterFlux_X(i, j+1, k) * dble(ComputeFaces3D_U(i, j+1, k)) + &
+                                       qX         (i, j+1, k) * dble(DYY             (i, j+1))    * &
+                                       (dble(ImposedNormalFacesU    (i, j+1, k))                  + &
+                                        dble(ImposedTangentialFacesU(i, j+1, k)))
+
+
+
+                            !South Face
+                            SouthFlux = WaterFlux_Y(i, j, k) * dble(ComputeFaces3D_V (i, j, k)) + &
+                                        qY         (i, j, k) * dble(DXX              (i, j))    * &
+                                       (dble(ImposedNormalFacesV    (i  , j, k))                + &
+                                        dble(ImposedTangentialFacesV(i  , j, k)))
+
+
+                            !North Face
+                            NorthFlux = WaterFlux_Y(i+1, j, k) * dble(ComputeFaces3D_V (i+1, j, k)) + &
+                                        qY         (i+1, j, k) * dble(DXX              (i+1, j))    * &
+                                       (dble(ImposedNormalFacesV    (i+1, j, k))                    + &
+                                        dble(ImposedTangentialFacesV(i+1, j, k)))
+
+
+
+                            WaterFlux_Z(i, j, k + 1) = WaterFlux_Z          (i    , j    , k)      + &  !Bottom Face
+                                                       WestFlux - EastFlux + SouthFlux - NorthFlux + &
+                                                       Discharge                                   * &
+                                                       dble(WaterPoints3D   (i    , j    , k))     - &  !Discharges contribution
+                                                       dVdt
+
+                        enddo dok4
+                    endif cd4
+
+            enddo doi4
+            enddo doj4
             !$OMP END DO
-            enddo
-
-cd5:        if (Me%SubModel%ON) then
-
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                !Fluxes divergence
-                doj4: do j = JLB, JUB
-                doi4: do i = ILB, IUB
-
-cd4:                if (BoundaryPoints(i, j) == Boundary) then
-
-                        dok4: do k = KLB, KUB
-
-                                dVdt =  dble(Evolution) * (Volume_Z_New(i, j, k) - Volume_Z_Old(i, j, k)) / &
-                                    dble(DT)
 
 
-                                !West Face
-                                WestFlux = WaterFlux_X(i, j, k) * dble(ComputeFaces3D_U(i, j, k)) + &
-                                           qX         (i, j, k) * dble(DYY             (i, j   )) * &
-                                           (dble(ImposedNormalFacesU    (i,   j, k))              + &
-                                            dble(ImposedTangentialFacesU(i,   j, k)))
+        endif cd5
 
-                                !East Face
-                                EastFlux = WaterFlux_X(i, j+1, k) * dble(ComputeFaces3D_U(i, j+1, k)) + &
-                                           qX         (i, j+1, k) * dble(DYY             (i, j+1))    * &
-                                           (dble(ImposedNormalFacesU    (i, j+1, k))                  + &
-                                            dble(ImposedTangentialFacesU(i, j+1, k)))
-
-
-
-                                !South Face
-                                SouthFlux = WaterFlux_Y(i, j, k) * dble(ComputeFaces3D_V (i, j, k)) + &
-                                            qY         (i, j, k) * dble(DXX              (i, j))    * &
-                                           (dble(ImposedNormalFacesV    (i  , j, k))                + &
-                                            dble(ImposedTangentialFacesV(i  , j, k)))
-
-
-                                !North Face
-                                NorthFlux = WaterFlux_Y(i+1, j, k) * dble(ComputeFaces3D_V (i+1, j, k)) + &
-                                            qY         (i+1, j, k) * dble(DXX              (i+1, j))    * &
-                                           (dble(ImposedNormalFacesV    (i+1, j, k))                    + &
-                                            dble(ImposedTangentialFacesV(i+1, j, k)))
-
-
-                                WaterFlux_Z(i, j, k + 1) = WaterFlux_Z          (i    , j    , k)      + &  !Bottom Face
-                                                           WestFlux - EastFlux + SouthFlux - NorthFlux + &
-                                                           DischargeFlow        (i    , j    , k)      * &
-                                                           dble(WaterPoints3D   (i    , j    , k))     - &  !Discharges contribution
-                                                           dVdt
-
-                            enddo dok4
-                        endif cd4
-
-                enddo doi4
-                enddo doj4
-                !$OMP END DO
-
-            endif cd5
-
-            !$OMP END PARALLEL
-
-        else !NO DISCHARGES
-
-            !$OMP PARALLEL PRIVATE(i,j,k,dVdt,WestFlux,EastFlux,SouthFlux) &
-            !$OMP PRIVATE(NorthFlux)
-            do k = KLB, KUB
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do j = JLB, JUB
-            do i = ILB, IUB
-!               dVdt =  dble(Evolution) * (Volume_Z_New(i, j, k) - Volume_Z_Old(i, j, k)) / &
-!                       dble(DT_Elevation )
-                dVdt =  dble(Evolution) * (Volume_Z_New(i, j, k) - Volume_Z_Old(i, j, k)) / &
-                        dble(DT)
-                        !E preciso alterar esta parte para que se possa calcular fluxos verticais independentemente
-                        !de como sao calculados os fluxos horizontais
-                WaterFlux_Z(i, j, k + 1) = WaterFlux_Z          (i    , j    , k)     +      &  !Bottom Face
-                                           WaterFlux_X          (i    , j    , k)     *      &
-                                           dble(ComputeFaces3D_U(i    , j    , k))    -      &  !West Face
-                                           WaterFlux_X          (i    , j + 1, k)     *      &
-                                           dble(ComputeFaces3D_U(i    , j + 1, k))    +      &  !East Face
-                                           WaterFlux_Y          (i    , j    , k)     *      &
-                                           dble(ComputeFaces3D_V(i    , j    , k))    -      &  !South Face
-                                           WaterFlux_Y          (i + 1, j    , k)     *      &
-                                           dble(ComputeFaces3D_V(i + 1, j    , k))    -      &  !North Face
-                                           dVdt
-
-            enddo
-            enddo
-            !$OMP END DO
-            enddo
-
-            if (Me%SubModel%ON) then
-
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-
-                !Fluxes divergence
-                do j = JLB, JUB
-                do i = ILB, IUB
-
-
-                if (BoundaryPoints(i, j) == Boundary) then
-
-                            do k = KLB, KUB
-
-                                dVdt =  dble(Evolution) * (Volume_Z_New(i, j, k) - Volume_Z_Old(i, j, k)) / &
-                                    dble(DT)
-
-                                !West Face
-                                WestFlux = WaterFlux_X(i, j, k) * dble(ComputeFaces3D_U(i, j, k)) + &
-                                           qX         (i, j, k) * dble(DYY             (i, j   )) * &
-                                           (dble(ImposedNormalFacesU    (i,   j, k))              + &
-                                            dble(ImposedTangentialFacesU(i,   j, k)))
-
-                                !East Face
-                                EastFlux = WaterFlux_X(i, j+1, k) * dble(ComputeFaces3D_U(i, j+1, k)) + &
-                                           qX         (i, j+1, k) * dble(DYY             (i, j+1))    * &
-                                           (dble(ImposedNormalFacesU    (i, j+1, k))                  + &
-                                            dble(ImposedTangentialFacesU(i, j+1, k)))
-
-
-
-                                !South Face
-                                SouthFlux = WaterFlux_Y(i, j, k) * dble(ComputeFaces3D_V (i, j, k)) + &
-                                            qY         (i, j, k) * dble(DXX              (i, j))    * &
-                                           (dble(ImposedNormalFacesV    (i  , j, k))                + &
-                                            dble(ImposedTangentialFacesV(i  , j, k)))
-
-
-                                !North Face
-                                NorthFlux = WaterFlux_Y(i+1, j, k) * dble(ComputeFaces3D_V (i+1, j, k)) + &
-                                            qY         (i+1, j, k) * dble(DXX              (i+1, j))    * &
-                                           (dble(ImposedNormalFacesV    (i+1, j, k))                    + &
-                                            dble(ImposedTangentialFacesV(i+1, j, k)))
-
-
-
-                                WaterFlux_Z(i, j, k + 1) = WaterFlux_Z          (i    , j    , k)      + &  !Bottom Face
-                                                           WestFlux - EastFlux + SouthFlux - NorthFlux - &
-                                                           dVdt
-
-                            enddo
-                        endif
-
-                enddo
-                enddo
-                !$OMP END DO
-
-            endif
-            !$OMP END PARALLEL
-        endif
+        !$OMP END PARALLEL
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_VerticalWaterFlow")
@@ -43917,7 +43804,7 @@ cd4:                if (BoundaryPoints(i, j) == Boundary) then
         nullify(DXX                    )
         nullify(qX                     )
         nullify(qY                     )
-
+        
     end Subroutine Modify_VerticalWaterFlow
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -44301,7 +44188,7 @@ cd1:        if (Me%ComputeOptions%BaroclinicRadia == Horizontal_) then
 
     !--------------------------------------------------------------------------
 
-    Subroutine ComputeCartesianVertVelocity_Waves(Grid, MeshSlope)
+    Subroutine ComputeCartesianVertVelocity(Grid, MeshSlope)
 
         !Arguments-------------------------------------------------------------
         integer, optional                   :: Grid
@@ -44415,7 +44302,7 @@ cd1:        if (Me%ComputeOptions%BaroclinicRadia == Horizontal_) then
         CHUNK = CHUNK_I(ILB, IUB)
 
         if (MonitorPerformance) then
-            call StartWatch ("ModuleHydrodynamic", "ComputeCartesianVertVelocity_Waves")
+            call StartWatch ("ModuleHydrodynamic", "ComputeCartesianVertVelocity")
         endif
 
         !$OMP PARALLEL PRIVATE(i,j,k,dszdt,szzxp1,dzxp1,szzxm1,dzxm1,dszdx) &
@@ -44598,221 +44485,6 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
                                                     - StokesVelW_cart(i,j,k)
                     endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-                endif cd1
-            enddo do3
-
-        enddo do2
-        enddo do1
-        !$OMP END DO
-        !$OMP END PARALLEL
-
-        if (MonitorPerformance) then
-            call StopWatch ("ModuleHydrodynamic", "ComputeCartesianVertVelocity_Waves")
-        endif
-
-        if (Me%CyclicBoundary%ON) then
-
-            call CyclicBoundVertical (Vector = Velocity_W_Cartesian)
-
-        endif
-
-
-        !nulify auxiliar variables
-        nullify(Velocity_W_Cartesian, Velocity_W_Across, uavar, vavar, ComputeFaces3D_U, ComputeFaces3D_V, &
-                ComputeFaces3D_W, Volz_old, Volum_z, dzx, dzy, dux, dvy, dwz, szz, WaterPoints3D)
-
-        nullify(WaterLevel_New, WaterLevel_Old)
-
-        nullify(BoundaryPoints)
-
-    !----------------------------------------------------------------------
-
-    end subroutine ComputeCartesianVertVelocity_Waves
-
-    !Joao Sobrinho
-    Subroutine ComputeCartesianVertVelocity(Grid, MeshSlope)
-
-        !Arguments-------------------------------------------------------------
-        integer, optional                   :: Grid
-        logical, optional                   :: MeshSlope
-
-        !Local-----------------------------------------------------------------
-        real(8), dimension(:,:,:), pointer  :: Volz_old, Volum_z
-        real,    dimension(:,:,:), pointer  :: Velocity_W_Cartesian, Velocity_W_Across,  &
-                                               uavar, vavar
-        real   , dimension(:,:  ), pointer  :: WaterLevel_New, WaterLevel_Old
-        integer, dimension(:,:,:), pointer  :: ComputeFaces3D_U, ComputeFaces3D_V,       &
-                                               ComputeFaces3D_W, WaterPoints3D
-
-        integer, dimension(:,:  ), pointer  :: BoundaryPoints
-
-        real                                :: velusup, veluinf, velu, velvsup, velvinf, velv, &
-                                               dt, dszdt, szzxp1, dzxp1, szzxm1, dzxm1, dszdx, &
-                                               szzyp1, dzyp1, szzym1, dzym1, dszdy
-
-        integer                             :: IUB,ILB,JUB,JLB,KUB,KLB, i, j, k
-
-        real,    dimension(:,:  ), pointer  :: dzx, dzy, dux, dvy
-        real,    dimension(:,:,:), pointer  :: dwz, szz
-
-        logical                             :: MeshVelocity_, MeshSlope_
-
-        integer                             :: CHUNK
-
-        !Begin-----------------------------------------------------------------
-
-        !Begin - Shorten variables name
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
-
-        Velocity_W_Cartesian    => Me%Velocity%Vertical%Cartesian
-        Velocity_W_Across       => Me%Velocity%Vertical%Across
-        uavar                   => Me%Velocity%Horizontal%U%New
-        vavar                   => Me%Velocity%Horizontal%V%New
-        dt                      =  Me%Waterlevel%DT
-        ComputeFaces3D_U        => Me%External_Var%ComputeFaces3D_U
-        ComputeFaces3D_V        => Me%External_Var%ComputeFaces3D_V
-        ComputeFaces3D_W        => Me%External_Var%ComputeFaces3D_W
-        WaterPoints3D           => Me%External_Var%WaterPoints3D
-        BoundaryPoints          => Me%External_Var%BoundaryPoints
-        Volz_old                => Me%External_Var%Volume_Z_Old
-        Volum_z                 => Me%External_Var%Volume_Z_New
-        dzx                     => Me%External_Var%DZX
-        dzy                     => Me%External_Var%DZY
-        dux                     => Me%External_Var%DUX
-        dvy                     => Me%External_Var%DVY
-        dwz                     => Me%External_Var%DWZ
-        szz                     => Me%External_Var%SZZ
-
-        WaterLevel_New          => Me%WaterLevel%New
-        WaterLevel_Old          => Me%WaterLevel%Old
-
-        ! ciclo a todos os pontos interiores
-
-        dszdt = 0.
-        velu  = 0.
-        dszdx = 0.
-        velv  = 0.
-        dszdy = 0.
-
-        if (Present(Grid)) then
-
-            if      (Grid == Variable) then
-                MeshVelocity_ = .true.
-            else if (Grid == Fix     ) then
-                MeshVelocity_ = .false.
-            endif
-        else
-            MeshVelocity_ = .true.
-        endif
-
-        if (Present(MeshSlope)) then
-            MeshSlope_ = MeshSlope
-        else
-            MeshSlope_ = .true.
-        endif
-
-        CHUNK = CHUNK_I(ILB, IUB)
-
-        if (MonitorPerformance) then
-            call StartWatch ("ModuleHydrodynamic", "ComputeCartesianVertVelocity")
-        endif
-
-        !$OMP PARALLEL PRIVATE(i,j,k,dszdt,szzxp1,dzxp1,szzxm1,dzxm1,dszdx) &
-        !$OMP PRIVATE(szzyp1,dzyp1,szzym1,dzym1,dszdy,velusup,veluinf,velvsup) &
-        !$OMP PRIVATE(velvinf,velu,velv)
-
-        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-do1:    do i = ILB, IUB
-do2:    do j = JLB, JUB
-            dszdt=0.0
-
-            if (WaterPoints3D(i, j, KUB) == WaterPoint) then
-                    Velocity_W_Cartesian(i,j,KUB+1)= (WaterLevel_New(i,j)-WaterLevel_Old(i,j)) / dt
-            endif
-
-do3:        do k = KLB, KUB
-
-cd1:            if (ComputeFaces3D_W(i,j,k) == Covered ) then
-
-                    ! mesh velocity
-                    if (MeshVelocity_)                                                   &
-                        dszdt  = dszdt-(volum_z(i,j,k-1)-volz_old(i,j,k-1))/dux(i,j)/dvy(i,j)/dt
-
-cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
-                        ! mesh slope in X direction: central, progressive or regressive differences are used as a function of the
-                        ! land boundary. The boundary is automatically detected in the equation through "ComputeFaces3D_W" matrix
-                        szzxp1 = ComputeFaces3D_W(i,j+1,k)*szz(i,j+1,k-1)+(1-ComputeFaces3D_W(i,j+1,k))*szz(i,j,k-1)
-                        dzxp1  = ComputeFaces3D_W(i,j+1,k)*dzx(i,j)
-                        szzxm1 = ComputeFaces3D_W(i,j-1,k)*szz(i,j-1,k-1)+(1-ComputeFaces3D_W(i,j-1,k))*szz(i,j,k-1)
-                        dzxm1  = ComputeFaces3D_W(i,j-1,k)*dzx(i,j-1)
-                        if ((dzxp1+dzxm1) /= 0) then
-                          dszdx=(szzxp1-szzxm1)/(dzxp1+dzxm1)
-                        else
-                          dszdx=0.0
-                        endif
-
-                        ! mesh slope in Y direction: central, progressive or regressive differences are used as a function of the
-                        ! land boundary. The boundary is automatically detected in the equation through "ComputeFaces3D_W" matrix
-                        szzyp1 = ComputeFaces3D_W(i+1,j,k)*szz(i+1,j,k-1)+(1-ComputeFaces3D_W(i+1,j,k))*szz(i,j,k-1)
-                        dzyp1  = ComputeFaces3D_W(i+1,j,k)*dzy(i,j)
-                        szzym1 = ComputeFaces3D_W(i-1,j,k)*szz(i-1,j,k-1)+(1-ComputeFaces3D_W(i-1,j,k))*szz(i,j,k-1)
-                        dzym1  = ComputeFaces3D_W(i-1,j,k)*dzy(i-1,j)
-                        if ((dzyp1+dzym1) /= 0) then
-                          dszdy=(szzyp1-szzym1)/(dzyp1+dzym1)
-                        else
-                          dszdy=0.0
-                        endif
-
-                        ! Velocity components at cell center
-                        if ((ComputeFaces3D_U(i,j,k)+ComputeFaces3D_U(i,j+1,k)) /=0) then
-                            velusup=(ComputeFaces3D_U(i,j,k)*uavar(i,j,k)+ComputeFaces3D_U(i,j+1,k)*uavar(i,j+1,k))/ &
-                                    (ComputeFaces3D_U(i,j,k)+ComputeFaces3D_U(i,j+1,k))
-
-                        else
-                            velusup=0.0
-                        endif
-                        if ((ComputeFaces3D_U(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1)) /=0) then
-                            veluinf=(ComputeFaces3D_U(i,j,k-1)*uavar(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1)*uavar(i,j+1,k-1))/ &
-                                    (ComputeFaces3D_U(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1))
-
-                        else
-                            veluinf=0.0
-                        endif
-
-                        velu=(velusup*dwz(i,j,k-1)+veluinf*dwz(i,j,k))/(dwz(i,j,k-1)+dwz(i,j,k))
-
-                        if ((ComputeFaces3D_V(i,j,k)+ComputeFaces3D_V(i+1,j,k)) /=0) then
-                            velvsup=(ComputeFaces3D_V(i,j,k)*vavar(i,j,k)+ComputeFaces3D_V(i+1,j,k)*vavar(i+1,j,k))/ &
-                                    (ComputeFaces3D_V(i,j,k)+ComputeFaces3D_V(i+1,j,k))
-
-                        else
-                            velvsup=0.0
-                        endif
-                        if ((ComputeFaces3D_V(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1)) /=0) then
-                            velvinf=(ComputeFaces3D_V(i,j,k-1)*vavar(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1)*vavar(i+1,j,k-1))/ &
-                                    (ComputeFaces3D_V(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1))
-
-                        else
-                            velvinf=0.0
-                        endif
-
-                        velv=(velvsup*dwz(i,j,k-1)+velvinf*dwz(i,j,k))/(dwz(i,j,k-1)+dwz(i,j,k))
-
-                    else  cd2
-
-                          dszdx=0.0
-                          dszdy=0.0
-
-                    endif cd2
-
-                        Velocity_W_Cartesian(i,j,k)=Velocity_W_Across(i,j,k) - dszdt - velu * dszdx - velv * dszdy
 
                 endif cd1
             enddo do3
