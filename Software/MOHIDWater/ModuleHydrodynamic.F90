@@ -46740,7 +46740,7 @@ cd1:        if (Me%ComputeOptions%BaroclinicRadia == Horizontal_) then
 
     !--------------------------------------------------------------------------
 
-    Subroutine ComputeCartesianVertVelocity(Grid, MeshSlope)
+    Subroutine ComputeCartesianVertVelocity_Waves(Grid, MeshSlope)
 
         !Arguments-------------------------------------------------------------
         integer, optional                   :: Grid
@@ -46854,7 +46854,7 @@ cd1:        if (Me%ComputeOptions%BaroclinicRadia == Horizontal_) then
         CHUNK = CHUNK_I(ILB, IUB)
 
         if (MonitorPerformance) then
-            call StartWatch ("ModuleHydrodynamic", "ComputeCartesianVertVelocity")
+            call StartWatch ("ModuleHydrodynamic", "ComputeCartesianVertVelocity_Waves")
         endif
 
         !$OMP PARALLEL PRIVATE(i,j,k,dszdt,szzxp1,dzxp1,szzxm1,dzxm1,dszdx) &
