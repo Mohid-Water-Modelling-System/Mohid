@@ -10312,13 +10312,6 @@ i3:                 if (SpatialEmission == DischPoint_) then
 
                     endif i3
 
-                    !call GetGeometryKFloor(Me%ObjGeometry,                  &
-                    !                        Z = Me%External_Var%KFloor_Z,    &
-                    !                        STAT = STAT_CALL)
-                    !
-                    !if (STAT_CALL /= SUCCESS_)                              &
-                    !    stop 'Construct_Sub_Modules - ModuleHydrodynamic - Failed to get Kfloor_Z.'
-
 c1:                 select case (DischVertical)
 
                         case (DischLayer_)
@@ -10366,26 +10359,18 @@ n1:                         do nC =1, nCells
 
                         end select c1
 
-                        !call UnGetGeometry(Me%ObjGeometry,                      &
-                        !                        Me%External_Var%KFloor_Z,        &
-                        !                        STAT = STAT_CALL)
-                        !
-                        !if (STAT_CALL /= SUCCESS_)                              &
-                        !    stop 'Construct_Sub_Modules - ModuleHydrodynamic - Failed to unget Kfloor_Z'
-
 
                     if (SpatialEmission /= DischPoint_) then
                         call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR360'
 
-                    elseif (SpatialEmission == DischPoint_) then
+                    else
 
                         if (DischVertical == DischProfile_) then !Only for upscaling for now
                             call SetLocationCellsZ (Me%ObjDischarges, dn, nCells, VectorI, VectorJ, VectorK, STAT= STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Failed using SetLocationCellsZ for profile discharge'
                         endif
 
-                    else
                         if (DischVertical == DischBottom_ .or. DischVertical == DischSurf_) then
                             call SetLayer (Me%ObjDischarges, dn, VectorK(nCells), STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR370'

@@ -5534,5 +5534,5 @@ end module ModuleDischarges
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior T�cnico, Technical University of Lisbon.
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Tecnico, Technical University of Lisbon.
 !----------------------------------------------------------------------------------------------------------
