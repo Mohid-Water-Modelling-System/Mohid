@@ -3762,10 +3762,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 
     !--------------------------------------------------------------------------
 
-    subroutine GetTimeSerieNextOutput(TimeSerieID, NextOutput, STAT)
+    subroutine GetTimeSerieNextOutput(TimeSerieID, iTimeSerie, NextOutput, STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                     :: TimeSerieID
+        integer,                    intent(IN)      :: iTimeSerie
         type (T_Time),intent(OUT)                   :: NextOutput
         integer, intent(OUT), optional              :: STAT
                   
@@ -3782,7 +3783,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
  
-            NextOutput = Me%TimeSerie(1)%NextOutput
+            NextOutput = Me%TimeSerie(iTimeSerie)%NextOutput
 
             STAT_ = SUCCESS_
         else 
@@ -3798,8 +3799,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                  &
         !----------------------------------------------------------------------
 
     end subroutine GetTimeSerieNextOutput
-
-    !--------------------------------------------------------------------------
 
     subroutine GetTimeSerieCycle(TimeSerieID, TimeCycle, STAT) 
 

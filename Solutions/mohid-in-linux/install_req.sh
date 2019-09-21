@@ -12,6 +12,9 @@
 #==============================================================================
 
 ### Make the changes to fit your setup ###
+source /opt/intel/bin/compilervars.sh intel64
+source /opt/intel/bin/ifortvars.sh intel64
+source /opt/intel/bin/icc.sh intel64 
 
 ## default path to compiler
 export CC=/opt/intel/bin/icc

@@ -206,7 +206,7 @@ program MohidWater
     integer                                                 :: ObjLagrangianGlobal  = 0
     integer,                      dimension(:,:), pointer   :: LagInstance          => null()
     character(len=StringLength),  dimension(:  ), pointer   :: ModelNames           => null()
-    character(len=PathLength),    dimension(:  ), pointer   :: ModelPaths			=> null()
+    character(len=PathLength),    dimension(:  ), pointer   :: ModelPaths           => null()
     real, dimension(:), allocatable                         :: ModelDTs
 
 
@@ -314,7 +314,7 @@ program MohidWater
             call GetModelCurrentTime      (CurrentModel%ModelID, CurrentModel%CurrentTime,    &
                                            STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR40'
-
+            
             CurrentModel => CurrentModel%Next
 
         enddo
@@ -345,7 +345,6 @@ program MohidWater
             end if
             CurrentModel => CurrentModel%Next
         enddo
-
 
         !Construct the Father Grid
         CurrentModel => FirstModel
@@ -386,7 +385,7 @@ program MohidWater
             endif
             CurrentModel => CurrentModel%Next
         enddo
-
+        
         !Verifies which Model needs Hydrodynamic / Waterproperties conditions from father
         CurrentModel => FirstModel
         do while (associated(CurrentModel))
@@ -398,13 +397,11 @@ program MohidWater
                                           STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR120'
 
-
                 call GetWaterNeedsFather (CurrentModel%WaterpropertiesID,                &
                                           CurrentModel%FatherLink%Water,                 &
                                           CurrentModel%FatherLink%nProp,                 &
                                           STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR130'
-
 
                 if (CurrentModel%FatherLink%Hydro) then
                     call SetHydroFather (CurrentModel%HydrodynamicID,                     &
@@ -414,13 +411,11 @@ program MohidWater
                 endif
 
                 if (CurrentModel%FatherLink%Water) then
-
                     allocate (CurrentModel%FatherLink%PropertyIDNumbers(CurrentModel%FatherLink%nProp))
                     call GetPropListNeedsFather(CurrentModel%WaterPropertiesID,              &
                                                 CurrentModel%FatherLink%PropertyIDNumbers,   &
                                                 STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructMohidWater - MohidWater - ERR150'
-
                     do iProp = 1, CurrentModel%FatherLink%nProp
 
                         call SetWaterPropFather (CurrentModel%WaterPropertiesID,                    &
@@ -437,7 +432,6 @@ program MohidWater
             endif
             CurrentModel => CurrentModel%Next
         enddo
-
 #ifdef OVERLAP
 
         call ConstructModelOverlapping
