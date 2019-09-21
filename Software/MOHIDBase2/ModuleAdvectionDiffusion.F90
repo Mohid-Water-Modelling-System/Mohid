@@ -3050,7 +3050,7 @@ cd6:    if (Me%ExternalVar%ImpExp_AdvV == ExplicitScheme)  then !ExplicitScheme 
                 
             else
                 
-                !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxZ,DT1,DT2, Kbottom, Volume_BottomCell)
+                !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxZ)
 dok3 :          do k = Me%WorkSize%KLB, Me%WorkSize%KUB
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj3 :          do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -3083,7 +3083,7 @@ doi3 :          do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         else if (Me%ExternalVar%ImpExp_AdvV == ImplicitScheme) then cd6 !ImplicitScheme = 1
             
-            !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxZ,DT1,DT2, Kbottom, Volume_BottomCell)
+            !$OMP PARALLEL PRIVATE(i,j,k,DT1,DT2, Kbottom, Volume_BottomCell)
 
             if (Me%Docycle_method == 2)then
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -4548,7 +4548,7 @@ cd6:    if (ImpExp_AdvXX == ExplicitScheme)  then !ExplicitScheme = 0
                 call HorizontalAdvectionXX_Explicit
                 
             else
-                !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX,DT2,DT1)
+                !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX)
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
     dok3 :      do k = KLB, KUB
     doj3 :      do j = JLB, JUB
@@ -5007,7 +5007,7 @@ cd6:    if (ImpExp_AdvYY == ExplicitScheme)  then !ExplicitScheme = 0
             endif
 
         else if (ImpExp_AdvYY == ImplicitScheme) then cd6 !ImplicitScheme = 1
-            !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxY,DT2,DT1)
+            !$OMP PARALLEL PRIVATE(i,j,k,DT2,DT1)
 dok4 :      do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
 doj4 :      do j = JLB, JUB

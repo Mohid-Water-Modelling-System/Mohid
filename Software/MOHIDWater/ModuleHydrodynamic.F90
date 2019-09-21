@@ -38802,7 +38802,7 @@ cd2:                    if (ConservativeHorDif) then
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
-        !$OMP PARALLEL PRIVATE( i,j,k, Kbottom, FaceFlux_SouthWest1,FaceFlux_SouthWest2)
+        !$OMP PARALLEL PRIVATE( i,j,k, Aux, Kbottom, FaceFlux_SouthWest1, FaceFlux_SouthWest2)
         if (Biharmonic) then
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j=JLB, JUB
@@ -38896,7 +38896,7 @@ cd2:                    if (ConservativeHorDif) then
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
-        !$OMP PARALLEL PRIVATE( i,j,k, Kbottom, FaceFlux_SouthWest1,FaceFlux_SouthWest2)
+        !$OMP PARALLEL PRIVATE( i,j,k, Aux, Kbottom, FaceFlux_SouthWest1, FaceFlux_SouthWest2)
         if (Biharmonic) then
 
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -47725,7 +47725,7 @@ dok:            do k = kbottom + 1, KUB
             call StartWatch ("ModuleHydrodynamic", "Compute_VerticalVelocity")
         endif
 
-        !$OMP PARALLEL PRIVATE(i,j,k)
+        !$OMP PARALLEL PRIVATE(i,j,k, aux)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB+1
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -48387,7 +48387,7 @@ dok:            do  k = kbottom, KUB
                 !$OMP END DO NOWAIT
                 !$OMP END PARALLEL
             else
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration)
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration, SurfaceGradient)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do k = KLB, KUB
                 do j = JLB, JUB
@@ -53166,7 +53166,7 @@ cd3:    if (Me%ComputeOptions%BottomWaterFlux .and. .not. Me%State%Initial) then
 
                 CHUNK = CHUNK_J(JLB, JUB)
 
-                !$OMP PARALLEL PRIVATE(i,j)
+                !$OMP PARALLEL PRIVATE(i,j, kbottom)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do4:            do j = JLB, JUB
 do5:            do i = ILB, IUB
