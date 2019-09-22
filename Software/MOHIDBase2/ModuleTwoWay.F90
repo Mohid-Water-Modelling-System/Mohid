@@ -29,7 +29,6 @@ Module ModuleTwoWay
     
     use ModuleMap,              only : GetComputeFaces3D, GetOpenPoints3D, UnGetMap
     use ModuleStopWatch,        only : StartWatch, StopWatch
-    use ModuleUpscallingDischarges
     
     use ModuleDischarges,        only : GetDischargesNumber, GetDischargeFlowDistribuiton, IsUpscaling
     
@@ -518,12 +517,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 !Me%Father%DischargeCells%n_U/V - son cells to be included in the calculation
             elseif (Task == 2) then ! allocate
                 
-                !this would be needed to compute the actual flow from son to parent.
-                !if (Me%Father%DischargeCells%n_U > 0) &
-                !    allocate (Me%Father%DischargeCells%U(Me%Father%DischargeCells%n_U,  4))
-                !if (Me%Father%DischargeCells%n_V > 0) &
-                !    allocate (Me%Father%DischargeCells%V(Me%Father%DischargeCells%n_V,  4))
-                
                 if (Me%Father%DischargeCells%n_U > 0) then
                     allocate (Me%Father%DischargeCells%Z(Me%Father%DischargeCells%n_Z, 3))
                     allocate (Me%Father%DischargeCells%Flow(Me%Father%DischargeCells%n_Z))
@@ -535,21 +528,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 endif
                 
             else ! Fill upscaling matrixes which have the son cells need to be included in the calculation
-                
-                !this would be needed to compute the actual flow from son to parent.
-                !these are the link matrixes between a Father discharge cell and its corresponding Son cells which 
-                !should be considered in the calculation of velocities and flow.
-                !if (Me%Father%DischargeCells%n_U > 0) then
-                !    VelID = VelocityU_
-                !    call UpsDischargesLinks(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, IZ, JZ, VelID, &
-                !                    tracer = Me%Father%DischargeCells%Current_U, Cells = Me%Father%DischargeCells%U)
-                !endif
-                !
-                !if (Me%Father%DischargeCells%n_V > 0) then
-                !    VelID = VelocityV_
-                !    call UpsDischargesLinks(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ, IZ, JZ, VelID, &
-                !                    tracer = Me%Father%DischargeCells%Current_V, Cells = Me%Father%DischargeCells%V)
-                !endif
                 
                 !This update is done for each new discharge cell, in order to fill the matrix of discharge cells
                 !Save discharge cell IDs into a matrix
