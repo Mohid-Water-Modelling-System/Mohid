@@ -35100,8 +35100,10 @@ cd0:        if (ComputeFlux) then
         enddo
         enddo
         !$OMP END DO
+        !$OMP END PARALLEL
 
         !$ CHUNK = CHUNK_K(KLB,KUB)
+        !$OMP PARALLEL PRIVATE(i,j,k)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do k=KLB, KUB
         do j=JLB, JUB
@@ -35196,8 +35198,10 @@ cd0:        if (ComputeFlux) then
         enddo
         enddo
         !$OMP END DO
+        !$OMP END PARALLEL
 
         !$ CHUNK = CHUNK_K(KLB,KUB)
+        !$OMP PARALLEL PRIVATE(i,j,k)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do k=KLB, KUB
         do j=JLB, JUB
@@ -35210,44 +35214,6 @@ cd0:        if (ComputeFlux) then
         !$OMP END PARALLEL
 
     end subroutine Modify_Advection_UX_VY_X
-
-
-        !do k=KLB, KUB
-        !do j=JLB, JUB
-        !do i=ILB, IUB
-        !
-        !    !Momentum normal flux is always compute if at least one of adjacent faces is a face to compute
-        !    if (ComputeFaces3D_U(i, j, k) == 1 .or. ComputeFaces3D_U(i, j-1,k) == 1) then
-        !
-        !        FaceFlux_WestSouth = (WaterFlux_X(i, j-1, k) + WaterFlux_X(i, j, k))/2. ![m^3/s]
-        !
-        !        if  ((FaceFlux_WestSouth > 0) .and. (ComputeFaces3D_U(i, j-2, k) /= Compute)) then
-        !            !NearBoundary = .true. CFace(2) = 1
-        !            Me%Aux3DFlux(i, j, k) = dble(Velocity_U_Old(i, j-1, k)) * FaceFlux_WestSouth ![m/s*m^3/s]
-        !
-        !        elseif ((FaceFlux_WestSouth <= 0) .and. (ComputeFaces3D_U(i,  j+1,  k) /= Compute)) then
-        !            !NearBoundary = .true. CFace(3) = 1
-        !            Me%Aux3DFlux(i, j, k) = dble(Velocity_U_Old(i, j  , k)) * FaceFlux_WestSouth ![m/s*m^3/s]
-        !
-        !        else
-        !            du4(1) = DZX(i, j-3); du4(2) = DZX(i, j-2); du4(3) = DZX(i, j-1); du4(4) = DZX(i, j  );
-        !
-        !            V4 (2) = Volume_U (i, j-1,  k);
-        !            V4 (3) = Volume_U (i, j  ,  k);
-        !
-        !            Vel4(1) = Velocity_U_Old(i, j-2, k); Vel4(2) = Velocity_U_Old(i, j-1, k);
-        !            Vel4(3) = Velocity_U_Old(i, j  , k); Vel4(4) = Velocity_U_Old(i, j+1, k);
-        !
-        !            call ComputeAdvectionFace_TVD_Superbee(Vel4, V4, du4, Me%Velocity%DT, FaceFlux_WestSouth, CFace)
-        !
-        !            Me%Aux3DFlux(i, j, k) = dble(Vel4(2) * CFace(2)  + Vel4(3) * CFace(3)) *     &
-        !                                FaceFlux_WestSouth ![m/s*m^3/s]
-        !        endif
-        !        Horizontal_Transport(i, j, k) = Horizontal_Transport(i, j, k) + Me%Aux3DFlux(i, j, k)
-        !    endif
-        !enddo
-        !enddo
-        !enddo
 
     !End ----------------------------------------------------------------------
 
@@ -36100,7 +36066,10 @@ dok1:           do k = Kbottom, KUB
         enddo
         enddo
         !$OMP END DO
-
+        !$OMP END PARALLEL
+        
+        !$ CHUNK = CHUNK_K(KLB,KUB)
+        !$OMP PARALLEL PRIVATE(i,j,k)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do k=KLB, KUB
         do j=JLB, JUB
@@ -36140,7 +36109,7 @@ dok1:           do k = Kbottom, KUB
 
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
-        !$OMP PARALLEL PRIVATE( i,j,k, Kbottom, FaceFlux_SouthWest, Vel4,du4,V4,CFace)
+        !$OMP PARALLEL PRIVATE(i,j,k,Kbottom,FaceFlux_SouthWest,Vel4,du4,V4,CFace)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j=JLB, JUB
         do i=ILB, IUB
@@ -36196,7 +36165,10 @@ dok1:           do k = Kbottom, KUB
         enddo
         enddo
         !$OMP END DO
-
+        !$OMP END PARALLEL
+        
+        !$ CHUNK = CHUNK_K(KLB,KUB)
+        !$OMP PARALLEL PRIVATE(i,j,k)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do k=KLB, KUB
         do j=JLB, JUB
