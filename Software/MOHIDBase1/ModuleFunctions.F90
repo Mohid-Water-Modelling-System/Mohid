@@ -1938,7 +1938,7 @@ Module ModuleFunctions
         KLB = Size%KLB
         JUB = Size%JUB
         JLB = Size%JLB
-        if (DoMethod == 2) then
+        if (DoMethod == 1) then
             CHUNK = CHUNK_J(JLB, JUB)
             !$OMP PARALLEL PRIVATE(i,j,k, kbottom)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -1996,7 +1996,7 @@ Module ModuleFunctions
         KLB = Size%KLB
         JUB = Size%JUB
         JLB = Size%JLB
-        if (DoMethod == 2) then
+        if (DoMethod == 1) then
             CHUNK = CHUNK_J(JLB, JUB)
             !$OMP PARALLEL PRIVATE(i,j,k, kbottom, Aux)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
