@@ -25703,7 +25703,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
             call NullGradProp3D_W(Me%WaterFluxes%Z)
         else
             if (Me%ComputeOptions%WaveForcing3D /= GLM) then
-                call ComputeCartesianVertVelocity(Grid = Grid)
+                call ComputeCartesianVertVelocity(Grid = Grid) !Sobrinho
             else
                 call ComputeCartesianVertVelocity_Waves(Grid = Grid)
             endif
@@ -48186,7 +48186,7 @@ dok:            do  k = kbottom, KUB
 
         if (Me%ComputeOptions%Baroclinic) then
             !$OMP PARALLEL PRIVATE( i,j,k,kbottom, Baroclinic_Aceleration)
-            if (Me%Docycle_method == 2) then
+            if (Me%Docycle_method == 1) then
                 !$ CHUNK = CHUNK_J(JLB, JUB)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
@@ -48335,7 +48335,7 @@ dok:            do  k = kbottom, KUB
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         else
-            if (Me%Docycle_method == 0) then
+            if (Me%Docycle_method == 1) then
                 !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration, SurfaceGradient)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
@@ -48458,7 +48458,7 @@ dok:            do  k = kbottom, KUB
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         else
-            if (Me%Docycle_method == 0) then
+            if (Me%Docycle_method == 1) then
                 !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration, SurfaceGradient)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
@@ -48553,7 +48553,7 @@ dok:            do  k = kbottom, KUB
 
         !$ CHUNK = CHUNK_J(JLB, JUB)
         if (Me%Direction%di == 1)then
-            if (Me%Docycle_method == 0) then
+            if (Me%Docycle_method == 1) then
                 !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotentialAceleration, TPGradient)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
@@ -48595,7 +48595,7 @@ dok:            do  k = kbottom, KUB
             endif
 
         else
-            if (Me%Docycle_method == 0) then
+            if (Me%Docycle_method == 1) then
                 !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotentialAceleration, TPGradient)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
@@ -48682,7 +48682,7 @@ dok:            do  k = kbottom, KUB
 
         !$ CHUNK = CHUNK_J(JLB, JUB)
         if (Me%Direction%di == 1)then
-            if (Me%Docycle_method == 0) then
+            if (Me%Docycle_method == 1) then
                 !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmosphericPressure_Aceleration, AtmGradient, Aux)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
@@ -48732,7 +48732,7 @@ dok:            do  k = kbottom, KUB
             endif
 
         else
-            if (Me%Docycle_method == 0) then
+            if (Me%Docycle_method == 1) then
                 !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmosphericPressure_Aceleration, AtmGradient, Aux)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
@@ -53198,75 +53198,75 @@ do5:            do i = ILB, IUB
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Hydrodynamic_OutPut")
 
         Me%OutPut%Run_End       = .false.
-
         OutPutFileOK        = .false.
-        ProfileFileOK       = .false.
-        TimeSeriesFileOK    = .false.
-        OutPutWindowFileOK  = .false.
-        OutPutSurfaceFileOK = .false.
+        !OutPutFileOK        = .false.
+        !ProfileFileOK       = .false.
+        !TimeSeriesFileOK    = .false.
+        !OutPutWindowFileOK  = .false.
+        !OutPutSurfaceFileOK = .false.
 
-        !if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or.                            &
-        !    Me%OutPut%ProfileON   .or. Me%OutPut%HDF5_Surface_ON.or.                    &
-        !    Me%OutW%OutPutWindowsON)then
+        if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or.                            &
+            Me%OutPut%ProfileON   .or. Me%OutPut%HDF5_Surface_ON.or.                    &
+            Me%OutW%OutPutWindowsON)then
 
-        if (Me%OutPut%TimeSerieON) then
-            call OutputTimeSeries_FileOK (TimeSeriesFileOK)
-        endif
+        !if (Me%OutPut%TimeSerieON) then
+        !    call OutputTimeSeries_FileOK (TimeSeriesFileOK)
+        !endif
+        !
+        !if (Me%OutPut%hdf5ON) then
+        !    NextOutPut = Me%OutPut%NextOutPut
+        !    if (NextOutPut <= Me%OutPut%Number) then
+        !        if (Me%CurrentTime >= Me%OutPut%OutTime(NextOutPut)) then
+        !            OutPutFileOK = .true.
+        !        endif
+        !    endif
+        !endif
+        !
+        !if (Me%OutW%OutPutWindowsON)  then
+        !    do iW = 1, Me%OutW%WindowsNumber
+        !        if (Me%OutW%OutPutWindows(iW)%ON) then
+        !            NextOutPut = Me%OutW%OutPutWindows(iW)%NextOutPut
+        !            OutPutWindowFileOK = .false.
+        !            if (NextOutPut <= Me%OutW%OutPutWindows(iW)%Number) then
+        !                if (Me%CurrentTime >= Me%OutW%OutPutWindows(iW)%OutTime(NextOutPut)) then
+        !                    OutPutWindowFileOK = .true.
+        !                endif
+        !            endif
+        !        endif
+        !    enddo
+        !endif
+        !
+        !if(Me%OutPut%HDF5_Surface_ON)then
+        !    OutPutSurfaceFileOK = .false.
+        !    if (Me%OutPut%NextSurfaceOutPut <= Me%OutPut%NumberSurfaceOutputs) then
+        !        if (Me%CurrentTime >= Me%OutPut%SurfaceOutTime(Me%OutPut%NextSurfaceOutPut)) then
+        !            OutPutSurfaceFileOK = .true.
+        !        endif
+        !    endif
+        !endif
+        !
+        !if (Me%OutPut%ProfileON) then
+        !    call GetProfileNextOutputTime(Me%ObjProfile, NextProfileOutput, STAT = STAT_CALL)
+        !    if (STAT_CALL /= SUCCESS_) stop 'Hydrodynamic_OutPut - ModuleHydrodynamic - ERR01'
+        !
+        !    if (Me%CurrentTime >= NextProfileOutput) ProfileFileOK = .true.
+        !endif
+        !
+        !if (ProfileFileOK .or. OutPutFileOK .or. TimeSeriesFileOK .or. OutPutWindowFileOK .or. &
+        !OutPutSurfaceFileOK) then
+        !
+        !    call ModifyMatrixesOutput
+        !endif
 
-        if (Me%OutPut%hdf5ON) then
-            NextOutPut = Me%OutPut%NextOutPut
-            if (NextOutPut <= Me%OutPut%Number) then
-                if (Me%CurrentTime >= Me%OutPut%OutTime(NextOutPut)) then
-                    OutPutFileOK = .true.
-                endif
+            call ModifyMatrixesOutput !Sobrinho
+
+            if(Me%OutPut%FloodRisk)then
+                call ComputeFloodRisk
             endif
-        endif
 
-        if (Me%OutW%OutPutWindowsON)  then
-            do iW = 1, Me%OutW%WindowsNumber
-                if (Me%OutW%OutPutWindows(iW)%ON) then
-                    NextOutPut = Me%OutW%OutPutWindows(iW)%NextOutPut
-                    OutPutWindowFileOK = .false.
-                    if (NextOutPut <= Me%OutW%OutPutWindows(iW)%Number) then
-                        if (Me%CurrentTime >= Me%OutW%OutPutWindows(iW)%OutTime(NextOutPut)) then
-                            OutPutWindowFileOK = .true.
-                        endif
-                    endif
-                endif
-            enddo
-        endif
+        end if
 
-        if(Me%OutPut%HDF5_Surface_ON)then
-            OutPutSurfaceFileOK = .false.
-            if (Me%OutPut%NextSurfaceOutPut <= Me%OutPut%NumberSurfaceOutputs) then
-                if (Me%CurrentTime >= Me%OutPut%SurfaceOutTime(Me%OutPut%NextSurfaceOutPut)) then
-                    OutPutSurfaceFileOK = .true.
-                endif
-            endif
-        endif
-
-        if (Me%OutPut%ProfileON) then
-            call GetProfileNextOutputTime(Me%ObjProfile, NextProfileOutput, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Hydrodynamic_OutPut - ModuleHydrodynamic - ERR01'
-
-            if (Me%CurrentTime >= NextProfileOutput) ProfileFileOK = .true.
-        endif
-
-        if (ProfileFileOK .or. OutPutFileOK .or. TimeSeriesFileOK .or. OutPutWindowFileOK .or. &
-        OutPutSurfaceFileOK) then
-
-            call ModifyMatrixesOutput
-        endif
-
-        !call ModifyMatrixesOutput !Sobrinho
-
-        if(Me%OutPut%FloodRisk)then
-            call ComputeFloodRisk
-        endif
-
-        !end if
-
-        OutPutFileOK        = .false.
+        !OutPutFileOK        = .false.
 
         !! $OMP PARALLEL SECTIONS
 

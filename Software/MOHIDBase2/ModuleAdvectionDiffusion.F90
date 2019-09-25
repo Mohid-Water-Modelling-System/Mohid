@@ -5303,12 +5303,20 @@ doi4 :      do i = ILB, IUB
 
         !----------------------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorizontalDiffusion")
-
-        call HorizontalDiffusionXX2()
-        !call HorizontalDiffusionXX()
         
-        if (.not. Me%XZFlow) call HorizontalDiffusionYY2()
-        !if (.not. Me%XZFlow) call HorizontalDiffusionYY()
+        if (Me%ExternalVar%Optimize)then
+            call HorizontalDiffusionXX2()
+        else
+            call HorizontalDiffusionXX()
+        endif
+        
+        if (.not. Me%XZFlow)then
+            if (Me%ExternalVar%Optimize)then
+                call HorizontalDiffusionYY2()
+            else
+                call HorizontalDiffusionYY()
+            endif
+        endif
                 
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "HorizontalDiffusion")
 
