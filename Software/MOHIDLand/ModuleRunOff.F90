@@ -46,7 +46,8 @@ Module ModuleRunOff
                                         UnGetHorizontalGrid, WriteHorizontalGrid,        &
                                         GetGridCellArea, GetXYCellZ,                     &
                                         GetCellZInterceptByLine,                         &
-                                        GetCellZInterceptByPolygon
+                                        GetCellZInterceptByPolygon, GetGridRotation,     &
+                                        GetGridAngle, GetCheckDistortion
     use ModuleHorizontalMap     ,only : GetBoundaries, UngetHorizontalMap
     use ModuleGridData          ,only : GetGridData, UngetGridData, WriteGridData
     use ModuleBasinGeometry     ,only : GetBasinPoints, GetRiverPoints, GetCellSlope,    &
@@ -278,6 +279,9 @@ Module ModuleRunOff
         integer, dimension(:,:), pointer            :: BoundaryPoints2D         => null()
         integer, dimension(:,:), pointer            :: RiverPoints              => null()
         real   , dimension(:,:), pointer            :: CellSlope                => null()
+        logical                                     :: Distortion               = .false.
+        real   , dimension(:,:), pointer            :: RotationX, RotationY     => null()
+        real                                        :: GridRotation             = null_real
         type (T_Time)                               :: Now
         real                                        :: DT                       = null_real
     end type T_ExtVar
@@ -596,7 +600,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%CV%CurrentDT = Me%ExtVar%DT
 
             call ReadLockExternalVar (StaticOnly = .false.)
-
+            
+            call CheckHorizontalGridRotation
 
             !Gets the size of the grid
             call GetHorizontalGridSize (Me%ObjHorizontalGrid,                            &
@@ -3376,6 +3381,49 @@ do4:            do di = -1, 1
         
         
     end subroutine Construct_Time_Serie_Discharge
+
+    !--------------------------------------------------------------------------    
+    
+    subroutine CheckHorizontalGridRotation
+    
+        !Arguments-------------------------------------------------------------
+
+        !External--------------------------------------------------------------
+
+        !Local-----------------------------------------------------------------
+        integer                                             :: STAT_CALL
+
+        !Begin-----------------------------------------------------------------
+
+        call GetCheckDistortion (Me%ObjHorizontalGrid,                                  &
+                                 Me%ExtVar%Distortion,                                  &
+                                 STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'CheckHorizontalGridRotation - ModuleRunOff - ERR01'
+            
+
+        if (Me%ExtVar%Distortion) then
+
+            call GetGridRotation(Me%ObjHorizontalGrid,                                  &
+                                 Me%ExtVar%RotationX,                                   &
+                                 Me%ExtVar%RotationY,                                   &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'CheckHorizontalGridRotation - ModuleRunOff - ERR02'
+
+        else
+
+            call GetGridAngle(Me%ObjHorizontalGrid,                                     &
+                              Me%ExtVar%GridRotation,                                   &
+                              STAT = STAT_CALL)
+
+            if (STAT_CALL /= SUCCESS_) stop 'CheckHorizontalGridRotation - ModuleRunOff - ERR03'
+
+            !Convert from degrees in to radians
+            Me%ExtVar%GridRotation = Me%ExtVar%GridRotation * Pi / 180.
+
+        endif
+    
+    
+    end subroutine CheckHorizontalGridRotation
 
     !--------------------------------------------------------------------------    
 
@@ -10316,6 +10364,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         integer                                     :: i, j
         integer                                     :: ILB, IUB, JLB, JUB
         integer                                     :: CHUNK
+        real                                        :: AngleX,AngleY, FlowX, FlowY
 
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
        
@@ -10331,24 +10380,76 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         call SetMatrixValue(Me%CenterVelocityX, Me%Size, 0.0)
         call SetMatrixValue(Me%CenterVelocityY, Me%Size, 0.0)
         call SetMatrixValue(Me%VelocityModulus, Me%Size, 0.0)
+        
+        if(.not. Me%ExtVar%Distortion) then
+            
+            !$OMP PARALLEL PRIVATE(I,J,AngleX,AngleY,FlowX,FlowY)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
 
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                    
+                    AngleX = Me%ExtVar%GridRotation
+                    AngleY = Pi/2. + Me%ExtVar%GridRotation
+
+                    FlowX = (Me%iFlowX(i, j) + Me%iFlowX(i, j+1)) / 2.0
+                    FlowY = (Me%iFlowY(i, j) + Me%iFlowY(i+1, j)) / 2.0
+                    
+                    Me%CenterFlowX(i, j) = FlowX * cos(AngleX) + FlowY * cos(AngleY)
+                    Me%CenterFlowY(i, j) = FlowX * sin(AngleX) + FlowY * sin(AngleY)
+                
+                    if (Me%myWaterColumn (i,j) > AllmostZero) then
+                        Me%CenterVelocityX (i, j) = Me%CenterFlowX (i,j) / ( Me%ExtVar%DYY(i, j) * Me%myWaterColumn (i,j) )
+                        Me%CenterVelocityY (i, j) = Me%CenterFlowY (i,j) / ( Me%ExtVar%DXX(i, j) * Me%myWaterColumn (i,j) )
+                    end if
+
+                endif
+
+            enddo
+            enddo
+            !$OMP END DO NOWAIT 
+            !$OMP END PARALLEL
+        else
+            
+            !$OMP PARALLEL PRIVATE(I,J,FlowX,FlowY)
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+
+                if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
+                    
+                    FlowX = (Me%iFlowX(i, j) + Me%iFlowX(i, j+1)) / 2.0
+                    FlowY = (Me%iFlowY(i, j) + Me%iFlowY(i+1, j)) / 2.0
+                    
+                    Me%CenterFlowX(i, j) = FlowX * cos(Me%ExtVar%RotationX(i, j)) + FlowY * cos(Me%ExtVar%RotationY(i, j))
+                    Me%CenterFlowY(i, j) = FlowX * sin(Me%ExtVar%RotationX(i, j)) + FlowY * sin(Me%ExtVar%RotationY(i, j))
+                
+                    if (Me%myWaterColumn (i,j) > AllmostZero) then
+                        Me%CenterVelocityX (i, j) = Me%CenterFlowX (i,j) / ( Me%ExtVar%DYY(i, j) * Me%myWaterColumn (i,j))
+                        Me%CenterVelocityY (i, j) = Me%CenterFlowY (i,j) / ( Me%ExtVar%DXX(i, j) * Me%myWaterColumn (i,j))
+                    end if
+
+                endif
+
+            enddo
+            enddo
+            !$OMP END DO NOWAIT 
+            !$OMP END PARALLEL
+            
+        endif
+        
         !$OMP PARALLEL PRIVATE(I,J)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
-                
+
             if (Me%ExtVar%BasinPoints(i, j) == BasinPoint) then
                     
-                Me%CenterFlowX(i, j) = (Me%iFlowX(i, j) + Me%iFlowX(i, j+1)) / 2.0
-                Me%CenterFlowY(i, j) = (Me%iFlowY(i, j) + Me%iFlowY(i+1, j)) / 2.0
                 Me%FlowModulus(i, j) = sqrt (Me%CenterFlowX(i, j)**2. + Me%CenterFlowY(i, j)**2.)
                 
                 if (Me%myWaterColumn (i,j) > AllmostZero) then
-                    Me%CenterVelocityX (i, j) = Me%CenterFlowX (i,j) / ( Me%ExtVar%DYY(i, j) * Me%myWaterColumn (i,j) )
-                    Me%CenterVelocityY (i, j) = Me%CenterFlowY (i,j) / ( Me%ExtVar%DXX(i, j) * Me%myWaterColumn (i,j) )
                     Me%VelocityModulus (i, j) = sqrt (Me%CenterVelocityX(i, j)**2.0 + Me%CenterVelocityY(i, j)**2.0)
-                else
-                    Me%myWaterColumn (i,j) = 0.0
                 end if
 
                 if(Me%Output%WriteMaxFlowModulus) then
@@ -10361,7 +10462,11 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 
         enddo
         enddo
-        !$OMP END DO NOWAIT
+        !$OMP END DO NOWAIT 
+        !$OMP END PARALLEL
+        
+
+       
         
 !        if (Me%StormWaterDrainage) then
 !        
@@ -10388,7 +10493,7 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 !        
 !        endif
         
-        !$OMP END PARALLEL
+
         
     end subroutine ComputeCenterValues 
     
@@ -11597,6 +11702,21 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     call KillBoxDif(Me%ObjBoxDif, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                               &
                         stop 'KillRunOff - RunOff - ERR120'
+                endif
+                
+                if (Me%ExtVar%Distortion) then
+
+                    call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
+                                             Me%ExtVar%RotationX,            &
+                                             STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)stop 'KillRunOff - RunOff - ERR121'
+
+
+                    call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
+                                             Me%ExtVar%RotationY,            &
+                                             STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_)stop 'KillRunOff - RunOff - ERR122'
+
                 endif
                 
                 !Deassociates External Instances
