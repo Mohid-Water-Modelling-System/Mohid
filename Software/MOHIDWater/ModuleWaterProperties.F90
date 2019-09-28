@@ -1259,6 +1259,11 @@ Module ModuleWaterProperties
         logical                                 :: PhreeqCOnlyForStart = .false.
 
         logical                                 :: Continuous = .false.
+        logical                                 :: Optimize   = .false.
+        logical                                 :: OptimizeHorizontalAdvection = .false.
+        logical                                 :: OptimizeHorizontalDiffusion = .false.
+        logical                                 :: OptimizeVerticalAdvection   = .false.
+        logical                                 :: OptimizeVerticalDiffusion   = .false.
         
         integer                                 :: Docycle_method = 1
 
@@ -1854,6 +1859,60 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = status)
         if (status /= SUCCESS_) &
             call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR10')
+        
+        call GetData(Me%Optimize,                               &
+                     Me%ObjEnterData, iflag,                    &
+                     SearchType   = FromFile,                   &
+                     keyword      = 'OPTIMIZE',                 &
+                     default      = .false.,                    &
+                     ClientModule = 'ModuleWaterProperties',    &
+                     STAT         = status)
+        if (status /= SUCCESS_) &
+            call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR11')
+        
+        if (Me%Optimize) then
+            
+            call GetData(Me%OptimizeHorizontalAdvection,                             &
+                         Me%ObjEnterData, iflag,                    &
+                         SearchType   = FromFile,                   &
+                         keyword      = 'OPTIMIZE_ADVECTIONH',      &
+                         default      = .true.,                    &
+                         ClientModule = 'ModuleWaterProperties',    &
+                         STAT         = status)
+            if (status /= SUCCESS_) &
+                call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR11')
+        
+            call GetData(Me%OptimizeHorizontalDiffusion,                      &
+                         Me%ObjEnterData, iflag,                    &
+                         SearchType   = FromFile,                   &
+                         keyword      = 'OPTIMIZE_DIFFUSIONH',      &
+                         default      = .true.,                    &
+                         ClientModule = 'ModuleWaterProperties',    &
+                         STAT         = status)
+            if (status /= SUCCESS_) &
+                call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR12')
+        
+            call GetData(Me%OptimizeVerticalAdvection,                             &
+                         Me%ObjEnterData, iflag,                    &
+                         SearchType   = FromFile,                   &
+                         keyword      = 'OPTIMIZE_ADVECTIONV',      &
+                         default      = .true.,                    &
+                         ClientModule = 'ModuleWaterProperties',    &
+                         STAT         = status)
+            if (status /= SUCCESS_) &
+                call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR13')
+        
+            call GetData(Me%OptimizeVerticalDiffusion,              &
+                         Me%ObjEnterData, iflag,                    &
+                         SearchType   = FromFile,                   &
+                         keyword      = 'OPTIMIZE_DIFFUSIONV',      &
+                         default      = .true.,                    &
+                         ClientModule = 'ModuleWaterProperties',    &
+                         STAT         = status)
+            if (status /= SUCCESS_) &
+                call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR14')
+            
+        endif
 
         if (Me%Continuous) then
             Me%MustStartPhreeqC = .false.
@@ -14165,6 +14224,8 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
             Property => Property%Next
         enddo
         if (Me%Coupled%AdvectionDiffusion%NumberOfProperties < 2) OptimizeFlag = .false.
+        
+        if (.not. Me%Optimize) OptimizeFlag = .false.
 
         FirstWaterProperty = .true.
         Property => Me%FirstProperty
@@ -14390,6 +14451,10 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                             NoFluxV           = Me%NoFlux%V,                                &
                             NoFluxW           = Me%NoFlux%W,                                &
                             Optimize          = OptimizeFlag,                               &
+                            Optimize_AdvH     = Me%OptimizeHorizontalAdvection,                &
+                            Optimize_DifH     = Me%OptimizeHorizontalDiffusion,                &
+                            Optimize_AdvV     = Me%OptimizeVerticalAdvection,                  &
+                            Optimize_DifV     = Me%OptimizeVerticalDiffusion,                  &
                             FirstProperty     = FirstWaterProperty,                         &
                             STAT              = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                            &

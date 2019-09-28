@@ -637,6 +637,7 @@ if0 :   if (ready_ .EQ. OFF_ERR_) then
             
             !keyword to diferentiate do cycle implementations. 1 - DoJDoIDoK. 2 - DoK,DoJ,DoI
             !use 2: when the domain has many landpoints - however, not sure if it loses efficiency as the number of processors grow
+            ! This is mostly applied to Vertical processes.
             call GetData         (Me%DoCycle_method, ObjEnterData, flag,                 &
                                   SearchType    =  FromFile,                            &
                                   keyword       = 'DOCYCLE_METHOD',                      &

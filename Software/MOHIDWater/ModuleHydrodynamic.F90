@@ -1603,7 +1603,17 @@ Module ModuleHydrodynamic
         integer                         :: WaveForcing3D
         integer                         :: WaveForcing3D_Two
 
-        logical                         :: AssimilaOneField      = .false.
+        logical                         :: AssimilaOneField         = .false.
+        logical                         :: GlobalOptimization       = .false.
+        logical                         :: InertiaForcesOpt         = .false.
+        logical                         :: VelExpForcesOpt          = .false.
+        logical                         :: VerticalWaterFlowOpt     = .false.
+        logical                         :: CartesianVertVelocityOpt = .false.
+        logical                         :: HorizontalAdvectionOpt   = .false.
+        logical                         :: VerticalAdvectionOpt     = .false.
+        logical                         :: HorizontalDiffusionOpt   = .false.
+        logical                         :: VerticalDiffusionOpt     = .false.
+        logical                         :: Meshslope                = .false.
 
     end type T_HydroOptions
 
@@ -8467,6 +8477,110 @@ cd21:   if (Baroclinic) then
                      STAT       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1220')
+        
+        call GetData(Me%ComputeOptions%GlobalOptimization,                                         &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword    = 'GLOBAL_OPT',                                         &
+                     Default    = .false.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221')
+        
+        if (Me%ComputeOptions%GlobalOptimization) then
+           
+            call GetData(Me%ComputeOptions%InertiaForcesOpt,                                         &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_INERTIAFORCES_OPT',                                 &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221')
+        
+            call GetData(Me%ComputeOptions%VelExpForcesOpt,                                         &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_VEL_EXP_FORCES',                                 &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1222')
+        
+            call GetData(Me%ComputeOptions%VerticalWaterFlowOpt,                                         &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_VERT_WATER_FLOW_OPT',                                 &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1223')
+
+            call GetData(Me%ComputeOptions%CartesianVertVelocityOpt,                        &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_CARTESIAN_VERT_VELOCITY_OPT',                        &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1224')
+            
+            call GetData(Me%ComputeOptions%HorizontalAdvectionOpt,                        &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_ADVECTION_H',                        &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1224')
+            
+            call GetData(Me%ComputeOptions%VerticalAdvectionOpt,                        &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_ADVECTION_V',                        &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1224')
+            
+            call GetData(Me%ComputeOptions%HorizontalDiffusionOpt,                        &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_DIFFUSION_H',                        &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1224')
+            
+            call GetData(Me%ComputeOptions%VerticalDiffusionOpt,                        &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_DIFFUSION_V',                        &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1224')
+            
+            call GetData(Me%ComputeOptions%MeshSlope,                                       &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_MESH_SLOPE',                               &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1224')
+        endif
+
 
     End Subroutine Construct_Numerical_Options
 
@@ -25678,7 +25792,11 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
         !Grid = Variable = 2
         !the vertical water flux is compute with the effect of variable volume
-        call Modify_VerticalWaterFlow (Grid)
+        if (Me%ComputeOptions%VerticalWaterFlowOpt) then   
+            call Modify_VerticalWaterFlow (Grid) !Sobrinho
+        else
+            call Modify_VerticalWaterFlow2 (Grid) !Sobrinho
+        endif
 
         call Filter_3D_Fluxes
 
@@ -25703,7 +25821,12 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
             call NullGradProp3D_W(Me%WaterFluxes%Z)
         else
             if (Me%ComputeOptions%WaveForcing3D /= GLM) then
-                call ComputeCartesianVertVelocity(Grid = Grid) !Sobrinho
+                if (Me%ComputeOptions%CartesianVertVelocityOpt)then
+                    call ComputeCartesianVertVelocity(Grid = Grid) !Sobrinho
+                else
+                    call ComputeCartesianVertVelocity_Waves(Grid = Grid)
+                endif
+                
             else
                 call ComputeCartesianVertVelocity_Waves(Grid = Grid)
             endif
@@ -25793,7 +25916,6 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         Me%WaterFluxes%New_Old = 1.
 
         call Modify_HorizontalWaterFlow
-
 
 !        !Modify the Background velocity if the boundary relaxation scheme is ON
 !        if (Me%Relaxation%Velocity)                                  &
@@ -26676,18 +26798,25 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         call SetMatrixValue(FCoef_3D,  Me%Size,      0.0       )
         call SetMatrixValue(TICoef_3D, Me%Size, Velocity_UV_Old)
 
-
-        call Velocity_ExplicitForces(PressureBackwardInTime)
-
+        if (Me%ComputeOptions%VelExpForcesOpt) then
+            call Velocity_ExplicitForces(PressureBackwardInTime)
+        else
+            call Velocity_ExplicitForces2(PressureBackwardInTime)
+        endif
 
         call VelVerticalDiffusionBoundaries
 
 
         if (KUB > 1) then
 
-            if (Me%ComputeOptions%VerticalDiffusion)                        &
-                call Velocity_VerticalDiffusion2
-
+            if (Me%ComputeOptions%VerticalDiffusion)  then
+                if (Me%ComputeOptions%VerticalDiffusionOpt) then
+                    call Velocity_VerticalDiffusion2!sobrinho
+                else
+                    call Velocity_VerticalDiffusion!sobrinho
+                endif
+            endif
+            
             UseOptimizedRoutine = .false.
 
             if (Me%ComputeOptions%VerticalAdvection) then
@@ -26696,8 +26825,11 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
                         UseOptimizedRoutine = .true.
                     endif
                 endif
+                
+                if (.NOT. Me%ComputeOptions%VerticalAdvectionOpt) UseOptimizedRoutine = .false.
+                
                 if (UseOptimizedRoutine) then
-                    call Velocity_VerticalAdvection2
+                    call Velocity_VerticalAdvection2!Sobrinho
                 else
                     call Velocity_VerticalAdvection
                 endif
@@ -34195,8 +34327,14 @@ cd3:                   if (Manning) then
 
 
         !Inertial aceleration
-        if (Me%ComputeOptions%InertiaForces)                                    &
-            call Modify_InertiaForces
+        if (Me%ComputeOptions%InertiaForces) then
+            if (Me%ComputeOptions%InertiaForcesOpt)then
+                call Modify_InertiaForces!Sobrinho
+            else
+                call Modify_InertiaForces2!Sobrinho
+            endif
+        endif
+        
 
         !Obstacle drag
         if (Me%ComputeOptions%Obstacle)                                         &
@@ -34333,10 +34471,15 @@ cd1:    if (Me%ComputeOptions%HorizontalAdvection) then
 
             endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            if (Me%ComputeOptions%HorizontalAdvectionOpt) then
+                call Modify_Advection_UY_VX2 !Sobrinho
 
-            call Modify_Advection_UY_VX2 !Sobrinho
+                call Modify_Advection_UX_VY2        
+            else
+                call Modify_Advection_UY_VX !Sobrinho
 
-            call Modify_Advection_UX_VY2
+                call Modify_Advection_UX_VY
+            endif
 
             !call Modify_Advection_UX_VY_Old
 
@@ -34401,10 +34544,15 @@ cd3:        if (Me%ComputeOptions%BiHarmonic) then
 
                 endif
 
+                if (Me%ComputeOptions%HorizontalDiffusionOpt) then
+                    call Modify_Diffusion_UY_VX2  ( Aux_UY_VX, Biharmonic = .true.) !Sobrinho
 
-                call Modify_Diffusion_UY_VX2  ( Aux_UY_VX, Biharmonic = .true.) !Sobrinho
+                    call Modify_Diffusion_UX_VY2  ( Aux_UX_VY, Biharmonic = .true.) !Sobrinho
+                else
+                    call Modify_Diffusion_UY_VX  ( Aux_UY_VX, Biharmonic = .true.) !Sobrinho
 
-                call Modify_Diffusion_UX_VY2  ( Aux_UX_VY, Biharmonic = .true.) !Sobrinho
+                    call Modify_Diffusion_UX_VY  ( Aux_UX_VY, Biharmonic = .true.) !Sobrinho
+                endif
 
 cd44:           if (Me%SubModel%ON) then
 
@@ -34423,11 +34571,18 @@ cd44:           if (Me%SubModel%ON) then
             Aux_UY_VX => Me%Velocity%Horizontal%UV%Old
 
             Aux_UX_VY => Me%Velocity%Horizontal%UV%Old
+            
+            if (Me%ComputeOptions%HorizontalDiffusionOpt) then
+                
+                call Modify_Diffusion_UY_VX2  ( Aux_UY_VX, Biharmonic = .false.)!Sobrinho
 
-            call Modify_Diffusion_UY_VX2  ( Aux_UY_VX, Biharmonic = .false.)
+                call Modify_Diffusion_UX_VY2  ( Aux_UX_VY, Biharmonic = .false.) 
+            else
+                call Modify_Diffusion_UY_VX  ( Aux_UY_VX, Biharmonic = .false.)!Sobrinho
 
-            call Modify_Diffusion_UX_VY2  ( Aux_UX_VY, Biharmonic = .false.)
-
+                call Modify_Diffusion_UX_VY  ( Aux_UX_VY, Biharmonic = .false.)  
+            endif
+            
 cd4:        if (Me%SubModel%ON) then
 
                 call ModifyDiffSub_UY_VX ( Aux_UY_VX, Biharmonic = .false.)
@@ -47056,7 +47211,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         real   , dimension(:,:  ), pointer  :: WaterLevel_New, WaterLevel_Old
         integer, dimension(:,:,:), pointer  :: WaterPoints3D
         real                                :: dt
-        integer                             :: IUB,ILB,JUB,JLB,KUB,i, j, CHUNK
+        integer                             :: IUB,ILB,JUB,JLB,KUB,KLB,i, j, k, CHUNK
         logical                             :: MeshVelocity_, MeshSlope_
         !Begin-----------------------------------------------------------------
 
@@ -47067,6 +47222,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         JUB = Me%WorkSize%JUB
         JLB = Me%WorkSize%JLB
         KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
 
         Velocity_W_Cartesian    => Me%Velocity%Vertical%Cartesian
         dt                      =  Me%Waterlevel%DT
@@ -47089,30 +47245,52 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "ComputeCartesianVertVelocity")
         endif
+        
+        if (Me%ComputeOptions%MeshSlope) then
+            
+            where (Me%External_Var%ComputeFaces3D_W(:,:,:) == 1) &
+                   Velocity_W_Cartesian(:,:,:) = Me%Velocity%Vertical%Across(:,:,:)
 
-        if (MeshSlope_) call SetMatrixValue(Velocity_W_Cartesian, Me%WorkSize, Me%Velocity%Vertical%Across)
+            !do j = JLB, JUB
+            !do i = ILB, IUB
+            !    if (WaterPoints3D(i, j, KUB) == WaterPoint) then
+            !        do k = KLB, KUB
+            !            if (Me%External_Var%ComputeFaces3D_W(i,j,k) == Covered ) then
+            !                Velocity_W_Cartesian(i,j,k) = Me%Velocity%Vertical%Across(i,j,k)
+            !            endif
+            !        enddo
+            !    endif
+            !enddo
+            !enddo
+        else
+            call SetMatrixValue(Velocity_W_Cartesian, Me%WorkSize, Me%Velocity%Vertical%Across)
+        endif
+        
 
         !$OMP PARALLEL PRIVATE(i,j)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
             if (WaterPoints3D(i, j, KUB) == WaterPoint) then
+
                 Velocity_W_Cartesian(i,j,KUB+1)= (WaterLevel_New(i,j) - WaterLevel_Old(i,j)) / dt
+
             endif
         enddo
         enddo
         !$OMP END DO
         !$OMP END PARALLEL
 
+        if (MeshVelocity_) then
+
+            call CartesianVertVelocity_dszdt (Me%External_Var%Volume_Z_New, Me%External_Var%Volume_Z_Old,  &
+                                                Me%External_Var%DUX, Me%External_Var%DVY, Me%Waterlevel%DT,  &
+                                                Me%Velocity%Vertical%Cartesian, Me%External_Var%ComputeFaces3D_W, &
+                                                Me%External_Var%KFloor_Z)
+        endif
+        
         if (MeshSlope_) then
-            if (MeshVelocity_) then
-
-                call CartesianVertVelocity_dszdt (Me%External_Var%Volume_Z_New, Me%External_Var%Volume_Z_Old,  &
-                                                  Me%External_Var%DUX, Me%External_Var%DVY, Me%Waterlevel%DT,  &
-                                                  Me%Velocity%Vertical%Cartesian, Me%External_Var%ComputeFaces3D_W, &
-                                                  Me%External_Var%KFloor_Z)
-            endif
-
+            
             call CartesianVertVelocity_X (Me%External_Var%ComputeFaces3D_W, Me%External_Var%ComputeFaces3D_U,            &
                                           Me%External_Var%BoundaryPoints, Me%External_Var%SZZ, Me%External_Var%DZX,      &
                                           Me%External_Var%DWZ, Me%Velocity%Horizontal%U%New,                             &
@@ -47309,7 +47487,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         real,                               intent (IN)    :: dt
         integer, dimension(:,:  ), pointer, intent (IN)    :: KFloor_Z
         !Local-----------------------------------------------------------------
-        real                                               :: dszdt
+        real                                               :: dszdt, Dux_x_Dvy_x_Dt
         integer                                            :: IUB,ILB,JUB,JLB,KUB,KLB, i, j, k, kbottom
         integer                                            :: CHUNK
         !Begin-----------------------------------------------------------------
@@ -47323,7 +47501,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         KLB = Me%WorkSize%KLB
         CHUNK = CHUNK_J(JLB, JUB)
 
-        !$OMP PARALLEL PRIVATE(i, j, k, dszdt, kbottom)
+        !$OMP PARALLEL PRIVATE(i, j, k, dszdt, kbottom, Dux_x_Dvy_x_Dt)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
@@ -47331,8 +47509,11 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
             if (ComputeFaces3D_W(i,j,KUB) == 1) then
 
                 kbottom = KFloor_Z(i, j)
+                
+                Dux_x_Dvy_x_Dt = dux(i,j) * dvy(i,j) * dt
+                
                 do k = kbottom + 1, KUB
-                    dszdt  = dszdt - (volum_z(i,j,k-1) - volz_old(i,j,k-1)) / (dux(i,j)*dvy(i,j)*dt)
+                    dszdt  = dszdt - (volum_z(i,j,k-1) - volz_old(i,j,k-1)) / Dux_x_Dvy_x_Dt
 
                     Velocity_W_Cartesian(i,j,k) = Velocity_W_Cartesian(i,j,k) - dszdt
                 enddo
@@ -47696,7 +47877,7 @@ dok:            do k = kbottom + 1, KUB
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Compute_VerticalVelocity")
         endif
-
+        
         !$OMP PARALLEL PRIVATE(i,j,k, aux)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB+1
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -47705,8 +47886,12 @@ dok:            do k = kbottom + 1, KUB
             if (Me%External_Var%WaterPoints3D(i, j, k - 1) == 1) then
 
                 aux = Me%External_Var%DUX(i, j) * Me%External_Var%DVY(i, j)
-
+                
                 Me%Velocity%Vertical%Across(i, j, k)  = Me%WaterFluxes%Z(i, j, k) / aux
+                
+                !Me%Velocity%Vertical%Across(i, j, k)  = Me%WaterFluxes%Z(i, j, k) / &
+                !                                        Me%External_Var%DUX(i, j) / &
+                !                                        Me%External_Var%DVY(i, j)
 
             endif
         enddo
