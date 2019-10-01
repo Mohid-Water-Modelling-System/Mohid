@@ -53389,7 +53389,7 @@ do5:            do i = ILB, IUB
 
         !Local-----------------------------------------------------------------
         real,  dimension(:), pointer        :: AuxFlow
-        !logical                             :: OutPutFileOK, OutPutSurfaceFileOK, TimeSeriesFileOK, &
+        logical                             :: OutPutFileOK, OutPutSurfaceFileOK !, TimeSeriesFileOK, &
         !                                      OutPutWindowFileOK, ProfileFileOK
         type (T_Time)                       :: NextProfileOutput
         integer                             :: NextOutPut, STAT_CALL, iW, dis
