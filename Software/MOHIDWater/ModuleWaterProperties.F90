@@ -19972,7 +19972,7 @@ do1 :   do while (associated(PropertyX))
 
 cd1 :       if (Property%Evolution%MinConcentration) then
                 !$OMP PARALLEL PRIVATE(I,J,K, Kbottom)
-                if (Me%Docycle_method == 2) then
+                if (Me%Docycle_method == 1) then
                     CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
                     
                     !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -20027,7 +20027,7 @@ cd2 :       if (Property%Evolution%MaxConcentration) then
                 !$OMP PARALLEL PRIVATE(I,J,K, Kbottom)
                 CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
     
-                if (Me%Docycle_method == 2) then
+                if (Me%Docycle_method == 1) then
                     
                     !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                     do j=Me%WorkSize%JLB, Me%WorkSize%JUB

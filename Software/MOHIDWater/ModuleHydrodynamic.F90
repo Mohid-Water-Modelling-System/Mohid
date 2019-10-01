@@ -1613,7 +1613,6 @@ Module ModuleHydrodynamic
         logical                         :: VerticalAdvectionOpt     = .false.
         logical                         :: HorizontalDiffusionOpt   = .false.
         logical                         :: VerticalDiffusionOpt     = .false.
-        logical                         :: Meshslope                = .false.
 
     end type T_HydroOptions
 
@@ -8563,16 +8562,6 @@ cd21:   if (Baroclinic) then
             call GetData(Me%ComputeOptions%VerticalDiffusionOpt,                        &
                          Me%ObjEnterData, iflag,                                            &
                          Keyword    = 'OPTIMIZE_DIFFUSION_V',                        &
-                         Default    = .true.,                                              &
-                         SearchType = FromFile,                                             &
-                         ClientModule ='ModuleHydrodynamic',                                &
-                         STAT       = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1224')
-            
-            call GetData(Me%ComputeOptions%MeshSlope,                                       &
-                         Me%ObjEnterData, iflag,                                            &
-                         Keyword    = 'OPTIMIZE_MESH_SLOPE',                               &
                          Default    = .true.,                                              &
                          SearchType = FromFile,                                             &
                          ClientModule ='ModuleHydrodynamic',                                &
@@ -46403,7 +46392,7 @@ cd4:            if (BoundaryPoints(i, j) == Boundary) then
         integer, dimension(:,:,:), pointer, intent(IN)    :: ComputeFaces3D_U, ComputeFaces3D_V
         real,                               intent(IN)    :: DT
         !Local---------------------------------------------------------------------
-        real(8)                                           :: WestFace, EastFace, NorthFace, SouthFace, dVdT, dV
+        real(8)                                           :: WestFace, EastFace, NorthFace, SouthFace, dVdT
         integer                                           :: I, J, K, IUB, ILB, JUB, JLB, KUB, KLB, CHUNK
         !Begin--------------------------------------------------------------------------
         IUB = Me%WorkSize%IUB
@@ -46421,8 +46410,7 @@ cd4:            if (BoundaryPoints(i, j) == Boundary) then
         do i = ILB, IUB
             if (Me%External_Var%WaterPoints3D(i, j, k) == 1) then
 
-                dV   =  Volume_Z_New(i, j, k) - Volume_Z_Old(i, j, k)
-                dVdt =   dV / dble(DT)
+                dVdt =   (Volume_Z_New(i, j, k) - Volume_Z_Old(i, j, k)) / dble(DT)
 
                 WestFace  = WaterFlux_X(i  , j  , k) * dble(ComputeFaces3D_U(i  , j  , k))
                 EastFace  = WaterFlux_X(i  , j+1, k) * dble(ComputeFaces3D_U(i  , j+1, k))
@@ -47002,7 +46990,6 @@ do2:    do j = JLB, JUB
                     Velocity_W_Cartesian(i,j,KUB+1)= (WaterLevel_New(i,j)-WaterLevel_Old(i,j)) / dt  &
                                                      - StokesVelW_cart(i,j,KUB+1)
                 endif
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
             endif
@@ -47012,11 +46999,14 @@ do3:        do k = KLB, KUB
 cd1:            if (ComputeFaces3D_W(i,j,k) == Covered ) then
 
                     ! mesh velocity
-                    if (MeshVelocity_)                                                   &
-                        dszdt  = dszdt-(volum_z(i,j,k-1)-volz_old(i,j,k-1))/dux(i,j)/dvy(i,j)/dt
+                    if (MeshVelocity_) then
+                            dszdt  = dszdt-(volum_z(i,j,k-1)-volz_old(i,j,k-1))/dux(i,j)/dvy(i,j)/dt
+                    endif
 
+                    
 
 cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
+
                         ! mesh slope in X direction: central, progressive or regressive differences are used as a function of the
                         ! land boundary. The boundary is automatically detected in the equation through "ComputeFaces3D_W" matrix
                         szzxp1 = ComputeFaces3D_W(i,j+1,k)*szz(i,j+1,k-1)+(1-ComputeFaces3D_W(i,j+1,k))*szz(i,j,k-1)
@@ -47151,10 +47141,10 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
                     !Velocity_W_Cartesian(i,j,k)=Velocity_W_Across(i,j,k) - dszdt - velu * dszdx - velv * dszdy
 
                     !Cartesian vertical velocity
-                    if (Me%ComputeOptions%WaveForcing3D /= GLM) then
-
+                    if (Me%ComputeOptions%WaveForcing3D /= GLM) then 
+                        
                         Velocity_W_Cartesian(i,j,k)=Velocity_W_Across(i,j,k) - dszdt - velu * dszdx - velv * dszdy
-
+                        
                     else
 
                         Velocity_W_Cartesian(i,j,k)=Velocity_W_Across(i,j,k) - dszdt - velu * dszdx - velv * dszdy  &
@@ -47242,27 +47232,9 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "ComputeCartesianVertVelocity")
         endif
-        
-        if (Me%ComputeOptions%MeshSlope) then
             
-            where (Me%External_Var%ComputeFaces3D_W(:,:,:) == 1) &
-                   Velocity_W_Cartesian(:,:,:) = Me%Velocity%Vertical%Across(:,:,:)
-
-            !do j = JLB, JUB
-            !do i = ILB, IUB
-            !    if (WaterPoints3D(i, j, KUB) == WaterPoint) then
-            !        do k = KLB, KUB
-            !            if (Me%External_Var%ComputeFaces3D_W(i,j,k) == Covered ) then
-            !                Velocity_W_Cartesian(i,j,k) = Me%Velocity%Vertical%Across(i,j,k)
-            !            endif
-            !        enddo
-            !    endif
-            !enddo
-            !enddo
-        else
-            call SetMatrixValue(Velocity_W_Cartesian, Me%WorkSize, Me%Velocity%Vertical%Across)
-        endif
-        
+        where (Me%External_Var%ComputeFaces3D_W(:,:,:) == 1) &
+                Velocity_W_Cartesian(:,:,:) = Me%Velocity%Vertical%Across(:,:,:)
 
         !$OMP PARALLEL PRIVATE(i,j)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -47284,6 +47256,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
                                                 Me%External_Var%DUX, Me%External_Var%DVY, Me%Waterlevel%DT,  &
                                                 Me%Velocity%Vertical%Cartesian, Me%External_Var%ComputeFaces3D_W, &
                                                 Me%External_Var%KFloor_Z)
+
         endif
         
         if (MeshSlope_) then
@@ -47292,7 +47265,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
                                           Me%External_Var%BoundaryPoints, Me%External_Var%SZZ, Me%External_Var%DZX,      &
                                           Me%External_Var%DWZ, Me%Velocity%Horizontal%U%New,                             &
                                           Me%Velocity%Vertical%Cartesian, Me%External_Var%KFloor_Z)
-
+            
             call CartesianVertVelocity_Y (Me%External_Var%ComputeFaces3D_W, Me%External_Var%ComputeFaces3D_V,       &
                                           Me%External_Var%BoundaryPoints, Me%External_Var%SZZ, Me%External_Var%DZY, &
                                           Me%External_Var%DWZ, Me%Velocity%Horizontal%V%New,                        &
@@ -47328,7 +47301,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
                                                               dszdx
 
         integer                                            :: IUB, ILB, JUB, JLB, KUB, KLB, i, j, k
-        integer                                            :: CHUNK, Flag1, Flag2, Flag3, kbottom
+        integer                                            :: CHUNK, kbottom
         !Begin-----------------------------------------------------------------
 
         !Begin - Shorten variables name
@@ -47360,22 +47333,22 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
                         szzxm1 = ComputeFaces3D_W(i,j-1,k)*szz(i,j-1,k-1)+(1-ComputeFaces3D_W(i,j-1,k))*szz(i,j,k-1)
                         dzxm1  = ComputeFaces3D_W(i,j-1,k)*dzx(i,j-1)
 
-                        Flag1 = dzxp1+dzxm1
-                        if (Flag1 /= 0) then
-                            dszdx=(szzxp1-szzxm1) / Flag1
+                        if ((dzxp1+dzxm1) /= 0) then
+                            dszdx=(szzxp1-szzxm1) / (dzxp1+dzxm1)
                         else
                             dszdx=0.0
                         endif
                         ! Velocity components at cell center
-                        Flag2 = ComputeFaces3D_U(i,j,k)+ComputeFaces3D_U(i,j+1,k)
-                        if (Flag2 /= 0) then
-                            velusup=(ComputeFaces3D_U(i,j,k)*uavar(i,j,k)+ComputeFaces3D_U(i,j+1,k)*uavar(i,j+1,k))/ Flag2
+                        if ((ComputeFaces3D_U(i,j,k)+ComputeFaces3D_U(i,j+1,k)) /= 0) then
+                            velusup=(ComputeFaces3D_U(i,j,k)*uavar(i,j,k)+ComputeFaces3D_U(i,j+1,k)*uavar(i,j+1,k))/ &
+                                    (ComputeFaces3D_U(i,j,k)             +ComputeFaces3D_U(i,j+1,k))
                         else
                             velusup=0.0
                         endif
-                        Flag3 = ComputeFaces3D_U(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1)
-                        if (Flag3 /=0) then
-                            veluinf=(ComputeFaces3D_U(i,j,k-1)*uavar(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1)*uavar(i,j+1,k-1))/ Flag3
+
+                        if ((ComputeFaces3D_U(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1)) /=0) then
+                            veluinf=(ComputeFaces3D_U(i,j,k-1)*uavar(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1)*uavar(i,j+1,k-1))/ &
+                                    (ComputeFaces3D_U(i,j,k-1)               +ComputeFaces3D_U(i,j+1,k-1))
                         else
                             veluinf=0.0
                         endif
@@ -47383,6 +47356,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
                         velu=(velusup*dwz(i,j,k-1)+veluinf*dwz(i,j,k))/(dwz(i,j,k-1)+dwz(i,j,k))
 
                         Velocity_W_Cartesian(i,j,k) = Velocity_W_Cartesian(i,j,k) - velu * dszdx
+                        
                     enddo
                 endif
             endif
@@ -47407,7 +47381,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
                                                               dszdy
 
         integer                                            :: IUB, ILB, JUB, JLB, KUB, KLB, i, j, k
-        integer                                            :: CHUNK, Flag1, Flag2, Flag3, kbottom
+        integer                                            :: CHUNK, kbottom
         !Begin-----------------------------------------------------------------
 
         !Begin - Shorten variables name
@@ -47438,23 +47412,22 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
                         szzym1 = ComputeFaces3D_W(i-1,j,k)*szz(i-1,j,k-1)+(1-ComputeFaces3D_W(i-1,j,k))*szz(i,j,k-1)
                         dzym1  = ComputeFaces3D_W(i-1,j,k)*dzy(i-1,j)
 
-                        Flag1 = dzyp1+dzym1
-
-                        if (Flag1 /= 0) then
-                            dszdy=(szzyp1-szzym1) / Flag1
+                        if ((dzyp1+dzym1) /= 0) then
+                            dszdy=(szzyp1-szzym1) / (dzyp1+dzym1)
                         else
                             dszdy=0.0
                         endif
                         ! Velocity components at cell center
-                        Flag2 = ComputeFaces3D_V(i,j,k)+ComputeFaces3D_V(i+1,j,k)
-                        if (Flag2 /= 0) then
-                            velvsup=(ComputeFaces3D_V(i,j,k)*vavar(i,j,k)+ComputeFaces3D_V(i+1,j,k)*vavar(i+1,j,k))/ Flag2
+                        if ((ComputeFaces3D_V(i,j,k)+ComputeFaces3D_V(i+1,j,k)) /= 0) then
+                            velvsup=(ComputeFaces3D_V(i,j,k)*vavar(i,j,k)+ComputeFaces3D_V(i+1,j,k)*vavar(i+1,j,k))/ &
+                                    (ComputeFaces3D_V(i,j,k)             +ComputeFaces3D_V(i+1,j,k))
                         else
                             velvsup=0.0
                         endif
-                        Flag3 = ComputeFaces3D_V(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1)
-                        if (Flag3 /=0) then
-                            velvinf=(ComputeFaces3D_V(i,j,k-1)*vavar(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1)*vavar(i+1,j,k-1))/ Flag3
+
+                        if ((ComputeFaces3D_V(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1)) /=0) then
+                            velvinf=(ComputeFaces3D_V(i,j,k-1)*vavar(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1)*vavar(i+1,j,k-1))/ &
+                                    (ComputeFaces3D_V(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1))
                         else
                             velvinf=0.0
                         endif
@@ -47510,6 +47483,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
                 Dux_x_Dvy_x_Dt = dux(i,j) * dvy(i,j) * dt
                 
                 do k = kbottom + 1, KUB
+                    
                     dszdt  = dszdt - (volum_z(i,j,k-1) - volz_old(i,j,k-1)) / Dux_x_Dvy_x_Dt
 
                     Velocity_W_Cartesian(i,j,k) = Velocity_W_Cartesian(i,j,k) - dszdt
