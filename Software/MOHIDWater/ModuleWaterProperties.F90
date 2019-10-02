@@ -19518,9 +19518,11 @@ do1 :   do while (associated(PropertyX))
                                       STAT              = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR04.'
         
-        call unGetHydrodynamic(FatherWaterPropertiesID, FatherFlow, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR05.')
+        if (ObjWaterPropertiesFather%Coupled%UpscalingDischarge%Yes) then
+            call unGetHydrodynamic(FatherWaterPropertiesID, FatherFlow, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR05.')
+        endif
 
     if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "UpdateFatherModelWP")
 
