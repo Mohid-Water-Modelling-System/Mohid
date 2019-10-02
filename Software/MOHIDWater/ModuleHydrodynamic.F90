@@ -2378,6 +2378,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                  VelDT            = Me%Velocity%DT,                        &
                                                  DT               = Me%WaterLevel%DT,                      &
                                                  IgnoreOBNumCells = Me%ComputeOptions%TwoWayNumIgnOBCells, &
+                                                 DoCycleMethod    = Me%DoCycle_method,                     &
                                                  STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)                                                       &
                 stop 'Subroutine Construct_Hydrodynamic - ModuleHydrodynamic. ERR04.'
