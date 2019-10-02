@@ -46415,7 +46415,7 @@ cd4:            if (BoundaryPoints(i, j) == Boundary) then
         KLB = Me%WorkSize%KLB
         CHUNK = CHUNK_J(JLB, JUB)
 
-        !$OMP PARALLEL PRIVATE(i,j,k,dVdt, WestFace, EastFace, SouthFace, NorthFace, dV)
+        !$OMP PARALLEL PRIVATE(i,j,k,dVdt, WestFace, EastFace, SouthFace, NorthFace)
         do k = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
@@ -47326,7 +47326,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         KLB = Me%WorkSize%KLB
         CHUNK = CHUNK_J(JLB, JUB)
 
-        !$OMP PARALLEL PRIVATE(i, j, k,szzxp1,dzxp1,szzxm1,dzxm1,dszdx,velusup,veluinf,velu,kbottom,Flag1,Flag2,Flag3)
+        !$OMP PARALLEL PRIVATE(i, j, k,szzxp1,dzxp1,szzxm1,dzxm1,dszdx,velusup,veluinf,velu,kbottom)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
@@ -47406,7 +47406,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         KLB = Me%WorkSize%KLB
         CHUNK = CHUNK_J(JLB, JUB)
 
-        !$OMP PARALLEL PRIVATE(i, j, k,szzyp1,dzyp1,szzym1,dzym1,dszdy,velvsup,velvinf,velv,kbottom,Flag1,Flag2,Flag3)
+        !$OMP PARALLEL PRIVATE(i, j, k,szzyp1,dzyp1,szzym1,dzym1,dszdy,velvsup,velvinf,velv,kbottom)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
