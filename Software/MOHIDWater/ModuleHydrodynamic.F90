@@ -10490,7 +10490,8 @@ n1:                         do nC =1, nCells
                             call SetLayer (Me%ObjDischarges, dn, VectorK(nCells), STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR370'
                         endif
-                        deallocate(VectorI, VectorJ, VectorK)
+                        
+                        if (DischVertical /= DischProfile_) deallocate(VectorI, VectorJ, VectorK)
                     endif
 
                 enddo d1
