@@ -1283,7 +1283,6 @@ cd99 :      if (present(NumericStability)) then
             Me%ExternalVar%VolumeZOld         => VolumeZOld
             Me%ExternalVar%VolumeZ            => VolumeZ
             Me%ExternalVar%OpenPoints3D       => OpenPoints3D
-            Me%ExternalVar%WaterPoints3D      => WaterPoints3D
             Me%ExternalVar%LandPoints3D       => LandPoints3D
             Me%ExternalVar%ComputeFacesU3D    => ComputeFacesU3D
             Me%ExternalVar%ComputeFacesV3D    => ComputeFacesV3D

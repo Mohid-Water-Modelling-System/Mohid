@@ -1613,6 +1613,7 @@ Module ModuleHydrodynamic
         logical                         :: VerticalAdvectionOpt     = .false.
         logical                         :: HorizontalDiffusionOpt   = .false.
         logical                         :: VerticalDiffusionOpt     = .false.
+        logical                         :: MatrixesOutputOpt        = .false.
 
     end type T_HydroOptions
 
@@ -8537,7 +8538,7 @@ cd21:   if (Baroclinic) then
                          ClientModule ='ModuleHydrodynamic',                                &
                          STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1224')
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1225')
             
             call GetData(Me%ComputeOptions%VerticalAdvectionOpt,                        &
                          Me%ObjEnterData, iflag,                                            &
@@ -8547,7 +8548,7 @@ cd21:   if (Baroclinic) then
                          ClientModule ='ModuleHydrodynamic',                                &
                          STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1224')
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1226')
             
             call GetData(Me%ComputeOptions%HorizontalDiffusionOpt,                        &
                          Me%ObjEnterData, iflag,                                            &
@@ -8557,7 +8558,7 @@ cd21:   if (Baroclinic) then
                          ClientModule ='ModuleHydrodynamic',                                &
                          STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1224')
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1227')
             
             call GetData(Me%ComputeOptions%VerticalDiffusionOpt,                        &
                          Me%ObjEnterData, iflag,                                            &
@@ -8567,7 +8568,18 @@ cd21:   if (Baroclinic) then
                          ClientModule ='ModuleHydrodynamic',                                &
                          STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1224')
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1228')
+            
+            call GetData(Me%ComputeOptions%MatrixesOutputOpt,                        &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_MATRIXES_OUTPUT',                        &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1229')
+            
         endif
 
 
@@ -53363,8 +53375,8 @@ do5:            do i = ILB, IUB
 
         !Local-----------------------------------------------------------------
         real,  dimension(:), pointer        :: AuxFlow
-        logical                             :: OutPutFileOK, OutPutSurfaceFileOK !, TimeSeriesFileOK, &
-        !                                      OutPutWindowFileOK, ProfileFileOK
+        logical                             :: OutPutFileOK, OutPutSurfaceFileOK , TimeSeriesFileOK, &
+                                               OutPutWindowFileOK, ProfileFileOK, FloodRiskOk
         type (T_Time)                       :: NextProfileOutput
         integer                             :: NextOutPut, STAT_CALL, iW, dis
         real                                :: DT_Model
@@ -53375,76 +53387,90 @@ do5:            do i = ILB, IUB
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Hydrodynamic_OutPut")
 
-        Me%OutPut%Run_End       = .false.
+        Me%OutPut%Run_End   = .false.
         OutPutFileOK        = .false.
-        !OutPutFileOK        = .false.
-        !ProfileFileOK       = .false.
-        !TimeSeriesFileOK    = .false.
-        !OutPutWindowFileOK  = .false.
-        !OutPutSurfaceFileOK = .false.
+        ProfileFileOK       = .false.
+        TimeSeriesFileOK    = .false.
+        OutPutWindowFileOK  = .false.
+        OutPutSurfaceFileOK = .false.
+        FloodRiskOk         = .false.
+        
+        if (Me%ComputeOptions%MatrixesOutputOpt) then
+            
+            if (Me%OutPut%TimeSerieON) then
+                call OutputTimeSeries_FileOK (TimeSeriesFileOK)
+                FloodRiskOk         = .true.
+            endif
+            
+            if (Me%OutPut%hdf5ON) then
+                FloodRiskOk  = .true.
+                NextOutPut   = Me%OutPut%NextOutPut
+                if (NextOutPut <= Me%OutPut%Number) then
+                    if (Me%CurrentTime >= Me%OutPut%OutTime(NextOutPut)) then
+                        OutPutFileOK = .true.
+                    endif
+                endif
+            endif
+            
+            if (Me%OutW%OutPutWindowsON)  then
+                FloodRiskOk         = .true.
+                do iW = 1, Me%OutW%WindowsNumber
+                    if (Me%OutW%OutPutWindows(iW)%ON) then
+                        NextOutPut = Me%OutW%OutPutWindows(iW)%NextOutPut
+                        OutPutWindowFileOK = .false.
+                        if (NextOutPut <= Me%OutW%OutPutWindows(iW)%Number) then
+                            if (Me%CurrentTime >= Me%OutW%OutPutWindows(iW)%OutTime(NextOutPut)) then
+                                OutPutWindowFileOK = .true.
+                            endif
+                        endif
+                    endif
+                enddo
+            endif
+            
+            if(Me%OutPut%HDF5_Surface_ON)then
+                FloodRiskOk         = .true.
+                OutPutSurfaceFileOK = .false.
+                if (Me%OutPut%NextSurfaceOutPut <= Me%OutPut%NumberSurfaceOutputs) then
+                    if (Me%CurrentTime >= Me%OutPut%SurfaceOutTime(Me%OutPut%NextSurfaceOutPut)) then
+                        OutPutSurfaceFileOK = .true.
+                    endif
+                endif
+            endif
+            
+            if (Me%OutPut%ProfileON) then
+                FloodRiskOk         = .true.
+                call GetProfileNextOutputTime(Me%ObjProfile, NextProfileOutput, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Hydrodynamic_OutPut - ModuleHydrodynamic - ERR01'
+            
+                if (Me%CurrentTime >= NextProfileOutput) ProfileFileOK = .true.
+            endif
+            
+            if (ProfileFileOK .or. OutPutFileOK .or. TimeSeriesFileOK .or. OutPutWindowFileOK .or. &
+            OutPutSurfaceFileOK) then
+            
+                call ModifyMatrixesOutput
+                
+            endif
 
-        if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or.                            &
-            Me%OutPut%ProfileON   .or. Me%OutPut%HDF5_Surface_ON.or.                    &
-            Me%OutW%OutPutWindowsON)then
-
-        !if (Me%OutPut%TimeSerieON) then
-        !    call OutputTimeSeries_FileOK (TimeSeriesFileOK)
-        !endif
-        !
-        !if (Me%OutPut%hdf5ON) then
-        !    NextOutPut = Me%OutPut%NextOutPut
-        !    if (NextOutPut <= Me%OutPut%Number) then
-        !        if (Me%CurrentTime >= Me%OutPut%OutTime(NextOutPut)) then
-        !            OutPutFileOK = .true.
-        !        endif
-        !    endif
-        !endif
-        !
-        !if (Me%OutW%OutPutWindowsON)  then
-        !    do iW = 1, Me%OutW%WindowsNumber
-        !        if (Me%OutW%OutPutWindows(iW)%ON) then
-        !            NextOutPut = Me%OutW%OutPutWindows(iW)%NextOutPut
-        !            OutPutWindowFileOK = .false.
-        !            if (NextOutPut <= Me%OutW%OutPutWindows(iW)%Number) then
-        !                if (Me%CurrentTime >= Me%OutW%OutPutWindows(iW)%OutTime(NextOutPut)) then
-        !                    OutPutWindowFileOK = .true.
-        !                endif
-        !            endif
-        !        endif
-        !    enddo
-        !endif
-        !
-        !if(Me%OutPut%HDF5_Surface_ON)then
-        !    OutPutSurfaceFileOK = .false.
-        !    if (Me%OutPut%NextSurfaceOutPut <= Me%OutPut%NumberSurfaceOutputs) then
-        !        if (Me%CurrentTime >= Me%OutPut%SurfaceOutTime(Me%OutPut%NextSurfaceOutPut)) then
-        !            OutPutSurfaceFileOK = .true.
-        !        endif
-        !    endif
-        !endif
-        !
-        !if (Me%OutPut%ProfileON) then
-        !    call GetProfileNextOutputTime(Me%ObjProfile, NextProfileOutput, STAT = STAT_CALL)
-        !    if (STAT_CALL /= SUCCESS_) stop 'Hydrodynamic_OutPut - ModuleHydrodynamic - ERR01'
-        !
-        !    if (Me%CurrentTime >= NextProfileOutput) ProfileFileOK = .true.
-        !endif
-        !
-        !if (ProfileFileOK .or. OutPutFileOK .or. TimeSeriesFileOK .or. OutPutWindowFileOK .or. &
-        !OutPutSurfaceFileOK) then
-        !
-        !    call ModifyMatrixesOutput
-        !endif
-
-            call ModifyMatrixesOutput !Sobrinho
-
-            if(Me%OutPut%FloodRisk)then
+            if(FloodRiskOk .and. Me%OutPut%FloodRisk)then
                 call ComputeFloodRisk
             endif
 
-        end if
+        else
+            
+            if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or.                            &
+                Me%OutPut%ProfileON   .or. Me%OutPut%HDF5_Surface_ON.or.                    &
+                Me%OutW%OutPutWindowsON)then
 
-        !OutPutFileOK        = .false.
+                call ModifyMatrixesOutput !Sobrinho
+
+                if(Me%OutPut%FloodRisk)then
+                    call ComputeFloodRisk
+                endif
+
+            end if
+            
+        endif
 
         !! $OMP PARALLEL SECTIONS
 
@@ -56520,7 +56546,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
         !Begin-----------------------------------------------------------
         call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries_FileOK - ModuleHydrodynamic - ERR01'
 
         FirstTime = .false.
         FileOk    = .false.
@@ -56528,7 +56554,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
         do dn = 1, TimeSerieNumber
 
             call GetTimeSerieNextOutput(Me%ObjTimeSerie, dn, NextTimeOutput, STAT  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries_FileOK - ModuleHydrodynamic - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries_FileOK - ModuleHydrodynamic - ERR02'
 
             if (FirstTime) then
                 NextTimeSerieOutput = NextTimeOutput
