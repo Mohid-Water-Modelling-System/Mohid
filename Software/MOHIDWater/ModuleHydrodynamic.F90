@@ -38276,9 +38276,9 @@ cd1:                if (ConservativeHorDif) then
 
         if (BiHarmonic) then
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            !Do order changed to avoid data races in OpenMP
-            do i=ILB, IUB
             do j=JLB, JUB
+            do i=ILB, IUB
+            
                 if (ComputeFaces3D_U(i, j, KUB) == Covered .and. ComputeFaces3D_U(i, j-1, KUB) == Covered ) then
 
                     Kbottom = max(KFloor_U(i, j), KFloor_U(i, j-1))
@@ -38306,8 +38306,8 @@ cd1:                if (ConservativeHorDif) then
             !$OMP END DO
         else
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do i=ILB, IUB
             do j=JLB, JUB
+            do i=ILB, IUB
                 if (ComputeFaces3D_U(i, j, KUB) == Covered .and. ComputeFaces3D_U(i, j-1, KUB) == Covered ) then
 
                     Kbottom = max(KFloor_U(i, j), KFloor_U(i, j-1))
