@@ -587,7 +587,6 @@ MOHID_BASE_2(){
     ModuleFillMatrix  \
     ModuleChainReactions  \
     ModuleAtmosphere      \
-    ModuleUpscallingDischarges \
     ModuleTwoWay )
 
   COMPILE_MOHID_BASE modules_Mohid_Base_2 "mohidbase2"

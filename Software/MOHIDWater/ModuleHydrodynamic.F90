@@ -1603,7 +1603,17 @@ Module ModuleHydrodynamic
         integer                         :: WaveForcing3D
         integer                         :: WaveForcing3D_Two
 
-        logical                         :: AssimilaOneField      = .false.
+        logical                         :: AssimilaOneField         = .false.
+        logical                         :: GlobalOptimization       = .false.
+        logical                         :: InertiaForcesOpt         = .false.
+        logical                         :: VelExpForcesOpt          = .false.
+        logical                         :: VerticalWaterFlowOpt     = .false.
+        logical                         :: CartesianVertVelocityOpt = .false.
+        logical                         :: HorizontalAdvectionOpt   = .false.
+        logical                         :: VerticalAdvectionOpt     = .false.
+        logical                         :: HorizontalDiffusionOpt   = .false.
+        logical                         :: VerticalDiffusionOpt     = .false.
+        logical                         :: MatrixesOutputOpt        = .false.
 
     end type T_HydroOptions
 
@@ -8467,6 +8477,111 @@ cd21:   if (Baroclinic) then
                      STAT       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1220')
+        
+        call GetData(Me%ComputeOptions%GlobalOptimization,                                         &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword    = 'GLOBAL_OPT',                                         &
+                     Default    = .false.,                                              &
+                     SearchType = FromFile,                                             &
+                     ClientModule ='ModuleHydrodynamic',                                &
+                     STAT       = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)                                                      &
+            call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221')
+        
+        if (Me%ComputeOptions%GlobalOptimization) then
+           
+            call GetData(Me%ComputeOptions%InertiaForcesOpt,                                         &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_INERTIAFORCES_OPT',                                 &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221')
+        
+            call GetData(Me%ComputeOptions%VelExpForcesOpt,                                         &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_VEL_EXP_FORCES',                                 &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1222')
+        
+            call GetData(Me%ComputeOptions%VerticalWaterFlowOpt,                                         &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_VERT_WATER_FLOW_OPT',                                 &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1223')
+
+            call GetData(Me%ComputeOptions%CartesianVertVelocityOpt,                        &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_CARTESIAN_VERT_VELOCITY_OPT',                        &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1224')
+            
+            call GetData(Me%ComputeOptions%HorizontalAdvectionOpt,                        &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_ADVECTION_H',                        &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1225')
+            
+            call GetData(Me%ComputeOptions%VerticalAdvectionOpt,                        &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_ADVECTION_V',                        &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1226')
+            
+            call GetData(Me%ComputeOptions%HorizontalDiffusionOpt,                        &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_DIFFUSION_H',                        &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1227')
+            
+            call GetData(Me%ComputeOptions%VerticalDiffusionOpt,                        &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_DIFFUSION_V',                        &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1228')
+            
+            call GetData(Me%ComputeOptions%MatrixesOutputOpt,                        &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'OPTIMIZE_MATRIXES_OUTPUT',                        &
+                         Default    = .true.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1229')
+            
+        endif
+
 
     End Subroutine Construct_Numerical_Options
 
@@ -25678,7 +25793,11 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
         !Grid = Variable = 2
         !the vertical water flux is compute with the effect of variable volume
-        call Modify_VerticalWaterFlow (Grid)
+        if (Me%ComputeOptions%VerticalWaterFlowOpt) then   
+            call Modify_VerticalWaterFlow (Grid) !Sobrinho
+        else
+            call Modify_VerticalWaterFlow2 (Grid) !Sobrinho
+        endif
 
         call Filter_3D_Fluxes
 
@@ -25703,7 +25822,12 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
             call NullGradProp3D_W(Me%WaterFluxes%Z)
         else
             if (Me%ComputeOptions%WaveForcing3D /= GLM) then
-                call ComputeCartesianVertVelocity(Grid = Grid)
+                if (Me%ComputeOptions%CartesianVertVelocityOpt)then
+                    call ComputeCartesianVertVelocity(Grid = Grid) !Sobrinho
+                else
+                    call ComputeCartesianVertVelocity_Waves(Grid = Grid)
+                endif
+                
             else
                 call ComputeCartesianVertVelocity_Waves(Grid = Grid)
             endif
@@ -25793,7 +25917,6 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         Me%WaterFluxes%New_Old = 1.
 
         call Modify_HorizontalWaterFlow
-
 
 !        !Modify the Background velocity if the boundary relaxation scheme is ON
 !        if (Me%Relaxation%Velocity)                                  &
@@ -26676,18 +26799,25 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         call SetMatrixValue(FCoef_3D,  Me%Size,      0.0       )
         call SetMatrixValue(TICoef_3D, Me%Size, Velocity_UV_Old)
 
-
-        call Velocity_ExplicitForces(PressureBackwardInTime)
-
+        if (Me%ComputeOptions%VelExpForcesOpt) then
+            call Velocity_ExplicitForces(PressureBackwardInTime)
+        else
+            call Velocity_ExplicitForces2(PressureBackwardInTime)
+        endif
 
         call VelVerticalDiffusionBoundaries
 
 
         if (KUB > 1) then
 
-            if (Me%ComputeOptions%VerticalDiffusion)                        &
-                call Velocity_VerticalDiffusion2
-
+            if (Me%ComputeOptions%VerticalDiffusion)  then
+                if (Me%ComputeOptions%VerticalDiffusionOpt) then
+                    call Velocity_VerticalDiffusion2!sobrinho
+                else
+                    call Velocity_VerticalDiffusion!sobrinho
+                endif
+            endif
+            
             UseOptimizedRoutine = .false.
 
             if (Me%ComputeOptions%VerticalAdvection) then
@@ -26696,8 +26826,11 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
                         UseOptimizedRoutine = .true.
                     endif
                 endif
+                
+                if (.NOT. Me%ComputeOptions%VerticalAdvectionOpt) UseOptimizedRoutine = .false.
+                
                 if (UseOptimizedRoutine) then
-                    call Velocity_VerticalAdvection2
+                    call Velocity_VerticalAdvection2!Sobrinho
                 else
                     call Velocity_VerticalAdvection
                 endif
@@ -27216,8 +27349,6 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         call WaterLevel_ExplicitForces
         call WaterLevel_WaterFluxes
         call WaterLevelDischarges
-
-
         call WaterLevel_OpenBoundary
 
         IJmin = ILB * dj + JLB * di
@@ -27245,7 +27376,6 @@ cd1:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
             call WaterLevel_CyclicBoundary
 
         endif
-
 
         if (Me%Tsunami%ON) then
             if (Me%Tsunami%Fault%T0 <= Me%CurrentTime) then
@@ -34195,8 +34325,14 @@ cd3:                   if (Manning) then
 
 
         !Inertial aceleration
-        if (Me%ComputeOptions%InertiaForces)                                    &
-            call Modify_InertiaForces
+        if (Me%ComputeOptions%InertiaForces) then
+            if (Me%ComputeOptions%InertiaForcesOpt)then
+                call Modify_InertiaForces!Sobrinho
+            else
+                call Modify_InertiaForces2!Sobrinho
+            endif
+        endif
+        
 
         !Obstacle drag
         if (Me%ComputeOptions%Obstacle)                                         &
@@ -34333,10 +34469,15 @@ cd1:    if (Me%ComputeOptions%HorizontalAdvection) then
 
             endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            if (Me%ComputeOptions%HorizontalAdvectionOpt) then
+                call Modify_Advection_UY_VX2 !Sobrinho
 
-            call Modify_Advection_UY_VX2 !Sobrinho
+                call Modify_Advection_UX_VY2        
+            else
+                call Modify_Advection_UY_VX !Sobrinho
 
-            call Modify_Advection_UX_VY2
+                call Modify_Advection_UX_VY
+            endif
 
             !call Modify_Advection_UX_VY_Old
 
@@ -34401,10 +34542,15 @@ cd3:        if (Me%ComputeOptions%BiHarmonic) then
 
                 endif
 
+                if (Me%ComputeOptions%HorizontalDiffusionOpt) then
+                    call Modify_Diffusion_UY_VX2  ( Aux_UY_VX, Biharmonic = .true.) !Sobrinho
 
-                call Modify_Diffusion_UY_VX2  ( Aux_UY_VX, Biharmonic = .true.) !Sobrinho
+                    call Modify_Diffusion_UX_VY2  ( Aux_UX_VY, Biharmonic = .true.) !Sobrinho
+                else
+                    call Modify_Diffusion_UY_VX  ( Aux_UY_VX, Biharmonic = .true.) !Sobrinho
 
-                call Modify_Diffusion_UX_VY2  ( Aux_UX_VY, Biharmonic = .true.) !Sobrinho
+                    call Modify_Diffusion_UX_VY  ( Aux_UX_VY, Biharmonic = .true.) !Sobrinho
+                endif
 
 cd44:           if (Me%SubModel%ON) then
 
@@ -34423,11 +34569,18 @@ cd44:           if (Me%SubModel%ON) then
             Aux_UY_VX => Me%Velocity%Horizontal%UV%Old
 
             Aux_UX_VY => Me%Velocity%Horizontal%UV%Old
+            
+            if (Me%ComputeOptions%HorizontalDiffusionOpt) then
+                
+                call Modify_Diffusion_UY_VX2  ( Aux_UY_VX, Biharmonic = .false.)!Sobrinho
 
-            call Modify_Diffusion_UY_VX2  ( Aux_UY_VX, Biharmonic = .false.)
+                call Modify_Diffusion_UX_VY2  ( Aux_UX_VY, Biharmonic = .false.) 
+            else
+                call Modify_Diffusion_UY_VX  ( Aux_UY_VX, Biharmonic = .false.)!Sobrinho
 
-            call Modify_Diffusion_UX_VY2  ( Aux_UX_VY, Biharmonic = .false.)
-
+                call Modify_Diffusion_UX_VY  ( Aux_UX_VY, Biharmonic = .false.)  
+            endif
+            
 cd4:        if (Me%SubModel%ON) then
 
                 call ModifyDiffSub_UY_VX ( Aux_UY_VX, Biharmonic = .false.)
@@ -38123,9 +38276,9 @@ cd1:                if (ConservativeHorDif) then
 
         if (BiHarmonic) then
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            !Do order changed to avoid data races in OpenMP
-            do i=ILB, IUB
             do j=JLB, JUB
+            do i=ILB, IUB
+            
                 if (ComputeFaces3D_U(i, j, KUB) == Covered .and. ComputeFaces3D_U(i, j-1, KUB) == Covered ) then
 
                     Kbottom = max(KFloor_U(i, j), KFloor_U(i, j-1))
@@ -38153,8 +38306,8 @@ cd1:                if (ConservativeHorDif) then
             !$OMP END DO
         else
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do i=ILB, IUB
             do j=JLB, JUB
+            do i=ILB, IUB
                 if (ComputeFaces3D_U(i, j, KUB) == Covered .and. ComputeFaces3D_U(i, j-1, KUB) == Covered ) then
 
                     Kbottom = max(KFloor_U(i, j), KFloor_U(i, j-1))
@@ -46251,7 +46404,7 @@ cd4:            if (BoundaryPoints(i, j) == Boundary) then
         integer, dimension(:,:,:), pointer, intent(IN)    :: ComputeFaces3D_U, ComputeFaces3D_V
         real,                               intent(IN)    :: DT
         !Local---------------------------------------------------------------------
-        real(8)                                           :: WestFace, EastFace, NorthFace, SouthFace, dVdT, dV
+        real(8)                                           :: WestFace, EastFace, NorthFace, SouthFace, dVdT
         integer                                           :: I, J, K, IUB, ILB, JUB, JLB, KUB, KLB, CHUNK
         !Begin--------------------------------------------------------------------------
         IUB = Me%WorkSize%IUB
@@ -46262,15 +46415,14 @@ cd4:            if (BoundaryPoints(i, j) == Boundary) then
         KLB = Me%WorkSize%KLB
         CHUNK = CHUNK_J(JLB, JUB)
 
-        !$OMP PARALLEL PRIVATE(i,j,k,dVdt, WestFace, EastFace, SouthFace, NorthFace, dV)
+        !$OMP PARALLEL PRIVATE(i,j,k,dVdt, WestFace, EastFace, SouthFace, NorthFace)
         do k = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
             if (Me%External_Var%WaterPoints3D(i, j, k) == 1) then
 
-                dV   =  Volume_Z_New(i, j, k) - Volume_Z_Old(i, j, k)
-                dVdt =   dV / dble(DT)
+                dVdt =   (Volume_Z_New(i, j, k) - Volume_Z_Old(i, j, k)) / dble(DT)
 
                 WestFace  = WaterFlux_X(i  , j  , k) * dble(ComputeFaces3D_U(i  , j  , k))
                 EastFace  = WaterFlux_X(i  , j+1, k) * dble(ComputeFaces3D_U(i  , j+1, k))
@@ -46850,7 +47002,6 @@ do2:    do j = JLB, JUB
                     Velocity_W_Cartesian(i,j,KUB+1)= (WaterLevel_New(i,j)-WaterLevel_Old(i,j)) / dt  &
                                                      - StokesVelW_cart(i,j,KUB+1)
                 endif
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
             endif
@@ -46860,11 +47011,14 @@ do3:        do k = KLB, KUB
 cd1:            if (ComputeFaces3D_W(i,j,k) == Covered ) then
 
                     ! mesh velocity
-                    if (MeshVelocity_)                                                   &
-                        dszdt  = dszdt-(volum_z(i,j,k-1)-volz_old(i,j,k-1))/dux(i,j)/dvy(i,j)/dt
+                    if (MeshVelocity_) then
+                            dszdt  = dszdt-(volum_z(i,j,k-1)-volz_old(i,j,k-1))/dux(i,j)/dvy(i,j)/dt
+                    endif
 
+                    
 
 cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
+
                         ! mesh slope in X direction: central, progressive or regressive differences are used as a function of the
                         ! land boundary. The boundary is automatically detected in the equation through "ComputeFaces3D_W" matrix
                         szzxp1 = ComputeFaces3D_W(i,j+1,k)*szz(i,j+1,k-1)+(1-ComputeFaces3D_W(i,j+1,k))*szz(i,j,k-1)
@@ -46999,10 +47153,10 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
                     !Velocity_W_Cartesian(i,j,k)=Velocity_W_Across(i,j,k) - dszdt - velu * dszdx - velv * dszdy
 
                     !Cartesian vertical velocity
-                    if (Me%ComputeOptions%WaveForcing3D /= GLM) then
-
+                    if (Me%ComputeOptions%WaveForcing3D /= GLM) then 
+                        
                         Velocity_W_Cartesian(i,j,k)=Velocity_W_Across(i,j,k) - dszdt - velu * dszdx - velv * dszdy
-
+                        
                     else
 
                         Velocity_W_Cartesian(i,j,k)=Velocity_W_Across(i,j,k) - dszdt - velu * dszdx - velv * dszdy  &
@@ -47056,7 +47210,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         real   , dimension(:,:  ), pointer  :: WaterLevel_New, WaterLevel_Old
         integer, dimension(:,:,:), pointer  :: WaterPoints3D
         real                                :: dt
-        integer                             :: IUB,ILB,JUB,JLB,KUB,i, j, CHUNK
+        integer                             :: IUB,ILB,JUB,JLB,KUB,KLB,i, j, CHUNK
         logical                             :: MeshVelocity_, MeshSlope_
         !Begin-----------------------------------------------------------------
 
@@ -47067,6 +47221,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         JUB = Me%WorkSize%JUB
         JLB = Me%WorkSize%JLB
         KUB = Me%WorkSize%KUB
+        KLB = Me%WorkSize%KLB
 
         Velocity_W_Cartesian    => Me%Velocity%Vertical%Cartesian
         dt                      =  Me%Waterlevel%DT
@@ -47089,35 +47244,40 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "ComputeCartesianVertVelocity")
         endif
-
-        if (MeshSlope_) call SetMatrixValue(Velocity_W_Cartesian, Me%WorkSize, Me%Velocity%Vertical%Across)
+            
+        where (Me%External_Var%ComputeFaces3D_W(:,:,:) == 1) &
+                Velocity_W_Cartesian(:,:,:) = Me%Velocity%Vertical%Across(:,:,:)
 
         !$OMP PARALLEL PRIVATE(i,j)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
             if (WaterPoints3D(i, j, KUB) == WaterPoint) then
+
                 Velocity_W_Cartesian(i,j,KUB+1)= (WaterLevel_New(i,j) - WaterLevel_Old(i,j)) / dt
+
             endif
         enddo
         enddo
         !$OMP END DO
         !$OMP END PARALLEL
 
+        if (MeshVelocity_) then
+
+            call CartesianVertVelocity_dszdt (Me%External_Var%Volume_Z_New, Me%External_Var%Volume_Z_Old,  &
+                                                Me%External_Var%DUX, Me%External_Var%DVY, Me%Waterlevel%DT,  &
+                                                Me%Velocity%Vertical%Cartesian, Me%External_Var%ComputeFaces3D_W, &
+                                                Me%External_Var%KFloor_Z)
+
+        endif
+        
         if (MeshSlope_) then
-            if (MeshVelocity_) then
-
-                call CartesianVertVelocity_dszdt (Me%External_Var%Volume_Z_New, Me%External_Var%Volume_Z_Old,  &
-                                                  Me%External_Var%DUX, Me%External_Var%DVY, Me%Waterlevel%DT,  &
-                                                  Me%Velocity%Vertical%Cartesian, Me%External_Var%ComputeFaces3D_W, &
-                                                  Me%External_Var%KFloor_Z)
-            endif
-
+            
             call CartesianVertVelocity_X (Me%External_Var%ComputeFaces3D_W, Me%External_Var%ComputeFaces3D_U,            &
                                           Me%External_Var%BoundaryPoints, Me%External_Var%SZZ, Me%External_Var%DZX,      &
                                           Me%External_Var%DWZ, Me%Velocity%Horizontal%U%New,                             &
                                           Me%Velocity%Vertical%Cartesian, Me%External_Var%KFloor_Z)
-
+            
             call CartesianVertVelocity_Y (Me%External_Var%ComputeFaces3D_W, Me%External_Var%ComputeFaces3D_V,       &
                                           Me%External_Var%BoundaryPoints, Me%External_Var%SZZ, Me%External_Var%DZY, &
                                           Me%External_Var%DWZ, Me%Velocity%Horizontal%V%New,                        &
@@ -47153,7 +47313,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
                                                               dszdx
 
         integer                                            :: IUB, ILB, JUB, JLB, KUB, KLB, i, j, k
-        integer                                            :: CHUNK, Flag1, Flag2, Flag3, kbottom
+        integer                                            :: CHUNK, kbottom
         !Begin-----------------------------------------------------------------
 
         !Begin - Shorten variables name
@@ -47166,7 +47326,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         KLB = Me%WorkSize%KLB
         CHUNK = CHUNK_J(JLB, JUB)
 
-        !$OMP PARALLEL PRIVATE(i, j, k,szzxp1,dzxp1,szzxm1,dzxm1,dszdx,velusup,veluinf,velu,kbottom,Flag1,Flag2,Flag3)
+        !$OMP PARALLEL PRIVATE(i, j, k,szzxp1,dzxp1,szzxm1,dzxm1,dszdx,velusup,veluinf,velu,kbottom)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
@@ -47185,22 +47345,22 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
                         szzxm1 = ComputeFaces3D_W(i,j-1,k)*szz(i,j-1,k-1)+(1-ComputeFaces3D_W(i,j-1,k))*szz(i,j,k-1)
                         dzxm1  = ComputeFaces3D_W(i,j-1,k)*dzx(i,j-1)
 
-                        Flag1 = dzxp1+dzxm1
-                        if (Flag1 /= 0) then
-                            dszdx=(szzxp1-szzxm1) / Flag1
+                        if ((dzxp1+dzxm1) /= 0) then
+                            dszdx=(szzxp1-szzxm1) / (dzxp1+dzxm1)
                         else
                             dszdx=0.0
                         endif
                         ! Velocity components at cell center
-                        Flag2 = ComputeFaces3D_U(i,j,k)+ComputeFaces3D_U(i,j+1,k)
-                        if (Flag2 /= 0) then
-                            velusup=(ComputeFaces3D_U(i,j,k)*uavar(i,j,k)+ComputeFaces3D_U(i,j+1,k)*uavar(i,j+1,k))/ Flag2
+                        if ((ComputeFaces3D_U(i,j,k)+ComputeFaces3D_U(i,j+1,k)) /= 0) then
+                            velusup=(ComputeFaces3D_U(i,j,k)*uavar(i,j,k)+ComputeFaces3D_U(i,j+1,k)*uavar(i,j+1,k))/ &
+                                    (ComputeFaces3D_U(i,j,k)             +ComputeFaces3D_U(i,j+1,k))
                         else
                             velusup=0.0
                         endif
-                        Flag3 = ComputeFaces3D_U(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1)
-                        if (Flag3 /=0) then
-                            veluinf=(ComputeFaces3D_U(i,j,k-1)*uavar(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1)*uavar(i,j+1,k-1))/ Flag3
+
+                        if ((ComputeFaces3D_U(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1)) /=0) then
+                            veluinf=(ComputeFaces3D_U(i,j,k-1)*uavar(i,j,k-1)+ComputeFaces3D_U(i,j+1,k-1)*uavar(i,j+1,k-1))/ &
+                                    (ComputeFaces3D_U(i,j,k-1)               +ComputeFaces3D_U(i,j+1,k-1))
                         else
                             veluinf=0.0
                         endif
@@ -47208,6 +47368,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
                         velu=(velusup*dwz(i,j,k-1)+veluinf*dwz(i,j,k))/(dwz(i,j,k-1)+dwz(i,j,k))
 
                         Velocity_W_Cartesian(i,j,k) = Velocity_W_Cartesian(i,j,k) - velu * dszdx
+                        
                     enddo
                 endif
             endif
@@ -47232,7 +47393,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
                                                               dszdy
 
         integer                                            :: IUB, ILB, JUB, JLB, KUB, KLB, i, j, k
-        integer                                            :: CHUNK, Flag1, Flag2, Flag3, kbottom
+        integer                                            :: CHUNK, kbottom
         !Begin-----------------------------------------------------------------
 
         !Begin - Shorten variables name
@@ -47245,7 +47406,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         KLB = Me%WorkSize%KLB
         CHUNK = CHUNK_J(JLB, JUB)
 
-        !$OMP PARALLEL PRIVATE(i, j, k,szzyp1,dzyp1,szzym1,dzym1,dszdy,velvsup,velvinf,velv,kbottom,Flag1,Flag2,Flag3)
+        !$OMP PARALLEL PRIVATE(i, j, k,szzyp1,dzyp1,szzym1,dzym1,dszdy,velvsup,velvinf,velv,kbottom)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
@@ -47263,23 +47424,22 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
                         szzym1 = ComputeFaces3D_W(i-1,j,k)*szz(i-1,j,k-1)+(1-ComputeFaces3D_W(i-1,j,k))*szz(i,j,k-1)
                         dzym1  = ComputeFaces3D_W(i-1,j,k)*dzy(i-1,j)
 
-                        Flag1 = dzyp1+dzym1
-
-                        if (Flag1 /= 0) then
-                            dszdy=(szzyp1-szzym1) / Flag1
+                        if ((dzyp1+dzym1) /= 0) then
+                            dszdy=(szzyp1-szzym1) / (dzyp1+dzym1)
                         else
                             dszdy=0.0
                         endif
                         ! Velocity components at cell center
-                        Flag2 = ComputeFaces3D_V(i,j,k)+ComputeFaces3D_V(i+1,j,k)
-                        if (Flag2 /= 0) then
-                            velvsup=(ComputeFaces3D_V(i,j,k)*vavar(i,j,k)+ComputeFaces3D_V(i+1,j,k)*vavar(i+1,j,k))/ Flag2
+                        if ((ComputeFaces3D_V(i,j,k)+ComputeFaces3D_V(i+1,j,k)) /= 0) then
+                            velvsup=(ComputeFaces3D_V(i,j,k)*vavar(i,j,k)+ComputeFaces3D_V(i+1,j,k)*vavar(i+1,j,k))/ &
+                                    (ComputeFaces3D_V(i,j,k)             +ComputeFaces3D_V(i+1,j,k))
                         else
                             velvsup=0.0
                         endif
-                        Flag3 = ComputeFaces3D_V(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1)
-                        if (Flag3 /=0) then
-                            velvinf=(ComputeFaces3D_V(i,j,k-1)*vavar(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1)*vavar(i+1,j,k-1))/ Flag3
+
+                        if ((ComputeFaces3D_V(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1)) /=0) then
+                            velvinf=(ComputeFaces3D_V(i,j,k-1)*vavar(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1)*vavar(i+1,j,k-1))/ &
+                                    (ComputeFaces3D_V(i,j,k-1)+ComputeFaces3D_V(i+1,j,k-1))
                         else
                             velvinf=0.0
                         endif
@@ -47309,7 +47469,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         real,                               intent (IN)    :: dt
         integer, dimension(:,:  ), pointer, intent (IN)    :: KFloor_Z
         !Local-----------------------------------------------------------------
-        real                                               :: dszdt
+        real                                               :: dszdt, Dux_x_Dvy_x_Dt
         integer                                            :: IUB,ILB,JUB,JLB,KUB,KLB, i, j, k, kbottom
         integer                                            :: CHUNK
         !Begin-----------------------------------------------------------------
@@ -47323,7 +47483,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         KLB = Me%WorkSize%KLB
         CHUNK = CHUNK_J(JLB, JUB)
 
-        !$OMP PARALLEL PRIVATE(i, j, k, dszdt, kbottom)
+        !$OMP PARALLEL PRIVATE(i, j, k, dszdt, kbottom, Dux_x_Dvy_x_Dt)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
@@ -47331,8 +47491,12 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
             if (ComputeFaces3D_W(i,j,KUB) == 1) then
 
                 kbottom = KFloor_Z(i, j)
+                
+                Dux_x_Dvy_x_Dt = dux(i,j) * dvy(i,j) * dt
+                
                 do k = kbottom + 1, KUB
-                    dszdt  = dszdt - (volum_z(i,j,k-1) - volz_old(i,j,k-1)) / (dux(i,j)*dvy(i,j)*dt)
+                    
+                    dszdt  = dszdt - (volum_z(i,j,k-1) - volz_old(i,j,k-1)) / Dux_x_Dvy_x_Dt
 
                     Velocity_W_Cartesian(i,j,k) = Velocity_W_Cartesian(i,j,k) - dszdt
                 enddo
@@ -47696,7 +47860,7 @@ dok:            do k = kbottom + 1, KUB
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Compute_VerticalVelocity")
         endif
-
+        
         !$OMP PARALLEL PRIVATE(i,j,k, aux)
         do k = Me%WorkSize%KLB, Me%WorkSize%KUB+1
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -47705,8 +47869,12 @@ dok:            do k = kbottom + 1, KUB
             if (Me%External_Var%WaterPoints3D(i, j, k - 1) == 1) then
 
                 aux = Me%External_Var%DUX(i, j) * Me%External_Var%DVY(i, j)
-
+                
                 Me%Velocity%Vertical%Across(i, j, k)  = Me%WaterFluxes%Z(i, j, k) / aux
+                
+                !Me%Velocity%Vertical%Across(i, j, k)  = Me%WaterFluxes%Z(i, j, k) / &
+                !                                        Me%External_Var%DUX(i, j) / &
+                !                                        Me%External_Var%DVY(i, j)
 
             endif
         enddo
@@ -47877,8 +48045,7 @@ dok:            do k = kbottom + 1, KUB
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Velocity_ExplicitForces2")
         endif
-
-        !Sobrinho
+        
         !griflet: removed critical. Added TimeCoef to private variables.
         !$OMP PARALLEL PRIVATE( i,j,k,iSouth,jWest,kbottom, &
         !$OMP                   WaterPressure_Aceleration,TidePotentialAceleration, &
@@ -47905,7 +48072,9 @@ dok:            do  k = kbottom, KUB
 
                     !Aceleration due the coriolis and centrifugal force
 
+
                     ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
+
                     TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Inertial_Aceleration(i, j, k)
 
 
@@ -47994,7 +48163,9 @@ dok:            do  k = kbottom, KUB
                                              TidePotentialAceleration
 
                     ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
+
                     TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Barotropic_Aceleration
+
 
                     !Aceleration due to Baroclinic Pressure
 
@@ -48004,16 +48175,16 @@ dok:            do  k = kbottom, KUB
                     ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
                     TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Baroclinic_Aceleration
 
-
-
                     !Aceleration due to Horizontal transport = advection + diffusion
                     ![m/s^2]              = [m^4/s^2] / [m^3]
-                    Transport_Aceleration = Horizontal_Transport (i, j, k) / Volume_UV(i, j, k)
 
+                    Transport_Aceleration = Horizontal_Transport (i, j, k) / Volume_UV(i, j, k)
+                    
 
                     !Aceleration due to Horizontal transport = advection + diffusion
 
                     ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
+                    
                     TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * Transport_Aceleration
 
                     ![m/s]           = [m/s]            +     [s]     *     [m/s^2]
@@ -48021,7 +48192,6 @@ dok:            do  k = kbottom, KUB
                         Me%CurrentTime .ge. Me%ComputeOptions%AltimetryAssimilation%NextCompute)    &
                         TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity *                     &
                                              Altim_Relax_Aceleration(i, j, k)
-
 
                 enddo dok
 
@@ -48033,8 +48203,7 @@ dok:            do  k = kbottom, KUB
         !griflet: added NOWAIT
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
-
-
+        
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Velocity_ExplicitForces2")
         endif
@@ -48125,12 +48294,13 @@ dok:            do  k = kbottom, KUB
         if (MonitorPerformance) then
             call StartWatch ("ModuleHydrodynamic", "Velocity_ExplicitForces")
         endif
+        
 !---------------------------------------------------------------------------------------------------------------
         ![m/s]    = [m/s]     +     [s]     *     [m/s^2]
         !Aceleration due the coriolis and centrifugal force
-        !TiCoef_3D = TiCoef_3D + DT_Velocity * Inertial_Aceleration
         call AddMAtrixtimesScalar (TiCoef_3D, Me%Forces%Inertial_Aceleration, DT_Velocity, Me%WorkSize,  &
                                     ComputeFaces3D_UV, Me%Docycle_method, Me%External_Var%KFloor_UV)
+        
 !-----------------------------------------------------------------------------------------------------------------
         if (Me%Relaxation%Force) then
             ![m/s]    = [m/s]     +     [s]     *     [m/s^2]
@@ -48163,13 +48333,7 @@ dok:            do  k = kbottom, KUB
                                        ComputeFaces3D_UV, Me%Docycle_method, Me%External_Var%KFloor_UV)
             endif
         endif
-!--------------------------------------------------------------------------------------------------------------------
-        !Aceleration due to Horizontal transport = advection + diffusion
-        ![m/s]    = [m/s]     +     [s]     *     [m^4/s^2]        / [m^3]
-        !TiCoef_3D = TiCoef_3D + DT_Velocity * Horizontal_Transport / Volume_UV
-        call AddMatrixtimesScalarDivByMatrix (TiCoef_3D, Me%Forces%Horizontal_Transport, Me%External_Var%Volume_UV, &
-                                              DT_Velocity, Me%WorkSize, ComputeFaces3D_UV, Me%Docycle_method,       &
-                                              Me%External_Var%KFloor_UV)
+
     !-------------------------------------------------------------------------------------------------------------------
         if (Me%ComputeOptions%AltimetryAssimilation%flag) then
             if (Me%CurrentTime .ge. Me%ComputeOptions%AltimetryAssimilation%NextCompute) then
@@ -48180,13 +48344,14 @@ dok:            do  k = kbottom, KUB
         endif
 
     !----------------------------barotropic force--------------------------------------------------------------------
+        
         call AddBarotropicForce (PressureBackwardInTime)
 
     !--------------------------- Baroclinic force--------------------------------------------------------------------
 
         if (Me%ComputeOptions%Baroclinic) then
             !$OMP PARALLEL PRIVATE( i,j,k,kbottom, Baroclinic_Aceleration)
-            if (Me%Docycle_method == 2) then
+            if (Me%Docycle_method == 1) then
                 !$ CHUNK = CHUNK_J(JLB, JUB)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
@@ -48226,6 +48391,14 @@ dok:            do  k = kbottom, KUB
             !$OMP END PARALLEL
         endif
 
+!--------------------------------------------------------------------------------------------------------------------
+        !Aceleration due to Horizontal transport = advection + diffusion
+        ![m/s]    = [m/s]     +     [s]     *     [m^4/s^2]        / [m^3]
+
+        call AddMatrixtimesScalarDivByMatrix (TiCoef_3D, Me%Forces%Horizontal_Transport, Me%External_Var%Volume_UV, &
+                                              DT_Velocity, Me%WorkSize, ComputeFaces3D_UV, Me%Docycle_method,       &
+                                              Me%External_Var%KFloor_UV)
+        
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Velocity_ExplicitForces")
         endif
@@ -48279,7 +48452,7 @@ dok:            do  k = kbottom, KUB
         real,    dimension(:,:),   pointer :: DZX_ZY, WaterLevel_New
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:),   pointer :: KFloor_UV
-        real                               :: WaterPressure_Aceleration, DT_Velocity, SurfaceGradient
+        real                               :: WaterPressure_Aceleration, DT_Velocity, SurfaceGradient, WaterPressure_Velocity, Alpha
         integer                            :: I, J, K, kbottom
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
 
@@ -48301,7 +48474,13 @@ dok:            do  k = kbottom, KUB
         ComputeFaces3D_UV       => Me%External_Var%ComputeFaces3D_UV
         KFloor_UV               => Me%External_Var%KFloor_UV
         DZX_ZY                  => Me%External_Var%DZX_ZY
-
+        
+        if (Me%TidePotential%Compute) then
+            Alpha = Me%TidePotential%Alpha
+        else
+            Alpha = 1.0
+        endif
+        
         !$ CHUNK = CHUNK_J(JLB, JUB)
 
         if (Me%NonHydrostatic%ON .and. Me%NonHydroStatic%PressureCorrection .and. PressureBackwardInTime) then
@@ -48320,7 +48499,7 @@ dok:            do  k = kbottom, KUB
                                                         WaterLevel_New(i, j)) / DZX_ZY(i - 1, j)
 
                         !Deformation "crosta terrestre" - Tide Potential
-                        WaterPressure_Aceleration  = Me%TidePotential%Alpha * WaterPressure_Aceleration
+                        WaterPressure_Aceleration  = Alpha * WaterPressure_Aceleration
 
                         ![m/s^2]           = [m/s^2]  +     [m^2/s^2] / [m]
                         WaterPressure_Aceleration = WaterPressure_Aceleration +                               &
@@ -48335,23 +48514,25 @@ dok:            do  k = kbottom, KUB
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         else
-            if (Me%Docycle_method == 0) then
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration, SurfaceGradient)
+            if (Me%Docycle_method == 1) then
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration, SurfaceGradient, WaterPressure_Velocity)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
-                    kbottom = KFloor_UV(i, j)
                     if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                        
+                        SurfaceGradient = WaterLevel_New(i - 1, j) - WaterLevel_New(i, j)
+                        !Aceleration due to barotropic water Pressure
+                        ![m/s^2]                   = [m/s^2] * [m] / [m]
+                        WaterPressure_Aceleration  = Gravity * SurfaceGradient / DZX_ZY(i - 1, j)
+
+                        !Deformation "crosta terrestre" - Tide Potential
+                        WaterPressure_Velocity  = Alpha * WaterPressure_Aceleration * DT_Velocity
+                        
+                        kbottom = KFloor_UV(i, j)
+                        
                         do  k = kbottom, KUB
-                            SurfaceGradient = WaterLevel_New(i - 1, j) - WaterLevel_New(i, j)
-                            !Aceleration due to barotropic water Pressure
-                            ![m/s^2]                   = [m/s^2] * [m] / [m]
-                            WaterPressure_Aceleration  = Gravity * SurfaceGradient / DZX_ZY(i - 1, j)
-
-                            !Deformation "crosta terrestre" - Tide Potential
-                            WaterPressure_Aceleration  = Me%TidePotential%Alpha * WaterPressure_Aceleration
-
-                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * WaterPressure_Aceleration
+                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + WaterPressure_Velocity
                         enddo
                     endif
                 enddo
@@ -48371,7 +48552,7 @@ dok:            do  k = kbottom, KUB
                         WaterPressure_Aceleration  = Gravity * SurfaceGradient / DZX_ZY(i - 1, j)
 
                         !Deformation "crosta terrestre" - Tide Potential
-                        WaterPressure_Aceleration  = Me%TidePotential%Alpha * WaterPressure_Aceleration
+                        WaterPressure_Aceleration  = Alpha * WaterPressure_Aceleration
 
                         TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * WaterPressure_Aceleration
                     endif
@@ -48404,7 +48585,7 @@ dok:            do  k = kbottom, KUB
         real,    dimension(:,:),   pointer :: DZX_ZY, WaterLevel_New
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:),   pointer :: KFloor_UV
-        real                               :: WaterPressure_Aceleration, DT_Velocity, SurfaceGradient
+        real                               :: WaterPressure_Aceleration, DT_Velocity, SurfaceGradient, WaterPressure_Velocity, Alpha
         integer                            :: I, J, K, kbottom
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
 
@@ -48427,6 +48608,12 @@ dok:            do  k = kbottom, KUB
         KFloor_UV               => Me%External_Var%KFloor_UV
         DZX_ZY                  => Me%External_Var%DZX_ZY
 
+        if (Me%TidePotential%Compute) then
+            Alpha = Me%TidePotential%Alpha
+        else
+            Alpha = 1.0
+        endif        
+        
         !$ CHUNK = CHUNK_J(JLB, JUB)
         if (Me%NonHydrostatic%ON .and. Me%NonHydroStatic%PressureCorrection .and. PressureBackwardInTime) then
             !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration, SurfaceGradient)
@@ -48443,7 +48630,7 @@ dok:            do  k = kbottom, KUB
                         WaterPressure_Aceleration  = Gravity * SurfaceGradient / DZX_ZY(i, j - 1)
 
                         !Deformation "crosta terrestre" - Tide Potential
-                        WaterPressure_Aceleration  = Me%TidePotential%Alpha * WaterPressure_Aceleration
+                        WaterPressure_Aceleration  = Alpha * WaterPressure_Aceleration
 
                         ![m/s^2]           = [m/s^2]  +     [m^2/s^2] / [m]
                         WaterPressure_Aceleration = WaterPressure_Aceleration +                               &
@@ -48458,24 +48645,27 @@ dok:            do  k = kbottom, KUB
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         else
-            if (Me%Docycle_method == 0) then
-                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration, SurfaceGradient)
+            if (Me%Docycle_method == 1) then
+                !$OMP PARALLEL PRIVATE( i,j,k,kbottom, WaterPressure_Aceleration, SurfaceGradient, WaterPressure_Velocity)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
-                    kbottom = KFloor_UV(i, j)
                     if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                        
+                        SurfaceGradient = WaterLevel_New(i, j - 1) - WaterLevel_New(i, j)
+
+                        !Aceleration due to barotropic water Pressure
+                        ![m/s^2]                   = [m/s^2] * [m] / [m]
+                        WaterPressure_Aceleration  = Gravity * SurfaceGradient / DZX_ZY(i, j - 1)
+
+                        !Deformation "crosta terrestre" - Tide Potential
+                        ![m/s]                     =                                     [m/s^2]        *    s
+                        WaterPressure_Velocity  = Alpha * WaterPressure_Aceleration * DT_Velocity
+                        
+                        kbottom = KFloor_UV(i, j)
+                        
                         do  k = kbottom, KUB
-                            SurfaceGradient = WaterLevel_New(i, j - 1) - WaterLevel_New(i, j)
-
-                            !Aceleration due to barotropic water Pressure
-                            ![m/s^2]                   = [m/s^2] * [m] / [m]
-                            WaterPressure_Aceleration  = Gravity * SurfaceGradient / DZX_ZY(i, j - 1)
-
-                            !Deformation "crosta terrestre" - Tide Potential
-                            WaterPressure_Aceleration  = Me%TidePotential%Alpha * WaterPressure_Aceleration
-
-                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * WaterPressure_Aceleration
+                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + WaterPressure_Velocity
                         enddo
                     endif
                 enddo
@@ -48497,7 +48687,7 @@ dok:            do  k = kbottom, KUB
                             WaterPressure_Aceleration  = Gravity * SurfaceGradient / DZX_ZY(i, j - 1)
 
                             !Deformation "crosta terrestre" - Tide Potential
-                            WaterPressure_Aceleration  = Me%TidePotential%Alpha * WaterPressure_Aceleration
+                            WaterPressure_Aceleration  = Alpha * WaterPressure_Aceleration
 
                             TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * WaterPressure_Aceleration
                     endif
@@ -48553,7 +48743,7 @@ dok:            do  k = kbottom, KUB
 
         !$ CHUNK = CHUNK_J(JLB, JUB)
         if (Me%Direction%di == 1)then
-            if (Me%Docycle_method == 0) then
+            if (Me%Docycle_method == 1) then
                 !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotentialAceleration, TPGradient)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
@@ -48595,7 +48785,7 @@ dok:            do  k = kbottom, KUB
             endif
 
         else
-            if (Me%Docycle_method == 0) then
+            if (Me%Docycle_method == 1) then
                 !$OMP PARALLEL PRIVATE( i,j,k,kbottom, TidePotentialAceleration, TPGradient)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
@@ -48682,7 +48872,7 @@ dok:            do  k = kbottom, KUB
 
         !$ CHUNK = CHUNK_J(JLB, JUB)
         if (Me%Direction%di == 1)then
-            if (Me%Docycle_method == 0) then
+            if (Me%Docycle_method == 1) then
                 !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmosphericPressure_Aceleration, AtmGradient, Aux)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
@@ -48732,7 +48922,7 @@ dok:            do  k = kbottom, KUB
             endif
 
         else
-            if (Me%Docycle_method == 0) then
+            if (Me%Docycle_method == 1) then
                 !$OMP PARALLEL PRIVATE( i,j,k,kbottom, AtmosphericPressure_Aceleration, AtmGradient, Aux)
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
@@ -53185,8 +53375,8 @@ do5:            do i = ILB, IUB
 
         !Local-----------------------------------------------------------------
         real,  dimension(:), pointer        :: AuxFlow
-        logical                             :: OutPutFileOK, OutPutSurfaceFileOK, TimeSeriesFileOK, &
-                                              OutPutWindowFileOK, ProfileFileOK
+        logical                             :: OutPutFileOK, OutPutSurfaceFileOK , TimeSeriesFileOK, &
+                                               OutPutWindowFileOK, ProfileFileOK, FloodRiskOk
         type (T_Time)                       :: NextProfileOutput
         integer                             :: NextOutPut, STAT_CALL, iW, dis
         real                                :: DT_Model
@@ -53197,76 +53387,90 @@ do5:            do i = ILB, IUB
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Hydrodynamic_OutPut")
 
-        Me%OutPut%Run_End       = .false.
-
+        Me%OutPut%Run_End   = .false.
         OutPutFileOK        = .false.
         ProfileFileOK       = .false.
         TimeSeriesFileOK    = .false.
         OutPutWindowFileOK  = .false.
         OutPutSurfaceFileOK = .false.
-
-        !if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or.                            &
-        !    Me%OutPut%ProfileON   .or. Me%OutPut%HDF5_Surface_ON.or.                    &
-        !    Me%OutW%OutPutWindowsON)then
-
-        if (Me%OutPut%TimeSerieON) then
-            call OutputTimeSeries_FileOK (TimeSeriesFileOK)
-        endif
-
-        if (Me%OutPut%hdf5ON) then
-            NextOutPut = Me%OutPut%NextOutPut
-            if (NextOutPut <= Me%OutPut%Number) then
-                if (Me%CurrentTime >= Me%OutPut%OutTime(NextOutPut)) then
-                    OutPutFileOK = .true.
-                endif
+        FloodRiskOk         = .false.
+        
+        if (Me%ComputeOptions%MatrixesOutputOpt) then
+            
+            if (Me%OutPut%TimeSerieON) then
+                call OutputTimeSeries_FileOK (TimeSeriesFileOK)
+                FloodRiskOk         = .true.
             endif
-        endif
-
-        if (Me%OutW%OutPutWindowsON)  then
-            do iW = 1, Me%OutW%WindowsNumber
-                if (Me%OutW%OutPutWindows(iW)%ON) then
-                    NextOutPut = Me%OutW%OutPutWindows(iW)%NextOutPut
-                    OutPutWindowFileOK = .false.
-                    if (NextOutPut <= Me%OutW%OutPutWindows(iW)%Number) then
-                        if (Me%CurrentTime >= Me%OutW%OutPutWindows(iW)%OutTime(NextOutPut)) then
-                            OutPutWindowFileOK = .true.
-                        endif
+            
+            if (Me%OutPut%hdf5ON) then
+                FloodRiskOk  = .true.
+                NextOutPut   = Me%OutPut%NextOutPut
+                if (NextOutPut <= Me%OutPut%Number) then
+                    if (Me%CurrentTime >= Me%OutPut%OutTime(NextOutPut)) then
+                        OutPutFileOK = .true.
                     endif
                 endif
-            enddo
-        endif
-
-        if(Me%OutPut%HDF5_Surface_ON)then
-            OutPutSurfaceFileOK = .false.
-            if (Me%OutPut%NextSurfaceOutPut <= Me%OutPut%NumberSurfaceOutputs) then
-                if (Me%CurrentTime >= Me%OutPut%SurfaceOutTime(Me%OutPut%NextSurfaceOutPut)) then
-                    OutPutSurfaceFileOK = .true.
+            endif
+            
+            if (Me%OutW%OutPutWindowsON)  then
+                FloodRiskOk         = .true.
+                do iW = 1, Me%OutW%WindowsNumber
+                    if (Me%OutW%OutPutWindows(iW)%ON) then
+                        NextOutPut = Me%OutW%OutPutWindows(iW)%NextOutPut
+                        OutPutWindowFileOK = .false.
+                        if (NextOutPut <= Me%OutW%OutPutWindows(iW)%Number) then
+                            if (Me%CurrentTime >= Me%OutW%OutPutWindows(iW)%OutTime(NextOutPut)) then
+                                OutPutWindowFileOK = .true.
+                            endif
+                        endif
+                    endif
+                enddo
+            endif
+            
+            if(Me%OutPut%HDF5_Surface_ON)then
+                FloodRiskOk         = .true.
+                OutPutSurfaceFileOK = .false.
+                if (Me%OutPut%NextSurfaceOutPut <= Me%OutPut%NumberSurfaceOutputs) then
+                    if (Me%CurrentTime >= Me%OutPut%SurfaceOutTime(Me%OutPut%NextSurfaceOutPut)) then
+                        OutPutSurfaceFileOK = .true.
+                    endif
                 endif
             endif
+            
+            if (Me%OutPut%ProfileON) then
+                FloodRiskOk         = .true.
+                call GetProfileNextOutputTime(Me%ObjProfile, NextProfileOutput, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'Hydrodynamic_OutPut - ModuleHydrodynamic - ERR01'
+            
+                if (Me%CurrentTime >= NextProfileOutput) ProfileFileOK = .true.
+            endif
+            
+            if (ProfileFileOK .or. OutPutFileOK .or. TimeSeriesFileOK .or. OutPutWindowFileOK .or. &
+            OutPutSurfaceFileOK) then
+            
+                call ModifyMatrixesOutput
+                
+            endif
+
+            if(FloodRiskOk .and. Me%OutPut%FloodRisk)then
+                call ComputeFloodRisk
+            endif
+
+        else
+            
+            if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or.                            &
+                Me%OutPut%ProfileON   .or. Me%OutPut%HDF5_Surface_ON.or.                    &
+                Me%OutW%OutPutWindowsON)then
+
+                call ModifyMatrixesOutput !Sobrinho
+
+                if(Me%OutPut%FloodRisk)then
+                    call ComputeFloodRisk
+                endif
+
+            end if
+            
         endif
-
-        if (Me%OutPut%ProfileON) then
-            call GetProfileNextOutputTime(Me%ObjProfile, NextProfileOutput, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'Hydrodynamic_OutPut - ModuleHydrodynamic - ERR01'
-
-            if (Me%CurrentTime >= NextProfileOutput) ProfileFileOK = .true.
-        endif
-
-        if (ProfileFileOK .or. OutPutFileOK .or. TimeSeriesFileOK .or. OutPutWindowFileOK .or. &
-        OutPutSurfaceFileOK) then
-
-            call ModifyMatrixesOutput
-        endif
-
-        !call ModifyMatrixesOutput !Sobrinho
-
-        if(Me%OutPut%FloodRisk)then
-            call ComputeFloodRisk
-        endif
-
-        !end if
-
-        OutPutFileOK        = .false.
 
         !! $OMP PARALLEL SECTIONS
 
@@ -56342,7 +56546,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
         !Begin-----------------------------------------------------------
         call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries_FileOK - ModuleHydrodynamic - ERR01'
 
         FirstTime = .false.
         FileOk    = .false.
@@ -56350,7 +56554,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
         do dn = 1, TimeSerieNumber
 
             call GetTimeSerieNextOutput(Me%ObjTimeSerie, dn, NextTimeOutput, STAT  = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries_FileOK - ModuleHydrodynamic - ERR01'
+            if (STAT_CALL /= SUCCESS_) stop 'OutputTimeSeries_FileOK - ModuleHydrodynamic - ERR02'
 
             if (FirstTime) then
                 NextTimeSerieOutput = NextTimeOutput

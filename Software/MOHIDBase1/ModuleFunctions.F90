@@ -1938,8 +1938,9 @@ Module ModuleFunctions
         KLB = Size%KLB
         JUB = Size%JUB
         JLB = Size%JLB
-        if (DoMethod == 2) then
+        if (DoMethod == 1) then
             CHUNK = CHUNK_J(JLB, JUB)
+
             !$OMP PARALLEL PRIVATE(i,j,k, kbottom)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
             do j = Size%JLB, Size%JUB
@@ -1954,6 +1955,8 @@ Module ModuleFunctions
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
+                
+        
         else
             CHUNK = CHUNK_K(KLB, KUB)
             !$OMP PARALLEL PRIVATE(i,j,k)
@@ -1996,7 +1999,7 @@ Module ModuleFunctions
         KLB = Size%KLB
         JUB = Size%JUB
         JLB = Size%JLB
-        if (DoMethod == 2) then
+        if (DoMethod == 1) then
             CHUNK = CHUNK_J(JLB, JUB)
             !$OMP PARALLEL PRIVATE(i,j,k, kbottom, Aux)
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -2005,8 +2008,8 @@ Module ModuleFunctions
                 if (MapMatrix(i, j, KUB) == 1) then
                     kbottom = KFloor(i, j)
                     do k = kbottom, KUB
-                        Aux = MatrixB(i, j, k) * Scalar / MatrixC(i, j, k)
-                        MatrixA(i, j, k) = MatrixA(i, j, k) + Aux
+                        Aux = MatrixB(i, j, k) / MatrixC(i, j, k)
+                        MatrixA(i, j, k) = MatrixA(i, j, k) + Scalar * Aux
                     enddo
                 endif
             enddo
@@ -2021,8 +2024,8 @@ Module ModuleFunctions
             do j = Size%JLB, Size%JUB
             do i = Size%ILB, Size%IUB
                 if (MapMatrix(i, j, k) == 1) then
-                    Aux = MatrixB(i, j, k) * Scalar / MatrixC(i, j, k)
-                    MatrixA(i, j, k) = MatrixA(i, j, k) + Aux
+                    Aux = MatrixB(i, j, k) / MatrixC(i, j, k)
+                    MatrixA(i, j, k) = MatrixA(i, j, k) + Scalar * Aux
                 endif
             enddo
             enddo
