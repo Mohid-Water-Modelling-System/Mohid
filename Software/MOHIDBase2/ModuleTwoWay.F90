@@ -366,7 +366,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         JUB = Me%WorkSize2D%JUB
         
         allocate (Me%IgnoreOBCells(ILB:IUB, JLB:JUB))
-        call SetMatrixValue (GetPointer(Me%IgnoreOBCells), Me%WorkSize2D, 1)
+        Me%IgnoreOBCells(:,:) = 1
         
         if ((IUB - IgnoreOBNumCells) <= 3)then
             AuxIgnoreOBNumCells = 1
@@ -860,107 +860,58 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, dimension(:, :), pointer              :: Ilink, Jlink
         integer, dimension(:, :, :), pointer, optional :: SonComputeFaces
         !Local variables--------------------------------------------------------------------------
-        integer                                 :: i, j, k, CHUNK
+        integer                                 :: i, j, k, CHUNK, Flag
         !Begin------------------------------------------------------------------------------------
 
         if (present(Volume_3D)) then
             if (present(SonComputeFaces))then
-                if (Me%DoCycleMethod == 1) then
-                    CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-                    !$OMP PARALLEL PRIVATE(i,j,k)
-                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                        if  (Me%External_Var%Open3D(i, j, Me%WorkSize%KUB)) then
-                            if (Me%IgnoreOBCells(i, j) == 1) then
-                                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-                                    Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) =                             &
-                                    Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) *        &
-                                    Me%External_Var%Open3D(i, j, k) * SonComputeFaces(i, j, k)
-                                enddo
-                            endif
-                        endif       
-                    enddo
-                    enddo
-                    !$OMP END DO
-                    !$OMP END PARALLEL
-                else
-                    CHUNK = CHUNK_J(Me%WorkSize%KLB, Me%WorkSize%KUB)
-                    !$OMP PARALLEL PRIVATE(i,j,k)
-                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-                    do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                        if (Me%External_Var%Open3D(i, j, k)) then
-                            if (SonComputeFaces(i, j, k)) then
-                                if (Me%IgnoreOBCells(i, j)) then
-                                    Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) =                   &
-                                    Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k)
-                                endif
-                            endif
-                        endif
-                    enddo        
-                    enddo
-                    enddo
-                    !$OMP END DO
-                    !$OMP END PARALLEL                    
-                endif
-                
+                CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+                !$OMP PARALLEL PRIVATE(i,j,k,Flag)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    Flag = Me%External_Var%Open3D(i, j, k) + Me%IgnoreOBCells(i, j) + SonComputeFaces(i, j, k)
+                    if (Flag == 3) then
+                        Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) =                      &
+                        Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k)
+                    endif
+                enddo
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL                    
             else
-                if (Me%DoCycleMethod == 1) then
-                    CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-                    !$OMP PARALLEL PRIVATE(i,j,k)
-                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                        if  (Me%External_Var%Open3D(i, j, Me%WorkSize%KUB)) then
-                            if (Me%IgnoreOBCells(i, j) == 1) then
-                                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-                                        Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) =                      &
-                                        Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k)
-                                enddo
-                            endif
-                        endif
-                    enddo
-                    enddo
-                    !$OMP END DO
-                    !$OMP END PARALLEL
-                else
-                    CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-                    !$OMP PARALLEL PRIVATE(i,j,k)
-                    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-                    do k = Me%WorkSize%KLB, Me%WorkSize%KUB
-                    do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-                    do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                        if (Me%External_Var%Open3D(i, j, k)) then
-                            if (Me%IgnoreOBCells(i, j)) then
-                                Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) =                      &
-                                Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k) * &
-                                Me%External_Var%Open3D(i, j, k) * Me%IgnoreOBCells(i, j)
-                            endif
-                        endif
-                    enddo        
-                    enddo
-                    enddo
-                    !$OMP END DO
-                    !$OMP END PARALLEL
-                endif
-                
+                CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
+                !$OMP PARALLEL PRIVATE(i,j,k,Flag)
+                !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+                do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+                do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                    Flag = Me%External_Var%Open3D(i, j, k) + Me%IgnoreOBCells(i, j)
+                    if (Flag == 2) then
+                        Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) =                      &
+                        Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k)
+                    endif
+                enddo        
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
             endif
             
         else
-            CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
-            !$OMP PARALLEL PRIVATE(i,j,k)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                Me%Father%TotSonIn_2D(ILink(i, j), JLink(i, j)) = &
-                Me%Father%TotSonIn_2D(ILink(i, j), JLink(i, j)) + Volume_2D(i, j) * &
-                Me%External_Var%Open3D(i, j, Me%WorkSize%KUB) * Me%IgnoreOBCells(i, j)
-            enddo        
-            enddo            
-            !$OMP END DO
-            !$OMP END PARALLEL
+                Flag = Me%External_Var%Open3D(i, j, Me%WorkSize%KUB) * Me%IgnoreOBCells(i, j)
+                if (Flag == 2) then
+                    Me%Father%TotSonIn_2D(ILink(i, j), JLink(i, j)) = &
+                    Me%Father%TotSonIn_2D(ILink(i, j), JLink(i, j)) + Volume_2D(i, j)
+                endif
+            enddo
+            enddo
+
         endif
           
     end subroutine ComputeSonVolInFather
@@ -1191,9 +1142,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             else
                 
                 if (allocated(Me%Father%DischargeCells%U))then
-                
-                    call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%Father%WorkSize, 0.0)
-                    call SetMatrixValue (GetPointer(Me%Father%TotSonIn),  Me%Father%WorkSize, 0.0)
+                    
+                    Me%Father%AuxMatrix(:,:,:) = 0.0
+                    Me%Father%TotSonIn (:,:,:) = 0.0
 
                     Call ComputeUpscalingVelocity(DischargeVel    = DVel_U,                          &
                                                   SonVel          = SonVel_U,                        &
@@ -1210,8 +1161,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
                 if (allocated(Me%Father%DischargeCells%V))then
                 
-                    call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%Father%WorkSize, 0.0)
-                    call SetMatrixValue (GetPointer(Me%Father%TotSonIn),  Me%Father%WorkSize, 0.0)
+                    Me%Father%AuxMatrix(:,:,:) = 0.0
+                    Me%Father%TotSonIn (:,:,:) = 0.0
                 
                     Call ComputeUpscalingVelocity(DischargeVel    = DVel_V,                          &
                                                   SonVel          = SonVel_V,                        &
