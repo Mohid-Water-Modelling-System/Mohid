@@ -2216,7 +2216,7 @@ i0:     if(PropField%SpaceDim == Dim2D) then
         integer                            :: ExtractType
 
         !Local-----------------------------------------------------------------
-        character(len = StringLength)      :: Filename
+        character(len = PathLength)        :: Filename
         integer                            :: STAT_CALL, iflag
 
         !----------------------------------------------------------------------

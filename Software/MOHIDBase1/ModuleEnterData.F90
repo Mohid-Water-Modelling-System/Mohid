@@ -1656,7 +1656,8 @@ cd3 :           if (STAT_CALL .EQ. SUCCESS_) then
                     length_Out=len (value)
 
                     if (length_Aux>length_Out) then
-                        write(*,*) trim(aux_str)
+                        write(*,*) "trim(aux_str), length_Aux, length_Out"
+                        write(*,*) trim(aux_str), length_Aux, length_Out                        
                         stop "ModuleEnterData - GetData (ReadString_New) - ERR04."
                     endif
 

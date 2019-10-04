@@ -12367,10 +12367,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (Me%NoFlux%ON)                                 &
                 call ModifyNoFluxMapping
-
+            
             if (Me%Coupled%AdvectionDiffusion%Yes)            &
                 call Advection_Diffusion_Processes
-
+            
             if (Me%Coupled%InstantMixing%Yes)                 &
                 call InstantaneouslyMixing
 
@@ -12378,24 +12378,24 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (Me%Coupled%MinimumConcentration%Yes .or.      &
                 Me%Coupled%MaximumConcentration%Yes)          &
                 call SetLimitsConcentration(PhysicalProcesses = .true.) !('Physical Processes')
-
+            
             if (Me%Coupled%FreeVerticalMovement%Yes)          &
                 call FreeVerticalMovements_Processes
-
+            
             if (Me%Coupled%BottomFluxes%Yes)                  &
                 call Bottom_Processes
-
+            
             !Sets Limits to the concentration
             if (Me%Coupled%MinimumConcentration%Yes .or.      &
                 Me%Coupled%MaximumConcentration%Yes)          &
                 call SetLimitsConcentration(PhysicalProcesses = .false.) !('Bottom Processes')
-
+            
             if (Me%SolarRadiation%Exists)                       &
                 call ModifySolarRadiation
-
+            
             if (Me%OxygenSaturation)                          &
                 call ModifyOxygenSaturation
-
+            
             if (Me%Coupled%DecayRateProperty%Yes)             &
                 call ModifyDecayRate
 
@@ -12404,7 +12404,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (Me%Coupled%SurfaceFluxes%Yes)                 &
                 call Surface_Processes
-
+            
             if (Me%ChemLinks%Coupled)                         &
                 call ChemicalLinks
 
@@ -12415,7 +12415,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (Me%Coupled%WQM%Yes)                           &
                 call WaterQuality_Processes
-
+            
             if (Me%Coupled%CEQUALW2%Yes)                      &
                 call CEQUALW2_Processes
 
@@ -13641,9 +13641,8 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
             enddo
 
         else
-            !Sobrinho
-            !$OMP DO SCHEDULE(DYNAMIC,ChunkK)
             do k = KLB, KUB
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
                 if (Open3DSon(i, j, k) == OpenPoint) then
@@ -13662,8 +13661,8 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
                 endif
             enddo
             enddo
-            enddo
             !$OMP END DO
+            enddo
 
         endif
         !$OMP END PARALLEL
@@ -14387,7 +14386,7 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                         endif
                     endif
 
-                    if (Property%Evolution%Discharges)then !Joao sobrinnho
+                    if (Property%Evolution%Discharges)then
 
                         call SetDischarges (Me%ObjAdvectionDiffusion, Me%Discharge%Flow,    &
                                                 Property%DischConc,   Me%Discharge%i,       &
@@ -15323,6 +15322,8 @@ cd5:                if (TotalVolume > 0.) then
             if (PropertyX%Evolution%WaterQuality) then
 
                 if (Me%ExternalVar%Now .GE.PropertyX%Evolution%NextCompute) then
+                    
+                   PropertyX%Evolution%SetLimitsTrigger = .true.
 
                    call Modify_Interface(InterfaceID   = Me%ObjInterface,               &
                                          PropertyID    = PropertyX%ID%IDNumber,         &

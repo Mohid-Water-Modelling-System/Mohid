@@ -546,7 +546,7 @@ Module ModuleFillMatrix
         type(T_Time)                                :: BeginTime, EndTime
         
         logical                                     :: ArgumentFileName     = .false. 
-        character(len=StringLength), dimension(2)   :: FileNameHDF          = null_str
+        character(len=PathLength), dimension(2)     :: FileNameHDF          = null_str
         type(T_ASCIIFile), pointer                  :: FirstASCIIFile      
         type(T_TimeSerie), pointer                  :: FirstTimeSerie      
         type(T_Field4D), pointer                    :: FirstHDF
@@ -3961,7 +3961,7 @@ i23:        if (Me%ProfileTimeSerie%CyclicTimeON) then
         real, dimension(:, :),    pointer           :: GridData2D
         real, dimension(:, :, :), pointer           :: GridData3D
         integer                                     :: file
-        character(len = StringLength), dimension(2) :: Filename         = null_str
+        character(len = PathLength), dimension(2)   :: Filename         = null_str
         type(T_ASCIIFile), pointer                  :: NewASCIIFile, CurrentASCIIFile
         integer                                     :: nASCIIFiles     = 1
         logical                                     :: exist
@@ -5429,7 +5429,7 @@ i2:     if (Me%Dim == Dim2D) then
         !Local----------------------------------------------------------------
         integer                                         :: STAT_CALL, i
         integer                                         :: iflag, file, column
-        character(len = StringLength), dimension(3)     :: Filename   = " "
+        character(len = PathLength), dimension(3)       :: Filename   = " "
         character(len = StringLength), dimension(3)     :: DataColumn = " "
         type(T_TimeSerie), pointer                      :: CurrentTimeSerie, NewTimeSerie
         integer                                         :: nTimeSeries   = 1
@@ -5953,7 +5953,7 @@ i0:     if(Me%Dim == Dim2D)then
         integer                                         :: STAT_CALL, iflag, i
         integer                                         :: ILB, IUB, JLB, JUB
         logical                                         :: MasterOrSlave, LastGroupEqualField
-        character(len = StringLength), dimension(3)     :: FileName  = " "        
+        character(len = PathLength  ), dimension(3)     :: FileName  = " "        
         character(len = StringLength), dimension(3)     :: FieldName = " "
         type(T_Field4D), pointer                        :: NewHDF, CurrentHDF
         integer                                         :: nHDFs           = 1
@@ -7287,7 +7287,7 @@ d2:      do while(.not. FoundSecondInstant)
         integer                            :: ExtractType
         type(T_Field4D)                    :: CurrentHDF
         !Local-----------------------------------------------------------------
-        character(len = StringLength)      :: Filename
+        character(len = PathLength)        :: Filename
         integer                            :: STAT_CALL, iflag
 
         !----------------------------------------------------------------------
