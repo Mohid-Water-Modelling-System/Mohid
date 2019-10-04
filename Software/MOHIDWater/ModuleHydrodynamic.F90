@@ -2640,7 +2640,8 @@ cd11:   if (Me%ComputeOptions%Recording) then
 
 
         !Local-----------------------------------------------------------------
-        character(len = StringLength)      :: BeginBlock, EndBlock, Filename
+        character(len = StringLength)      :: BeginBlock, EndBlock
+        character(len = PathLength)        :: Filename
         integer                            :: STAT_CALL, ClientNumber, iflag
         logical                            :: BlockFound
 
@@ -23038,13 +23039,26 @@ cd1:    if (Evolution == Solve_Equations_) then
 
 
         else if (Evolution == Vertical1D_) then cd1
-
         !Guillaume
             call AssociateDirectionX
+            
+            if(Me%ComputeOptions%LocalDensity) then
+                call FaceDensityUpdate
+            else
+                call SetMatrixValue( Me%FaceDensity, Me%Size, SigmaDensityReference)
+            endif
+            
             call Bottom_Boundary
             call Explicit_Forces
             call Compute_Velocity(PressureBackwardInTime = .true.)
             call AssociateDirectionY
+            
+            if(Me%ComputeOptions%LocalDensity) then
+                call FaceDensityUpdate
+            else
+                call SetMatrixValue( Me%FaceDensity, Me%Size, SigmaDensityReference)
+            endif
+            
             call Bottom_Boundary
             call Explicit_Forces
             call Compute_Velocity(PressureBackwardInTime = .true.)
@@ -23054,8 +23068,6 @@ cd1:    if (Evolution == Solve_Equations_) then
             Stop 'Sub. One_Iteration - ModuleHydrodynamic - Err04'
 
         endif cd1
-
-
 
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "One_Iteration")
 
@@ -25794,9 +25806,9 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         !Grid = Variable = 2
         !the vertical water flux is compute with the effect of variable volume
         if (Me%ComputeOptions%VerticalWaterFlowOpt) then   
-            call Modify_VerticalWaterFlow (Grid) !Sobrinho
+            call Modify_VerticalWaterFlow (Grid) !Joao Sobrinho
         else
-            call Modify_VerticalWaterFlow2 (Grid) !Sobrinho
+            call Modify_VerticalWaterFlow2 (Grid)
         endif
 
         call Filter_3D_Fluxes
@@ -25813,7 +25825,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-        !Sobrinho
+        !Joao Sobrinho
         call Compute_VerticalVelocity
 
         if(Me%NonHydroStatic%ON) then
@@ -25823,7 +25835,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
         else
             if (Me%ComputeOptions%WaveForcing3D /= GLM) then
                 if (Me%ComputeOptions%CartesianVertVelocityOpt)then
-                    call ComputeCartesianVertVelocity(Grid = Grid) !Sobrinho
+                    call ComputeCartesianVertVelocity(Grid = Grid) !Joao Sobrinho
                 else
                     call ComputeCartesianVertVelocity_Waves(Grid = Grid)
                 endif
@@ -26812,9 +26824,9 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
             if (Me%ComputeOptions%VerticalDiffusion)  then
                 if (Me%ComputeOptions%VerticalDiffusionOpt) then
-                    call Velocity_VerticalDiffusion2!sobrinho
+                    call Velocity_VerticalDiffusion2!Joao sobrinho
                 else
-                    call Velocity_VerticalDiffusion!sobrinho
+                    call Velocity_VerticalDiffusion!Joao sobrinho
                 endif
             endif
             
@@ -26830,7 +26842,7 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
                 if (.NOT. Me%ComputeOptions%VerticalAdvectionOpt) UseOptimizedRoutine = .false.
                 
                 if (UseOptimizedRoutine) then
-                    call Velocity_VerticalAdvection2!Sobrinho
+                    call Velocity_VerticalAdvection2!Joao Sobrinho
                 else
                     call Velocity_VerticalAdvection
                 endif
@@ -34317,7 +34329,6 @@ cd3:                   if (Manning) then
         !Arguments------------------------------------------------------------
 
 
-
         !Local---------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Explicit_Forces")
@@ -34327,9 +34338,9 @@ cd3:                   if (Manning) then
         !Inertial aceleration
         if (Me%ComputeOptions%InertiaForces) then
             if (Me%ComputeOptions%InertiaForcesOpt)then
-                call Modify_InertiaForces!Sobrinho
+                call Modify_InertiaForces!Joao Sobrinho
             else
-                call Modify_InertiaForces2!Sobrinho
+                call Modify_InertiaForces2
             endif
         endif
         
@@ -34470,15 +34481,15 @@ cd1:    if (Me%ComputeOptions%HorizontalAdvection) then
             endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             if (Me%ComputeOptions%HorizontalAdvectionOpt) then
-                call Modify_Advection_UY_VX2 !Sobrinho
+                call Modify_Advection_UY_VX2 !Joao Sobrinho
 
-                call Modify_Advection_UX_VY2        
+                call Modify_Advection_UX_VY2 !Joao Sobrinho     
             else
-                call Modify_Advection_UY_VX !Sobrinho
+                call Modify_Advection_UY_VX
 
                 call Modify_Advection_UX_VY
             endif
-
+            
             !call Modify_Advection_UX_VY_Old
 
             if (.not. Me%CyclicBoundary%ON .or.                             &
@@ -34498,6 +34509,7 @@ cd1:    if (Me%ComputeOptions%HorizontalAdvection) then
 cd2:    if (Me%ComputeOptions%HorizontalDiffusion) then
             !Biharmonic filter is able to dissipate the high frequency variabiliy (1dx,4dx and 6dx)
             !without dissipating energy associated with the big spatial scales
+
 cd3:        if (Me%ComputeOptions%BiHarmonic) then
 
                 !If the BiHarmonic option is true then is compute the laplacian
@@ -34543,13 +34555,13 @@ cd3:        if (Me%ComputeOptions%BiHarmonic) then
                 endif
 
                 if (Me%ComputeOptions%HorizontalDiffusionOpt) then
-                    call Modify_Diffusion_UY_VX2  ( Aux_UY_VX, Biharmonic = .true.) !Sobrinho
+                    call Modify_Diffusion_UY_VX2  ( Aux_UY_VX, Biharmonic = .true.) !Joao Sobrinho
 
-                    call Modify_Diffusion_UX_VY2  ( Aux_UX_VY, Biharmonic = .true.) !Sobrinho
+                    call Modify_Diffusion_UX_VY2  ( Aux_UX_VY, Biharmonic = .true.) !Joao Sobrinho
                 else
-                    call Modify_Diffusion_UY_VX  ( Aux_UY_VX, Biharmonic = .true.) !Sobrinho
+                    call Modify_Diffusion_UY_VX  ( Aux_UY_VX, Biharmonic = .true.)
 
-                    call Modify_Diffusion_UX_VY  ( Aux_UX_VY, Biharmonic = .true.) !Sobrinho
+                    call Modify_Diffusion_UX_VY  ( Aux_UX_VY, Biharmonic = .true.)
                 endif
 
 cd44:           if (Me%SubModel%ON) then
@@ -34572,11 +34584,11 @@ cd44:           if (Me%SubModel%ON) then
             
             if (Me%ComputeOptions%HorizontalDiffusionOpt) then
                 
-                call Modify_Diffusion_UY_VX2  ( Aux_UY_VX, Biharmonic = .false.)!Sobrinho
+                call Modify_Diffusion_UY_VX2  ( Aux_UY_VX, Biharmonic = .false.) !Joao Sobrinho
 
-                call Modify_Diffusion_UX_VY2  ( Aux_UX_VY, Biharmonic = .false.) 
+                call Modify_Diffusion_UX_VY2  ( Aux_UX_VY, Biharmonic = .false.) !Joao Sobrinho
             else
-                call Modify_Diffusion_UY_VX  ( Aux_UY_VX, Biharmonic = .false.)!Sobrinho
+                call Modify_Diffusion_UY_VX  ( Aux_UY_VX, Biharmonic = .false.)
 
                 call Modify_Diffusion_UX_VY  ( Aux_UX_VY, Biharmonic = .false.)  
             endif
@@ -39967,7 +39979,6 @@ cd0:        if (ComputeFaces3D_UV(i, j, KUB) == Covered) then
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
         KFloor_UV            => Me%External_Var%KFloor_UV
 
-
         !End - Shorten variables name
 
         CHUNK = CHUNK_J(JLB, JUB)
@@ -43391,7 +43402,7 @@ do3:            do K=kbottom, KUB
 
         real                               :: force_2D, TauFace, WlevFace, BathyFace, Vprofile
 
-        !real                               :: force_2D, TauFace, FaceDensity, WlevFace, BathyFace, Vprofile !Sobrinho
+        !real                               :: force_2D, TauFace, FaceDensity, WlevFace, BathyFace, Vprofile !Joao Sobrinho
 
         integer                            :: di, dj, i, j, k, Kbottom, iSouth, jWest
 
@@ -43427,7 +43438,7 @@ do3:            do K=kbottom, KUB
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
         KFloor_UV            => Me%External_Var%KFloor_UV
 
-        !Density              => Me%External_Var%Density !sobrinho
+        !Density              => Me%External_Var%Density !Joao sobrinho
 
         TauWaves_UV          => Me%External_Var%TauWaves_UV
 
@@ -43486,7 +43497,7 @@ do3:            do K=kbottom, KUB
 
     dok1:       do k = Kbottom, KUB
 
-                    !if (Me%ComputeOptions%LocalDensity) then !Sobrinho
+                    !if (Me%ComputeOptions%LocalDensity) then !Joao Sobrinho
                     !
                     !    FaceDensity  = Face_Interpolation(Density(I, J, k),                  &
                     !                                      Density(iSouth, jWest, k),       &
@@ -43520,7 +43531,7 @@ do3:            do K=kbottom, KUB
                     !                                     * Vprofile
 
                     ![m/s^2]                            = [m/s^2] +  [M*m/s^2] / [m^3] / [M/m^3] * [m/m]
-                    !Wave3DExplicit_Acceleration(i,j,k)  = Wave3DExplicit_Acceleration(i,j,k)           & !Sobrinho
+                    !Wave3DExplicit_Acceleration(i,j,k)  = Wave3DExplicit_Acceleration(i,j,k)           & !Joao Sobrinho
                     !                                      + force_2D / Volume_UV(i, j, k) / FaceDensity  &
                     !                                      * Vprofile
 
@@ -47871,10 +47882,6 @@ dok:            do k = kbottom + 1, KUB
                 aux = Me%External_Var%DUX(i, j) * Me%External_Var%DVY(i, j)
                 
                 Me%Velocity%Vertical%Across(i, j, k)  = Me%WaterFluxes%Z(i, j, k) / aux
-                
-                !Me%Velocity%Vertical%Across(i, j, k)  = Me%WaterFluxes%Z(i, j, k) / &
-                !                                        Me%External_Var%DUX(i, j) / &
-                !                                        Me%External_Var%DVY(i, j)
 
             endif
         enddo
@@ -47952,7 +47959,7 @@ dok:            do k = kbottom + 1, KUB
         !real                               :: FaceDensity, WaterPressure_Aceleration,          &
         !                                      AtmosphericPressure_Aceleration,                 &
         !                                      Barotropic_Aceleration, Baroclinic_Aceleration,  &
-        !                                      Transport_Aceleration, TidePotentialAceleration !Sobrinho
+        !                                      Transport_Aceleration, TidePotentialAceleration !Joao Sobrinho
 
         integer                            :: I, J, K, kbottom, di, dj, iSouth, jWest
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
@@ -47997,7 +48004,7 @@ dok:            do k = kbottom + 1, KUB
 
         PressureCorrect         => Me%NonHydrostatic%PressureCorrect
 
-        !Density                 => Me%External_Var%Density !Sobrinho
+        !Density                 => Me%External_Var%Density !Joao Sobrinho
         AtmPressure             => Me%External_Var%AtmosphericPressure
 
         Volume_UV               => Me%External_Var%Volume_UV
@@ -48227,7 +48234,7 @@ dok:            do  k = kbottom, KUB
         nullify(PressureCorrect)
         nullify(WaterLevel_New, WaterLevel_Old)
 
-        !nullify(Density)!Sobrinho
+        !nullify(Density)! Joao Sobrinho
         nullify(AtmPressure)
 
         nullify(Volume_UV)
@@ -50856,7 +50863,7 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         real(8), dimension(:,:,:), pointer :: Volume_UV
         real,    dimension(:,:,:), pointer :: TiCoef_3D, DUZ_VZ
 
-        !real,    dimension(:,:,:), pointer :: TiCoef_3D, Density, DUZ_VZ !Sobrinho
+        !real,    dimension(:,:,:), pointer :: TiCoef_3D, Density, DUZ_VZ !Joao Sobrinho
 
         real,    dimension(:,:  ), pointer :: DUX_VY, DYY_XX, DZX_ZY, TauWaves_UV,       &
                                               WaterColumnUV
@@ -50869,7 +50876,7 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         real,    dimension(:,:  ), pointer :: AuxTauWaves_UV
         real                               :: Aux_2D, TauFace
 
-        !real                               :: Aux_2D, TauFace, FaceDensity !Sobrinho
+        !real                               :: Aux_2D, TauFace, FaceDensity !Joao Sobrinho
 
         real                               :: SmoothCoef, RunPeriod
 
@@ -50904,7 +50911,7 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
         KFloor_UV            => Me%External_Var%KFloor_UV
 
-        !Density              => Me%External_Var%Density !Sobrinho
+        !Density              => Me%External_Var%Density !Joao Sobrinho
 
         TauWaves_UV          => Me%External_Var%TauWaves_UV
         DUZ_VZ               => Me%External_Var%DUZ_VZ
@@ -50991,7 +50998,7 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         nullify(KFloor_UV)
 
         nullify(TauWaves_UV)
-        !nullify(TauWaves_UV, Density) Sobrinho
+        !nullify(TauWaves_UV, Density) Joao Sobrinho
         nullify(DUZ_VZ, WaterColumnUV)
 
 
@@ -51124,7 +51131,7 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         real,    dimension(:,:,:), pointer :: DCoef_3D, FCoef_3D, TiCoef_3D,             &
                                               Velocity_UV_Old, Velocity_VU_New, DUZ_VZ
 
-        !real,    dimension(:,:,:), pointer :: DCoef_3D, FCoef_3D, TiCoef_3D,             & Sobrinho
+        !real,    dimension(:,:,:), pointer :: DCoef_3D, FCoef_3D, TiCoef_3D,             & Joao Sobrinho
         !                                      Velocity_UV_Old, Velocity_VU_New, Density, &
         !                                      DUZ_VZ
 
@@ -51139,7 +51146,7 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         real                               :: CellFace_BottomFace, CellFace_TopFace, SmoothCoef, RunPeriod
 
         real                               :: DT_Z, TauFace, Coef, WaterColumn2D
-        !real                               :: DT_Z, TauFace, FaceDensity, Coef, WaterColumn2D !Sobrinho
+        !real                               :: DT_Z, TauFace, FaceDensity, Coef, WaterColumn2D !Joao Sobrinho
         real(8)                            :: TotalVolume
 
         integer                            :: di, dj, i, j, Kbottom, iSouth, jWest, i_North, j_East, k
@@ -51193,7 +51200,7 @@ cd1:    if (BoundaryPoints(i, j) == 1) then
         ChezyVelUV           => Me%External_Var%ChezyVelUV
         TauWind_UV           => Me%External_Var%TauWind_UV
 
-        !Density              => Me%External_Var%Density !Sobrinho
+        !Density              => Me%External_Var%Density !Joao Sobrinho
 
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
         KFloor_UV            => Me%External_Var%KFloor_UV
@@ -51320,7 +51327,7 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
                     DT_Z                      = DT_Velocity / Volume_UV(i, j, KUB)       &
                                                 * DZX_ZY(iSouth, jWest) * DYY_XX(I, J)
 
-                    ![m/s]                    = [s/m] * [M*m/s^2/m^2] / [M/m^3] !Sobrinho
+                    ![m/s]                    = [s/m] * [M*m/s^2/m^2] / [M/m^3] !Joao Sobrinho
                     CellFace_TopFace        = DT_Z * TauFace / Me%FaceDensity(i, j, KUB)
                 else
 
@@ -51406,7 +51413,7 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
         nullify(ChezyVelUV)
         nullify(TauWind_UV)
 
-        !nullify(Density) Sobrinho
+        !nullify(Density) Joao Sobrinho
 
         nullify(DYY_XX)
         nullify(DUX_VY)
@@ -51472,7 +51479,7 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
                                               AtmosphericExplicit,                    &
                                               TidePotentialExplicit
 
-        !real                               :: AuxPressure, AuxImplicit, AuxExplicit,  & !Sobrinho
+        !real                               :: AuxPressure, AuxImplicit, AuxExplicit,  & !Joao Sobrinho
         !                                      WaterColumn_High, DT_AUX, DT_AreaCell1, &
         !                                      DT_AreaCell2, AreaCell1, AreaCell2,     &
         !                                      SurfaceFaceDensity,                     &
@@ -51510,7 +51517,7 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
         RadCoef_2D           => Me%Coef%D2%Rad
         TiRadCoef_2D         => Me%Coef%D2%TiRad
 
-        !Sobrinho  - SurfaceFaceDensity passou a Me%FaceDensity
+        !Joao Sobrinho  - SurfaceFaceDensity passou a Me%FaceDensity
 
         !$OMP PARALLEL PRIVATE(i,j,iSouth, jWest, kbottom,AuxPressure, AuxImplicit, AuxExplicit,WaterColumn_High, DT_AUX), &
         !$OMP& PRIVATE(DT_AreaCell1,DT_AreaCell2, AreaCell1, AreaCell2,AtmosphericExplicit,TidePotentialExplicit)
@@ -51573,7 +51580,7 @@ cd1:        if (ComputeFaces3D_UV(i, j, KUB)==Covered) then
 
                     !AtmosphericExplicit       = AuxPressure * (Me%External_Var%AtmosphericPressure(iSouth, jWest) -     &
                     !                                           Me%External_Var%AtmosphericPressure(I, J)) /             &
-                    !                                           SurfaceFaceDensity  !Sobrinho
+                    !                                           SurfaceFaceDensity  !Joao Sobrinho
                 else
 
                     AtmosphericExplicit       = 0.
@@ -51711,7 +51718,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                                               Vertical_Viscosity, DUZ_VZ,                &
                                               Relax_Aceleration, PressureCorrect
 
-        !real,    dimension(:,:,:), pointer :: Area_UV, Velocity_UV_Old, Velocity_VU_New, &!Sobrinho
+        !real,    dimension(:,:,:), pointer :: Area_UV, Velocity_UV_Old, Velocity_VU_New, &!Joao Sobrinho
         !                                      Density, Inertial_Aceleration, Rox3XY,     &
         !                                      Vertical_Viscosity, DUZ_VZ,                &
         !                                      Relax_Aceleration, PressureCorrect
@@ -51739,7 +51746,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                                               DT_AUX, DT_AreaCell1, DT_AreaCell2,        &
                                               AreaCell1, AreaCell2, BottomViscCoef      !, CoefRelax
 
-        !real                               :: FC, FC_Area, VelModXY, FaceDensity,        & !Sobrinho
+        !real                               :: FC, FC_Area, VelModXY, FaceDensity,        & !Joao Sobrinho
         !                                      DUZ, ViscAux, AuxImplicit, AuxExplicit,    &
         !                                      DT_AUX, DT_AreaCell1, DT_AreaCell2,        &
         !                                      AreaCell1, AreaCell2, BottomViscCoef      !, CoefRelax
@@ -51800,7 +51807,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         DXX_YY               => Me%External_Var%DXX_YY
         DZX_ZY               => Me%External_Var%DZX_ZY
 
-        !Density              => Me%External_Var%Density !Sobrinho
+        !Density              => Me%External_Var%Density !Joao Sobrinho
 
         Volume_UV            => Me%External_Var%Volume_UV
         Area_UV              => Me%External_Var%Area_UV
@@ -52136,7 +52143,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         nullify(AtmPressure)
 
-        !nullify(Density) !Sobrinho
+        !nullify(Density) !Joao Sobrinho
 
         nullify(DYY_XX)
         nullify(DUX_VY)
@@ -52300,7 +52307,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
         !                                           DT_AUX, DT_AreaCell1, DT_AreaCell2,                                      &
         !                                           AreaCell1, AreaCell2, TauFace,                                           &
         !                                           Transport_Aceleration, SmoothCoef, RunPeriod,                            &
-        !                                           Aux_2D, Taw_Face, Two_Face ! Sobrinho
+        !                                           Aux_2D, Taw_Face, Two_Face ! Joao Sobrinho
 
 
         !Begin---------------------------------------------------------------------
@@ -52313,7 +52320,6 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
 
         call SetMatrixValue(Me%Coef%D2%Tiaux,  Me%WorkSize2D, 0.0)
 
-!Sobrinho
         !$OMP PARALLEL PRIVATE( i, j, k, kbottom, iSouth, jWest),                &
         !$OMP& PRIVATE(AuxExplicit),            &
         !$OMP& PRIVATE(DT_AUX, DT_AreaCell1, DT_AreaCell2),                      &
@@ -52424,7 +52430,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                                                   Gravity / Me%FaceDensity(i, j, k)
 
 
-                    if (Me%WaveStress%ON) then !Sobrinho
+                    if (Me%WaveStress%ON) then !Joao Sobrinho
 
                         ![m^3/s]           = [m^3/s] +  [m^2]        * [M * m/s] / [M/m^3] / [m^3] * [m] / [m]
                         AuxExplicit = AuxExplicit +  Me%External_Var%Area_UV  (I, J, K) * Aux_2D / Me%FaceDensity(i, j, k) /&
@@ -52448,7 +52454,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                 if (Me%ComputeOptions%Wind /= NoWind_) then
 
                     !The last k of the dok Cyclic is KUB - surface layer
-                    !SurfaceFaceDensity = FaceDensity Sobrinho
+                    !SurfaceFaceDensity = FaceDensity Joao Sobrinho
 
                     SmoothCoef = 1.
 
@@ -52496,7 +52502,7 @@ ic1:            if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == M
                     endif
 
                     TauFace  = TauFace * SmoothCoef
-!Sobrinho
+                    !Joao Sobrinho
                     ![m^3/s]     = [m^3/s]     + [M*m/s^2/m^2] * [m] * [s] / [M/m^3]
                     AuxExplicit  = AuxExplicit + TauFace * Me%External_Var%DYY_XX(I, J) *                                   &
                                                  Me%Velocity%DT / Me%FaceDensity(i, j, Me%WorkSize%KUB)
@@ -53462,7 +53468,7 @@ do5:            do i = ILB, IUB
                 Me%OutPut%ProfileON   .or. Me%OutPut%HDF5_Surface_ON.or.                    &
                 Me%OutW%OutPutWindowsON)then
 
-                call ModifyMatrixesOutput !Sobrinho
+                call ModifyMatrixesOutput !Joao Sobrinho
 
                 if(Me%OutPut%FloodRisk)then
                     call ComputeFloodRisk
