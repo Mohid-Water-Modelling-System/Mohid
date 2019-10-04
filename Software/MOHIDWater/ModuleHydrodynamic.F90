@@ -2640,7 +2640,8 @@ cd11:   if (Me%ComputeOptions%Recording) then
 
 
         !Local-----------------------------------------------------------------
-        character(len = StringLength)      :: BeginBlock, EndBlock, Filename
+        character(len = StringLength)      :: BeginBlock, EndBlock
+        character(len = PathLength)        :: Filename
         integer                            :: STAT_CALL, ClientNumber, iflag
         logical                            :: BlockFound
 

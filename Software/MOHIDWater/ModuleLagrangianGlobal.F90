@@ -4965,6 +4965,7 @@ i23:    if (NewOrigin%TimeSerieInputFlow /= 0) then
 
         if (flag == 1) then
             NewOrigin%State%VariableGeom = ON
+            Me%State%VariableGeom        = ON
         endif
 
         
@@ -13392,6 +13393,7 @@ dem:        do em = 1, Me%EulerModelNumber
         !Local-----------------------------------------------------------------        
         type (T_Origin), pointer                    :: CurrentOrigin 
         type (T_Partic), pointer                    :: CurrentPartic 
+        type (T_Property), pointer                  :: CurrentProperty
         real,       dimension(:), pointer           :: Matrix1DX
         real,       dimension(:), pointer           :: Matrix1DY        
         real,       dimension(:), pointer           :: Matrix1DZ  
@@ -13400,7 +13402,7 @@ dem:        do em = 1, Me%EulerModelNumber
         integer,    dimension(:), pointer           :: Solution  
         integer                                     :: nP, nPtotal, nF, nFiles_total
         integer                                     :: nMOP, nMOPtotal, STAT_CALL
-        
+        integer                                     :: iP
         !Begin-----------------------------------------------------------------    
 
         !Reset particles meteo-ocean values
@@ -13432,6 +13434,19 @@ d1:     do while (associated(CurrentOrigin))
                     CurrentPartic%SolutionWL    = FillValueInt
                     CurrentPartic%SolutionS     = FillValueInt
                     CurrentPartic%SolutionT     = FillValueInt                    
+
+                    CurrentProperty => CurrentOrigin%FirstProperty
+                    iP = 1
+                    do while (associated(CurrentProperty))
+
+                        !Define Ambient conc
+                        call GetAmbientConcCell(Property      = CurrentProperty,                   &
+                                                ModelID       = CurrentPartic%Position%ModelID,    &
+                                                Position      = CurrentPartic%Position,            &    
+                                                Concentration = CurrentPartic%AmbientConc(iP))
+                        iP = iP + 1
+                        CurrentProperty => CurrentProperty%Next
+                    enddo                    
 
                     CurrentPartic               => CurrentPartic%Next
                 enddo
@@ -20062,7 +20077,7 @@ CurrProp:       do while (associated(CurrentProperty))
         else
 
             write (*,*) 'T90 calculation method unknown'
-            stop 'ComputeT90 - ModuleLagrangianGlobal - ERR1'
+            stop 'ComputeT90 - ModuleLagrangianGlobal - ERR10'
         
         endif
 
@@ -24877,6 +24892,10 @@ i1:             if (nP>0) then
                             CurrentProperty => CurrentProperty%Next
                         enddo
 
+                        if (CurrentOrigin%State%VariableGeom) then
+                            call HDF5WriteParticAmbientConc(CurrentOrigin, em, OutPutNumber,Matrix1D)
+                        endif                                
+
                         deallocate  (Matrix1D)
 
 
@@ -25922,6 +25941,10 @@ thick:                      do while (associated(CurrentOrigin))
 
                         enddo
 
+                       if (Me%State%VariableGeom) then
+                            call HDF5WriteAllGroupParticAmbientConc(GroupName, ig, em, OutPutNumber,Matrix1D)
+                        endif                                      
+
 
                         deallocate  (Matrix1D)
 
@@ -25961,6 +25984,129 @@ thick:                      do while (associated(CurrentOrigin))
 
     !--------------------------------------------------------------------------
 
+    subroutine HDF5WriteParticAmbientConc(CurrentOrigin, em, OutPutNumber,Matrix1D)    
+
+        !Arguments------------------------------------------------------------------    
+        type(T_Origin),                              pointer :: CurrentOrigin
+        integer                                              :: em, OutPutNumber 
+        real,                         dimension (:), pointer :: Matrix1D
+        !Local----------------------------------------------------------------------                    
+        type (T_Partic)                            , pointer :: CurrentPartic
+        type (T_Property)                          , pointer :: CurrentProperty
+        integer                                              :: nProp, nP, STAT_CALL
+        
+        !Begin----------------------------------------------------------------------    
+    
+        !Properties
+        nProp =  1
+        CurrentProperty => CurrentOrigin%FirstProperty
+        do while (associated(CurrentProperty))
+
+            CurrentPartic => CurrentOrigin%FirstPartic
+            nP = 0
+            do while (associated(CurrentPartic))
+                nP = nP + 1
+                Matrix1D(nP)  =  CurrentPartic%AmbientConc(nProp)
+                CurrentPartic => CurrentPartic%Next
+            enddo            
+            if (nP > 0) then
+                !HDF 5
+                call HDF5WriteData  (Me%ObjHDF5(em),                  &
+                                        "/Results/"//trim(CurrentOrigin%Name)//"/Background/" &
+                                        //trim(CurrentProperty%Name),        &
+                                        trim(CurrentProperty%Name),             &
+                                        trim(CurrentProperty%Units),            &
+                                        Array1D = Matrix1D,                     &
+                                        OutputNumber = OutPutNumber,            &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteParticAmbientConc - ModuleLagrangianGlobal - ERR10'
+            endif
+            nProp = nProp + 1
+            CurrentProperty => CurrentProperty%Next
+        enddo    
+        
+        nullify(CurrentPartic  )
+        nullify(CurrentProperty)
+                        
+    end subroutine HDF5WriteParticAmbientConc
+    
+    !--------------------------------------------------------------------------    
+    
+    subroutine HDF5WriteAllGroupParticAmbientConc(GroupName, ig, em, OutPutNumber,Matrix1D)    
+        !Arguments------------------------------------------------------------------    
+        character(len=*)                                     :: GroupName
+        integer                                              :: ig, em, OutPutNumber 
+        real,                         dimension (:), pointer :: Matrix1D
+        !Local----------------------------------------------------------------------                    
+        type(T_Origin),                              pointer :: CurrentOrigin
+        type (T_Partic)                            , pointer :: CurrentPartic
+        type (T_Property)                          , pointer :: CurrentProperty, FirstProperty
+        integer                                              :: nProp, nP, STAT_CALL
+        integer                                              :: nGroupProp, iProp
+        
+        !Begin----------------------------------------------------------------------    
+
+    
+        !(Properties)
+        !Just if in all origins are the same amount of properties and in the same
+        !order, writes the properties.
+        CurrentOrigin => Me%FirstOrigin 
+DoCatch: do while (associated(CurrentOrigin))
+            if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+                FirstProperty   => CurrentOrigin%FirstProperty
+                nGroupProp      =  CurrentOrigin%nProperties
+                exit DoCatch
+            endif
+            CurrentOrigin => CurrentOrigin%Next
+        enddo DoCatch
+
+
+        nProp = 1
+        do while (nProp <= nGroupProp)
+
+            !Point to the right instant
+            CurrentProperty => FirstProperty
+            do iProp = 1, nProp-1
+                CurrentProperty => CurrentProperty%Next
+            enddo
+
+            nP = 1
+            CurrentOrigin => Me%FirstOrigin
+            do while (associated(CurrentOrigin))
+
+                if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+                    CurrentPartic     => CurrentOrigin%FirstPartic
+                    do while (associated(CurrentPartic))
+                        Matrix1D(nP)  = CurrentPartic%AmbientConc(nProp)
+                        CurrentPartic => CurrentPartic%Next
+                        nP = nP + 1
+                    enddo            
+                endif
+            
+                CurrentOrigin => CurrentOrigin%Next
+            enddo      
+
+            !HDF 5
+            call HDF5WriteData        (Me%ObjHDF5(em),                                  &
+                                        "/Results/"//trim(GroupName)//                  &
+                                        "/BackGround/"//                                &
+                                        trim(CurrentProperty%Name),                     &
+                                        trim(CurrentProperty%Name),                     &
+                                        trim(CurrentProperty%Units),                    &
+                                        Array1D = Matrix1D,                             &
+                                        OutputNumber = OutPutNumber,                    &
+                                        STAT = STAT_CALL)
+
+            nProp = nProp + 1
+
+        enddo
+        
+        nullify(CurrentOrigin,   CurrentPartic)
+        nullify(CurrentProperty, FirstProperty)
+
+    end subroutine HDF5WriteAllGroupParticAmbientConc
+    
+    !--------------------------------------------------------------------------
     subroutine HDF5WriteDataMeteoOcean(CurrentOrigin, em, OutPutNumber)
     
         !Arguments------------------------------------------------------------------    
