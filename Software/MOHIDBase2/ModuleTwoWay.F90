@@ -800,9 +800,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (present(Volume_3D)) then
             !Goes for 3D
             if     (interpolMethod == 1)then
-                ! set the matrix to 0.001 so it can be divided without giving an error
-                call SetMatrixValue (GetPointer(Me%Father%TotSonIn), Me%Father%WorkSize, 0.001)
-                call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%Father%WorkSize, 0.0)                  
+                Me%Father%TotSonIn (:,:,:) = 0.0
+                Me%Father%AuxMatrix(:,:,:) = 0.0
+                !call SetMatrixValue (GetPointer(Me%Father%TotSonIn), Me%Father%WorkSize, 0.0)
+                !call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%Father%WorkSize, 0.0)                  
                 ! Volume Weighted average
                 if (present(VelocityID))then
                     if (VelocityID == VelocityU_)then
@@ -831,9 +832,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         else
         !Goes for 2D             
             if     (interpolMethod == 1)then
-                call SetMatrixValue (GetPointer(Me%Father%AuxMatrix2D), Me%Father%WorkSize2D, 0.0)
-                ! set the matrix to 0.001 so it can be divided without giving an error
-                call SetMatrixValue (GetPointer(Me%Father%TotSonIn_2D), Me%Father%WorkSize2D, 0.001)
+                Me%Father%AuxMatrix2D(:,:) = 0.0
+                !call SetMatrixValue (GetPointer(Me%Father%AuxMatrix2D), Me%Father%WorkSize2D, 0.0)
+                Me%Father%TotSonIn_2D(:,:) = 0.0
+                !call SetMatrixValue (GetPointer(Me%Father%TotSonIn_2D), Me%Father%WorkSize2D, 0.0)
                 
                 ! Volume Weighted average
                 call ComputeSonVolInFather   (Volume_2D    = Volume_2D,     &

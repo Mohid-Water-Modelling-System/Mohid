@@ -6247,7 +6247,8 @@ d5:     do k = klast + 1,KUB
         real,    dimension(:,:),   pointer                  :: SonVolInFather2D, AuxMatrix2D
         !Local variables --------------------------------------------------------------------------------
         integer                                             :: i, j, KUBFather, KUBSon, IUBSon, ILBSon, JUBSon, JLBSon
-        integer                                             ::  NThreads, CHUNK, N
+        integer                                             :: Flag
+        real                                                :: DecayFactor
         !Begin-------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB
         IUBSon = SizeSon%IUB
@@ -6256,33 +6257,29 @@ d5:     do k = klast + 1,KUB
         KUBSon = SizeSon%KUB
         KUBFather = SizeFather%KUB
 
-        NThreads = openmp_num_threads
-        CHUNK = CHUNK_J(JLBSon, JUBSon, NThreads)
-        !$OMP PARALLEL PRIVATE(i,j)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
-            AuxMatrix2D(ILink(i, j), JLink(i, j)) = (AuxMatrix2D(ILink(i, j)+1, JLink(i, j)+1) + SonMatrix2D(i, j) *  &
-                                                     VolumeSon2D(i, j)) * Open3DSon(i, j, KUBSon) * IgnoreOBCells(i, j)
+            Flag = Open3DSon(i, j, KUBSon) + IgnoreOBCells(i, j)
+            if (Flag == 2) then
+                AuxMatrix2D(ILink(i, j), JLink(i, j)) = &
+                AuxMatrix2D(ILink(i, j)+1, JLink(i, j)+1) + SonMatrix2D(i, j) * VolumeSon2D(i, j)
+            endif
 
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
+        
+        DecayFactor = DT / DecayTime
 
-        CHUNK = CHUNK_J(JLink(1, 1), JLink(IUBSon, JUBSon), NThreads)
-        N =  (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1))
-        !$OMP PARALLEL PRIVATE(i,j) IF(N > 10000)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-            FatherMatrix2D(i, j) = FatherMatrix2D(i, j) + (AuxMatrix2D(i, j) / SonVolInFather2D(i, j) -   &
-                                   FatherMatrix2D(i, j)) * (DT / DecayTime) * (SonVolInFather2D(i, j) / &
-                                   (VolumeFather2D(i, j)+0.001)) * Open3DFather(i, j, KUBFather)
+            if (Open3DFather(i, j, KUBFather) == 1) then
+                FatherMatrix2D(i, j) = FatherMatrix2D(i, j) + (AuxMatrix2D(i, j) / SonVolInFather2D(i, j) -   &
+                                       FatherMatrix2D(i, j)) * DecayFactor * (SonVolInFather2D(i, j) / &
+                                       VolumeFather2D(i, j))
+            endif
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
+
     end subroutine FeedBack_Avrg_WL
 
     !--------------------------------------------------------------------------------------------------------------
@@ -6353,6 +6350,7 @@ d5:     do k = klast + 1,KUB
             endif
         enddo
         enddo
+        enddo
 
 
     end subroutine FeedBack_Avrg_UV
@@ -6376,7 +6374,7 @@ d5:     do k = klast + 1,KUB
         real, dimension(:,:,:), pointer                   :: AuxMatrix, SonVolInFather
         !Local variables -----------------------------------------------------------------------------
         integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
-                                                             KUBSon, KUBFather, KLBFather, CHUNK
+                                                             KUBSon, KUBFather, KLBFather, CHUNK, Flag
         real                                              :: DecayFactor
         !Begin----------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB
@@ -6389,7 +6387,7 @@ d5:     do k = klast + 1,KUB
         KUBFather = SizeFather%KUB
 
         CHUNK = CHUNK_K(KLBSon, KUBSon)
-        !$OMP PARALLEL PRIVATE(i,j,k)
+        !$OMP PARALLEL PRIVATE(i,j,k, Flag)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do k = KLBSon, KUBSon
         do j = JLBSon, JUBSon
@@ -6410,7 +6408,7 @@ d5:     do k = klast + 1,KUB
         do k = KLBFather, KUBFather
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-            if (Open3DFather(i, j, k)) then
+            if (Open3DFather(i, j, k) == 1) then
                 ! [X]                 = [X] + ([X*m3] / [m3] - [X]) * ([m3] / [m3])
                 FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                  &
                                       + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) - FatherMatrix(i, j, k)) &
