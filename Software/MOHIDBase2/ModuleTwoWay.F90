@@ -801,7 +801,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (present(Volume_3D)) then
             !Goes for 3D
             if     (interpolMethod == 1)then
-                Me%Father%TotSonIn (:,:,:) = 0.001
+                Me%Father%TotSonIn (:,:,:) = 0.0
                 Me%Father%AuxMatrix(:,:,:) = 0.0             
                 ! Volume Weighted average
                 if (present(VelocityID))then
@@ -832,7 +832,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Goes for 2D             
             if     (interpolMethod == 1)then
                 Me%Father%AuxMatrix2D(:,:) = 0.0
-                Me%Father%TotSonIn_2D(:,:) = 0.001
+                Me%Father%TotSonIn_2D(:,:) = 0.0
                 
                 ! Volume Weighted average
                 call ComputeSonVolInFather   (Volume_2D    = Volume_2D,     &

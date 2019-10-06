@@ -6305,7 +6305,7 @@ d5:     do k = klast + 1,KUB
         !Local variables -----------------------------------------------------------------------------
         integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
                                                              KUBSon, KUBFather, KLBFather, CHUNK, Flag
-        real                                              :: DecayFactor
+        real                                              :: DecayFactor, x
 
         !Begin----------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB
@@ -6340,8 +6340,9 @@ d5:     do k = klast + 1,KUB
         do k = KLBFather, KUBFather
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-            Flag = Open3DFather(i, j, k) + FatherComputeFaces3D(i, j, k)
-            if (Flag == 2) then
+            Aux = Open3DFather(i, j, k) + FatherComputeFaces3D(i, j, k)
+            Flag = real(Aux) + SonVolInFather(i, j, k)
+            if (Flag > 2) then
                 ! m/s                 = m/s + ((m4/s / m3) - m/s) * (m3/m3) * []
                 FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                    &
                                       + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) - FatherMatrix(i, j, k)) &
@@ -6408,7 +6409,8 @@ d5:     do k = klast + 1,KUB
         do k = KLBFather, KUBFather
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-            if (Open3DFather(i, j, k) == 1) then
+            Flag = real(Open3DFather(i, j, k)) + SonVolInFather(i, j, k) ! Avoid volume = 0
+            if (Flag > 1) then
                 ! [X]                 = [X] + ([X*m3] / [m3] - [X]) * ([m3] / [m3])
                 FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                  &
                                       + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) - FatherMatrix(i, j, k)) &
