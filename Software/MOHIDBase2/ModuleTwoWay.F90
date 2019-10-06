@@ -367,6 +367,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
         allocate (Me%IgnoreOBCells(ILB:IUB, JLB:JUB))
         Me%IgnoreOBCells(:,:) = 1
+        !call SetMatrixValue (GetPointer(Me%IgnoreOBCells), Me%WorkSize2D, 1)
         
         if ((IUB - IgnoreOBNumCells) <= 3)then
             AuxIgnoreOBNumCells = 1
@@ -800,10 +801,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (present(Volume_3D)) then
             !Goes for 3D
             if     (interpolMethod == 1)then
-                Me%Father%TotSonIn (:,:,:) = 0.0
-                Me%Father%AuxMatrix(:,:,:) = 0.0
-                !call SetMatrixValue (GetPointer(Me%Father%TotSonIn), Me%Father%WorkSize, 0.0)
-                !call SetMatrixValue (GetPointer(Me%Father%AuxMatrix), Me%Father%WorkSize, 0.0)                  
+                Me%Father%TotSonIn (:,:,:) = 0.001
+                Me%Father%AuxMatrix(:,:,:) = 0.0             
                 ! Volume Weighted average
                 if (present(VelocityID))then
                     if (VelocityID == VelocityU_)then
@@ -833,9 +832,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Goes for 2D             
             if     (interpolMethod == 1)then
                 Me%Father%AuxMatrix2D(:,:) = 0.0
-                !call SetMatrixValue (GetPointer(Me%Father%AuxMatrix2D), Me%Father%WorkSize2D, 0.0)
-                Me%Father%TotSonIn_2D(:,:) = 0.0
-                !call SetMatrixValue (GetPointer(Me%Father%TotSonIn_2D), Me%Father%WorkSize2D, 0.0)
+                Me%Father%TotSonIn_2D(:,:) = 0.001
                 
                 ! Volume Weighted average
                 call ComputeSonVolInFather   (Volume_2D    = Volume_2D,     &
@@ -881,6 +878,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 enddo
                 enddo
                 enddo
+                
                 !$OMP END DO
                 !$OMP END PARALLEL                    
             else
@@ -898,6 +896,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 enddo        
                 enddo
                 enddo
+                
                 !$OMP END DO
                 !$OMP END PARALLEL
             endif
@@ -906,13 +905,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                Flag = Me%External_Var%Open3D(i, j, Me%WorkSize%KUB) * Me%IgnoreOBCells(i, j)
+                Flag = Me%External_Var%Open3D(i, j, Me%WorkSize%KUB) + Me%IgnoreOBCells(i, j)
                 if (Flag == 2) then
                     Me%Father%TotSonIn_2D(ILink(i, j), JLink(i, j)) = &
                     Me%Father%TotSonIn_2D(ILink(i, j), JLink(i, j)) + Volume_2D(i, j)
                 endif
             enddo
-            enddo
+            enddo            
 
         endif
           

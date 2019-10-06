@@ -6352,7 +6352,6 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
 
-
     end subroutine FeedBack_Avrg_UV
     !-------------------------------------------------------------------------------------
 
@@ -6363,6 +6362,7 @@ d5:     do k = klast + 1,KUB
     !>           DT, SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells
     subroutine FeedBack_Avrg(FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink, &
                              JLink, DecayTime, DT, SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells)
+    
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
         real(8), dimension(:,:,:), pointer, intent(IN)    :: VolumeSon, VolumeFather
@@ -6412,7 +6412,7 @@ d5:     do k = klast + 1,KUB
                 ! [X]                 = [X] + ([X*m3] / [m3] - [X]) * ([m3] / [m3])
                 FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                  &
                                       + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) - FatherMatrix(i, j, k)) &
-                                      * (SonVolInFather(i, j, k) / VolumeFather(i, j, k))
+                                      * (SonVolInFather(i, j, k) / VolumeFather(i, j, k)) * DecayFactor
             endif
         enddo
         enddo
