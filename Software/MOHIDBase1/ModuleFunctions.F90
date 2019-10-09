@@ -6273,9 +6273,11 @@ d5:     do k = klast + 1,KUB
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
             if (Open3DFather(i, j, KUBFather) == 1) then
-                FatherMatrix2D(i, j) = FatherMatrix2D(i, j) + (AuxMatrix2D(i, j) / SonVolInFather2D(i, j) -   &
-                                       FatherMatrix2D(i, j)) * DecayFactor * (SonVolInFather2D(i, j) / &
-                                       VolumeFather2D(i, j))
+                if (SonVolInFather2D(i, j) > 0.1) then
+                    FatherMatrix2D(i, j) = FatherMatrix2D(i, j) + (AuxMatrix2D(i, j) / SonVolInFather2D(i, j) -   &
+                                           FatherMatrix2D(i, j)) * DecayFactor * (SonVolInFather2D(i, j) / &
+                                           VolumeFather2D(i, j))
+                endif
             endif
         enddo
         enddo
@@ -6305,7 +6307,7 @@ d5:     do k = klast + 1,KUB
         !Local variables -----------------------------------------------------------------------------
         integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
                                                              KUBSon, KUBFather, KLBFather, CHUNK, Flag
-        real                                              :: DecayFactor, x
+        real                                              :: DecayFactor
 
         !Begin----------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB
@@ -6340,14 +6342,15 @@ d5:     do k = klast + 1,KUB
         do k = KLBFather, KUBFather
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-            Aux = Open3DFather(i, j, k) + FatherComputeFaces3D(i, j, k)
-            Flag = real(Aux) + SonVolInFather(i, j, k)
-            if (Flag > 2) then
-                ! m/s                 = m/s + ((m4/s / m3) - m/s) * (m3/m3) * []
-                FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                    &
-                                      + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) - FatherMatrix(i, j, k)) &
-                                      * (SonVolInFather(i, j, k) / VolumeFather(i, j, k)) &
-                                      * DecayFactor
+            Flag = Open3DFather(i, j, k) + FatherComputeFaces3D(i, j, k)
+            if (Flag == 2) then
+                if (SonVolInFather(i, j, k) > 0.1) then
+                    ! m/s                 = m/s + ((m4/s / m3) - m/s) * (m3/m3) * []
+                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                    &
+                                          + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) - FatherMatrix(i, j, k)) &
+                                          * (SonVolInFather(i, j, k) / VolumeFather(i, j, k)) &
+                                          * DecayFactor
+                endif
             endif
         enddo
         enddo
@@ -6409,12 +6412,13 @@ d5:     do k = klast + 1,KUB
         do k = KLBFather, KUBFather
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-            Flag = real(Open3DFather(i, j, k)) + SonVolInFather(i, j, k) ! Avoid volume = 0
-            if (Flag > 1) then
-                ! [X]                 = [X] + ([X*m3] / [m3] - [X]) * ([m3] / [m3])
-                FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                  &
-                                      + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) - FatherMatrix(i, j, k)) &
-                                      * (SonVolInFather(i, j, k) / VolumeFather(i, j, k)) * DecayFactor
+            if (Open3DFather(i, j, k) == 1) then
+                if (SonVolInFather(i, j, k) > 0.1) then
+                    ! [X]                 = [X] + ([X*m3] / [m3] - [X]) * ([m3] / [m3])
+                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                  &
+                                          + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) - FatherMatrix(i, j, k)) &
+                                          * (SonVolInFather(i, j, k) / VolumeFather(i, j, k)) * DecayFactor
+                endif
             endif
         enddo
         enddo
