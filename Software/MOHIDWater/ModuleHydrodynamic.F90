@@ -41742,6 +41742,11 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
         do  j = JLB, JUB
         do  i = ILB, IUB
             if (ComputeFaces3D_U(i, j, KUB) == Covered) then
+                
+                ! Interpolates Coriolis_Freq for the face
+                F_UV = (DUX(i, j-1) * Coriolis_Freq(i, j) + DUX(i, j) * Coriolis_Freq(i, j-1)) / &
+                        (DUX(i, j-1) + DUX(i, j))
+                
                 kbottom = KFloor_U(i, j)
 
                 do k=kbottom, KUB
@@ -41777,9 +41782,6 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
                         VUAverage  = 0.
                     endif
 
-                    ! Interpolates Coriolis_Freq for the face
-                    F_UV = (DUX(i, j-1) * Coriolis_Freq(i, j) + DUX(i, j) * Coriolis_Freq(i, j-1)) / &
-                           (DUX(i, j-1) + DUX(i, j))
                     ! Compute aceleration force
                     ![m/s^2]                 =            [s^-1] * [m/s]
                     Coriolis_Aceleration     = F_UV * VUAverage
@@ -41824,6 +41826,11 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
         do  i = ILB, IUB
 
             if (ComputeFaces3D_V(i, j, KUB) == Covered) then
+                
+                ! Interpolates Coriolis_Freq for the face
+                F_UV = (DVY(i-1, j) * Coriolis_Freq(i, j) + DVY(i, j) * Coriolis_Freq(i-1, j)) / &
+                       (DVY(i-1, j) + DVY(i, j))
+                
                 kbottom = KFloor_V(i, j)
 
                 do k=kbottom, KUB
@@ -41859,9 +41866,6 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
                         VUAverage  = 0.
                     endif
 
-                    ! Interpolates Coriolis_Freq for the face
-                    F_UV = (DVY(i-1, j) * Coriolis_Freq(i, j) + DVY(i, j) * Coriolis_Freq(i-1, j)) / &
-                            (DVY(i-1, j) + DVY(i, j))
                     ! Compute aceleration force
                     ![m/s^2]                 =            [s^-1] * [m/s]
                     Coriolis_Aceleration     = -(F_UV) * VUAverage
