@@ -2470,6 +2470,11 @@ do1 :   do while (associated(PropertyX))
         if (Me%ExtOptions%WQMYes           .or. Me%ExtOptions%T90VariableYes .or.       &
             Me%ExtOptions%LagrangianWQMYes .or. Me%ExtOptions%LagrangianT90Yes) then
             
+            call Search_Property(PropertyX, SurfaceRadiation_, .true., STAT = STAT_CALL) 
+            if (STAT_CALL .ne. SUCCESS_)then
+                stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR249'
+            endif
+            
             if (.not. AtmospherePropertyExists(Me%ObjAtmosphere, SolarRadiation_))then
                 write(*,*) 'Missing SolarRadiation in Module Atmosphere '
                 stop 'CheckOptionsWater - ModuleInterfaceWaterAir - ERR250'

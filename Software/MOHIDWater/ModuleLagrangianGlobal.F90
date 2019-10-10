@@ -3988,6 +3988,8 @@ d2:     do em =1, Me%EulerModelNumber
             Me%OutPut%NextOutPut = 1
         endif
 
+        Me%OutPut%WriteRestartFile = .false. 
+
         call GetOutPutTime(Me%ObjEnterData,                                             &
                            CurrentTime = Me%ExternalVar%Now,                            &
                            EndTime     = Me%ExternalVar%EndTime,                        &
@@ -4537,6 +4539,7 @@ BF:         if (BlockFound) then
         integer                                     :: dir
         integer                                     :: iLine, FirstLine, LastLine, nClasses 
         logical                                     :: BlockFound
+        type (T_Time)                               :: AuxTimeStart, AuxTimeStop
 
         !Begin-----------------------------------------------------------------
 
@@ -4710,6 +4713,17 @@ ET:     if (NewOrigin%EmissionTemporal == Continuous_) then
                              Default      = Me%ExternalVar%EndTime,              &
                              STAT         = STAT_CALL)        
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR340'
+                
+                if (Me%ExternalVar%Backtracking) then  
+                    
+                    AuxTimeStart = NewOrigin%StopEmission
+                    AuxTimeStop = NewOrigin%StartEmission 
+                    
+                    call BacktrackingTime(NowIn = AuxTimeStop,  NowOut = NewOrigin%StopEmission)                       
+                    call BacktrackingTime(NowIn = AuxTimeStart, NowOut = NewOrigin%StartEmission)                       
+                    
+                endif                                    
+                
                 
             endif
 
@@ -4951,6 +4965,7 @@ i23:    if (NewOrigin%TimeSerieInputFlow /= 0) then
 
         if (flag == 1) then
             NewOrigin%State%VariableGeom = ON
+            Me%State%VariableGeom        = ON
         endif
 
         
@@ -13378,6 +13393,7 @@ dem:        do em = 1, Me%EulerModelNumber
         !Local-----------------------------------------------------------------        
         type (T_Origin), pointer                    :: CurrentOrigin 
         type (T_Partic), pointer                    :: CurrentPartic 
+        type (T_Property), pointer                  :: CurrentProperty
         real,       dimension(:), pointer           :: Matrix1DX
         real,       dimension(:), pointer           :: Matrix1DY        
         real,       dimension(:), pointer           :: Matrix1DZ  
@@ -13386,7 +13402,7 @@ dem:        do em = 1, Me%EulerModelNumber
         integer,    dimension(:), pointer           :: Solution  
         integer                                     :: nP, nPtotal, nF, nFiles_total
         integer                                     :: nMOP, nMOPtotal, STAT_CALL
-        
+        integer                                     :: iP
         !Begin-----------------------------------------------------------------    
 
         !Reset particles meteo-ocean values
@@ -13418,6 +13434,19 @@ d1:     do while (associated(CurrentOrigin))
                     CurrentPartic%SolutionWL    = FillValueInt
                     CurrentPartic%SolutionS     = FillValueInt
                     CurrentPartic%SolutionT     = FillValueInt                    
+
+                    CurrentProperty => CurrentOrigin%FirstProperty
+                    iP = 1
+                    do while (associated(CurrentProperty))
+
+                        !Define Ambient conc
+                        call GetAmbientConcCell(Property      = CurrentProperty,                   &
+                                                ModelID       = CurrentPartic%Position%ModelID,    &
+                                                Position      = CurrentPartic%Position,            &    
+                                                Concentration = CurrentPartic%AmbientConc(iP))
+                        iP = iP + 1
+                        CurrentProperty => CurrentProperty%Next
+                    enddo                    
 
                     CurrentPartic               => CurrentPartic%Next
                 enddo
@@ -20048,7 +20077,7 @@ CurrProp:       do while (associated(CurrentProperty))
         else
 
             write (*,*) 'T90 calculation method unknown'
-            stop 'ComputeT90 - ModuleLagrangianGlobal - ERR1'
+            stop 'ComputeT90 - ModuleLagrangianGlobal - ERR10'
         
         endif
 
@@ -23938,6 +23967,28 @@ d1:     do em =1, Me%EulerModelNumber
 
     end subroutine Search_Property
 
+    !-------------------------------------------------------------------------
+    subroutine BacktrackingTime(NowIn, NowOut)
+
+        !Arguments------------------------------------------------------------
+        type (T_Time), intent(IN )                      :: NowIn
+        type (T_Time), intent(OUT)                      :: NowOut
+        !Local----------------------------------------------------------------
+        real(8)                                         :: TotalTime, AuxPeriod
+
+        !Begin----------------------------------------------------------------
+
+        TotalTime = Me%ExternalVar%EndTime - Me%ExternalVar%BeginTime                  
+        AuxPeriod = NowIn      - Me%ExternalVar%BeginTime
+        AuxPeriod = TotalTime  - AuxPeriod
+                    
+        NowOut    = Me%ExternalVar%BeginTime + AuxPeriod        
+
+    end subroutine BacktrackingTime
+    
+    !-------------------------------------------------------------------------
+    
+
     !--------------------------------------------------------------------------
 
     subroutine ParticleOutput ()
@@ -23971,7 +24022,7 @@ d1:     do em =1, Me%EulerModelNumber
         real, dimension(:),       pointer           :: MaximumDepth
         integer                                     :: OutPutLines, JetTotalParticles, em, em1, emMax, emp
         type (T_Position)                           :: Position
-        real(8)                                     :: AverageX, AverageY, Stdv, RadiusOfInfluence,AuxPeriod,TotalTime
+        real(8)                                     :: AverageX, AverageY, Stdv, RadiusOfInfluence !,AuxPeriod,TotalTime
         integer                                     :: ParticSurface
         !Begin--------------------------------------------------------------------------
         
@@ -24062,11 +24113,13 @@ i0:             if (Me%RunOnline .and. em == emMax .and. Me%Online%EmissionTempo
                 endif i0
                 
                 if (Me%ExternalVar%Backtracking) then  
-                    TotalTime = Me%ExternalVar%EndTime - Me%ExternalVar%BeginTime                  
-                    AuxPeriod = Actual     - Me%ExternalVar%BeginTime
-                    AuxPeriod = TotalTime  - AuxPeriod
+                    !TotalTime = Me%ExternalVar%EndTime - Me%ExternalVar%BeginTime                  
+                    !AuxPeriod = Actual     - Me%ExternalVar%BeginTime
+                    !AuxPeriod = TotalTime  - AuxPeriod
+                    !
+                    !Aux = Me%ExternalVar%BeginTime + AuxPeriod
                     
-                    Aux = Me%ExternalVar%BeginTime + AuxPeriod
+                    call BacktrackingTime(NowIn = Actual, NowOut = Aux)                    
                 else
                     Aux = Actual
                 endif                 
@@ -24838,6 +24891,10 @@ i1:             if (nP>0) then
                             nProp = nProp + 1
                             CurrentProperty => CurrentProperty%Next
                         enddo
+
+                        if (CurrentOrigin%State%VariableGeom) then
+                            call HDF5WriteParticAmbientConc(CurrentOrigin, em, OutPutNumber,Matrix1D)
+                        endif                                
 
                         deallocate  (Matrix1D)
 
@@ -25884,6 +25941,10 @@ thick:                      do while (associated(CurrentOrigin))
 
                         enddo
 
+                       if (Me%State%VariableGeom) then
+                            call HDF5WriteAllGroupParticAmbientConc(GroupName, ig, em, OutPutNumber,Matrix1D)
+                        endif                                      
+
 
                         deallocate  (Matrix1D)
 
@@ -25923,6 +25984,129 @@ thick:                      do while (associated(CurrentOrigin))
 
     !--------------------------------------------------------------------------
 
+    subroutine HDF5WriteParticAmbientConc(CurrentOrigin, em, OutPutNumber,Matrix1D)    
+
+        !Arguments------------------------------------------------------------------    
+        type(T_Origin),                              pointer :: CurrentOrigin
+        integer                                              :: em, OutPutNumber 
+        real,                         dimension (:), pointer :: Matrix1D
+        !Local----------------------------------------------------------------------                    
+        type (T_Partic)                            , pointer :: CurrentPartic
+        type (T_Property)                          , pointer :: CurrentProperty
+        integer                                              :: nProp, nP, STAT_CALL
+        
+        !Begin----------------------------------------------------------------------    
+    
+        !Properties
+        nProp =  1
+        CurrentProperty => CurrentOrigin%FirstProperty
+        do while (associated(CurrentProperty))
+
+            CurrentPartic => CurrentOrigin%FirstPartic
+            nP = 0
+            do while (associated(CurrentPartic))
+                nP = nP + 1
+                Matrix1D(nP)  =  CurrentPartic%AmbientConc(nProp)
+                CurrentPartic => CurrentPartic%Next
+            enddo            
+            if (nP > 0) then
+                !HDF 5
+                call HDF5WriteData  (Me%ObjHDF5(em),                  &
+                                        "/Results/"//trim(CurrentOrigin%Name)//"/Background/" &
+                                        //trim(CurrentProperty%Name),        &
+                                        trim(CurrentProperty%Name),             &
+                                        trim(CurrentProperty%Units),            &
+                                        Array1D = Matrix1D,                     &
+                                        OutputNumber = OutPutNumber,            &
+                                        STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteParticAmbientConc - ModuleLagrangianGlobal - ERR10'
+            endif
+            nProp = nProp + 1
+            CurrentProperty => CurrentProperty%Next
+        enddo    
+        
+        nullify(CurrentPartic  )
+        nullify(CurrentProperty)
+                        
+    end subroutine HDF5WriteParticAmbientConc
+    
+    !--------------------------------------------------------------------------    
+    
+    subroutine HDF5WriteAllGroupParticAmbientConc(GroupName, ig, em, OutPutNumber,Matrix1D)    
+        !Arguments------------------------------------------------------------------    
+        character(len=*)                                     :: GroupName
+        integer                                              :: ig, em, OutPutNumber 
+        real,                         dimension (:), pointer :: Matrix1D
+        !Local----------------------------------------------------------------------                    
+        type(T_Origin),                              pointer :: CurrentOrigin
+        type (T_Partic)                            , pointer :: CurrentPartic
+        type (T_Property)                          , pointer :: CurrentProperty, FirstProperty
+        integer                                              :: nProp, nP, STAT_CALL
+        integer                                              :: nGroupProp, iProp
+        
+        !Begin----------------------------------------------------------------------    
+
+    
+        !(Properties)
+        !Just if in all origins are the same amount of properties and in the same
+        !order, writes the properties.
+        CurrentOrigin => Me%FirstOrigin 
+DoCatch: do while (associated(CurrentOrigin))
+            if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+                FirstProperty   => CurrentOrigin%FirstProperty
+                nGroupProp      =  CurrentOrigin%nProperties
+                exit DoCatch
+            endif
+            CurrentOrigin => CurrentOrigin%Next
+        enddo DoCatch
+
+
+        nProp = 1
+        do while (nProp <= nGroupProp)
+
+            !Point to the right instant
+            CurrentProperty => FirstProperty
+            do iProp = 1, nProp-1
+                CurrentProperty => CurrentProperty%Next
+            enddo
+
+            nP = 1
+            CurrentOrigin => Me%FirstOrigin
+            do while (associated(CurrentOrigin))
+
+                if (CurrentOrigin%GroupID == Me%GroupIDs(ig)) then
+                    CurrentPartic     => CurrentOrigin%FirstPartic
+                    do while (associated(CurrentPartic))
+                        Matrix1D(nP)  = CurrentPartic%AmbientConc(nProp)
+                        CurrentPartic => CurrentPartic%Next
+                        nP = nP + 1
+                    enddo            
+                endif
+            
+                CurrentOrigin => CurrentOrigin%Next
+            enddo      
+
+            !HDF 5
+            call HDF5WriteData        (Me%ObjHDF5(em),                                  &
+                                        "/Results/"//trim(GroupName)//                  &
+                                        "/BackGround/"//                                &
+                                        trim(CurrentProperty%Name),                     &
+                                        trim(CurrentProperty%Name),                     &
+                                        trim(CurrentProperty%Units),                    &
+                                        Array1D = Matrix1D,                             &
+                                        OutputNumber = OutPutNumber,                    &
+                                        STAT = STAT_CALL)
+
+            nProp = nProp + 1
+
+        enddo
+        
+        nullify(CurrentOrigin,   CurrentPartic)
+        nullify(CurrentProperty, FirstProperty)
+
+    end subroutine HDF5WriteAllGroupParticAmbientConc
+    
+    !--------------------------------------------------------------------------
     subroutine HDF5WriteDataMeteoOcean(CurrentOrigin, em, OutPutNumber)
     
         !Arguments------------------------------------------------------------------    
@@ -27091,6 +27275,11 @@ dg:         do ig = 1, Me%NGroups
                     
                     endif
                     
+                    if (j < WS_JLB .or. j > WS_JUB .or. i < WS_ILB .or. i > WS_IUB) then
+                        write(*,*) 'ig, em, i, j=', ig, em, i, j
+                        stop 'FillGridConcentration - ModuleLagrangianGlobal - ERR15'
+                    endif
+                    
                     if (Me%State%Deposition) then
                         
                         if (CurrentPartic%Deposited) then
@@ -27126,6 +27315,13 @@ cd1:                if (.not. CurrentPartic%Deposited) then
                             k = GetLayer4Level(Me%EulerModel(em)%ObjGeometry, i, j, CurrentPartic%Position%Z, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'FillGridConcentration - ModuleLagrangianGlobal - ERR20'
                         endif
+                        
+                        if (k < WS_KLB .or. k > WS_KUB) then
+                            write(*,*) 'ig, em, i, j, k=', ig, em, i, j, k
+                            write(*,*) 'assumed k = KUB'
+                            k = WS_KUB
+                            !stop 'FillGridConcentration - ModuleLagrangianGlobal - ERR25'
+                        endif                        
 
 
                         Me%EulerModel(em)%Lag2Euler%GridTracerNumber(i, j, k, ig) = &

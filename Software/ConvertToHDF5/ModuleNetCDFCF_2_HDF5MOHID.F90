@@ -158,6 +158,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         logical                                 :: InvertLayers
         logical                                 :: NetCDFNameFaceOff = .false.
         integer                                 :: RemoveNsurfLayers = 0
+        real                                    :: Offset = 0.
     end type  T_Depth
 
     private :: T_Bathym
@@ -2782,7 +2783,15 @@ BF:         if (BlockFound) then
                 if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR80'
 
                 Me%Mapping%ValueIn%DataType = Real4_
-
+                
+                call GetData(Me%Depth%Offset,                                           &
+                             Me%ObjEnterData, iflag,                                    &
+                             SearchType   = FromBlockInBlock,                           &
+                             keyword      = 'DEPTH_OFFSET',                             &
+                             ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',               &
+                             default      = 0.,                                         &
+                             STAT         = STAT_CALL)        
+                if (STAT_CALL /= SUCCESS_) stop 'ReadGridOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR90'
  
                 !1 - sigma_ 2 - z-level 3 - hybrid
                 call GetData(Me%Depth%GeoVert,                                          &
@@ -4745,7 +4754,7 @@ if17:                       if (SumDepth > 0) then
                                                      
                             endif if17
                             
-                            Me%Depth%Value3DOut(i, j, k-1) = Aux 
+                            Me%Depth%Value3DOut(i, j, k-1) = Aux
                             
                             if (k > 1) then
                             
@@ -4755,7 +4764,7 @@ if17:                       if (SumDepth > 0) then
                                     Method2 = .true. 
                                 endif 
 
-                            endif                                
+                            endif
                             
                         else if15
                             Me%Depth%Value3DOut(i, j, k-1) = 2*Me%Depth%ZLevels(k) - Me%Depth%Value3DOut(i, j, k)   
@@ -4774,6 +4783,15 @@ if17:                       if (SumDepth > 0) then
             enddo
             enddo
             
+            if (abs(Me%Depth%Offset)>0.) then
+                do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i= Me%WorkSize%ILB, Me%WorkSize%IUB
+                do k= Me%WorkSize%KUB, Me%WorkSize%KLB, -1
+                    Me%Depth%Value3DOut(i, j, k) = Me%Depth%Value3DOut(i, j, k) - Me%Depth%Offset
+                enddo
+                enddo
+                enddo
+            endif
                 
 if32:       if (Me%Depth%GeoVert == sigma_) then            
                 call DeAllocateValueIn(Me%Depth%WLValueIn)

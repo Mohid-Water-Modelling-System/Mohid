@@ -39,7 +39,7 @@
 ! NETCDF_VERSION       : [char]      [3.6.1]                    !netcdf library version
 ! NETCDF_HISTORY       : [char]        [-]                      !netcdf file history
 ! NETCDF_SOURCE        : [char]        [-]                      !netcdf file source 
-! NETCDF_INSTITUTION   : [char] ["Instituto Superior Técnico"]  !netcdf institution
+! NETCDF_INSTITUTION   : [char] ["Instituto Superior Tï¿½cnico"]  !netcdf institution
 ! NETCDF_REFERENCES    : [char]   [http://www.mohid.com/]       !netcdf references
 ! NETCDF_DATE          : int           [-]                      !current year
 
@@ -3103,5 +3103,5 @@ end program Convert2netcdf
 
 !----------------------------------------------------------------------------------------------------------
 !MOHID Water Modelling System.
-!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Técnico, Technical University of Lisbon. 
+!Copyright (C) 1985, 1998, 2002, 2005. Instituto Superior Tï¿½cnico, Technical University of Lisbon. 
 !----------------------------------------------------------------------------------------------------------
