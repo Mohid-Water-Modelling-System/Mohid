@@ -10101,9 +10101,12 @@ ic1:    if (Me%CyclicBoundary%ON) then
             Me%Emersion%TotalSimulationTime = 0.0
 
         endif
-
-        allocate (Me%FaceDensity(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
-        Me%FaceDensity(:,:,:)  = SigmaDensityReference
+        
+        if (Me%ComputeOptions%GlobalOptimization) then
+            allocate (Me%FaceDensity(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+            Me%FaceDensity(:,:,:)  = SigmaDensityReference
+        endif
+        
       !----------------------------------------------------------------------
 
     end subroutine AllocateVariables
@@ -23045,10 +23048,12 @@ cd1:    if (Evolution == Solve_Equations_) then
         !Guillaume
             call AssociateDirectionX
             
-            if(Me%ComputeOptions%LocalDensity) then
-                call FaceDensityUpdate
-            else
-                call SetMatrixValue( Me%FaceDensity, Me%Size, SigmaDensityReference)
+            if(Me%ComputeOptions%GlobalOptimization) then
+                if (Me%ComputeOptions%LocalDensity) then
+                    call FaceDensityUpdate
+                else
+                    call SetMatrixValue( Me%FaceDensity, Me%Size, SigmaDensityReference)
+                endif
             endif
             
             call Bottom_Boundary
@@ -23056,10 +23061,12 @@ cd1:    if (Evolution == Solve_Equations_) then
             call Compute_Velocity(PressureBackwardInTime = .true.)
             call AssociateDirectionY
             
-            if(Me%ComputeOptions%LocalDensity) then
-                call FaceDensityUpdate
-            else
-                call SetMatrixValue( Me%FaceDensity, Me%Size, SigmaDensityReference)
+            if(Me%ComputeOptions%GlobalOptimization) then
+                if (Me%ComputeOptions%LocalDensity) then
+                    call FaceDensityUpdate
+                else
+                    call SetMatrixValue( Me%FaceDensity, Me%Size, SigmaDensityReference)
+                endif
             endif
             
             call Bottom_Boundary
@@ -26069,10 +26076,12 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
         endif
 
-        if(Me%ComputeOptions%LocalDensity) then
-            call FaceDensityUpdate
-        else
-            call SetMatrixValue( Me%FaceDensity, Me%Size, SigmaDensityReference)
+        if(Me%ComputeOptions%GlobalOptimization) then
+            if (Me%ComputeOptions%LocalDensity) then
+                call FaceDensityUpdate
+            else
+                call SetMatrixValue( Me%FaceDensity, Me%Size, SigmaDensityReference)
+            endif
         endif
 
     End Subroutine  ChangeDirection
@@ -26111,10 +26120,12 @@ cd4:        if (ColdPeriod <= DT_RunPeriod) then
 
         endif
 
-        if(Me%ComputeOptions%LocalDensity) then
-            call FaceDensityUpdate
-        else
-            call SetMatrixValue( Me%FaceDensity, Me%Size, SigmaDensityReference)
+        if(Me%ComputeOptions%GlobalOptimization) then
+            if (Me%ComputeOptions%LocalDensity) then
+                call FaceDensityUpdate
+            else
+                call SetMatrixValue( Me%FaceDensity, Me%Size, SigmaDensityReference)
+            endif
         endif
 
     End Subroutine  MaintainDirection
@@ -48755,16 +48766,20 @@ dok:            do  k = kbottom, KUB
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
-                    kbottom = KFloor_UV(i, j)
                     if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                        
+                        kbottom = KFloor_UV(i, j)
+                        
+                        TPGradient = TidePotentialLevel(i - 1, j) - TidePotentialLevel(i, j)
+                        !Aceleration due the tide potential
+                        ![m/s^2]                   = [m/s^2] * [m] / [m]
+                        TidePotentialAceleration = - Gravity * TPGradient / DZX_ZY(i - 1, j)
+                        TidePotentialAceleration = TidePotentialAceleration * DT_Velocity
+                        
                         do  k = kbottom, KUB
-                            TPGradient = TidePotentialLevel(i - 1, j) - TidePotentialLevel(i, j)
-                            !Aceleration due the tide potential
-                            ![m/s^2]                   = [m/s^2] * [m] / [m]
-                            TidePotentialAceleration   = - Gravity * TPGradient / DZX_ZY(i - 1, j)
-
-                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * TidePotentialAceleration
+                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + TidePotentialAceleration
                         enddo
+                        
                     endif
                 enddo
                 enddo
@@ -48797,15 +48812,16 @@ dok:            do  k = kbottom, KUB
                 !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
                 do j = JLB, JUB
                 do i = ILB, IUB
-                    kbottom = KFloor_UV(i, j)
                     if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                        kbottom = KFloor_UV(i, j)
+                        
+                        TPGradient = TidePotentialLevel(i, j - 1) - TidePotentialLevel(i, j)
+                        !Aceleration due the tide potential
+                        ![m/s^2]                   = [m/s^2] * [m] / [m]
+                        TidePotentialAceleration   = - Gravity * TPGradient / DZX_ZY(i, j - 1)
+                        TidePotentialAceleration   = TidePotentialAceleration * DT_Velocity
                         do  k = kbottom, KUB
-                            TPGradient = TidePotentialLevel(i, j - 1) - TidePotentialLevel(i, j)
-                            !Aceleration due the tide potential
-                            ![m/s^2]                   = [m/s^2] * [m] / [m]
-                            TidePotentialAceleration   = - Gravity * TPGradient / DZX_ZY(i, j - 1)
-
-                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) + DT_Velocity * TidePotentialAceleration
+                            TiCoef_3D(i, j, k) = TiCoef_3D(i, j, k) +  TidePotentialAceleration
                         enddo
                     endif
                 enddo
@@ -48886,8 +48902,8 @@ dok:            do  k = kbottom, KUB
                 do i = ILB, IUB
                     kbottom = KFloor_UV(i, j)
                     if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                        AtmGradient = AtmPressure(i - 1, j) - AtmPressure(i, j)
                         do  k = kbottom, KUB
-                            AtmGradient = AtmPressure(i - 1, j) - AtmPressure(i, j)
                             Aux         = Me%FaceDensity(i, j, k) * DZX_ZY(i - 1, j)
                         !Aceleration due to Atmospheric Pressure
                             ![m/s^2]                        = [M*m/s^2/m^2] / ([M/m^3] * [m])
@@ -48936,8 +48952,8 @@ dok:            do  k = kbottom, KUB
                 do i = ILB, IUB
                     kbottom = KFloor_UV(i, j)
                     if (ComputeFaces3D_UV(i, j, KUB) == 1) then
+                        AtmGradient = AtmPressure(i, j - 1) - AtmPressure(i, j)
                         do  k = kbottom, KUB
-                            AtmGradient = AtmPressure(i, j - 1) - AtmPressure(i, j)
                             Aux = Me%FaceDensity(i, j, k) * DZX_ZY(i, j - 1)
 
                         !Aceleration due to Atmospheric Pressure
@@ -60654,8 +60670,10 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
         endif
 
-        deallocate (Me%FaceDensity)
-        nullify (Me%FaceDensity)
+        if (Me%ComputeOptions%GlobalOptimization) then
+            deallocate (Me%FaceDensity)
+            nullify (Me%FaceDensity)
+        endif
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
