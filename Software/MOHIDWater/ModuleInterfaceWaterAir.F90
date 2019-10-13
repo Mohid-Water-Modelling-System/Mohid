@@ -6238,7 +6238,7 @@ PropX:          do while (associated(PropertyX))
 
         !Local-----------------------------------------------------------------
         type(T_Property), pointer               :: PropertyX
-        real, pointer, dimension(:,:)           :: Precipitation
+        real, pointer, dimension(:,:)           :: AtmPressure, Precipitation
 
         !Begin-----------------------------------------------------------------
 
