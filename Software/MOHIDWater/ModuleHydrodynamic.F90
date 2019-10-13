@@ -12768,21 +12768,57 @@ i1:         if (CoordON) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructMatrixesOutput - ModuleHydrodynamic - ERR01b'
         endif
 
+        if (.not. Me%OutPut%Simple) then
+            allocate(Me%OutPut%Vorticity3D (ILB:IUB, JLB:JUB, KLB:KUB))
+            Me%OutPut%Vorticity3D   (:,:,:) = 0.
+        endif
+        
+        if (Me%ComputeOptions%WaveForcing3D == GLM) then
+            allocate(Me%OutPut%DirectionH     (ILB:IUB, JLB:JUB, KLB:KUB),                   &
+                     Me%OutPut%CenterUglm     (ILB:IUB, JLB:JUB, KLB:KUB),                   &
+                     Me%OutPut%CenterVglm     (ILB:IUB, JLB:JUB, KLB:KUB),                   &
+                     Me%OutPut%ModulusHglm    (ILB:IUB, JLB:JUB, KLB:KUB),                   &
+                     Me%OutPut%CenterWglm     (ILB:IUB, JLB:JUB, KLB:KUB),                   &
+                     Me%OutPut%CenterUstokes  (ILB:IUB, JLB:JUB, KLB:KUB),                   &
+                     Me%OutPut%CenterVstokes  (ILB:IUB, JLB:JUB, KLB:KUB),                   &
+                     Me%OutPut%ModulusHstokes (ILB:IUB, JLB:JUB, KLB:KUB),                   &
+                     Me%OutPut%CenterWstokes  (ILB:IUB, JLB:JUB, KLB:KUB),                   &
+                     STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructMatrixesOutput - ModuleHydrodynamic - ERR09'
+            
+            Me%OutPut%CenterUglm    (:,:,:) = 0.
+            Me%OutPut%CenterVglm    (:,:,:) = 0.
+            Me%OutPut%ModulusHglm   (:,:,:) = 0.
+            Me%OutPut%CenterWglm    (:,:,:) = 0.
+
+            Me%OutPut%CenterUstokes (:,:,:) = 0.
+            Me%OutPut%CenterVstokes (:,:,:) = 0.
+            Me%OutPut%ModulusHstokes(:,:,:) = 0.
+            Me%OutPut%CenterWstokes (:,:,:) = 0.
+            
+            if (Me%ComputeOptions%WaveForcing3D_Two == TauWalstra) then
+                allocate  (Me%OutPut%Wave3D_FBreakingAccelU(ILB:IUB, JLB:JUB, KLB:KUB))
+                allocate  (Me%OutPut%Wave3D_FBreakingAccelV(ILB:IUB, JLB:JUB, KLB:KUB))
+                allocate  (Me%OutPut%Wave3D_FVortexAccelU  (ILB:IUB, JLB:JUB, KLB:KUB))
+                allocate  (Me%OutPut%Wave3D_FVortexAccelV  (ILB:IUB, JLB:JUB, KLB:KUB))
+                allocate  (Me%OutPut%Wave3D_FPressureAccelU(ILB:IUB, JLB:JUB, KLB:KUB))
+                allocate  (Me%OutPut%Wave3D_FPressureAccelV(ILB:IUB, JLB:JUB, KLB:KUB))
+
+                Me%OutPut%Wave3D_FBreakingAccelU   (:,:,:) =0.
+                Me%OutPut%Wave3D_FBreakingAccelV   (:,:,:) =0.
+                Me%OutPut%Wave3D_FVortexAccelU     (:,:,:) =0.
+                Me%OutPut%Wave3D_FVortexAccelV     (:,:,:) =0.
+                Me%OutPut%Wave3D_FPressureAccelU   (:,:,:) =0.
+                Me%OutPut%Wave3D_FPressureAccelV   (:,:,:) =0.
+            endif
+            
+        endif
 
         allocate(Me%OutPut%DirectionH  (ILB:IUB, JLB:JUB, KLB:KUB),                     &
-                 Me%OutPut%Vorticity3D (ILB:IUB, JLB:JUB, KLB:KUB),                     &
                  Me%OutPut%CenterUaux  (ILB:IUB, JLB:JUB, KLB:KUB),                     &
                  Me%OutPut%CenterVaux  (ILB:IUB, JLB:JUB, KLB:KUB),                     &
                  Me%OutPut%ModulusUVaux(ILB:IUB, JLB:JUB, KLB:KUB),                     &
                  Me%OutPut%CenterWaux  (ILB:IUB, JLB:JUB, KLB:KUB),                     &
-                Me%OutPut%CenterUglm     (ILB:IUB, JLB:JUB, KLB:KUB),                   &
-                Me%OutPut%CenterVglm     (ILB:IUB, JLB:JUB, KLB:KUB),                   &
-                Me%OutPut%ModulusHglm    (ILB:IUB, JLB:JUB, KLB:KUB),                   &
-                Me%OutPut%CenterWglm     (ILB:IUB, JLB:JUB, KLB:KUB),                   &
-                Me%OutPut%CenterUstokes  (ILB:IUB, JLB:JUB, KLB:KUB),                   &
-                Me%OutPut%CenterVstokes  (ILB:IUB, JLB:JUB, KLB:KUB),                   &
-                Me%OutPut%ModulusHstokes (ILB:IUB, JLB:JUB, KLB:KUB),                   &
-                Me%OutPut%CenterWstokes  (ILB:IUB, JLB:JUB, KLB:KUB),                   &
                  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructMatrixesOutput - ModuleHydrodynamic - ERR10'
 
@@ -12790,9 +12826,9 @@ i1:         if (CoordON) then
         if (Me%Output%Real4)then
             Me%OutPut%AuxReal4      (:,:,:) = 0.
             Me%OutPut%Aux2DReal4    (:,:  ) = 0.
-        Me%OutPut%CenterU       (:,:,:) = 0.
-        Me%OutPut%CenterV       (:,:,:) = 0.
-        Me%OutPut%ModulusH      (:,:,:) = 0.
+            Me%OutPut%CenterU       (:,:,:) = 0.
+            Me%OutPut%CenterV       (:,:,:) = 0.
+            Me%OutPut%ModulusH      (:,:,:) = 0.
             Me%OutPut%CenterW       (:,:,:) = 0.
             Me%OutPut%Aux2D         (:,:  ) = 0.
         else
@@ -12804,21 +12840,10 @@ i1:         if (CoordON) then
         endif
 
         Me%OutPut%DirectionH    (:,:,:) = 0.
-        Me%OutPut%Vorticity3D   (:,:,:) = 0.
         Me%OutPut%CenterUaux    (:,:,:) = 0.
         Me%OutPut%CenterVaux    (:,:,:) = 0.
         Me%OutPut%ModulusUVaux  (:,:,:) = 0.
         Me%OutPut%CenterWaux    (:,:,:) = 0.
-
-        Me%OutPut%CenterUglm    (:,:,:) = 0.
-        Me%OutPut%CenterVglm    (:,:,:) = 0.
-        Me%OutPut%ModulusHglm   (:,:,:) = 0.
-        Me%OutPut%CenterWglm    (:,:,:) = 0.
-
-        Me%OutPut%CenterUstokes (:,:,:) = 0.
-        Me%OutPut%CenterVstokes (:,:,:) = 0.
-        Me%OutPut%ModulusHstokes(:,:,:) = 0.
-        Me%OutPut%CenterWstokes (:,:,:) = 0.
 
         if (Me%ComputeOptions%WaterLevelMaxMin) then
 
@@ -12886,24 +12911,6 @@ i1:         if (CoordON) then
             call ReadUnLock_ModuleHorizontalMap
 
         endif
-
-        allocate  (Me%OutPut%Wave3D_FBreakingAccelU(ILB:IUB, JLB:JUB, KLB:KUB))
-        allocate  (Me%OutPut%Wave3D_FBreakingAccelV(ILB:IUB, JLB:JUB, KLB:KUB))
-
-        allocate  (Me%OutPut%Wave3D_FVortexAccelU(ILB:IUB, JLB:JUB, KLB:KUB))
-        allocate  (Me%OutPut%Wave3D_FVortexAccelV(ILB:IUB, JLB:JUB, KLB:KUB))
-
-        allocate  (Me%OutPut%Wave3D_FPressureAccelU(ILB:IUB, JLB:JUB, KLB:KUB))
-        allocate  (Me%OutPut%Wave3D_FPressureAccelV(ILB:IUB, JLB:JUB, KLB:KUB))
-
-        Me%OutPut%Wave3D_FBreakingAccelU (:,:,:) =0.
-        Me%OutPut%Wave3D_FBreakingAccelV (:,:,:) =0.
-
-        Me%OutPut%Wave3D_FVortexAccelU   (:,:,:) =0.
-        Me%OutPut%Wave3D_FVortexAccelV   (:,:,:) =0.
-
-        Me%OutPut%Wave3D_FPressureAccelU   (:,:,:) =0.
-        Me%OutPut%Wave3D_FPressureAccelV   (:,:,:) =0.
 
     end subroutine ConstructMatrixesOutput
 
@@ -34612,8 +34619,13 @@ cd44:           if (Me%SubModel%ON) then
             if (UseOptimized) then
                 
                 call Modify_Diffusion_UY_VX2  ( Aux_UY_VX, Biharmonic = .false.) !Joao Sobrinho
-
-                call Modify_Diffusion_UX_VY2  ( Aux_UX_VY, Biharmonic = .false.) !Joao Sobrinho
+                
+                if (Me%ComputeOptions%MomentumDischarge) then
+                    !Use non-optimized version. To optimize, create a new routine for when momentum discharge is active.
+                    call Modify_Diffusion_UX_VY  ( Aux_UX_VY, Biharmonic = .false.)
+                else
+                    call Modify_Diffusion_UX_VY2  ( Aux_UX_VY, Biharmonic = .false.) !Joao Sobrinho
+                endif
             else
                 call Modify_Diffusion_UY_VX  ( Aux_UY_VX, Biharmonic = .false.)
 
@@ -37964,26 +37976,20 @@ cd1:                if (ConservativeHorDif) then
         endif
 
         call SetMatrixValue( Me%Aux3DFlux, Me%Size, dble(0.))
-
-        if (Me%ComputeOptions%MomentumDischarge) then
-            !Use non-optimized version. To optimize, create a new routine for when momentum discharge is active.
-            call Modify_Diffusion_UX_VY  ( Aux_UX_VY, Biharmonic = .false.)  
-        else
             
-            if (Me%Direction%di == 1) then
-                !Compute Y direction
-                call Modify_Diffusion_UX_VY_Y (Velocity_UV_Old, Me%External_Var%ComputeFaces3D_V,                   &
-                                          Me%External_Var%KFloor_V, Me%External_Var%Volume_V, Me%External_Var%DVY,  &
-                                          Me%External_Var%DZY, Me%Forces%Horizontal_Transport, Biharmonic)
-            else
-                !Compute X direction
-                call Modify_Diffusion_UX_VY_X (Velocity_UV_Old, Me%External_Var%ComputeFaces3D_U,                   &
-                                          Me%External_Var%KFloor_U, Me%External_Var%Volume_U, Me%External_Var%DUX,  &
-                                          Me%External_Var%DZX, Me%Forces%Horizontal_Transport, Biharmonic)
-            endif
-
-            call SumMatrixes(Me%Forces%Horizontal_Transport, Me%WorkSize, Me%Aux3DFlux) 
+        if (Me%Direction%di == 1) then
+            !Compute Y direction
+            call Modify_Diffusion_UX_VY_Y (Velocity_UV_Old, Me%External_Var%ComputeFaces3D_V,                   &
+                                        Me%External_Var%KFloor_V, Me%External_Var%Volume_V, Me%External_Var%DVY,  &
+                                        Me%External_Var%DZY, Me%Forces%Horizontal_Transport, Biharmonic)
+        else
+            !Compute X direction
+            call Modify_Diffusion_UX_VY_X (Velocity_UV_Old, Me%External_Var%ComputeFaces3D_U,                   &
+                                        Me%External_Var%KFloor_U, Me%External_Var%Volume_U, Me%External_Var%DUX,  &
+                                        Me%External_Var%DZX, Me%Forces%Horizontal_Transport, Biharmonic)
         endif
+
+        call SumMatrixes(Me%Forces%Horizontal_Transport, Me%WorkSize, Me%Aux3DFlux) 
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Modify_Diffusion_UX_VY2")
@@ -60345,14 +60351,6 @@ ic1:    if (Me%CyclicBoundary%ON) then
                    Me%OutPut%CenterVaux,                                                &
                    Me%OutPut%ModulusUVaux,                                              &
                    Me%OutPut%CenterWaux,                                                &
-                   Me%OutPut%CenterUglm   ,                                             &
-                   Me%OutPut%CenterVglm   ,                                             &
-                   Me%OutPut%ModulusHglm  ,                                             &
-                   Me%OutPut%CenterWglm   ,                                             &
-                   Me%OutPut%CenterUstokes   ,                                          &
-                   Me%OutPut%CenterVstokes   ,                                          &
-                   Me%OutPut%ModulusHstokes  ,                                          &
-                   Me%OutPut%CenterWstokes   ,                                          &
                    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'KillMatrixesOutput - ModuleHydrodynamic - ERR10'
 
@@ -60373,20 +60371,55 @@ ic1:    if (Me%CyclicBoundary%ON) then
         endif
 
         nullify  (Me%OutPut%DirectionH  )
-        nullify  (Me%OutPut%CenterUglm     )
-        nullify  (Me%OutPut%CenterVglm     )
-        nullify  (Me%OutPut%ModulusHglm    )
-        nullify  (Me%OutPut%CenterWglm     )
-        nullify  (Me%OutPut%CenterUstokes  )
-        nullify  (Me%OutPut%CenterVstokes  )
-        nullify  (Me%OutPut%ModulusHstokes )
-        nullify  (Me%OutPut%CenterWstokes  )
         nullify  (Me%OutPut%CenterUaux  )
         nullify  (Me%OutPut%CenterVaux  )
         nullify  (Me%OutPut%ModulusUVaux)
         nullify  (Me%OutPut%CenterWaux  )
         nullify  (Me%OutPut%Aux2D       )
-
+        
+        if (Me%ComputeOptions%WaveForcing3D == GLM) then
+            
+            deallocate(Me%OutPut%CenterUglm     ,                                  &
+                       Me%OutPut%CenterVglm     ,                                  &
+                       Me%OutPut%ModulusHglm    ,                                  &
+                       Me%OutPut%CenterWglm     ,                                  &
+                       Me%OutPut%CenterUstokes  ,                                  &
+                       Me%OutPut%CenterVstokes  ,                                  &
+                       Me%OutPut%ModulusHstokes ,                                  &
+                       Me%OutPut%CenterWstokes  ,                                  &
+                       STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) &
+                stop 'KillMatrixesOutput - ModuleHydrodynamic - Failed to deallocate a variable of GLM'
+            
+            nullify  (Me%OutPut%CenterUglm     )
+            nullify  (Me%OutPut%CenterVglm     )
+            nullify  (Me%OutPut%ModulusHglm    )
+            nullify  (Me%OutPut%CenterWglm     )
+            nullify  (Me%OutPut%CenterUstokes  )
+            nullify  (Me%OutPut%CenterVstokes  )
+            nullify  (Me%OutPut%ModulusHstokes )
+            nullify  (Me%OutPut%CenterWstokes  )
+            
+            if (Me%ComputeOptions%WaveForcing3D_Two == TauWalstra) then
+                
+                deallocate (Me%OutPut%Wave3D_FPressureAccelU ,                    &
+                            Me%OutPut%Wave3D_FPressureAccelV ,                    &
+                            Me%OutPut%Wave3D_FBreakingAccelU ,                    &
+                            Me%OutPut%Wave3D_FBreakingAccelV ,                    &
+                            Me%OutPut%Wave3D_FVortexAccelU   ,                    &
+                            Me%OutPut%Wave3D_FVortexAccelV   ,                    &
+                            STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) &
+                    stop 'KillMatrixesOutput - ModuleHydrodynamic - Failed to deallocate a variable of TauWalstra'
+                
+                nullify  (Me%OutPut%Wave3D_FPressureAccelU)
+                nullify  (Me%OutPut%Wave3D_FPressureAccelV)
+                nullify  (Me%OutPut%Wave3D_FBreakingAccelU)
+                nullify  (Me%OutPut%Wave3D_FBreakingAccelV)
+                nullify  (Me%OutPut%Wave3D_FVortexAccelU  )
+                nullify  (Me%OutPut%Wave3D_FVortexAccelV  )
+            endif
+        endif
 
         if (Me%ComputeOptions%WaterLevelMaxMin) then
 
@@ -60406,20 +60439,6 @@ ic1:    if (Me%CyclicBoundary%ON) then
             deallocate (Me%WaterLevel%TideState)
             nullify    (Me%WaterLevel%TideState)
         endif
-
-        deallocate (Me%OutPut%Wave3D_FPressureAccelU  )
-        deallocate (Me%OutPut%Wave3D_FPressureAccelV  )
-        deallocate (Me%OutPut%Wave3D_FBreakingAccelU)
-        deallocate (Me%OutPut%Wave3D_FBreakingAccelV)
-        deallocate (Me%OutPut%Wave3D_FVortexAccelU  )
-        deallocate (Me%OutPut%Wave3D_FVortexAccelV  )
-
-        nullify  (Me%OutPut%Wave3D_FPressureAccelU  )
-        nullify  (Me%OutPut%Wave3D_FPressureAccelV  )
-        nullify  (Me%OutPut%Wave3D_FBreakingAccelU)
-        nullify  (Me%OutPut%Wave3D_FBreakingAccelV)
-        nullify  (Me%OutPut%Wave3D_FVortexAccelU  )
-        nullify  (Me%OutPut%Wave3D_FVortexAccelV  )
 
     end subroutine KillMatrixesOutput
 
