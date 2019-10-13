@@ -34458,7 +34458,7 @@ cd3:                   if (Manning) then
         integer                            :: I, J, K
 
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
-
+        logical                            :: UseOptimized
         !$ integer                            :: CHUNK
 
         !--------------------------------------------------------------------------
@@ -34480,6 +34480,8 @@ cd3:                   if (Manning) then
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
         LandBoundaryFacesUV  => Me%External_Var%LandBoundaryFacesUV
         !End - Shorten variables name
+        
+        UseOptimized = .false.
 
         call SetMatrixValue(Horizontal_Transport, Me%WorkSize, dble(0.0))
 
@@ -34523,6 +34525,17 @@ cd1:    if (Me%ComputeOptions%HorizontalAdvection) then
 cd2:    if (Me%ComputeOptions%HorizontalDiffusion) then
             !Biharmonic filter is able to dissipate the high frequency variabiliy (1dx,4dx and 6dx)
             !without dissipating energy associated with the big spatial scales
+    
+            if (Me%ComputeOptions%HorizontalDiffusionOpt) then
+                if ( .not. Me%ComputeOptions%ConservativeHorDif)then
+                    if (Me%ComputeOptions%SlippingCondition) then
+                        if ( .not. Me%CyclicBoundary%ON)  then
+                            UseOptimized = .true.
+                        endif
+                    endif
+                endif
+            endif
+            
 
 cd3:        if (Me%ComputeOptions%BiHarmonic) then
 
@@ -34568,7 +34581,7 @@ cd3:        if (Me%ComputeOptions%BiHarmonic) then
 
                 endif
 
-                if (Me%ComputeOptions%HorizontalDiffusionOpt) then
+                if (UseOptimized) then
                     call Modify_Diffusion_UY_VX2  ( Aux_UY_VX, Biharmonic = .true.) !Joao Sobrinho
 
                     call Modify_Diffusion_UX_VY2  ( Aux_UX_VY, Biharmonic = .true.) !Joao Sobrinho
@@ -34596,7 +34609,7 @@ cd44:           if (Me%SubModel%ON) then
 
             Aux_UX_VY => Me%Velocity%Horizontal%UV%Old
             
-            if (Me%ComputeOptions%HorizontalDiffusionOpt) then
+            if (UseOptimized) then
                 
                 call Modify_Diffusion_UY_VX2  ( Aux_UY_VX, Biharmonic = .false.) !Joao Sobrinho
 
@@ -37944,56 +37957,19 @@ cd1:                if (ConservativeHorDif) then
         !Arguments------------------------------------------------------------
         real,    dimension(:,:,:), pointer, intent(IN) :: Velocity_UV_Old
         logical, intent (IN)                           :: Biharmonic
-        !Local-----------------------------------------------------------------------------
-        real(8), dimension(:,:,:), pointer :: Horizontal_Transport, Volume_Z_New, Volume_UV
-        real,    dimension(:,:,:), pointer :: Visc_H_Center
-        real,    dimension(:,:),   pointer :: DUX_VY, DZX_ZY
-        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV, ImposedNormalFacesUV
-        integer, dimension(:,:),   pointer :: KFloor_UV
-        logical                            :: ConservativeHorDif, ComputeFlux, GoForOptimized
-        real                               :: FaceFlux_WestSouth1, FaceFlux_WestSouth2, Aux, ViscAux
-        real                               :: Vel_UV_South, Vel_UV_North
-        integer                            :: di, dj, i, j, k, Kbottom
-        integer                            :: iSouth, jWest, i_North, j_East
-        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
-        !$ integer                            :: CHUNK
-
         !Begin-----------------------------------------------------------------------------
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
-
-        di  = Me%Direction%di
-        dj  = Me%Direction%dj
-
-        ConservativeHorDif   =  Me%ComputeOptions%ConservativeHorDif
-        Visc_H_Center        => Me%External_Var%Visc_H_Center
-        Horizontal_Transport => Me%Forces%Horizontal_Transport
-        ImposedNormalFacesUV => Me%External_Var%ImposedNormalFacesUV
-        ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
-        KFloor_UV            => Me%External_Var%KFloor_UV
-        Volume_Z_New         => Me%External_Var%Volume_Z_New
-        DUX_VY               => Me%External_Var%DUX_VY
-        DZX_ZY               => Me%External_Var%DZX_ZY
-        Volume_UV            => Me%External_Var%Volume_UV
+        
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleHydrodynamic", "Modify_Diffusion_UX_VY2")
+        endif
 
         call SetMatrixValue( Me%Aux3DFlux, Me%Size, dble(0.))
 
-        if (.not. Me%ComputeOptions%ConservativeHorDif)then
-            if (Me%ComputeOptions%SlippingCondition) then
-                if ( .not. Me%CyclicBoundary%ON)  then
-                    if (.not.Me%ComputeOptions%MomentumDischarge) then
-                        GoForOptimized = .true.
-                    endif
-                endif
-            endif
-        endif
-
-        if (GoForOptimized) then
+        if (Me%ComputeOptions%MomentumDischarge) then
+            !Use non-optimized version. To optimize, create a new routine for when momentum discharge is active.
+            call Modify_Diffusion_UX_VY  ( Aux_UX_VY, Biharmonic = .false.)  
+        else
+            
             if (Me%Direction%di == 1) then
                 !Compute Y direction
                 call Modify_Diffusion_UX_VY_Y (Velocity_UV_Old, Me%External_Var%ComputeFaces3D_V,                   &
@@ -38006,171 +37982,13 @@ cd1:                if (ConservativeHorDif) then
                                           Me%External_Var%DZX, Me%Forces%Horizontal_Transport, Biharmonic)
             endif
 
-            call SumMatrixes(Me%Forces%Horizontal_Transport, Me%WorkSize, Me%Aux3DFlux)
-        else
-
-      !------------------------Original non-optimized routine--------------------------------------------------
-            if (MonitorPerformance) then
-                call StartWatch ("ModuleHydrodynamic", "Modify_Diffusion_UX_VY")
-            endif
-            !$ CHUNK = CHUNK_J(JLB,JUB)
-
-            !It was lacking Vel_UV_South and Vel_UV_North in private what created OpenMP errors
-            !$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
-            !$OMP                   iSouth, jWest, i_North, j_East, &
-            !$OMP                   ComputeFlux, &
-            !$OMP                   ViscAux,FaceFlux_WestSouth1,FaceFlux_WestSouth2, &
-            !$OMP                   Aux,Vel_UV_South,Vel_UV_North)
-
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-    doi:    do j=JLB, JUB
-    doj:    do i=ILB, IUB
-
-                iSouth  = i -   di
-                jWest   = j -   dj
-                i_North = i +   di
-                j_East  = j +   dj
-
-                ComputeFlux = .false.
-
-                if (Me%ComputeOptions%SlippingCondition) then
-
-                    if (ComputeFaces3D_UV(i      , j   , KUB) == Covered  .and.            &
-                        ComputeFaces3D_UV(iSouth, jWest, KUB) == Covered )   ComputeFlux = .true.
-
-                else
-
-                    if (ComputeFaces3D_UV   (i      , j     , KUB) == Covered  .or.          &
-                        ComputeFaces3D_UV   (iSouth, jWest, KUB) == Covered) ComputeFlux = .true.
-
-                endif
-
-                !When the boundary is Cyclic the momentum diffusion flux is also compute for the boundary faces
-                if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == Me%Direction%XY .or. &
-                                                Me%CyclicBoundary%Direction == DirectionXY_))  then
-
-                    if ((ComputeFaces3D_UV   (i     , j     , KUB) == Covered .and.          &
-                         ImposedNormalFacesUV(iSouth, jWest , KUB) == Imposed) .or.          &
-                        (ComputeFaces3D_UV   (iSouth, jWest , KUB) == Covered .and.          &
-                         ImposedNormalFacesUV(i     , j     , KUB) == Imposed))              &
-                                                                               ComputeFlux = .true.
-
-                endif
-
-    cd0:        if (ComputeFlux) then
-                    Kbottom = max(KFloor_UV(i, j), KFloor_UV(iSouth, jWest))
-
-    dok1:           do k = Kbottom, KUB
-
-                        if (BiHarmonic) then
-
-                            ViscAux = Me%ComputeOptions%BiHarmonicCoef
-
-                        else
-
-                            ViscAux = Visc_H_Center( iSouth, jWest, k)
-
-                        endif
-
-                        Vel_UV_South = Velocity_UV_Old( iSouth, jWest, k)
-                        Vel_UV_North = Velocity_UV_Old( i     , j    , k)
-
-                        if (Me%WaterFluxes%Discharges( iSouth, jWest, k) > 0. .and.     &
-                                    ComputeFaces3D_UV( iSouth, jWest, k) /= Covered) then
-
-                            if (Me%ComputeOptions%MomentumDischarge) then
-                                Vel_UV_South = Me%WaterFluxes%DischargesVelUV(iSouth, jWest, k)
-                            endif
-
-
-                        endif
-
-                        if (Me%WaterFluxes%Discharges(i, j, k) > 0. .and.               &
-                                    ComputeFaces3D_UV(i, j, k) /= Covered) then
-
-                            if (Me%ComputeOptions%MomentumDischarge) then
-                                Vel_UV_South = Me%WaterFluxes%DischargesVelUV(i, j, k)
-                            endif
-
-                        endif
-
-    cd1:                if (ConservativeHorDif) then
-
-                            ! West or South Face
-
-                            ![m^3/s*m/s]       = [m^2/s] * [m/s] / [m] * [m^3] / [m]
-                            FaceFlux_WestSouth1 = ViscAux                            *      & ! Turbulent viscosity
-                                                 (Vel_UV_North - Vel_UV_South) /            &
-                                                 DUX_VY( iSouth, jWest) *                   & ! Velocity gradient
-                                                 Volume_Z_New( iSouth, jWest, k) /          &
-                                                 DUX_VY( iSouth, jWest)                     ! Face Area
-
-                            FaceFlux_WestSouth2 = FaceFlux_WestSouth1
-
-                        else cd1
-
-                            ![m^2/s^2] = [m^2/s] * [m/s] / [m]
-                            Aux                 = ViscAux                           *       & ! Turbulent viscosity
-                                                (Vel_UV_North - Vel_UV_South) /             &
-                                                 DUX_VY( iSouth, jWest)                       ! Velocity gradient
-
-                            !The velocity gradient plus the volume divided by the distance between
-                            !volume faces is equal to compute in a non-conservative way the lapalcian of the
-                            !velocity plus viscosity. The effect of the variable horizontal_transport in the velocity
-                            !is compute dividing the variable horizontal_Transport/VolumeU*DT = Visc * Laplacian(Velocity)
-                            !
-
-                            ![m^3/s*m/s]         = [m^2/s^2] * [m^3]/[m]
-                            FaceFlux_WestSouth1 = Aux * Volume_UV(i      , j     , k) /      &
-                                                        DZX_ZY   (i - di , j - dj)
-
-                            ![m^3/s*m/s]         = [m^2/s^2] * [m^3]/[m]
-                            FaceFlux_WestSouth2 = Aux * Volume_UV(iSouth, jWest, k) /      &
-                                                        DZX_ZY   (iSouth - di , jWest - dj)
-
-                        endif cd1
-
-                        Horizontal_Transport(i, j, k)            = Horizontal_Transport(i, j, k) &
-                                                                  - FaceFlux_WestSouth1
-
-                        Me%Aux3DFlux        (iSouth, jWest, k)   =  FaceFlux_WestSouth2
-
-                     enddo dok1
-
-                 endif cd0
-
-            enddo doj
-            enddo doi
-            !$OMP END DO
-
-            do k=KLB, KUB
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do j=JLB, JUB
-            do i=ILB, IUB
-                Horizontal_Transport(i, j, k) = Horizontal_Transport(i, j, k) + Me%Aux3DFlux(i, j, k)
-            enddo
-            enddo
-            !$OMP END DO NOWAIT
-            enddo
-
-            !$OMP END PARALLEL
-
-            if (MonitorPerformance) then
-                call StopWatch ("ModuleHydrodynamic", "Modify_Diffusion_UX_VY")
-            endif
+            call SumMatrixes(Me%Forces%Horizontal_Transport, Me%WorkSize, Me%Aux3DFlux) 
         endif
 
-        !Nullify auxiliar pointers
-        nullify (Horizontal_Transport)
-        nullify (Volume_Z_New        )
-        nullify (Visc_H_Center       )
-        nullify (DUX_VY              )
-        nullify (DZX_ZY              )
-        nullify (ComputeFaces3D_UV   )
-        nullify (ImposedNormalFacesUV)
-        nullify (KFloor_UV           )
-        nullify (Volume_UV           )
-
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleHydrodynamic", "Modify_Diffusion_UX_VY2")
+        endif
+        
     End Subroutine Modify_Diffusion_UX_VY2
 
     !End---------------------------------------------------------------------------
@@ -38654,271 +38472,33 @@ cd2:                    if (ConservativeHorDif) then
     Subroutine Modify_Diffusion_UY_VX2 (Velocity_UV_Old, Biharmonic)
 
         !Arguments--------------------------------------------------------------------------
-
         real,    dimension(:,:,:), pointer, intent(IN)  :: Velocity_UV_Old
         logical,                            intent(IN)  :: Biharmonic
-        !Local-----------------------------------------------------------------------------
-        real(8), dimension(:,:,:), pointer :: Horizontal_Transport, Volume_UV
-        real,    dimension(:,:,:), pointer :: Area_VU
-        real,    dimension(:,:),   pointer :: DYY_XX
-
-        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
-        integer, dimension(:,:,:), pointer :: ImposedTangentialFacesUV
-        integer, dimension(:,:),   pointer :: KFloor_UV
-
-        real                               :: FaceFlux_SouthWest1, FaceFlux_SouthWest2
-
-        real                               :: Aux, ViscAux
-
-        logical                            :: ConservativeHorDif, NoSlipFace,            &
-                                              ComputeFlux, ComputeFlux1, ComputeFlux2, GoForOptimized
-
-        integer                            :: di, dj, i, j, k, Kbottom
-
-        integer                            :: iSouth, jWest, i_West, j_South
-
-        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
-
-        !$ integer                            :: CHUNK
-
         !Begin-------------------------------------------------------------------------------
-
-        !Begin - Shorten variables name
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
-
-        di  = Me%Direction%di
-        dj  = Me%Direction%dj
-
-        ConservativeHorDif   =  Me%ComputeOptions%ConservativeHorDif
-        Horizontal_Transport => Me%Forces%Horizontal_Transport
-        ImposedTangentialFacesUV => Me%External_Var%ImposedTangentialFacesUV
-        ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
-        KFloor_UV            => Me%External_Var%KFloor_UV
-        Volume_UV            => Me%External_Var%Volume_UV
-        Area_VU              => Me%External_Var%Area_VU
-        DYY_XX               => Me%External_Var%DYY_XX
-        !End - Shorten variables name
-
-        GoForOptimized = .false.
-
+        
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleHydrodynamic", "Modify_Diffusion_UY_VX2")
+        endif
+        
         call SetMatrixValue( Me%Aux3DFlux, Me%Size, dble(0.))
 
-        if ( .not. Me%ComputeOptions%ConservativeHorDif)then
-            if (Me%ComputeOptions%SlippingCondition) then
-                if ( .not. Me%CyclicBoundary%ON)  then
-                    GoForOptimized = .true.
-                endif
-            endif
-        endif
-
-        if (GoForOptimized) then
-            if (Me%Direction%di == 1) then
-                !Compute Y direction
-                call Modify_Diffusion_UY_VX_Y (Velocity_UV_Old, Me%External_Var%ComputeFaces3D_V,                  &
-                                          Me%External_Var%KFloor_V, Me%External_Var%Volume_V, Me%External_Var%DXX, &
-                                          Me%Forces%Horizontal_Transport, Biharmonic)
-            else
-                !Compute X direction
-                call Modify_Diffusion_UY_VX_X (Velocity_UV_Old, Me%External_Var%ComputeFaces3D_U,                   &
-                                          Me%External_Var%KFloor_U, Me%External_Var%Volume_U, Me%External_Var%DYY,  &
-                                          Me%Forces%Horizontal_Transport, Biharmonic)
-            endif
-
-            call SumMatrixes(Me%Forces%Horizontal_Transport, Me%WorkSize, Me%Aux3DFlux)
+        if (Me%Direction%di == 1) then
+            !Compute Y direction
+            call Modify_Diffusion_UY_VX_Y (Velocity_UV_Old, Me%External_Var%ComputeFaces3D_V,                  &
+                                        Me%External_Var%KFloor_V, Me%External_Var%Volume_V, Me%External_Var%DXX, &
+                                        Me%Forces%Horizontal_Transport, Biharmonic)
         else
-            !Original non-optimized routine
-
-            if (MonitorPerformance) then
-                call StartWatch ("ModuleHydrodynamic", "Modify_Diffusion_UY_VX")
-            endif
-            !$ CHUNK = CHUNK_J(JLB,JUB)
-            !$OMP PARALLEL PRIVATE( i,j,k, Kbottom, &
-            !$OMP                   iSouth, jWest, i_West, j_South, &
-            !$OMP                   ComputeFlux, ComputeFlux1, ComputeFlux2, &
-            !$OMP                   ViscAux,FaceFlux_SouthWest1,FaceFlux_SouthWest2, &
-            !$OMP                   NoSlipFace, Aux)
-
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-        doi: do j=JLB, JUB
-            doj: do i=ILB, IUB
-
-                    iSouth  = i - di
-                    jWest   = j - dj
-
-                    i_West   = i - dj
-                    j_South  = j - di
-
-                    ComputeFlux  = .false.
-                    ComputeFlux1 = .false.
-                    ComputeFlux2 = .false.
-
-                    if (Me%ComputeOptions%SlippingCondition) then
-
-                        if (ComputeFaces3D_UV(i     , j      , KUB) == Covered .and.             &
-                            ComputeFaces3D_UV(i_West, j_South, KUB) == Covered) ComputeFlux = .true.
-
-                    else
-
-                        if (ComputeFaces3D_UV        (i     , j      , KUB) == Covered .or.      &
-                            ComputeFaces3D_UV        (i_West, j_South, KUB) == Covered) then
-
-                            ComputeFlux = .true.
-                            if (ComputeFaces3D_UV    (i     , j      , KUB) == Covered) ComputeFlux1 = .true.
-                            if (ComputeFaces3D_UV    (i_West, j_South, KUB) == Covered) ComputeFlux2 = .true.
-
-                        endif
-
-                    endif
-
-                    !When the boundary is Cyclic the momentum diffusion flux is also compute for the boundary faces
-                    if (Me%CyclicBoundary%ON .and. (Me%CyclicBoundary%Direction == Me%Direction%XY .or. &
-                        Me%CyclicBoundary%Direction == DirectionXY_))  then
-
-                        if ((ComputeFaces3D_UV       (i     , j       , KUB) == Covered .and.    &
-                            ImposedTangentialFacesUV(i_West, j_South , KUB) == Imposed) .or.    &
-                            (ComputeFaces3D_UV       (i_West, j_South , KUB) == Covered .and.    &
-                            ImposedTangentialFacesUV(i     , j       , KUB) == Imposed)) then
-
-                            ComputeFlux = .true.
-
-                            ComputeFlux1 = .true.
-
-                            ComputeFlux2 = .true.
-
-                        endif
-
-                    endif
-
-        cd0:        if (ComputeFlux) then
-
-                        Kbottom = max(KFloor_UV(i, j), KFloor_UV(i_West, j_South))
-
-                dok1:    do k = Kbottom, KUB
-
-                            ! West or South Face
-
-                            !cd1:                if (ComputeFaces3D_U(i-1,  j,  k) == Covered .and. &
-                            !                        ComputeFaces3D_U(i,  j,  k) == Covered .and. &
-                            !                        ComputeFaces3D_V(i,  j-1,k) == Covered .and. &
-                            !                        ComputeFaces3D_V(i,  j,  k) == Covered) then
-
-
-                            if (Biharmonic) then
-
-                                ViscAux = Me%ComputeOptions%BiHarmonicCoef
-
-                            else
-
-                                ViscAux = Me%External_Var%Visc_H_Corner(i, j, k)
-
-                            endif
-
-                            NoSlipFace = .false.
-
-                            !Test if one of the faces is not covered
-                            if (.not. Me%ComputeOptions%SlippingCondition)  then
-
-                                call DiffusionAlongNotCoveredFaces(Velocity_UV_Old,              &
-                                    ComputeFlux1,                      &
-                                    ComputeFlux2,                      &
-                                    DYY_XX, Volume_UV,                 &
-                                    FaceFlux_SouthWest1,               &
-                                    FaceFlux_SouthWest2,               &
-                                    NoSlipFace,                        &
-                                    ViscAux,                           &
-                                    i_West, j_South, i, j, k)
-
-                            endif
-
-        cd3:                if (.not. NoSlipFace) then
-
-        cd2:                    if (ConservativeHorDif) then
-
-                                    ![m^3/s*m/s]       = [m^2/s] * [m/s] / [m]  * [m^2]
-                                    FaceFlux_SouthWest1 = ViscAux               *           & ! Turbulent viscosity
-                                        (Velocity_UV_Old(i, j, k) -             &
-                                        Velocity_UV_Old(i_West, j_South, k)) / &
-                                        (DYY_XX(i_West, j_South) +              &
-                                        DYY_XX( i, j)) *                       & ! half of the Velocity gradient
-                                        (Area_VU(iSouth, jWest, k) +            &
-                                        Area_VU(i     , j    , k))               ! double of the Face Area
-
-                                    FaceFlux_SouthWest2 = FaceFlux_SouthWest1
-
-                                else cd2
-
-
-                                    ![m^2/s^2] = [m^2/s] * [m/s] / [m]
-                                    Aux = ViscAux                *                                   &  ! Turbulent viscosity
-                                        (Velocity_UV_Old(i, j, k) -                                 &
-                                        Velocity_UV_Old(i_West, j_South, k)) /                     &
-                                        (DYY_XX(i_West, j_South) +                                  &
-                                        DYY_XX( i, j)) * 2                        ! Velocity gradient
-
-                                    ![m^3/s*m/s]         = [m^2/s^2] * [m^3]/[m]
-                                    FaceFlux_SouthWest1 = Aux  *                                     &
-                                        Volume_UV   (i     , j, k) /               &  ! Area
-                                        DYY_XX      (i     , j   )
-
-                                    ![m^3/s*m/s]         = [m^2/s^2] * [m^3]/[m]
-                                    FaceFlux_SouthWest2 = Aux  *                                     &
-                                        Volume_UV   (i_West, j_South, k) /         &
-                                        DYY_XX      (i_West, j_South)
-
-                                endif cd2
-
-                            endif cd3
-
-
-                            Horizontal_Transport(i, j, k)            = Horizontal_Transport(i, j, k) - &
-                                FaceFlux_SouthWest1           * &
-                                ComputeFaces3D_UV   (i, j, k)
-
-                            Me%Aux3DFlux(i_West, j_South, k)         = FaceFlux_SouthWest2   * &
-                                ComputeFaces3D_UV   (i_West, j_South, k)
-
-
-                        enddo dok1
-
-                    endif cd0
-
-                enddo doj
-            enddo doi
-            !$OMP END DO
-
-            do k=KLB, KUB
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do j=JLB, JUB
-            do i=ILB, IUB
-                Horizontal_Transport(i, j, k)= Horizontal_Transport(i, j, k) + Me%Aux3DFlux(i, j, k)
-            enddo
-            enddo
-            !$OMP END DO NOWAIT
-            enddo
-
-            !$OMP END PARALLEL
-
-            if (MonitorPerformance) then
-                call StopWatch ("ModuleHydrodynamic", "Modify_Diffusion_UY_VX")
-            endif
-
+            !Compute X direction
+            call Modify_Diffusion_UY_VX_X (Velocity_UV_Old, Me%External_Var%ComputeFaces3D_U,                   &
+                                        Me%External_Var%KFloor_U, Me%External_Var%Volume_U, Me%External_Var%DYY,  &
+                                        Me%Forces%Horizontal_Transport, Biharmonic)
         endif
 
-        !Nullify auxiliar pointers
-        nullify (Horizontal_Transport)
-        nullify (Area_VU)
-        nullify (DYY_XX)
-        nullify (ComputeFaces3D_UV)
-        nullify (ImposedTangentialFacesUV)
-        nullify (KFloor_UV)
-        nullify (Volume_UV)
+        call SumMatrixes(Me%Forces%Horizontal_Transport, Me%WorkSize, Me%Aux3DFlux)
 
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleHydrodynamic", "Modify_Diffusion_UY_VX2")
+        endif
 
     End Subroutine Modify_Diffusion_UY_VX2
 
@@ -46541,6 +46121,9 @@ cd4:            if (BoundaryPoints(i, j) == Boundary) then
         enddo
         !$OMP END DO
         !$OMP END PARALLEL
+        
+        !Where (Me%External_Var%BoundaryPoints(:,:) == 1) &
+        !       Me%WaterFluxes%Z(:,:,:) = 0 ?Probably ok, needs testing before changing
 
         if (MonitorPerformance) then
             call StopWatch ("ModuleHydrodynamic", "Filter_3D_Fluxes")
