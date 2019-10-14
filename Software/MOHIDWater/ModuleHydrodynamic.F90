@@ -55597,10 +55597,6 @@ cd3:        if (Me%ComputeOptions%Residual) then
                 if (Me%OutPut%DirectionH(i, j, k) < 0.) then
                     Me%OutPut%DirectionH(i, j, k) = Me%OutPut%DirectionH(i, j, k) + 360.
                 endif
-
-                Me%OutPut%ModulusHglm   (i, j, k) = abs(cmplx(Me%OutPut%CenterUglm(i, j, k), Me%OutPut%CenterVglm(i, j, k)))
-                Me%OutPut%ModulusHstokes(i, j, k) = abs(cmplx(Me%OutPut%CenterUstokes(i, j, k), &
-                                                              Me%OutPut%CenterVstokes(i, j, k)))
             end if
 
         enddo
@@ -55608,6 +55604,22 @@ cd3:        if (Me%ComputeOptions%Residual) then
         !$OMP END DO NOWAIT
         enddo
 
+        if (Me%ComputeOptions%WaveForcing3D == GLM) then
+            do k = KLB, KUB
+            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+            do j = JLB, JUB
+            do i = ILB, IUB
+                if (Me%External_Var%WaterPoints3D (i,j ,k) == WaterPoint) then
+                    Me%OutPut%ModulusHglm   (i, j, k) = abs(cmplx(Me%OutPut%CenterUglm(i, j, k), Me%OutPut%CenterVglm(i, j, k)))
+                    Me%OutPut%ModulusHstokes(i, j, k) = abs(cmplx(Me%OutPut%CenterUstokes(i, j, k), &
+                                                                  Me%OutPut%CenterVstokes(i, j, k)))
+                end if
+            enddo
+            enddo
+            !$OMP END DO NOWAIT
+            enddo
+        endif
+            
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB
