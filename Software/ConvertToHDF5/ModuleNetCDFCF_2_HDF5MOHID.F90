@@ -6251,7 +6251,10 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         if (Me%Mapping%ON) then
 
             status=nf90_inq_varid(ncid,trim(Me%Mapping%NetCDFName),mn)
-            if (status /= nf90_noerr) stop 'ReadGrid3DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+            if (status /= nf90_noerr) then
+                write (*,*) 'unknown netcdf field = ', trim(Me%Mapping%NetCDFName)
+                stop 'ReadGrid3DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+            endif
 
             status = nf90_inquire_variable(ncid, mn, ndims = numDims)
             if (status /= nf90_noerr) stop 'ReadGrid3DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'

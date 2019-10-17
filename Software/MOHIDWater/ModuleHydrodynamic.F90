@@ -489,6 +489,7 @@ Module ModuleHydrodynamic
     public  :: GetVelocityModulus
     public  :: GetResidualVelocityON
     public  :: GetResidualHorizontalVelocity
+    public  :: GetResidualVelocityPeriod
 
 #ifdef _USE_SEQASSIMILATION
     public  :: GetHydroSeqAssimilation
@@ -14496,6 +14497,47 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
     !--------------------------------------------------------------------------
 
+ !--------------------------------------------------------------------------
+
+    subroutine GetResidualVelocityPeriod(HydrodynamicID, ResidualPeriod, STAT)
+
+        !Arguments-------------------------------------------------------------
+
+        integer,           intent(IN ) :: HydrodynamicID
+        real                           :: ResidualPeriod
+        integer, optional, intent(OUT) :: STAT
+
+        !External--------------------------------------------------------------
+
+        integer :: ready_
+
+        !Local-----------------------------------------------------------------
+
+        integer :: STAT_              !Auxiliar local variable
+
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(HydrodynamicID, ready_)
+
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+
+            ResidualPeriod = Me%Residual%ResidualTime
+
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if cd1
+
+
+        if (present(STAT))                                                               &
+            STAT = STAT_
+
+        !----------------------------------------------------------------------
+
+    end subroutine GetResidualVelocityPeriod
 
     !--------------------------------------------------------------------------
 
@@ -40202,8 +40244,8 @@ do1:    do DischargeID = 1, DischargesNumber
                 if (STAT_CALL/=SUCCESS_)                                                     &
                     stop 'Sub. ModifyMomentumDischarge - ModuleHydrodynamic - ERR90'
 
-i1:             if (nCells > 1) then
 
+i1:         if (nCells > 1) then
                     allocate(DistributionCoef(1:nCells))
 
 i2:                 if      (FlowDistribution == DischByCell_       ) then
