@@ -444,6 +444,7 @@ Module ModuleHydrodynamic
     private ::          WriteEnergyDataFile
     private ::      Hydrodynamic_OutPut
     private ::      ComputeTwoWay
+    private ::      allocateUpscalingMatrixes
 
     private ::          Write_HDF5_Format
     private ::          Write_Surface_HDF5_Format
@@ -16730,7 +16731,11 @@ cd1:            if (MethodStatistic == Value3DStatLayers) then
         call ReadyFather(HydrodynamicFatherID, ObjHydrodynamicFather, readyFather_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
-
+    
+            ILB = ObjHydrodynamicFather%Size%ILB; IUB = ObjHydrodynamicFather%Size%IUB
+            JLB = ObjHydrodynamicFather%Size%JLB; JUB = ObjHydrodynamicFather%Size%JUB
+            KLB = ObjHydrodynamicFather%Size%KLB; KUB = ObjHydrodynamicFather%Size%KUB
+            
             if(InitialField) then
                 Me%FatherInstanceID = HydrodynamicFatherID
 
@@ -16740,12 +16745,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
                 if (Me%ComputeOptions%TwoWay)then
                     call AllocateTwoWayAux(HydrodynamicFatherID, HydrodynamicID)
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
-                        allocate(Me%Submodel%CopyU_New(ObjHydrodynamicFather%Size%ILB:ObjHydrodynamicFather%Size%IUB, &
-                                 ObjHydrodynamicFather%Size%JLB:ObjHydrodynamicFather%Size%JUB, &
-                                 ObjHydrodynamicFather%Size%KLB:ObjHydrodynamicFather%Size%KUB))
-                        allocate(Me%Submodel%CopyV_New(ObjHydrodynamicFather%Size%ILB:ObjHydrodynamicFather%Size%IUB, &
-                                 ObjHydrodynamicFather%Size%JLB:ObjHydrodynamicFather%Size%JUB, &
-                                 ObjHydrodynamicFather%Size%KLB:ObjHydrodynamicFather%Size%KUB))
+                        call allocateUpscalingMatrixes(ObjHydrodynamicFather)
                         call Set_Upscaling_Discharges(HydrodynamicFatherID, ObjHydrodynamicFather, HydrodynamicID)
                     endif
                 endif
@@ -53302,10 +53302,12 @@ do5:            do i = ILB, IUB
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
                         !makes a copy of velocities U and V of father in order to ompute the difference after upscaling
                         !This difference will be used for the upscaling discharge volume
-                        call SetMatrixValue(GetPointer(Me%Submodel%CopyU_New), ObjHydrodynamicFather%Size, &
-                                            ObjHydrodynamicFather%Velocity%Horizontal%U%New)
-                        call SetMatrixValue(GetPointer(Me%Submodel%CopyV_New), ObjHydrodynamicFather%Size, &
-                                            ObjHydrodynamicFather%Velocity%Horizontal%V%New)
+                        Me%Submodel%CopyU_New(:,:,:) = ObjHydrodynamicFather%Velocity%Horizontal%U%New(:,:,:)
+                        Me%Submodel%CopyV_New(:,:,:) = ObjHydrodynamicFather%Velocity%Horizontal%V%New(:,:,:)
+                        !call SetMatrixValue(GetPointer(Me%Submodel%CopyU_New), ObjHydrodynamicFather%Size, &
+                        !                    ObjHydrodynamicFather%Velocity%Horizontal%U%New)
+                        !call SetMatrixValue(GetPointer(Me%Submodel%CopyV_New), ObjHydrodynamicFather%Size, &
+                        !                    ObjHydrodynamicFather%Velocity%Horizontal%V%New)
                     endif
 
 
@@ -53373,6 +53375,24 @@ do5:            do i = ILB, IUB
         endif
 
     end subroutine ComputeTwoWay
+    
+    !-------------------------------------------------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Allocates copies of U and V submodel velocities
+    !>@param[in] ObjHydrodynamicFather
+    subroutine allocateUpscalingMatrixes (ObjHydrodynamicFather)
+        !Arguments---------------------------------------------------------------
+        type (T_Hydrodynamic), pointer              :: ObjHydrodynamicFather
+        !Begin------------------------------------------------------------------
+        allocate(Me%Submodel%CopyU_New(ObjHydrodynamicFather%Size%ILB:ObjHydrodynamicFather%Size%IUB, &
+                    ObjHydrodynamicFather%Size%JLB:ObjHydrodynamicFather%Size%JUB, &
+                    ObjHydrodynamicFather%Size%KLB:ObjHydrodynamicFather%Size%KUB))
+        allocate(Me%Submodel%CopyV_New(ObjHydrodynamicFather%Size%ILB:ObjHydrodynamicFather%Size%IUB, &
+                    ObjHydrodynamicFather%Size%JLB:ObjHydrodynamicFather%Size%JUB, &
+                    ObjHydrodynamicFather%Size%KLB:ObjHydrodynamicFather%Size%KUB))
+    
+    end subroutine allocateUpscalingMatrixes
 
     !-------------------------------------------------------------------------------------------------------------------
 
@@ -60278,6 +60298,9 @@ ic1:    if (Me%CyclicBoundary%ON) then
             deallocate (Me%FaceDensity)
             nullify (Me%FaceDensity)
         endif
+        
+        if (allocated(Me%Submodel%CopyU_New)) deallocate (Me%Submodel%CopyU_New)
+        if (allocated(Me%Submodel%CopyV_New)) deallocate (Me%Submodel%CopyV_New)
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
