@@ -1719,9 +1719,9 @@ Module ModuleHydrodynamic
                                            VelMaxBaroclinicBuffer   => null(), &
                                            VelMaxBuffer             => null()
 
-        real, dimension(:,:,:), pointer :: CenterU  => null(), &
-                                           CenterV  => null(), &
-                                           CenterW  => null()
+        !real, dimension(:,:,:), pointer :: CenterU  => null(), &
+        !                                   CenterV  => null(), &
+        !                                   CenterW  => null()
 
         real, dimension(:,:  ), pointer :: BarotropicU  => null(), &
                                            BarotropicV  => null()
@@ -13006,9 +13006,9 @@ i1:         if (CoordON) then
         allocate(Me%Energy%VelMaxBaroclinicBuffer(1:EnergyBufferSize))
 
 
-        allocate(Me%Energy%CenterU      (ILB:IUB,JLB:JUB,KLB:KUB))
-        allocate(Me%Energy%CenterV      (ILB:IUB,JLB:JUB,KLB:KUB))
-        allocate(Me%Energy%CenterW      (ILB:IUB,JLB:JUB,KLB:KUB))
+        !allocate(Me%Energy%CenterU      (ILB:IUB,JLB:JUB,KLB:KUB))
+        !allocate(Me%Energy%CenterV      (ILB:IUB,JLB:JUB,KLB:KUB))
+        !allocate(Me%Energy%CenterW      (ILB:IUB,JLB:JUB,KLB:KUB))
         allocate(Me%Energy%BarotropicU  (ILB:IUB,JLB:JUB        ))
         allocate(Me%Energy%BarotropicV  (ILB:IUB,JLB:JUB        ))
 
@@ -53722,7 +53722,7 @@ do3:            do  k = kbottom, KUB
         integer, dimension(:, :, :), pointer        :: WaterPoints3D
         integer, dimension(:, :, :), pointer        :: OpenPoints3D
         integer, dimension(:, :   ), pointer        :: BoundaryPoints
-        real, dimension(:, :, :),    pointer        :: Density, SZZ, DWZ
+        real, dimension(:, :, :),    pointer        :: Density, SZZ, DWZ, Energy_CenterU, Energy_CenterV, Energy_CenterW
         real(8), dimension(:, :, :), pointer        :: VolumeZ
         !real, dimension(:,:),        pointer        :: Bathymetry
         real, dimension(:,:),        pointer        :: DUX, DVY
@@ -53764,40 +53764,43 @@ do3:            do  k = kbottom, KUB
             !if (STAT_CALL /= SUCCESS_) stop 'ComputeSystemEnergy - ModuleHydrodynamic - ERR00'
 
             !Shorten variable names
-            WaterPoints3D => Me%External_Var%WaterPoints3D
-            OpenPoints3D  => Me%External_Var%OpenPoints3D
-            BoundaryPoints=> Me%External_Var%BoundaryPoints
-            Density       => Me%External_Var%Density
-            VolumeZ       => Me%External_Var%Volume_Z_New
-            SZZ           => Me%External_Var%SZZ
-            DWZ           => Me%External_Var%DWZ
-            DUX           => Me%External_Var%DUX
-            DVY           => Me%External_Var%DVY
-            DZX           => Me%External_Var%DZX
-            DZY           => Me%External_Var%DZY
-            WaterColumnZ  => Me%External_Var%WaterColumn
-
-            call CenterVelocity(CenterU = Me%Energy%CenterU, CenterV = Me%Energy%CenterV, VectorType = CurrentVelocity)
-
-            call SetMatrixValue(Me%Energy%CenterW, Me%Size, 0.)
+            WaterPoints3D  => Me%External_Var%WaterPoints3D
+            OpenPoints3D   => Me%External_Var%OpenPoints3D
+            BoundaryPoints => Me%External_Var%BoundaryPoints
+            Density        => Me%External_Var%Density
+            VolumeZ        => Me%External_Var%Volume_Z_New
+            SZZ            => Me%External_Var%SZZ
+            DWZ            => Me%External_Var%DWZ
+            DUX            => Me%External_Var%DUX
+            DVY            => Me%External_Var%DVY
+            DZX            => Me%External_Var%DZX
+            DZY            => Me%External_Var%DZY
+            WaterColumnZ   => Me%External_Var%WaterColumn
+            Energy_CenterU => Me%Output%CenterU
+            Energy_CenterV => Me%Output%CenterV
+            Energy_CenterW => Me%Output%CenterW
+            
+            call CenterVelocity(CenterU = Energy_CenterU, CenterV = Energy_CenterV, VectorType = CurrentVelocity)
+            
+            call SetMatrixValue(Energy_CenterW, Me%Size, 0.)
 
             CHUNK = CHUNK_J(WorkJLB, WorkJUB)
 
             if (MonitorPerformance) then
                 call StartWatch ("ModuleHydrodynamic", "ComputeSystemEnergy")
-            endif
-
+            endif     
+            
             !$OMP PARALLEL PRIVATE(i,j,k)
             do k = WorkKLB, WorkKUB
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = WorkJLB, WorkJUB
             do i = WorkILB, WorkIUB
                 if (k == WorkKLB) then
-                    Me%Energy%CenterW(i, j, k) =  Me%Velocity%Vertical%Cartesian(i, j, k+1) / 2.
+                    Energy_CenterW(i, j, k) =  Me%Velocity%Vertical%Cartesian(i, j, k+1) / 2.
                 elseif (k == WorkKUB) then
-                    Me%Energy%CenterW(i, j, k) =  Me%Velocity%Vertical%Cartesian(i, j, k  ) / 2.
+                    Energy_CenterW(i, j, k) =  Me%Velocity%Vertical%Cartesian(i, j, k  ) / 2.
                 else
-                    Me%Energy%CenterW(i, j, k) = (Me%Velocity%Vertical%Cartesian(i, j, k+1) + &
+                    Energy_CenterW(i, j, k) = (Me%Velocity%Vertical%Cartesian(i, j, k+1) + &
                                                   Me%Velocity%Vertical%Cartesian(i, j, k  )) / 2.
                 endif
             enddo
@@ -53849,10 +53852,10 @@ do3:            do  k = kbottom, KUB
                             Mass      = Mass + Density(i, j, k) * Volume
 
                             Me%Energy%BarotropicU(i, j) = Me%Energy%BarotropicU(i, j) + &
-                                                          Me%Energy%CenterU(i, j, k)  * &
+                                                          Energy_CenterU(i, j, k)  * &
                                                           DWZ(i, j, k) / WaterColumnZ(i, j)
                             Me%Energy%BarotropicV(i, j) = Me%Energy%BarotropicV(i, j) + &
-                                                          Me%Energy%CenterV(i, j, k)  * &
+                                                          Energy_CenterV(i, j, k)  * &
                                                           DWZ(i, j, k) / WaterColumnZ(i, j)
 
                         endif
@@ -53886,8 +53889,8 @@ do3:            do  k = kbottom, KUB
                     TotalMass   = TotalMass   + Mass
 
                     if (OpenPoints3D(i, j, k) == OpenPoint) then
-                        Velocity2 = Me%Energy%CenterU(i, j, k)**2. + Me%Energy%CenterV(i, j, k)**2. + &
-                                    Me%Energy%CenterW(i, j, k)**2.
+                        Velocity2 = Energy_CenterU(i, j, k)**2. + Energy_CenterV(i, j, k)**2. + &
+                                    Energy_CenterW(i, j, k)**2.
                         AuxVel = sqrt(Velocity2)
 
                         if (AuxVel > VelMax) VelMax = AuxVel
@@ -53897,12 +53900,12 @@ do3:            do  k = kbottom, KUB
                         TotalKineticEnergy   = TotalKineticEnergy + KineticEnergy
 
 
-                        BaroclinicU = Me%Energy%CenterU(i, j, k) - Me%Energy%BarotropicU(i, j)
-                        BaroclinicV = Me%Energy%CenterV(i, j, k) - Me%Energy%BarotropicV(i, j)
+                        BaroclinicU = Energy_CenterU(i, j, k) - Me%Energy%BarotropicU(i, j)
+                        BaroclinicV = Energy_CenterV(i, j, k) - Me%Energy%BarotropicV(i, j)
 
                         Velocity2 = BaroclinicU**2.       + &
                                     BaroclinicV**2.       + &
-                                    Me%Energy%CenterW(i, j, k)**2.
+                                    Energy_CenterW(i, j, k)**2.
                         AuxVel = sqrt(Velocity2)
 
                         if (AuxVel > VelMaxBaroclinic) VelMaxBaroclinic = AuxVel
@@ -54027,7 +54030,7 @@ doi:        do i = WorkILB, WorkIUB
 cd1:            if (WaterPoints3D(i-1, j  ,k)== WaterPoint .and.                &
                     WaterPoints3D(i  , j  ,k)== WaterPoint) then
 
-                    Vorticity = - (Me%Energy%CenterU(i, j, k) - Me%Energy%CenterU(i-1, j, k)) / DZY(i-1,j)
+                    Vorticity = - (Energy_CenterU(i, j, k) - Energy_CenterU(i-1, j, k)) / DZY(i-1,j)
 
                 endif cd1
 
@@ -54035,7 +54038,7 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
                     WaterPoints3D(i  , j-1,k)== WaterPoint) then
 
                     Vorticity =  Vorticity + &
-                                (Me%Energy%CenterV(i, j, k) - Me%Energy%CenterV(i , j-1, k)) / DZX(i,j-1)
+                                (Energy_CenterV(i, j, k) - Energy_CenterV(i , j-1, k)) / DZX(i,j-1)
 
                 endif cd2
 
@@ -54138,7 +54141,7 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             !if (STAT_CALL /= SUCCESS_) stop 'ComputeSystemEnergy - ModuleHydrodynamic - ERR03'
 
             !Nullifies pointers
-            nullify(WaterPoints3D, Density, VolumeZ, SZZ, DWZ)
+            nullify(WaterPoints3D, Density, VolumeZ, SZZ, DWZ, Energy_CenterU, Energy_CenterV, Energy_CenterW)
             nullify(OpenPoints3D, BoundaryPoints)
             nullify(DUX, DVY)
 
@@ -59024,17 +59027,17 @@ cd1:    if (Me%State%BOXFLUXES) then
         if (STAT_CALL /= SUCCESS_)                        &
             stop 'KillEnergy - ModuleHydrodynamic - ERR18'
 
-        deallocate(Me%Energy%CenterU, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR19'
+        !deallocate(Me%Energy%CenterU, STAT = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_)                        &
+        !    stop 'KillEnergy - ModuleHydrodynamic - ERR19'
 
-        deallocate(Me%Energy%CenterV, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR20'
+        !deallocate(Me%Energy%CenterV, STAT = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_)                        &
+            !stop 'KillEnergy - ModuleHydrodynamic - ERR20'
 
-        deallocate(Me%Energy%CenterW, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR21'
+        !deallocate(Me%Energy%CenterW, STAT = STAT_CALL)
+        !if (STAT_CALL /= SUCCESS_)                        &
+        !    stop 'KillEnergy - ModuleHydrodynamic - ERR21'
 
         deallocate(Me%Energy%BarotropicU, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                        &
