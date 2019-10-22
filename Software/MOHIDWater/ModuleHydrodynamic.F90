@@ -152,7 +152,7 @@ Module ModuleHydrodynamic
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
                                        AllocateTwoWayAux, PrepTwoWay, UngetTwoWayExternal_Vars, &
                                        ConstructUpscalingDischarges, UpscaleDischarge, &
-                                       GetUpscalingDischarge
+                                       GetUpscalingDischarge, UpscalingSinkSources
 #ifdef _USE_MPI
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
@@ -444,7 +444,6 @@ Module ModuleHydrodynamic
     private ::          WriteEnergyDataFile
     private ::      Hydrodynamic_OutPut
     private ::      ComputeTwoWay
-    private ::      allocateUpscalingMatrixes
 
     private ::          Write_HDF5_Format
     private ::          Write_Surface_HDF5_Format
@@ -1617,12 +1616,18 @@ Module ModuleHydrodynamic
         logical                         :: MatrixesOutputOpt        = .false.
 
     end type T_HydroOptions
-
+    
+    type       T_Upscaling
+        real, dimension(:,:,:), allocatable  :: CopyVel
+        logical                              :: MassSinkSource = .false.
+    end type T_Upscaling
 
     type       T_OutPut
          type (T_Time), dimension(:), pointer     :: OutTime, &
                                                      RestartOutTime, &
                                                      SurfaceOutTime
+         
+         type (T_Upscaling)                       :: Upscaling
 
          integer                                  :: NextOutPut             = null_int, &
                                                      Number                 = null_int, &
@@ -1844,9 +1849,6 @@ Module ModuleHydrodynamic
                                                 qY  => null(), &
                                                 qXY => null(), &
                                                 qYX => null()
-
-        real, dimension(:,:,:), allocatable  :: CopyU_New
-        real, dimension(:,:,:), allocatable  :: CopyV_New
 
         !Time Interpolation
         type(T_Time)                         :: NextTime, PreviousTime
@@ -8422,10 +8424,22 @@ cd21:   if (Baroclinic) then
 
                 if (STAT_CALL /= SUCCESS_)                                                      &
                     call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1228')
+                
+                call GetData(Me%OutPut%Upscaling%MassSinkSource,                              &
+                             Me%ObjEnterData, iflag,                                          &
+                             Keyword      = 'TWO_WAY_SINK_SOURCE',                            &
+                             Default      = .false.,                                          &
+                             SearchType   = FromFile,                                         &
+                             ClientModule ='ModuleHydrodynamic',                              &
+                             STAT         = STAT_CALL)
+
+                if (STAT_CALL /= SUCCESS_)                                                      &
+                    call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1229')
+                
 
             else
                 write(*,*) 'Keyword TWO_WAY must ONLY be defined in son domains'
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1229')
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1230')
             endif
 
         endif
@@ -16718,7 +16732,7 @@ cd1:            if (MethodStatistic == Value3DStatLayers) then
         integer, dimension(:,:,:), pointer          :: Faces3D_UFather
         integer, dimension(:,:,:), pointer          :: Faces3D_VFather
         real                                        :: DT_Son
-        integer                                     :: status
+        integer                                     :: status, ILB, JLB, KLB, IUB, JUB, KUB
 
         !----------------------------------------------------------------------
 
@@ -16744,12 +16758,15 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
 
                 if (Me%ComputeOptions%TwoWay)then
                     call AllocateTwoWayAux(HydrodynamicFatherID, HydrodynamicID)
+                    if (Me%OutPut%Upscaling%MassSinkSource .or. ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
+                        !Next if is here to prevent more than one allocation (when one parent domain has two or more son domains)
+                        if (.not. allocated(ObjHydrodynamicFather%OutPut%Upscaling%CopyVel)) &
+                        allocate(ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(ILB:IUB, JLB:JUB, KLB:KUB))
+                    endif
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
-                        call allocateUpscalingMatrixes(ObjHydrodynamicFather)
                         call Set_Upscaling_Discharges(HydrodynamicFatherID, ObjHydrodynamicFather, HydrodynamicID)
                     endif
                 endif
-
 
                 !Ang: new implementation
                 Me%SubModel%FatherKLB = ObjHydrodynamicFather%WorkSize%KLB
@@ -16836,7 +16853,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
         !----------------------------------------------------------------------
 
     end subroutine SetHydroFather
-
     !--------------------------------------------------------------------------
 
     !>@author Joao Sobrinho Maretec
@@ -16844,14 +16860,12 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
     !>Gets logical variable TwoWay
     !>@param[in] HydrodynamicID, TwoWayOn, STAT
     subroutine GetModelHasTwoWay(HydrodynamicID, TwoWayOn, STAT)
-
         !Arguments-------------------------------------------------------------
         logical, intent(OUT)                        :: TwoWayOn
         integer                                     :: HydrodynamicID
         integer, optional                           :: STAT
         !Local-----------------------------------------------------------------
         integer                                     :: ready_, STAT_
-
         !-----------------------------------------------------------------------
         STAT_ = UNKNOWN_
 
@@ -16867,13 +16881,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT))                                                               &
             STAT = STAT_
-
     end subroutine GetModelHasTwoWay
-
     !-----------------------------------------------------------------------------
+    
     subroutine TestSubModelOptionsConsistence(FatherContinuous)
 
         !Arguments-------------------------------------------------------------
@@ -53278,11 +53290,14 @@ do5:            do i = ILB, IUB
     !Locals---------------------------------------------------------------------------------
         integer                                           :: ready_, readyFather_, STAT_CALL, i
         integer                                           :: AuxHydrodynamicID
-    !Begin------------------------------------------------------------------------------
+        logical                                           :: MakeCopy
+    !Begin----------------------------------------------------------------------------------
         if (Me%CurrentTime - Me%BeginTime > Me%ComputeOptions%TwoWayWaitPeriod)then
 
             !Cicle to go over all domains starting from the last nested one
             do i = HydrodynamicID, 2, -1
+                
+                MakeCopy = .false.
 
                 if(i == HydrodynamicID)then
                     !does nothing
@@ -53299,17 +53314,12 @@ do5:            do i = ILB, IUB
                 if (ObjHydrodynamicFather%LastIteration == Me%CurrentTime)then
 
                     AuxHydrodynamicID = i    !Changes back to Son ID
-                    if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
-                        !makes a copy of velocities U and V of father in order to ompute the difference after upscaling
-                        !This difference will be used for the upscaling discharge volume
-                        Me%Submodel%CopyU_New(:,:,:) = ObjHydrodynamicFather%Velocity%Horizontal%U%New(:,:,:)
-                        Me%Submodel%CopyV_New(:,:,:) = ObjHydrodynamicFather%Velocity%Horizontal%V%New(:,:,:)
-                        !call SetMatrixValue(GetPointer(Me%Submodel%CopyU_New), ObjHydrodynamicFather%Size, &
-                        !                    ObjHydrodynamicFather%Velocity%Horizontal%U%New)
-                        !call SetMatrixValue(GetPointer(Me%Submodel%CopyV_New), ObjHydrodynamicFather%Size, &
-                        !                    ObjHydrodynamicFather%Velocity%Horizontal%V%New)
+                    
+                    if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge .or. Me%OutPut%Upscaling%MassSinkSource)then
+                        MakeCopy = .true.
+                        ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = &
+                        ObjHydrodynamicFather%Velocity%Horizontal%U%New(:,:,:)
                     endif
-
 
                     !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
                     call PrepTwoWay (SonID             = AuxHydrodynamicID,   &
@@ -53318,7 +53328,8 @@ do5:            do i = ILB, IUB
                                      STAT              = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR01.'
 
-                    !Updates father matrixes with son information. For now, hard coded.
+    !-------------------------------------------Updates father U matrix with son information-------------------------------------
+                    
                     call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
                                        FatherMatrix     = ObjHydrodynamicFather%Velocity%Horizontal%U%New,   &
                                        SonMatrix        = Me%Velocity%Horizontal%U%New,                      &
@@ -53326,7 +53337,23 @@ do5:            do i = ILB, IUB
                                        VelocityID       = VelocityU_,                                        &
                                        STAT             = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR02.'
-
+                    
+                    if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge) &
+                        call UpscaleDischarge(SonID       = AuxHydrodynamicID,                               &
+                                              Father_old  = ObjHydrodynamicFather%OutPut%Upscaling%CopyVel,         &
+                                              Father      = ObjHydrodynamicFather%Velocity%Horizontal%U%New, &
+                                              VelocityID  = VelocityU_, STAT = STAT_CALL)
+                    !Account for sinks and sources of Volume due to upscaling.
+                    if (Me%OutPut%Upscaling%MassSinkSource) &
+                        call UpscalingSinkSources(ObjHydrodynamicFather%OutPut%Upscaling%CopyVel,   &
+                                                  ObjHydrodynamicFather%Velocity%Horizontal%U%New,       &
+                                                  ObjHydrodynamicFather%Velocity%DT, VelocityU_)
+                    if (MakeCopy) &
+                        ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = &
+                        ObjHydrodynamicFather%Velocity%Horizontal%V%New(:,:,:)
+                    
+    !-------------------------------------------Updates father V matrix with son information-------------------------------------
+                    
                     call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
                                        FatherMatrix     = ObjHydrodynamicFather%Velocity%Horizontal%V%New,   &
                                        SonMatrix        = Me%Velocity%Horizontal%V%New,                      &
@@ -53334,14 +53361,36 @@ do5:            do i = ILB, IUB
                                        VelocityID       = VelocityV_,                                        &
                                        STAT             = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR03.'
-
+                    
+                    if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge) &
+                        call UpscaleDischarge(SonID       = AuxHydrodynamicID,                               &
+                                              Father_old  = ObjHydrodynamicFather%OutPut%Upscaling%CopyVel,         &
+                                              Father      = ObjHydrodynamicFather%Velocity%Horizontal%V%New, &
+                                              VelocityID  = VelocityV_, STAT = STAT_CALL)
+                    !Account for sinks and sources of Volume due to upscaling.
+                    if (Me%OutPut%Upscaling%MassSinkSource) &
+                        call UpscalingSinkSources(ObjHydrodynamicFather%OutPut%Upscaling%CopyVel,   &
+                                                  ObjHydrodynamicFather%Velocity%Horizontal%V%New,       &
+                                                  ObjHydrodynamicFather%Velocity%DT, VelocityV_)  
+                    if (MakeCopy) &
+                        ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = &
+                        ObjHydrodynamicFather%Velocity%Vertical%Cartesian(:,:,:)
+                    
+    !-------------------------------------------Updates father W matrix with son information-------------------------------------
+                    
                     call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
                                        FatherMatrix     = ObjHydrodynamicFather%Velocity%Vertical%Cartesian, &
                                        SonMatrix        = Me%Velocity%Vertical%Cartesian,                    &
                                        CallerID         = mHydrodynamic_,                                    &
                                        STAT             = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR04.'
-
+                    
+                    !Account for sinks and sources of Volume due to upscaling.
+                    if (Me%OutPut%Upscaling%MassSinkSource) &
+                        call UpscalingSinkSources(ObjHydrodynamicFather%OutPut%Upscaling%CopyVel,   &
+                                                  ObjHydrodynamicFather%Velocity%Vertical%Cartesian,       &
+                                                  ObjHydrodynamicFather%Velocity%DT, VelocityW_)
+                        
                     if (Me%ComputeOptions%TwoWayWaterLevel) then
 
                         call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
@@ -53350,17 +53399,6 @@ do5:            do i = ILB, IUB
                                            CallerID         = mHydrodynamic_,                                    &
                                            STAT             = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR05.'
-
-                    endif
-
-                    if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
-                        !only for 2D or 3D domains
-                        call UpscaleDischarge(SonID       = AuxHydrodynamicID,                               &
-                                              FatherU_old = Me%Submodel%CopyU_New,                           &
-                                              FatherV_old = Me%Submodel%CopyV_New,                           &
-                                              FatherU     = ObjHydrodynamicFather%Velocity%Horizontal%U%New, &
-                                              FatherV     = ObjHydrodynamicFather%Velocity%Horizontal%V%New, &
-                                              STAT        = STAT_CALL)
 
                     endif
 
@@ -53375,24 +53413,6 @@ do5:            do i = ILB, IUB
         endif
 
     end subroutine ComputeTwoWay
-    
-    !-------------------------------------------------------------------------------------------------------------------
-    !>@author Joao Sobrinho Maretec
-    !>@Brief
-    !>Allocates copies of U and V submodel velocities
-    !>@param[in] ObjHydrodynamicFather
-    subroutine allocateUpscalingMatrixes (ObjHydrodynamicFather)
-        !Arguments---------------------------------------------------------------
-        type (T_Hydrodynamic), pointer              :: ObjHydrodynamicFather
-        !Begin------------------------------------------------------------------
-        allocate(Me%Submodel%CopyU_New(ObjHydrodynamicFather%Size%ILB:ObjHydrodynamicFather%Size%IUB, &
-                    ObjHydrodynamicFather%Size%JLB:ObjHydrodynamicFather%Size%JUB, &
-                    ObjHydrodynamicFather%Size%KLB:ObjHydrodynamicFather%Size%KUB))
-        allocate(Me%Submodel%CopyV_New(ObjHydrodynamicFather%Size%ILB:ObjHydrodynamicFather%Size%IUB, &
-                    ObjHydrodynamicFather%Size%JLB:ObjHydrodynamicFather%Size%JUB, &
-                    ObjHydrodynamicFather%Size%KLB:ObjHydrodynamicFather%Size%KUB))
-    
-    end subroutine allocateUpscalingMatrixes
 
     !-------------------------------------------------------------------------------------------------------------------
 
@@ -54222,7 +54242,7 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         integer                             :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         integer                             :: WorkKLB, WorkKUB, Index
         integer                             :: i, j, k, kbottom, ObjHDF5
-        real, dimension(:, :, :), pointer   :: SZZ, DWZ   !flavio
+        real, dimension(:, :, :), pointer   :: SZZ, DWZ, SinksSourcesVolume   !flavio
         integer, dimension(:,:,:), pointer  :: WaterPoints3D, ComputeFaces3D_W ! flavio
         integer, dimension(:,:,:), pointer  :: OpenPoints3D
         integer, dimension(:,:),   pointer  :: KFloorZ
@@ -54474,6 +54494,18 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
             if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR110'
 
         endif
+        
+        if (Me%OutPut%Upscaling%MassSinkSource) then
+            SinksSourcesVolume => Me%Output%Upscaling%CopyVel
+            call HDF5WriteData  (ObjHDF5,                                            &
+                                 "/Results/"//"MassSinkSource",                      &
+                                 "MassSinkSource",                                   &
+                                 "m/s", Array3D = SinksSourcesVolume,                &
+                                 OutputNumber = Index, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - Failed HDFWrite - MassSinkSource'
+            nullify (SinksSourcesVolume)
+        endif
+        
 
 ! Modified by Matthias DELPEY - 20/07/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Modified by Matthias DELPEY - 27/07/2011 - 05/08/2011 - 25/10/2011 - 24/11/2011 - 02/03/2012
@@ -54646,7 +54678,6 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
                                  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Write_HDF5_Format - ModuleHydrodynamic - ERR170'
         endif
-
 
 
         !Do statistics analysis
@@ -60299,8 +60330,7 @@ ic1:    if (Me%CyclicBoundary%ON) then
             nullify (Me%FaceDensity)
         endif
         
-        if (allocated(Me%Submodel%CopyU_New)) deallocate (Me%Submodel%CopyU_New)
-        if (allocated(Me%Submodel%CopyV_New)) deallocate (Me%Submodel%CopyV_New)
+        if (allocated(Me%Output%Upscaling%CopyVel)) deallocate (Me%Output%Upscaling%CopyVel)
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

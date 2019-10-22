@@ -22,7 +22,7 @@ Module ModuleTwoWay
     use ModuleGeometry,         only : GetGeometryVolumes, UnGetGeometry, GetGeometrySize, GetGeometryAreas, &
                                        GetGeometryKFloor
     use ModuleHorizontalGrid,   only : GetHorizontalGrid, UngetHorizontalGrid, GetHorizontalGridSize, GetConnections, &
-                                       UnGetConnections, ConstructP2C_IWD, ConstructP2C_Avrg
+                                       UnGetConnections, ConstructP2C_IWD, ConstructP2C_Avrg, GetGridCellArea
     
     use ModuleHorizontalMap,    only : GetBoundaries, UnGetHorizontalMap
     use ModuleFunctions
@@ -57,6 +57,7 @@ Module ModuleTwoWay
     private ::  Nudging_average
     private ::  Nudging_IWD
     public  :: PrepTwoWay
+    public  :: UpscalingSinkSources
     public  :: UngetTwoWayExternal_Vars
     public  :: Modify_Upscaling_Discharges
     public  :: UpscaleDischarge
@@ -99,6 +100,7 @@ Module ModuleTwoWay
         real(8),    dimension(:, :   ), pointer     :: VolumeZ_2D       => null()
         real,    dimension(:, :, :), pointer        :: AreaU            => null()
         real,    dimension(:, :, :), pointer        :: AreaV            => null()
+        real,    dimension(:, :   ), pointer        :: AreaZ            => null()
         integer, dimension(:, :, :), pointer        :: Open3D           => null()
         integer, dimension(:, :, :), pointer        :: WaterPoints3D    => null()
         integer, dimension(:, :   ), pointer        :: WaterPoints2D    => null()
@@ -755,6 +757,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                             AreaV = Me%Father%External_Var%AreaV, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get father AreaU or AreaV matrix'
             
+            call GetGridCellArea(HorizontalGridID = FatherID, GridCellArea = Me%Father%External_Var%AreaZ, &
+                                STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father AreaZ matrix'
+            
             call GetOpenPoints3D   (Map_ID = FatherID, OpenPoints3D = Me%Father%External_Var%Open3D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father OpenPoints3D'
         
@@ -771,7 +777,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father ComputeFaces3D U/V'
         
             call GetGeometryKFloor(GeometryID = FatherID, U = Me%Father%External_Var%KFloor_U, &
-                                                          V = Me%Father%External_Var%KFloor_V, STAT = STAT_CALL)
+                                                          V = Me%Father%External_Var%KFloor_V, &
+                                                          Z = Me%Father%External_Var%KFloor_Z, &
+                                                          STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father KfloorU/V'
             
             STAT_ = SUCCESS_
@@ -783,6 +791,83 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         
     end subroutine PrepTwoWay
     
+    !---------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Calls Sinks and Sources routines for U, V or Z type properties
+    !>@param[in] MatrixNew, MatrixOld, DT
+    subroutine UpscalingSinkSources (MatrixNew, MatrixOld, DT, VelocityID)
+    !Arguments-------------------------------------------------------------
+    real, dimension(:, :, :), allocatable, intent(INOUT) :: MatrixNew
+    real, dimension(:, :, :), pointer,     intent(IN)    :: MatrixOld
+    real,                                  intent(IN)    :: DT
+    integer,                               intent(IN)    :: VelocityID
+    !Locals----------------------------------------------------------------
+    integer                                          :: i, j, k, ILB, IUB, JLB, JUB, KLB, KUB, Kbottom, CHUNK
+    real                                             :: AuxWest, AuxEast, AuxSouth, AuxNorth, AuxBottom, AuxUp
+    !Begin-----------------------------------------------------------------
+    
+    ILB = Me%Father%WorkSize%ILB ; JLB = Me%Father%WorkSize%JLB ; KLB = Me%Father%WorkSize%KLB 
+    IUB = Me%Father%WorkSize%IUB ; JUB = Me%Father%WorkSize%JUB ; KUB = Me%Father%WorkSize%KUB
+    CHUNK = CHUNK_K(KLB, KUB)
+    if (VelocityID == VelocityU_) then
+        !$OMP PARALLEL PRIVATE(i,j,k,AuxWest, AuxEast)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (Me%Father%External_Var%ComputeFaces3D_U(i,j,k) == 1)then
+                AuxWest = (MatrixNew(i, j  , k) - MatrixOld(i, j  , k)) * Me%Father%External_Var%AreaU(i, j  , k)
+                AuxEast = (MatrixNew(i, j+1, k) - MatrixOld(i, j+1, k)) * Me%Father%External_Var%AreaU(i, j+1, k)
+                !m3                = m3/s                * s
+                MatrixNew(i, j, k) = (AuxWest + AuxEast) * DT
+            endif
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+    elseif (VelocityID == VelocityV_) then
+        !$OMP PARALLEL PRIVATE(i,j,k,AuxSouth, AuxNorth)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (Me%Father%External_Var%ComputeFaces3D_V(i,j,k) == 1)then
+                AuxSouth = (MatrixNew(i  , j, k) - MatrixOld(i  , j, k)) * Me%Father%External_Var%AreaV(i  , j, k)
+                AuxNorth = (MatrixNew(i+1, j, k) - MatrixOld(i+1, j, k)) * Me%Father%External_Var%AreaV(i+1, j, k)
+                !m3                = m3                 +         m3/s          * s
+                MatrixNew(i, j, k) = MatrixNew(i, j, k) + (AuxSouth + AuxNorth) * DT
+            endif
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+    elseif (VelocityID == VelocityW_) then
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j,k,AuxUp, AuxBottom, Kbottom)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (Me%Father%External_Var%Open3D(i,j,KUB) == 1)then
+                Kbottom = Me%Father%External_Var%KFloor_Z(i, j)
+                AuxBottom = (MatrixNew(i, j, Kbottom) - MatrixOld(i, j, Kbottom)) * Me%Father%External_Var%AreaZ(i, j)
+                do k = Kbottom+1, KUB
+                    AuxUp     = (MatrixNew(i, j, k) - MatrixOld(i, j, k)) * Me%Father%External_Var%AreaZ(i, j)
+                    !m3                = m3                 +        m3/s         * s
+                    MatrixNew(i, j, k) = MatrixNew(i, j, k) + (AuxBottom + AuxUp) * DT
+                    AuxBottom = AuxUp
+                enddo
+            endif
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+    endif
+    
+    end subroutine UpscalingSinkSources
+
     !---------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
@@ -1190,11 +1275,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !>Routine responsible for the computation of discharge volume by upscaling
     !>@param[in] FatherID, CallerID, STAT     
-    subroutine UpscaleDischarge(SonID, FatherU_old, FatherV_old, FatherU, FatherV, STAT)
+    subroutine UpscaleDischarge(SonID, Father_old, Father, VelocityID, STAT)
         !Arguments-------------------------------------------------------------
-        integer                          , intent(IN)     :: SonID
-        real, dimension(:, :, :), allocatable, intent(IN) :: FatherU_old, FatherV_old
-        real, dimension(:, :, :), pointer, intent(IN)     :: FatherU, FatherV
+        integer                          , intent(IN)     :: SonID, VelocityID
+        real, dimension(:, :, :), allocatable, intent(IN) :: Father_old
+        real, dimension(:, :, :), pointer, intent(IN)     :: Father
         integer                          , intent(OUT)    :: STAT
         type (T_TwoWay), pointer                          :: ObjFather
         !Local-----------------------------------------------------------------
@@ -1204,12 +1289,20 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call Ready(SonID, ready_)        
         
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_))then
-            
-            call ComputeDischargeVolume(FatherU_old = FatherU_old, FatherU = FatherU,                               & 
-                                        FatherV_old = FatherV_old, FatherV = FatherV,                               &
-                                        AreaU = Me%Father%External_Var%AreaU, AreaV = Me%Father%External_Var%AreaV, &
-                                        UpscaleFlow = Me%Father%DischargeCells%Flow,                                &
-                                        DischargeConnection = Me%Father%DischargeCells%Z)
+            if (VelocityID == VelocityU_) then
+                call ComputeDischargeVolumeU(FatherU_old = Father_old, FatherU = Father,      &
+                                            AreaU = Me%Father%External_Var%AreaU,            &
+                                            UpscaleFlow = Me%Father%DischargeCells%Flow,     &
+                                            DischargeConnection = Me%Father%DischargeCells%Z)
+            elseif (VelocityID == VelocityV_) then
+                call ComputeDischargeVolumeV(FatherV_old = Father_old, FatherV = Father,      &
+                                            AreaV = Me%Father%External_Var%AreaV,            &
+                                            UpscaleFlow = Me%Father%DischargeCells%Flow,     &
+                                            DischargeConnection = Me%Father%DischargeCells%Z)
+            else
+                Write(*,*) 'Variable ID does not exist', VelocityID
+                stop 'UpscaleDischarge - ModuleTwoWay'
+            endif
             
             call ReadyFather (Me%Father%InstanceID, ObjFather, ready_father)
             

@@ -345,7 +345,8 @@ Module ModuleFunctions
     public  :: SearchDischargeFace
     public  :: UpsDischargesLinks
     public  :: ComputeUpscalingVelocity
-    public  :: ComputeDischargeVolume
+    public  :: ComputeDischargeVolumeU
+    public  :: ComputeDischargeVolumeV
     public  :: UpdateDischargeConnections
     private :: SearchFace
     private :: Update_n_Z
@@ -13383,18 +13384,16 @@ D2:     do I=imax-1,2,-1
     !>@Brief
     !> Computes volume to be added or removed due to upscaling discharge
     !>@param[in] FatherU_old, FatherU, FatherV_old, FatherV, Volume, KUB, KFloorU, KFloorV, &
-    !>                                 AreaU, AreaV, CellsZ                                        
-                                      
-    subroutine ComputeDischargeVolume(FatherU_old, FatherU, FatherV_old, FatherV, AreaU, AreaV, &
-        UpscaleFlow, DischargeConnection)
+    !>                                 AreaU, AreaV, CellsZ                                                          
+    subroutine ComputeDischargeVolumeU(FatherU_old, FatherU, AreaU, UpscaleFlow, DischargeConnection)
         !Arguments--------------------------------------------------------------------------
-        real,    dimension(:, :, :), pointer, intent(IN)     :: FatherU, FatherV, AreaU, AreaV
-        real,    dimension(:, :, :), allocatable, intent(IN) :: FatherU_old, FatherV_old
+        real,    dimension(:, :, :), pointer, intent(IN)     :: FatherU, AreaU
+        real,    dimension(:, :, :), allocatable, intent(IN) :: FatherU_old
         real(8),    dimension(:)            , intent(INOUT)  :: UpscaleFlow
         integer, dimension(:, :)            , intent(IN)     :: DischargeConnection
         !Local-------------------------------------------------------------------------------
         integer                                              :: line, i, j, k, MaxSize
-        real                                                 :: F_East, F_West, F_South, F_North
+        real                                                 :: F_East, F_West
         !------------------------------------------------------------------------------------
         MaxSize = size(UpscaleFlow)
         do line = 1, MaxSize
@@ -13404,13 +13403,33 @@ D2:     do I=imax-1,2,-1
             
             F_West =  (FatherU_old(i, j  , k) - FatherU(i, j  , k)) * AreaU(i, j  , k)
             F_East = -(FatherU_old(i, j+1, k) - FatherU(i, j+1, k)) * AreaU(i, j+1, k)
+                
+            UpscaleFlow(line) = F_East + F_West
+        enddo
+    end subroutine ComputeDischargeVolumeU
+        
+    subroutine ComputeDischargeVolumeV(FatherV_old, FatherV, AreaV, UpscaleFlow, DischargeConnection)
+        !Arguments--------------------------------------------------------------------------
+        real,    dimension(:, :, :), pointer, intent(IN)     :: FatherV, AreaV
+        real,    dimension(:, :, :), allocatable, intent(IN) :: FatherV_old
+        real(8),    dimension(:)            , intent(INOUT)  :: UpscaleFlow
+        integer, dimension(:, :)            , intent(IN)     :: DischargeConnection
+        !Local-------------------------------------------------------------------------------
+        integer                                              :: line, i, j, k, MaxSize
+        real                                                 :: F_South, F_North
+        !------------------------------------------------------------------------------------
+        MaxSize = size(UpscaleFlow)
+        do line = 1, MaxSize
+            i = DischargeConnection(line, 1)
+            j = DischargeConnection(line, 2)
+            k = DischargeConnection(line, 3)
             
             F_South =  (FatherV_old(i  , j, k) - FatherV(i  ,j , k)) * AreaV(i  , j, k)
             F_North = -(FatherV_old(i+1, j, k) - FatherV(i+1,j , k)) * AreaV(i+1, j, k)
                 
-            UpscaleFlow(line) = F_South + F_North + F_East + F_West
+            UpscaleFlow(line) = UpscaleFlow(line) + F_South + F_North
         enddo
-    end subroutine ComputeDischargeVolume
+    end subroutine ComputeDischargeVolumeV
         
     !>@author Joao Sobrinho Maretec
     !>@Brief
