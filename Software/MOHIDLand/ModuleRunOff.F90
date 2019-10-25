@@ -89,6 +89,7 @@ Module ModuleRunOff
     private ::      ConstructOverLandCoefficient
     private ::      ConstructStormWaterDrainage
     private ::          WriteStreetGutterLinksFile
+    private ::      ConstructSewerStormWaterNodesMap
     private ::      ConstructHDF5Output
     private ::      ConstructTimeSeries
 
@@ -390,6 +391,7 @@ Module ModuleRunOff
         real,    dimension(:,:), pointer            :: NumberOfSewerStormWaterNodes => null() !Number of total SWMM nodes
                                                                                               !(sewer + storm water) per grid cell
                                                                                               !that interact with MOHID
+        integer, dimension(:,:), pointer            :: SewerStormWaterNodeMap   => null() !i,j indexes of grid cell with SWMM nodes
         real,    dimension(:,:), pointer            :: NumberOfStormWaterNodes  => null() !Number of SWMM storm water only nodes
                                                                                           !per grid cell that interact 
                                                                                           !with MOHID (default is the same as 
@@ -631,6 +633,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !Constructs StormWaterDrainage
             if (Me%StormWaterDrainage .or. Me%StormWaterModel) then
                 call ConstructStormWaterDrainage
+            endif
+            
+            !Constructs SewerStormWaterNodesMap
+            if (Me%StormWaterDrainage .or. Me%StormWaterModel) then
+                call ConstructSewerStormWaterNodesMap
             endif
             
             !Constructs Boundary Cells
@@ -1910,6 +1917,33 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 
     end subroutine ReadDataFile
+    
+    subroutine ConstructSewerStormWaterNodesMap    
+        integer :: i, j, idx
+        
+        idx = 0
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%NumberOfSewerStormWaterNodes(i, j) > AllmostZero) then
+                idx = idx + 1
+            endif
+        enddo
+        enddo
+    
+        allocate(Me%SewerStormWaterNodeMap(idx, 2))
+        
+        idx = 1
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            if (Me%NumberOfSewerStormWaterNodes(i, j) > AllmostZero) then
+                Me%SewerStormWaterNodeMap(idx,1) = i
+                Me%SewerStormWaterNodeMap(idx,2) = j
+                idx = idx + 1
+            endif
+        enddo
+        enddo    
+    
+    end subroutine ConstructSewerStormWaterNodesMap
     
     !--------------------------------------------------------------------------
     
@@ -11998,19 +12032,15 @@ cd1:    if (RunOffID > 0) then
         integer                                     :: STAT_CALL
         integer                                     :: ready_         
 
-        call Ready(RunOffID, ready_)    
+        call Ready(RunOffID, ready_)
+        
+        IsUrbanDrainagePoint = .false.
         
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
             if (Me%NumberOfSewerStormWaterNodes(i, j) > AllmostZero) then        
-                IsUrbanDrainagePoint = .true.
-            else
-                IsUrbanDrainagePoint = .false.
-            endif
-        else 
-            IsUrbanDrainagePoint = .false.
+                IsUrbanDrainagePoint = .true.            
+            endif        
         end if
-           
-        return
 
     end function IsUrbanDrainagePoint
     
@@ -12031,22 +12061,16 @@ cd1:    if (RunOffID > 0) then
         type (T_NodeGridPoint), pointer             :: NodeGridPoint
         logical                                     :: Found
 
-        call Ready(RunOffID, ready_)    
+        call Ready(RunOffID, ready_)
+        
+        IsRiverPoint = .false.
         
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-
             Found = .false.
-
             if (Me%NodeRiverMapping (i,j) == BasinPoint) then 
-                IsRiverPoint = .true.
-            else
-                IsRiverPoint = .false.
-            endif
-        else 
-            IsRiverPoint = .false.
+                IsRiverPoint = .true.            
+            endif       
         end if
-           
-        return
 
     end function IsRiverPoint    
 
@@ -12072,12 +12096,9 @@ cd1:    if (RunOffID > 0) then
         else 
             IsDNMappingActive = .false.
         end if
-           
-        return
 
     end function IsDNMappingActive    
     
-
 
     !DEC$ IFDEFINED (VF66)
     !dec$ attributes dllexport::GetPondedWaterColumn
@@ -12094,21 +12115,25 @@ cd1:    if (RunOffID > 0) then
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: ready_         
-        integer                                     :: i, j, idx
+        integer                                     :: i!, j, idx
 
         call Ready(RunOffID, ready_)    
         
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-        
-            idx = 1
-            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                if (Me%NumberOfSewerStormWaterNodes(i, j) > AllmostZero) then
-                    waterColumn(idx) = Max(Me%MyWaterColumn(i, j) - Me%MinimumWaterColumn, 0.0)
-                    idx = idx + 1
-                endif
+                 
+            do i = 1, size(Me%SewerStormWaterNodeMap,1)
+                waterColumn(i) = Max(Me%MyWaterColumn(Me%SewerStormWaterNodeMap(i,1), Me%SewerStormWaterNodeMap(i,2)) - Me%MinimumWaterColumn, 0.0)                    
             enddo
-            enddo
+            
+            !idx = 1
+            !do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            !do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            !    if (Me%NumberOfSewerStormWaterNodes(i, j) > AllmostZero) then
+            !        waterColumn(idx) = Max(Me%MyWaterColumn(i, j) - Me%MinimumWaterColumn, 0.0)
+            !        idx = idx + 1
+            !    endif
+            !enddo
+            !enddo
 
             GetPondedWaterColumn = .true.
         else 
@@ -12133,29 +12158,31 @@ cd1:    if (RunOffID > 0) then
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: ready_         
-        integer                                     :: i, j, idx
-        integer                                     :: targetI
-        integer                                     :: targetJ
+        integer                                     :: i!, j, idx
+        !integer                                     :: targetI
+        !integer                                     :: targetJ
 
         call Ready(RunOffID, ready_)    
         
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
             !Puts values into 1D OpenMI matrix
-            idx = 1
-            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-
-                if (Me%NumberOfSewerStormWaterNodes (i, j) > AllmostZero) then 
-                
-                    !inlet Flow rate min between 
-                    inletInflow(idx) = Me%StormWaterPotentialFlow(i, j)
-                    idx = idx + 1
-                endif
-                    
+            
+            do i = 1, size(Me%SewerStormWaterNodeMap,1)
+                inletInflow(i) = Me%StormWaterPotentialFlow(Me%SewerStormWaterNodeMap(i,1), Me%SewerStormWaterNodeMap(i,2))
             enddo
-            enddo
-
+            
+            !idx = 1
+            !do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            !do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            !    if (Me%NumberOfSewerStormWaterNodes (i, j) > AllmostZero) then 
+            !    
+            !        !inlet Flow rate min between 
+            !        inletInflow(idx) = Me%StormWaterPotentialFlow(i, j)
+            !        idx = idx + 1
+            !    endif                    
+            !enddo
+            !enddo
 
             GetInletInFlow = .true.
         else 
@@ -12191,17 +12218,12 @@ cd1:    if (RunOffID > 0) then
             idx = 1
             do j = Me%WorkSize%JLB, Me%WorkSize%JUB
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-
-                if (Me%NodeRiverMapping (i, j) == BasinPoint) then 
-                
-
+                if (Me%NodeRiverMapping (i, j) == BasinPoint) then
                     flow(idx) = Me%iFlowToChannels(i, j)
                     idx = idx + 1
-                endif
-                    
+                endif                    
             enddo
             enddo
-
 
             GetFlowToRivers = .true.
         else 
@@ -12227,28 +12249,31 @@ cd1:    if (RunOffID > 0) then
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: ready_         
-        integer                                     :: i, j, idx
+        integer                                     :: i!, j, idx
 
         call Ready(RunOffID, ready_)    
         
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
-            idx = 1
-            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                if (Me%NumberOfSewerStormWaterNodes(i, j) > AllmostZero) then
-                    Me%StormWaterEffectiveFlow(i, j) = overlandToSewerFlow(idx)
-                    idx = idx + 1
-                endif
+            do i = 1, size(Me%SewerStormWaterNodeMap,1)
+                Me%StormWaterEffectiveFlow(Me%SewerStormWaterNodeMap(i,1), Me%SewerStormWaterNodeMap(i,2)) = overlandToSewerFlow(i)
             enddo
-            enddo
+            
+            !idx = 1
+            !do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            !do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            !    if (Me%NumberOfSewerStormWaterNodes(i, j) > AllmostZero) then
+            !        Me%StormWaterEffectiveFlow(i, j) = overlandToSewerFlow(idx)
+            !        idx = idx + 1
+            !    endif
+            !enddo
+            !enddo
 
             SetStormWaterModelFlow = .true.
         else 
             call PlaceErrorMessageOnStack("Runoff not ready")
             SetStormWaterModelFlow = .false.
-        end if
-           
+        end if           
 
     end function SetStormWaterModelFlow
     
@@ -12288,8 +12313,7 @@ cd1:    if (RunOffID > 0) then
         else 
             call PlaceErrorMessageOnStack("Runoff not ready")
             SetRiverWaterLevel = .false.
-        end if
-           
+        end if           
 
     end function SetRiverWaterLevel    
         
