@@ -25989,7 +25989,7 @@ thick:                      do while (associated(CurrentOrigin))
         !Arguments------------------------------------------------------------------    
         type(T_Origin),                              pointer :: CurrentOrigin
         integer                                              :: em, OutPutNumber 
-        real,                         dimension (:), pointer :: Matrix1D
+        real(8),                      dimension (:), pointer :: Matrix1D
         !Local----------------------------------------------------------------------                    
         type (T_Partic)                            , pointer :: CurrentPartic
         type (T_Property)                          , pointer :: CurrentProperty
@@ -26036,7 +26036,7 @@ thick:                      do while (associated(CurrentOrigin))
         !Arguments------------------------------------------------------------------    
         character(len=*)                                     :: GroupName
         integer                                              :: ig, em, OutPutNumber 
-        real,                         dimension (:), pointer :: Matrix1D
+        real(8),                      dimension (:), pointer :: Matrix1D
         !Local----------------------------------------------------------------------                    
         type(T_Origin),                              pointer :: CurrentOrigin
         type (T_Partic)                            , pointer :: CurrentPartic
