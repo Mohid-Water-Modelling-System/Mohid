@@ -423,7 +423,8 @@ Module ModuleRunOff
         
         
         real, dimension(:,:), pointer               :: NodeRiverLevel           => null() !river level at river points (from DN or external model)
-        integer, dimension(:,:), pointer            :: NodeRiverMapping         => null() !mapping of river points where interaction occurs (for external model)
+        integer, dimension(:,:), pointer            :: NodeRiverMapping         => null() !i,j indexes of grid cell of river points where interaction occurs (for external model)
+        integer, dimension(:,:), pointer            :: RiverNodeMap             => null() !mapping of river points where interaction occurs (for external model)
         real, dimension(:,:), pointer               :: MarginRiverLevel         => null() !river level at margin points
         real, dimension(:,:), pointer               :: MarginFlowToChannels     => null() !flow to channels at margin points
         
@@ -3782,6 +3783,7 @@ do4:            do di = -1, 1
         real                                                :: lowestValue
         logical                                             :: IgnoreTopography
         type(T_NodeGridPoint), pointer                      :: NodeGridPoint
+        integer                                             :: nNodeGridPoints
 
         !Bounds
         ILB = Me%WorkSize%ILB
@@ -3844,15 +3846,24 @@ do4:            do di = -1, 1
             allocate(Me%NodeRiverMapping            (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             Me%NodeRiverMapping            = 0
             
+            !finding the number of river point mapping to know where interaction occurs
+            NodeGridPoint => Me%FirstNodeGridPoint
+            nNodeGridPoints = 0
+            do while (associated(NodeGridPoint))                   
+                NodeGridPoint => NodeGridPoint%Next
+                nNodeGridPoints = nNodeGridPoints + 1
+            enddo 
+            allocate(Me%RiverNodeMap(nNodeGridPoints,2))
+            
             !river point mapping to know where interaction occurs
             NodeGridPoint => Me%FirstNodeGridPoint
-
+            nNodeGridPoints = 1
             do while (associated(NodeGridPoint))
-
                 Me%NodeRiverMapping(NodeGridPoint%GridI, NodeGridPoint%GridJ) = 1
-                          
+                Me%RiverNodeMap(nNodeGridPoints,1) = NodeGridPoint%GridI
+                Me%RiverNodeMap(nNodeGridPoints,2) = NodeGridPoint%GridJ
                 NodeGridPoint => NodeGridPoint%Next
-                
+                nNodeGridPoints = nNodeGridPoints + 1
             enddo               
 
             !additional output
@@ -12208,22 +12219,26 @@ cd1:    if (RunOffID > 0) then
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: ready_         
-        integer                                     :: i, j, idx
+        integer                                     :: i!, j, idx
 
         call Ready(RunOffID, ready_)    
         
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
             !Puts values into 1D OpenMI matrix
-            idx = 1
-            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                if (Me%NodeRiverMapping (i, j) == BasinPoint) then
-                    flow(idx) = Me%iFlowToChannels(i, j)
-                    idx = idx + 1
-                endif                    
+            do i = 1, size(Me%RiverNodeMap,1)
+                flow(i) = Me%iFlowToChannels(Me%RiverNodeMap(i,1), Me%RiverNodeMap(i,2))
             enddo
-            enddo
+            
+            !idx = 1
+            !do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            !do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            !    if (Me%NodeRiverMapping (i, j) == BasinPoint) then
+            !        flow(idx) = Me%iFlowToChannels(i, j)
+            !        idx = idx + 1
+            !    endif                    
+            !enddo
+            !enddo
 
             GetFlowToRivers = .true.
         else 
@@ -12293,21 +12308,25 @@ cd1:    if (RunOffID > 0) then
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_CALL
         integer                                     :: ready_         
-        integer                                     :: i, j, idx
+        integer                                     :: i!, j, idx
 
         call Ready(RunOffID, ready_)    
         
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
-            idx = 1
-            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-                if (Me%NodeRiverMapping (i, j) == BasinPoint) then
-                    Me%NodeRiverLevel(i, j) = riverLevel(idx)
-                    idx = idx + 1
-                endif
+            do i = 1, size(Me%RiverNodeMap,1)
+                Me%NodeRiverLevel(Me%RiverNodeMap(i,1), Me%RiverNodeMap(i,2)) = riverLevel(i)
             enddo
-            enddo
+            
+            !idx = 1
+            !do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            !do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+            !    if (Me%NodeRiverMapping (i, j) == BasinPoint) then
+            !        Me%NodeRiverLevel(i, j) = riverLevel(idx)
+            !        idx = idx + 1
+            !    endif
+            !enddo
+            !enddo
 
             SetRiverWaterLevel = .true.
         else 
