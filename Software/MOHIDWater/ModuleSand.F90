@@ -3311,7 +3311,7 @@ ifMS:   if (MasterOrSlave) then
     subroutine ComputeFluxes
         !Local-----------------------------------------------------------------
         integer             :: i, j
-        real                :: SandThickness, Xaux, Yaux, XYMod, FluxX, FluxY, DT_Racio
+        real                :: Xaux, Yaux, XYMod, FluxX, FluxY, DT_Racio
         real                :: Xcomp, Ycomp
         !----------------------------------------------------------------------
 
@@ -5965,7 +5965,8 @@ ifMS:   if (MasterOrSlave) then
     subroutine ComputeEvolutionX            
 
         !Local-----------------------------------------------------------------
-        real,    dimension(:,:), pointer   :: FluxXY, BoxFluxesXY
+        real,    dimension(:,:), pointer   :: FluxXY
+        real(8), dimension(:,:), pointer   :: BoxFluxesXY
         integer, dimension(:,:), pointer   :: ComputeUV2D         
         real(8)                            :: Area2, RunPeriod, FluxSand, SandMin
         real(8)                            :: VolumeAvailable, SandThickness
@@ -6092,7 +6093,7 @@ ifMS:   if (MasterOrSlave) then
         !Local-----------------------------------------------------------------
         real(8)                            :: Area2, VolumeAvailable
         real(8)                            :: VolumeTransport
-        real(8)                            :: Coef, DZ
+        real(8)                            :: Coef
         integer                            :: i, j         
         
         !Begin-----------------------------------------------------------------
@@ -6141,7 +6142,8 @@ ifMS:   if (MasterOrSlave) then
     subroutine ComputeOneDir(FluxXY, BoxFluxesXY, ComputeUV2D, Area2, VolumeAvailable, i, j, di, dj)            
 
         !Arguments-------------------------------------------------------------
-        real,    dimension(:,:), pointer   :: FluxXY, BoxFluxesXY 
+        real,    dimension(:,:), pointer   :: FluxXY
+        real(8), dimension(:,:), pointer   :: BoxFluxesXY 
         integer, dimension(:,:), pointer   :: ComputeUV2D         
         real(8)                            :: Area2, VolumeAvailable
         integer                            :: i, j, di, dj

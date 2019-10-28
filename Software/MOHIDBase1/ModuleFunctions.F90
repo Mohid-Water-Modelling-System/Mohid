@@ -72,6 +72,11 @@ Module ModuleFunctions
     public  :: AddMAtrixtimesScalar
     public  :: AddMatrixtimesScalarDivByMatrix
     public  :: SumMatrixes
+    interface  SumMatrixes
+        module procedure SumMatrixes_R4
+        module procedure SumMatrixes_R8
+    end interface  SumMatrixes    
+    
 #ifdef _USE_SEQASSIMILATION
     public  :: InvSingularDiagMatrix2D
     public  :: CholeskyFactorization
@@ -1983,7 +1988,7 @@ Module ModuleFunctions
     subroutine AddMatrixtimesScalarDivByMatrix(MatrixA, MatrixB, MatrixC, Scalar, Size, MapMatrix, DoMethod, Kfloor)
         !Arguments-------------------------------------------------------------
         real, dimension(:, :, :), pointer, intent (INOUT) :: MatrixA
-        real, dimension(:, :, :), pointer, intent (IN)    :: MatrixB, MatrixC
+        real(8), dimension(:, :, :), pointer, intent (IN) :: MatrixB, MatrixC
         type (T_Size3D)                                   :: Size
         integer, dimension(:, :, :), pointer, intent (IN) :: MapMatrix
         real, intent(IN)                                  :: Scalar
@@ -2038,10 +2043,10 @@ Module ModuleFunctions
 
     !End-------------------------------------------------------------------------
 
-    subroutine SumMatrixes(MatrixA, Size, MatrixB)
+    subroutine SumMatrixes_R8(MatrixA, Size, MatrixB)
         !Arguments-------------------------------------------------------------
-        real, dimension(:, :, :), pointer, intent (INOUT) :: MatrixA
-        real, dimension(:, :, :), pointer, intent (IN)    :: MatrixB
+        real(8), dimension(:, :, :), pointer, intent (INOUT) :: MatrixA
+        real(8), dimension(:, :, :), pointer, intent (IN)    :: MatrixB
         type (T_Size3D)                                   :: Size
         !Local-----------------------------------------------------------------
         integer                                           :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB
@@ -2069,7 +2074,43 @@ Module ModuleFunctions
         !$OMP END DO
         !$OMP END PARALLEL
 
-    end subroutine SumMatrixes
+    end subroutine SumMatrixes_R8
+
+
+    !End-------------------------------------------------------------------------
+    
+    subroutine SumMatrixes_R4(MatrixA, Size, MatrixB)
+        !Arguments-------------------------------------------------------------
+        real(4), dimension(:, :, :), pointer, intent (INOUT) :: MatrixA
+        real(4), dimension(:, :, :), pointer, intent (IN)    :: MatrixB
+        type (T_Size3D)                                   :: Size
+        !Local-----------------------------------------------------------------
+        integer                                           :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB
+        integer                                           :: CHUNK
+        !Begin-----------------------------------------------------------------
+
+        KUB = Size%KUB
+        KLB = Size%KLB
+        JUB = Size%JUB
+        JLB = Size%JLB
+        IUB = Size%IUB
+        ILB = Size%ILB
+
+        CHUNK = CHUNK_K(KLB, KUB)
+
+        !$OMP PARALLEL PRIVATE(i,j,k)
+        !$OMP DO SCHEDULE(STATIC, CHUNK)
+        do k = KLB, KUB
+        do j = JLB, JUB
+        do i = ILB, IUB
+            MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+
+    end subroutine SumMatrixes_R4
 
 
     !End-------------------------------------------------------------------------

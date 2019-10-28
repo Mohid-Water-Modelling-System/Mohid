@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<VisualStudioProject ProjectCreator="Intel Fortran" Keyword="Console Application" Version="11.0" ProjectIdGuid="{F8708A1A-EF60-4639-BD43-777C769C7864}">
+	<Platforms>
+		<Platform Name="Win32"/>
+		<Platform Name="x64"/></Platforms>
+	<Configurations>
+		<Configuration Name="Debug|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\win32;..\MohidBase1\debug;..\MohidBase2\debug" WarnInterfaces="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\lib;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\win32;..\MohidBase1\debug;..\MohidBase2\debug" IgnoreDefaultLibraryNames="MSVCRTD.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="1280000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib  hdf5.lib  hdf5_f90cstub.lib hdf5_fortran.lib hdf5_tools.lib libhdf5.lib libhdf5_f90cstub.lib libhdf5_fortran.lib libhdf5_tools.lib libszip.lib libzlib.lib zlib.lib szip.lib hdf5_cpp.lib netcdff.lib netcdf.lib "/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\win32;..\MohidBase1\Release;..\MohidBase2\Release"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\lib;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\win32;..\MohidBase1\Release;..\MohidBase2\Release" IgnoreDefaultLibraryNames="MSVCRTD.lib" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="12800000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib  hdf5.lib  hdf5_f90cstub.lib hdf5_fortran.lib hdf5_tools.lib libhdf5.lib libhdf5_f90cstub.lib libhdf5_fortran.lib libhdf5_tools.lib libszip.lib libzlib.lib zlib.lib szip.lib hdf5_cpp.lib  netcdff.lib  netcdf.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\MohidBase1\x64\Debug;..\MohidBase2\x64\Debug" WarnInterfaces="true" RealKIND="realKIND8" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\lib;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\MohidBase1\x64\debug;..\MohidBase2\x64\debug" IgnoreDefaultLibraryNames="MSVCRTD.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="1280000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib  hdf5.lib  hdf5_f90cstub.lib hdf5_fortran.lib hdf5_tools.lib libhdf5.lib libhdf5_f90cstub.lib libhdf5_fortran.lib libhdf5_tools.lib libszip.lib libzlib.lib zlib.lib netcdf.lib netcdff.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\Include\fortran;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\MohidBase1\x64\Release;..\MohidBase2\x64\Release" RealKIND="realKIND8"/>
+				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\lib;..\..\..\..\ExternalLibs\Netcdf_4.4.1.1\VS2015\x64;..\MohidBase1\x64\Release;..\MohidBase2\x64\Release" IgnoreDefaultLibraryNames="MSVCRTD.lib;MSVCRT" SubSystem="subSystemConsole" StackReserveSize="256000000" StackCommitSize="12800000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib  hdf5.lib  hdf5_f90cstub.lib hdf5_fortran.lib hdf5_tools.lib libhdf5.lib libhdf5_f90cstub.lib libhdf5_fortran.lib libhdf5_tools.lib libszip.lib libzlib.lib zlib.lib netcdf.lib netcdff.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
+	<Files>
+		<Filter Name="Header Files" Filter="fi;fd"/>
+		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
+		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
+		<File RelativePath="..\..\..\..\Software\SmallTools\Convert2netcdf\ConvertToNETCDF.F90"/></Filter></Files>
+	<Globals/></VisualStudioProject>
