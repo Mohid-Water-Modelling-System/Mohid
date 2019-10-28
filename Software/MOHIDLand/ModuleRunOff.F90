@@ -423,8 +423,8 @@ Module ModuleRunOff
         
         
         real, dimension(:,:), pointer               :: NodeRiverLevel           => null() !river level at river points (from DN or external model)
-        integer, dimension(:,:), pointer            :: NodeRiverMapping         => null() !i,j indexes of grid cell of river points where interaction occurs (for external model)
-        integer, dimension(:,:), pointer            :: RiverNodeMap             => null() !mapping of river points where interaction occurs (for external model)
+        integer, dimension(:,:), pointer            :: NodeRiverMapping         => null() !mapping of river points where interaction occurs (for external model)
+        integer, dimension(:,:), pointer            :: RiverNodeMap             => null() !i,j indexes of grid cell of river points where interaction occurs (for external model)
         real, dimension(:,:), pointer               :: MarginRiverLevel         => null() !river level at margin points
         real, dimension(:,:), pointer               :: MarginFlowToChannels     => null() !flow to channels at margin points
         
@@ -1918,6 +1918,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
 
     end subroutine ReadDataFile
+    
+    !--------------------------------------------------------------------------
     
     subroutine ConstructSewerStormWaterNodesMap    
         integer :: i, j, idx
@@ -3776,7 +3778,7 @@ do4:            do di = -1, 1
 
         !Local-----------------------------------------------------------------
         integer                                             :: ILB, IUB, JLB, JUB    
-        integer                                             :: i, j
+        integer                                             :: i, j, idx
         logical                                             :: nearestfound
         integer                                             :: dij, lowestI, lowestJ
         integer                                             :: iAux, jAux
@@ -3846,25 +3848,26 @@ do4:            do di = -1, 1
             allocate(Me%NodeRiverMapping            (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB))
             Me%NodeRiverMapping            = 0
             
-            !finding the number of river point mapping to know where interaction occurs
-            NodeGridPoint => Me%FirstNodeGridPoint
-            nNodeGridPoints = 0
-            do while (associated(NodeGridPoint))                   
-                NodeGridPoint => NodeGridPoint%Next
-                nNodeGridPoints = nNodeGridPoints + 1
-            enddo 
-            allocate(Me%RiverNodeMap(nNodeGridPoints,2))
-            
             !river point mapping to know where interaction occurs
             NodeGridPoint => Me%FirstNodeGridPoint
-            nNodeGridPoints = 1
+            nNodeGridPoints = 0
             do while (associated(NodeGridPoint))
-                Me%NodeRiverMapping(NodeGridPoint%GridI, NodeGridPoint%GridJ) = 1
-                Me%RiverNodeMap(nNodeGridPoints,1) = NodeGridPoint%GridI
-                Me%RiverNodeMap(nNodeGridPoints,2) = NodeGridPoint%GridJ
+                Me%NodeRiverMapping(NodeGridPoint%GridI, NodeGridPoint%GridJ) = 1                
                 NodeGridPoint => NodeGridPoint%Next
                 nNodeGridPoints = nNodeGridPoints + 1
-            enddo               
+            enddo
+            
+            allocate(Me%RiverNodeMap(nNodeGridPoints,2))            
+            idx = 1
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+                if (Me%NodeRiverMapping (i, j) == BasinPoint) then
+                    Me%RiverNodeMap(idx,1) = i
+                    Me%RiverNodeMap(idx,2) = j
+                    idx = idx + 1
+                endif                    
+            enddo
+            enddo
 
             !additional output
             if (Me%Use1D2DInteractionMapping) then
