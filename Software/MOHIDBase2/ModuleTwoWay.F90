@@ -1267,7 +1267,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     subroutine UpscaleDischarge_WP (FatherID, Prop, PropVector, Flow, FlowVector, dI, dJ, dK, Kmin, Kmax, FirstTime)
         !Arguments-------------------------------------------------------------
         integer                          , intent(IN)     :: FatherID
-        real, dimension(:, :, :), pointer, intent(IN)     :: Flow
+        real(8), dimension(:, :, :), pointer, intent(IN)    :: Flow
         real, dimension(:)      , pointer, intent(IN)     :: FlowVector, PropVector
         real, dimension(:, :, :), pointer, intent(IN)     :: Prop
         integer, dimension(:), pointer, intent(INOUT)     :: dI, dJ, dK, Kmin, Kmax
