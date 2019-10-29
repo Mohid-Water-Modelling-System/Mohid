@@ -164,6 +164,8 @@ Module ModuleBasin
 #ifdef _ENABLE_CUDA
     use ModuleCuda
 #endif _ENABLE_CUDA
+
+    use ModuleExternalCoupler
     
     implicit none
 
