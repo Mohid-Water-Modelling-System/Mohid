@@ -34,6 +34,7 @@
     module SWMMCoupler
 
     use ModuleGlobalData
+    use ModuleEnterData
     use iso_c_binding
 
     implicit none
@@ -41,6 +42,13 @@
 
 
     interface dllFuncs
+    
+    subroutine swmm_open(inFile, rptFile, outFile) bind(C, name='swmm_open')
+    use iso_c_binding
+    type(c_ptr) :: inFile
+    type(c_ptr) :: rptFile
+    type(c_ptr) :: outFile
+    end subroutine swmm_open
 
     subroutine swmm_getNumberOfNodes(nNodes) bind(C, name='swmm_getNumberOfNodes')
     use iso_c_binding
@@ -57,6 +65,21 @@
     type(c_ptr) :: id1
     end subroutine swmm_getIsNodeOpenChannel
 
+    subroutine swmm_getInflowByNode(id2) bind(C, name='swmm_getInflowByNode')
+    use iso_c_binding
+    type(c_ptr) :: id2
+    end subroutine swmm_getInflowByNode
+
+    subroutine swmm_getOutflowByNode(id3) bind(C, name='swmm_getOutflowByNode')
+    use iso_c_binding
+    type(c_ptr) :: id3
+    end subroutine swmm_getOutflowByNode
+
+    subroutine swmm_getLevelByNode(id4) bind(C, name='swmm_getLevelByNode')
+    use iso_c_binding
+    type(c_ptr) :: id4
+    end subroutine swmm_getLevelByNode
+
     end interface dllFuncs
 
 
@@ -68,21 +91,32 @@
 
     !main public class
     type :: swmm_coupler_class                      !< SWMM Coupler class
-        logical :: initialized = .false.                    !< initialized flag
-        type(NodeTypes_enum) :: NodeTypes                   !< node type flags
-        integer :: NumberOfNodes                            !< number of SWMM nodes
-        integer, allocatable, dimension(:) :: junctionIDX   !< ids of junction SWMM nodes
-        integer, allocatable, dimension(:) :: outfallIDX    !< ids of outfall SWMM nodes
-        integer, allocatable, dimension(:) :: inflowIDX     !< ids of inflow SWMM nodes
-        logical, allocatable, dimension(:) :: xSectionOpen  !warning: 1-based index array (c equivalent is 0-based)
+        logical :: initialized = .false.                        !< initialized flag
+        type(NodeTypes_enum) :: NodeTypes                       !< node type flags
+        integer :: NumberOfNodes                                !< number of SWMM nodes
+        integer, allocatable, dimension(:) :: junctionIDX       !< ids of junction SWMM nodes
+        integer, allocatable, dimension(:) :: outfallIDX        !< ids of outfall SWMM nodes
+        integer, allocatable, dimension(:) :: inflowIDX         !< ids of inflow SWMM nodes
+        integer, allocatable, dimension(:) :: xsectionLevelsIDX !< ids of open cros section SWMM nodes
+        logical, allocatable, dimension(:) :: xSectionOpen      !warning: 1-based index array (c equivalent is 0-based)
+        character(len = StringLength)      :: SWMM_dat
+        character(len = StringLength)      :: SWMM_rpt
+        character(len = StringLength)      :: SWMM_out
     contains
     procedure :: initialize => initSWMMCoupler
+    procedure :: initializeSWMM
+    procedure, private :: getFilesPaths
     procedure :: print => printSWMMCoupler
     !import data procedures
+    procedure :: GetInflow
+    procedure :: GetOutflow
+    procedure :: GetLevel
     procedure, private :: GetNumberOfNodes
     procedure, private :: GetNodeTypeByID
     procedure, private :: GetIsNodeOpenChannel
-    procedure :: GetInflow
+    procedure, private :: GetInflowByID
+    procedure, private :: GetOutflowByID
+    procedure, private :: GetLevelByID
     !export data procedures
     end type swmm_coupler_class
 
@@ -102,10 +136,15 @@
     integer :: nJunction = 0
     integer :: nOutfall = 0
     integer :: nInflow = 0
+    integer :: nXSection = 0
     integer :: i, idx
-    integer :: idxj, idxo, idxi = 1
+    integer :: idxj, idxo, idxi, idxx = 1
 
     self%initialized = .true.
+    !initialize SWMM
+    call self%getFilesPaths()
+    call self%initializeSWMM()
+    
     call self%GetNumberOfNodes()
 
     !building open section list
@@ -118,13 +157,16 @@
         end if
     end do
 
-    !building id lists
+    !building id lists for O(1) access
     do i=1, self%NumberOfNodes
         idx = i-1
         if (self%NodeTypes%junction == self%GetNodeTypeByID(idx)) nJunction = nJunction + 1
         if (self%NodeTypes%outfall  == self%GetNodeTypeByID(idx)) nOutfall  = nOutfall  + 1
         if (self%NodeTypes%junction  == self%GetNodeTypeByID(idx)) then
-            if (self%xSectionOpen(i)) nInflow = nInflow + 1
+            if (.not.self%xSectionOpen(i)) nInflow = nInflow + 1     !only closed nodes
+        end if
+        if (self%NodeTypes%junction  == self%GetNodeTypeByID(idx)) then
+            if (self%xSectionOpen(i)) nXSection = nXSection + 1      !only open nodes
         end if
     end do
     allocate(self%junctionIDX(nJunction))
@@ -141,10 +183,16 @@
             idxo = idxo + 1
         end if
         if (self%NodeTypes%junction == self%GetNodeTypeByID(idx)) then
-            if (self%xSectionOpen(i)) then
+            if (.not.self%xSectionOpen(i)) then !only closed nodes
                 self%inflowIDX(idxi) = idx
                 idxi = idxi + 1
-            end if            
+            end if
+        end if
+        if (self%NodeTypes%junction == self%GetNodeTypeByID(idx)) then
+            if (self%xSectionOpen(i)) then      !only open nodes
+                self%xsectionLevelsIDX(idxx) = idx
+                idxx = idxx + 1
+            end if
         end if
     end do
 
@@ -153,7 +201,60 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets the number of SWMM nodes by a DLL call
+    !> Gets the files required for SWMM run
+    !---------------------------------------------------------------------------
+    subroutine getFilesPaths(self)
+    class(swmm_coupler_class), intent(inout) :: self
+    integer :: STAT_CALL
+
+    call ReadFileName('SWMM_DAT', self%SWMM_dat,                         &
+        Message = "SWMM input file", STAT = STAT_CALL)
+    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getFilesPaths - SWMM_DAT keyword not found on main file list'
+
+    call ReadFileName('SWMM_RPT', self%SWMM_rpt,                         &
+        Message = "SWMM report file", STAT = STAT_CALL)
+    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getFilesPaths - SWMM_RPT keyword not found on main file list'
+
+    call ReadFileName('SWMM_OUT', self%SWMM_out,                         &
+        Message = "SWMM output file", STAT = STAT_CALL)
+    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getFilesPaths - SWMM_OUT keyword not found on main file list'
+
+    end subroutine getFilesPaths
+
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Initializes the SWMM model through a DLL call
+    !---------------------------------------------------------------------------
+    subroutine initializeSWMM(self)
+    class(swmm_coupler_class), intent(inout) :: self
+    type(c_ptr) :: inFileC, rptFileC, outFileC      !c pointer
+    character(len = StringLength), target :: inFileF, rptFileF, outFileF    !fortran target
+    
+    print*, 'Initializing SWMM, please wait...'
+    
+    inFileF = trim(ADJUSTL(self%SWMM_dat))//C_NULL_CHAR
+    rptFileF = trim(ADJUSTL(self%SWMM_rpt))//C_NULL_CHAR
+    outFileF = trim(ADJUSTL(self%SWMM_out))//C_NULL_CHAR
+    
+    inFileF = "hello world"//C_NULL_CHAR
+    
+    print*, inFileF
+    
+    inFileC = c_loc(inFileF)            !pointing c pointer to fortran target location
+    rptFileC = c_loc(rptFileF)
+    outFileC = c_loc(outFileF)
+    
+    call swmm_open(inFileC, rptFileC, outFileC)
+    
+    print*,''
+
+    end subroutine initializeSWMM
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets the number of SWMM nodes through a DLL call
     !---------------------------------------------------------------------------
     subroutine GetNumberOfNodes(self)
     class(swmm_coupler_class), intent(inout) :: self
@@ -169,7 +270,8 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets the SWMM node type by a DLL call
+    !> Gets the SWMM node type through a DLL call
+    !> @param[in] self, id
     !---------------------------------------------------------------------------
     integer function GetNodeTypeByID(self, id)
     class(swmm_coupler_class), intent(in) :: self
@@ -186,7 +288,8 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets the open channel status of a SWMM node by a DLL call
+    !> Gets the open channel status of a SWMM node through a DLL call
+    !> @param[in] self, id
     !---------------------------------------------------------------------------
     logical function GetIsNodeOpenChannel(self, id)
     class(swmm_coupler_class), intent(in) :: self
@@ -200,24 +303,118 @@
     if (isOpenF == 1) GetIsNodeOpenChannel = .true.
 
     end function GetIsNodeOpenChannel
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets the open channel status of a SWMM node by a DLL call
+    !> Gets ponded inflow by SWMM node ID through a DLL call
+    !> @param[in] self, id
+    !---------------------------------------------------------------------------
+    real function GetInflowByID(self, id)
+    class(swmm_coupler_class), intent(in) :: self
+    integer(c_int), intent(in) :: id
+    type(c_ptr) :: inflowC   !c pointer
+    real, target :: inflowF  !fortran target
+
+    inflowC = c_loc(inflowF)             !pointing c pointer to fortran target location
+    !call swmm_getInflowByNode(id, inflowC)
+    GetInflowByID = inflowF
+
+    end function GetInflowByID
+
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets ponded inflow at all required SWMM nodes
     !---------------------------------------------------------------------------
     function GetInflow(self) result(inflow)
     class(swmm_coupler_class), intent(in) :: self
-    real, allocatable, dimension(:) :: inflow
-    type(c_ptr), allocatable, dimension(:) :: inflowC   !c pointer
-    real, allocatable, dimension(:), target :: inflowF  !fortran target
+    real, dimension(size(self%inflowIDX)) :: inflow
     integer :: i
-    
-    !allocate()
-    !do i=1, size(self%inflowIDX)
-        
-    
+
+    inflow = 0.0
+    if (size(self%inflowIDX)>0) then
+        do i=1, size(self%inflowIDX)
+            inflow(i) = self%GetInflowByID(self%inflowIDX(i))
+        end do
+    end if
+
     end function GetInflow
+
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets outflow by SWMM node ID through a DLL call
+    !> @param[in] self, id
+    !---------------------------------------------------------------------------
+    real function GetOutflowByID(self, id)
+    class(swmm_coupler_class), intent(in) :: self
+    integer(c_int), intent(in) :: id
+    type(c_ptr) :: outflowC   !c pointer
+    real, target :: outflowF  !fortran target
+
+    outflowC = c_loc(outflowF)             !pointing c pointer to fortran target location
+    !call swmm_getOutflowByNode(id, outflowC)
+    GetOutflowByID = outflowF
+
+    end function GetOutflowByID
+
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets outflow at all required SWMM nodes
+    !---------------------------------------------------------------------------
+    function GetOutflow(self) result(outflow)
+    class(swmm_coupler_class), intent(in) :: self
+    real, dimension(size(self%outfallIDX)) :: outflow
+    integer :: i
+
+    outflow = 0.0
+    if (size(self%outfallIDX)>0) then
+        do i=1, size(self%outfallIDX)
+            outflow(i) = self%GetOutflowByID(self%outfallIDX(i))
+        end do
+    end if
+
+    end function GetOutflow
+
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets level by SWMM node ID through a DLL call
+    !> @param[in] self, id
+    !---------------------------------------------------------------------------
+    real function GetLevelByID(self, id)
+    class(swmm_coupler_class), intent(in) :: self
+    integer(c_int), intent(in) :: id
+    type(c_ptr) :: levelC   !c pointer
+    real, target :: levelF  !fortran target
+
+    levelC = c_loc(levelF)             !pointing c pointer to fortran target location
+    !call swmm_getLevelByNode(id, levelC)
+    GetLevelByID = levelF
+
+    end function GetLevelByID
+
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets level at all required SWMM nodes
+    !---------------------------------------------------------------------------
+    function GetLevel(self) result(level)
+    class(swmm_coupler_class), intent(in) :: self
+    real, dimension(size(self%xsectionLevelsIDX)) :: level
+    integer :: i
+
+    level = 0.0
+    if (size(self%xsectionLevelsIDX)>0) then
+        do i=1, size(self%xsectionLevelsIDX)
+            level(i) = self%GetLevelByID(self%xsectionLevelsIDX(i))
+        end do
+    end if
+
+    end function GetLevel
+
 
 
     !---------------------------------------------------------------------------
