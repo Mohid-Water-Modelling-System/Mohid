@@ -1619,6 +1619,7 @@ Module ModuleHydrodynamic
     
     type       T_Upscaling
         real, dimension(:,:,:), allocatable  :: CopyVel
+        real, dimension(:,:,:), allocatable  :: VolumeCreated
         logical                              :: MassSinkSource = .false.
     end type T_Upscaling
 
@@ -16763,6 +16764,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
                         if (.not. allocated(ObjHydrodynamicFather%OutPut%Upscaling%CopyVel)) &
                         allocate(ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(ILB:IUB, JLB:JUB, KLB:KUB))
                     endif
+                    if (Me%OutPut%Upscaling%MassSinkSource) then
+                        if (.not. allocated(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated)) &
+                        allocate(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated(ILB:IUB, JLB:JUB, KLB:KUB))
+                    endif
+                    
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
                         call Set_Upscaling_Discharges(HydrodynamicFatherID, ObjHydrodynamicFather, HydrodynamicID)
                     endif
@@ -53320,7 +53326,6 @@ do5:            do i = ILB, IUB
                         ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = &
                         ObjHydrodynamicFather%Velocity%Horizontal%U%New(:,:,:)
                     endif
-
                     !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
                     call PrepTwoWay (SonID             = AuxHydrodynamicID,   &
                                      FatherID          = Me%FatherInstanceID, &
@@ -53345,7 +53350,7 @@ do5:            do i = ILB, IUB
                                               VelocityID  = VelocityU_, STAT = STAT_CALL)
                     !Account for sinks and sources of Volume due to upscaling.
                     if (Me%OutPut%Upscaling%MassSinkSource) &
-                        call UpscalingSinkSources(ObjHydrodynamicFather%OutPut%Upscaling%CopyVel,   &
+                        call UpscalingSinkSources(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated,   &
                                                   ObjHydrodynamicFather%Velocity%Horizontal%U%New,       &
                                                   ObjHydrodynamicFather%Velocity%DT, VelocityU_)
                     if (MakeCopy) &
@@ -53369,7 +53374,7 @@ do5:            do i = ILB, IUB
                                               VelocityID  = VelocityV_, STAT = STAT_CALL)
                     !Account for sinks and sources of Volume due to upscaling.
                     if (Me%OutPut%Upscaling%MassSinkSource) &
-                        call UpscalingSinkSources(ObjHydrodynamicFather%OutPut%Upscaling%CopyVel,   &
+                        call UpscalingSinkSources(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated,   &
                                                   ObjHydrodynamicFather%Velocity%Horizontal%V%New,       &
                                                   ObjHydrodynamicFather%Velocity%DT, VelocityV_)  
                     if (MakeCopy) &
@@ -53387,7 +53392,7 @@ do5:            do i = ILB, IUB
                     
                     !Account for sinks and sources of Volume due to upscaling.
                     if (Me%OutPut%Upscaling%MassSinkSource) &
-                        call UpscalingSinkSources(ObjHydrodynamicFather%OutPut%Upscaling%CopyVel,   &
+                        call UpscalingSinkSources(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated,   &
                                                   ObjHydrodynamicFather%Velocity%Vertical%Cartesian,       &
                                                   ObjHydrodynamicFather%Velocity%DT, VelocityW_)
                         
@@ -54496,7 +54501,7 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         endif
         
         if (Me%OutPut%Upscaling%MassSinkSource) then
-            SinksSourcesVolume => Me%Output%Upscaling%CopyVel
+            SinksSourcesVolume => Me%Output%Upscaling%VolumeCreated
             call HDF5WriteData  (ObjHDF5,                                            &
                                  "/Results/"//"MassSinkSource",                      &
                                  "MassSinkSource",                                   &
@@ -57726,30 +57731,31 @@ i1:     if (STAT_CALL /= SUCCESS_) then
                     enddo
 
 
+                else
+
+                    read(InitialFile) Me%Residual%ResidualTime
+
+                    !Average water level
+                    read(InitialFile) ((Me%Residual%WaterLevel(i, j),               &
+                                       i = ILB, IUB), j = JLB, JUB)
+
+                    !Residual horizontal velocities
+                    read(InitialFile) (((Me%Residual%Velocity_U(i, j, k),           &
+                                       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+                    read(InitialFile) (((Me%Residual%Velocity_V(i, j, k),           &
+                                       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                    !Residual vertical velocity
+                    read(InitialFile) (((Me%Residual%Vertical_Velocity(i, j, k),    &
+                                       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                    !Residual Water specific fluxes
+                    read(InitialFile) (((Me%Residual%WaterFlux_X(i, j, k),          &
+                                       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
+
+                    read(InitialFile) (((Me%Residual%WaterFlux_Y(i, j, k) ,         &
+                                       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
                 endif
-
-                read(InitialFile) Me%Residual%ResidualTime
-
-                !Average water level
-                read(InitialFile) ((Me%Residual%WaterLevel(i, j),               &
-                                   i = ILB, IUB), j = JLB, JUB)
-
-                !Residual horizontal velocities
-                read(InitialFile) (((Me%Residual%Velocity_U(i, j, k),           &
-                                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-                read(InitialFile) (((Me%Residual%Velocity_V(i, j, k),           &
-                                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-                !Residual vertical velocity
-                read(InitialFile) (((Me%Residual%Vertical_Velocity(i, j, k),    &
-                                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-                !Residual Water specific fluxes
-                read(InitialFile) (((Me%Residual%WaterFlux_X(i, j, k),          &
-                                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-                read(InitialFile) (((Me%Residual%WaterFlux_Y(i, j, k) ,         &
-                                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
 
 
     cd2:        if (Evolution == Residual_hydrodynamic_) then
@@ -60331,6 +60337,7 @@ ic1:    if (Me%CyclicBoundary%ON) then
         endif
         
         if (allocated(Me%Output%Upscaling%CopyVel)) deallocate (Me%Output%Upscaling%CopyVel)
+        if (allocated(Me%Output%Upscaling%VolumeCreated)) deallocate (Me%Output%Upscaling%VolumeCreated)
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
