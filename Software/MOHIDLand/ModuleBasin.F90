@@ -273,6 +273,8 @@ Module ModuleBasin
         logical                                     :: SCSCNRunOffModel      = .false.
         logical                                     :: Snow                  = .false.
         logical                                     :: Irrigation            = .false.
+        logical                                     :: ExternalCoupling      = .false.
+        logical                                     :: SWMMCoupling          = .false.
     end type T_Coupling
 
     type T_ExtVar
@@ -520,6 +522,7 @@ Module ModuleBasin
         type (T_ExtUpdate)                          :: ExtUpdate
         type (T_SimpleInfiltration)                 :: SI          
         type (T_SCSCNRunOffModel)                   :: SCSCNRunOffModel
+        type(external_coupler_class)                :: ExternalCoupler
         type (T_BasinProperty), pointer             :: FirstProperty        => null()
         logical                                     :: Continuous           = .false.
         logical                                     :: StopOnWrongDate      = .true.
@@ -1013,6 +1016,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                     :: STAT_CALL
         integer                                     :: iflag
         real                                        :: dummy
+        logical                                     :: temp
 
         !Constructs the DataFile
         call ConstructEnterData (Me%ObjEnterData, Me%Files%ConstructData, STAT = STAT_CALL)
@@ -1480,6 +1484,27 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          STAT         = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR311.4'             
         endif
+        
+        !Verifies if the user wants to use external Couplers 
+        call GetData(Me%Coupled%ExternalCoupling,                                        &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'EXTERNAL_COUPLING',                                 &
+                     default      = OFF,                                                 &
+                     ClientModule = 'ModuleBasin',                                       &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR312.1'
+        
+        !Verifies if the user wants to use SWMM through external Couplers 
+        call GetData(Me%Coupled%SWMMCoupling,                                            &
+                     Me%ObjEnterData, iflag,                                             &
+                     SearchType   = FromFile,                                            &
+                     keyword      = 'SWMM_COUPLING',                                     &
+                     default      = OFF,                                                 &
+                     ClientModule = 'ModuleBasin',                                       &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR312.2'
+        if (.not.Me%Coupled%ExternalCoupling) Me%Coupled%SWMMCoupling = .false.
         
         !Gets Output Time 
         call GetOutPutTime(Me%ObjEnterData,                                              &
@@ -3157,7 +3182,9 @@ i1:         if (CoordON) then
         integer, pointer, dimension(:,:,:)          :: mapping
         integer                                     :: id
         integer, dimension(:),    pointer           :: ReservoirDNNodeID               => null()
+        character (Len = StringLength)              :: temp
         !Begin-----------------------------------------------------------------
+
 
         !Constructs Atmosphere
         if (Me%Coupled%Atmosphere) then
@@ -3519,6 +3546,14 @@ do1:                do
         
         if (Me%Coupled%SCSCNRunoffModel) then
             call ConstructSCSCNRunOffModel ()
+        endif
+        
+        if (Me%Coupled%ExternalCoupling) then
+            call me%ExternalCoupler%initialize()
+            if (Me%Coupled%SWMMCoupling) then
+                temp = 'SWMM'
+                call me%ExternalCoupler%initializeCouplerToModel(temp)
+            end if
         endif
         
         !Constructs Diffuse Water Source
