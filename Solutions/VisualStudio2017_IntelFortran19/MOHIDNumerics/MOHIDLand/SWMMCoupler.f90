@@ -49,6 +49,12 @@
     character(kind = c_char) :: rptFile(*)
     character(kind = c_char) :: outFile(*)
     end subroutine swmm_open
+    
+    subroutine swmm_end() bind(C, name='swmm_end')    
+    end subroutine swmm_end
+    
+    subroutine swmm_close() bind(C, name='swmm_close')    
+    end subroutine swmm_close
 
     subroutine swmm_getNumberOfNodes(nNodes) bind(C, name='swmm_getNumberOfNodes')
     use iso_c_binding
@@ -166,9 +172,12 @@
         character(len = StringLength)      :: SWMM_out
     contains
     procedure :: initialize => initSWMMCoupler
-    procedure :: initializeSWMM
-    procedure, private :: getFilesPaths
+    procedure :: finalize => finalizeSWMMCoupler    
     procedure :: print => printSWMMCoupler
+    !control procedures
+    procedure, private :: initializeSWMM
+    procedure, private :: getSWMMFilesPaths
+    procedure, private :: finalizeSWMM
     !import data procedures
     procedure :: GetInflow
     procedure :: GetOutflow
@@ -190,9 +199,7 @@
     procedure, private :: SetLateralInflowByID
     procedure, private :: SetWaterColumnByID
     procedure, private :: SetInletInflowByID
-    procedure, private :: SetXSectionInflowByID
-    !control procedures
-
+    procedure, private :: SetXSectionInflowByID    
     end type swmm_coupler_class
 
 
@@ -220,7 +227,7 @@
 
     self%initialized = .true.
     !initialize SWMM
-    call self%getFilesPaths()
+    call self%getSWMMFilesPaths()
     call self%initializeSWMM()
 
     call self%GetNumberOfNodes()
@@ -309,29 +316,41 @@
     !read(*,*)
 
     end subroutine initSWMMCoupler
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Finalizes the SWMM Coupler object and the SWMM model
+    !---------------------------------------------------------------------------
+    subroutine finalizeSWMMCoupler(self)
+    class(swmm_coupler_class), intent(inout) :: self
+    
+    call self%finalizeSWMM()
+
+    end subroutine finalizeSWMMCoupler
 
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
     !> Gets the files required for SWMM run
     !---------------------------------------------------------------------------
-    subroutine getFilesPaths(self)
+    subroutine getSWMMFilesPaths(self)
     class(swmm_coupler_class), intent(inout) :: self
     integer :: STAT_CALL
 
     call ReadFileName('SWMM_DAT', self%SWMM_dat,                         &
         Message = "SWMM input file", STAT = STAT_CALL)
-    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getFilesPaths - SWMM_DAT keyword not found on main file list'
+    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - SWMM_DAT keyword not found on main file list'
 
     call ReadFileName('SWMM_RPT', self%SWMM_rpt,                         &
         Message = "SWMM report file", STAT = STAT_CALL)
-    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getFilesPaths - SWMM_RPT keyword not found on main file list'
+    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - SWMM_RPT keyword not found on main file list'
 
     call ReadFileName('SWMM_OUT', self%SWMM_out,                         &
         Message = "SWMM output file", STAT = STAT_CALL)
-    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getFilesPaths - SWMM_OUT keyword not found on main file list'
+    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - SWMM_OUT keyword not found on main file list'
 
-    end subroutine getFilesPaths
+    end subroutine getSWMMFilesPaths
 
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
@@ -339,7 +358,7 @@
     !> Initializes the SWMM model through a DLL call
     !---------------------------------------------------------------------------
     subroutine initializeSWMM(self)
-    class(swmm_coupler_class), intent(inout) :: self
+    class(swmm_coupler_class), intent(in) :: self
     character(len = :, kind = c_char), allocatable :: inFile, rptFile, outFile
 
     print*, 'Initializing SWMM, please wait...'
@@ -353,6 +372,21 @@
     print*,''
 
     end subroutine initializeSWMM
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Finalizes the SWMM model through DLL calls
+    !---------------------------------------------------------------------------
+    subroutine finalizeSWMM(self)
+    class(swmm_coupler_class), intent(in) :: self
+
+    print*, 'Finalizing SWMM, please wait...'
+
+    call swmm_end()
+    call swmm_close()
+
+    end subroutine finalizeSWMM
 
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
