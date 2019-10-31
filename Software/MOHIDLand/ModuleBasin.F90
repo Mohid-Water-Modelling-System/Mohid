@@ -1016,7 +1016,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                     :: STAT_CALL
         integer                                     :: iflag
         real                                        :: dummy
-        logical                                     :: temp
 
         !Constructs the DataFile
         call ConstructEnterData (Me%ObjEnterData, Me%Files%ConstructData, STAT = STAT_CALL)
