@@ -1463,9 +1463,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call UnGetGeometry(FatherID, Me%Father%External_Var%AreaV,      STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR270.'
             call UnGetGeometry(FatherID, Me%Father%External_Var%KFloor_U,   STAT = status)
-            if (status /= status) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR275.'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR275.'
             call UnGetGeometry(FatherID, Me%Father%External_Var%KFloor_V,   STAT = status)
-            if (status /= status) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR280.'
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR280.'
+            call UnGetGeometry(FatherID, Me%Father%External_Var%KFloor_Z,   STAT = status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR285.'
+            call UnGetHorizontalGrid(FatherID, Me%Father%External_Var%AreaZ, status)
+            if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR290.'
             
             STAT_ = SUCCESS_
         else
