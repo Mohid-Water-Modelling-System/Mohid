@@ -149,6 +149,27 @@
     end subroutine swmm_setOpenXSectionInflow
     end interface
     
+    interface
+    subroutine swmm_step(elapsedTime) bind(C, name='swmm_step')
+    use iso_c_binding
+    real(c_double) :: elapsedTime
+    end subroutine swmm_step
+    end interface
+    
+    interface
+    subroutine swmm_step_imposed_dt(imposedDt) bind(C, name='swmm_step_imposed_dt')
+    use iso_c_binding
+    real(c_double) :: imposedDt
+    end subroutine swmm_step_imposed_dt
+    end interface
+    
+    interface
+    subroutine swmm_getdt(Dt) bind(C, name='swmm_getdt')
+    use iso_c_binding
+    real(c_double) :: Dt
+    end subroutine swmm_getdt
+    end interface
+    
 
     type :: NodeTypes_enum          !< enums for node types
         integer :: JUNCTION = 0
@@ -177,8 +198,11 @@
     !control procedures
     procedure, private :: initializeSWMM
     procedure, private :: getSWMMFilesPaths
+    procedure :: defaultPerformTimeStep
+    procedure :: PerformTimeStep
     procedure, private :: finalizeSWMM
     !import data procedures
+    procedure :: GetDt
     procedure :: GetInflow
     procedure :: GetOutflow
     procedure :: GetLevel
@@ -233,6 +257,7 @@
     call self%GetNumberOfNodes()
 
     print*, 'SWMM number of nodes is ', self%NumberOfNodes
+    print*, ''
 
     !building open section list
     allocate(self%xSectionOpen(self%NumberOfNodes))
@@ -372,6 +397,47 @@
     print*,''
 
     end subroutine initializeSWMM
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> calls the default time step integrator from SWMM model through a DLL call
+    !---------------------------------------------------------------------------
+    subroutine defaultPerformTimeStep(self)
+    class(swmm_coupler_class), intent(in) :: self
+    real(c_double) :: elapsedTime
+    
+    call swmm_step(elapsedTime)
+
+    end subroutine defaultPerformTimeStep
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> calls the time step integrator from SWMM model with an imposed Dt
+    !> through a DLL call
+    !---------------------------------------------------------------------------
+    subroutine PerformTimeStep(self, dt)
+    class(swmm_coupler_class), intent(in) :: self
+    real(c_double), intent(in) :: dt
+    
+    call swmm_step_imposed_dt(dt)
+
+    end subroutine PerformTimeStep
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets the SWMM computed dt through a DLL call
+    !---------------------------------------------------------------------------
+    real function GetDt(self)
+    class(swmm_coupler_class), intent(in) :: self
+    real(c_double) :: dt
+
+    call swmm_getdt(dt)
+    GetDt = dt
+
+    end function GetDt
     
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
