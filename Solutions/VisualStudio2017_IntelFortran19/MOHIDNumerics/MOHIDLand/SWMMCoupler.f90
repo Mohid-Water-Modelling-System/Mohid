@@ -199,7 +199,7 @@
     procedure, private :: initializeSWMM
     procedure, private :: getSWMMFilesPaths
     procedure :: defaultPerformTimeStep
-    procedure :: PerformTimeStep
+    procedure :: runStep => PerformTimeStep
     procedure, private :: finalizeSWMM
     !import data procedures
     procedure :: GetDt
