@@ -47,12 +47,15 @@
     contains
     procedure :: initialize => initExternalCoupler
     procedure :: initializeCouplerToModel
+    procedure :: isModelCoupled
     procedure :: print => printExternalCoupler
     !control procedures
     procedure :: runStep
     !import data procedures
-    procedure :: getCoupledDt
+    procedure :: setValues
     !export data procedures
+    procedure :: getValues    
+    procedure :: getCoupledDt
     end type external_coupler_class
 
     !Public access vars
@@ -95,6 +98,26 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
+    !> Returns coupling status of a model
+    !---------------------------------------------------------------------------
+    logical function isModelCoupled(self, modelName)
+    class(external_coupler_class), intent(inout) :: self
+    character(len = StringLength), intent(in) :: modelName
+
+    isModelCoupled = .false.
+    if (self%initialized) then
+        if (modelName == 'SWMM') then            
+            if (self%SWMMCoupler%initialized) isModelCoupled = .true.
+            return
+        end if
+        !add more models here
+    end if
+
+    end function isModelCoupled
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
     !> Runs a time step on all coupled models
     !---------------------------------------------------------------------------
     subroutine runStep(self, dt)
@@ -126,6 +149,75 @@
     !add more models here
 
     end function getCoupledDt
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> returns queries values from externaly coupled object
+    !> @param[in] self, modelName, dataName, dataArray
+    !---------------------------------------------------------------------------
+    subroutine getValues(self, modelName, dataName, dataArray)
+    class(external_coupler_class), intent(inout) :: self
+    character(len = StringLength), intent(in) :: modelName
+    character(len = StringLength), intent(in) :: dataName
+    real, allocatable, dimension(:) :: dataArray
+
+    if (modelName == 'SWMM') then
+        if (dataName == 'Inflow') then
+            allocate(dataArray(size(self%SWMMCoupler%inflowIDX)))
+            dataArray = self%SWMMCoupler%GetInflow()
+            return
+        else if (dataName == 'Outflow') then
+            allocate(dataArray(size(self%SWMMCoupler%outfallIDX)))
+            dataArray = self%SWMMCoupler%GetOutflow()
+            return
+        else if (dataName == 'xLevel') then
+            allocate(dataArray(size(self%SWMMCoupler%xsectionLevelsIDX)))
+            dataArray = self%SWMMCoupler%GetLevel()
+            return
+        else
+            stop 'external_coupler_class::getValues - requested quantity does not exist'
+        end if        
+    end if
+    !add more models here
+
+    end subroutine getValues
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> exports variables to externaly coupled object
+    !> @param[in] self, modelName, dataName, dataArray
+    !---------------------------------------------------------------------------
+    subroutine setValues(self, modelName, dataName, dataArray)
+    class(external_coupler_class), intent(inout) :: self
+    character(len = StringLength), intent(in) :: modelName
+    character(len = StringLength), intent(in) :: dataName
+    real, dimension(:) :: dataArray
+
+    if (modelName == 'SWMM') then
+        if (dataName == 'OutletLevel') then
+            call self%SWMMCoupler%SetOutletLevel(dataArray)
+            return
+        else if (dataName == 'LateralInflow') then
+            call self%SWMMCoupler%SetLateralInflow(dataArray)
+            return
+        else if (dataName == 'WaterColumn') then
+            call self%SWMMCoupler%SetWaterColumn(dataArray)
+            return
+        else if (dataName == 'InletInflow') then
+            call self%SWMMCoupler%SetInletInflow(dataArray)
+            return
+        else if (dataName == 'XSectionFlow') then
+            call self%SWMMCoupler%SetXSectionInflow(dataArray)
+            return
+        else
+            stop 'external_coupler_class::setValues - requested quantity does not exist'
+        end if        
+    end if
+    !add more models here
+
+    end subroutine setValues
 
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
