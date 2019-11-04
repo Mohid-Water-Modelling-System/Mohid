@@ -129,6 +129,11 @@ Module ModuleRunOff
     private ::      RunOffOutput
     private ::      OutputTimeSeries
     private ::  AdjustSlope
+    public  ::  SetExternalRiverWaterLevel
+    public  ::  SetExternalStormWaterModelFlow
+    public  ::  GetExternalPondedWaterColumn
+    public  ::  GetExternalInletInFlow
+    public  ::  GetExternalFlowToRivers
 
     !Destructor
     public  ::  KillRunOff                                                     
@@ -3852,7 +3857,7 @@ do4:            do di = -1, 1
             NodeGridPoint => Me%FirstNodeGridPoint
             nNodeGridPoints = 0
             do while (associated(NodeGridPoint))
-                Me%NodeRiverMapping(NodeGridPoint%GridI, NodeGridPoint%GridJ) = 1                
+                Me%NodeRiverMapping(NodeGridPoint%GridI, NodeGridPoint%GridJ) = 1
                 NodeGridPoint => NodeGridPoint%Next
                 nNodeGridPoints = nNodeGridPoints + 1
             enddo
@@ -12341,5 +12346,152 @@ cd1:    if (RunOffID > 0) then
         
 
 #endif
+
+!External access functions for coupling
+
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Sets river levels at appropriate nodes
+    !> @param[in] RunOffID, nComputePoints, riverLevel
+    !---------------------------------------------------------------------------
+    logical function SetExternalRiverWaterLevel(RunOffID, nComputePoints, riverLevel)    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: RunOffID
+        integer                                     :: nComputePoints
+        real(8), dimension(nComputePoints)          :: riverLevel        
+        !Local-----------------------------------------------------------------        
+        integer                                     :: ready_         
+        integer                                     :: i
+
+        call Ready(RunOffID, ready_)
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            do i = 1, size(Me%RiverNodeMap,1)
+                Me%NodeRiverLevel(Me%RiverNodeMap(i,1), Me%RiverNodeMap(i,2)) = riverLevel(i)
+            end do
+            SetExternalRiverWaterLevel = .true.
+        else
+            call PlaceErrorMessageOnStack("Runoff not ready")
+            SetExternalRiverWaterLevel = .false.
+        end if
+
+    end function SetExternalRiverWaterLevel
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Sets storm water flows at appropriate nodes
+    !> @param[in] RunOffID, nComputePoints, overlandToSewerFlow
+    !---------------------------------------------------------------------------
+    logical function SetExternalStormWaterModelFlow(RunOffID, nComputePoints, overlandToSewerFlow)    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: RunOffID
+        integer                                     :: nComputePoints
+        real(8), dimension(nComputePoints)          :: overlandToSewerFlow        
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+        integer                                     :: i
+
+        call Ready(RunOffID, ready_)
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            do i = 1, size(Me%SewerStormWaterNodeMap,1)
+                Me%StormWaterEffectiveFlow(Me%SewerStormWaterNodeMap(i,1), Me%SewerStormWaterNodeMap(i,2)) = overlandToSewerFlow(i)
+            end do
+            SetExternalStormWaterModelFlow = .true.
+        else 
+            call PlaceErrorMessageOnStack("Runoff not ready")
+            SetExternalStormWaterModelFlow = .false.
+        end if           
+
+    end function SetExternalStormWaterModelFlow
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets the ponded water columm at appropriate nodes
+    !> @param[in] RunOffID, waterColumn
+    !---------------------------------------------------------------------------
+    logical function GetExternalPondedWaterColumn(RunOffID, waterColumn)    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: RunOffID
+        real(8), allocatable, dimension(:)          :: waterColumn        
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+        integer                                     :: i
+
+        call Ready(RunOffID, ready_)
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+                 
+            allocate(waterColumn(size(Me%SewerStormWaterNodeMap,1)))
+            do i = 1, size(Me%SewerStormWaterNodeMap,1)
+                waterColumn(i) = Max(Me%MyWaterColumn(Me%SewerStormWaterNodeMap(i,1), Me%SewerStormWaterNodeMap(i,2)) - Me%MinimumWaterColumn, 0.0)                    
+            end do
+            GetExternalPondedWaterColumn = .true.
+        else 
+            call PlaceErrorMessageOnStack("Runoff not ready")
+            GetExternalPondedWaterColumn = .false.
+        end if
+
+    end function GetExternalPondedWaterColumn
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets inlet flow at appropriate nodes
+    !> @param[in] RunOffID, waterColumn
+    !---------------------------------------------------------------------------
+    logical function GetExternalInletInFlow(RunOffID, inletInflow)    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: RunOffID
+        real(8), allocatable, dimension(:)          :: inletInflow        
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_
+        integer                                     :: i
+
+        call Ready(RunOffID, ready_)
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+                    
+            allocate(inletInflow(size(Me%SewerStormWaterNodeMap,1)))
+            do i = 1, size(Me%SewerStormWaterNodeMap,1)
+                inletInflow(i) = Me%StormWaterPotentialFlow(Me%SewerStormWaterNodeMap(i,1), Me%SewerStormWaterNodeMap(i,2))
+            end do
+            GetExternalInletInFlow = .true.
+        else 
+            call PlaceErrorMessageOnStack("Runoff not ready")
+            GetExternalInletInFlow = .false.
+        end if
+
+    end function GetExternalInletInFlow
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets river flow appropriate nodes
+    !> @param[in] RunOffID, waterColumn
+    !---------------------------------------------------------------------------
+    logical function GetExternalFlowToRivers(RunOffID, flow)
+        !Arguments-------------------------------------------------------------
+        integer                                     :: RunOffID
+        real(8), allocatable, dimension(:)          :: flow
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+        integer                                     :: i
+
+        call Ready(RunOffID, ready_)
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            allocate(flow(size(Me%RiverNodeMap,1)))
+            do i = 1, size(Me%RiverNodeMap,1)
+                flow(i) = Me%iFlowToChannels(Me%RiverNodeMap(i,1), Me%RiverNodeMap(i,2))
+            end do
+            GetExternalFlowToRivers = .true.
+        else
+            call PlaceErrorMessageOnStack("Runoff not ready")
+            GetExternalFlowToRivers = .false.
+        end if
+
+    end function GetExternalFlowToRivers
 
 end module ModuleRunOff
