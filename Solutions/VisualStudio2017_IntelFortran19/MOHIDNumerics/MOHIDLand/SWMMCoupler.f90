@@ -422,6 +422,7 @@
     real(c_double), intent(in) :: dt
     
     call swmm_step_imposed_dt(dt)
+    !print*, 'SWMM time step done with dt = ', dt, ' s'
 
     end subroutine PerformTimeStep
     
