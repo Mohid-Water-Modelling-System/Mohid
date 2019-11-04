@@ -81,7 +81,12 @@ Module ModuleBasin
                                      GetRunoffWaterColumnOld, GetRunoffWaterLevel,       &
                                      GetRunoffTotalStoredVolume, GetMassError,           &
                                      GetRunOffStoredVolumes, GetRunOffBoundaryFlowVolume,& 
-                                     GetRunOffTotalDischargeFlowVolume
+                                     GetRunOffTotalDischargeFlowVolume,                  &
+                                     SetExternalRiverWaterLevel,                         &
+                                     SetExternalStormWaterModelFlow,                     &
+                                     GetExternalPondedWaterColumn,                       &
+                                     GetExternalInletInFlow,                             &
+                                     GetExternalFlowToRivers
                                      
                                      
     use ModuleRunoffProperties,                                                          &
@@ -197,6 +202,8 @@ Module ModuleBasin
     private ::              AdjustCropCoefficient
     private ::      VegetationProcesses
     private ::      OverLandProcesses
+    private ::      ExternalCoupledProcesses
+    private ::          ExchangeExternalCoupledData
     private ::      DrainageNetworkProcesses
     private ::      PorousMediaProcesses
     private ::      PorousMediaPropertiesProcesses
@@ -4265,9 +4272,7 @@ cd0:    if (Exist) then
 
             !Updates Vegetation 
             if (Me%Coupled%Vegetation) then
-
-                call VegetationProcesses
-            
+                call VegetationProcesses            
             endif
             
             if (Me%Coupled%Snow) then
@@ -4280,7 +4285,6 @@ cd0:    if (Exist) then
                     call ActualizeWaterColumnConc(WarningString)
                 endif                
             endif
-
             
             !Simplified Infiltration / Evapotranspiration model
             if (Me%Coupled%SimpleInfiltration) then
@@ -4314,8 +4318,7 @@ cd0:    if (Exist) then
                     WarningString = 'SimpleInfiltration'
                     call ActualizeWaterColumnConc(WarningString) 
                 endif                
-            endif               
-            
+            endif
             
             !Porous Media
             if (Me%Coupled%PorousMedia) then
@@ -4323,8 +4326,7 @@ cd0:    if (Exist) then
                 call PorousMediaProcesses
 
                 !Actualizes the WaterColumn
-                call ActualizeWaterColumn                 
-                
+                call ActualizeWaterColumn
                 
                 if (Me%Coupled%PorousMediaProperties) then
 
@@ -4356,9 +4358,6 @@ cd0:    if (Exist) then
 !                endif
                 
             endif
-            
-
-         
             
             !Overland Flow
             if (Me%Coupled%RunOff) then
@@ -4417,12 +4416,17 @@ cd0:    if (Exist) then
             if (Me%Integration%Integrate) then
                 call ComputeIntegration
             endif
+            
+            if (Me%ExternalCoupler%initialized) then
+                call ExternalCoupledProcesses(NewDT)
+                call ExchangeExternalCoupledData()
+            endif
 
             call TimeSerieOutput
 
             !HDF 5 Output
             if (Me%Output%Yes) then
-                call HDF5OutPut       
+                call HDF5OutPut
             endif
             
             !Restart Output
@@ -4441,8 +4445,8 @@ cd0:    if (Exist) then
 
             !EVTP HDF5 Output
             if (Me%EVTPOutput%Yes .or. Me%EVTPOutput2%Yes .or. Me%EVTPInstOutput%Yes) then
-                call EVTPHDFOutPut       
-            endif                    
+                call EVTPHDFOutPut
+            endif
             
             !UnGets ExternalVars
             UnLockToWhichModules = 'AllModules'
@@ -4458,7 +4462,7 @@ cd0:    if (Exist) then
             endif
 
             STAT_ = SUCCESS_
-        else               
+        else
             STAT_ = ready_
         end if
 
@@ -6408,6 +6412,23 @@ cd0:    if (Exist) then
         if (MonitorPerformance) call StopWatch ("ModuleBasin", "OverLandProcesses")
 
     end subroutine OverLandProcesses    
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Runs the externally coupled processes by dt
+    !> @param[in] dt
+    !---------------------------------------------------------------------------
+    subroutine ExternalCoupledProcesses(dt)
+    real, intent(in) :: dt
+            
+        if (MonitorPerformance) call StartWatch ("ModuleBasin", "ExternalCoupledProcesses")
+
+        call Me%ExternalCoupler%runStep(dt)
+
+        if (MonitorPerformance) call StopWatch ("ModuleBasin", "ExternalCoupledProcesses")
+
+    end subroutine ExternalCoupledProcesses
 
     !--------------------------------------------------------------------------
     
@@ -7959,6 +7980,72 @@ cd0:    if (Exist) then
 
     end subroutine RunoffPropertiesProcesses
 
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Exanges data between external models and affected modules
+    !---------------------------------------------------------------------------
+    subroutine ExchangeExternalCoupledData()
+    character (Len = StringLength) :: modelName, varName
+    real, allocatable, dimension(:) :: Inflow, Outflow, xLevel
+    real, allocatable, dimension(:) :: waterColumm, inletInflow, xSectionFlow
+    logical :: done = .false.
+    
+    if (Me%ExternalCoupler%initialized) then
+        modelName = 'SWMM'
+        if (Me%ExternalCoupler%isModelCoupled(modelName)) then           
+            !get data from SWMM to ModuleRunOff
+            varName = 'Inflow'
+            call Me%ExternalCoupler%getValues(modelName, varName, Inflow)
+            if (size(Inflow)>0) then
+                done = SetExternalStormWaterModelFlow(1, size(Inflow), Inflow) !module runoff function
+                if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::SetExternalStormWaterModelFlow - operation failed'
+            end if
+            
+            !varName = 'Outflow'
+            !call Me%ExternalCoupler%getValues(modelName, varName, Outflow)
+            !if (size(Outflow)>0) then
+            !    done = SetExternalStormWaterModelFlow(1,size(Outflow), Outflow) !module runoff function
+            !    if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::SetExternalStormWaterModelFlow - operation failed'
+            !end if
+            
+            varName = 'xLevel'
+            call Me%ExternalCoupler%getValues(modelName, varName, xLevel)
+            !print*, size(xLevel), minval(xLevel), maxval(xLevel)
+            if (size(xLevel)>0) then !setting the water level at cross section nodes
+                done = SetExternalRiverWaterLevel(1, size(xLevel), xLevel) !module runoff function
+                if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::SetExternalRiverWaterLevel - operation failed'
+            end if
+    
+            !get data from ModuleRunOff to SWMM
+            varName = 'WaterColumn'
+            done = GetExternalPondedWaterColumn(1, waterColumm)
+            if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalPondedWaterColumn - operation failed'
+            if (size(waterColumm)>0) then
+                call Me%ExternalCoupler%setValues(modelName, varName, waterColumm)
+            end if
+            
+            varName = 'InletInflow'
+            done = GetExternalInletInFlow(1, inletInflow)
+            if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalInletInFlow - operation failed'
+            if (size(inletInflow)>0) then
+                call Me%ExternalCoupler%setValues(modelName, varName, inletInflow)
+            end if
+            
+            varName = 'XSectionFlow'
+            done = GetExternalFlowToRivers(1, xSectionFlow)
+            if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalFlowToRivers - operation failed'
+            if (size(xSectionFlow)>0) then
+                call Me%ExternalCoupler%setValues(modelName, varName, xSectionFlow)
+            end if
+                
+        end if
+    end if    
+    !add other models here
+    
+    end subroutine ExchangeExternalCoupledData
+    
     !--------------------------------------------------------------------------
 
     subroutine ActualizeWaterColumn ()
@@ -10084,6 +10171,7 @@ cd0:    if (Exist) then
         integer                                     :: STAT_CALL     
         real                                        :: AtmosphereDT, DTForNextEvent
         real                                        :: DNetDT, RunOffDT
+        real                                        :: ExternalCoupledDT
         real                                        :: PorousMediaDT, MaxDT
         integer                                     :: ID_DT
         character(len=132)                          :: AuxString
@@ -10127,6 +10215,12 @@ cd0:    if (Exist) then
         else
             RunOffDT = -null_real
         end if
+        
+        if (Me%ExternalCoupler%initialized) then
+            ExternalCoupledDT = Me%ExternalCoupler%getCoupledDt()
+        else
+            ExternalCoupledDT = -null_real
+        end if
 
         if (Me%Coupled%PorousMedia) then
 
@@ -10156,6 +10250,12 @@ cd0:    if (Exist) then
             NewDT = RunOffDT
             ID_DT = 2
             
+        endif
+        
+        !If the DT asked by external coupler module is lower than the NewDT,
+        !the NewDT will be updated with its value.        
+        if (ExternalCoupledDT < NewDT) then        
+            NewDT = ExternalCoupledDT            
         endif
 
         !If the DT asked by porous media module is lower than the NewDT,
