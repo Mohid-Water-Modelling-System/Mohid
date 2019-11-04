@@ -68,6 +68,15 @@
     end subroutine swmm_getNodeType
 
     end interface
+    
+    interface
+    subroutine swmm_getNodeXY(id, xx, yy) bind(C, name='swmm_getNodeXYByID')
+    use iso_c_binding
+    integer(c_int) :: id
+    real(c_double) :: xx
+    real(c_double) :: yy
+    end subroutine swmm_getNodeXY
+    end interface
 
     interface
     subroutine swmm_getIsNodeOpenChannel(id, isOpen) bind(C, name='swmm_getIsNodeOpenChannelByID')
@@ -182,6 +191,8 @@
         logical :: initialized = .false.                        !< initialized flag
         type(NodeTypes_enum) :: NodeTypes                       !< node type flags
         integer :: NumberOfNodes                                !< number of SWMM nodes
+        real, allocatable, dimension(:,:)  :: nodeXY            !< position of the SWMM nodes
+        integer, allocatable, dimension(:,:)  :: nodeIJ            !< position of the SWMM nodes in mesh coordinates
         integer, allocatable, dimension(:) :: junctionIDX       !< ids of junction SWMM nodes
         integer, allocatable, dimension(:) :: outfallIDX        !< ids of outfall SWMM nodes
         integer, allocatable, dimension(:) :: inflowIDX         !< ids of inflow SWMM nodes
@@ -207,6 +218,8 @@
     procedure :: GetOutflow
     procedure :: GetLevel
     procedure, private :: GetNumberOfNodes
+    procedure, private :: GetNodeXY
+    procedure, private :: GetNodeXYByID
     procedure, private :: GetNodeTypeByID
     procedure, private :: GetIsNodeOpenChannel
     procedure, private :: GetNodeHasLateralInflow
@@ -247,18 +260,17 @@
     integer :: i, idx
     integer :: idxj, idxo, idxi, idxx, idxl = 1
     
-    !real, allocatable, dimension(:) :: temp
+    print*, 'Initializing SWMM coupler, please wait...'
 
     self%initialized = .true.
-    !initialize SWMM
     call self%getSWMMFilesPaths()
     call self%initializeSWMM()
-
-    call self%GetNumberOfNodes()
-
+    call self%GetNumberOfNodes()    
+    call self%GetNodeXY()
+    
     print*, 'SWMM number of nodes is ', self%NumberOfNodes
     print*, ''
-
+    
     !building open section list
     allocate(self%xSectionOpen(self%NumberOfNodes))
     self%xSectionOpen = .false.
@@ -422,7 +434,7 @@
     real(c_double), intent(in) :: dt
     
     call swmm_step_imposed_dt(dt)
-    !print*, 'SWMM time step done with dt = ', dt, ' s'
+    print*, 'SWMM time step done with dt = ', dt, ' s'
 
     end subroutine PerformTimeStep
     
@@ -462,12 +474,48 @@
     !---------------------------------------------------------------------------
     subroutine GetNumberOfNodes(self)
     class(swmm_coupler_class), intent(inout) :: self
-    integer(c_int) :: nNodes          !fortran target
+    integer(c_int) :: nNodes
 
     call swmm_getNumberOfNodes(nNodes)
     self%NumberOfNodes = nNodes
 
     end subroutine GetNumberOfNodes
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets the xy coordinates of all SWMM nodes
+    !---------------------------------------------------------------------------
+    subroutine GetNodeXY(self)
+    class(swmm_coupler_class), intent(inout) :: self
+    real, dimension(2) :: xy
+    integer :: i
+    
+    allocate(self%NodeXY(self%NumberOfNodes,2))
+    do i = 1, self%NumberOfNodes
+        xy = self%GetNodeXYByID(i)
+        self%NodeXY(i,1) = xy(1)
+        self%NodeXY(i,2) = xy(2)
+    end do
+    
+    end subroutine GetNodeXY
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets the xy coordinates of a SWMM node through a DLL call
+    !---------------------------------------------------------------------------
+    function GetNodeXYByID(self, id) result(xy)
+    class(swmm_coupler_class), intent(in) :: self
+    integer(c_int), intent(in) :: id
+    real(c_double) :: x, y
+    real, dimension(2) :: xy
+
+    call swmm_getNodeXY(id, x, y)
+    xy(1) = x
+    xy(2) = y
+
+    end function GetNodeXYByID
 
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
@@ -810,6 +858,8 @@
                 call self%SetXSectionInflowByID(self%xsectionLevelsIDX(i), inflow(i))
             end do
         else
+            print*, 'number of cross sections in SWMM = ', size(self%xsectionLevelsIDX)
+            print*, 'number of cross sections given by MOHID = ', size(inflow)
             stop 'SWMMCoupler::SetXSectionInflow - size mismatch between data array and id array'
         end if        
     end if
