@@ -48,6 +48,11 @@
     procedure :: initialize => initExternalCoupler
     procedure :: initializeCouplerToModel
     procedure :: print => printExternalCoupler
+    !control procedures
+    procedure :: runStep
+    !import data procedures
+    procedure :: getCoupledDt
+    !export data procedures
     end type external_coupler_class
 
     !Public access vars
@@ -86,6 +91,41 @@
     end if
 
     end subroutine initializeCouplerToModel
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Runs a time step on all coupled models
+    !---------------------------------------------------------------------------
+    subroutine runStep(self, dt)
+    class(external_coupler_class), intent(inout) :: self
+    real, intent(in) :: dt
+
+     if (self%SWMMCoupler%initialized) then
+        call self%SWMMCoupler%runStep(dt)
+     end if
+     !add more models here
+
+    end subroutine runStep
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> returns the smallest dt of all coupled models
+    !---------------------------------------------------------------------------
+    real function getCoupledDt(self)
+    class(external_coupler_class), intent(inout) :: self
+    real :: localDt
+    
+    getCoupledDt = -null_real
+    
+    if (self%SWMMCoupler%initialized) then
+        localDt = self%SWMMCoupler%GetDt()
+        getCoupledDt = min(localDt, getCoupledDt)        
+    end if
+    !add more models here
+
+    end function getCoupledDt
 
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
@@ -100,7 +140,6 @@
     print*, 'Couple to SWMM - ', self%swmmCoupling
 
     end subroutine printExternalCoupler
-
 
 
     end module ModuleExternalCoupler
