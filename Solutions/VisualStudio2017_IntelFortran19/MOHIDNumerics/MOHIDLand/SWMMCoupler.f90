@@ -192,7 +192,8 @@
         type(NodeTypes_enum) :: NodeTypes                       !< node type flags
         integer :: NumberOfNodes                                !< number of SWMM nodes
         real, allocatable, dimension(:,:)  :: nodeXY            !< position of the SWMM nodes
-        integer, allocatable, dimension(:,:)  :: nodeIJ            !< position of the SWMM nodes in mesh coordinates
+        integer, allocatable, dimension(:,:)  :: nodeIJ         !< position of the SWMM nodes in mesh coordinates
+        integer, allocatable, dimension(:,:)  :: n2cMap         !< node to cell mappings
         integer, allocatable, dimension(:) :: junctionIDX       !< ids of junction SWMM nodes
         integer, allocatable, dimension(:) :: outfallIDX        !< ids of outfall SWMM nodes
         integer, allocatable, dimension(:) :: inflowIDX         !< ids of inflow SWMM nodes
@@ -204,6 +205,7 @@
         character(len = StringLength)      :: SWMM_out
     contains
     procedure :: initialize => initSWMMCoupler
+    procedure :: mapElements
     procedure :: finalize => finalizeSWMMCoupler    
     procedure :: print => printSWMMCoupler
     !control procedures
@@ -250,15 +252,11 @@
     !> @brief
     !> Initializes the SWMM Coupler object
     !---------------------------------------------------------------------------
-    subroutine initSWMMCoupler(self)
+    subroutine initSWMMCoupler(self, mapArrayXY, mapArrayIJ, mapArrayID)
     class(swmm_coupler_class), intent(inout) :: self
-    integer :: nJunction = 0
-    integer :: nOutfall = 0
-    integer :: nInflow = 0
-    integer :: nXSection = 0
-    integer :: nLatFlow = 0
-    integer :: i, idx
-    integer :: idxj, idxo, idxi, idxx, idxl = 1
+    real, allocatable, dimension(:,:), intent(inout) :: mapArrayXY
+    integer, allocatable, dimension(:,:), intent(inout) :: mapArrayIJ
+    integer, allocatable, dimension(:), intent(inout) :: mapArrayID
     
     print*, 'Initializing SWMM coupler, please wait...'
 
@@ -268,8 +266,49 @@
     call self%GetNumberOfNodes()    
     call self%GetNodeXY()
     
-    print*, 'SWMM number of nodes is ', self%NumberOfNodes
-    print*, ''
+    print*, 'SWMM number of nodes is ', self%NumberOfNodes    
+    
+    !allocating map arrays to send to Basin Module to get filled/used
+    allocate(mapArrayXY(self%NumberOfNodes,2))
+    allocate(mapArrayIJ(self%NumberOfNodes,2))
+    allocate(mapArrayID(self%NumberOfNodes))
+    mapArrayXY = self%nodeXY
+
+    end subroutine initSWMMCoupler
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Maps the SWMM Coupler object elements 
+    !---------------------------------------------------------------------------
+    subroutine mapElements(self, mapArrayIJ, mapArrayID)
+    class(swmm_coupler_class), intent(inout) :: self
+    integer, dimension(:,:), intent(inout) :: mapArrayIJ
+    integer, dimension(:), intent(inout) :: mapArrayID
+    integer :: nJunction = 0
+    integer :: nOutfall = 0
+    integer :: nInflow = 0
+    integer :: nXSection = 0
+    integer :: nLatFlow = 0
+    integer :: i, idx
+    integer :: idxj, idxo, idxi, idxx, idxl = 1
+    
+    print*, 'Mapping coupling points, please wait...'
+    
+    do i=1, self%NumberOfNodes
+        print*, 'id=',i, 'x=',self%nodeXY(i,1), 'y=',self%nodeXY(i,2)
+        print*, 'cell id=', mapArrayID(i), 'i=',mapArrayIJ(i,1), 'j=',mapArrayIJ(i,2)
+    end do
+    
+    allocate(self%n2cMap(self%NumberOfNodes,4))
+    self%n2cMap = 0
+    
+    do i=1, self%NumberOfNodes
+        self%n2cMap(i,1) = i
+        self%n2cMap(i,2) = mapArrayID(i)
+        self%n2cMap(i,3) = mapArrayIJ(i,1)
+        self%n2cMap(i,4) = mapArrayIJ(i,2)
+    end do
     
     !building open section list
     allocate(self%xSectionOpen(self%NumberOfNodes))
@@ -352,7 +391,7 @@
     !print*, 'initSWMMCoupler done'
     !read(*,*)
 
-    end subroutine initSWMMCoupler
+    end subroutine mapElements
     
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems

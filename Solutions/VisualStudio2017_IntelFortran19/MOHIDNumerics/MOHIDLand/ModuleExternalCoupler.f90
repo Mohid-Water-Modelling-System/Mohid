@@ -35,6 +35,7 @@
     module ModuleExternalCoupler
 
     use ModuleGlobalData
+    use ModuleHorizontalGrid
     use SWMMCoupler
 
     implicit none
@@ -47,6 +48,7 @@
     contains
     procedure :: initialize => initExternalCoupler
     procedure :: initializeCouplerToModel
+    procedure :: mapElements
     procedure :: isModelCoupled
     procedure :: print => printExternalCoupler
     !control procedures
@@ -78,22 +80,50 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Initializes the External Coupler object
+    !> Initializes an External Coupler object
     !---------------------------------------------------------------------------
-    subroutine initializeCouplerToModel(self, modelName)
+    subroutine initializeCouplerToModel(self, modelName, mapArrayXY, mapArrayIJ, mapArrayID, HorizontalGridID)
     class(external_coupler_class), intent(inout) :: self
     character(len = StringLength), intent(in) :: modelName
+    real, allocatable, dimension(:,:), intent(inout) :: mapArrayXY
+    integer, allocatable, dimension(:,:), intent(inout) :: mapArrayIJ
+    integer, allocatable, dimension(:), intent(inout) :: mapArrayID
+    integer, intent(inout) :: HorizontalGridID
 
     if (self%initialized) then
         if (modelName == 'SWMM') then
             self%swmmCoupling = .true.
             !initialize the model coupler
-            call self%SWMMCoupler%initialize()
+            call self%SWMMCoupler%initialize(mapArrayXY, mapArrayIJ, mapArrayID)
+            call GetXYArrayIJ(HorizontalGridID, mapArrayXY, mapArrayIJ)
+            call GetCellIDfromIJArray(HorizontalGridID, mapArrayIJ, mapArrayID)
+            call self%mapElements(modelName, mapArrayIJ, mapArrayID)
         end if
         !add more models here
     end if
 
     end subroutine initializeCouplerToModel
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> maps elements in an External Coupler object
+    !---------------------------------------------------------------------------
+    subroutine mapElements(self, modelName, mapArrayIJ, mapArrayID)
+    class(external_coupler_class), intent(inout) :: self
+    character(len = StringLength), intent(in) :: modelName
+    integer, dimension(:,:), intent(inout) :: mapArrayIJ
+    integer, dimension(:), intent(inout) :: mapArrayID
+
+    if (self%initialized) then
+        if (modelName == 'SWMM') then
+            !initialize the coupler mapper
+            call self%SWMMCoupler%mapElements(mapArrayIJ, mapArrayID)
+        end if
+        !add more models here
+    end if
+
+    end subroutine mapElements
     
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems

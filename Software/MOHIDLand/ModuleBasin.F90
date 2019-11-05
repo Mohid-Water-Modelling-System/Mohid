@@ -3189,6 +3189,9 @@ i1:         if (CoordON) then
         integer                                     :: id
         integer, dimension(:),    pointer           :: ReservoirDNNodeID               => null()
         character (Len = StringLength)              :: temp
+        real, allocatable, dimension(:,:)           :: mapArrayXY
+        integer, allocatable, dimension(:,:)        :: mapArrayIJ
+        integer, allocatable, dimension(:)          :: mapArrayID
         !Begin-----------------------------------------------------------------
 
 
@@ -3558,7 +3561,7 @@ do1:                do
             call me%ExternalCoupler%initialize()
             if (Me%Coupled%SWMMCoupling) then
                 temp = 'SWMM'
-                call me%ExternalCoupler%initializeCouplerToModel(temp)
+                call me%ExternalCoupler%initializeCouplerToModel(temp, mapArrayXY, mapArrayIJ, mapArrayID, Me%ObjHorizontalGrid)                
             end if
         endif
         
