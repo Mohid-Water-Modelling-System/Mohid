@@ -116,8 +116,12 @@ Module ModuleHorizontalGrid
     public  :: GetFatherGridID
     public  :: GetGridCellArea
     private ::      Search_FatherGrid
+    public  :: GetCellIDfromIJ
+    public  :: GetCellIJfromID
+    public  :: GetCellIDfromIJArray
     public  :: GetXYCellZ
     public  :: GetXYCellZ_ThreadSafe
+    public  :: GetXYArrayIJ
     public  :: GetCellZ_XY
     public  :: GetCellZInterceptByLine
     public  :: GetCellZInterceptByPolygon
@@ -9943,6 +9947,69 @@ cd3 :       if (present(SurfaceMM5)) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine GetGridFileName
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Maps the IJ coordinates of a cell to a unique ID
+    !---------------------------------------------------------------------------
+    subroutine GetCellIDfromIJ(HorizontalGridID, I, J, ID)
+        !Arguments---------------------------------------------------------------
+        integer,            intent(IN)              :: HorizontalGridID
+        integer,            intent(in)              :: I, J
+        integer,            intent(OUT)             :: ID
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_
+        !------------------------------------------------------------------------
+        call Ready(HorizontalGridID, ready_)
+        if ((ready_ == IDLE_ERR_) .or. (ready_ == READ_LOCK_ERR_)) then
+            ID = (I-1)*(Me%Size%JUB - Me%Size%JLB) + J
+        end if
+
+    end subroutine GetCellIDfromIJ
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets the IJ coordinates of a cell given a unique ID
+    !---------------------------------------------------------------------------
+    subroutine GetCellIJfromID(HorizontalGridID, I, J, ID)
+        !Arguments---------------------------------------------------------------
+        integer,            intent(IN)              :: HorizontalGridID
+        integer,            intent(OUT)             :: I, J
+        integer,            intent(in)              :: ID
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_
+        !------------------------------------------------------------------------
+        call Ready(HorizontalGridID, ready_)
+        if ((ready_ == IDLE_ERR_) .or. (ready_ == READ_LOCK_ERR_)) then
+            J = mod(ID, (Me%Size%JUB - Me%Size%JLB))
+            I = (ID-J)/(Me%Size%JUB - Me%Size%JLB) + 1            
+        end if
+
+    end subroutine GetCellIJfromID
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets the ID coordinates array of an IJ array
+    !---------------------------------------------------------------------------
+    subroutine GetCellIDfromIJArray(HorizontalGridID, ArrayIJ, ArrayID)
+        !Arguments---------------------------------------------------------------
+        integer,            intent(IN)              :: HorizontalGridID
+        integer, dimension(:,:), intent(in)         :: ArrayIJ
+        integer, dimension(:), intent(inout)        :: ArrayID
+        !Local-------------------------------------------------------------------
+        integer                                     :: ready_, i
+        !------------------------------------------------------------------------
+        call Ready(HorizontalGridID, ready_)
+        if ((ready_ == IDLE_ERR_) .or. (ready_ == READ_LOCK_ERR_)) then
+            do i=1, size(ArrayID)
+                call GetCellIDfromIJ(HorizontalGridID, ArrayIJ(i,1), ArrayIJ(i,2), ArrayID(i))
+            end do
+        end if
+
+    end subroutine GetCellIDfromIJArray
 
     !--------------------------------------------------------------------------
 
@@ -10327,6 +10394,24 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
         if (present(STAT)) STAT = STAT_
 
     end subroutine GetXYCellZ_ThreadSafe
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> mapps and array of XY point corrdinates to an array of IJ cell coordinates
+    !---------------------------------------------------------------------------
+    subroutine GetXYArrayIJ(HorizontalGridID, mapArrayXY, mapArrayIJ)
+    integer, intent(inout) :: HorizontalGridID
+    real, dimension(:,:), intent(inout) :: mapArrayXY
+    integer, dimension(:,:), intent(inout) :: mapArrayIJ
+    integer :: i
+    
+    do i=1, size(mapArrayXY, 1)
+        call GetXYCellZ(HorizontalGridID, mapArrayXY(i,1), mapArrayXY(i,2), mapArrayIJ(i,1), mapArrayIJ(i,1))
+        !print*, 'id=',i, 'x=',mapArrayXY(i,1), 'y=',mapArrayXY(i,2)
+    end do
+    
+    end subroutine GetXYArrayIJ
 
     !--------------------------------------------------------------------------
 
