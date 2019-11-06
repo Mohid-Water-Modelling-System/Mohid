@@ -40,7 +40,6 @@
     implicit none
     private
 
-
     interface
 
     subroutine swmm_open(inFile, rptFile, outFile) bind(C, name='swmm_open')
@@ -49,26 +48,35 @@
     character(kind = c_char) :: rptFile(*)
     character(kind = c_char) :: outFile(*)
     end subroutine swmm_open
-    
-    subroutine swmm_end() bind(C, name='swmm_end')    
+
+    subroutine swmm_start(saveResults) bind(C, name='swmm_start')
+    use iso_c_binding
+    integer(c_int) :: saveResults
+    end subroutine swmm_start
+
+    subroutine swmm_end() bind(C, name='swmm_end')
     end subroutine swmm_end
-    
-    subroutine swmm_close() bind(C, name='swmm_close')    
+
+    subroutine swmm_close() bind(C, name='swmm_close')
     end subroutine swmm_close
 
+    end interface
+
+    interface
     subroutine swmm_getNumberOfNodes(nNodes) bind(C, name='swmm_getNumberOfNodes')
     use iso_c_binding
     integer(c_int) :: nNodes
     end subroutine swmm_getNumberOfNodes
+    end interface
 
+    interface
     subroutine swmm_getNodeType(id, nType) bind(C, name='swmm_getNodeTypeByID')
     use iso_c_binding
     integer(c_int) :: id
     integer(c_int) :: nType
     end subroutine swmm_getNodeType
-
     end interface
-    
+
     interface
     subroutine swmm_getNodeXY(id, xx, yy) bind(C, name='swmm_getNodeXYByID')
     use iso_c_binding
@@ -85,7 +93,7 @@
     integer(c_int) :: isOpen
     end subroutine swmm_getIsNodeOpenChannel
     end interface
-    
+
     interface
     subroutine swmm_getNodeHasLateralInflow(id, hasLatFlow) bind(C, name='swmm_getNodeHasLateralInflowByID')
     use iso_c_binding
@@ -117,7 +125,7 @@
     real(c_double) :: level
     end subroutine swmm_getLevelByNode
     end interface
-    
+
     interface
     subroutine swmm_setDownstreamWaterLevel(id, level) bind(C, name='swmm_setDownstreamWaterLevelByID')
     use iso_c_binding
@@ -125,7 +133,7 @@
     real(c_double) :: level
     end subroutine swmm_setDownstreamWaterLevel
     end interface
-    
+
     interface
     subroutine swmm_setLateralInflow(id, inflow) bind(C, name='swmm_setLateralInflowByID')
     use iso_c_binding
@@ -133,7 +141,7 @@
     real(c_double) :: inflow
     end subroutine swmm_setLateralInflow
     end interface
-    
+
     interface
     subroutine swmm_setPondedWaterColumn(id, level) bind(C, name='swmm_setPondedWaterColumnByID')
     use iso_c_binding
@@ -141,7 +149,7 @@
     real(c_double) :: level
     end subroutine swmm_setPondedWaterColumn
     end interface
-    
+
     interface
     subroutine swmm_setStormWaterPotentialInflow(id, inflow) bind(C, name='swmm_setStormWaterPotentialInflowByID')
     use iso_c_binding
@@ -149,7 +157,7 @@
     real(c_double) :: inflow
     end subroutine swmm_setStormWaterPotentialInflow
     end interface
-    
+
     interface
     subroutine swmm_setOpenXSectionInflow(id, inflow) bind(C, name='swmm_setOpenXSectionInflowByID')
     use iso_c_binding
@@ -157,40 +165,45 @@
     real(c_double) :: inflow
     end subroutine swmm_setOpenXSectionInflow
     end interface
-    
+
     interface
     subroutine swmm_step(elapsedTime) bind(C, name='swmm_step')
     use iso_c_binding
     real(c_double) :: elapsedTime
     end subroutine swmm_step
     end interface
-    
+
     interface
     subroutine swmm_step_imposed_dt(imposedDt) bind(C, name='swmm_step_imposed_dt')
     use iso_c_binding
     real(c_double) :: imposedDt
     end subroutine swmm_step_imposed_dt
     end interface
-    
+
     interface
     subroutine swmm_getdt(Dt) bind(C, name='swmm_getdt')
     use iso_c_binding
     real(c_double) :: Dt
     end subroutine swmm_getdt
     end interface
-    
+
 
     type :: NodeTypes_enum          !< enums for node types
         integer :: JUNCTION = 0
         integer :: OUTFALL = 1
     end type NodeTypes_enum
 
+    integer, parameter :: nodeId = 1
+    integer, parameter :: cellID = 2
+    integer, parameter :: cellI = 3
+    integer, parameter :: cellJ = 4
 
     !main public class
     type :: swmm_coupler_class                      !< SWMM Coupler class
         logical :: initialized = .false.                        !< initialized flag
         type(NodeTypes_enum) :: NodeTypes                       !< node type flags
         integer :: NumberOfNodes                                !< number of SWMM nodes
+        integer :: NumberOfInDomainNodes                        !< number of SWMM  nodes in the domain
         real, allocatable, dimension(:,:)  :: nodeXY            !< position of the SWMM nodes
         integer, allocatable, dimension(:,:)  :: nodeIJ         !< position of the SWMM nodes in mesh coordinates
         integer, allocatable, dimension(:,:)  :: n2cMap         !< node to cell mappings
@@ -206,8 +219,10 @@
     contains
     procedure :: initialize => initSWMMCoupler
     procedure :: mapElements
-    procedure :: finalize => finalizeSWMMCoupler    
+    procedure :: finalize => finalizeSWMMCoupler
     procedure :: print => printSWMMCoupler
+    !mapping procedures
+    procedure, private :: inDomainNode
     !control procedures
     procedure, private :: initializeSWMM
     procedure, private :: getSWMMFilesPaths
@@ -238,7 +253,7 @@
     procedure, private :: SetLateralInflowByID
     procedure, private :: SetWaterColumnByID
     procedure, private :: SetInletInflowByID
-    procedure, private :: SetXSectionInflowByID    
+    procedure, private :: SetXSectionInflowByID
     end type swmm_coupler_class
 
 
@@ -257,17 +272,17 @@
     real, allocatable, dimension(:,:), intent(inout) :: mapArrayXY
     integer, allocatable, dimension(:,:), intent(inout) :: mapArrayIJ
     integer, allocatable, dimension(:), intent(inout) :: mapArrayID
-    
+
     print*, 'Initializing SWMM coupler, please wait...'
 
     self%initialized = .true.
     call self%getSWMMFilesPaths()
     call self%initializeSWMM()
-    call self%GetNumberOfNodes()    
+    call self%GetNumberOfNodes()
     call self%GetNodeXY()
-    
-    print*, 'SWMM number of nodes is ', self%NumberOfNodes    
-    
+
+    print*, 'SWMM number of nodes is ', self%NumberOfNodes
+
     !allocating map arrays to send to Basin Module to get filled/used
     allocate(mapArrayXY(self%NumberOfNodes,2))
     allocate(mapArrayIJ(self%NumberOfNodes,2))
@@ -275,11 +290,11 @@
     mapArrayXY = self%nodeXY
 
     end subroutine initSWMMCoupler
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Maps the SWMM Coupler object elements 
+    !> Maps the SWMM Coupler object elements
     !---------------------------------------------------------------------------
     subroutine mapElements(self, mapArrayIJ, mapArrayID)
     class(swmm_coupler_class), intent(inout) :: self
@@ -292,54 +307,73 @@
     integer :: nLatFlow = 0
     integer :: i, idx
     integer :: idxj, idxo, idxi, idxx, idxl = 1
-    
+
     print*, 'Mapping coupling points, please wait...'
-    
-    do i=1, self%NumberOfNodes
-        print*, 'id=',i, 'x=',self%nodeXY(i,1), 'y=',self%nodeXY(i,2)
-        print*, 'cell id=', mapArrayID(i), 'i=',mapArrayIJ(i,1), 'j=',mapArrayIJ(i,2)
-    end do
-    
+
+    !do i=1, self%NumberOfNodes
+    !    print*, 'id=',i, 'x=',self%nodeXY(i,1), 'y=',self%nodeXY(i,2)
+    !    print*, 'cell id=', mapArrayID(i), 'i=',mapArrayIJ(i,1), 'j=',mapArrayIJ(i,2)
+    !end do
+
     allocate(self%n2cMap(self%NumberOfNodes,4))
     self%n2cMap = 0
+
+    do i=1, self%NumberOfNodes
+        self%n2cMap(i,nodeId) = i
+        self%n2cMap(i,cellID) = mapArrayID(i)
+        self%n2cMap(i,cellI) = mapArrayIJ(i,1)
+        self%n2cMap(i,cellJ) = mapArrayIJ(i,2)
+        if (mapArrayIJ(i,1) == null_int .or. mapArrayIJ(i,2) == null_int) self%n2cMap(i,2) = null_int !nodes outside of the domain
+    end do
+
+    self%NumberOfInDomainNodes = count(self%n2cMap(:,cellID) /= null_int)
     
     do i=1, self%NumberOfNodes
-        self%n2cMap(i,1) = i
-        self%n2cMap(i,2) = mapArrayID(i)
-        self%n2cMap(i,3) = mapArrayIJ(i,1)
-        self%n2cMap(i,4) = mapArrayIJ(i,2)
+        if (self%inDomainNode(i)) print*, self%n2cMap(i,:)            
     end do
-    
+
     !building open section list
     allocate(self%xSectionOpen(self%NumberOfNodes))
     self%xSectionOpen = .false.
     do i=1, self%NumberOfNodes
         if (self%NodeTypes%junction == self%GetNodeTypeByID(i-1)) then
-            if (self%GetIsNodeOpenChannel(i-1)) self%xSectionOpen(i) = .true.
+            if (self%GetIsNodeOpenChannel(i-1)) then
+                if (self%inDomainNode(i)) self%xSectionOpen(i) = .true.
+            end if
         end if
     end do
 
     !building id lists for O(1) access
     do i=1, self%NumberOfNodes
         idx = i-1
-        if (self%NodeTypes%junction == self%GetNodeTypeByID(idx)) nJunction = nJunction + 1
-        if (self%NodeTypes%outfall  == self%GetNodeTypeByID(idx)) nOutfall  = nOutfall  + 1
-        if (self%NodeTypes%junction  == self%GetNodeTypeByID(idx)) then
-            if (.not.self%xSectionOpen(i)) nInflow = nInflow + 1     !only closed nodes
+        if (self%NodeTypes%junction == self%GetNodeTypeByID(idx)) then
+            if (self%inDomainNode(i)) nJunction = nJunction + 1
+        end if
+        if (self%NodeTypes%outfall  == self%GetNodeTypeByID(idx)) then
+            if (self%inDomainNode(i)) nOutfall  = nOutfall  + 1
         end if
         if (self%NodeTypes%junction  == self%GetNodeTypeByID(idx)) then
-            if (self%xSectionOpen(i)) nXSection = nXSection + 1      !only open nodes
+            if (self%inDomainNode(i)) then
+                if (.not.self%xSectionOpen(i)) nInflow = nInflow + 1     !only closed nodes
+            end if
         end if
         if (self%NodeTypes%junction  == self%GetNodeTypeByID(idx)) then
-            if (self%GetNodeHasLateralInflow(idx)) nLatFlow = nLatFlow + 1
+            if (self%inDomainNode(i)) then
+                if (self%xSectionOpen(i)) nXSection = nXSection + 1      !only open nodes
+            end if
+        end if
+        if (self%NodeTypes%junction  == self%GetNodeTypeByID(idx)) then
+            if (self%GetNodeHasLateralInflow(idx)) then
+                if (self%inDomainNode(i)) nLatFlow = nLatFlow + 1
+            end if
         end if
     end do
 
-    !print*, "nJunction", nJunction
-    !print*, "nOutfall", nOutfall
-    !print*, "nInflow", nInflow
-    !print*, "nXSection", nXSection
-    !print*, "nLatFlow", nLatFlow
+    print*, "nJunction", nJunction
+    print*, "nOutfall", nOutfall
+    print*, "nInflow", nInflow
+    print*, "nXSection", nXSection
+    print*, "nLatFlow", nLatFlow
 
     allocate(self%junctionIDX(nJunction))
     allocate(self%outfallIDX(nOutfall))
@@ -349,29 +383,39 @@
     do i=1, self%NumberOfNodes
         idx = i-1
         if (self%NodeTypes%junction == self%GetNodeTypeByID(idx)) then
-            self%junctionIDX(idxj) = idx
-            idxj = idxj + 1
+            if (self%inDomainNode(i)) then
+                self%junctionIDX(idxj) = idx
+                idxj = idxj + 1
+            end if
         end if
         if (self%NodeTypes%outfall == self%GetNodeTypeByID(idx)) then
-            self%outfallIDX(idxo) = idx
-            idxo = idxo + 1
+            if (self%inDomainNode(i)) then
+                self%outfallIDX(idxo) = idx
+                idxo = idxo + 1
+            end if
         end if
         if (self%NodeTypes%junction == self%GetNodeTypeByID(idx)) then
             if (.not.self%xSectionOpen(i)) then !only closed nodes
-                self%inflowIDX(idxi) = idx
-                idxi = idxi + 1
+                if (self%inDomainNode(i)) then
+                    self%inflowIDX(idxi) = idx
+                    idxi = idxi + 1
+                end if
             end if
         end if
         if (self%NodeTypes%junction == self%GetNodeTypeByID(idx)) then
             if (self%xSectionOpen(i)) then      !only open nodes
-                self%xsectionLevelsIDX(idxx) = idx
-                idxx = idxx + 1
+                if (self%inDomainNode(i)) then
+                    self%xsectionLevelsIDX(idxx) = idx
+                    idxx = idxx + 1
+                end if
             end if
         end if
         if (self%NodeTypes%junction == self%GetNodeTypeByID(idx)) then
             if (self%GetNodeHasLateralInflow(i)) then
-                self%lateralFlowIDX(idxl) = idx
-                idxl = idxl + 1
+                if (self%inDomainNode(i)) then
+                    self%lateralFlowIDX(idxl) = idx
+                    idxl = idxl + 1
+                end if
             end if
         end if
     end do
@@ -380,8 +424,8 @@
     !print*, "self%junctionIDX", self%junctionIDX
     !print*, "self%outfallIDX", self%outfallIDX
     !print*, "self%inflowIDX", self%inflowIDX
-    !print*, "self%xsectionLevelsIDX", self%xsectionLevelsIDX    
-    !print*, "self%lateralFlowIDX", self%lateralFlowIDX    
+    !print*, "self%xsectionLevelsIDX", self%xsectionLevelsIDX
+    !print*, "self%lateralFlowIDX", self%lateralFlowIDX
     !!print*, "self%GetLevel()", self%GetLevel()
     !
     !allocate(temp(size(self%xsectionLevelsIDX)))
@@ -392,7 +436,18 @@
     !read(*,*)
 
     end subroutine mapElements
-    
+
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Returns true if SWMM node is in the coupled domain
+    !---------------------------------------------------------------------------
+    logical function inDomainNode(self, idx)
+    class(swmm_coupler_class), intent(in) :: self
+    integer, intent(in) :: idx
+    inDomainNode = self%n2cMap(idx, cellID) /= null_int
+    end function inDomainNode
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -400,7 +455,7 @@
     !---------------------------------------------------------------------------
     subroutine finalizeSWMMCoupler(self)
     class(swmm_coupler_class), intent(inout) :: self
-    
+
     call self%finalizeSWMM()
 
     end subroutine finalizeSWMMCoupler
@@ -436,19 +491,22 @@
     subroutine initializeSWMM(self)
     class(swmm_coupler_class), intent(in) :: self
     character(len = :, kind = c_char), allocatable :: inFile, rptFile, outFile
+    integer(c_int) :: saveResults
 
     print*, 'Initializing SWMM, please wait...'
 
     inFile = trim(ADJUSTL(self%SWMM_dat))//C_NULL_CHAR
     rptFile = trim(ADJUSTL(self%SWMM_rpt))//C_NULL_CHAR
     outFile = trim(ADJUSTL(self%SWMM_out))//C_NULL_CHAR
+    saveResults = 1
 
     call swmm_open(inFile, rptFile, outFile)
+    call swmm_start(saveResults)
 
     print*,''
 
     end subroutine initializeSWMM
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -457,11 +515,11 @@
     subroutine defaultPerformTimeStep(self)
     class(swmm_coupler_class), intent(in) :: self
     real(c_double) :: elapsedTime
-    
+
     call swmm_step(elapsedTime)
 
     end subroutine defaultPerformTimeStep
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -471,12 +529,12 @@
     subroutine PerformTimeStep(self, dt)
     class(swmm_coupler_class), intent(in) :: self
     real(c_double), intent(in) :: dt
-    
+
     call swmm_step_imposed_dt(dt)
     print*, 'SWMM time step done with dt = ', dt, ' s'
 
     end subroutine PerformTimeStep
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -490,7 +548,7 @@
     GetDt = dt
 
     end function GetDt
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -519,7 +577,7 @@
     self%NumberOfNodes = nNodes
 
     end subroutine GetNumberOfNodes
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -529,16 +587,16 @@
     class(swmm_coupler_class), intent(inout) :: self
     real, dimension(2) :: xy
     integer :: i
-    
+
     allocate(self%NodeXY(self%NumberOfNodes,2))
     do i = 1, self%NumberOfNodes
         xy = self%GetNodeXYByID(i)
         self%NodeXY(i,1) = xy(1)
         self%NodeXY(i,2) = xy(2)
     end do
-    
+
     end subroutine GetNodeXY
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -588,7 +646,7 @@
     if (isOpen == 1) GetIsNodeOpenChannel = .true.
 
     end function GetIsNodeOpenChannel
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -725,7 +783,7 @@
     call swmm_setDownstreamWaterLevel(id, outletLevel)
 
     end subroutine SetOutletLevelByID
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -744,11 +802,11 @@
             end do
         else
             stop 'SWMMCoupler::SetOutletLevel - size mismatch between data array and id array'
-        end if        
+        end if
     end if
 
     end subroutine SetOutletLevel
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -763,7 +821,7 @@
     call swmm_setLateralInflow(id, inflow)
 
     end subroutine SetLateralInflowByID
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -782,11 +840,11 @@
             end do
         else
             stop 'SWMMCoupler::SetLateralInflow - size mismatch between data array and id array'
-        end if        
+        end if
     end if
 
     end subroutine SetLateralInflow
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -801,11 +859,11 @@
     call swmm_setPondedWaterColumn(id, level)
 
     end subroutine SetWaterColumnByID
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Sets outlet level at all suited SWMM nodes - not checking if node 
+    !> Sets outlet level at all suited SWMM nodes - not checking if node
     !> should have or not
     !> @param[in] self, level
     !---------------------------------------------------------------------------
@@ -821,11 +879,11 @@
             end do
         else
             stop 'SWMMCoupler::SetWaterColumn - size mismatch between data array and id array'
-        end if        
+        end if
     end if
 
     end subroutine SetWaterColumn
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -840,11 +898,11 @@
     call swmm_setStormWaterPotentialInflow(id, inflow)
 
     end subroutine SetInletInflowByID
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Sets inflow at all suited SWMM nodes - not checking if node 
+    !> Sets inflow at all suited SWMM nodes - not checking if node
     !> should have or not
     !> @param[in] self, inflow
     !---------------------------------------------------------------------------
@@ -860,11 +918,11 @@
             end do
         else
             stop 'SWMMCoupler::SetInletInflow - size mismatch between data array and id array'
-        end if        
+        end if
     end if
 
     end subroutine SetInletInflow
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -879,7 +937,7 @@
     call swmm_setOpenXSectionInflow(id, inflow)
 
     end subroutine SetXSectionInflowByID
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -900,7 +958,7 @@
             print*, 'number of cross sections in SWMM = ', size(self%xsectionLevelsIDX)
             print*, 'number of cross sections given by MOHID = ', size(inflow)
             stop 'SWMMCoupler::SetXSectionInflow - size mismatch between data array and id array'
-        end if        
+        end if
     end if
 
     end subroutine SetXSectionInflow
