@@ -56,7 +56,7 @@
     !import data procedures
     procedure :: setValues
     !export data procedures
-    procedure :: getValues    
+    procedure :: getValues
     procedure :: getCoupledDt
     end type external_coupler_class
 
@@ -103,7 +103,7 @@
     end if
 
     end subroutine initializeCouplerToModel
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -124,7 +124,7 @@
     end if
 
     end subroutine mapElements
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -136,7 +136,7 @@
 
     isModelCoupled = .false.
     if (self%initialized) then
-        if (modelName == 'SWMM') then            
+        if (modelName == 'SWMM') then
             if (self%SWMMCoupler%initialized) isModelCoupled = .true.
             return
         end if
@@ -144,7 +144,7 @@
     end if
 
     end function isModelCoupled
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -154,13 +154,13 @@
     class(external_coupler_class), intent(inout) :: self
     real, intent(in) :: dt
 
-     if (self%SWMMCoupler%initialized) then
+    if (self%SWMMCoupler%initialized) then
         call self%SWMMCoupler%runStep(dt)
-     end if
-     !add more models here
+    end if
+    !add more models here
 
     end subroutine runStep
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -169,17 +169,17 @@
     real function getCoupledDt(self)
     class(external_coupler_class), intent(inout) :: self
     real :: localDt
-    
+
     getCoupledDt = -null_real
-    
+
     if (self%SWMMCoupler%initialized) then
         localDt = self%SWMMCoupler%GetDt()
-        getCoupledDt = min(localDt, getCoupledDt)        
+        getCoupledDt = min(localDt, getCoupledDt)
     end if
     !add more models here
 
     end function getCoupledDt
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -207,12 +207,12 @@
             return
         else
             stop 'external_coupler_class::getValues - requested quantity does not exist'
-        end if        
+        end if
     end if
     !add more models here
 
     end subroutine getValues
-    
+
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
@@ -243,7 +243,7 @@
             return
         else
             stop 'external_coupler_class::setValues - requested quantity does not exist'
-        end if        
+        end if
     end if
     !add more models here
 
