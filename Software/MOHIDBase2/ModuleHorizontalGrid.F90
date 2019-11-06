@@ -10014,197 +10014,148 @@ cd3 :       if (present(SurfaceMM5)) then
     !--------------------------------------------------------------------------
 
     subroutine GetXYCellZ(HorizontalGridID, XPoint, YPoint, I, J, PercI, PercJ,         &
-                          Referential, Iold, Jold, STAT)
+        Referential, Iold, Jold, STAT)
+    !Arguments---------------------------------------------------------------
+    integer,            intent(IN)              :: HorizontalGridID
+    real,               intent(IN)              :: XPoint, YPoint
+    integer,            intent(OUT)             :: I, J
+    real,    optional,  intent(OUT)             :: PercI, PercJ
+    integer, optional,  intent(IN)              :: Referential
+    integer, optional,  intent(IN)              :: Iold, Jold
+    integer, optional,  intent(OUT)             :: STAT
+    !Local-------------------------------------------------------------------
+    real,   dimension(:,:), pointer             :: XX2D, YY2D
+    real,   dimension(:  ), pointer             :: XX1D, YY1D
+    real,   dimension(:  ), pointer             :: XX1D_Aux, YY1D_Aux
+    integer                                     :: STAT_
+    integer                                     :: ready_
+    real                                        :: XPoint2, YPoint2, Xorig2, Yorig2
+    integer                                     :: Referential_, GetGridBorderType
+    integer                                     :: ILB, IUB, JLB, JUB
+    logical                                     :: CellLocated
+    integer                                     :: Iold_, Jold_
+    !------------------------------------------------------------------------
 
-        !Arguments---------------------------------------------------------------
-        integer,            intent(IN)              :: HorizontalGridID
-        real,               intent(IN)              :: XPoint, YPoint
-        integer,            intent(OUT)             :: I, J
-        real,    optional,  intent(OUT)             :: PercI, PercJ
-        integer, optional,  intent(IN)              :: Referential
-        integer, optional,  intent(IN)              :: Iold, Jold
-        integer, optional,  intent(OUT)             :: STAT
+    STAT_ = UNKNOWN_
+    call Ready(HorizontalGridID, ready_)
 
-        !Local-------------------------------------------------------------------
-        real,   dimension(:,:), pointer             :: XX2D, YY2D
-        real,   dimension(:  ), pointer             :: XX1D, YY1D
-        real,   dimension(:  ), pointer             :: XX1D_Aux, YY1D_Aux
-        integer                                     :: STAT_
-        integer                                     :: ready_
-        real                                        :: XPoint2, YPoint2, Xorig2, Yorig2
-        integer                                     :: Referential_, GetGridBorderType
-        integer                                     :: ILB, IUB, JLB, JUB
-        logical                                     :: CellLocated
-        integer                                     :: Iold_, Jold_
-        !------------------------------------------------------------------------
+    if ((ready_ == IDLE_ERR_) .or. (ready_ == READ_LOCK_ERR_)) then
+        ILB = Me%Size%ILB
+        IUB = Me%Size%IUB
+        JLB = Me%Size%JLB
+        JUB = Me%Size%JUB
+        XX2D        => Me%XX_IE
+        YY2D        => Me%YY_IE
+        XX1D        => Me%Compute%XX_Cross
+        YY1D        => Me%Compute%YY_Cross
+        allocate(XX1D_Aux(JLB:JUB))
+        allocate(YY1D_Aux(ILB:IUB))
 
-        STAT_ = UNKNOWN_
+        if (present(Referential)) then
+            Referential_ = Referential
+        else
+            Referential_ = GridCoord_ !default  behaviour
+        end if
+        if (Referential_ == Cartesian_) GetGridBorderType = Me%GridBorderCart%Type_
+        if (Referential_ == GridCoord_) then
+            GetGridBorderType = Me%GridBorderCoord%Type_
+            if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then
+                XX2D        => Me%LongitudeConn
+                YY2D        => Me%LatitudeConn
+            end if
+        end if
+        if (Referential_ == AlongGrid_) then
+            GetGridBorderType = Me%GridBorderAlongGrid%Type_
+            XX2D        => Me%XX_AlongGrid
+            YY2D        => Me%YY_AlongGrid
+        end if
 
-        call Ready(HorizontalGridID, ready_)
-
-i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                             &
-            (ready_ == READ_LOCK_ERR_)) then
-
-            ILB = Me%Size%ILB
-            IUB = Me%Size%IUB
-
-            JLB = Me%Size%JLB
-            JUB = Me%Size%JUB
-
-            if (present(Referential)) then
-
-                Referential_ = Referential
-
+        if (GetGridBorderType == ComplexPolygon_) then
+            if (present(Iold) .and. present(Jold)) then
+                Iold_ = Iold
+                Jold_ = Jold
             else
+                Iold_ = FillValueInt
+                Jold_ = FillValueInt
+            end if
 
-                Referential_ = GridCoord_
+            call LocateCellPolygons(XX2D,                                           &
+                YY2D,                                           &
+                XPoint, YPoint, Me%DefineCellsMap,              &
+                !                                        Me%WorkSize%ILB, Me%WorkSize%IUB + 1,           &
+                !                                        Me%WorkSize%JLB, Me%WorkSize%JUB + 1,           &
+                Me%WorkSize%ILB, Me%WorkSize%IUB,           &
+                Me%WorkSize%JLB, Me%WorkSize%JUB,           &
+                I, J, CellLocated, Iold_, Jold_)
 
-            endif
+            if (I < 0 .or. J < 0  .or. .not. CellLocated) then
+                STAT_ = OUT_OF_BOUNDS_ERR_
+                !stop 'GetXYCellZ - ModuleHorizontalGrid - ERR10'
+            else
+                if (present(PercI) .and. present(PercJ)) then
+                    call RelativePosition4VertPolygon(Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ), &
+                        Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1), &
+                        Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ), &
+                        Xd = XX2D(I  , J+1), Yd = YY2D(I  , J+1), &
+                        Xe = XPoint,         Ye = YPoint,         &
+                        Xex= PercJ,          Yey= PercI)
+                end if
+            end if
+        else
+            XPoint2 = XPoint
+            YPoint2 = YPoint
 
+            if (GetGridBorderType == Rectang_ .or. Referential_ == AlongGrid_) then
+                XX1D_Aux(JLB:JUB) = XX2D(ILB+1  ,JLB:JUB)
+                YY1D_Aux(ILB:IUB) = YY2D(ILB:IUB,JLB+1  )
+            else
+                Xorig2  = Me%Xorig
+                Yorig2  = Me%Yorig
+                XPoint2 =  XPoint - Xorig2
+                YPoint2 =  YPoint - Yorig2
+                call RODAXY(0., 0., -Me%Grid_Angle, XPoint2, YPoint2)
+                XX1D_Aux(JLB+1:JUB) = Me%XX(JLB+1:JUB)
+                YY1D_Aux(ILB+1:IUB) = Me%YY(ILB+1:IUB)
+            end if
+            
+            call LocateCell (XX1D_Aux,                                           &
+                YY1D_Aux,                                           &
+                XPoint2, YPoint2,                                      &
+                Me%WorkSize%ILB, Me%WorkSize%IUB + 1,                  &
+                Me%WorkSize%JLB, Me%WorkSize%JUB + 1,                  &
+                I, J)
 
-            XX2D        => Me%XX_IE
-            YY2D        => Me%YY_IE
-
-            XX1D        => Me%Compute%XX_Cross
-            YY1D        => Me%Compute%YY_Cross
-
-            allocate(XX1D_Aux(JLB:JUB))
-            allocate(YY1D_Aux(ILB:IUB))
-
-            if (Referential_ == Cartesian_) then
-
-                GetGridBorderType = Me%GridBorderCart%Type_
-
-            endif
-
-            if (Referential_ == GridCoord_) then
-
-                GetGridBorderType = Me%GridBorderCoord%Type_
-
-                if (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_) then
-
-                    XX2D        => Me%LongitudeConn
-                    YY2D        => Me%LatitudeConn
-
-                endif
-
-            endif
-
-            if (Referential_ == AlongGrid_) then
-
-                GetGridBorderType = Me%GridBorderAlongGrid%Type_
-
-                XX2D        => Me%XX_AlongGrid
-                YY2D        => Me%YY_AlongGrid
-
-            endif
-
-
-i2:         if (GetGridBorderType == ComplexPolygon_) then
-
-                if (present(Iold) .and. present(Jold)) then
-                    Iold_ = Iold
-                    Jold_ = Jold
-                else
-                    Iold_ = FillValueInt
-                    Jold_ = FillValueInt
-                endif
-
-                call LocateCellPolygons(XX2D,                                           &
-                                        YY2D,                                           &
-                                        XPoint, YPoint, Me%DefineCellsMap,              &
-!                                        Me%WorkSize%ILB, Me%WorkSize%IUB + 1,           &
-!                                        Me%WorkSize%JLB, Me%WorkSize%JUB + 1,           &
-                                        Me%WorkSize%ILB, Me%WorkSize%IUB,           &
-                                        Me%WorkSize%JLB, Me%WorkSize%JUB,           &
-                                        I, J, CellLocated, Iold_, Jold_)
-
-                if (I < 0 .or. J < 0  .or. .not. CellLocated) then
+            if (present(PercI)) then
+                if (I < 0) then
                     STAT_ = OUT_OF_BOUNDS_ERR_
-                    !stop 'GetXYCellZ - ModuleHorizontalGrid - ERR10'
-
                 else
+                    PercI  = (YPoint2 - YY1D_Aux(I)) / (YY1D_Aux(I+1) - YY1D_Aux(I))
+                end if
+            end if
 
-                    if (present(PercI) .and. present(PercJ)) then
-                        !
-                        call RelativePosition4VertPolygon(Xa = XX2D(I+1, J  ), Ya = YY2D(I+1, J  ), &
-                                                          Xb = XX2D(I+1, J+1), Yb = YY2D(I+1, J+1), &
-                                                          Xc = XX2D(I  , J  ), Yc = YY2D(I  , J  ), &
-                                                          Xd = XX2D(I  , J+1), Yd = YY2D(I  , J+1), &
-                                                          Xe = XPoint,         Ye = YPoint,         &
-                                                          Xex= PercJ,          Yey= PercI)
-                    endif
-
-                endif
-
-            else i2
-
-                XPoint2 = XPoint
-                YPoint2 = YPoint
-
-                if (GetGridBorderType == Rectang_ .or. Referential_ == AlongGrid_) then
-
-                    XX1D_Aux(JLB:JUB) = XX2D(ILB+1  ,JLB:JUB)
-                    YY1D_Aux(ILB:IUB) = YY2D(ILB:IUB,JLB+1  )
-
+            if (present(PercJ)) then
+                if (J < 0) then
+                    STAT_ = OUT_OF_BOUNDS_ERR_
                 else
+                    PercJ  = (XPoint2 - XX1D_Aux(J)) / (XX1D_Aux(J+1) - XX1D_Aux(J))
+                end if
+            end if
+        end if
 
-                    Xorig2  = Me%Xorig
-                    Yorig2  = Me%Yorig
+        deallocate(XX1D_Aux)
+        deallocate(YY1D_Aux)
+        nullify(XX1D_Aux)
+        nullify(YY1D_Aux)
+        nullify(XX2D)
+        nullify(YY2D)
 
-                    XPoint2 =  XPoint - Xorig2
-                    YPoint2 =  YPoint - Yorig2
+        if (STAT_ == UNKNOWN_) STAT_ = SUCCESS_
 
-                    call RODAXY(0., 0., -Me%Grid_Angle, XPoint2, YPoint2)
+    else
+        STAT_ = ready_
+    end if
 
-                    XX1D_Aux(JLB+1:JUB) = Me%XX(JLB+1:JUB)
-                    YY1D_Aux(ILB+1:IUB) = Me%YY(ILB+1:IUB)
-
-                endif
-
-                call LocateCell (XX1D_Aux,                                           &
-                                 YY1D_Aux,                                           &
-                                 XPoint2, YPoint2,                                      &
-                                 Me%WorkSize%ILB, Me%WorkSize%IUB + 1,                  &
-                                 Me%WorkSize%JLB, Me%WorkSize%JUB + 1,                  &
-                                 I, J)
-
-                if (present(PercI)) then
-                    if (I < 0) then
-                        STAT_ = OUT_OF_BOUNDS_ERR_
-                    else
-                        PercI  = (YPoint2 - YY1D_Aux(I)) / (YY1D_Aux(I+1) - YY1D_Aux(I))
-                    endif
-                endif
-
-                if (present(PercJ)) then
-                    if (J < 0) then
-                        STAT_ = OUT_OF_BOUNDS_ERR_
-                    else
-                        PercJ  = (XPoint2 - XX1D_Aux(J)) / (XX1D_Aux(J+1) - XX1D_Aux(J))
-                    endif
-                endif
-
-            endif i2
-
-            deallocate(XX1D_Aux)
-            deallocate(YY1D_Aux)
-
-            nullify(XX1D_Aux)
-            nullify(YY1D_Aux)
-
-            nullify(XX2D)
-            nullify(YY2D)
-
-            if (STAT_ == UNKNOWN_) STAT_ = SUCCESS_
-
-        else    i1
-
-            STAT_ = ready_
-
-        end if  i1
-
-        if (present(STAT)) STAT = STAT_
+    if (present(STAT)) STAT = STAT_
 
     end subroutine GetXYCellZ
 
@@ -10406,9 +10357,11 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
     integer, dimension(:,:), intent(inout) :: mapArrayIJ
     integer :: i
     
+    mapArrayIJ = null_int
     do i=1, size(mapArrayXY, 1)
-        call GetXYCellZ(HorizontalGridID, mapArrayXY(i,1), mapArrayXY(i,2), mapArrayIJ(i,1), mapArrayIJ(i,1))
+        if (GetXYInsideDomain(HorizontalGridID, mapArrayXY(i,1), mapArrayXY(i,2))) call GetXYCellZ(HorizontalGridID, mapArrayXY(i,1), mapArrayXY(i,2), mapArrayIJ(i,1), mapArrayIJ(i,2))
         !print*, 'id=',i, 'x=',mapArrayXY(i,1), 'y=',mapArrayXY(i,2)
+        !print*, 'I=',mapArrayIJ(i,1), 'J=',mapArrayIJ(i,2)
     end do
     
     end subroutine GetXYArrayIJ
