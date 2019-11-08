@@ -35,6 +35,7 @@
 
     use ModuleGlobalData
     use ModuleEnterData
+    use ModuleHorizontalGrid
     use iso_c_binding
 
     implicit none
@@ -174,8 +175,9 @@
     end interface
 
     interface
-    subroutine swmm_step_imposed_dt(imposedDt) bind(C, name='swmm_step_imposed_dt')
+    subroutine swmm_step_imposed_dt(elapsedTime, imposedDt) bind(C, name='swmm_step_imposed_dt')
     use iso_c_binding
+    real(c_double) :: elapsedTime
     real(c_double) :: imposedDt
     end subroutine swmm_step_imposed_dt
     end interface
@@ -327,10 +329,11 @@
     end do
 
     self%NumberOfInDomainNodes = count(self%n2cMap(:,cellID) /= null_int)
-    
-    do i=1, self%NumberOfNodes
-        if (self%inDomainNode(i)) print*, self%n2cMap(i,:)            
-    end do
+    print*, 'SWMM number of nodes in domain is ', self%NumberOfInDomainNodes
+
+    !do i=1, self%NumberOfNodes
+    !    if (self%inDomainNode(i)) print*, self%n2cMap(i,:)
+    !end do
 
     !building open section list
     allocate(self%xSectionOpen(self%NumberOfNodes))
@@ -369,11 +372,13 @@
         end if
     end do
 
-    print*, "nJunction", nJunction
-    print*, "nOutfall", nOutfall
-    print*, "nInflow", nInflow
-    print*, "nXSection", nXSection
-    print*, "nLatFlow", nLatFlow
+    !print*, ""
+    !print*, "nJunction", nJunction
+    !print*, "nOutfall", nOutfall
+    !print*, "nInflow", nInflow
+    !print*, "nXSection", nXSection
+    !print*, "nLatFlow", nLatFlow
+    !print*, ""
 
     allocate(self%junctionIDX(nJunction))
     allocate(self%outfallIDX(nOutfall))
@@ -419,21 +424,6 @@
             end if
         end if
     end do
-
-    !print*, "self%xSectionOpen", self%xSectionOpen
-    !print*, "self%junctionIDX", self%junctionIDX
-    !print*, "self%outfallIDX", self%outfallIDX
-    !print*, "self%inflowIDX", self%inflowIDX
-    !print*, "self%xsectionLevelsIDX", self%xsectionLevelsIDX
-    !print*, "self%lateralFlowIDX", self%lateralFlowIDX
-    !!print*, "self%GetLevel()", self%GetLevel()
-    !
-    !allocate(temp(size(self%xsectionLevelsIDX)))
-    !temp = 10.0
-    !call self%SetXSectionInflow(temp)
-    !
-    !print*, 'initSWMMCoupler done'
-    !read(*,*)
 
     end subroutine mapElements
 
@@ -529,9 +519,10 @@
     subroutine PerformTimeStep(self, dt)
     class(swmm_coupler_class), intent(in) :: self
     real(c_double), intent(in) :: dt
+    real(c_double) :: elapsedTime
 
-    call swmm_step_imposed_dt(dt)
-    print*, 'SWMM time step done with dt = ', dt, ' s'
+    !print*, 'SWMM time step done with dt = ', dt, ' s'
+    call swmm_step_imposed_dt(elapsedTime, dt)
 
     end subroutine PerformTimeStep
 
@@ -546,6 +537,7 @@
 
     call swmm_getdt(dt)
     GetDt = dt
+    !print*, '--SWMM time step should be dt = ', dt, ' s'
 
     end function GetDt
 
@@ -685,15 +677,21 @@
     !> @brief
     !> Gets ponded inflow at all required SWMM nodes
     !---------------------------------------------------------------------------
-    function GetInflow(self) result(inflow)
+    function GetInflow(self, HorizontalGridID) result(inflow)
     class(swmm_coupler_class), intent(in) :: self
-    real, dimension(size(self%inflowIDX)) :: inflow
-    integer :: i
+    integer, intent(in) :: HorizontalGridID
+    real, dimension(size(self%inflowIDX), 3) :: inflow
+    integer :: i, ii, jj, cid, nnodes
 
     inflow = 0.0
     if (size(self%inflowIDX)>0) then
         do i=1, size(self%inflowIDX)
-            inflow(i) = self%GetInflowByID(self%inflowIDX(i))
+            cid = self%n2cMap(self%inflowIDX(i), cellID) !cell id from this node
+            nnodes = count(self%n2cMap(:,cellID) == cid)         !number of nodes sharing the same cell
+            call GetCellIJfromID(HorizontalGridID, ii, jj, cid)            
+            inflow(i,1) = ii
+            inflow(i,2) = jj
+            inflow(i,3) = self%GetInflowByID(self%inflowIDX(i))
         end do
     end if
 
@@ -720,15 +718,21 @@
     !> @brief
     !> Gets outflow at all required SWMM nodes
     !---------------------------------------------------------------------------
-    function GetOutflow(self) result(outflow)
+    function GetOutflow(self, HorizontalGridID) result(outflow)
     class(swmm_coupler_class), intent(in) :: self
-    real, dimension(size(self%outfallIDX)) :: outflow
-    integer :: i
+    integer, intent(in) :: HorizontalGridID
+    real, dimension(size(self%outfallIDX), 3) :: outflow
+    integer :: i, ii, jj, cid, nnodes
 
     outflow = 0.0
     if (size(self%outfallIDX)>0) then
         do i=1, size(self%outfallIDX)
-            outflow(i) = self%GetOutflowByID(self%outfallIDX(i))
+            cid = self%n2cMap(self%outfallIDX(i), cellID) !cell id from this node
+            nnodes = count(self%n2cMap(:,cellID) == cid)         !number of nodes sharing the same cell
+            call GetCellIJfromID(HorizontalGridID, ii, jj, cid)            
+            outflow(i,1) = ii
+            outflow(i,2) = jj
+            outflow(i,3) = self%GetOutflowByID(self%outfallIDX(i))
         end do
     end if
 
@@ -755,15 +759,21 @@
     !> @brief
     !> Gets level at all required SWMM nodes
     !---------------------------------------------------------------------------
-    function GetLevel(self) result(level)
+    function GetLevel(self, HorizontalGridID) result(level)
     class(swmm_coupler_class), intent(in) :: self
-    real, dimension(size(self%xsectionLevelsIDX)) :: level
-    integer :: i
+    integer, intent(in) :: HorizontalGridID
+    real, dimension(size(self%xsectionLevelsIDX), 3) :: level
+    integer :: i, ii, jj, cid, nnodes
 
     level = 0.0
     if (size(self%xsectionLevelsIDX)>0) then
         do i=1, size(self%xsectionLevelsIDX)
-            level(i) = self%GetLevelByID(self%xsectionLevelsIDX(i))
+            cid = self%n2cMap(self%xsectionLevelsIDX(i), cellID) !cell id from this node
+            nnodes = count(self%n2cMap(:,cellID) == cid)         !number of nodes sharing the same cell
+            call GetCellIJfromID(HorizontalGridID, ii, jj, cid)            
+            level(i,1) = ii
+            level(i,2) = jj
+            level(i,3) = self%GetLevelByID(self%xsectionLevelsIDX(i))!/nnodes !contribution of this node to the average of this cell - WIP
         end do
     end if
 
@@ -790,21 +800,19 @@
     !> Sets outlet level at all suited SWMM nodes
     !> @param[in] self, outletLevel
     !---------------------------------------------------------------------------
-    subroutine SetOutletLevel(self, outletLevel)
+    subroutine SetOutletLevel(self, outletLevel, cellIDs)
     class(swmm_coupler_class), intent(in) :: self
     real, dimension(:), intent(in) :: outletLevel
-    integer :: i
+    integer, dimension(:), intent(in) :: cellIDs
+    integer :: i, cid, nnodes, cidx
 
     if (size(self%outfallIDX)>0) then
-        if (size(self%outfallIDX) == size(outletLevel)) then
-            do i=1, size(self%outfallIDX)
-                call self%SetOutletLevelByID(self%outfallIDX(i), outletLevel(i))
-            end do
-        else
-            stop 'SWMMCoupler::SetOutletLevel - size mismatch between data array and id array'
-        end if
+        do i=1, size(self%outfallIDX)
+            cid = self%n2cMap(self%outfallIDX(i), cellID)         !cell id from this node
+            cidx = findloc(cellIDs, value = cid, dim = 1)         !index of the cell in the data array
+            if (cidx > 0) call self%SetOutletLevelByID(self%outfallIDX(i), outletLevel(cidx))
+        end do
     end if
-
     end subroutine SetOutletLevel
 
     !---------------------------------------------------------------------------
@@ -828,19 +836,19 @@
     !> Sets outlet level at all suited SWMM nodes
     !> @param[in] self, inflow
     !---------------------------------------------------------------------------
-    subroutine SetLateralInflow(self, inflow)
+    subroutine SetLateralInflow(self, inflow, cellIDs)
     class(swmm_coupler_class), intent(in) :: self
     real, dimension(:), intent(in) :: inflow
-    integer :: i
+    integer, dimension(:), intent(in) :: cellIDs
+    integer :: i, cid, nnodes, cidx
 
     if (size(self%junctionIDX)>0) then
-        if (size(self%junctionIDX) == size(inflow)) then
-            do i=1, size(self%junctionIDX)
-                call self%SetLateralInflowByID(self%junctionIDX(i), inflow(i))
-            end do
-        else
-            stop 'SWMMCoupler::SetLateralInflow - size mismatch between data array and id array'
-        end if
+        do i=1, size(self%junctionIDX)
+            cid = self%n2cMap(self%junctionIDX(i), cellID)       !cell id from this node
+            nnodes = count(self%n2cMap(:,cellID) == cid)         !number of nodes sharing the same cell
+            cidx = findloc(cellIDs, value = cid, dim = 1)        !index of the cell in the data array
+            if (cidx > 0) call self%SetLateralInflowByID(self%junctionIDX(i), inflow(cidx)/nnodes)
+        end do
     end if
 
     end subroutine SetLateralInflow
@@ -863,25 +871,22 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Sets outlet level at all suited SWMM nodes - not checking if node
-    !> should have or not
+    !> Sets outlet level at all suited SWMM nodes
     !> @param[in] self, level
     !---------------------------------------------------------------------------
-    subroutine SetWaterColumn(self, level)
+    subroutine SetWaterColumn(self, level, cellIDs)
     class(swmm_coupler_class), intent(in) :: self
     real, dimension(:), intent(in) :: level
-    integer :: i
+    integer, dimension(:), intent(in) :: cellIDs
+    integer :: i, cid, cidx
 
     if (size(self%inflowIDX)>0) then
-        if (size(self%inflowIDX) == size(level)) then
-            do i=1, size(self%inflowIDX)
-                call self%SetWaterColumnByID(self%inflowIDX(i), level(i))
-            end do
-        else
-            stop 'SWMMCoupler::SetWaterColumn - size mismatch between data array and id array'
-        end if
+        do i=1, size(self%inflowIDX)
+            cid = self%n2cMap(self%inflowIDX(i), cellID)         !cell id from this node
+            cidx = findloc(cellIDs, value = cid, dim = 1)        !index of the cell in the data array
+            if (cidx > 0) call self%SetWaterColumnByID(self%inflowIDX(i), level(cidx))
+        end do        
     end if
-
     end subroutine SetWaterColumn
 
     !---------------------------------------------------------------------------
@@ -902,25 +907,23 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Sets inflow at all suited SWMM nodes - not checking if node
-    !> should have or not
+    !> Sets inflow at all suited SWMM nodes
     !> @param[in] self, inflow
     !---------------------------------------------------------------------------
-    subroutine SetInletInflow(self, inflow)
+    subroutine SetInletInflow(self, inflow, cellIDs)
     class(swmm_coupler_class), intent(in) :: self
     real, dimension(:), intent(in) :: inflow
-    integer :: i
+    integer, dimension(:), intent(in) :: cellIDs
+    integer :: i, cid, nnodes, cidx
 
     if (size(self%inflowIDX)>0) then
-        if (size(self%inflowIDX) == size(inflow)) then
-            do i=1, size(self%inflowIDX)
-                call self%SetInletInflowByID(self%inflowIDX(i), inflow(i))
-            end do
-        else
-            stop 'SWMMCoupler::SetInletInflow - size mismatch between data array and id array'
-        end if
+        do i=1, size(self%inflowIDX)
+            cid = self%n2cMap(self%inflowIDX(i), cellID)         !cell id from this node
+            nnodes = count(self%n2cMap(:,cellID) == cid)         !number of nodes sharing the same cell
+            cidx = findloc(cellIDs, value = cid, dim = 1)        !index of the cell in the data array
+            if (cidx > 0) call self%SetInletInflowByID(self%inflowIDX(i), inflow(cidx)/nnodes)
+        end do
     end if
-
     end subroutine SetInletInflow
 
     !---------------------------------------------------------------------------
@@ -944,23 +947,20 @@
     !> Sets open cross section inflow at all suited SWMM nodes
     !> @param[in] self, inflow
     !---------------------------------------------------------------------------
-    subroutine SetXSectionInflow(self, inflow)
+    subroutine SetXSectionInflow(self, inflow, cellIDs)
     class(swmm_coupler_class), intent(in) :: self
     real, dimension(:), intent(in) :: inflow
-    integer :: i
+    integer, dimension(:), intent(in) :: cellIDs
+    integer :: i, cid, nnodes, cidx
 
     if (size(self%xsectionLevelsIDX)>0) then
-        if (size(self%xsectionLevelsIDX) == size(inflow)) then
-            do i=1, size(self%xsectionLevelsIDX)
-                call self%SetXSectionInflowByID(self%xsectionLevelsIDX(i), inflow(i))
-            end do
-        else
-            print*, 'number of cross sections in SWMM = ', size(self%xsectionLevelsIDX)
-            print*, 'number of cross sections given by MOHID = ', size(inflow)
-            stop 'SWMMCoupler::SetXSectionInflow - size mismatch between data array and id array'
-        end if
+        do i=1, size(self%xsectionLevelsIDX)
+            cid = self%n2cMap(self%xsectionLevelsIDX(i), cellID) !cell id from this node
+            nnodes = count(self%n2cMap(:,cellID) == cid)         !number of nodes sharing the same cell
+            cidx = findloc(cellIDs, value = cid, dim = 1)        !index of the cell in the data array
+            if (cidx > 0) call self%SetXSectionInflowByID(self%xsectionLevelsIDX(i), inflow(cidx)/nnodes)
+        end do
     end if
-
     end subroutine SetXSectionInflow
 
 
