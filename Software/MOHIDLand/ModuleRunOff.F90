@@ -47,7 +47,7 @@ Module ModuleRunOff
                                         GetGridCellArea, GetXYCellZ,                     &
                                         GetCellZInterceptByLine,                         &
                                         GetCellZInterceptByPolygon, GetGridRotation,     &
-                                        GetGridAngle, GetCheckDistortion
+                                        GetGridAngle, GetCheckDistortion, GetCellIDfromIJ
     use ModuleHorizontalMap     ,only : GetBoundaries, UngetHorizontalMap
     use ModuleGridData          ,only : GetGridData, UngetGridData, WriteGridData
     use ModuleBasinGeometry     ,only : GetBasinPoints, GetRiverPoints, GetCellSlope,    &
@@ -5412,12 +5412,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
             !Time Stuff
             call GetComputeCurrentTime  (Me%ObjTime, Me%ExtVar%Now, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModifyRunOff - ModuleRunOff - ERR010'
-
+            
             !Stores initial values = from basin
             call SetMatrixValue(Me%myWaterColumnOld, Me%Size, Me%myWaterColumn)
             call SetMatrixValue(Me%InitialFlowX,     Me%Size, Me%iFlowX)
             call SetMatrixValue(Me%InitialFlowY,     Me%Size, Me%iFlowY)            
-
+          
             !Adds Flow from SEWER OverFlow to Water Column OLD
             if (Me%StormWaterModel) then
                 call ReadLockExternalVar   (StaticOnly = .true.)
@@ -5425,7 +5425,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR. &
                 call ReadUnLockExternalVar (StaticOnly = .true.)
             endif
             
-
             !Set 1D River level in river boundary cells
             !From External model or DN
             if (Me%Use1D2DInteractionMapping) then
@@ -5475,7 +5474,6 @@ doIter:         do while (iter <= Niter)
                     call SetMatrixValue(Me%FlowXOld,         Me%Size, Me%lFlowX)
                     call SetMatrixValue(Me%FlowYOld,         Me%Size, Me%lFlowY)
 
-
                     !Updates Geometry
                     call ModifyGeometryAndMapping
                     
@@ -5496,7 +5494,6 @@ doIter:         do while (iter <= Niter)
                             call DynamicWaveYY    (Me%CV%CurrentDT)
                     end select
 
-                    
                     !Updates waterlevels, based on fluxes
                     call UpdateWaterLevels(Me%CV%CurrentDT)
                     
@@ -5551,12 +5548,11 @@ doIter:         do while (iter <= Niter)
             if (Me%StormWaterModel) then
                 call ComputeStreetGutterPotentialFlow
             endif
-                    
+                  
             !StormWater Drainage
             if (Me%StormWaterDrainage) then
                 call StormWaterDrainage
             endif
-
 
             if (Me%Use1D2DInteractionMapping) then
                 !it will use mapping for any model (DN or SWMM or other)
@@ -5694,7 +5690,7 @@ doIter:         do while (iter <= Niter)
         end if
 
         if (present(STAT)) STAT = STAT_
-
+        
     end subroutine ModifyRunOff
     
     !---------------------------------------------------------------------------
@@ -12353,13 +12349,12 @@ cd1:    if (RunOffID > 0) then
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
     !> Sets river levels at appropriate nodes
-    !> @param[in] RunOffID, nComputePoints, riverLevel
+    !> @param[in] RunOffID, riverLevel
     !---------------------------------------------------------------------------
-    logical function SetExternalRiverWaterLevel(RunOffID, nComputePoints, riverLevel)    
+    logical function SetExternalRiverWaterLevel(RunOffID, riverLevel)    
         !Arguments-------------------------------------------------------------
         integer                                     :: RunOffID
-        integer                                     :: nComputePoints
-        real(8), dimension(nComputePoints)          :: riverLevel        
+        real(8), dimension(:,:)                     :: riverLevel        
         !Local-----------------------------------------------------------------        
         integer                                     :: ready_         
         integer                                     :: i
@@ -12367,8 +12362,8 @@ cd1:    if (RunOffID > 0) then
         call Ready(RunOffID, ready_)
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
-            do i = 1, size(Me%RiverNodeMap,1)
-                Me%NodeRiverLevel(Me%RiverNodeMap(i,1), Me%RiverNodeMap(i,2)) = riverLevel(i)
+            do i = 1, size(riverLevel,1)
+                Me%NodeRiverLevel(riverLevel(i,1), riverLevel(i,2)) = riverLevel(i,3)
             end do
             SetExternalRiverWaterLevel = .true.
         else
@@ -12384,11 +12379,10 @@ cd1:    if (RunOffID > 0) then
     !> Sets storm water flows at appropriate nodes
     !> @param[in] RunOffID, nComputePoints, overlandToSewerFlow
     !---------------------------------------------------------------------------
-    logical function SetExternalStormWaterModelFlow(RunOffID, nComputePoints, overlandToSewerFlow)    
+    logical function SetExternalStormWaterModelFlow(RunOffID, overlandToSewerFlow)    
         !Arguments-------------------------------------------------------------
         integer                                     :: RunOffID
-        integer                                     :: nComputePoints
-        real(8), dimension(nComputePoints)          :: overlandToSewerFlow        
+        real(8), dimension(:,:)                     :: overlandToSewerFlow        
         !Local-----------------------------------------------------------------
         integer                                     :: ready_         
         integer                                     :: i
@@ -12396,8 +12390,8 @@ cd1:    if (RunOffID > 0) then
         call Ready(RunOffID, ready_)
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
-            do i = 1, size(Me%SewerStormWaterNodeMap,1)
-                Me%StormWaterEffectiveFlow(Me%SewerStormWaterNodeMap(i,1), Me%SewerStormWaterNodeMap(i,2)) = overlandToSewerFlow(i)
+            do i = 1, size(overlandToSewerFlow,1)
+                Me%StormWaterEffectiveFlow(overlandToSewerFlow(i,1), overlandToSewerFlow(i,2)) = overlandToSewerFlow(i,3)
             end do
             SetExternalStormWaterModelFlow = .true.
         else 
@@ -12413,10 +12407,11 @@ cd1:    if (RunOffID > 0) then
     !> Gets the ponded water columm at appropriate nodes
     !> @param[in] RunOffID, waterColumn
     !---------------------------------------------------------------------------
-    logical function GetExternalPondedWaterColumn(RunOffID, waterColumn)    
+    logical function GetExternalPondedWaterColumn(RunOffID, waterColumn, cellids)   
         !Arguments-------------------------------------------------------------
         integer                                     :: RunOffID
-        real(8), allocatable, dimension(:)          :: waterColumn        
+        real(8), allocatable, dimension(:)          :: waterColumn
+        integer, allocatable, dimension(:)          :: cellids
         !Local-----------------------------------------------------------------
         integer                                     :: ready_         
         integer                                     :: i
@@ -12426,7 +12421,8 @@ cd1:    if (RunOffID > 0) then
                  
             allocate(waterColumn(size(Me%SewerStormWaterNodeMap,1)))
             do i = 1, size(Me%SewerStormWaterNodeMap,1)
-                waterColumn(i) = Max(Me%MyWaterColumn(Me%SewerStormWaterNodeMap(i,1), Me%SewerStormWaterNodeMap(i,2)) - Me%MinimumWaterColumn, 0.0)                    
+                waterColumn(i) = Max(Me%MyWaterColumn(Me%SewerStormWaterNodeMap(i,1), Me%SewerStormWaterNodeMap(i,2)) - Me%MinimumWaterColumn, 0.0)
+                call GetCellIDfromIJ(Me%ObjHorizontalGrid, Me%SewerStormWaterNodeMap(i,1), Me%SewerStormWaterNodeMap(i,2), cellids(i))
             end do
             GetExternalPondedWaterColumn = .true.
         else 
@@ -12442,10 +12438,11 @@ cd1:    if (RunOffID > 0) then
     !> Gets inlet flow at appropriate nodes
     !> @param[in] RunOffID, waterColumn
     !---------------------------------------------------------------------------
-    logical function GetExternalInletInFlow(RunOffID, inletInflow)    
+    logical function GetExternalInletInFlow(RunOffID, inletInflow, cellids)   
         !Arguments-------------------------------------------------------------
         integer                                     :: RunOffID
-        real(8), allocatable, dimension(:)          :: inletInflow        
+        real(8), allocatable, dimension(:)          :: inletInflow
+        integer, allocatable, dimension(:)          :: cellids
         !Local-----------------------------------------------------------------
         integer                                     :: ready_
         integer                                     :: i
@@ -12456,6 +12453,7 @@ cd1:    if (RunOffID > 0) then
             allocate(inletInflow(size(Me%SewerStormWaterNodeMap,1)))
             do i = 1, size(Me%SewerStormWaterNodeMap,1)
                 inletInflow(i) = Me%StormWaterPotentialFlow(Me%SewerStormWaterNodeMap(i,1), Me%SewerStormWaterNodeMap(i,2))
+                call GetCellIDfromIJ(Me%ObjHorizontalGrid, Me%SewerStormWaterNodeMap(i,1), Me%SewerStormWaterNodeMap(i,2), cellids(i))
             end do
             GetExternalInletInFlow = .true.
         else 
@@ -12471,10 +12469,11 @@ cd1:    if (RunOffID > 0) then
     !> Gets river flow appropriate nodes
     !> @param[in] RunOffID, waterColumn
     !---------------------------------------------------------------------------
-    logical function GetExternalFlowToRivers(RunOffID, flow)
+    logical function GetExternalFlowToRivers(RunOffID, flow, cellids)
         !Arguments-------------------------------------------------------------
         integer                                     :: RunOffID
         real(8), allocatable, dimension(:)          :: flow
+        integer, allocatable, dimension(:)          :: cellids
         !Local-----------------------------------------------------------------
         integer                                     :: ready_         
         integer                                     :: i
@@ -12483,8 +12482,10 @@ cd1:    if (RunOffID > 0) then
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
             allocate(flow(size(Me%RiverNodeMap,1)))
+            allocate(cellids(size(Me%RiverNodeMap,1)))
             do i = 1, size(Me%RiverNodeMap,1)
                 flow(i) = Me%iFlowToChannels(Me%RiverNodeMap(i,1), Me%RiverNodeMap(i,2))
+                call GetCellIDfromIJ(Me%ObjHorizontalGrid, Me%RiverNodeMap(i,1), Me%RiverNodeMap(i,2), cellids(i))
             end do
             GetExternalFlowToRivers = .true.
         else
