@@ -3189,9 +3189,6 @@ i1:         if (CoordON) then
         integer                                     :: id
         integer, dimension(:),    pointer           :: ReservoirDNNodeID               => null()
         character (Len = StringLength)              :: temp
-        real, allocatable, dimension(:,:)           :: mapArrayXY
-        integer, allocatable, dimension(:,:)        :: mapArrayIJ
-        integer, allocatable, dimension(:)          :: mapArrayID
         !Begin-----------------------------------------------------------------
 
 
@@ -3561,7 +3558,7 @@ do1:                do
             call me%ExternalCoupler%initialize()
             if (Me%Coupled%SWMMCoupling) then
                 temp = 'SWMM'
-                call me%ExternalCoupler%initializeCouplerToModel(temp, mapArrayXY, mapArrayIJ, mapArrayID, Me%ObjHorizontalGrid)                
+                call me%ExternalCoupler%initializeCouplerToModel(temp, Me%ObjHorizontalGrid)                
             end if
         endif
         
@@ -4257,7 +4254,7 @@ cd0:    if (Exist) then
             if (Me%Coupled%Irrigation) then
                 call IrrigationProcesses
             endif            
-            
+                     
             !Atmospheric Processes 
             if (Me%Coupled%Atmosphere) then
 
@@ -4272,7 +4269,7 @@ cd0:    if (Exist) then
                 endif
                 
             endif
-
+ 
             !Updates Vegetation 
             if (Me%Coupled%Vegetation) then
                 call VegetationProcesses            
@@ -4419,12 +4416,12 @@ cd0:    if (Exist) then
             if (Me%Integration%Integrate) then
                 call ComputeIntegration
             endif
-            
+                      
             if (Me%ExternalCoupler%initialized) then
                 call ExternalCoupledProcesses(NewDT)
                 call ExchangeExternalCoupledData()
             endif
-
+            
             call TimeSerieOutput
 
             !HDF 5 Output
@@ -7991,8 +7988,9 @@ cd0:    if (Exist) then
     !---------------------------------------------------------------------------
     subroutine ExchangeExternalCoupledData()
     character (Len = StringLength) :: modelName, varName
-    real, allocatable, dimension(:) :: Inflow, Outflow, xLevel
+    real, allocatable, dimension(:,:) :: Inflow, Outflow, xLevel
     real, allocatable, dimension(:) :: waterColumm, inletInflow, xSectionFlow
+    integer, allocatable, dimension(:) :: cellIDs
     logical :: done = .false.
     
     if (Me%ExternalCoupler%initialized) then
@@ -8000,47 +7998,50 @@ cd0:    if (Exist) then
         if (Me%ExternalCoupler%isModelCoupled(modelName)) then           
             !get data from SWMM to ModuleRunOff
             varName = 'Inflow'
-            call Me%ExternalCoupler%getValues(modelName, varName, Inflow)
+            call Me%ExternalCoupler%getValues(modelName, Me%ObjHorizontalGrid, varName, Inflow)
             if (size(Inflow)>0) then
-                done = SetExternalStormWaterModelFlow(1, size(Inflow), Inflow) !module runoff function
+                done = SetExternalStormWaterModelFlow(1, Inflow) !module runoff function
                 if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::SetExternalStormWaterModelFlow - operation failed'
             end if
             
             !varName = 'Outflow'
             !call Me%ExternalCoupler%getValues(modelName, varName, Outflow)
             !if (size(Outflow)>0) then
-            !    done = SetExternalStormWaterModelFlow(1,size(Outflow), Outflow) !module runoff function
+            !    done = SetExternalStormWaterModelFlow(1, Outflow) !module runoff function
             !    if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::SetExternalStormWaterModelFlow - operation failed'
             !end if
             
             varName = 'xLevel'
-            call Me%ExternalCoupler%getValues(modelName, varName, xLevel)
+            call Me%ExternalCoupler%getValues(modelName, Me%ObjHorizontalGrid, varName, xLevel)
             !print*, size(xLevel), minval(xLevel), maxval(xLevel)
             if (size(xLevel)>0) then !setting the water level at cross section nodes
-                done = SetExternalRiverWaterLevel(1, size(xLevel), xLevel) !module runoff function
+                done = SetExternalRiverWaterLevel(1, xLevel) !module runoff function
                 if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::SetExternalRiverWaterLevel - operation failed'
             end if
     
             !get data from ModuleRunOff to SWMM
+            if (allocated(cellIDs)) deallocate(cellIDs)
             varName = 'WaterColumn'
-            done = GetExternalPondedWaterColumn(1, waterColumm)
+            done = GetExternalPondedWaterColumn(1, waterColumm, cellIDs)
             if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalPondedWaterColumn - operation failed'
             if (size(waterColumm)>0) then
-                call Me%ExternalCoupler%setValues(modelName, varName, waterColumm)
+                call Me%ExternalCoupler%setValues(modelName, varName, waterColumm, cellIDs)
             end if
             
+            if (allocated(cellIDs)) deallocate(cellIDs)
             varName = 'InletInflow'
-            done = GetExternalInletInFlow(1, inletInflow)
+            done = GetExternalInletInFlow(1, inletInflow, cellIDs)
             if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalInletInFlow - operation failed'
             if (size(inletInflow)>0) then
-                call Me%ExternalCoupler%setValues(modelName, varName, inletInflow)
+                call Me%ExternalCoupler%setValues(modelName, varName, inletInflow, cellIDs)
             end if
             
+            if (allocated(cellIDs)) deallocate(cellIDs)
             varName = 'XSectionFlow'
-            done = GetExternalFlowToRivers(1, xSectionFlow)
+            done = GetExternalFlowToRivers(1, xSectionFlow, cellIDs)
             if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalFlowToRivers - operation failed'
             if (size(xSectionFlow)>0) then
-                call Me%ExternalCoupler%setValues(modelName, varName, xSectionFlow)
+                call Me%ExternalCoupler%setValues(modelName, varName, xSectionFlow, cellIDs)
             end if
                 
         end if
@@ -10488,6 +10489,10 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%Coupled%Snow) then
                     call KillSnow (Me%ObjSnow, STAT=STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillBasin - ModuleBasin - ERR085'
+                endif
+                
+                if (Me%Coupled%ExternalCoupling) then
+                    call me%ExternalCoupler%finalize()                    
                 endif
                 
                 if (Me%Coupled%SCSCNRunoffModel) then
