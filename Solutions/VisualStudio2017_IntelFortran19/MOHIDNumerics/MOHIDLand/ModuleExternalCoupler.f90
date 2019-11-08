@@ -48,6 +48,7 @@
     contains
     procedure :: initialize => initExternalCoupler
     procedure :: initializeCouplerToModel
+    procedure :: finalize => finalizeExternalCoupler
     procedure :: mapElements
     procedure :: isModelCoupled
     procedure :: print => printExternalCoupler
@@ -82,12 +83,12 @@
     !> @brief
     !> Initializes an External Coupler object
     !---------------------------------------------------------------------------
-    subroutine initializeCouplerToModel(self, modelName, mapArrayXY, mapArrayIJ, mapArrayID, HorizontalGridID)
+    subroutine initializeCouplerToModel(self, modelName, HorizontalGridID)
     class(external_coupler_class), intent(inout) :: self
     character(len = StringLength), intent(in) :: modelName
-    real, allocatable, dimension(:,:), intent(inout) :: mapArrayXY
-    integer, allocatable, dimension(:,:), intent(inout) :: mapArrayIJ
-    integer, allocatable, dimension(:), intent(inout) :: mapArrayID
+    real, allocatable, dimension(:,:) :: mapArrayXY
+    integer, allocatable, dimension(:,:) :: mapArrayIJ
+    integer, allocatable, dimension(:) :: mapArrayID
     integer, intent(inout) :: HorizontalGridID
 
     if (self%initialized) then
@@ -103,6 +104,27 @@
     end if
 
     end subroutine initializeCouplerToModel
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Finalizes an External Coupler object and all contained model objects
+    !---------------------------------------------------------------------------
+    subroutine finalizeExternalCoupler(self)
+    class(external_coupler_class), intent(inout) :: self
+    
+    if (self%initialized) then
+        if (self%swmmCoupling) then
+            self%swmmCoupling = .false.
+            call self%SWMMCoupler%finalize()            
+        end if
+        !add more models here
+        
+        self%initialized = .false.
+    end if
+    
+    
+    end subroutine finalizeExternalCoupler
 
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
@@ -186,24 +208,25 @@
     !> returns queries values from externaly coupled object
     !> @param[in] self, modelName, dataName, dataArray
     !---------------------------------------------------------------------------
-    subroutine getValues(self, modelName, dataName, dataArray)
+    subroutine getValues(self, modelName, HorizontalGridID, dataName, dataArray)
     class(external_coupler_class), intent(inout) :: self
     character(len = StringLength), intent(in) :: modelName
+    integer, intent(in) :: HorizontalGridID
     character(len = StringLength), intent(in) :: dataName
-    real, allocatable, dimension(:) :: dataArray
+    real, allocatable, dimension(:,:) :: dataArray
 
     if (modelName == 'SWMM') then
         if (dataName == 'Inflow') then
-            allocate(dataArray(size(self%SWMMCoupler%inflowIDX)))
-            dataArray = self%SWMMCoupler%GetInflow()
+            allocate(dataArray(size(self%SWMMCoupler%inflowIDX),3))
+            dataArray = self%SWMMCoupler%GetInflow(HorizontalGridID)
             return
         else if (dataName == 'Outflow') then
-            allocate(dataArray(size(self%SWMMCoupler%outfallIDX)))
-            dataArray = self%SWMMCoupler%GetOutflow()
+            allocate(dataArray(size(self%SWMMCoupler%outfallIDX),3))
+            dataArray = self%SWMMCoupler%GetOutflow(HorizontalGridID)
             return
         else if (dataName == 'xLevel') then
-            allocate(dataArray(size(self%SWMMCoupler%xsectionLevelsIDX)))
-            dataArray = self%SWMMCoupler%GetLevel()
+            allocate(dataArray(size(self%SWMMCoupler%xsectionLevelsIDX),3))
+            dataArray = self%SWMMCoupler%GetLevel(HorizontalGridID)
             return
         else
             stop 'external_coupler_class::getValues - requested quantity does not exist'
@@ -219,27 +242,28 @@
     !> exports variables to externaly coupled object
     !> @param[in] self, modelName, dataName, dataArray
     !---------------------------------------------------------------------------
-    subroutine setValues(self, modelName, dataName, dataArray)
+    subroutine setValues(self, modelName, dataName, dataArray, cellIDs)
     class(external_coupler_class), intent(inout) :: self
     character(len = StringLength), intent(in) :: modelName
     character(len = StringLength), intent(in) :: dataName
     real, dimension(:) :: dataArray
+    integer, dimension(:) :: cellIDs
 
     if (modelName == 'SWMM') then
         if (dataName == 'OutletLevel') then
-            call self%SWMMCoupler%SetOutletLevel(dataArray)
+            call self%SWMMCoupler%SetOutletLevel(dataArray, cellIDs)
             return
         else if (dataName == 'LateralInflow') then
-            call self%SWMMCoupler%SetLateralInflow(dataArray)
+            call self%SWMMCoupler%SetLateralInflow(dataArray, cellIDs)
             return
         else if (dataName == 'WaterColumn') then
-            call self%SWMMCoupler%SetWaterColumn(dataArray)
+            call self%SWMMCoupler%SetWaterColumn(dataArray, cellIDs)
             return
         else if (dataName == 'InletInflow') then
-            call self%SWMMCoupler%SetInletInflow(dataArray)
+            call self%SWMMCoupler%SetInletInflow(dataArray, cellIDs)
             return
         else if (dataName == 'XSectionFlow') then
-            call self%SWMMCoupler%SetXSectionInflow(dataArray)
+            call self%SWMMCoupler%SetXSectionInflow(dataArray, cellIDs)
             return
         else
             stop 'external_coupler_class::setValues - requested quantity does not exist'
