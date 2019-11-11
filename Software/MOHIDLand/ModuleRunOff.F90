@@ -8174,6 +8174,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         real                                        :: AverageCellLength, y0
         integer                                     :: targetI, targetJ
         integer                                     :: CHUNK
+        logical                                     :: ok
 
         CHUNK = ChunkJ !CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
@@ -8184,61 +8185,57 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
 
         !Calculates the inflow at each street gutter point. Per gutter target interaction point 
         !because all SWMM gutter interaction points inside cell will recieve the cell value
-        !$OMP PARALLEL PRIVATE(I,J, flow, AverageCellLength)
+        !$OMP PARALLEL PRIVATE(i,j, flow, AverageCellLength, ok, targetI, targetJ)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        do j = JLB, JUB
+        do i = ILB, IUB
             
             !SEWER interaction point
             targetI = Me%StreetGutterTargetI(i, j)
-            targetJ = Me%StreetGutterTargetJ(i, j) 
-            
+            targetJ = Me%StreetGutterTargetJ(i, j)
+            ok = .false.
             !only compute if there is water column, gutter and gutter target available
-            if (Me%myWaterColumn(i, j) > Me%MinimumWaterColumn .and. Me%StreetGutterLength(i, j) > AllmostZero   &
-                  .and.  targetI > null_int / 2. .and. targetJ > null_int / 2.) then 
+            if (targetI /= null_int) then
+                if (targetJ /= null_int) then
+                    if (Me%myWaterColumn(i, j) > Me%MinimumWaterColumn) then
+                        if (Me%StreetGutterLength(i, j) > AllmostZero) then
+                            ok = .true.
         
-                !Q  = L * K * y0^(3/2) * sqrt(g)
-                !L  = Cumprimento Sargeta = 0.5
-                !K  = Coef = 0.2
-                !y0 = Altura a montante da sargeta
+                            !Q  = L * K * y0^(3/2) * sqrt(g)
+                            !L  = gutter length = 0.5
+                            !K  = Coef = 0.2
+                            !y0 = downstream level
                        
-                AverageCellLength  = ( Me%ExtVar%DUX (i, j) + Me%ExtVar%DVY (i, j) ) / 2.0
+                            AverageCellLength  = ( Me%ExtVar%DUX (i, j) + Me%ExtVar%DVY (i, j) ) / 2.0
                 
-                !Considering an average side slope of 5% (1/0.05 = 20) of the street
-                y0 = sqrt(2.0*Me%myWaterColumn(i, j)*AverageCellLength / 20.0)
+                            !Considering an average side slope of 5% (1/0.05 = 20) of the street
+                            y0 = sqrt(2.0*Me%myWaterColumn(i, j)*AverageCellLength / 20.0)
                 
-                !When triangle of street is full, consider new head 
-                if (y0 * 20.0 > AverageCellLength) then
-                    y0 = AverageCellLength / 40.0 + Me%myWaterColumn(i, j)
-                endif
+                            !When triangle of street is full, consider new head 
+                            if (y0 * 20.0 > AverageCellLength) then
+                                y0 = AverageCellLength / 40.0 + Me%myWaterColumn(i, j)
+                            endif
                 
-                !flow = 0.5 * 0.2 * y0**1.5 * sqrt(Gravity)
-                flow = Me%StreetGutterLength(i, j) * 0.2 * y0**1.5 * sqrt(Gravity)                     
+                            !flow = 0.5 * 0.2 * y0**1.5 * sqrt(Gravity)
+                            flow = Me%StreetGutterLength(i, j) * 0.2 * y0**1.5 * sqrt(Gravity)                     
                 
-                !Flow Rate into street Gutter - needs to be per gutter interaction points because the cell value
-                !will be passed to all SWMM gutter interaction junctions
-                Me%StreetGutterPotentialFlow(i, j) = Min(flow, Me%myWaterVolume(i, j) / Me%ExtVar%DT) / &
-                    Me%NumberOfStormWaterNodes(targetI, targetJ)
-                
-            else
+                            !Flow Rate into street Gutter - needs to be per gutter interaction points because the cell value
+                            !will be passed to all SWMM gutter interaction junctions
+                            !print*, 'TARGETS', targetI, targetJ, null_int
+                            Me%StreetGutterPotentialFlow(i, j) = Min(flow, Me%myWaterVolume(i, j) / Me%ExtVar%DT) / Me%NumberOfStormWaterNodes(targetI, targetJ)
+                            
+                        end if
+                    end if
+                end if
+            end if
             
-                Me%StreetGutterPotentialFlow(i, j) = 0.0
+            if (.not.ok) Me%StreetGutterPotentialFlow(i, j) = 0.0
             
-            endif
+            !Integrates values from gutter flow at sewer manholes - Flow per gutter interaction points
+            if (Me%NumberOfSewerStormWaterNodes(i, j) > AllmostZero) Me%StormWaterPotentialFlow(i, j) = 0.0
 
         enddo
         enddo
-        !$OMP END DO
-        
-        !Integrates values from gutter flow at sewer manholes - Flow per gutter interaction points
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
-        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
-            if (Me%NumberOfSewerStormWaterNodes(i, j) > AllmostZero) then
-                Me%StormWaterPotentialFlow(i, j) = 0.0
-            endif
-        enddo
-        enddo    
         !$OMP END DO
         !$OMP END PARALLEL
                     
@@ -12363,7 +12360,7 @@ cd1:    if (RunOffID > 0) then
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
             do i = 1, size(riverLevel,1)
-                Me%NodeRiverLevel(riverLevel(i,1), riverLevel(i,2)) = riverLevel(i,3)
+                Me%NodeRiverLevel(int(riverLevel(i,1)), int(riverLevel(i,2))) = riverLevel(i,3)
             end do
             SetExternalRiverWaterLevel = .true.
         else
@@ -12391,7 +12388,7 @@ cd1:    if (RunOffID > 0) then
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
         
             do i = 1, size(overlandToSewerFlow,1)
-                Me%StormWaterEffectiveFlow(overlandToSewerFlow(i,1), overlandToSewerFlow(i,2)) = overlandToSewerFlow(i,3)
+                Me%StormWaterEffectiveFlow(int(overlandToSewerFlow(i,1)), int(overlandToSewerFlow(i,2))) = overlandToSewerFlow(i,3)
             end do
             SetExternalStormWaterModelFlow = .true.
         else 
@@ -12420,6 +12417,7 @@ cd1:    if (RunOffID > 0) then
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                  
             allocate(waterColumn(size(Me%SewerStormWaterNodeMap,1)))
+            allocate(cellids(size(Me%SewerStormWaterNodeMap,1)))
             do i = 1, size(Me%SewerStormWaterNodeMap,1)
                 waterColumn(i) = Max(Me%MyWaterColumn(Me%SewerStormWaterNodeMap(i,1), Me%SewerStormWaterNodeMap(i,2)) - Me%MinimumWaterColumn, 0.0)
                 call GetCellIDfromIJ(Me%ObjHorizontalGrid, Me%SewerStormWaterNodeMap(i,1), Me%SewerStormWaterNodeMap(i,2), cellids(i))
@@ -12451,6 +12449,7 @@ cd1:    if (RunOffID > 0) then
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
                     
             allocate(inletInflow(size(Me%SewerStormWaterNodeMap,1)))
+            allocate(cellids(size(Me%SewerStormWaterNodeMap,1)))
             do i = 1, size(Me%SewerStormWaterNodeMap,1)
                 inletInflow(i) = Me%StormWaterPotentialFlow(Me%SewerStormWaterNodeMap(i,1), Me%SewerStormWaterNodeMap(i,2))
                 call GetCellIDfromIJ(Me%ObjHorizontalGrid, Me%SewerStormWaterNodeMap(i,1), Me%SewerStormWaterNodeMap(i,2), cellids(i))
