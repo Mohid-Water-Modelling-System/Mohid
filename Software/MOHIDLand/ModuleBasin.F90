@@ -7988,7 +7988,7 @@ cd0:    if (Exist) then
     !---------------------------------------------------------------------------
     subroutine ExchangeExternalCoupledData()
     character (Len = StringLength) :: modelName, varName
-    real, allocatable, dimension(:,:) :: Inflow, Outflow, xLevel
+    real, allocatable, dimension(:,:) :: Inflow, xLevel!, Outflow
     real, allocatable, dimension(:) :: waterColumm, inletInflow, xSectionFlow
     integer, allocatable, dimension(:) :: cellIDs
     logical :: done = .false.
