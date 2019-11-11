@@ -308,7 +308,7 @@
     integer :: nXSection = 0
     integer :: nLatFlow = 0
     integer :: i, idx
-    integer :: idxj, idxo, idxi, idxx, idxl = 1
+    integer :: idxj, idxo, idxi, idxx, idxl
 
     print*, 'Mapping coupling points, please wait...'
 
@@ -385,6 +385,11 @@
     allocate(self%inflowIDX(nInflow))
     allocate(self%xsectionLevelsIDX(nXSection))
     allocate(self%lateralFlowIDX(nLatFlow))
+    idxj =1
+    idxo =1
+    idxi =1
+    idxx =1
+    idxl =1
     do i=1, self%NumberOfNodes
         idx = i-1
         if (self%NodeTypes%junction == self%GetNodeTypeByID(idx)) then
