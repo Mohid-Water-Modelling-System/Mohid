@@ -188,6 +188,15 @@
     real(c_double) :: Dt
     end subroutine swmm_getdt
     end interface
+    
+    interface
+    subroutine ConvertSwmmToDrainageNetwork(f1, f2, f3) bind(C, name='ConvertSwmmToDrainageNetworkCaller')
+    use iso_c_binding
+    character(kind = c_char) :: f1(*)
+    character(kind = c_char) :: f2(*)
+    character(kind = c_char) :: f3(*)
+    end subroutine ConvertSwmmToDrainageNetwork
+    end interface
 
 
     type :: NodeTypes_enum          !< enums for node types
@@ -218,6 +227,7 @@
         character(len = StringLength)      :: SWMM_dat
         character(len = StringLength)      :: SWMM_rpt
         character(len = StringLength)      :: SWMM_out
+        character(len = StringLength)      :: STORMWATER_HDF
     contains
     procedure :: initialize => initSWMMCoupler
     procedure :: mapElements
@@ -463,6 +473,7 @@
     subroutine getSWMMFilesPaths(self)
     class(swmm_coupler_class), intent(inout) :: self
     integer :: STAT_CALL
+    character(len = :, kind = c_char), allocatable :: swmmInputFile, swmmBinaryFile, drainageNetworkFile
 
     call ReadFileName('SWMM_DAT', self%SWMM_dat,                         &
         Message = "SWMM input file", STAT = STAT_CALL)
@@ -475,6 +486,17 @@
     call ReadFileName('SWMM_OUT', self%SWMM_out,                         &
         Message = "SWMM output file", STAT = STAT_CALL)
     if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - SWMM_OUT keyword not found on main file list'
+    
+    call ReadFileName('STORMWATER_HDF', self%STORMWATER_HDF,                         &
+        Message = "SWMM hdf5 output file", STAT = STAT_CALL)
+    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - STORMWATER_HDF keyword not found on main file list'
+    
+    
+    !swmmInputFile = trim(ADJUSTL(self%SWMM_dat))//C_NULL_CHAR
+    !swmmBinaryFile = trim(ADJUSTL(self%SWMM_out))//C_NULL_CHAR
+    !drainageNetworkFile = trim(ADJUSTL(self%STORMWATER_HDF))//'5'//C_NULL_CHAR
+    !call ConvertSwmmToDrainageNetwork(swmmInputFile, swmmBinaryFile, drainageNetworkFile)
+    !read(*,*)
 
     end subroutine getSWMMFilesPaths
 
@@ -553,11 +575,17 @@
     !---------------------------------------------------------------------------
     subroutine finalizeSWMM(self)
     class(swmm_coupler_class), intent(in) :: self
+    character(len = :, kind = c_char), allocatable :: swmmInputFile, swmmBinaryFile, drainageNetworkFile
 
     print*, 'Finalizing SWMM, please wait...'
 
     call swmm_end()
     call swmm_close()
+    
+    swmmInputFile = trim(ADJUSTL(self%SWMM_dat))//C_NULL_CHAR
+    swmmBinaryFile = trim(ADJUSTL(self%SWMM_out))//C_NULL_CHAR
+    drainageNetworkFile = trim(ADJUSTL(self%STORMWATER_HDF))//'5'//C_NULL_CHAR
+    call ConvertSwmmToDrainageNetwork(swmmInputFile, swmmBinaryFile, drainageNetworkFile)
 
     end subroutine finalizeSWMM
 
