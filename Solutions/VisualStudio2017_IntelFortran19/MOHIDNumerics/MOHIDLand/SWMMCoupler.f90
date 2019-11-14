@@ -188,13 +188,15 @@
     real(c_double) :: Dt
     end subroutine swmm_getdt
     end interface
-    
+
     interface
-    subroutine ConvertSwmmToDrainageNetwork(f1, f2, f3) bind(C, name='ConvertSwmmToDrainageNetworkCaller')
+    subroutine ConvertSwmmToDrainageNetwork(f1, f2, f3, f4, f5) bind(C, name='ConvertSwmmToDrainageNetworkCaller')
     use iso_c_binding
     character(kind = c_char) :: f1(*)
     character(kind = c_char) :: f2(*)
     character(kind = c_char) :: f3(*)
+    character(kind = c_char) :: f4(*)
+    character(kind = c_char) :: f5(*)
     end subroutine ConvertSwmmToDrainageNetwork
     end interface
 
@@ -228,6 +230,8 @@
         character(len = StringLength)      :: SWMM_rpt
         character(len = StringLength)      :: SWMM_out
         character(len = StringLength)      :: STORMWATER_HDF
+        character(len = StringLength)      :: SWMM_timeSeries_location
+        character(len = StringLength)      :: SWMM_timeSeries_dir
     contains
     procedure :: initialize => initSWMMCoupler
     procedure :: mapElements
@@ -472,8 +476,8 @@
     !---------------------------------------------------------------------------
     subroutine getSWMMFilesPaths(self)
     class(swmm_coupler_class), intent(inout) :: self
-    integer :: STAT_CALL
-    character(len = :, kind = c_char), allocatable :: swmmInputFile, swmmBinaryFile, drainageNetworkFile
+    integer :: STAT_CALL, fileID, iflag   
+    character(len=StringLength) :: dummy
 
     call ReadFileName('SWMM_DAT', self%SWMM_dat,                         &
         Message = "SWMM input file", STAT = STAT_CALL)
@@ -486,17 +490,42 @@
     call ReadFileName('SWMM_OUT', self%SWMM_out,                         &
         Message = "SWMM output file", STAT = STAT_CALL)
     if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - SWMM_OUT keyword not found on main file list'
-    
+
     call ReadFileName('STORMWATER_HDF', self%STORMWATER_HDF,                         &
         Message = "SWMM hdf5 output file", STAT = STAT_CALL)
     if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - STORMWATER_HDF keyword not found on main file list'
+
+    call ReadFileName('ROOT_SRT', self%SWMM_timeSeries_dir,                         &
+        Message = "SWMM Time Series output directory", STAT = STAT_CALL)
+    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - ROOT_SRT keyword not found on main file list'
     
+    call ConstructEnterData (fileID, self%SWMM_dat, STAT = STAT_CALL)
+    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - SWMM_dat file not read'
+
+    call GetData(dummy,                                            &
+        fileID, iflag,                                             &
+        SearchType   = FromFile,                                   &
+        keyword      = 'TIME_SERIE_LOCATION',                      &        
+        ClientModule = 'SWMMCoupler',                              &
+        STAT         = STAT_CALL)
+    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - SWMM_dat file not readable'    
+    if (iflag == 0) then
+        self%SWMM_timeSeries_location = dummy
+    else
+        self%SWMM_timeSeries_location = ""
+        self%SWMM_timeSeries_dir = ""
+    endif
     
-    !swmmInputFile = trim(ADJUSTL(self%SWMM_dat))//C_NULL_CHAR
-    !swmmBinaryFile = trim(ADJUSTL(self%SWMM_out))//C_NULL_CHAR
-    !drainageNetworkFile = trim(ADJUSTL(self%STORMWATER_HDF))//'5'//C_NULL_CHAR
-    !call ConvertSwmmToDrainageNetwork(swmmInputFile, swmmBinaryFile, drainageNetworkFile)
-    !read(*,*)
+    call GetData(dummy,                                            &
+        fileID, iflag,                                             &
+        SearchType   = FromFile,                                   &
+        keyword      = 'MODEL_CONFIGURATION',                      &        
+        ClientModule = 'SWMMCoupler',                              &
+        STAT         = STAT_CALL)
+    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - SWMM_dat file not readable'
+    if (iflag /= 0) then
+        self%SWMM_dat = dummy
+    endif
 
     end subroutine getSWMMFilesPaths
 
@@ -517,8 +546,10 @@
     outFile = trim(ADJUSTL(self%SWMM_out))//C_NULL_CHAR
     saveResults = 1
 
+    #ifdef _SWMMCoupler_
     call swmm_open(inFile, rptFile, outFile)
     call swmm_start(saveResults)
+    #endif
 
     print*,''
 
@@ -533,7 +564,9 @@
     class(swmm_coupler_class), intent(in) :: self
     real(c_double) :: elapsedTime
 
+    #ifdef _SWMMCoupler_
     call swmm_step(elapsedTime)
+    #endif
 
     end subroutine defaultPerformTimeStep
 
@@ -548,8 +581,9 @@
     real(c_double), intent(in) :: dt
     real(c_double) :: elapsedTime
 
-    !print*, 'SWMM time step done with dt = ', dt, ' s'
+    #ifdef _SWMMCoupler_
     call swmm_step_imposed_dt(elapsedTime, dt)
+    #endif
 
     end subroutine PerformTimeStep
 
@@ -562,9 +596,10 @@
     class(swmm_coupler_class), intent(in) :: self
     real(c_double) :: dt
 
+    #ifdef _SWMMCoupler_
     call swmm_getdt(dt)
+    #endif
     GetDt = dt
-    !print*, '--SWMM time step should be dt = ', dt, ' s'
 
     end function GetDt
 
@@ -575,17 +610,21 @@
     !---------------------------------------------------------------------------
     subroutine finalizeSWMM(self)
     class(swmm_coupler_class), intent(in) :: self
-    character(len = :, kind = c_char), allocatable :: swmmInputFile, swmmBinaryFile, drainageNetworkFile
+    character(len = :, kind = c_char), allocatable :: swmmInputFile, swmmBinaryFile, drainageNetworkFile, timeSeriesDir, swmmTimeSeriesLocation
 
     print*, 'Finalizing SWMM, please wait...'
 
+    #ifdef _SWMMCoupler_
     call swmm_end()
     call swmm_close()
-    
+
     swmmInputFile = trim(ADJUSTL(self%SWMM_dat))//C_NULL_CHAR
     swmmBinaryFile = trim(ADJUSTL(self%SWMM_out))//C_NULL_CHAR
     drainageNetworkFile = trim(ADJUSTL(self%STORMWATER_HDF))//'5'//C_NULL_CHAR
-    call ConvertSwmmToDrainageNetwork(swmmInputFile, swmmBinaryFile, drainageNetworkFile)
+    timeSeriesDir = trim(ADJUSTL(self%SWMM_timeSeries_dir))//C_NULL_CHAR
+    swmmTimeSeriesLocation = trim(ADJUSTL(self%SWMM_timeSeries_location))//C_NULL_CHAR
+    call ConvertSwmmToDrainageNetwork(swmmInputFile, swmmBinaryFile, drainageNetworkFile, timeSeriesDir, swmmTimeSeriesLocation)
+    #endif
 
     end subroutine finalizeSWMM
 
@@ -598,7 +637,9 @@
     class(swmm_coupler_class), intent(inout) :: self
     integer(c_int) :: nNodes
 
+    #ifdef _SWMMCoupler_
     call swmm_getNumberOfNodes(nNodes)
+    #endif
     self%NumberOfNodes = nNodes
 
     end subroutine GetNumberOfNodes
@@ -633,7 +674,9 @@
     real(c_double) :: x, y
     real, dimension(2) :: xy
 
+    #ifdef _SWMMCoupler_
     call swmm_getNodeXY(id, x, y)
+    #endif
     xy(1) = x
     xy(2) = y
 
@@ -650,7 +693,9 @@
     integer(c_int), intent(in) :: id
     integer(c_int) :: nType
 
+    #ifdef _SWMMCoupler_
     call swmm_getNodeType(id, nType)
+    #endif
     GetNodeTypeByID = nType
 
     end function GetNodeTypeByID
@@ -667,7 +712,9 @@
     integer(c_int) :: isOpen
 
     GetIsNodeOpenChannel = .false.
+    #ifdef _SWMMCoupler_
     call swmm_getIsNodeOpenChannel(id, isOpen)
+    #endif
     if (isOpen == 1) GetIsNodeOpenChannel = .true.
 
     end function GetIsNodeOpenChannel
@@ -684,7 +731,9 @@
     integer(c_int) :: isOpen
 
     GetNodeHasLateralInflow = .false.
+    #ifdef _SWMMCoupler_
     call swmm_getNodeHasLateralInflow(id, isOpen)
+    #endif
     if (isOpen == 1) GetNodeHasLateralInflow = .true.
 
     end function GetNodeHasLateralInflow
@@ -700,7 +749,9 @@
     integer(c_int), intent(in) :: id
     real(c_double) :: inflow
 
+    #ifdef _SWMMCoupler_
     call swmm_getInflowByNode(id, inflow)
+    #endif
     GetInflowByID = inflow
 
     end function GetInflowByID
@@ -721,7 +772,7 @@
         do i=1, size(self%inflowIDX)
             cid = self%n2cMap(self%inflowIDX(i), cellID) !cell id from this node
             nnodes = count(self%n2cMap(:,cellID) == cid)         !number of nodes sharing the same cell
-            call GetCellIJfromID(HorizontalGridID, ii, jj, cid)            
+            call GetCellIJfromID(HorizontalGridID, ii, jj, cid)
             inflow(i,1) = ii
             inflow(i,2) = jj
             inflow(i,3) = self%GetInflowByID(self%inflowIDX(i))
@@ -741,7 +792,9 @@
     integer(c_int), intent(in) :: id
     real(c_double) :: outflow
 
+    #ifdef _SWMMCoupler_
     call swmm_getOutflowByNode(id, outflow)
+    #endif
     GetOutflowByID = outflow
 
     end function GetOutflowByID
@@ -762,7 +815,7 @@
         do i=1, size(self%outfallIDX)
             cid = self%n2cMap(self%outfallIDX(i), cellID) !cell id from this node
             nnodes = count(self%n2cMap(:,cellID) == cid)         !number of nodes sharing the same cell
-            call GetCellIJfromID(HorizontalGridID, ii, jj, cid)            
+            call GetCellIJfromID(HorizontalGridID, ii, jj, cid)
             outflow(i,1) = ii
             outflow(i,2) = jj
             outflow(i,3) = self%GetOutflowByID(self%outfallIDX(i))
@@ -782,7 +835,9 @@
     integer(c_int), intent(in) :: id
     real(c_double) :: level
 
+    #ifdef _SWMMCoupler_
     call swmm_getLevelByNode(id, level)
+    #endif
     GetLevelByID = level
 
     end function GetLevelByID
@@ -803,7 +858,7 @@
         do i=1, size(self%xsectionLevelsIDX)
             cid = self%n2cMap(self%xsectionLevelsIDX(i), cellID) !cell id from this node
             nnodes = count(self%n2cMap(:,cellID) == cid)         !number of nodes sharing the same cell
-            call GetCellIJfromID(HorizontalGridID, ii, jj, cid)            
+            call GetCellIJfromID(HorizontalGridID, ii, jj, cid)
             level(i,1) = ii
             level(i,2) = jj
             level(i,3) = self%GetLevelByID(self%xsectionLevelsIDX(i))!/nnodes !contribution of this node to the average of this cell - WIP
@@ -823,7 +878,9 @@
     integer(c_int), intent(in) :: id
     real(c_double), intent(in) :: outletLevel
 
+    #ifdef _SWMMCoupler_
     call swmm_setDownstreamWaterLevel(id, outletLevel)
+    #endif
 
     end subroutine SetOutletLevelByID
 
@@ -837,7 +894,7 @@
     class(swmm_coupler_class), intent(in) :: self
     real, dimension(:), intent(in) :: outletLevel
     integer, dimension(:), intent(in) :: cellIDs
-    integer :: i, cid, nnodes, cidx
+    integer :: i, cid, cidx
 
     if (size(self%outfallIDX)>0) then
         do i=1, size(self%outfallIDX)
@@ -859,7 +916,9 @@
     integer(c_int), intent(in) :: id
     real(c_double), intent(in) :: inflow
 
+    #ifdef _SWMMCoupler_
     call swmm_setLateralInflow(id, inflow)
+    #endif
 
     end subroutine SetLateralInflowByID
 
@@ -897,7 +956,9 @@
     integer(c_int), intent(in) :: id
     real(c_double), intent(in) :: level
 
+    #ifdef _SWMMCoupler_
     call swmm_setPondedWaterColumn(id, level)
+    #endif
 
     end subroutine SetWaterColumnByID
 
@@ -918,7 +979,7 @@
             cid = self%n2cMap(self%inflowIDX(i), cellID)         !cell id from this node
             cidx = findloc(cellIDs, value = cid, dim = 1)        !index of the cell in the data array
             if (cidx > 0) call self%SetWaterColumnByID(self%inflowIDX(i), level(cidx))
-        end do        
+        end do
     end if
     end subroutine SetWaterColumn
 
@@ -933,7 +994,9 @@
     integer(c_int), intent(in) :: id
     real(c_double), intent(in) :: inflow
 
+    #ifdef _SWMMCoupler_
     call swmm_setStormWaterPotentialInflow(id, inflow)
+    #endif
 
     end subroutine SetInletInflowByID
 
@@ -970,7 +1033,9 @@
     integer(c_int), intent(in) :: id
     real(c_double), intent(in) :: inflow
 
+    #ifdef _SWMMCoupler_
     call swmm_setOpenXSectionInflow(id, inflow)
+    #endif
 
     end subroutine SetXSectionInflowByID
 
