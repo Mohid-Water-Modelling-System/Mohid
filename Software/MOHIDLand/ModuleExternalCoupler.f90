@@ -58,6 +58,7 @@
     procedure :: setValues
     !export data procedures
     procedure :: getValues
+    procedure :: GetCellList
     procedure :: getCoupledDt
     end type external_coupler_class
 
@@ -205,7 +206,7 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> returns queries values from externaly coupled object
+    !> returns queries values from externaly coupled object model
     !> @param[in] self, modelName, dataName, dataArray
     !---------------------------------------------------------------------------
     subroutine getValues(self, modelName, HorizontalGridID, dataName, dataArray)
@@ -239,7 +240,7 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> exports variables to externaly coupled object
+    !> exports variables to externaly coupled object model from MOHID
     !> @param[in] self, modelName, dataName, dataArray
     !---------------------------------------------------------------------------
     subroutine setValues(self, modelName, dataName, dataArray, cellIDs)
@@ -272,6 +273,26 @@
     !add more models here
 
     end subroutine setValues
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets mohid cell list for a specific variable transfer
+    !> @param[in] self, modelName, dataName, cellIDs
+    !---------------------------------------------------------------------------
+    subroutine GetCellList(self, modelName, dataName, cellIDs)
+    class(external_coupler_class), intent(inout) :: self
+    character(len = StringLength), intent(in) :: modelName
+    character(len = StringLength), intent(in) :: dataName
+    integer, dimension(:), allocatable, intent(inout) :: cellIDs
+
+    if (modelName == 'SWMM') then
+        call self%SWMMCoupler%GetCellList(dataName, cellIDs)
+        return        
+    end if
+    !add more models here
+
+    end subroutine GetCellList
 
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems

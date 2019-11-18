@@ -47,7 +47,8 @@ Module ModuleRunOff
                                         GetGridCellArea, GetXYCellZ,                     &
                                         GetCellZInterceptByLine,                         &
                                         GetCellZInterceptByPolygon, GetGridRotation,     &
-                                        GetGridAngle, GetCheckDistortion, GetCellIDfromIJ
+                                        GetGridAngle, GetCheckDistortion,                & 
+                                        GetCellIDfromIJ, GetCellIJfromID
     use ModuleHorizontalMap     ,only : GetBoundaries, UngetHorizontalMap
     use ModuleGridData          ,only : GetGridData, UngetGridData, WriteGridData
     use ModuleBasinGeometry     ,only : GetBasinPoints, GetRiverPoints, GetCellSlope,    &
@@ -132,6 +133,7 @@ Module ModuleRunOff
     public  ::  SetExternalRiverWaterLevel
     public  ::  SetExternalStormWaterModelFlow
     public  ::  GetExternalPondedWaterColumn
+    public  ::  GetExternalPondedWaterColumnbyID
     public  ::  GetExternalInletInFlow
     public  ::  GetExternalFlowToRivers
 
@@ -12429,6 +12431,37 @@ cd1:    if (RunOffID > 0) then
         end if
 
     end function GetExternalPondedWaterColumn
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets the ponded water columm at appropriate nodes
+    !> @param[in] RunOffID, waterColumn
+    !---------------------------------------------------------------------------
+    logical function GetExternalPondedWaterColumnbyID(RunOffID, waterColumn, cellids)   
+        !Arguments-------------------------------------------------------------
+        integer                                     :: RunOffID
+        real(8), allocatable, dimension(:)          :: waterColumn
+        integer , dimension(:)                      :: cellids
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+        integer                                     :: i, ii, jj
+
+        call Ready(RunOffID, ready_)
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+                 
+            allocate(waterColumn(size(cellids)))
+            do i = 1, size(cellids)
+                call GetCellIJfromID(Me%ObjHorizontalGrid, ii, jj, cellids(i))
+                waterColumn(i) = Max(Me%MyWaterColumn(ii, jj) - Me%MinimumWaterColumn, 0.0)
+            end do
+            GetExternalPondedWaterColumnbyID = .true.
+        else 
+            call PlaceErrorMessageOnStack("Runoff not ready")
+            GetExternalPondedWaterColumnbyID = .false.
+        end if
+
+    end function GetExternalPondedWaterColumnbyID
     
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems

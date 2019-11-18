@@ -210,6 +210,8 @@
     integer, parameter :: cellID = 2
     integer, parameter :: cellI = 3
     integer, parameter :: cellJ = 4
+    integer, parameter :: isJunction = 5
+    integer, parameter :: isOutfall = 6
 
     !main public class
     type :: swmm_coupler_class                      !< SWMM Coupler class
@@ -245,11 +247,13 @@
     procedure :: defaultPerformTimeStep
     procedure :: runStep => PerformTimeStep
     procedure, private :: finalizeSWMM
+    procedure, private :: convertSWMM
     !import data procedures
     procedure :: GetDt
     procedure :: GetInflow
     procedure :: GetOutflow
     procedure :: GetLevel
+    procedure :: GetCellList
     procedure, private :: GetNumberOfNodes
     procedure, private :: GetNodeXY
     procedure, private :: GetNodeXYByID
@@ -331,7 +335,7 @@
     !    print*, 'cell id=', mapArrayID(i), 'i=',mapArrayIJ(i,1), 'j=',mapArrayIJ(i,2)
     !end do
 
-    allocate(self%n2cMap(self%NumberOfNodes,4))
+    allocate(self%n2cMap(self%NumberOfNodes,6))
     self%n2cMap = 0
 
     do i=1, self%NumberOfNodes
@@ -410,12 +414,14 @@
             if (self%inDomainNode(i)) then
                 self%junctionIDX(idxj) = idx
                 idxj = idxj + 1
+                self%n2cMap(i, isJunction) = 1
             end if
         end if
         if (self%NodeTypes%outfall == self%GetNodeTypeByID(idx)) then
             if (self%inDomainNode(i)) then
                 self%outfallIDX(idxo) = idx
                 idxo = idxo + 1
+                self%n2cMap(i, isOutfall) = 1
             end if
         end if
         if (self%NodeTypes%junction == self%GetNodeTypeByID(idx)) then
@@ -476,25 +482,27 @@
     !---------------------------------------------------------------------------
     subroutine getSWMMFilesPaths(self)
     class(swmm_coupler_class), intent(inout) :: self
-    integer :: STAT_CALL, fileID, iflag   
+    integer :: STAT_CALL, fileID, iflag, dpos
     character(len=StringLength) :: dummy
 
-    call ReadFileName('SWMM_DAT', self%SWMM_dat,                         &
+    call ReadFileName('STORMWATER_DAT', self%SWMM_dat,                         &
         Message = "SWMM input file", STAT = STAT_CALL)
-    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - SWMM_DAT keyword not found on main file list'
-
-    call ReadFileName('SWMM_RPT', self%SWMM_rpt,                         &
-        Message = "SWMM report file", STAT = STAT_CALL)
-    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - SWMM_RPT keyword not found on main file list'
-
-    call ReadFileName('SWMM_OUT', self%SWMM_out,                         &
-        Message = "SWMM output file", STAT = STAT_CALL)
-    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - SWMM_OUT keyword not found on main file list'
+    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - STORMWATER_DAT keyword not found on main file list'
 
     call ReadFileName('STORMWATER_HDF', self%STORMWATER_HDF,                         &
         Message = "SWMM hdf5 output file", STAT = STAT_CALL)
     if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - STORMWATER_HDF keyword not found on main file list'
-
+    
+    dpos = scan(trim(self%STORMWATER_HDF),".", BACK= .true.)
+    
+    !name of output files is the same as the output hdf5
+    if (dpos > 0) then
+        self%SWMM_rpt = self%STORMWATER_HDF(1:dpos)//'rpt'
+        self%SWMM_out = self%STORMWATER_HDF(1:dpos)//'swm'
+    else
+        stop 'SWMMCoupler::getSWMMFilesPaths - STORMWATER_HDF file extension not recognized'
+    end if
+    
     call ReadFileName('ROOT_SRT', self%SWMM_timeSeries_dir,                         &
         Message = "SWMM Time Series output directory", STAT = STAT_CALL)
     if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - ROOT_SRT keyword not found on main file list'
@@ -525,8 +533,8 @@
     if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - SWMM_dat file not readable'
     if (iflag /= 0) then
         self%SWMM_dat = dummy
-    endif
-
+    endif    
+    
     end subroutine getSWMMFilesPaths
 
     !---------------------------------------------------------------------------
@@ -610,14 +618,26 @@
     !---------------------------------------------------------------------------
     subroutine finalizeSWMM(self)
     class(swmm_coupler_class), intent(in) :: self
-    character(len = :, kind = c_char), allocatable :: swmmInputFile, swmmBinaryFile, drainageNetworkFile, timeSeriesDir, swmmTimeSeriesLocation
-
+    
     print*, 'Finalizing SWMM, please wait...'
-
 #ifdef _SWMMCoupler_
     call swmm_end()
     call swmm_close()
+    call self%convertSWMM()
+#endif
 
+    end subroutine finalizeSWMM
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Converts the SWMM output through DLL calls
+    !---------------------------------------------------------------------------
+    subroutine convertSWMM(self)
+    class(swmm_coupler_class), intent(in) :: self
+    character(len = :, kind = c_char), allocatable :: swmmInputFile, swmmBinaryFile, drainageNetworkFile, timeSeriesDir, swmmTimeSeriesLocation
+
+#ifdef _SWMMCoupler_    
     swmmInputFile = trim(ADJUSTL(self%SWMM_dat))//C_NULL_CHAR
     swmmBinaryFile = trim(ADJUSTL(self%SWMM_out))//C_NULL_CHAR
     drainageNetworkFile = trim(ADJUSTL(self%STORMWATER_HDF))//'5'//C_NULL_CHAR
@@ -626,7 +646,7 @@
     call ConvertSwmmToDrainageNetwork(swmmInputFile, swmmBinaryFile, drainageNetworkFile, timeSeriesDir, swmmTimeSeriesLocation)
 #endif
 
-    end subroutine finalizeSWMM
+    end subroutine convertSWMM
 
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
@@ -1060,6 +1080,26 @@
         end do
     end if
     end subroutine SetXSectionInflow
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets mohid cell list for a number of SWMM nodes requiring cell data
+    !> @param[in] self, dataName, cellIDs
+    !---------------------------------------------------------------------------
+    subroutine GetCellList(self, dataName, cellIDs)
+    class(swmm_coupler_class), intent(inout) :: self
+    character(len = StringLength), intent(in) :: dataName
+    integer, dimension(:), allocatable, intent(inout) :: cellIDs
+
+    if (dataName == 'Outfalls') then
+        allocate(cellIDs(count(self%n2cMap(:,isOutfall) == 1)))
+        where(self%n2cMap(:,isOutfall) == 1) cellIDs = self%n2cMap(:,cellID)
+    else
+        stop 'swmm_coupler_class::GetCellList - requested data not mapped for coupling'
+    end if
+
+    end subroutine GetCellList
 
 
     !---------------------------------------------------------------------------
