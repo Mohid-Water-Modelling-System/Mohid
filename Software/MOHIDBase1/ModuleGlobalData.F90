@@ -769,7 +769,14 @@ Module ModuleGlobalData
     integer, parameter ::  DirectionEnergyTransport_       = 3538
     integer, parameter ::  SmoothedPeakPeriod_             = 3539    
     integer, parameter ::  MeanAbsoluteWavePeriod_         = 3540
-
+    
+    integer, parameter ::  Swell01_SignificantWaveHeight_  = 3541
+    integer, parameter ::  Swell01_WavePeriod_             = 3542
+    integer, parameter ::  Swell01_WaveDirection_          = 3543
+    
+    integer, parameter ::  WindSea_SignificantWaveHeight_  = 3544
+    integer, parameter ::  WindSea_WavePeriod_             = 3545
+    integer, parameter ::  WindSea_WaveDirection_          = 3546
 !____________________________________________________________________________________
 !________________________________________________________exclusive use @ modulelife__
 
@@ -1631,6 +1638,12 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_SmoothedPeakPeriod       = 'smoothed peak period'
     character(StringLength), private, parameter :: Char_MeanAbsoluteWavePeriod   = 'mean absolute wave period'
 
+    character(StringLength), private, parameter :: Char_Swell01_SignificantWaveHeight = 'primary swell significant wave height'
+    character(StringLength), private, parameter :: Char_Swell01_WavePeriod            = 'primary swell wave period'
+    character(StringLength), private, parameter :: Char_Swell01_WaveDirection         = 'primary swell wave direction'
+    character(StringLength), private, parameter :: Char_WindSea_SignificantWaveHeight = 'wind sea significant wave height'
+    character(StringLength), private, parameter :: Char_WindSea_WavePeriod            = 'wind sea wave period'
+    character(StringLength), private, parameter :: Char_WindSea_WaveDirection         = 'wind sea wave direction'
     !Consolidation
     character(StringLength), private, parameter :: Char_ConsolidationFlux        = 'consolidation flux'
     character(StringLength), private, parameter :: Char_Porosity                 = 'porosity'
@@ -3148,6 +3161,14 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (DirectionEnergyTransport_, Char_DirectionEnergyTransport,  ListNumber)
             call AddPropList (SmoothedPeakPeriod_,      Char_SmoothedPeakPeriod,         ListNumber)
             call AddPropList (MeanAbsoluteWavePeriod_,  Char_MeanAbsoluteWavePeriod,     ListNumber)
+            
+            call AddPropList (Swell01_SignificantWaveHeight_, Char_Swell01_SignificantWaveHeight, ListNumber)
+            call AddPropList (Swell01_WavePeriod_,            Char_Swell01_WavePeriod,            ListNumber)
+            call AddPropList (Swell01_WaveDirection_,         Char_Swell01_WaveDirection,         ListNumber)
+            
+            call AddPropList (WindSea_SignificantWaveHeight_, Char_WindSea_SignificantWaveHeight, ListNumber)
+            call AddPropList (WindSea_WavePeriod_,            Char_WindSea_WavePeriod,            ListNumber)
+            call AddPropList (WindSea_WaveDirection_,         Char_WindSea_WaveDirection,         ListNumber)            
             
             call AddPropList (ConsolidationFlux_,       Char_ConsolidationFlux,          ListNumber)
             call AddPropList (Porosity_,                Char_Porosity,                   ListNumber)
