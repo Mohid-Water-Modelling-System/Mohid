@@ -86,6 +86,7 @@ Module ModuleBasin
                                      SetExternalStormWaterModelFlow,                     &
                                      GetExternalPondedWaterColumn,                       &
                                      GetExternalPondedWaterColumnbyID,                   &
+                                     GetExternalFlowToRiversbyID,                   &
                                      GetExternalInletInFlow,                             &
                                      GetExternalFlowToRivers
                                      
@@ -8039,10 +8040,12 @@ cd0:    if (Exist) then
             end if
             
             if (allocated(cellIDs)) deallocate(cellIDs)
-            varName = 'XSectionFlow'
-            done = GetExternalFlowToRivers(Me%ObjRunoff, xSectionFlow, cellIDs)
+            varName = 'XSections'
+            call Me%ExternalCoupler%GetCellList(modelName, varName, cellIDs) !fetching required cellIDs
+            done = GetExternalFlowToRiversbyID(Me%ObjRunoff, xSectionFlow, cellIDs)
             if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalFlowToRivers - operation failed'
             if (size(xSectionFlow)>0) then
+                varName = 'XSectionFlow'
                 call Me%ExternalCoupler%setValues(modelName, varName, xSectionFlow, cellIDs)
             end if
             

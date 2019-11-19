@@ -210,8 +210,8 @@
     integer, parameter :: cellID = 2
     integer, parameter :: cellI = 3
     integer, parameter :: cellJ = 4
-    integer, parameter :: isJunction = 5
-    integer, parameter :: isOutfall = 6
+    integer, parameter :: isOutfall = 5
+    integer, parameter :: isXSection = 6
 
     !main public class
     type :: swmm_coupler_class                      !< SWMM Coupler class
@@ -325,15 +325,15 @@
     integer :: nInflow = 0
     integer :: nXSection = 0
     integer :: nLatFlow = 0
-    integer :: i, idx
+    integer :: i
     integer :: idxj, idxo, idxi, idxx, idxl
 
     print*, 'Mapping coupling points, please wait...'
 
-    !do i=1, self%NumberOfNodes
-    !    print*, 'id=',i, 'x=',self%nodeXY(i,1), 'y=',self%nodeXY(i,2)
-    !    print*, 'cell id=', mapArrayID(i), 'i=',mapArrayIJ(i,1), 'j=',mapArrayIJ(i,2)
-    !end do
+    do i=1, self%NumberOfNodes
+        print*, 'id=',i, 'x=',self%nodeXY(i,1), 'y=',self%nodeXY(i,2)
+        !print*, 'cell id=', mapArrayID(i), 'i=',mapArrayIJ(i,1), 'j=',mapArrayIJ(i,2)
+    end do
 
     allocate(self%n2cMap(self%NumberOfNodes,6))
     self%n2cMap = 0
@@ -357,7 +357,7 @@
     allocate(self%xSectionOpen(self%NumberOfNodes))
     self%xSectionOpen = .false.
     do i=1, self%NumberOfNodes
-        if (self%NodeTypes%junction == self%GetNodeTypeByID(i-1)) then
+        if (self%NodeTypes%junction == self%GetNodeTypeByID(i)) then
             if (self%GetIsNodeOpenChannel(i-1)) then
                 if (self%inDomainNode(i)) self%xSectionOpen(i) = .true.
             end if
@@ -366,37 +366,35 @@
 
     !building id lists for O(1) access
     do i=1, self%NumberOfNodes
-        idx = i-1
-        if (self%NodeTypes%junction == self%GetNodeTypeByID(idx)) then
+        if (self%NodeTypes%junction == self%GetNodeTypeByID(i)) then
             if (self%inDomainNode(i)) nJunction = nJunction + 1
         end if
-        if (self%NodeTypes%outfall  == self%GetNodeTypeByID(idx)) then
+        if (self%NodeTypes%outfall  == self%GetNodeTypeByID(i)) then
             if (self%inDomainNode(i)) nOutfall  = nOutfall  + 1
         end if
-        if (self%NodeTypes%junction  == self%GetNodeTypeByID(idx)) then
+        if (self%NodeTypes%junction  == self%GetNodeTypeByID(i)) then
             if (self%inDomainNode(i)) then
                 if (.not.self%xSectionOpen(i)) nInflow = nInflow + 1     !only closed nodes
             end if
         end if
-        if (self%NodeTypes%junction  == self%GetNodeTypeByID(idx)) then
+        if (self%NodeTypes%junction  == self%GetNodeTypeByID(i)) then
             if (self%inDomainNode(i)) then
                 if (self%xSectionOpen(i)) nXSection = nXSection + 1      !only open nodes
             end if
         end if
-        if (self%NodeTypes%junction  == self%GetNodeTypeByID(idx)) then
-            if (self%GetNodeHasLateralInflow(idx)) then
+        if (self%NodeTypes%junction  == self%GetNodeTypeByID(i)) then
+            if (self%GetNodeHasLateralInflow(i)) then
                 if (self%inDomainNode(i)) nLatFlow = nLatFlow + 1
             end if
         end if
     end do
 
-    !print*, ""
-    !print*, "nJunction", nJunction
-    !print*, "nOutfall", nOutfall
-    !print*, "nInflow", nInflow
-    !print*, "nXSection", nXSection
+    print*, "   -Junctions = ", nJunction
+    print*, "   -Outfalls = ", nOutfall
+    print*, "   -Inflows = ", nInflow
+    print*, "   -open cross sections = ", nXSection
     !print*, "nLatFlow", nLatFlow
-    !print*, ""
+    print*, ""
 
     allocate(self%junctionIDX(nJunction))
     allocate(self%outfallIDX(nOutfall))
@@ -409,41 +407,40 @@
     idxx =1
     idxl =1
     do i=1, self%NumberOfNodes
-        idx = i-1
-        if (self%NodeTypes%junction == self%GetNodeTypeByID(idx)) then
+        if (self%NodeTypes%junction == self%GetNodeTypeByID(i)) then
             if (self%inDomainNode(i)) then
-                self%junctionIDX(idxj) = idx
+                self%junctionIDX(idxj) = i
                 idxj = idxj + 1
-                self%n2cMap(i, isJunction) = 1
             end if
         end if
-        if (self%NodeTypes%outfall == self%GetNodeTypeByID(idx)) then
+        if (self%NodeTypes%outfall == self%GetNodeTypeByID(i)) then
             if (self%inDomainNode(i)) then
-                self%outfallIDX(idxo) = idx
+                self%outfallIDX(idxo) = i
                 idxo = idxo + 1
                 self%n2cMap(i, isOutfall) = 1
             end if
         end if
-        if (self%NodeTypes%junction == self%GetNodeTypeByID(idx)) then
+        if (self%NodeTypes%junction == self%GetNodeTypeByID(i)) then
             if (.not.self%xSectionOpen(i)) then !only closed nodes
                 if (self%inDomainNode(i)) then
-                    self%inflowIDX(idxi) = idx
+                    self%inflowIDX(idxi) = i
                     idxi = idxi + 1
                 end if
             end if
         end if
-        if (self%NodeTypes%junction == self%GetNodeTypeByID(idx)) then
+        if (self%NodeTypes%junction == self%GetNodeTypeByID(i)) then
             if (self%xSectionOpen(i)) then      !only open nodes
                 if (self%inDomainNode(i)) then
-                    self%xsectionLevelsIDX(idxx) = idx
+                    self%xsectionLevelsIDX(idxx) = i
                     idxx = idxx + 1
+                    self%n2cMap(i, isXSection) = 1
                 end if
             end if
         end if
-        if (self%NodeTypes%junction == self%GetNodeTypeByID(idx)) then
+        if (self%NodeTypes%junction == self%GetNodeTypeByID(i)) then
             if (self%GetNodeHasLateralInflow(i)) then
                 if (self%inDomainNode(i)) then
-                    self%lateralFlowIDX(idxl) = idx
+                    self%lateralFlowIDX(idxl) = i
                     idxl = idxl + 1
                 end if
             end if
@@ -657,6 +654,7 @@
     class(swmm_coupler_class), intent(inout) :: self
     integer(c_int) :: nNodes
 
+    nNodes = 0
 #ifdef _SWMMCoupler_
     call swmm_getNumberOfNodes(nNodes)
 #endif
@@ -1095,6 +1093,9 @@
     if (dataName == 'Outfalls') then
         allocate(cellIDs(count(self%n2cMap(:,isOutfall) == 1)))
         where(self%n2cMap(:,isOutfall) == 1) cellIDs = self%n2cMap(:,cellID)
+    else if (dataName == 'XSections') then
+        allocate(cellIDs(count(self%n2cMap(:,isXSection) == 1)))
+        where(self%n2cMap(:,isXSection) == 1) cellIDs = self%n2cMap(:,cellID)
     else
         stop 'swmm_coupler_class::GetCellList - requested data not mapped for coupling'
     end if
