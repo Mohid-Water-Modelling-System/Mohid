@@ -136,6 +136,7 @@ Module ModuleRunOff
     public  ::  GetExternalPondedWaterColumnbyID
     public  ::  GetExternalInletInFlow
     public  ::  GetExternalFlowToRivers
+    public  ::  GetExternalFlowToRiversbyID
 
     !Destructor
     public  ::  KillRunOff                                                     
@@ -12494,6 +12495,37 @@ cd1:    if (RunOffID > 0) then
         end if
 
     end function GetExternalInletInFlow
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets river flow appropriate nodes
+    !> @param[in] RunOffID, waterColumn
+    !---------------------------------------------------------------------------
+    logical function GetExternalFlowToRiversbyID(RunOffID, flow, cellids)
+        !Arguments-------------------------------------------------------------
+        integer                                     :: RunOffID
+        real(8), allocatable, dimension(:)          :: flow
+        integer, dimension(:)                       :: cellids
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+        integer                                     :: i, ii, jj
+
+        call Ready(RunOffID, ready_)
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+        
+            allocate(flow(size(cellids)))
+            do i = 1, size(cellids)
+                call GetCellIJfromID(Me%ObjHorizontalGrid, ii, jj, cellids(i))
+                flow(i) = Me%iFlowToChannels(ii, jj)
+            end do
+            GetExternalFlowToRiversbyID = .true.
+        else
+            call PlaceErrorMessageOnStack("Runoff not ready")
+            GetExternalFlowToRiversbyID = .false.
+        end if
+
+    end function GetExternalFlowToRiversbyID
     
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
