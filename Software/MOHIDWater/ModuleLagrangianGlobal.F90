@@ -1542,6 +1542,7 @@ Module ModuleLagrangianGlobal
         real                                    :: PointVolume              = null_real
         logical                                 :: FlowVariable             = .false.
         integer                                 :: FlowColumn               = null_int
+        real                                    :: FlowScaleFactor          = null_real  
         character(PathLength)                   :: DischargeFile            = null_str
         integer                                 :: TimeSerieInputFlow       = 0
         type (T_Time)                           :: InstantEmission
@@ -4753,7 +4754,7 @@ iFV:            if (NewOrigin%FlowVariable) then
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR370'
 
-                    !Discharge file name
+                    !flow column
                     call GetData(NewOrigin%FlowColumn,                          &
                                  Me%ObjEnterData,                               &
                                  flag,                                          &
@@ -4761,7 +4762,20 @@ iFV:            if (NewOrigin%FlowVariable) then
                                  keyword      ='FLOW_COLUMN',                   &
                                  ClientModule ='ModuleLagrangianGlobal',        &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR390'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR373'
+                    
+                    if (flag == 0) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR375'
+
+                    !flow scale factor
+                    call GetData(NewOrigin%FlowScaleFactor,                     &
+                                 Me%ObjEnterData,                               &
+                                 flag,                                          &
+                                 SearchType   = FromBlock,                      &
+                                 keyword      ='FLOW_SCALE_FACTOR',             &
+                                 Default      = 1.,                             &
+                                 ClientModule ='ModuleLagrangianGlobal',        &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR378'
 
                     call GetData(NewOrigin%EstimateMinVol,                      &
                                  Me%ObjEnterData,                               &
@@ -4771,7 +4785,7 @@ iFV:            if (NewOrigin%FlowVariable) then
                                  Default      = .false.,                        &
                                  ClientModule ='ModuleLagrangianGlobal',        &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR391'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR380'
 
 iMV:                if (NewOrigin%EstimateMinVol) then
 
@@ -4783,7 +4797,7 @@ iMV:                if (NewOrigin%EstimateMinVol) then
                                      Default      = 10000,                              &
                                      ClientModule ='ModuleLagrangianGlobal',            &
                                      STAT         = STAT_CALL)        
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR392'
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR383'
                     endif iMV ! Rosa
 
                         call GetData(NewOrigin%MaxVol,                                  &
@@ -4794,7 +4808,7 @@ iMV:                if (NewOrigin%EstimateMinVol) then
                                      Default      = -FillValueReal,                     &
                                      ClientModule ='ModuleLagrangianGlobal',            &
                                      STAT         = STAT_CALL)        
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR393'
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR385'
                     
 
 iDF:                if (.not. NewOrigin%Default) then
@@ -4803,7 +4817,7 @@ iDF:                if (.not. NewOrigin%Default) then
                                                  Me%ExternalVar%ObjTime,                &
                                                  STAT = STAT_CALL)
 
-                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR380'
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR388'
 
                     endif iDF
 
@@ -4817,10 +4831,10 @@ iDF:                if (.not. NewOrigin%Default) then
                                  keyword      ='FLOW',                          &
                                  ClientModule ='ModuleLagrangianGlobal',        &
                                  STAT         = STAT_CALL)        
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR394'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR390'
                     if (flag /= 1) then
                         write(*,*)'Keyword FLOW not defined at origin :',trim(adjustl(NewOrigin%Name))
-                        stop      'ConstructOneOrigin - ModuleLagrangianGlobal - ERR27'
+                        stop      'ConstructOneOrigin - ModuleLagrangianGlobal - ERR393'
                 
                     endif 
 
@@ -4941,6 +4955,8 @@ i23:    if (NewOrigin%TimeSerieInputFlow /= 0) then
                                                    Me%ExternalVar%BeginTime, Me%ExternalVar%EndTime, &
                                                    NewOrigin%FlowColumn, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR384.'
+
+                TotalVolume = TotalVolume * NewOrigin%FlowScaleFactor
 
                 if (TotalVolume > 0.) then
                     NewOrigin%PointVolume = max (TotalVolume/real(NewOrigin%MaxPart), NewOrigin%PointVolume)
@@ -10132,6 +10148,9 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                                    STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ActualizeOrigin - ModuleLagrangianGlobal - ERR10.'
 
+            Value1 = Value1 * CurrentOrigin%FlowScaleFactor
+            Value2 = Value2 * CurrentOrigin%FlowScaleFactor
+
             !if (TimeCycle) then
             !    CurrentOrigin%Flow = Value1
             !    ParticleVolume = CurrentOrigin%Flow     *                                   &
@@ -10153,6 +10172,8 @@ OP:         if ((EulerModel%OpenPoints3D(i, j, k) == OpenPoint) .and. &
                                                        StartTime, EndTime,                      &
                                                        CurrentOrigin%FlowColumn, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ActualizeOrigin - ModuleLagrangianGlobal - ERR20.'
+
+                    TotalVolume = TotalVolume * CurrentOrigin%FlowScaleFactor
 
                     if (TotalVolume == 0.) then
                         CurrentOrigin%NbrParticlesIteration = 0
