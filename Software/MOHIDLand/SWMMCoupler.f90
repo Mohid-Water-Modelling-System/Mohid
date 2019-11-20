@@ -330,10 +330,10 @@
 
     print*, 'Mapping coupling points, please wait...'
 
-    do i=1, self%NumberOfNodes
-        print*, 'id=',i, 'x=',self%nodeXY(i,1), 'y=',self%nodeXY(i,2)
-        !print*, 'cell id=', mapArrayID(i), 'i=',mapArrayIJ(i,1), 'j=',mapArrayIJ(i,2)
-    end do
+    !do i=1, self%NumberOfNodes
+    !    print*, 'id=',i, 'x=',self%nodeXY(i,1), 'y=',self%nodeXY(i,2)
+    !    !print*, 'cell id=', mapArrayID(i), 'i=',mapArrayIJ(i,1), 'j=',mapArrayIJ(i,2)
+    !end do
 
     allocate(self%n2cMap(self%NumberOfNodes,6))
     self%n2cMap = 0
@@ -693,7 +693,7 @@
     real, dimension(2) :: xy
 
 #ifdef _SWMMCoupler_
-    call swmm_getNodeXY(id, x, y)
+    call swmm_getNodeXY(id-1, x, y)
 #endif
     xy(1) = x
     xy(2) = y
@@ -712,7 +712,7 @@
     integer(c_int) :: nType
 
 #ifdef _SWMMCoupler_
-    call swmm_getNodeType(id, nType)
+    call swmm_getNodeType(id-1, nType)
 #endif
     GetNodeTypeByID = nType
 
@@ -731,7 +731,7 @@
 
     GetIsNodeOpenChannel = .false.
 #ifdef _SWMMCoupler_
-    call swmm_getIsNodeOpenChannel(id, isOpen)
+    call swmm_getIsNodeOpenChannel(id-1, isOpen)
 #endif
     if (isOpen == 1) GetIsNodeOpenChannel = .true.
 
@@ -750,7 +750,7 @@
 
     GetNodeHasLateralInflow = .false.
 #ifdef _SWMMCoupler_
-    call swmm_getNodeHasLateralInflow(id, isOpen)
+    call swmm_getNodeHasLateralInflow(id-1, isOpen)
 #endif
     if (isOpen == 1) GetNodeHasLateralInflow = .true.
 
@@ -768,7 +768,7 @@
     real(c_double) :: inflow
 
 #ifdef _SWMMCoupler_
-    call swmm_getInflowByNode(id, inflow)
+    call swmm_getInflowByNode(id-1, inflow)
 #endif
     GetInflowByID = inflow
 
@@ -811,7 +811,7 @@
     real(c_double) :: outflow
 
 #ifdef _SWMMCoupler_
-    call swmm_getOutflowByNode(id, outflow)
+    call swmm_getOutflowByNode(id-1, outflow)
 #endif
     GetOutflowByID = outflow
 
@@ -854,7 +854,7 @@
     real(c_double) :: level
 
 #ifdef _SWMMCoupler_
-    call swmm_getLevelByNode(id, level)
+    call swmm_getLevelByNode(id-1, level)
 #endif
     GetLevelByID = level
 
@@ -897,7 +897,7 @@
     real(c_double), intent(in) :: outletLevel
 
 #ifdef _SWMMCoupler_
-    call swmm_setDownstreamWaterLevel(id, outletLevel)
+    call swmm_setDownstreamWaterLevel(id-1, outletLevel)
 #endif
 
     end subroutine SetOutletLevelByID
@@ -935,7 +935,7 @@
     real(c_double), intent(in) :: inflow
 
 #ifdef _SWMMCoupler_
-    call swmm_setLateralInflow(id, inflow)
+    call swmm_setLateralInflow(id-1, inflow)
 #endif
 
     end subroutine SetLateralInflowByID
@@ -975,7 +975,7 @@
     real(c_double), intent(in) :: level
 
 #ifdef _SWMMCoupler_
-    call swmm_setPondedWaterColumn(id, level)
+    call swmm_setPondedWaterColumn(id-1, level)
 #endif
 
     end subroutine SetWaterColumnByID
@@ -1013,7 +1013,7 @@
     real(c_double), intent(in) :: inflow
 
 #ifdef _SWMMCoupler_
-    call swmm_setStormWaterPotentialInflow(id, inflow)
+    call swmm_setStormWaterPotentialInflow(id-1, inflow)
 #endif
 
     end subroutine SetInletInflowByID
@@ -1052,7 +1052,7 @@
     real(c_double), intent(in) :: inflow
 
 #ifdef _SWMMCoupler_
-    call swmm_setOpenXSectionInflow(id, inflow)
+    call swmm_setOpenXSectionInflow(id-1, inflow)
 #endif
 
     end subroutine SetXSectionInflowByID
