@@ -12377,7 +12377,7 @@ cd1:    if (RunOffID > 0) then
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
     !> Sets storm water flows at appropriate nodes
-    !> @param[in] RunOffID, nComputePoints, overlandToSewerFlow
+    !> @param[in] RunOffID, overlandToSewerFlow
     !---------------------------------------------------------------------------
     logical function SetExternalStormWaterModelFlow(RunOffID, overlandToSewerFlow)    
         !Arguments-------------------------------------------------------------
@@ -12405,7 +12405,7 @@ cd1:    if (RunOffID > 0) then
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
     !> Gets the ponded water columm at appropriate nodes
-    !> @param[in] RunOffID, waterColumn
+    !> @param[in] RunOffID, waterColumn, cellids
     !---------------------------------------------------------------------------
     logical function GetExternalPondedWaterColumn(RunOffID, waterColumn, cellids)   
         !Arguments-------------------------------------------------------------
@@ -12437,7 +12437,7 @@ cd1:    if (RunOffID > 0) then
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
     !> Gets the ponded water columm at appropriate nodes
-    !> @param[in] RunOffID, waterColumn
+    !> @param[in] RunOffID, waterColumn, cellids
     !---------------------------------------------------------------------------
     logical function GetExternalPondedWaterColumnbyID(RunOffID, waterColumn, cellids)   
         !Arguments-------------------------------------------------------------
@@ -12468,7 +12468,7 @@ cd1:    if (RunOffID > 0) then
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
     !> Gets inlet flow at appropriate nodes
-    !> @param[in] RunOffID, waterColumn
+    !> @param[in] RunOffID, inletInflow, cellids
     !---------------------------------------------------------------------------
     logical function GetExternalInletInFlow(RunOffID, inletInflow, cellids)   
         !Arguments-------------------------------------------------------------
@@ -12500,7 +12500,7 @@ cd1:    if (RunOffID > 0) then
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
     !> Gets river flow appropriate nodes
-    !> @param[in] RunOffID, waterColumn
+    !> @param[in] RunOffID, flow, cellids
     !---------------------------------------------------------------------------
     logical function GetExternalFlowToRiversbyID(RunOffID, flow, cellids)
         !Arguments-------------------------------------------------------------
@@ -12531,7 +12531,7 @@ cd1:    if (RunOffID > 0) then
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
     !> Gets river flow appropriate nodes
-    !> @param[in] RunOffID, waterColumn
+    !> @param[in] RunOffID, flow, cellids
     !---------------------------------------------------------------------------
     logical function GetExternalFlowToRivers(RunOffID, flow, cellids)
         !Arguments-------------------------------------------------------------

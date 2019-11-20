@@ -41,6 +41,7 @@
     implicit none
     private
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
     interface
 
     subroutine swmm_open(inFile, rptFile, outFile) bind(C, name='swmm_open')
@@ -199,6 +200,7 @@
     character(kind = c_char) :: f5(*)
     end subroutine ConvertSwmmToDrainageNetwork
     end interface
+#endif DOXYGEN_SHOULD_SKIP_THIS
 
 
     type :: NodeTypes_enum          !< enums for node types
@@ -906,7 +908,7 @@
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
     !> Sets outlet level at all suited SWMM nodes
-    !> @param[in] self, outletLevel
+    !> @param[in] self, outletLevel, cellIDs
     !---------------------------------------------------------------------------
     subroutine SetOutletLevel(self, outletLevel, cellIDs)
     class(swmm_coupler_class), intent(in) :: self
@@ -944,7 +946,7 @@
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
     !> Sets outlet level at all suited SWMM nodes
-    !> @param[in] self, inflow
+    !> @param[in] self, inflow, cellIDs
     !---------------------------------------------------------------------------
     subroutine SetLateralInflow(self, inflow, cellIDs)
     class(swmm_coupler_class), intent(in) :: self
@@ -984,7 +986,7 @@
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
     !> Sets outlet level at all suited SWMM nodes
-    !> @param[in] self, level
+    !> @param[in] self, level, cellIDs
     !---------------------------------------------------------------------------
     subroutine SetWaterColumn(self, level, cellIDs)
     class(swmm_coupler_class), intent(in) :: self
@@ -1022,7 +1024,7 @@
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
     !> Sets inflow at all suited SWMM nodes
-    !> @param[in] self, inflow
+    !> @param[in] self, inflow, cellIDs
     !---------------------------------------------------------------------------
     subroutine SetInletInflow(self, inflow, cellIDs)
     class(swmm_coupler_class), intent(in) :: self
@@ -1061,7 +1063,7 @@
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
     !> Sets open cross section inflow at all suited SWMM nodes
-    !> @param[in] self, inflow
+    !> @param[in] self, inflow, cellIDs
     !---------------------------------------------------------------------------
     subroutine SetXSectionInflow(self, inflow, cellIDs)
     class(swmm_coupler_class), intent(in) :: self

@@ -207,7 +207,7 @@
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
     !> returns queries values from externaly coupled object model
-    !> @param[in] self, modelName, dataName, dataArray
+    !> @param[in] self, modelName, HorizontalGridID, dataName, dataArray
     !---------------------------------------------------------------------------
     subroutine getValues(self, modelName, HorizontalGridID, dataName, dataArray)
     class(external_coupler_class), intent(inout) :: self
@@ -241,7 +241,7 @@
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
     !> exports variables to externaly coupled object model from MOHID
-    !> @param[in] self, modelName, dataName, dataArray
+    !> @param[in] self, modelName, dataName, dataArray, cellIDs
     !---------------------------------------------------------------------------
     subroutine setValues(self, modelName, dataName, dataArray, cellIDs)
     class(external_coupler_class), intent(inout) :: self
