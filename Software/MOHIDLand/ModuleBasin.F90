@@ -10237,6 +10237,9 @@ cd0:    if (Exist) then
         
         if (Me%ExternalCoupler%initialized) then
             ExternalCoupledDT = Me%ExternalCoupler%getCoupledDt()
+            !if (Me%Coupled%RunOff) then
+            !    if (ExternalCoupledDT < 0.2*RunOffDT) ExternalCoupledDT = 0.2*RunOffDT
+            !end if
         else
             ExternalCoupledDT = -null_real
         end if
