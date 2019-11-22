@@ -93,6 +93,7 @@ Module ModuleRunOff
     private ::      ConstructSewerStormWaterNodesMap
     private ::      ConstructHDF5Output
     private ::      ConstructTimeSeries
+    private ::      AllocateRiverGridPointArrays
 
     !Selector
     public  ::  GetOverLandFlow
@@ -190,17 +191,24 @@ Module ModuleRunOff
         type(T_NodeGridPoint), pointer              :: Next                 => null()
         type(T_NodeGridPoint), pointer              :: Prev                 => null()        
     end type
+    type :: NodeGridPointPtr_class                   ! because foooooortraaaaaaan doesn't allow dinamic pointer arrays
+        class(T_NodeGridPoint), pointer :: ptr => null() ! the actual pointer
+    end type NodeGridPointPtr_class
     !GridPoint on top of river right and left banks (will recieve water level from associated NodeGridPoint 
     !and will be the cells where is computed river interaction flow)
     type T_BankGridPoint
         integer                                     :: ID                   = null_int
         integer                                     :: GridI                = null_int
         integer                                     :: GridJ                = null_int
-        integer                                     :: NGPId                = null_int  !associated NodeGridPoint      
+        integer                                     :: NGPId                = null_int  !associated NodeGridPoint
+        integer                                     :: NGPIDidx             = null_int
         real                                        :: RiverLevel           = null_real
         type(T_BankGridPoint), pointer              :: Next                 => null()
         type(T_BankGridPoint), pointer              :: Prev                 => null()           
-    end type    
+    end type
+    type :: BankGridPointPtr_class                   ! because foooooortraaaaaaan doesn't allow dinamic pointer arrays
+        class(T_BankGridPoint), pointer :: ptr => null() ! the actual pointer
+    end type BankGridPointPtr_class
     !GridPoint on margins (will recieve water level interpolated from associated BankGridPoint's
     !and will integrate their river interaction flow into closest BGP - based on interpolation X)
     type T_MarginGridPoint
@@ -208,7 +216,9 @@ Module ModuleRunOff
         integer                                     :: GridI                = null_int
         integer                                     :: GridJ                = null_int
         integer                                     :: BGPUpId              = null_int  !associated BankGridPoint upstream
-        integer                                     :: BGPDownId            = null_int  !associated BankGridPoint downstream   
+        integer                                     :: BGPDownId            = null_int  !associated BankGridPoint downstream        
+        integer                                     :: BGPUpIdidx           = null_int
+        integer                                     :: BGPDownIdidx         = null_int
         real                                        :: InterpolationFraction  = null_real !x fraction from BGP upstream to downstream segment (at cell center)
         integer                                     :: BGPIntegrateFluxId   = null_int  !associated BGP where to route computed flow (BGP upstream or downstream)
         integer                                     :: NGPIntegrateFluxId   = null_int  !associated NGP where to route computed flow (NGP associated to BGP)
@@ -217,7 +227,10 @@ Module ModuleRunOff
         real                                        :: RiverLevel           = null_real
         type(T_MarginGridPoint), pointer            :: Next                 => null()
         type(T_MarginGridPoint), pointer            :: Prev                 => null()           
-    end type      
+    end type
+    type :: MarginGridPointPtr_class                   ! because foooooortraaaaaaan doesn't allow dinamic pointer arrays
+        class(T_MarginGridPoint), pointer :: ptr => null() ! the actual pointer
+    end type MarginGridPointPtr_class
     
     type T_OutPut
         type (T_Time), pointer, dimension(:)        :: OutTime              => null()
@@ -511,14 +524,17 @@ Module ModuleRunOff
         type(T_NodeGridPoint    ), pointer          :: FirstNodeGridPoint        => null()
         type(T_NodeGridPoint    ), pointer          :: LastNodeGridPoint         => null()
         integer                                     :: NodeGridPointNumber     = 0        
+        type(NodeGridPointPtr_class), dimension(:), allocatable :: NodeGridPointArray
         
         type(T_MarginGridPoint    ), pointer        :: FirstMarginGridPoint        => null()
         type(T_MarginGridPoint    ), pointer        :: LastMarginGridPoint         => null()
-        integer                                     :: MarginGridPointNumber     = 0       
+        integer                                     :: MarginGridPointNumber     = 0
+        type(MarginGridPointPtr_class), dimension(:), allocatable :: MarginGridPointArray
         
         type(T_BankGridPoint    ), pointer          :: FirstBankGridPoint        => null()
         type(T_BankGridPoint    ), pointer          :: LastBankGridPoint         => null()
-        integer                                     :: BankGridPointNumber     = 0               
+        integer                                     :: BankGridPointNumber     = 0
+        type(BankGridPointPtr_class), dimension(:), allocatable :: BankGridPointArray
         
         logical                                     :: Use1D2DInteractionMapping = .false.
         
@@ -2232,7 +2248,7 @@ do3:    do
             
         enddo do3
 
-
+        call AllocateRiverGridPointArrays()
     
     end subroutine Read1DInteractionMapping
 
@@ -2312,7 +2328,82 @@ do3:    do
         end if 
 
 
-    end subroutine AddMarginGridPoint     
+    end subroutine AddMarginGridPoint   
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Allocates and fills river grid point array pointer structures for O(n) access
+    !---------------------------------------------------------------------------
+    subroutine AllocateRiverGridPointArrays()
+    integer :: i, j
+    logical :: found1, found2
+    type(T_NodeGridPoint), pointer :: CurrNodeGridPoint
+    type(T_MarginGridPoint), pointer :: CurrMarginGridPoint
+    type(T_BankGridPoint), pointer :: CurrBankGridPoint
+
+    allocate(Me%NodeGridPointArray(Me%NodeGridPointNumber))
+    allocate(Me%MarginGridPointArray(Me%MarginGridPointNumber))
+    allocate(Me%BankGridPointArray(Me%BankGridPointNumber))
+    
+    !print*, 'number of NodeGridPoint objects = ', size(Me%NodeGridPointArray)
+    !print*, 'number of MarginGridPoint objects = ', size(Me%MarginGridPointArray)
+    !print*, 'number of BankGridPoint objects = ', size(Me%BankGridPointArray)
+    
+    !filling the arrays
+    CurrNodeGridPoint => Me%FirstNodeGridPoint
+    do i=1, Me%NodeGridPointNumber
+        Me%NodeGridPointArray(i)%ptr => CurrNodeGridPoint
+        CurrNodeGridPoint => CurrNodeGridPoint%Next
+    end do
+    
+    CurrMarginGridPoint => Me%FirstMarginGridPoint
+    do i=1, Me%MarginGridPointNumber
+        Me%MarginGridPointArray(i)%ptr => CurrMarginGridPoint
+        CurrMarginGridPoint => CurrMarginGridPoint%Next
+    end do
+    
+    CurrBankGridPoint => Me%FirstBankGridPoint
+    do i=1, Me%BankGridPointNumber
+        Me%BankGridPointArray(i)%ptr => CurrBankGridPoint
+        CurrBankGridPoint => CurrBankGridPoint%Next
+    end do
+    
+    !indexing the correct array position in the objects on the list
+    CurrBankGridPoint => Me%FirstBankGridPoint
+    do i=1, Me%BankGridPointNumber
+        found1 = .false.
+        do j=1, Me%NodeGridPointNumber
+            if (CurrBankGridPoint%NGPId == Me%NodeGridPointArray(j)%ptr%ID) then
+                CurrBankGridPoint%NGPIDidx = j
+                found1 = .true.
+                exit
+            end if
+        end do
+        if (.not.found1) stop 'ModuleRunOff::AllocateRiverGridPointArrays - node grid point corresponding to bank grid point not found'
+        CurrBankGridPoint => CurrBankGridPoint%Next
+    end do
+    
+    CurrMarginGridPoint => Me%FirstMarginGridPoint
+    do i=1, Me%MarginGridPointNumber
+        found1 = .false.
+        found2 = .false.
+        do j=1, Me%BankGridPointNumber
+            if (CurrMarginGridPoint%BGPUpId == Me%BankGridPointArray(j)%ptr%ID) then
+                CurrMarginGridPoint%BGPUpIdidx = j
+                found1 = .true.
+            end if
+            if (CurrMarginGridPoint%BGPDownId == Me%BankGridPointArray(j)%ptr%ID) then
+                CurrMarginGridPoint%BGPDownIdidx = j
+                found2 = .true.
+            end if
+        end do
+        if (.not.found1) stop 'ModuleRunOff::AllocateRiverGridPointArrays - upper node grid point corresponding to bank grid point not found'
+        if (.not.found2) stop 'ModuleRunOff::AllocateRiverGridPointArrays - lower node grid point corresponding to bank grid point not found'
+        CurrMarginGridPoint => CurrMarginGridPoint%Next
+    end do    
+       
+    end subroutine AllocateRiverGridPointArrays
 
    !--------------------------------------------------------------------------    
 
@@ -5725,104 +5816,81 @@ doIter:         do while (iter <= Niter)
 
             !Set the matrix from DN
             call SetMatrixValue(Me%NodeRiverLevel, Me%Size, ChannelsWaterLevel)
-
             
             call UnGetDrainageNetwork (Me%ObjDrainageNetwork, ChannelsWaterLevel, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'InterpolateRiverLevelToCells - ModuleRunOff - ERR05'
-            
+            if (STAT_CALL /= SUCCESS_) stop 'InterpolateRiverLevelToCells - ModuleRunOff - ERR05'            
             
             !2. Go directly to bank grid points and skip node point
-            BankGridPoint => Me%FirstBankGridPoint
-            
-            do while (associated(BankGridPoint))
-
-                
-                BankGridPoint%RiverLevel = Me%NodeRiverLevel (BankGridPoint%GridI, BankGridPoint%GridJ)          
-                
-                    
+            BankGridPoint => Me%FirstBankGridPoint            
+            do while (associated(BankGridPoint))                
+                BankGridPoint%RiverLevel = Me%NodeRiverLevel (BankGridPoint%GridI, BankGridPoint%GridJ)                    
                 BankGridPoint => BankGridPoint%Next
-                
-            enddo              
-            
-            
+            enddo 
             
         else
             
             !1.        
             !Node Level from the matrix
             NodeGridPoint => Me%FirstNodeGridPoint
-
             do while (associated(NodeGridPoint))
-
                 NodeGridPoint%RiverLevel = Me%NodeRiverLevel (NodeGridPoint%GridI, NodeGridPoint%GridJ)
-                    
                 NodeGridPoint => NodeGridPoint%Next
-                
-            enddo      
-            
+            enddo
             
             !2.    
             !Bank river level from node
-            BankGridPoint => Me%FirstBankGridPoint
-            
-            do while (associated(BankGridPoint))
-
+            BankGridPoint => Me%FirstBankGridPoint            
+            do while (associated(BankGridPoint))                
+                BankGridPoint%RiverLevel = Me%NodeGridPointArray(BankGridPoint%NGPIdidx)%ptr%RiverLevel
                 
-                call FindNodeGridPoint   (BankGridPoint%NGPId, NodeGridPoint, Found)
-                            
-                if (Found) then
-                    BankGridPoint%RiverLevel = NodeGridPoint%RiverLevel                
-                else
-                    write (*,*) 'NodeGridPoint not found'
-                    write (*,*) 'NodeGridPoint ID = ', BankGridPoint%NGPId            
-                    stop 'InterpolateRiverLevelToCells - ModuleRunoff - ERR010'
-                end if                
-                
+                !call FindNodeGridPoint   (BankGridPoint%NGPId, NodeGridPoint, Found)                            
+                !if (Found) then
+                !    BankGridPoint%RiverLevel = NodeGridPoint%RiverLevel                
+                !else
+                !    write (*,*) 'NodeGridPoint not found'
+                !    write (*,*) 'NodeGridPoint ID = ', BankGridPoint%NGPId            
+                !    stop 'InterpolateRiverLevelToCells - ModuleRunoff - ERR010'
+                !end if                
                     
-                BankGridPoint => BankGridPoint%Next
-                
+                BankGridPoint => BankGridPoint%Next                
             enddo              
         endif    
         
         !3.
         !Margin river level from bank (interpolation)
-        MarginGridPoint => Me%FirstMarginGridPoint
-            
+        MarginGridPoint => Me%FirstMarginGridPoint            
         do while (associated(MarginGridPoint))
-
-                
-            call FindBankGridPoint   (MarginGridPoint%BGPUpId, BankGridPointUp, FoundUp)
-            call FindBankGridPoint   (MarginGridPoint%BGPDownId, BankGridPointDown, FoundDown)
-                            
-            if (FoundUp .and. FoundDown) then
-                
-                !points that do not have interaction with river
-                if (BankGridPointUp%RiverLevel < null_real / 2.0 .or. BankGridPointDown%RiverLevel < null_real / 2.0) then        
-                    
-                    MarginGridPoint%RiverLevel = null_real
-                else
-                    
-                    MarginGridPoint%RiverLevel = BankGridPointUp%RiverLevel - (BankGridPointUp%RiverLevel - BankGridPointDown%RiverLevel) * MarginGridPoint%InterpolationFraction                   
-                endif
-                
-                !output
-                Me%MarginRiverLevel(MarginGridPoint%GridI, MarginGridPoint%GridJ) = MarginGridPoint%RiverLevel
-                
+            BankGridPointUp => Me%BankGridPointArray(MarginGridPoint%BGPUpIdidx)%ptr
+            BankGridPointDown => Me%BankGridPointArray(MarginGridPoint%BGPDownIdidx)%ptr
+            !points that do not have interaction with river
+            if (BankGridPointUp%RiverLevel < null_real / 2.0 .or. BankGridPointDown%RiverLevel < null_real / 2.0) then
+                MarginGridPoint%RiverLevel = null_real
             else
-                write (*,*) 'BankGridPoint not found'
-                write (*,*) 'BankeGridPoint ID = ', MarginGridPoint%BGPUpId, MarginGridPoint%BGPDownId            
-                stop 'InterpolateRiverLevelToCells - ModuleRunoff - ERR020'
-            end if                
+                MarginGridPoint%RiverLevel = BankGridPointUp%RiverLevel - (BankGridPointUp%RiverLevel - BankGridPointDown%RiverLevel) * MarginGridPoint%InterpolationFraction                   
+            endif
+            !output
+            Me%MarginRiverLevel(MarginGridPoint%GridI, MarginGridPoint%GridJ) = MarginGridPoint%RiverLevel
                 
+            !call FindBankGridPoint   (MarginGridPoint%BGPUpId, BankGridPointUp, FoundUp)
+            !call FindBankGridPoint   (MarginGridPoint%BGPDownId, BankGridPointDown, FoundDown)
+            !if (FoundUp .and. FoundDown) then
+            !    !points that do not have interaction with river
+            !    if (BankGridPointUp%RiverLevel < null_real / 2.0 .or. BankGridPointDown%RiverLevel < null_real / 2.0) then
+            !        MarginGridPoint%RiverLevel = null_real
+            !    else
+            !        MarginGridPoint%RiverLevel = BankGridPointUp%RiverLevel - (BankGridPointUp%RiverLevel - BankGridPointDown%RiverLevel) * MarginGridPoint%InterpolationFraction                   
+            !    endif
+            !    !output
+            !    Me%MarginRiverLevel(MarginGridPoint%GridI, MarginGridPoint%GridJ) = MarginGridPoint%RiverLevel
+            !else
+            !    write (*,*) 'BankGridPoint not found'
+            !    write (*,*) 'BankeGridPoint ID = ', MarginGridPoint%BGPUpId, MarginGridPoint%BGPDownId            
+            !    stop 'InterpolateRiverLevelToCells - ModuleRunoff - ERR020'
+            !end if
                     
-            MarginGridPoint => MarginGridPoint%Next
-                
-        enddo         
+            MarginGridPoint => MarginGridPoint%Next                
+        enddo
         
-        
-        
-        
-    
     end subroutine InterpolateRiverLevelToCells
     
     !---------------------------------------------------------------------------
