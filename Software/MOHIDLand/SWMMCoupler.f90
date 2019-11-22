@@ -360,7 +360,7 @@
     self%xSectionOpen = .false.
     do i=1, self%NumberOfNodes
         if (self%NodeTypes%junction == self%GetNodeTypeByID(i)) then
-            if (self%GetIsNodeOpenChannel(i-1)) then
+            if (self%GetIsNodeOpenChannel(i)) then
                 if (self%inDomainNode(i)) self%xSectionOpen(i) = .true.
             end if
         end if
