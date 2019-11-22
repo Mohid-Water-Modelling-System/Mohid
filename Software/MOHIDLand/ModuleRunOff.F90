@@ -5827,8 +5827,7 @@ doIter:         do while (iter <= Niter)
                 BankGridPoint => BankGridPoint%Next
             enddo 
             
-        else
-            
+        else            
             !1.        
             !Node Level from the matrix
             NodeGridPoint => Me%FirstNodeGridPoint
@@ -5842,15 +5841,6 @@ doIter:         do while (iter <= Niter)
             BankGridPoint => Me%FirstBankGridPoint            
             do while (associated(BankGridPoint))                
                 BankGridPoint%RiverLevel = Me%NodeGridPointArray(BankGridPoint%NGPIdidx)%ptr%RiverLevel
-                
-                !call FindNodeGridPoint   (BankGridPoint%NGPId, NodeGridPoint, Found)                            
-                !if (Found) then
-                !    BankGridPoint%RiverLevel = NodeGridPoint%RiverLevel                
-                !else
-                !    write (*,*) 'NodeGridPoint not found'
-                !    write (*,*) 'NodeGridPoint ID = ', BankGridPoint%NGPId            
-                !    stop 'InterpolateRiverLevelToCells - ModuleRunoff - ERR010'
-                !end if                
                     
                 BankGridPoint => BankGridPoint%Next                
             enddo              
@@ -5870,23 +5860,6 @@ doIter:         do while (iter <= Niter)
             endif
             !output
             Me%MarginRiverLevel(MarginGridPoint%GridI, MarginGridPoint%GridJ) = MarginGridPoint%RiverLevel
-                
-            !call FindBankGridPoint   (MarginGridPoint%BGPUpId, BankGridPointUp, FoundUp)
-            !call FindBankGridPoint   (MarginGridPoint%BGPDownId, BankGridPointDown, FoundDown)
-            !if (FoundUp .and. FoundDown) then
-            !    !points that do not have interaction with river
-            !    if (BankGridPointUp%RiverLevel < null_real / 2.0 .or. BankGridPointDown%RiverLevel < null_real / 2.0) then
-            !        MarginGridPoint%RiverLevel = null_real
-            !    else
-            !        MarginGridPoint%RiverLevel = BankGridPointUp%RiverLevel - (BankGridPointUp%RiverLevel - BankGridPointDown%RiverLevel) * MarginGridPoint%InterpolationFraction                   
-            !    endif
-            !    !output
-            !    Me%MarginRiverLevel(MarginGridPoint%GridI, MarginGridPoint%GridJ) = MarginGridPoint%RiverLevel
-            !else
-            !    write (*,*) 'BankGridPoint not found'
-            !    write (*,*) 'BankeGridPoint ID = ', MarginGridPoint%BGPUpId, MarginGridPoint%BGPDownId            
-            !    stop 'InterpolateRiverLevelToCells - ModuleRunoff - ERR020'
-            !end if
                     
             MarginGridPoint => MarginGridPoint%Next                
         enddo
