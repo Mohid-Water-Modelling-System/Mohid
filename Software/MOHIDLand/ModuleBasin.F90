@@ -84,6 +84,7 @@ Module ModuleBasin
                                      GetRunOffTotalDischargeFlowVolume,                  &
                                      SetExternalRiverWaterLevel,                         &
                                      SetExternalStormWaterModelFlow,                     &
+                                     SetExternalOutfallFlow,                             &
                                      GetExternalPondedWaterColumn,                       &
                                      GetExternalPondedWaterColumnbyID,                   &
                                      GetExternalFlowToRiversbyID,                   &
@@ -8009,8 +8010,8 @@ cd0:    if (Exist) then
             varName = 'Outflow'
             call Me%ExternalCoupler%getValues(modelName, Me%ObjHorizontalGrid, varName, Outflow)
             if (size(Outflow)>0) then
-                done = SetExternalStormWaterModelFlow(Me%ObjRunoff, Outflow) !module runoff function
-                if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::SetExternalStormWaterModelFlow - operation failed'
+                done = SetExternalOutfallFlow(Me%ObjRunoff, Outflow) !module runoff function
+                if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::SetExternalOutfallFlow - operation failed'
             end if
             
             varName = 'xLevel'

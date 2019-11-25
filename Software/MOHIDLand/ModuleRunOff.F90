@@ -133,6 +133,7 @@ Module ModuleRunOff
     private ::  AdjustSlope
     public  ::  SetExternalRiverWaterLevel
     public  ::  SetExternalStormWaterModelFlow
+    public  ::  SetExternalOutfallFlow
     public  ::  GetExternalPondedWaterColumn
     public  ::  GetExternalPondedWaterColumnbyID
     public  ::  GetExternalInletInFlow
@@ -439,6 +440,7 @@ Module ModuleRunOff
                                                                                           !grid cells with storm water nodes                                                                                          
         real,    dimension(:,:), pointer            :: StreetGutterEffectiveFlow=> null() !Effective flow to street gutters 
                                                                                           !in grid cells with street gutters
+        real, dimension(:,:), allocatable           :: OutfallFlow
         integer, dimension(:,:), pointer            :: StreetGutterTargetI      => null() !Sewer interaction point...
         integer, dimension(:,:), pointer            :: StreetGutterTargetJ      => null() !...where street gutter drains to
         
@@ -5799,7 +5801,7 @@ doIter:         do while (iter <= Niter)
         type(T_MarginGridPoint), pointer                :: MarginGridPoint
         real, dimension(:,:), pointer                   :: ChannelsWaterLevel
         integer                                         :: STAT_CALL
-        logical                                         :: Found, FoundUp, FoundDown
+        !logical                                         :: Found, FoundUp, FoundDown
     
         !Begin------------------------------------------------------------------
     
@@ -8382,6 +8384,13 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         enddo
         enddo  
         !$OMP END DO
+        
+        !External outfall imposition
+        if (allocated(Me%OutfallFlow)) then
+            do i=1, size(Me%OutfallFlow, 1)
+                Me%StreetGutterEffectiveFlow(int(Me%OutfallFlow(i,1)), int(Me%OutfallFlow(i,2))) = -Me%OutfallFlow(i,3)
+            end do
+        end if
 
         !Update water column
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -12441,6 +12450,31 @@ cd1:    if (RunOffID > 0) then
         end if           
 
     end function SetExternalStormWaterModelFlow
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Sets storm water flows at appropriate nodes
+    !> @param[in] RunOffID, overlandToSewerFlow
+    !---------------------------------------------------------------------------
+    logical function SetExternalOutfallFlow(RunOffID, outfallFlow)    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: RunOffID
+        real(8), dimension(:,:)                     :: outfallFlow        
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_
+
+        call Ready(RunOffID, ready_)
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+            if(allocated(Me%OutfallFlow)) deallocate(Me%OutfallFlow)
+            allocate(Me%OutfallFlow, source = outfallFlow)
+            SetExternalOutfallFlow = .true.
+        else 
+            call PlaceErrorMessageOnStack("Runoff not ready")
+            SetExternalOutfallFlow = .false.
+        end if           
+
+    end function SetExternalOutfallFlow
     
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
