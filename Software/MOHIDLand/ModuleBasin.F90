@@ -284,7 +284,7 @@ Module ModuleBasin
         logical                                     :: Snow                  = .false.
         logical                                     :: Irrigation            = .false.
         logical                                     :: ExternalCoupling      = .false.
-        logical                                     :: SWMMCoupling          = .false.
+        logical                                     :: SewerGEMSEngineCoupling      = .false.
     end type T_Coupling
 
     type T_ExtVar
@@ -1504,16 +1504,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR312.1'
         
-        !Verifies if the user wants to use SWMM through external Couplers 
-        call GetData(Me%Coupled%SWMMCoupling,                                            &
+        !Verifies if the user wants to use SewerGEMS Engine through external Couplers 
+        call GetData(Me%Coupled%SewerGEMSEngineCoupling,                                            &
                      Me%ObjEnterData, iflag,                                             &
                      SearchType   = FromFile,                                            &
-                     keyword      = 'SWMM_COUPLING',                                     &
+                     keyword      = 'SewerGEMSEngine_COUPLING',                                     &
                      default      = OFF,                                                 &
                      ClientModule = 'ModuleBasin',                                       &
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasin - ERR312.2'
-        if (.not.Me%Coupled%ExternalCoupling) Me%Coupled%SWMMCoupling = .false.
+        if (.not.Me%Coupled%ExternalCoupling) Me%Coupled%SewerGEMSEngineCoupling = .false.
         
         !Gets Output Time 
         call GetOutPutTime(Me%ObjEnterData,                                              &
@@ -3559,8 +3559,8 @@ do1:                do
         
         if (Me%Coupled%ExternalCoupling) then
             call me%ExternalCoupler%initialize()
-            if (Me%Coupled%SWMMCoupling) then
-                temp = 'SWMM'
+            if (Me%Coupled%SewerGEMSEngineCoupling) then
+                temp = 'SewerGEMSEngine'
                 call me%ExternalCoupler%initializeCouplerToModel(temp, Me%ObjHorizontalGrid)                
             end if
         endif
@@ -7997,9 +7997,9 @@ cd0:    if (Exist) then
     logical :: done = .false.
     
     if (Me%ExternalCoupler%initialized) then
-        modelName = 'SWMM'
+        modelName = 'SewerGEMSEngine'
         if (Me%ExternalCoupler%isModelCoupled(modelName)) then           
-            !get data from SWMM to ModuleRunOff
+            !get data from SewerGEMSEngine to ModuleRunOff
             varName = 'Inflow'
             call Me%ExternalCoupler%getValues(modelName, Me%ObjHorizontalGrid, varName, Inflow)
             if (size(Inflow)>0) then
@@ -8023,7 +8023,7 @@ cd0:    if (Exist) then
             end if
     
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            !get data from ModuleRunOff to SWMM
+            !get data from ModuleRunOff to SewerGEMSEngine
             if (allocated(cellIDs)) deallocate(cellIDs)
             varName = 'WaterColumn'
             done = GetExternalPondedWaterColumn(Me%ObjRunoff, waterColumm, cellIDs)

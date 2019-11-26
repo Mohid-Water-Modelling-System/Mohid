@@ -4,7 +4,7 @@
     !
     ! TITLE         : Mohid Model
     ! PROJECT       : Mohid Land
-    ! MODULE        : SWMM Coupler
+    ! MODULE        : SewerGEMS Engine Coupler
     ! URL           : http://www.mohid.com
     ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
     ! DATE          : October 2019
@@ -14,7 +14,7 @@
     !
     ! DESCRIPTION
     !> Module that provides a specific interface to couple send and request data to
-    !> a SWMM model.
+    !> a SewerGEMS Engine model.
     !
     !This program is free software; you can redistribute it and/or
     !modify it under the terms of the GNU General Public License
@@ -31,7 +31,7 @@
     !
     !------------------------------------------------------------------------------
 
-    module SWMMCoupler
+    module ModuleSewerGEMSEngineCoupler
 
     use ModuleGlobalData
     use ModuleEnterData
@@ -44,161 +44,161 @@
 #ifndef DOXYGEN_SHOULD_SKIP_THIS
     interface
 
-    subroutine swmm_open(inFile, rptFile, outFile) bind(C, name='swmm_open')
+    subroutine SewerGEMSEngine_open(inFile, rptFile, outFile) bind(C, name='swmm_open')
     use iso_c_binding
     character(kind = c_char) :: inFile(*)
     character(kind = c_char) :: rptFile(*)
     character(kind = c_char) :: outFile(*)
-    end subroutine swmm_open
+    end subroutine SewerGEMSEngine_open
 
-    subroutine swmm_start(saveResults) bind(C, name='swmm_start')
+    subroutine SewerGEMSEngine_start(saveResults) bind(C, name='swmm_start')
     use iso_c_binding
     integer(c_int) :: saveResults
-    end subroutine swmm_start
+    end subroutine SewerGEMSEngine_start
 
-    subroutine swmm_end() bind(C, name='swmm_end')
-    end subroutine swmm_end
+    subroutine SewerGEMSEngine_end() bind(C, name='swmm_end')
+    end subroutine SewerGEMSEngine_end
 
-    subroutine swmm_close() bind(C, name='swmm_close')
-    end subroutine swmm_close
+    subroutine SewerGEMSEngine_close() bind(C, name='swmm_close')
+    end subroutine SewerGEMSEngine_close
 
     end interface
 
     interface
-    subroutine swmm_getNumberOfNodes(nNodes) bind(C, name='swmm_getNumberOfNodes')
+    subroutine SewerGEMSEngine_getNumberOfNodes(nNodes) bind(C, name='swmm_getNumberOfNodes')
     use iso_c_binding
     integer(c_int) :: nNodes
-    end subroutine swmm_getNumberOfNodes
+    end subroutine SewerGEMSEngine_getNumberOfNodes
     end interface
 
     interface
-    subroutine swmm_getNodeType(id, nType) bind(C, name='swmm_getNodeTypeByID')
+    subroutine SewerGEMSEngine_getNodeType(id, nType) bind(C, name='swmm_getNodeTypeByID')
     use iso_c_binding
     integer(c_int) :: id
     integer(c_int) :: nType
-    end subroutine swmm_getNodeType
+    end subroutine SewerGEMSEngine_getNodeType
     end interface
 
     interface
-    subroutine swmm_getNodeXY(id, xx, yy) bind(C, name='swmm_getNodeXYByID')
+    subroutine SewerGEMSEngine_getNodeXY(id, xx, yy) bind(C, name='swmm_getNodeXYByID')
     use iso_c_binding
     integer(c_int) :: id
     real(c_double) :: xx
     real(c_double) :: yy
-    end subroutine swmm_getNodeXY
+    end subroutine SewerGEMSEngine_getNodeXY
     end interface
 
     interface
-    subroutine swmm_getIsNodeOpenChannel(id, isOpen) bind(C, name='swmm_getIsNodeOpenChannelByID')
+    subroutine SewerGEMSEngine_getIsNodeOpenChannel(id, isOpen) bind(C, name='swmm_getIsNodeOpenChannelByID')
     use iso_c_binding
     integer(c_int) :: id
     integer(c_int) :: isOpen
-    end subroutine swmm_getIsNodeOpenChannel
+    end subroutine SewerGEMSEngine_getIsNodeOpenChannel
     end interface
 
     interface
-    subroutine swmm_getNodeHasLateralInflow(id, hasLatFlow) bind(C, name='swmm_getNodeHasLateralInflowByID')
+    subroutine SewerGEMSEngine_getNodeHasLateralInflow(id, hasLatFlow) bind(C, name='swmm_getNodeHasLateralInflowByID')
     use iso_c_binding
     integer(c_int) :: id
     integer(c_int) :: hasLatFlow
-    end subroutine swmm_getNodeHasLateralInflow
+    end subroutine SewerGEMSEngine_getNodeHasLateralInflow
     end interface
 
     interface
-    subroutine swmm_getInflowByNode(id, inflow) bind(C, name='swmm_getInflowByNodeByID')
+    subroutine SewerGEMSEngine_getInflowByNode(id, inflow) bind(C, name='swmm_getInflowByNodeByID')
     use iso_c_binding
     integer(c_int) :: id
     real(c_double) :: inflow
-    end subroutine swmm_getInflowByNode
+    end subroutine SewerGEMSEngine_getInflowByNode
     end interface
 
     interface
-    subroutine swmm_getOutflowByNode(id, outflow) bind(C, name='swmm_getOutflowByNodeByID')
+    subroutine SewerGEMSEngine_getOutflowByNode(id, outflow) bind(C, name='swmm_getOutflowByNodeByID')
     use iso_c_binding
     integer(c_int) :: id
     real(c_double) :: outflow
-    end subroutine swmm_getOutflowByNode
+    end subroutine SewerGEMSEngine_getOutflowByNode
     end interface
 
     interface
-    subroutine swmm_getLevelByNode(id, level) bind(C, name='swmm_getLevelByNodeByID')
+    subroutine SewerGEMSEngine_getLevelByNode(id, level) bind(C, name='swmm_getLevelByNodeByID')
     use iso_c_binding
     integer(c_int) :: id
     real(c_double) :: level
-    end subroutine swmm_getLevelByNode
+    end subroutine SewerGEMSEngine_getLevelByNode
     end interface
 
     interface
-    subroutine swmm_setDownstreamWaterLevel(id, level) bind(C, name='swmm_setDownstreamWaterLevelByID')
+    subroutine SewerGEMSEngine_setDownstreamWaterLevel(id, level) bind(C, name='swmm_setDownstreamWaterLevelByID')
     use iso_c_binding
     integer(c_int) :: id
     real(c_double) :: level
-    end subroutine swmm_setDownstreamWaterLevel
+    end subroutine SewerGEMSEngine_setDownstreamWaterLevel
     end interface
 
     interface
-    subroutine swmm_setLateralInflow(id, inflow) bind(C, name='swmm_setLateralInflowByID')
+    subroutine SewerGEMSEngine_setLateralInflow(id, inflow) bind(C, name='swmm_setLateralInflowByID')
     use iso_c_binding
     integer(c_int) :: id
     real(c_double) :: inflow
-    end subroutine swmm_setLateralInflow
+    end subroutine SewerGEMSEngine_setLateralInflow
     end interface
 
     interface
-    subroutine swmm_setPondedWaterColumn(id, level) bind(C, name='swmm_setPondedWaterColumnByID')
+    subroutine SewerGEMSEngine_setPondedWaterColumn(id, level) bind(C, name='swmm_setPondedWaterColumnByID')
     use iso_c_binding
     integer(c_int) :: id
     real(c_double) :: level
-    end subroutine swmm_setPondedWaterColumn
+    end subroutine SewerGEMSEngine_setPondedWaterColumn
     end interface
 
     interface
-    subroutine swmm_setStormWaterPotentialInflow(id, inflow) bind(C, name='swmm_setStormWaterPotentialInflowByID')
+    subroutine SewerGEMSEngine_setStormWaterPotentialInflow(id, inflow) bind(C, name='swmm_setStormWaterPotentialInflowByID')
     use iso_c_binding
     integer(c_int) :: id
     real(c_double) :: inflow
-    end subroutine swmm_setStormWaterPotentialInflow
+    end subroutine SewerGEMSEngine_setStormWaterPotentialInflow
     end interface
 
     interface
-    subroutine swmm_setOpenXSectionInflow(id, inflow) bind(C, name='swmm_setOpenXSectionInflowByID')
+    subroutine SewerGEMSEngine_setOpenXSectionInflow(id, inflow) bind(C, name='swmm_setOpenXSectionInflowByID')
     use iso_c_binding
     integer(c_int) :: id
     real(c_double) :: inflow
-    end subroutine swmm_setOpenXSectionInflow
+    end subroutine SewerGEMSEngine_setOpenXSectionInflow
     end interface
 
     interface
-    subroutine swmm_step(elapsedTime) bind(C, name='swmm_step')
+    subroutine SewerGEMSEngine_step(elapsedTime) bind(C, name='swmm_step')
     use iso_c_binding
     real(c_double) :: elapsedTime
-    end subroutine swmm_step
+    end subroutine SewerGEMSEngine_step
     end interface
 
     interface
-    subroutine swmm_step_imposed_dt(elapsedTime, imposedDt) bind(C, name='swmm_step_imposed_dt')
+    subroutine SewerGEMSEngine_step_imposed_dt(elapsedTime, imposedDt) bind(C, name='swmm_step_imposed_dt')
     use iso_c_binding
     real(c_double) :: elapsedTime
     real(c_double) :: imposedDt
-    end subroutine swmm_step_imposed_dt
+    end subroutine SewerGEMSEngine_step_imposed_dt
     end interface
 
     interface
-    subroutine swmm_getdt(Dt) bind(C, name='swmm_getdt')
+    subroutine SewerGEMSEngine_getdt(Dt) bind(C, name='swmm_getdt')
     use iso_c_binding
     real(c_double) :: Dt
-    end subroutine swmm_getdt
+    end subroutine SewerGEMSEngine_getdt
     end interface
 
     interface
-    subroutine ConvertSwmmToDrainageNetwork(f1, f2, f3, f4, f5) bind(C, name='ConvertSwmmToDrainageNetworkCaller')
+    subroutine ConvertSewerGEMSEngineToDrainageNetwork(f1, f2, f3, f4, f5) bind(C, name='ConvertSwmmToDrainageNetworkCaller')
     use iso_c_binding
     character(kind = c_char) :: f1(*)
     character(kind = c_char) :: f2(*)
     character(kind = c_char) :: f3(*)
     character(kind = c_char) :: f4(*)
     character(kind = c_char) :: f5(*)
-    end subroutine ConvertSwmmToDrainageNetwork
+    end subroutine ConvertSewerGEMSEngineToDrainageNetwork
     end interface
 #endif DOXYGEN_SHOULD_SKIP_THIS
 
@@ -216,19 +216,19 @@
     integer, parameter :: isXSection = 6
 
     !main public class
-    type :: swmm_coupler_class                      !< SWMM Coupler class
+    type :: SewerGEMSEngine_coupler_class                      !< SewerGEMSEngine Coupler class
         logical :: initialized = .false.                        !< initialized flag
         type(NodeTypes_enum) :: NodeTypes                       !< node type flags
-        integer :: NumberOfNodes                                !< number of SWMM nodes
-        integer :: NumberOfInDomainNodes                        !< number of SWMM  nodes in the domain
-        real, allocatable, dimension(:,:)  :: nodeXY            !< position of the SWMM nodes
-        integer, allocatable, dimension(:,:)  :: nodeIJ         !< position of the SWMM nodes in mesh coordinates
+        integer :: NumberOfNodes                                !< number of SewerGEMSEngine nodes
+        integer :: NumberOfInDomainNodes                        !< number of SewerGEMSEngine  nodes in the domain
+        real, allocatable, dimension(:,:)  :: nodeXY            !< position of the SewerGEMSEngine nodes
+        integer, allocatable, dimension(:,:)  :: nodeIJ         !< position of the SewerGEMSEngine nodes in mesh coordinates
         integer, allocatable, dimension(:,:)  :: n2cMap         !< node to cell mappings
-        integer, allocatable, dimension(:) :: junctionIDX       !< ids of junction SWMM nodes
-        integer, allocatable, dimension(:) :: outfallIDX        !< ids of outfall SWMM nodes
-        integer, allocatable, dimension(:) :: inflowIDX         !< ids of inflow SWMM nodes
-        integer, allocatable, dimension(:) :: xsectionLevelsIDX !< ids of open cross section SWMM nodes
-        integer, allocatable, dimension(:) :: lateralFlowIDX    !< ids of lateral flow accepting SWMM nodes
+        integer, allocatable, dimension(:) :: junctionIDX       !< ids of junction SewerGEMSEngine nodes
+        integer, allocatable, dimension(:) :: outfallIDX        !< ids of outfall SewerGEMSEngine nodes
+        integer, allocatable, dimension(:) :: inflowIDX         !< ids of inflow SewerGEMSEngine nodes
+        integer, allocatable, dimension(:) :: xsectionLevelsIDX !< ids of open cross section SewerGEMSEngine nodes
+        integer, allocatable, dimension(:) :: lateralFlowIDX    !< ids of lateral flow accepting SewerGEMSEngine nodes
         logical, allocatable, dimension(:) :: xSectionOpen      !warning: 1-based index array (c equivalent is 0-based)
         character(len = StringLength)      :: SWMM_dat
         character(len = StringLength)      :: SWMM_rpt
@@ -237,19 +237,19 @@
         character(len = StringLength)      :: SWMM_timeSeries_location
         character(len = StringLength)      :: SWMM_timeSeries_dir
     contains
-    procedure :: initialize => initSWMMCoupler
+    procedure :: initialize => initSewerGEMSEngineCoupler
     procedure :: mapElements
-    procedure :: finalize => finalizeSWMMCoupler
-    procedure :: print => printSWMMCoupler
+    procedure :: finalize => finalizeSewerGEMSEngineCoupler
+    procedure :: print => printSewerGEMSEngineCoupler
     !mapping procedures
     procedure, private :: inDomainNode
     !control procedures
-    procedure, private :: initializeSWMM
-    procedure, private :: getSWMMFilesPaths
+    procedure, private :: initializeSewerGEMSEngine
+    procedure, private :: getSewerGEMSEngineFilesPaths
     procedure :: defaultPerformTimeStep
     procedure :: runStep => PerformTimeStep
-    procedure, private :: finalizeSWMM
-    procedure, private :: convertSWMM
+    procedure, private :: finalizeSewerGEMSEngine
+    procedure, private :: convertSewerGEMSEngine
     !import data procedures
     procedure :: GetDt
     procedure :: GetInflow
@@ -276,34 +276,34 @@
     procedure, private :: SetWaterColumnByID
     procedure, private :: SetInletInflowByID
     procedure, private :: SetXSectionInflowByID
-    end type swmm_coupler_class
+    end type SewerGEMSEngine_coupler_class
 
 
     !Public access vars
-    public :: swmm_coupler_class
+    public :: SewerGEMSEngine_coupler_class
 
     contains
 
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Initializes the SWMM Coupler object
+    !> Initializes the SewerGEMSEngine Coupler object
     !---------------------------------------------------------------------------
-    subroutine initSWMMCoupler(self, mapArrayXY, mapArrayIJ, mapArrayID)
-    class(swmm_coupler_class), intent(inout) :: self
+    subroutine initSewerGEMSEngineCoupler(self, mapArrayXY, mapArrayIJ, mapArrayID)
+    class(SewerGEMSEngine_coupler_class), intent(inout) :: self
     real, allocatable, dimension(:,:), intent(inout) :: mapArrayXY
     integer, allocatable, dimension(:,:), intent(inout) :: mapArrayIJ
     integer, allocatable, dimension(:), intent(inout) :: mapArrayID
 
-    print*, 'Initializing SWMM coupler, please wait...'
+    print*, 'Initializing SewerGEMS Engine coupler, please wait...'
 
     self%initialized = .true.
-    call self%getSWMMFilesPaths()
-    call self%initializeSWMM()
+    call self%getSewerGEMSEngineFilesPaths()
+    call self%initializeSewerGEMSEngine()
     call self%GetNumberOfNodes()
     call self%GetNodeXY()
 
-    print*, 'SWMM number of nodes is ', self%NumberOfNodes
+    print*, 'SewerGEMS Engine number of nodes is ', self%NumberOfNodes
 
     !allocating map arrays to send to Basin Module to get filled/used
     allocate(mapArrayXY(self%NumberOfNodes,2))
@@ -311,15 +311,15 @@
     allocate(mapArrayID(self%NumberOfNodes))
     mapArrayXY = self%nodeXY
 
-    end subroutine initSWMMCoupler
+    end subroutine initSewerGEMSEngineCoupler
 
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Maps the SWMM Coupler object elements
+    !> Maps the SewerGEMSEngine Coupler object elements
     !---------------------------------------------------------------------------
     subroutine mapElements(self, mapArrayIJ, mapArrayID)
-    class(swmm_coupler_class), intent(inout) :: self
+    class(SewerGEMSEngine_coupler_class), intent(inout) :: self
     integer, dimension(:,:), intent(inout) :: mapArrayIJ
     integer, dimension(:), intent(inout) :: mapArrayID
     integer :: nJunction = 0
@@ -349,7 +349,7 @@
     end do
 
     self%NumberOfInDomainNodes = count(self%n2cMap(:,cellID) /= null_int)
-    print*, 'SWMM number of nodes in domain is ', self%NumberOfInDomainNodes
+    print*, 'SewerGEMS Engine number of nodes in domain is ', self%NumberOfInDomainNodes
 
     !do i=1, self%NumberOfNodes
     !    if (self%inDomainNode(i)) print*, self%n2cMap(i,:)
@@ -454,10 +454,10 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Returns true if SWMM node is in the coupled domain
+    !> Returns true if SewerGEMSEngine node is in the coupled domain
     !---------------------------------------------------------------------------
     logical function inDomainNode(self, idx)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer, intent(in) :: idx
     inDomainNode = self%n2cMap(idx, cellID) /= null_int
     end function inDomainNode
@@ -465,32 +465,32 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Finalizes the SWMM Coupler object and the SWMM model
+    !> Finalizes the SewerGEMSEngine Coupler object and the SewerGEMSEngine model
     !---------------------------------------------------------------------------
-    subroutine finalizeSWMMCoupler(self)
-    class(swmm_coupler_class), intent(inout) :: self
+    subroutine finalizeSewerGEMSEngineCoupler(self)
+    class(SewerGEMSEngine_coupler_class), intent(inout) :: self
 
-    call self%finalizeSWMM()
+    call self%finalizeSewerGEMSEngine()
 
-    end subroutine finalizeSWMMCoupler
+    end subroutine finalizeSewerGEMSEngineCoupler
 
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets the files required for SWMM run
+    !> Gets the files required for SewerGEMSEngine run
     !---------------------------------------------------------------------------
-    subroutine getSWMMFilesPaths(self)
-    class(swmm_coupler_class), intent(inout) :: self
+    subroutine getSewerGEMSEngineFilesPaths(self)
+    class(SewerGEMSEngine_coupler_class), intent(inout) :: self
     integer :: STAT_CALL, fileID, iflag, dpos
     character(len=StringLength) :: dummy
 
     call ReadFileName('STORMWATER_DAT', self%SWMM_dat,                         &
-        Message = "SWMM input file", STAT = STAT_CALL)
-    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - STORMWATER_DAT keyword not found on main file list'
+        Message = "SewerGEMSEngine input file", STAT = STAT_CALL)
+    if (STAT_CALL /= SUCCESS_) stop 'SewerGEMSEngineCoupler::getSewerGEMSEngineFilesPaths - STORMWATER_DAT keyword not found on main file list'
 
     call ReadFileName('STORMWATER_HDF', self%STORMWATER_HDF,                         &
-        Message = "SWMM hdf5 output file", STAT = STAT_CALL)
-    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - STORMWATER_HDF keyword not found on main file list'
+        Message = "SewerGEMSEngine hdf5 output file", STAT = STAT_CALL)
+    if (STAT_CALL /= SUCCESS_) stop 'SewerGEMSEngineCoupler::getSewerGEMSEngineFilesPaths - STORMWATER_HDF keyword not found on main file list'
     
     dpos = scan(trim(self%STORMWATER_HDF),".", BACK= .true.)
     
@@ -499,23 +499,23 @@
         self%SWMM_rpt = self%STORMWATER_HDF(1:dpos)//'rpt'
         self%SWMM_out = self%STORMWATER_HDF(1:dpos)//'swm'
     else
-        stop 'SWMMCoupler::getSWMMFilesPaths - STORMWATER_HDF file extension not recognized'
+        stop 'SewerGEMSEngineCoupler::getSewerGEMSEngineFilesPaths - STORMWATER_HDF file extension not recognized'
     end if
     
     call ReadFileName('ROOT_SRT', self%SWMM_timeSeries_dir,                         &
-        Message = "SWMM Time Series output directory", STAT = STAT_CALL)
-    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - ROOT_SRT keyword not found on main file list'
+        Message = "SewerGEMSEngine Time Series output directory", STAT = STAT_CALL)
+    if (STAT_CALL /= SUCCESS_) stop 'SewerGEMSEngineCoupler::getSewerGEMSEngineFilesPaths - ROOT_SRT keyword not found on main file list'
     
     call ConstructEnterData (fileID, self%SWMM_dat, STAT = STAT_CALL)
-    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - SWMM_dat file not read'
+    if (STAT_CALL /= SUCCESS_) stop 'SewerGEMSEngineCoupler::getSewerGEMSEngineFilesPaths - SWMM_dat file not read'
 
     call GetData(dummy,                                            &
         fileID, iflag,                                             &
         SearchType   = FromFile,                                   &
         keyword      = 'TIME_SERIE_LOCATION',                      &        
-        ClientModule = 'SWMMCoupler',                              &
+        ClientModule = 'SewerGEMSEngineCoupler',                              &
         STAT         = STAT_CALL)
-    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - SWMM_dat file not readable'    
+    if (STAT_CALL /= SUCCESS_) stop 'SewerGEMSEngineCoupler::getSewerGEMSEngineFilesPaths - SWMM_dat file not readable'    
     if (iflag == 0) then
         self%SWMM_timeSeries_location = dummy
     else
@@ -527,52 +527,52 @@
         fileID, iflag,                                             &
         SearchType   = FromFile,                                   &
         keyword      = 'MODEL_CONFIGURATION',                      &        
-        ClientModule = 'SWMMCoupler',                              &
+        ClientModule = 'SewerGEMSEngineCoupler',                              &
         STAT         = STAT_CALL)
-    if (STAT_CALL /= SUCCESS_) stop 'SWMMCoupler::getSWMMFilesPaths - SWMM_dat file not readable'
+    if (STAT_CALL /= SUCCESS_) stop 'SewerGEMSEngineCoupler::getSewerGEMSEngineFilesPaths - SWMM_dat file not readable'
     if (iflag /= 0) then
         self%SWMM_dat = dummy
     endif    
     
-    end subroutine getSWMMFilesPaths
+    end subroutine getSewerGEMSEngineFilesPaths
 
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Initializes the SWMM model through a DLL call
+    !> Initializes the SewerGEMSEngine model through a DLL call
     !---------------------------------------------------------------------------
-    subroutine initializeSWMM(self)
-    class(swmm_coupler_class), intent(in) :: self
+    subroutine initializeSewerGEMSEngine(self)
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     character(len = :, kind = c_char), allocatable :: inFile, rptFile, outFile
     integer(c_int) :: saveResults
 
-    print*, 'Initializing SWMM, please wait...'
+    print*, 'Initializing SewerGEMS Engine, please wait...'
 
     inFile = trim(ADJUSTL(self%SWMM_dat))//C_NULL_CHAR
     rptFile = trim(ADJUSTL(self%SWMM_rpt))//C_NULL_CHAR
     outFile = trim(ADJUSTL(self%SWMM_out))//C_NULL_CHAR
     saveResults = 1
 
-#ifdef _SWMMCoupler_
-    call swmm_open(inFile, rptFile, outFile)
-    call swmm_start(saveResults)
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_open(inFile, rptFile, outFile)
+    call SewerGEMSEngine_start(saveResults)
 #endif
 
     print*,''
 
-    end subroutine initializeSWMM
+    end subroutine initializeSewerGEMSEngine
 
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> calls the default time step integrator from SWMM model through a DLL call
+    !> calls the default time step integrator from SewerGEMSEngine model through a DLL call
     !---------------------------------------------------------------------------
     subroutine defaultPerformTimeStep(self)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     real(c_double) :: elapsedTime
 
-#ifdef _SWMMCoupler_
-    call swmm_step(elapsedTime)
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_step(elapsedTime)
 #endif
 
     end subroutine defaultPerformTimeStep
@@ -580,16 +580,16 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> calls the time step integrator from SWMM model with an imposed Dt
+    !> calls the time step integrator from SewerGEMSEngine model with an imposed Dt
     !> through a DLL call
     !---------------------------------------------------------------------------
     subroutine PerformTimeStep(self, dt)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     real(c_double), intent(in) :: dt
     real(c_double) :: elapsedTime
 
-#ifdef _SWMMCoupler_
-    call swmm_step_imposed_dt(elapsedTime, dt)
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_step_imposed_dt(elapsedTime, dt)
 #endif
 
     end subroutine PerformTimeStep
@@ -597,14 +597,14 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets the SWMM computed dt through a DLL call
+    !> Gets the SewerGEMSEngine computed dt through a DLL call
     !---------------------------------------------------------------------------
     real function GetDt(self)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     real(c_double) :: dt
 
-#ifdef _SWMMCoupler_
-    call swmm_getdt(dt)
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_getdt(dt)
 #endif
     GetDt = dt
 
@@ -613,39 +613,39 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Finalizes the SWMM model through DLL calls
+    !> Finalizes the SewerGEMSEngine model through DLL calls
     !---------------------------------------------------------------------------
-    subroutine finalizeSWMM(self)
-    class(swmm_coupler_class), intent(in) :: self
+    subroutine finalizeSewerGEMSEngine(self)
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     
-    print*, 'Finalizing SWMM, please wait...'
-#ifdef _SWMMCoupler_
-    call swmm_end()
-    call swmm_close()
-    call self%convertSWMM()
+    print*, 'Finalizing SewerGEMS Engine, please wait...'
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_end()
+    call SewerGEMSEngine_close()
+    call self%convertSewerGEMSEngine()
 #endif
 
-    end subroutine finalizeSWMM
+    end subroutine finalizeSewerGEMSEngine
     
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Converts the SWMM output through DLL calls
+    !> Converts the SewerGEMSEngine output through DLL calls
     !---------------------------------------------------------------------------
-    subroutine convertSWMM(self)
-    class(swmm_coupler_class), intent(in) :: self
+    subroutine convertSewerGEMSEngine(self)
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     character(len = :, kind = c_char), allocatable :: swmmInputFile, swmmBinaryFile, drainageNetworkFile, timeSeriesDir, swmmTimeSeriesLocation
 
-#ifdef _SWMMCoupler_    
+#ifdef _SewerGEMSEngineCoupler_    
     swmmInputFile = trim(ADJUSTL(self%SWMM_dat))//C_NULL_CHAR
     swmmBinaryFile = trim(ADJUSTL(self%SWMM_out))//C_NULL_CHAR
     drainageNetworkFile = trim(ADJUSTL(self%STORMWATER_HDF))//'5'//C_NULL_CHAR
     timeSeriesDir = trim(ADJUSTL(self%SWMM_timeSeries_dir))//C_NULL_CHAR
     swmmTimeSeriesLocation = trim(ADJUSTL(self%SWMM_timeSeries_location))//C_NULL_CHAR
-    call ConvertSwmmToDrainageNetwork(swmmInputFile, swmmBinaryFile, drainageNetworkFile, timeSeriesDir, swmmTimeSeriesLocation)
+    call ConvertSewerGEMSEngineToDrainageNetwork(swmmInputFile, swmmBinaryFile, drainageNetworkFile, timeSeriesDir, swmmTimeSeriesLocation)
 #endif
 
-    end subroutine convertSWMM
+    end subroutine convertSewerGEMSEngine
 
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
@@ -653,12 +653,12 @@
     !> Gets the number of SWMM nodes through a DLL call
     !---------------------------------------------------------------------------
     subroutine GetNumberOfNodes(self)
-    class(swmm_coupler_class), intent(inout) :: self
+    class(SewerGEMSEngine_coupler_class), intent(inout) :: self
     integer(c_int) :: nNodes
 
     nNodes = 0
-#ifdef _SWMMCoupler_
-    call swmm_getNumberOfNodes(nNodes)
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_getNumberOfNodes(nNodes)
 #endif
     self%NumberOfNodes = nNodes
 
@@ -667,10 +667,10 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets the xy coordinates of all SWMM nodes
+    !> Gets the xy coordinates of all SewerGEMSEngine nodes
     !---------------------------------------------------------------------------
     subroutine GetNodeXY(self)
-    class(swmm_coupler_class), intent(inout) :: self
+    class(SewerGEMSEngine_coupler_class), intent(inout) :: self
     real, dimension(2) :: xy
     integer :: i
 
@@ -686,16 +686,16 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets the xy coordinates of a SWMM node through a DLL call
+    !> Gets the xy coordinates of a SewerGEMSEngine node through a DLL call
     !---------------------------------------------------------------------------
     function GetNodeXYByID(self, id) result(xy)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer(c_int), intent(in) :: id
     real(c_double) :: x, y
     real, dimension(2) :: xy
 
-#ifdef _SWMMCoupler_
-    call swmm_getNodeXY(id-1, x, y)
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_getNodeXY(id-1, x, y)
 #endif
     xy(1) = x
     xy(2) = y
@@ -705,16 +705,16 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets the SWMM node type through a DLL call
+    !> Gets the SewerGEMSEngine node type through a DLL call
     !> @param[in] self, id
     !---------------------------------------------------------------------------
     integer function GetNodeTypeByID(self, id)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer(c_int), intent(in) :: id
     integer(c_int) :: nType
 
-#ifdef _SWMMCoupler_
-    call swmm_getNodeType(id-1, nType)
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_getNodeType(id-1, nType)
 #endif
     GetNodeTypeByID = nType
 
@@ -723,17 +723,17 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets the open channel status of a SWMM node through a DLL call
+    !> Gets the open channel status of a SewerGEMSEngine node through a DLL call
     !> @param[in] self, id
     !---------------------------------------------------------------------------
     logical function GetIsNodeOpenChannel(self, id)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer(c_int), intent(in) :: id
     integer(c_int) :: isOpen
 
     GetIsNodeOpenChannel = .false.
-#ifdef _SWMMCoupler_
-    call swmm_getIsNodeOpenChannel(id-1, isOpen)
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_getIsNodeOpenChannel(id-1, isOpen)
 #endif
     if (isOpen == 1) GetIsNodeOpenChannel = .true.
 
@@ -742,17 +742,17 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets the has lateral flow status of a SWMM node through a DLL call
+    !> Gets the has lateral flow status of a SewerGEMSEngine node through a DLL call
     !> @param[in] self, id
     !---------------------------------------------------------------------------
     logical function GetNodeHasLateralInflow(self, id)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer(c_int), intent(in) :: id
     integer(c_int) :: isOpen
 
     GetNodeHasLateralInflow = .false.
-#ifdef _SWMMCoupler_
-    call swmm_getNodeHasLateralInflow(id-1, isOpen)
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_getNodeHasLateralInflow(id-1, isOpen)
 #endif
     if (isOpen == 1) GetNodeHasLateralInflow = .true.
 
@@ -761,16 +761,16 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets ponded inflow by SWMM node ID through a DLL call
+    !> Gets ponded inflow by SewerGEMSEngine node ID through a DLL call
     !> @param[in] self, id
     !---------------------------------------------------------------------------
     real function GetInflowByID(self, id)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer(c_int), intent(in) :: id
     real(c_double) :: inflow
 
-#ifdef _SWMMCoupler_
-    call swmm_getInflowByNode(id-1, inflow)
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_getInflowByNode(id-1, inflow)
 #endif
     GetInflowByID = inflow
 
@@ -779,10 +779,10 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets ponded inflow at all required SWMM nodes
+    !> Gets ponded inflow at all required SewerGEMSEngine nodes
     !---------------------------------------------------------------------------
     function GetInflow(self, HorizontalGridID) result(inflow)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer, intent(in) :: HorizontalGridID
     real, dimension(size(self%inflowIDX), 3) :: inflow
     integer :: i, ii, jj, cid, nnodes
@@ -804,16 +804,16 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets outflow by SWMM node ID through a DLL call
+    !> Gets outflow by SewerGEMSEngine node ID through a DLL call
     !> @param[in] self, id
     !---------------------------------------------------------------------------
     real function GetOutflowByID(self, id)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer(c_int), intent(in) :: id
     real(c_double) :: outflow
 
-#ifdef _SWMMCoupler_
-    call swmm_getOutflowByNode(id-1, outflow)
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_getOutflowByNode(id-1, outflow)
 #endif
     GetOutflowByID = outflow
 
@@ -822,10 +822,10 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets outflow at all required SWMM nodes
+    !> Gets outflow at all required SewerGEMSEngine nodes
     !---------------------------------------------------------------------------
     function GetOutflow(self, HorizontalGridID) result(outflow)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer, intent(in) :: HorizontalGridID
     real, dimension(size(self%outfallIDX), 3) :: outflow
     integer :: i, ii, jj, cid, nnodes
@@ -847,16 +847,16 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets level by SWMM node ID through a DLL call
+    !> Gets level by SewerGEMSEngine node ID through a DLL call
     !> @param[in] self, id
     !---------------------------------------------------------------------------
     real function GetLevelByID(self, id)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer(c_int), intent(in) :: id
     real(c_double) :: level
 
-#ifdef _SWMMCoupler_
-    call swmm_getLevelByNode(id-1, level)
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_getLevelByNode(id-1, level)
 #endif
     GetLevelByID = level
 
@@ -865,10 +865,10 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets level at all required SWMM nodes
+    !> Gets level at all required SewerGEMSEngine nodes
     !---------------------------------------------------------------------------
     function GetLevel(self, HorizontalGridID) result(level)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer, intent(in) :: HorizontalGridID
     real, dimension(size(self%xsectionLevelsIDX), 3) :: level
     integer :: i, ii, jj, cid, nnodes
@@ -890,16 +890,16 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Sets outlet level at a SWMM node ID through a DLL call
+    !> Sets outlet level at a SewerGEMSEngine node ID through a DLL call
     !> @param[in] self, id, outletLevel
     !---------------------------------------------------------------------------
     subroutine SetOutletLevelByID(self, id, outletLevel)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer(c_int), intent(in) :: id
     real(c_double), intent(in) :: outletLevel
 
-#ifdef _SWMMCoupler_
-    call swmm_setDownstreamWaterLevel(id-1, outletLevel)
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_setDownstreamWaterLevel(id-1, outletLevel)
 #endif
 
     end subroutine SetOutletLevelByID
@@ -907,11 +907,11 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Sets outlet level at all suited SWMM nodes
+    !> Sets outlet level at all suited SewerGEMSEngine nodes
     !> @param[in] self, outletLevel, cellIDs
     !---------------------------------------------------------------------------
     subroutine SetOutletLevel(self, outletLevel, cellIDs)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     real, dimension(:), intent(in) :: outletLevel
     integer, dimension(:), intent(in) :: cellIDs
     integer :: i, cid, cidx
@@ -928,16 +928,16 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Sets outlet level at a SWMM node ID through a DLL call
+    !> Sets outlet level at a SewerGEMSEngine node ID through a DLL call
     !> @param[in] self, id, inflow
     !---------------------------------------------------------------------------
     subroutine SetLateralInflowByID(self, id, inflow)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer(c_int), intent(in) :: id
     real(c_double), intent(in) :: inflow
 
-#ifdef _SWMMCoupler_
-    call swmm_setLateralInflow(id-1, inflow)
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_setLateralInflow(id-1, inflow)
 #endif
 
     end subroutine SetLateralInflowByID
@@ -945,11 +945,11 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Sets outlet level at all suited SWMM nodes
+    !> Sets outlet level at all suited SewerGEMSEngine nodes
     !> @param[in] self, inflow, cellIDs
     !---------------------------------------------------------------------------
     subroutine SetLateralInflow(self, inflow, cellIDs)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     real, dimension(:), intent(in) :: inflow
     integer, dimension(:), intent(in) :: cellIDs
     integer :: i, cid, nnodes, cidx
@@ -968,16 +968,16 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Sets water level at a SWMM node ID through a DLL call
+    !> Sets water level at a SewerGEMSEngine node ID through a DLL call
     !> @param[in] self, id, level
     !---------------------------------------------------------------------------
     subroutine SetWaterColumnByID(self, id, level)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer(c_int), intent(in) :: id
     real(c_double), intent(in) :: level
 
-#ifdef _SWMMCoupler_
-    call swmm_setPondedWaterColumn(id-1, level)
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_setPondedWaterColumn(id-1, level)
 #endif
 
     end subroutine SetWaterColumnByID
@@ -985,11 +985,11 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Sets outlet level at all suited SWMM nodes
+    !> Sets outlet level at all suited SewerGEMSEngine nodes
     !> @param[in] self, level, cellIDs
     !---------------------------------------------------------------------------
     subroutine SetWaterColumn(self, level, cellIDs)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     real, dimension(:), intent(in) :: level
     integer, dimension(:), intent(in) :: cellIDs
     integer :: i, cid, cidx
@@ -1006,16 +1006,16 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Sets stormwater inflow at a SWMM node ID through a DLL call
+    !> Sets stormwater inflow at a SewerGEMSEngine node ID through a DLL call
     !> @param[in] self, id, inflow
     !---------------------------------------------------------------------------
     subroutine SetInletInflowByID(self, id, inflow)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer(c_int), intent(in) :: id
     real(c_double), intent(in) :: inflow
 
-#ifdef _SWMMCoupler_
-    call swmm_setStormWaterPotentialInflow(id-1, inflow)
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_setStormWaterPotentialInflow(id-1, inflow)
 #endif
 
     end subroutine SetInletInflowByID
@@ -1023,11 +1023,11 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Sets inflow at all suited SWMM nodes
+    !> Sets inflow at all suited SewerGEMSEngine nodes
     !> @param[in] self, inflow, cellIDs
     !---------------------------------------------------------------------------
     subroutine SetInletInflow(self, inflow, cellIDs)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     real, dimension(:), intent(in) :: inflow
     integer, dimension(:), intent(in) :: cellIDs
     integer :: i, cid, nnodes, cidx
@@ -1045,16 +1045,16 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Sets open cross section inflow at a SWMM node ID through a DLL call
+    !> Sets open cross section inflow at a SewerGEMSEngine node ID through a DLL call
     !> @param[in] self, id, inflow
     !---------------------------------------------------------------------------
     subroutine SetXSectionInflowByID(self, id, inflow)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer(c_int), intent(in) :: id
     real(c_double), intent(in) :: inflow
 
-#ifdef _SWMMCoupler_
-    call swmm_setOpenXSectionInflow(id-1, inflow)
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_setOpenXSectionInflow(id-1, inflow)
 #endif
 
     end subroutine SetXSectionInflowByID
@@ -1062,11 +1062,11 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Sets open cross section inflow at all suited SWMM nodes
+    !> Sets open cross section inflow at all suited SewerGEMSEngine nodes
     !> @param[in] self, inflow, cellIDs
     !---------------------------------------------------------------------------
     subroutine SetXSectionInflow(self, inflow, cellIDs)
-    class(swmm_coupler_class), intent(in) :: self
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
     real, dimension(:), intent(in) :: inflow
     integer, dimension(:), intent(in) :: cellIDs
     integer :: i, cid, nnodes, cidx
@@ -1084,11 +1084,11 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets mohid cell list for a number of SWMM nodes requiring cell data
+    !> Gets mohid cell list for a number of SewerGEMSEngine nodes requiring cell data
     !> @param[in] self, dataName, cellIDs
     !---------------------------------------------------------------------------
     subroutine GetCellList(self, dataName, cellIDs)
-    class(swmm_coupler_class), intent(inout) :: self
+    class(SewerGEMSEngine_coupler_class), intent(inout) :: self
     character(len = StringLength), intent(in) :: dataName
     integer, dimension(:), allocatable, intent(inout) :: cellIDs
 
@@ -1099,7 +1099,7 @@
         allocate(cellIDs(count(self%n2cMap(:,isXSection) == 1)))
         where(self%n2cMap(:,isXSection) == 1) cellIDs = self%n2cMap(:,cellID)
     else
-        stop 'swmm_coupler_class::GetCellList - requested data not mapped for coupling'
+        stop 'SewerGEMSEngine_coupler_class::GetCellList - requested data not mapped for coupling'
     end if
 
     end subroutine GetCellList
@@ -1108,15 +1108,15 @@
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Prints the SWMM Coupler object
+    !> Prints the SewerGEMSEngine Coupler object
     !---------------------------------------------------------------------------
-    subroutine printSWMMCoupler(self)
-    class(swmm_coupler_class), intent(in) :: self
+    subroutine printSewerGEMSEngineCoupler(self)
+    class(SewerGEMSEngine_coupler_class), intent(in) :: self
 
-    print*, 'SWMM Coupler'
+    print*, 'SewerGEMS Engine Coupler'
     print*, 'Initialized - ', self%initialized
 
-    end subroutine printSWMMCoupler
+    end subroutine printSewerGEMSEngineCoupler
 
 
-    end module SWMMCoupler
+    end module ModuleSewerGEMSEngineCoupler

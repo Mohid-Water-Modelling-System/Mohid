@@ -36,15 +36,15 @@
 
     use ModuleGlobalData
     use ModuleHorizontalGrid
-    use SWMMCoupler
+    use ModuleSewerGEMSEngineCoupler
 
     implicit none
     private
 
     type :: external_coupler_class       !< External Coupler class
         logical :: initialized = .false.         !< initialized flag
-        logical :: swmmCoupling = .false.        !< use swmm coupler flag
-        type(swmm_coupler_class) :: SWMMCoupler
+        logical :: SewerGEMSEngineCoupling = .false.        !< use SewerGEMSEngine coupler flag
+        type(SewerGEMSEngine_coupler_class) :: SewerGEMSEngineCoupler
     contains
     procedure :: initialize => initExternalCoupler
     procedure :: initializeCouplerToModel
@@ -93,10 +93,10 @@
     integer, intent(inout) :: HorizontalGridID
 
     if (self%initialized) then
-        if (modelName == 'SWMM') then
-            self%swmmCoupling = .true.
+        if (modelName == 'SewerGEMSEngine') then
+            self%SewerGEMSEngineCoupling = .true.
             !initialize the model coupler
-            call self%SWMMCoupler%initialize(mapArrayXY, mapArrayIJ, mapArrayID)
+            call self%SewerGEMSEngineCoupler%initialize(mapArrayXY, mapArrayIJ, mapArrayID)
             call GetXYArrayIJ(HorizontalGridID, mapArrayXY, mapArrayIJ)
             call GetCellIDfromIJArray(HorizontalGridID, mapArrayIJ, mapArrayID)
             call self%mapElements(modelName, mapArrayIJ, mapArrayID)
@@ -115,9 +115,9 @@
     class(external_coupler_class), intent(inout) :: self
     
     if (self%initialized) then
-        if (self%swmmCoupling) then
-            self%swmmCoupling = .false.
-            call self%SWMMCoupler%finalize()            
+        if (self%SewerGEMSEngineCoupling) then
+            self%SewerGEMSEngineCoupling = .false.
+            call self%SewerGEMSEngineCoupler%finalize()            
         end if
         !add more models here
         
@@ -139,9 +139,9 @@
     integer, dimension(:), intent(inout) :: mapArrayID
 
     if (self%initialized) then
-        if (modelName == 'SWMM') then
+        if (modelName == 'SewerGEMSEngine') then
             !initialize the coupler mapper
-            call self%SWMMCoupler%mapElements(mapArrayIJ, mapArrayID)
+            call self%SewerGEMSEngineCoupler%mapElements(mapArrayIJ, mapArrayID)
         end if
         !add more models here
     end if
@@ -159,8 +159,8 @@
 
     isModelCoupled = .false.
     if (self%initialized) then
-        if (modelName == 'SWMM') then
-            if (self%SWMMCoupler%initialized) isModelCoupled = .true.
+        if (modelName == 'SewerGEMSEngine') then
+            if (self%SewerGEMSEngineCoupler%initialized) isModelCoupled = .true.
             return
         end if
         !add more models here
@@ -177,8 +177,8 @@
     class(external_coupler_class), intent(inout) :: self
     real, intent(in) :: dt
 
-    if (self%SWMMCoupler%initialized) then
-        call self%SWMMCoupler%runStep(dt)
+    if (self%SewerGEMSEngineCoupler%initialized) then
+        call self%SewerGEMSEngineCoupler%runStep(dt)
     end if
     !add more models here
 
@@ -195,8 +195,8 @@
 
     getCoupledDt = -null_real
 
-    if (self%SWMMCoupler%initialized) then
-        localDt = self%SWMMCoupler%GetDt()
+    if (self%SewerGEMSEngineCoupler%initialized) then
+        localDt = self%SewerGEMSEngineCoupler%GetDt()
         getCoupledDt = min(localDt, getCoupledDt)
     end if
     !add more models here
@@ -216,18 +216,18 @@
     character(len = StringLength), intent(in) :: dataName
     real, allocatable, dimension(:,:) :: dataArray
 
-    if (modelName == 'SWMM') then
+    if (modelName == 'SewerGEMSEngine') then
         if (dataName == 'Inflow') then
-            allocate(dataArray(size(self%SWMMCoupler%inflowIDX),3))
-            dataArray = self%SWMMCoupler%GetInflow(HorizontalGridID)
+            allocate(dataArray(size(self%SewerGEMSEngineCoupler%inflowIDX),3))
+            dataArray = self%SewerGEMSEngineCoupler%GetInflow(HorizontalGridID)
             return
         else if (dataName == 'Outflow') then
-            allocate(dataArray(size(self%SWMMCoupler%outfallIDX),3))
-            dataArray = self%SWMMCoupler%GetOutflow(HorizontalGridID)
+            allocate(dataArray(size(self%SewerGEMSEngineCoupler%outfallIDX),3))
+            dataArray = self%SewerGEMSEngineCoupler%GetOutflow(HorizontalGridID)
             return
         else if (dataName == 'xLevel') then
-            allocate(dataArray(size(self%SWMMCoupler%xsectionLevelsIDX),3))
-            dataArray = self%SWMMCoupler%GetLevel(HorizontalGridID)
+            allocate(dataArray(size(self%SewerGEMSEngineCoupler%xsectionLevelsIDX),3))
+            dataArray = self%SewerGEMSEngineCoupler%GetLevel(HorizontalGridID)
             return
         else
             stop 'external_coupler_class::getValues - requested quantity does not exist'
@@ -250,21 +250,21 @@
     real, dimension(:) :: dataArray
     integer, dimension(:) :: cellIDs
 
-    if (modelName == 'SWMM') then
+    if (modelName == 'SewerGEMSEngine') then
         if (dataName == 'OutletLevel') then
-            call self%SWMMCoupler%SetOutletLevel(dataArray, cellIDs)
+            call self%SewerGEMSEngineCoupler%SetOutletLevel(dataArray, cellIDs)
             return
         else if (dataName == 'LateralInflow') then
-            call self%SWMMCoupler%SetLateralInflow(dataArray, cellIDs)
+            call self%SewerGEMSEngineCoupler%SetLateralInflow(dataArray, cellIDs)
             return
         else if (dataName == 'WaterColumn') then
-            call self%SWMMCoupler%SetWaterColumn(dataArray, cellIDs)
+            call self%SewerGEMSEngineCoupler%SetWaterColumn(dataArray, cellIDs)
             return
         else if (dataName == 'InletInflow') then
-            call self%SWMMCoupler%SetInletInflow(dataArray, cellIDs)
+            call self%SewerGEMSEngineCoupler%SetInletInflow(dataArray, cellIDs)
             return
         else if (dataName == 'XSectionFlow') then
-            call self%SWMMCoupler%SetXSectionInflow(dataArray, cellIDs)
+            call self%SewerGEMSEngineCoupler%SetXSectionInflow(dataArray, cellIDs)
             return
         else
             stop 'external_coupler_class::setValues - requested quantity does not exist'
@@ -286,8 +286,8 @@
     character(len = StringLength), intent(in) :: dataName
     integer, dimension(:), allocatable, intent(inout) :: cellIDs
 
-    if (modelName == 'SWMM') then
-        call self%SWMMCoupler%GetCellList(dataName, cellIDs)
+    if (modelName == 'SewerGEMSEngine') then
+        call self%SewerGEMSEngineCoupler%GetCellList(dataName, cellIDs)
         return        
     end if
     !add more models here
@@ -304,7 +304,7 @@
 
     print*, 'External Coupler Module'
     print*, 'Initialized - ', self%initialized
-    print*, 'Couple to SWMM - ', self%swmmCoupling
+    print*, 'Couple to SewerGEMS Engine - ', self%SewerGEMSEngineCoupling
 
     end subroutine printExternalCoupler
 
