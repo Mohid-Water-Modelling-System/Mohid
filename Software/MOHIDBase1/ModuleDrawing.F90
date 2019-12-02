@@ -55,10 +55,11 @@ Module ModuleDrawing
     
     public  ::    GetPolygonsNumber
     public  ::    GetSpecificPolygon 
-
+    public  ::    GetPolyLimits
     public  ::    VertPolygonInsidePolygon
     
     private ::    PolyLimits_Intersect_PolyLimits
+    
     
     public  ::    SliceCellIn4
     
@@ -982,7 +983,51 @@ d1:     do i=1, Polygon%Count
     end subroutine SetLimitsPolygon
     
     !--------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
+    
+    subroutine GetPolyLimits(PolyA, Left, Right, Bottom, Top)
 
+        !Arguments-------------------------------------------------------------
+        type (T_Polygon), pointer                   :: PolyA
+        real,             intent (OUT)              :: Left, Right,Bottom, Top                          
+        
+        !local-----------------------------------------------------------------
+        type (T_Polygon), pointer                   :: auxPolyA        
+        real                                        :: XminA, XmaxA, YminA, YmaxA
+
+        !Begin-----------------------------------------------------------------
+        
+        
+        auxPolyA => PolyA
+  
+         XminA = - FillValueReal
+         XmaxA = + FillValueReal
+         YminA = - FillValueReal
+         YmaxA = + FillValueReal       
+ 
+        
+da:     do while (associated(auxPolyA))
+            
+            if (auxPolyA%Limits%Left   <  XminA) XminA = auxPolyA%Limits%Left
+            if (auxPolyA%Limits%Right  >  XmaxA) XmaxA = auxPolyA%Limits%Right 
+            if (auxPolyA%Limits%Bottom <  YminA) YminA = auxPolyA%Limits%Bottom
+            if (auxPolyA%Limits%Top    >  YmaxA) YmaxA = auxPolyA%Limits%Top   
+            
+            auxPolyA => auxPolyA%Next
+            
+        enddo da
+
+        Left    = XminA
+        Right   = XmaxA   
+        Bottom  = YminA
+        Top     = YmaxA 
+        
+        nullify(auxPolyA)
+        
+                
+    end subroutine GetPolyLimits
+    
+    !--------------------------------------------------------------------------
     !--------------------------------------------------------------------------
     
     logical function PolyLimits_Intersect_PolyLimits(PolyA, PolyB)
