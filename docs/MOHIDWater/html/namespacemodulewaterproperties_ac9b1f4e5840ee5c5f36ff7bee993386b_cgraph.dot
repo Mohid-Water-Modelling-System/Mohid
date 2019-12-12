@@ -1,0 +1,24 @@
+digraph "modulewaterproperties::constructpartition"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulewaterproperties\l::constructpartition",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="modulewaterproperties\l::closeallandstop",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaterproperties.html#a5bb74dfe4637836633ca6817a4a72758",tooltip=" "];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="modulewaterproperties\l::output_results_hdf",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaterproperties.html#a78143a2ee73e78a6441a03852a7b9f9a",tooltip=" "];
+  Node3 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="modulewaterproperties\l::outputhdf_aditionalfields",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaterproperties.html#a0e590dc368b505cd9ea918d724d3eee3",tooltip=" "];
+  Node4 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="modulewaterproperties\l::search_property",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaterproperties.html#ae6b7d758da27fb15faee52b3ed14029d",tooltip=" "];
+  Node3 -> Node6 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="modulewaterproperties\l::write_finalwaterproperties_hdf",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaterproperties.html#a2893cea8ca427b1290aeb65593659aa0",tooltip=" "];
+  Node6 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 -> Node7 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 [label="modulewaterproperties\l::computeandlogtotalmasserror",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaterproperties.html#af1b9165b0e72747e4478868c7e5eff00",tooltip=" "];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+}

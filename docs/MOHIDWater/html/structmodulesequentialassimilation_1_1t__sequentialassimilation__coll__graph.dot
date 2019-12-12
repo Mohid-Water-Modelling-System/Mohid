@@ -1,0 +1,32 @@
+digraph "modulesequentialassimilation::t_sequentialassimilation"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulesequentialassimilation\l::t_sequentialassimilation\n|- instanceid\l- size\l- worksize\l- currenttime\l- endtime\l- hydroseqassim\l- waterseqassim\l- assimilationtime\l- method\l- dt\land 44 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -lastmeasure\n-firstmeasure" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{modulesequentialassimilation\l::t_measure\n|- id\l- filetype\l- dt\l- variance\l- statelocation\l- filename\l- valueexists\l- tolerance\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesequentialassimilation_1_1t__measure.html",tooltip=" "];
+  Node2 -> Node2 [color="grey25",fontsize="10",style="solid",label=" -prev\n-next" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 -> Node2 [color="grey25",fontsize="10",style="solid",label=" -localization" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 [label="{modulesequentialassimilation\l::t_localization\n|- i\l- j\l- k\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesequentialassimilation_1_1t__localization.html",tooltip=" "];
+  Node4 -> Node2 [color="grey25",fontsize="10",style="solid",label=" -timeserie" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node4 [label="{modulesequentialassimilation\l::t_timeserie\n|- id\l- filename\l- datacolumn\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesequentialassimilation_1_1t__timeserie.html",tooltip=" "];
+  Node1 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node5 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -dfs\n-fs" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node5 [label="{modulesequentialassimilation\l::t_fullstate\n|- waterlevel\l- velocityu\l- velocityv\l- velocityuold\l- velocityvold\l- velocityacross\l- waterfluxx\l- waterfluxy\l- waterfluxz\l- submodelqx\land 18 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesequentialassimilation_1_1t__fullstate.html",tooltip=" "];
+  Node6 -> Node5 [color="grey25",fontsize="10",style="solid",label=" -firstwaterproperty\n-lastwaterproperty" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node6 [label="{modulesequentialassimilation\l::t_stateprop\n|- idnumber\l- field\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesequentialassimilation_1_1t__stateprop.html",tooltip=" "];
+  Node6 -> Node6 [color="grey25",fontsize="10",style="solid",label=" -prev\n-next" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node7 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -files" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node7 [label="{modulesequentialassimilation\l::t_files\n|- constructdata\l- outputfields\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesequentialassimilation_1_1t__files.html",tooltip=" "];
+  Node8 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -firsterrortimeserie" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node8 [label="{modulesequentialassimilation\l::t_errortimeserie\n|- timeserie\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesequentialassimilation_1_1t__errortimeserie.html",tooltip=" "];
+  Node8 -> Node8 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node9 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -firstproperty\n-lastproperty" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node9 [label="{modulesequentialassimilation\l::t_property\n|- id\l- dim\l- typezuv\l- window2d\l- window\l- moduletype\l- measure\l- measuresnumber\l- firststateposition\l- field2d\l- field\l- fieldr8\l- centeredfield\l- centeredfieldr8\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesequentialassimilation_1_1t__property.html",tooltip=" "];
+  Node9 -> Node9 [color="grey25",fontsize="10",style="solid",label=" -prev\n-next" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node10 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -output\n-eof_output" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node10 [label="{modulesequentialassimilation\l::t_output\n|- outtime\l- nextoutput\l- number\l- hdf5on\l- timeserieon\l- errortimeserieon\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesequentialassimilation_1_1t__output.html",tooltip=" "];
+  Node11 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -external_var" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node11 [label="{modulesequentialassimilation\l::t_external\n|- waterpoints\l- openpoints\l- computefacesu\l- computefacesv\l- imposednormfacesu\l- imposednormfacesv\l- imposedtangfacesu\l- imposedtangfacesv\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesequentialassimilation_1_1t__external.html",tooltip=" "];
+}

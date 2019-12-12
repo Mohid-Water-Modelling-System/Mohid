@@ -1,0 +1,18 @@
+digraph "moduleoil_0d::t_oil"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{moduleoil_0d::t_oil\n|- instanceid\l- nextinternalcomputetime\l- nextactivecomputetime\l- now\l- begintime\l- objtime\l- objtimeserie\l- objenterdata\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond"];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -state" ,arrowhead="odiamond"];
+  Node2 [label="{moduleoil_0d::t_state\n|- timeserie\l- firststepip\l- firststepap\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleoil__0d_1_1t__state.html",tooltip=" "];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -externalvar" ,arrowhead="odiamond"];
+  Node3 [label="{moduleoil_0d::t_external\n|- now\l- begintime\l- endtime\l- backtracking\l- area\l- wind\l- atmosphericpressure\l- watertemperature\l- waterdensity\l- spm\l- waveheight\l- waveperiod\l- voloilbeached\l- volumebeached\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleoil__0d_1_1t__external.html",tooltip=" "];
+  Node4 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -var" ,arrowhead="odiamond"];
+  Node4 [label="{moduleoil_0d::t_var\n|- oiltype\l- pourpoint\l- dtoilinternalprocesses\l- massoil\l- massini\l- volume\l- volumeoil\l- volinic\l- slickthickness\l- oilthickness\land 109 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleoil__0d_1_1t__var.html",tooltip=" "];
+  Node5 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -files" ,arrowhead="odiamond"];
+  Node5 [label="{moduleoil_0d::t_files\n|- constructdata\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleoil__0d_1_1t__files.html",tooltip=" "];
+  Node6 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -timeserie" ,arrowhead="odiamond"];
+  Node6 [label="{moduleoil_0d::t_timeserie\n|- timeseriefile\l- propertylist\l- dataline\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleoil__0d_1_1t__timeserie.html",tooltip=" "];
+}

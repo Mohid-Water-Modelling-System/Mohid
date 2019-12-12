@@ -1,0 +1,20 @@
+digraph "modulesediment::cohesiveness_adjust"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="RL";
+  Node1 [label="modulesediment::cohesiveness\l_adjust",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="modulesediment::currentonlybedload",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesediment.html#a099f230f690695fa4061449e8880d0e7",tooltip=" "];
+  Node2 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="modulesediment::computebedload",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesediment.html#a621ed127ad378409a67e67c54993d3cb",tooltip=" "];
+  Node3 -> Node4 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="modulesediment::modifysediment",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesediment.html#a8bd56ac218e3c51dd03eb2967d7e9398",tooltip=" "];
+  Node1 -> Node5 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="modulesediment::currentpluswavesbedload",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesediment.html#ab4e81d1c3c2244f9bb0f378491adbc1e",tooltip=" "];
+  Node5 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node6 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="modulesediment::wavesonlybedload",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesediment.html#ab75ac0182e2b11a8063dbb8027fa8d19",tooltip=" "];
+  Node6 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+}

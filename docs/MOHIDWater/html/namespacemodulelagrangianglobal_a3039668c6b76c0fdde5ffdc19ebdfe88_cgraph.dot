@@ -1,0 +1,19 @@
+digraph "modulelagrangianglobal::modifyparticstatistic"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulelagrangianglobal\l::modifyparticstatistic",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="modulelagrangianglobal\l::computestatisticslag",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulelagrangianglobal.html#a45258b52ee78ddc9c21fca279fad88da",tooltip=" "];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="modulelagrangianglobal\l::getambientconccell",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulelagrangianglobal.html#a21c98c8cc24ebb92a5b8821af08be797",tooltip=" "];
+  Node2 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="modulelagrangianglobal\l::search_property",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulelagrangianglobal.html#a8101ab80f9478c6164ad8c0d0261efd1",tooltip=" "];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="modulelagrangianglobal\l::fillgridconcentration",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulelagrangianglobal.html#ac90a060ac9ab05f2c54c45b4b76ca984",tooltip=" "];
+  Node5 -> Node6 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="modulelagrangianglobal\l::analyticconcentration",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulelagrangianglobal.html#a8a4e3b4aa0ee023ec48a0d9e44b5df43",tooltip=" "];
+  Node5 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+}

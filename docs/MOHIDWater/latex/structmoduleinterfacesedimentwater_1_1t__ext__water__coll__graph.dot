@@ -1,0 +1,7 @@
+digraph "moduleinterfacesedimentwater::t_ext_water"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{moduleinterfacesedimentwater\l::t_ext_water\n|- chezy\l- dwz\l- szz\l- velocity_u\l- velocity_v\l- volumez\l- volumezold\l- waterpoints2d\l- openpoints2d\l- boundarypoints2d\land 19 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

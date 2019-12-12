@@ -1,0 +1,14 @@
+digraph "modulelagrangianglobal::computehnsgridproperties"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulelagrangianglobal\l::computehnsgridproperties",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="modulelagrangianglobal\l::hnsgridconc2d",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulelagrangianglobal.html#aebb9bea8e1ba0060251e687c3050561e",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="modulelagrangianglobal\l::hnsgridconc3d",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulelagrangianglobal.html#a8c236ab2fa5219dffb9444c1ed075d48",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="modulelagrangianglobal\l::hnsgridmaxconc2d",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulelagrangianglobal.html#ae8087b21cc2eb799dc6cc0ca8fca855a",tooltip=" "];
+}

@@ -1,0 +1,7 @@
+digraph "modulehydrodynamic::t_forces"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulehydrodynamic\l::t_forces\n|- rox3xy\l- rox3x\l- rox3y\l- horizontal_transport\l- inertial_aceleration\l- relax_aceleration\l- obstacledrag_aceleration\l- altim_relax_aceleration\l- tidepotentiallevel\l- scraper_aceleration\land 12 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

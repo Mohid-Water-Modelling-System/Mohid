@@ -1,0 +1,14 @@
+digraph "modulelagrangianglobal::emissionalongsection"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulelagrangianglobal\l::emissionalongsection",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="modulelagrangianglobal\l::convert_cellk_k",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulelagrangianglobal.html#a75785d33db5dded34e1de495fe447eac",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="modulelagrangianglobal\l::convert_xy_cellij",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulelagrangianglobal.html#a713100b692a8ced1a6b27a0a1baa4039",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="modulelagrangianglobal\l::convert_z_cellk",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulelagrangianglobal.html#a619a331b54dcc8d330ab6dd05b4eae56",tooltip=" "];
+}

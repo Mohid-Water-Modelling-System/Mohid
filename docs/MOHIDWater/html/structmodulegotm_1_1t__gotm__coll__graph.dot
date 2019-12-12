@@ -1,0 +1,15 @@
+digraph "modulegotm::t_gotm"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulegotm::t_gotm\n|- cmue1\l- cmue2\l- tkeo\l- as\l- an\l- xrf\l- tid\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -export" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{modulegotm::t_gotmexport\n|- tke\l- l\l- eps\l- num\l- nuh\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulegotm_1_1t__gotmexport.html",tooltip=" "];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -parameters" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 [label="{modulegotm::t_gotmparameters\n|- cde\l- sig_e0\l- sig_e1\l- craig_m\l- const_num\l- const_nuh\l- k_min\l- eps_min\l- l_min\l- kappa\land 41 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulegotm_1_1t__gotmparameters.html",tooltip=" "];
+  Node4 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -impor" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node4 [label="{modulegotm::t_gotmimport\n|- nn\l- ss\l- p\l- b\l- h\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulegotm_1_1t__gotmimport.html",tooltip=" "];
+  Node5 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -trid" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node5 [label="{modulegotm::t_gotmtrid\n|- au\l- bu\l- cu\l- du\l- ru\l- qu\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulegotm_1_1t__gotmtrid.html",tooltip=" "];
+}

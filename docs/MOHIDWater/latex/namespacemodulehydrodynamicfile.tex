@@ -1,0 +1,525 @@
+\hypertarget{namespacemodulehydrodynamicfile}{}\doxysection{modulehydrodynamicfile Module Reference}
+\label{namespacemodulehydrodynamicfile}\index{modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+interface \mbox{\hyperlink{interfacemodulehydrodynamicfile_1_1modifyhydrodynamicfile}{modifyhydrodynamicfile}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamicfile_1_1t__blockinmemory}{t\+\_\+blockinmemory}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamicfile_1_1t__external}{t\+\_\+external}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamicfile_1_1t__files}{t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamicfile_1_1t__hydrodynamicfile}{t\+\_\+hydrodynamicfile}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamicfile_1_1t__input}{t\+\_\+input}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamicfile_1_1t__spaceintegration}{t\+\_\+spaceintegration}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamicfile_1_1t__state}{t\+\_\+state}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamicfile_1_1t__stintegration}{t\+\_\+stintegration}}
+\item 
+type \mbox{\hyperlink{structmodulehydrodynamicfile_1_1t__timeintegration}{t\+\_\+timeintegration}}
+\item 
+interface \mbox{\hyperlink{interfacemodulehydrodynamicfile_1_1ungethydrodynamicfile}{ungethydrodynamicfile}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamicfile_afa04d9ff5074b735139f9addb9b466d7}{starthydrodynamicfile}} (Hydrodynamic\+File\+ID, Topography\+ID, Horizontal\+Grid\+ID, Geometry\+ID, Map\+ID, Horizontal\+Map\+ID, Time\+ID, In\+Put\+Out\+Put\+State, Initial\+Water\+Level, Initial\+Water\+FluxX, Initial\+Water\+FluxY, Initial\+Discharges, Initial\+Compute\+Faces\+U3D, Initial\+Compute\+Faces\+V3D, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamicfile_a5235543e6aa405ed126b0ca0fdf38961}{allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_a091307ffd36898af46af80552e9243ab}{hydrodynamicfileoptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_acd3245c0ac200350cf4d9bd623090e6b}{verifyhydrodynamicfileoptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_aab72ffaa67d987e2e0df7cd6249eac99}{starthydrodynamicfileinput}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamicfile_a45b05c777eb42ae5c5d23981ba6256da}{startencoding}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamicfile_ae7f1a97acd1cc5b22e6ff9e638243e70}{decodeblock}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_a782ea415676eeb21e1368c0c2dd1e710}{starthydrodynamicfileoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_ac67e9023c973dadd99ed3b893b1cc9ad}{allocatevariablesinput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_a395d8802270df14831dc0865064f36c1}{allocatevariablesoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_a6d9975e28fbe49117eab154fe46cdeca}{readheader}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_ae3afcd841fecf4aa1c250de0db5419e7}{integratebathymetry}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_ad777d9126fa56a82299811343a399ea8}{writeheader}} (Initial\+Fields, Integrated\+Initial\+Fields)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamicfile_a8095cd04310d0ed954d72fb7021c5141}{gethydrodynamicfileiostate}} (Input\+State\+Ex, Output\+State\+Ex)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamicfile_af996537253af14e50e63530e5814f6bb}{getfilewaterlevel}} (Hydrodynamic\+File\+ID, Water\+Level, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamicfile_a59c8f54e1b85d7dc3765167672866ffb}{getfilefluxes}} (Hydrodynamic\+File\+ID, Water\+FluxX, Water\+FluxY, Discharges, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamicfile_a9b237b5496d01afbf9b2c35f1ed0745c}{getfilemapping}} (Hydrodynamic\+File\+ID, Compute\+Faces\+U3D, Compute\+Faces\+V3D, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_a56a478bf1d00b0e9a1ea2795005d1b01}{ungethydrodynamicfile3dreal4}} (Hydrodynamic\+File\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_a7f6d7c818b2355e29070b78957b71133}{ungethydrodynamicfile2dreal4}} (Hydrodynamic\+File\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_a419f36beda63ccf38170844806ddd74c}{ungethydrodynamicfile2dreal8}} (Hydrodynamic\+File\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_ac34af87bc19882352d63287997429ba6}{ungethydrodynamicfile3dreal8}} (Hydrodynamic\+File\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_ac5cff7872d6994174eb551c203e0e56a}{ungethydrodynamicfile3dinteger}} (Hydrodynamic\+File\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_a78cdd03605613d9ae76372179d4bb493}{modifyhydrodynamicfileinput}} (Hydrodynamic\+File\+ID, Hydrodynamic\+Time, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_aa54587d42d6b13c11895a1f934511d94}{modifymohid3d\+\_\+m2}}
+\item 
+integer function, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_a5a3a54142c84c39924e24d98da9014ae}{m2\+\_\+iteration}} (Time, Time\+Begin, D\+T\+\_\+\+Seconds)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_a51ac7b78492e92f6633e4889f1a47052}{readsblock}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_ab3996472f919cd0d5d57190aa0fca63e}{modifyhydrodynamicfileoutput}} (Hydrodynamic\+File\+ID, Water\+Level, Water\+FluxX, Water\+FluxY, Discharges, Compute\+Faces\+U3D, Compute\+Faces\+V3D, Hydrodynamic\+Time, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_a567935da3a6ce143ef24e8bb5f4787ea}{integrateinspace}} (Initial\+Fields)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_a3dc8b494b31e0a9504668b6e7dc8eaa6}{writeblock}} (Integrated\+Fields)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulehydrodynamicfile_a88c5ccf3cef06396cacc97101de6b5ab}{killhydrodynamicfile}} (Hydrodynamic\+File\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamicfile_a66415f6a8626e085fe6327e56b6e0438}{deallocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_a44ff390b68de3bb94294a2fe2d251814}{deallocatevariablesinput}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulehydrodynamicfile_aa952fb593bad5ccc173888f38e59a6f8}{deallocatevariablesoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_ab74a3df233aec6594db3ce069b1a2c25}{ready}} (Obj\+Hydrodynamic\+File\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulehydrodynamicfile_aa662fd4d0a1262940a320a6801dbe247}{locateobjhydrodynamicfile}} (Obj\+Hydrodynamic\+File\+ID)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulehydrodynamicfile_ae01cf90e643c22027a057b444138753b}{m2\+\_\+period\+\_\+hours}} = 12.\+425
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamicfile_a34497a0e115516f18a0e5835e6072fdb}{m2\+\_\+tide\+\_\+type}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamicfile_a54c91753549bee1b5964361ce467d536}{beginend\+\_\+type}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamicfile_a37f925874c5f4013567b353d89ce110d}{maxval\+\_\+type}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamicfile_a9116232af616dc414e2af54862c61ea5}{meanval\+\_\+type}} = 2
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehydrodynamicfile_af357c98f7d7ca01c0c68275368f80edb}{char\+\_\+maxval\+\_\+type}} = trim(adjustl(\textquotesingle{}Max\+Val\+\_\+\+Type\textquotesingle{} ))
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehydrodynamicfile_ab74c3b9dea734eb31f28429eab24ea51}{char\+\_\+meanval\+\_\+type}} = trim(adjustl(\textquotesingle{}Mean\+Val\+\_\+\+Type\textquotesingle{}))
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehydrodynamicfile_a861e2e3a8faba8b37911851568417e41}{char\+\_\+m2\+\_\+tide\+\_\+type}} = trim(adjustl(\textquotesingle{}M2\+\_\+\+Tide\+\_\+type\textquotesingle{} ))
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulehydrodynamicfile_a50d35586cf8d8931655ba77b057633f7}{char\+\_\+beginend\+\_\+type}} = trim(adjustl(\textquotesingle{}Begin\+End\+\_\+type\textquotesingle{} ))
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamicfile_a5ad2570e6e662bc5c287fbfba9d01d66}{inputstate}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamicfile_abe4ae37433a4315c9986ad89795f175d}{outputstate}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamicfile_aa9a0102373e2ba53486502369dce4f77}{beginblock}} = 456
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulehydrodynamicfile_a09579531077fde3aa1c2e499c84a99de}{endblock}} = 654
+\item 
+type(\mbox{\hyperlink{structmodulehydrodynamicfile_1_1t__hydrodynamicfile}{t\+\_\+hydrodynamicfile}}), pointer \mbox{\hyperlink{namespacemodulehydrodynamicfile_a19fd9db203a8d9b66d8a7b7bca53f69e}{firsthydrodynamicfile}}
+\item 
+type(\mbox{\hyperlink{structmodulehydrodynamicfile_1_1t__hydrodynamicfile}{t\+\_\+hydrodynamicfile}}), pointer \mbox{\hyperlink{namespacemodulehydrodynamicfile_a4456fc1410cb6837e54a8073a1e664e0}{me}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a5235543e6aa405ed126b0ca0fdf38961}\label{namespacemodulehydrodynamicfile_a5235543e6aa405ed126b0ca0fdf38961}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!allocateinstance@{allocateinstance}}
+\index{allocateinstance@{allocateinstance}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{allocateinstance()}{allocateinstance()}}
+{\footnotesize\ttfamily subroutine modulehydrodynamicfile\+::allocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 0
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_ac67e9023c973dadd99ed3b893b1cc9ad}\label{namespacemodulehydrodynamicfile_ac67e9023c973dadd99ed3b893b1cc9ad}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!allocatevariablesinput@{allocatevariablesinput}}
+\index{allocatevariablesinput@{allocatevariablesinput}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{allocatevariablesinput()}{allocatevariablesinput()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::allocatevariablesinput (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 1
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a395d8802270df14831dc0865064f36c1}\label{namespacemodulehydrodynamicfile_a395d8802270df14831dc0865064f36c1}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!allocatevariablesoutput@{allocatevariablesoutput}}
+\index{allocatevariablesoutput@{allocatevariablesoutput}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{allocatevariablesoutput()}{allocatevariablesoutput()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::allocatevariablesoutput (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 2
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a66415f6a8626e085fe6327e56b6e0438}\label{namespacemodulehydrodynamicfile_a66415f6a8626e085fe6327e56b6e0438}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!deallocateinstance@{deallocateinstance}}
+\index{deallocateinstance@{deallocateinstance}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{deallocateinstance()}{deallocateinstance()}}
+{\footnotesize\ttfamily subroutine modulehydrodynamicfile\+::deallocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 3
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a44ff390b68de3bb94294a2fe2d251814}\label{namespacemodulehydrodynamicfile_a44ff390b68de3bb94294a2fe2d251814}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!deallocatevariablesinput@{deallocatevariablesinput}}
+\index{deallocatevariablesinput@{deallocatevariablesinput}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{deallocatevariablesinput()}{deallocatevariablesinput()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::deallocatevariablesinput (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 4
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_aa952fb593bad5ccc173888f38e59a6f8}\label{namespacemodulehydrodynamicfile_aa952fb593bad5ccc173888f38e59a6f8}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!deallocatevariablesoutput@{deallocatevariablesoutput}}
+\index{deallocatevariablesoutput@{deallocatevariablesoutput}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{deallocatevariablesoutput()}{deallocatevariablesoutput()}}
+{\footnotesize\ttfamily subroutine modulehydrodynamicfile\+::deallocatevariablesoutput (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_ae7f1a97acd1cc5b22e6ff9e638243e70}\label{namespacemodulehydrodynamicfile_ae7f1a97acd1cc5b22e6ff9e638243e70}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!decodeblock@{decodeblock}}
+\index{decodeblock@{decodeblock}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{decodeblock()}{decodeblock()}}
+{\footnotesize\ttfamily subroutine modulehydrodynamicfile\+::decodeblock (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 5
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a59c8f54e1b85d7dc3765167672866ffb}\label{namespacemodulehydrodynamicfile_a59c8f54e1b85d7dc3765167672866ffb}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!getfilefluxes@{getfilefluxes}}
+\index{getfilefluxes@{getfilefluxes}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{getfilefluxes()}{getfilefluxes()}}
+{\footnotesize\ttfamily subroutine, public modulehydrodynamicfile\+::getfilefluxes (\begin{DoxyParamCaption}\item[{integer}]{Hydrodynamic\+File\+ID,  }\item[{real(8), dimension(\+:,\+:,\+:), pointer}]{Water\+FluxX,  }\item[{real(8), dimension(\+:,\+:,\+:), pointer}]{Water\+FluxY,  }\item[{real(8), dimension(\+:,\+:,\+:), pointer}]{Discharges,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 6
+Here is the caller graph for this function\+:
+% FIG 7
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a9b237b5496d01afbf9b2c35f1ed0745c}\label{namespacemodulehydrodynamicfile_a9b237b5496d01afbf9b2c35f1ed0745c}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!getfilemapping@{getfilemapping}}
+\index{getfilemapping@{getfilemapping}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{getfilemapping()}{getfilemapping()}}
+{\footnotesize\ttfamily subroutine, public modulehydrodynamicfile\+::getfilemapping (\begin{DoxyParamCaption}\item[{integer}]{Hydrodynamic\+File\+ID,  }\item[{integer, dimension(\+:, \+:, \+:), pointer}]{Compute\+Faces\+U3D,  }\item[{integer, dimension(\+:, \+:, \+:), pointer}]{Compute\+Faces\+V3D,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 8
+Here is the caller graph for this function\+:
+% FIG 9
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_af996537253af14e50e63530e5814f6bb}\label{namespacemodulehydrodynamicfile_af996537253af14e50e63530e5814f6bb}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!getfilewaterlevel@{getfilewaterlevel}}
+\index{getfilewaterlevel@{getfilewaterlevel}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{getfilewaterlevel()}{getfilewaterlevel()}}
+{\footnotesize\ttfamily subroutine, public modulehydrodynamicfile\+::getfilewaterlevel (\begin{DoxyParamCaption}\item[{integer}]{Hydrodynamic\+File\+ID,  }\item[{real, dimension(\+:,\+:), pointer}]{Water\+Level,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 10
+Here is the caller graph for this function\+:
+% FIG 11
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a8095cd04310d0ed954d72fb7021c5141}\label{namespacemodulehydrodynamicfile_a8095cd04310d0ed954d72fb7021c5141}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!gethydrodynamicfileiostate@{gethydrodynamicfileiostate}}
+\index{gethydrodynamicfileiostate@{gethydrodynamicfileiostate}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{gethydrodynamicfileiostate()}{gethydrodynamicfileiostate()}}
+{\footnotesize\ttfamily subroutine, public modulehydrodynamicfile\+::gethydrodynamicfileiostate (\begin{DoxyParamCaption}\item[{integer, intent(out), optional}]{Input\+State\+Ex,  }\item[{integer, intent(out), optional}]{Output\+State\+Ex }\end{DoxyParamCaption})}
+
+Here is the caller graph for this function\+:
+% FIG 12
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a091307ffd36898af46af80552e9243ab}\label{namespacemodulehydrodynamicfile_a091307ffd36898af46af80552e9243ab}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!hydrodynamicfileoptions@{hydrodynamicfileoptions}}
+\index{hydrodynamicfileoptions@{hydrodynamicfileoptions}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{hydrodynamicfileoptions()}{hydrodynamicfileoptions()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::hydrodynamicfileoptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 13
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_ae3afcd841fecf4aa1c250de0db5419e7}\label{namespacemodulehydrodynamicfile_ae3afcd841fecf4aa1c250de0db5419e7}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!integratebathymetry@{integratebathymetry}}
+\index{integratebathymetry@{integratebathymetry}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{integratebathymetry()}{integratebathymetry()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::integratebathymetry (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 14
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a567935da3a6ce143ef24e8bb5f4787ea}\label{namespacemodulehydrodynamicfile_a567935da3a6ce143ef24e8bb5f4787ea}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!integrateinspace@{integrateinspace}}
+\index{integrateinspace@{integrateinspace}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{integrateinspace()}{integrateinspace()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::integrateinspace (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulehydrodynamicfile_1_1t__input}{t\+\_\+input}}), intent(in), optional}]{Initial\+Fields }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 15
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a88c5ccf3cef06396cacc97101de6b5ab}\label{namespacemodulehydrodynamicfile_a88c5ccf3cef06396cacc97101de6b5ab}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!killhydrodynamicfile@{killhydrodynamicfile}}
+\index{killhydrodynamicfile@{killhydrodynamicfile}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{killhydrodynamicfile()}{killhydrodynamicfile()}}
+{\footnotesize\ttfamily subroutine, public modulehydrodynamicfile\+::killhydrodynamicfile (\begin{DoxyParamCaption}\item[{integer}]{Hydrodynamic\+File\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 16
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_aa662fd4d0a1262940a320a6801dbe247}\label{namespacemodulehydrodynamicfile_aa662fd4d0a1262940a320a6801dbe247}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!locateobjhydrodynamicfile@{locateobjhydrodynamicfile}}
+\index{locateobjhydrodynamicfile@{locateobjhydrodynamicfile}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{locateobjhydrodynamicfile()}{locateobjhydrodynamicfile()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::locateobjhydrodynamicfile (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Hydrodynamic\+File\+ID }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 17
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a5a3a54142c84c39924e24d98da9014ae}\label{namespacemodulehydrodynamicfile_a5a3a54142c84c39924e24d98da9014ae}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!m2\_iteration@{m2\_iteration}}
+\index{m2\_iteration@{m2\_iteration}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{m2\_iteration()}{m2\_iteration()}}
+{\footnotesize\ttfamily integer function, private modulehydrodynamicfile\+::m2\+\_\+iteration (\begin{DoxyParamCaption}\item[{type (t\+\_\+time)}]{Time,  }\item[{type (t\+\_\+time)}]{Time\+Begin,  }\item[{real, intent(in)}]{D\+T\+\_\+\+Seconds }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 18
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a78cdd03605613d9ae76372179d4bb493}\label{namespacemodulehydrodynamicfile_a78cdd03605613d9ae76372179d4bb493}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!modifyhydrodynamicfileinput@{modifyhydrodynamicfileinput}}
+\index{modifyhydrodynamicfileinput@{modifyhydrodynamicfileinput}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{modifyhydrodynamicfileinput()}{modifyhydrodynamicfileinput()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::modifyhydrodynamicfileinput (\begin{DoxyParamCaption}\item[{integer}]{Hydrodynamic\+File\+ID,  }\item[{type (t\+\_\+time), optional}]{Hydrodynamic\+Time,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 19
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_ab3996472f919cd0d5d57190aa0fca63e}\label{namespacemodulehydrodynamicfile_ab3996472f919cd0d5d57190aa0fca63e}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!modifyhydrodynamicfileoutput@{modifyhydrodynamicfileoutput}}
+\index{modifyhydrodynamicfileoutput@{modifyhydrodynamicfileoutput}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{modifyhydrodynamicfileoutput()}{modifyhydrodynamicfileoutput()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::modifyhydrodynamicfileoutput (\begin{DoxyParamCaption}\item[{integer}]{Hydrodynamic\+File\+ID,  }\item[{real, dimension(\+:,\+:), pointer}]{Water\+Level,  }\item[{real(8), dimension(\+:,\+:,\+:), pointer}]{Water\+FluxX,  }\item[{real(8), dimension(\+:,\+:,\+:), pointer}]{Water\+FluxY,  }\item[{real(8), dimension(\+:,\+:,\+:), pointer}]{Discharges,  }\item[{integer, dimension(\+:,\+:,\+:), pointer}]{Compute\+Faces\+U3D,  }\item[{integer, dimension(\+:,\+:,\+:), pointer}]{Compute\+Faces\+V3D,  }\item[{type (t\+\_\+time), optional}]{Hydrodynamic\+Time,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 20
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_aa54587d42d6b13c11895a1f934511d94}\label{namespacemodulehydrodynamicfile_aa54587d42d6b13c11895a1f934511d94}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!modifymohid3d\_m2@{modifymohid3d\_m2}}
+\index{modifymohid3d\_m2@{modifymohid3d\_m2}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{modifymohid3d\_m2()}{modifymohid3d\_m2()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::modifymohid3d\+\_\+m2 (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 21
+Here is the caller graph for this function\+:
+% FIG 22
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a6d9975e28fbe49117eab154fe46cdeca}\label{namespacemodulehydrodynamicfile_a6d9975e28fbe49117eab154fe46cdeca}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!readheader@{readheader}}
+\index{readheader@{readheader}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{readheader()}{readheader()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::readheader (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 23
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a51ac7b78492e92f6633e4889f1a47052}\label{namespacemodulehydrodynamicfile_a51ac7b78492e92f6633e4889f1a47052}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!readsblock@{readsblock}}
+\index{readsblock@{readsblock}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{readsblock()}{readsblock()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::readsblock (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 24
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_ab74a3df233aec6594db3ce069b1a2c25}\label{namespacemodulehydrodynamicfile_ab74a3df233aec6594db3ce069b1a2c25}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!ready@{ready}}
+\index{ready@{ready}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{ready()}{ready()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::ready (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Hydrodynamic\+File\+\_\+\+ID,  }\item[{integer}]{ready\+\_\+ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 25
+Here is the caller graph for this function\+:
+% FIG 26
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a45b05c777eb42ae5c5d23981ba6256da}\label{namespacemodulehydrodynamicfile_a45b05c777eb42ae5c5d23981ba6256da}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!startencoding@{startencoding}}
+\index{startencoding@{startencoding}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{startencoding()}{startencoding()}}
+{\footnotesize\ttfamily subroutine modulehydrodynamicfile\+::startencoding (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 27
+Here is the caller graph for this function\+:
+% FIG 28
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_afa04d9ff5074b735139f9addb9b466d7}\label{namespacemodulehydrodynamicfile_afa04d9ff5074b735139f9addb9b466d7}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!starthydrodynamicfile@{starthydrodynamicfile}}
+\index{starthydrodynamicfile@{starthydrodynamicfile}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{starthydrodynamicfile()}{starthydrodynamicfile()}}
+{\footnotesize\ttfamily subroutine, public modulehydrodynamicfile\+::starthydrodynamicfile (\begin{DoxyParamCaption}\item[{integer}]{Hydrodynamic\+File\+ID,  }\item[{integer}]{Topography\+ID,  }\item[{integer}]{Horizontal\+Grid\+ID,  }\item[{integer}]{Geometry\+ID,  }\item[{integer}]{Map\+ID,  }\item[{integer}]{Horizontal\+Map\+ID,  }\item[{integer}]{Time\+ID,  }\item[{integer}]{In\+Put\+Out\+Put\+State,  }\item[{real, dimension(\+:,\+:  ), pointer}]{Initial\+Water\+Level,  }\item[{real(8), dimension(\+:,\+:,\+:), pointer}]{Initial\+Water\+FluxX,  }\item[{real(8), dimension(\+:,\+:,\+:), pointer}]{Initial\+Water\+FluxY,  }\item[{real(8), dimension(\+:,\+:,\+:), pointer}]{Initial\+Discharges,  }\item[{integer, dimension(\+:,\+:,\+:), pointer}]{Initial\+Compute\+Faces\+U3D,  }\item[{integer, dimension(\+:,\+:,\+:), pointer}]{Initial\+Compute\+Faces\+V3D,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 29
+Here is the caller graph for this function\+:
+% FIG 30
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_aab72ffaa67d987e2e0df7cd6249eac99}\label{namespacemodulehydrodynamicfile_aab72ffaa67d987e2e0df7cd6249eac99}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!starthydrodynamicfileinput@{starthydrodynamicfileinput}}
+\index{starthydrodynamicfileinput@{starthydrodynamicfileinput}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{starthydrodynamicfileinput()}{starthydrodynamicfileinput()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::starthydrodynamicfileinput (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 31
+Here is the caller graph for this function\+:
+% FIG 32
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a782ea415676eeb21e1368c0c2dd1e710}\label{namespacemodulehydrodynamicfile_a782ea415676eeb21e1368c0c2dd1e710}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!starthydrodynamicfileoutput@{starthydrodynamicfileoutput}}
+\index{starthydrodynamicfileoutput@{starthydrodynamicfileoutput}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{starthydrodynamicfileoutput()}{starthydrodynamicfileoutput()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::starthydrodynamicfileoutput (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 33
+Here is the caller graph for this function\+:
+% FIG 34
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a7f6d7c818b2355e29070b78957b71133}\label{namespacemodulehydrodynamicfile_a7f6d7c818b2355e29070b78957b71133}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!ungethydrodynamicfile2dreal4@{ungethydrodynamicfile2dreal4}}
+\index{ungethydrodynamicfile2dreal4@{ungethydrodynamicfile2dreal4}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{ungethydrodynamicfile2dreal4()}{ungethydrodynamicfile2dreal4()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::ungethydrodynamicfile2dreal4 (\begin{DoxyParamCaption}\item[{integer}]{Hydrodynamic\+File\+ID,  }\item[{real(4), dimension(\+:,\+:), pointer}]{Array,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 35
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a419f36beda63ccf38170844806ddd74c}\label{namespacemodulehydrodynamicfile_a419f36beda63ccf38170844806ddd74c}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!ungethydrodynamicfile2dreal8@{ungethydrodynamicfile2dreal8}}
+\index{ungethydrodynamicfile2dreal8@{ungethydrodynamicfile2dreal8}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{ungethydrodynamicfile2dreal8()}{ungethydrodynamicfile2dreal8()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::ungethydrodynamicfile2dreal8 (\begin{DoxyParamCaption}\item[{integer}]{Hydrodynamic\+File\+ID,  }\item[{real(8), dimension(\+:,\+:), pointer}]{Array,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 36
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_ac5cff7872d6994174eb551c203e0e56a}\label{namespacemodulehydrodynamicfile_ac5cff7872d6994174eb551c203e0e56a}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!ungethydrodynamicfile3dinteger@{ungethydrodynamicfile3dinteger}}
+\index{ungethydrodynamicfile3dinteger@{ungethydrodynamicfile3dinteger}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{ungethydrodynamicfile3dinteger()}{ungethydrodynamicfile3dinteger()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::ungethydrodynamicfile3dinteger (\begin{DoxyParamCaption}\item[{integer}]{Hydrodynamic\+File\+ID,  }\item[{integer, dimension(\+:,\+:,\+:), pointer}]{Array,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 37
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a56a478bf1d00b0e9a1ea2795005d1b01}\label{namespacemodulehydrodynamicfile_a56a478bf1d00b0e9a1ea2795005d1b01}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!ungethydrodynamicfile3dreal4@{ungethydrodynamicfile3dreal4}}
+\index{ungethydrodynamicfile3dreal4@{ungethydrodynamicfile3dreal4}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{ungethydrodynamicfile3dreal4()}{ungethydrodynamicfile3dreal4()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::ungethydrodynamicfile3dreal4 (\begin{DoxyParamCaption}\item[{integer}]{Hydrodynamic\+File\+ID,  }\item[{real(4), dimension(\+:,\+:,\+:), pointer}]{Array,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 38
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_ac34af87bc19882352d63287997429ba6}\label{namespacemodulehydrodynamicfile_ac34af87bc19882352d63287997429ba6}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!ungethydrodynamicfile3dreal8@{ungethydrodynamicfile3dreal8}}
+\index{ungethydrodynamicfile3dreal8@{ungethydrodynamicfile3dreal8}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{ungethydrodynamicfile3dreal8()}{ungethydrodynamicfile3dreal8()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::ungethydrodynamicfile3dreal8 (\begin{DoxyParamCaption}\item[{integer}]{Hydrodynamic\+File\+ID,  }\item[{real(8), dimension(\+:,\+:,\+:), pointer}]{Array,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 39
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_acd3245c0ac200350cf4d9bd623090e6b}\label{namespacemodulehydrodynamicfile_acd3245c0ac200350cf4d9bd623090e6b}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!verifyhydrodynamicfileoptions@{verifyhydrodynamicfileoptions}}
+\index{verifyhydrodynamicfileoptions@{verifyhydrodynamicfileoptions}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{verifyhydrodynamicfileoptions()}{verifyhydrodynamicfileoptions()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::verifyhydrodynamicfileoptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 40
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a3dc8b494b31e0a9504668b6e7dc8eaa6}\label{namespacemodulehydrodynamicfile_a3dc8b494b31e0a9504668b6e7dc8eaa6}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!writeblock@{writeblock}}
+\index{writeblock@{writeblock}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{writeblock()}{writeblock()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::writeblock (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulehydrodynamicfile_1_1t__stintegration}{t\+\_\+stintegration}}), intent(in)}]{Integrated\+Fields }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 41
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_ad777d9126fa56a82299811343a399ea8}\label{namespacemodulehydrodynamicfile_ad777d9126fa56a82299811343a399ea8}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!writeheader@{writeheader}}
+\index{writeheader@{writeheader}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{writeheader()}{writeheader()}}
+{\footnotesize\ttfamily subroutine, private modulehydrodynamicfile\+::writeheader (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulehydrodynamicfile_1_1t__input}{t\+\_\+input}}), intent(in), optional}]{Initial\+Fields,  }\item[{type(\mbox{\hyperlink{structmodulehydrodynamicfile_1_1t__stintegration}{t\+\_\+stintegration}}), intent(in), optional}]{Integrated\+Initial\+Fields }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 42
+
+
+\doxysubsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_aa9a0102373e2ba53486502369dce4f77}\label{namespacemodulehydrodynamicfile_aa9a0102373e2ba53486502369dce4f77}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!beginblock@{beginblock}}
+\index{beginblock@{beginblock}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{beginblock}{beginblock}}
+{\footnotesize\ttfamily integer, parameter modulehydrodynamicfile\+::beginblock = 456\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a54c91753549bee1b5964361ce467d536}\label{namespacemodulehydrodynamicfile_a54c91753549bee1b5964361ce467d536}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!beginend\_type@{beginend\_type}}
+\index{beginend\_type@{beginend\_type}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{beginend\_type}{beginend\_type}}
+{\footnotesize\ttfamily integer, parameter modulehydrodynamicfile\+::beginend\+\_\+type = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a50d35586cf8d8931655ba77b057633f7}\label{namespacemodulehydrodynamicfile_a50d35586cf8d8931655ba77b057633f7}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!char\_beginend\_type@{char\_beginend\_type}}
+\index{char\_beginend\_type@{char\_beginend\_type}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{char\_beginend\_type}{char\_beginend\_type}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulehydrodynamicfile\+::char\+\_\+beginend\+\_\+type = trim(adjustl(\textquotesingle{}Begin\+End\+\_\+type\textquotesingle{} ))\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a861e2e3a8faba8b37911851568417e41}\label{namespacemodulehydrodynamicfile_a861e2e3a8faba8b37911851568417e41}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!char\_m2\_tide\_type@{char\_m2\_tide\_type}}
+\index{char\_m2\_tide\_type@{char\_m2\_tide\_type}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{char\_m2\_tide\_type}{char\_m2\_tide\_type}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulehydrodynamicfile\+::char\+\_\+m2\+\_\+tide\+\_\+type = trim(adjustl(\textquotesingle{}M2\+\_\+\+Tide\+\_\+type\textquotesingle{} ))\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_af357c98f7d7ca01c0c68275368f80edb}\label{namespacemodulehydrodynamicfile_af357c98f7d7ca01c0c68275368f80edb}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!char\_maxval\_type@{char\_maxval\_type}}
+\index{char\_maxval\_type@{char\_maxval\_type}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{char\_maxval\_type}{char\_maxval\_type}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulehydrodynamicfile\+::char\+\_\+maxval\+\_\+type = trim(adjustl(\textquotesingle{}Max\+Val\+\_\+\+Type\textquotesingle{} ))\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_ab74c3b9dea734eb31f28429eab24ea51}\label{namespacemodulehydrodynamicfile_ab74c3b9dea734eb31f28429eab24ea51}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!char\_meanval\_type@{char\_meanval\_type}}
+\index{char\_meanval\_type@{char\_meanval\_type}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{char\_meanval\_type}{char\_meanval\_type}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulehydrodynamicfile\+::char\+\_\+meanval\+\_\+type = trim(adjustl(\textquotesingle{}Mean\+Val\+\_\+\+Type\textquotesingle{}))\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a09579531077fde3aa1c2e499c84a99de}\label{namespacemodulehydrodynamicfile_a09579531077fde3aa1c2e499c84a99de}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!endblock@{endblock}}
+\index{endblock@{endblock}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{endblock}{endblock}}
+{\footnotesize\ttfamily integer, parameter modulehydrodynamicfile\+::endblock = 654\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a19fd9db203a8d9b66d8a7b7bca53f69e}\label{namespacemodulehydrodynamicfile_a19fd9db203a8d9b66d8a7b7bca53f69e}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!firsthydrodynamicfile@{firsthydrodynamicfile}}
+\index{firsthydrodynamicfile@{firsthydrodynamicfile}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{firsthydrodynamicfile}{firsthydrodynamicfile}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulehydrodynamicfile_1_1t__hydrodynamicfile}{t\+\_\+hydrodynamicfile}}), pointer modulehydrodynamicfile\+::firsthydrodynamicfile\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a5ad2570e6e662bc5c287fbfba9d01d66}\label{namespacemodulehydrodynamicfile_a5ad2570e6e662bc5c287fbfba9d01d66}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!inputstate@{inputstate}}
+\index{inputstate@{inputstate}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{inputstate}{inputstate}}
+{\footnotesize\ttfamily integer, parameter modulehydrodynamicfile\+::inputstate = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_ae01cf90e643c22027a057b444138753b}\label{namespacemodulehydrodynamicfile_ae01cf90e643c22027a057b444138753b}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!m2\_period\_hours@{m2\_period\_hours}}
+\index{m2\_period\_hours@{m2\_period\_hours}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{m2\_period\_hours}{m2\_period\_hours}}
+{\footnotesize\ttfamily real, parameter modulehydrodynamicfile\+::m2\+\_\+period\+\_\+hours = 12.\+425\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a34497a0e115516f18a0e5835e6072fdb}\label{namespacemodulehydrodynamicfile_a34497a0e115516f18a0e5835e6072fdb}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!m2\_tide\_type@{m2\_tide\_type}}
+\index{m2\_tide\_type@{m2\_tide\_type}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{m2\_tide\_type}{m2\_tide\_type}}
+{\footnotesize\ttfamily integer, parameter modulehydrodynamicfile\+::m2\+\_\+tide\+\_\+type = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a37f925874c5f4013567b353d89ce110d}\label{namespacemodulehydrodynamicfile_a37f925874c5f4013567b353d89ce110d}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!maxval\_type@{maxval\_type}}
+\index{maxval\_type@{maxval\_type}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{maxval\_type}{maxval\_type}}
+{\footnotesize\ttfamily integer, parameter modulehydrodynamicfile\+::maxval\+\_\+type = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a4456fc1410cb6837e54a8073a1e664e0}\label{namespacemodulehydrodynamicfile_a4456fc1410cb6837e54a8073a1e664e0}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!me@{me}}
+\index{me@{me}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulehydrodynamicfile_1_1t__hydrodynamicfile}{t\+\_\+hydrodynamicfile}}), pointer modulehydrodynamicfile\+::me\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_a9116232af616dc414e2af54862c61ea5}\label{namespacemodulehydrodynamicfile_a9116232af616dc414e2af54862c61ea5}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!meanval\_type@{meanval\_type}}
+\index{meanval\_type@{meanval\_type}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{meanval\_type}{meanval\_type}}
+{\footnotesize\ttfamily integer, parameter modulehydrodynamicfile\+::meanval\+\_\+type = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulehydrodynamicfile_abe4ae37433a4315c9986ad89795f175d}\label{namespacemodulehydrodynamicfile_abe4ae37433a4315c9986ad89795f175d}} 
+\index{modulehydrodynamicfile@{modulehydrodynamicfile}!outputstate@{outputstate}}
+\index{outputstate@{outputstate}!modulehydrodynamicfile@{modulehydrodynamicfile}}
+\doxysubsubsection{\texorpdfstring{outputstate}{outputstate}}
+{\footnotesize\ttfamily integer, parameter modulehydrodynamicfile\+::outputstate = 2\hspace{0.3cm}{\ttfamily [private]}}
+

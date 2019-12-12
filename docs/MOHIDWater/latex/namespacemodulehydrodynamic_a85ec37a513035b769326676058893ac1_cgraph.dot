@@ -1,0 +1,10 @@
+digraph "modulehydrodynamic::killenergy"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulehydrodynamic\l::killenergy",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="modulehydrodynamic\l::writeenergydatafile",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a99c46c970a39feb3ece42b919ed01d08",tooltip=" "];
+}

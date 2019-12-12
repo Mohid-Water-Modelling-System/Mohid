@@ -1,0 +1,7 @@
+digraph "modulehydrodynamic::t_residual"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulehydrodynamic\l::t_residual\n|- residualtime\l- waterlevel\l- velocity_u\l- velocity_v\l- vertical_velocity\l- dwz\l- waterflux_x\l- waterflux_y\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

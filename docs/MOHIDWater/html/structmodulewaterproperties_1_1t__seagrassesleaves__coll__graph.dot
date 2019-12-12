@@ -1,0 +1,7 @@
+digraph "modulewaterproperties::t_seagrassesleaves"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulewaterproperties\l::t_seagrassesleaves\n|- id\l- biomass\l- length\l- occupation\l- nintfactor3d\l- nintfactor2d\l- pintfactor3d\l- pintfactor2d\l- uptakenh4no3w3d\l- uptakepo4w3d\l- lightfactor3d\l- volume\l- defaultvalue\l- lbratio\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

@@ -1,0 +1,36 @@
+digraph "moduleoil::oilinternalprocesses"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="moduleoil::oilinternalprocesses",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="moduleoil::chemdispersion",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleoil.html#a0787ef4a57eb2967c2704c9a3fe30dbf",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="moduleoil::density",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleoil.html#a9b26683d1a6211ffa180e7c4004596be",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="moduleoil::dispersion",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleoil.html#af31781708e110ef05e0de36924287137",tooltip=" "];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid"];
+  Node5 [label="moduleoil::dissolution",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleoil.html#a1eb8385a1fb72338d92a438deda6ddb1",tooltip=" "];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid"];
+  Node6 [label="moduleoil::emulsification",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleoil.html#ab22a55bb01358e1000d700bd0b2eebe3",tooltip=" "];
+  Node1 -> Node7 [color="midnightblue",fontsize="10",style="solid"];
+  Node7 [label="moduleoil::evaporation",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleoil.html#a057ec48dbb4ce23ac0814ed1bdc90cc4",tooltip=" "];
+  Node1 -> Node8 [color="midnightblue",fontsize="10",style="solid"];
+  Node8 [label="moduleoil::evappropini",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleoil.html#accb31df9c42356be9b53b31d0d888b3b",tooltip=" "];
+  Node1 -> Node9 [color="midnightblue",fontsize="10",style="solid"];
+  Node9 [label="moduleoil::f_cdisp",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleoil.html#af8b321b109edae35b2e3314b4cae8ee3",tooltip=" "];
+  Node1 -> Node10 [color="midnightblue",fontsize="10",style="solid"];
+  Node10 [label="moduleoil::meccleanup",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleoil.html#a2e2c8b7a65ec01bb12cb4ae2225bc7e2",tooltip=" "];
+  Node1 -> Node11 [color="midnightblue",fontsize="10",style="solid"];
+  Node11 [label="moduleoil::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleoil.html#a16763a360a31b49d4f67bbba295472a5",tooltip=" "];
+  Node11 -> Node12 [color="midnightblue",fontsize="10",style="solid"];
+  Node12 [label="moduleoil::locateobjoil",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleoil.html#aa0854458437dd99f9ef2103ed4f048b4",tooltip=" "];
+  Node1 -> Node13 [color="midnightblue",fontsize="10",style="solid"];
+  Node13 [label="moduleoil::sedimentation",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleoil.html#a9a79912febfdb0e994ca0e98a2f342bc",tooltip=" "];
+  Node1 -> Node14 [color="midnightblue",fontsize="10",style="solid"];
+  Node14 [label="moduleoil::timeserieoutput",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleoil.html#ac0b9f29833f831cd80144ac91359798f",tooltip=" "];
+  Node1 -> Node15 [color="midnightblue",fontsize="10",style="solid"];
+  Node15 [label="moduleoil::viscosity",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleoil.html#a2aaa2968f62ce93c4b499b8b91d86e75",tooltip=" "];
+}

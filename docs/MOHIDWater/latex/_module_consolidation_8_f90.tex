@@ -1,0 +1,166 @@
+\hypertarget{_module_consolidation_8_f90}{}\doxysection{C\+:/\+Projects/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Consolidation.F90 File Reference}
+\label{_module_consolidation_8_f90}\index{C:/Projects/GitHub/Mohid/Software/MOHIDWater/ModuleConsolidation.F90@{C:/Projects/GitHub/Mohid/Software/MOHIDWater/ModuleConsolidation.F90}}
+\doxysubsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+interface \mbox{\hyperlink{interfacemoduleconsolidation_1_1ungetconsolidation}{moduleconsolidation\+::ungetconsolidation}}
+\item 
+type \mbox{\hyperlink{structmoduleconsolidation_1_1t__property__3d}{moduleconsolidation\+::t\+\_\+property\+\_\+3d}}
+\item 
+type \mbox{\hyperlink{structmoduleconsolidation_1_1t__files}{moduleconsolidation\+::t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmoduleconsolidation_1_1t__output}{moduleconsolidation\+::t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmoduleconsolidation_1_1t__external}{moduleconsolidation\+::t\+\_\+external}}
+\item 
+type \mbox{\hyperlink{structmoduleconsolidation_1_1t__waterfluxes}{moduleconsolidation\+::t\+\_\+waterfluxes}}
+\item 
+type \mbox{\hyperlink{structmoduleconsolidation_1_1t__consolidation}{moduleconsolidation\+::t\+\_\+consolidation}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemoduleconsolidation}{moduleconsolidation}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_aac026f0503f905b1fdf70f85f58f7b69}{moduleconsolidation\+::constructconsolidation}} (Consolidation\+ID, Time\+ID, Grid\+Data\+ID, Horizontal\+Map\+ID, Horizontal\+Grid\+ID, Sed\+Geometry\+File, Geometry\+ID, Map\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleconsolidation_a7fa231a9af605419b5dbc619d4e2a60f}{moduleconsolidation\+::constructsedimentgridandgeometry}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_ab891ed95a8328cd00b80d32b5bbc6bb6}{moduleconsolidation\+::allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_adc874bdb2826879904126cec4cd75459}{moduleconsolidation\+::readconsolidationfilesname}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a59eaaf93a76021e109b8d97e2756ac51}{moduleconsolidation\+::datafileconnection}} (Connect)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a8f78f5569405ac5d416a2919286511f3}{moduleconsolidation\+::settimelimits}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a4d351c8e79499df7d1edcdc11c64fd58}{moduleconsolidation\+::construct\+\_\+globalvariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a4699e64424e9e130e7f46758181721ec}{moduleconsolidation\+::construct\+\_\+parameters}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_af867c8406bedea1eef3287708029fa21}{moduleconsolidation\+::constructscalar3d}} (Scalar3D, Extract\+Type, Client\+Number, block\+\_\+begin, block\+\_\+end)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_ad228e075c84afa273170a1c50c1a9f41}{moduleconsolidation\+::read\+\_\+old\+\_\+parameters}} (Scalar3D, Sediment\+Column\+Full, Name, Name\+Full)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a1c6db66f62288736bfc6a93bb76fb12c}{moduleconsolidation\+::construct\+\_\+outputs}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a8bde788846d06954ea13eb84223da96a}{moduleconsolidation\+::allocatevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_aefbb1dd3cecd84ab6814af87893b00d1}{moduleconsolidation\+::construct\+\_\+initial\+\_\+geometry}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a29241b472f688e15c435e72ca5da5273}{moduleconsolidation\+::construct\+\_\+output\+\_\+options}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a815002368bde1f9440c793d1c3f03f37}{moduleconsolidation\+::open\+\_\+hdf\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a7138aa2bb0b64953d0ca37c18692d505}{moduleconsolidation\+::construct\+\_\+time\+\_\+serie}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a37594ccd5d2f08cccc42657f65ec2387}{moduleconsolidation\+::construct\+\_\+box\+\_\+time\+\_\+serie}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_a47de60bcd271300a187a9ce6257be08e}{moduleconsolidation\+::getconsolidationporosity}} (Consolidation\+ID, Porosity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_ae9552437552ade51a4c1aefcb033a0e7}{moduleconsolidation\+::getsedimentcolumnfull}} (Consolidation\+ID, Sediment\+Column\+Full, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_a9ca5460ab4ca639ac19eb7de5aea9bf6}{moduleconsolidation\+::getconsolidationcriticalshear}} (Consolidation\+ID, Top\+Critical\+Shear, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_a7d4c44834bf2eef5548235e522170c91}{moduleconsolidation\+::getconsolidationdepth}} (Consolidation\+ID, Cell\+Center\+Depth, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_a26b0c6595143115c8e9db2d46e42ba05}{moduleconsolidation\+::getconsolidationwatervolume}} (Consolidation\+ID, Water\+Volume, Water\+Volume\+Old, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_a34d40947baf053926b3fe4e02b7c1225}{moduleconsolidation\+::getconsolidationdrysedvolume}} (Consolidation\+ID, Dry\+Sediment\+Volume, Dry\+Sediment\+Volume\+Old, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_ab2cf2636db758f412f7c627b38eb6231}{moduleconsolidation\+::getconsolidationwaterfluxes}} (Consolidation\+ID, Water\+FluxX, Water\+FluxY, Water\+FluxZ, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_a1a8c6ae3e68c283ceaaa0a81fb8f531b}{moduleconsolidation\+::getconsolidationvelocityz}} (Consolidation\+ID, Velocity\+\_\+W, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_ad474911e58923dc9beb19e05548a5073}{moduleconsolidation\+::getconsolidationvelocityxy}} (Consolidation\+ID, Velocity\+\_\+U, Velocity\+\_\+V, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_a529ccec5bab61ec53a0993230d6bb49c}{moduleconsolidation\+::getconsolidationtimestep}} (Consolidation\+ID, Time\+Step, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_a9166ecea6df370e3decee58c70761e72}{moduleconsolidation\+::getconsolidationminthickness}} (Consolidation\+ID, Min\+Thickness, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_ace4ba590047f774affd5abf5e15b7e41}{moduleconsolidation\+::getconsolidationktopstate}} (Consolidation\+ID, K\+Top\+State, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_a37aecd6313d74a8d082f6b77cd63bfef}{moduleconsolidation\+::getconsolidationoptions}} (Consolidation\+ID, Compute\+Water\+Flux, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_ab90e8e4b9e87d2f8313a0f2860b3d4c8}{moduleconsolidation\+::getconsolidationwaterpercentage}} (Consolidation\+ID, Water\+Percentage, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_a6f6333d1cd3299be92039f6e03e3b5b8}{moduleconsolidation\+::getconsolidationtortuosity}} (Consolidation\+ID, Tortuosity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_a79a5986057fbc83932d56bb8bfcf6b3b}{moduleconsolidation\+::setsedimentdrydensity}} (Consolidation\+ID, Sediment\+Dry\+Density, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_a40ac455c6e9cb9d5dfa436553c29c193}{moduleconsolidation\+::setconsolidationflux}} (Consolidation\+ID, Consolidation\+Flux, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_aeceaae1f01485ce743c8347e2a73399e}{moduleconsolidation\+::ungetconsolidation2d\+\_\+i}} (Consolidation\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a9e7318abc8bb17ca00bd720c8eff021f}{moduleconsolidation\+::ungetconsolidation2d}} (Consolidation\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_affeed262d558e9c88366602767505b07}{moduleconsolidation\+::ungetconsolidation3d}} (Consolidation\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a2dbd54c6dd99b8f825bc7223f4e88f8b}{moduleconsolidation\+::ungetconsolidation3dreal8}} (Consolidation\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a72d92545dc323c3374c46a863489ab61}{moduleconsolidation\+::ungetconsolidation2dreal8}} (Consolidation\+ID, Array, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_a0143c8577e56dbbb86e0db4d5927c316}{moduleconsolidation\+::modifyconsolidation}} (Consolidation\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_ad7db155588df8bc22ff9b3934aff50f7}{moduleconsolidation\+::computeconsolidation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_ab28fd17bb7497eb19ebb09ffb2cef27b}{moduleconsolidation\+::computeverticalcoordinate}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a8045563d625e785b434b6daeaaf70a49}{moduleconsolidation\+::computevelocity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a0237d190c26f864f2f6ab045a5f79795}{moduleconsolidation\+::computewatervelocity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a1642d306f23b2cafb2dc89dde15f6e67}{moduleconsolidation\+::new\+\_\+geometry}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a1b4a867ed2aa36040fc524aad40a9778}{moduleconsolidation\+::computevolumes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a461bd405c7105d5b33217ef55e3d96b2}{moduleconsolidation\+::computeshearstrength}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleconsolidation_a414e2c5a165b95dd5af3741e90f53de4}{moduleconsolidation\+::computetopshear}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a71e8c451239a619147b24a85ae396e8e}{moduleconsolidation\+::computeporosity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a3d7e2a533ad1c35b0dd1288ee25569b1}{moduleconsolidation\+::computetortuosity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a28f20455e31c2730b280db8d666f0ce3}{moduleconsolidation\+::computewaterfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a3620cbc84f4868b17ace877ad56c903e}{moduleconsolidation\+::computecellcenterdepth}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_ade260a3416dd427c11f719144f5eb362}{moduleconsolidation\+::consolidationoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_ae7ca7200e9ac29d962cff15374878a4e}{moduleconsolidation\+::write\+\_\+hdf\+\_\+format}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_aaca2f5ea993ad6f34b1699f8fccfe168}{moduleconsolidation\+::output\+\_\+timeseries}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a18a3f871c1e0bfbadc4c99e69e5216ec}{moduleconsolidation\+::output\+\_\+boxtimeseries}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleconsolidation_accff619eab55fc89b79de8070dbd7001}{moduleconsolidation\+::killconsolidation}} (Consolidation\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_ac59ee6a9bf70ef4f2f509cc55bb5b242}{moduleconsolidation\+::deallocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_abab71f3745fefbe658e80b47d85e3662}{moduleconsolidation\+::write\+\_\+final\+\_\+consolidation\+\_\+hdf}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a146c8502b0f191abd1664acdcd22a4c4}{moduleconsolidation\+::readunlockexternalmodules}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a5157e525fb069b7984e826def43a4dfc}{moduleconsolidation\+::readlockexternalmodules}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_ab6b8d86bedc5c2870f1fb998c297005e}{moduleconsolidation\+::ready}} (Obj\+Consolidation\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleconsolidation_a782ed1b2a1870dc38bceeca90e360669}{moduleconsolidation\+::locateobjconsolidation}} (Obj\+Consolidation\+ID)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+character(len=20), parameter \mbox{\hyperlink{namespacemoduleconsolidation_a2a32335f2940d1ba0a8488797e504295}{moduleconsolidation\+::char\+\_\+sedimentcolumnfull}} = \textquotesingle{}Sediment Column Full\textquotesingle{}
+\item 
+character(len=8), parameter \mbox{\hyperlink{namespacemoduleconsolidation_a5c123194ad718ebaf0fe7466ca4d7c82}{moduleconsolidation\+::char\+\_\+porosity}} = \textquotesingle{}Porosity\textquotesingle{}
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleconsolidation_ae2d4a16a8d18816c8bb53007d7ec0634}{moduleconsolidation\+::waterdensity}} = 1000
+\item 
+type(t\+\_\+consolidation), pointer \mbox{\hyperlink{namespacemoduleconsolidation_abf614f867a201723e44b18315fa3223d}{moduleconsolidation\+::firstobjconsolidation}}
+\item 
+type(t\+\_\+consolidation), pointer \mbox{\hyperlink{namespacemoduleconsolidation_a6a9ef6cb5eb83e8fa553110a7afca22b}{moduleconsolidation\+::me}}
+\end{DoxyCompactItemize}

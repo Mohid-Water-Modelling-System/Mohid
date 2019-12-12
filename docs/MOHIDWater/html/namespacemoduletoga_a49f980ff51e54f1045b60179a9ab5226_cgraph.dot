@@ -1,0 +1,14 @@
+digraph "moduletoga::constructtoga"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="moduletoga::constructtoga",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="moduletoga::allocateinstance",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduletoga.html#a307ed1550871bbb2f18f8facda132b11",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="moduletoga::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduletoga.html#a62311ad918280d20f2f5383ab0a8dac4",tooltip=" "];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="moduletoga::locateobjtoga",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduletoga.html#a0dcf3a4301085371bb48ab041d1cec59",tooltip=" "];
+}

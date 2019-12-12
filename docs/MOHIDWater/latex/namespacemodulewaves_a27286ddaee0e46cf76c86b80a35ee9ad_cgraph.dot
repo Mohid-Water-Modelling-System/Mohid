@@ -1,0 +1,12 @@
+digraph "modulewaves::setgeneric4dvalues"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulewaves::setgeneric4dvalues",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="modulewaves::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a15beb6e5dff252a4c77c47d43f9b6385",tooltip=" "];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="modulewaves::locateobjwaves",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a0b543189e013d4ce00f78f873ab7f481",tooltip=" "];
+}

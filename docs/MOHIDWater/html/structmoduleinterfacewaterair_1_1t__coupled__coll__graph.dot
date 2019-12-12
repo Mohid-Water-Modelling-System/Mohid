@@ -1,0 +1,9 @@
+digraph "moduleinterfacewaterair::t_coupled"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{moduleinterfacewaterair\l::t_coupled\n||}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -timeserie\n-cequalw2\n-boxtimeserie" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{moduleinterfacewaterair\l::t_coupling\n|- nextcompute\l- dt_compute\l- yes\l- numberofproperties\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacewaterair_1_1t__coupling.html",tooltip=" "];
+}

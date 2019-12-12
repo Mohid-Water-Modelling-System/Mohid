@@ -1,0 +1,329 @@
+\hypertarget{structmoduleturbulence_1_1t__external}{}\doxysection{moduleturbulence\+::t\+\_\+external Type Reference}
+\label{structmoduleturbulence_1_1t__external}\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+
+
+Collaboration diagram for moduleturbulence\+::t\+\_\+external\+:
+% FIG 0
+\doxysubsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a6b321c67dcc78f2377ad64d1aff67b9d}{now}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a8ca74849647aa827be4bec92a9d96e7a}{begintime}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmoduleturbulence_1_1t__external_ab57327ab1c37e30dd5947d595265ccfe}{endtime}}
+\item 
+real \mbox{\hyperlink{structmoduleturbulence_1_1t__external_ad6d56a39ab212f972ba9523fa52f286b}{dt}}
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a989ae003028ca74d58a0d8faa16bba15}{velocityx}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a1f65f4419f0eb443ee25a6de6bea3beb}{velocityy}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_af11d54aeef00035d464165efde3ab10e}{velocityz}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_ae3d188c982f639a924c764526f6452b1}{chezy}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a0b3fb5c1b51d4919326da4e190a6b24b}{zcellcenter}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_ac3bb1cea20f6284cef7649a68d623b7e}{szz}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a2e25d508cac60812184ee1610678ebf7}{dwz}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_aa98c0a9253ceb780fe917ac69792ef3b}{dzz}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_af9638996ffaae2e95d763853c4412f4a}{ht}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_aa6ec6ac693412c13bfd481f863084ed1}{kfloorz}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_af36adf2c295d7186d5ee9af82557ef4b}{bathymetry}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a01678a9207b166073306a35562ca86ca}{dux}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a7714994e44d3420566955b43de65eee9}{dvy}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a0a1ceb9432fcadab867e3694545f96be}{dyy}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_ab56a9117445c00092ece9c9f75751334}{dzx}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a3aee240c95895f2202971d64fe9f9b45}{dzy}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a15c747d736b40fe995e5f569c3208c17}{temperature}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_af3395f5e91d5497a81f77c90aafd7f22}{salinity}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a3ac506e0a2cbd45ba521fbc3d633fc95}{sigmanopressure}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_aa19f3a799ff84443687545943ca353c3}{waterlevel}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_af9af0bcd9f547c9bae9d7fc52a897a78}{waterlevelold}} =$>$ null()
+\item 
+real \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a7d9f3c1000cea2e0c138cf12f9c16b25}{waterleveldt}} = null\+\_\+real
+\item 
+integer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_aeac089a9b7af04e58ded9cd49d9e5487}{densmethod}} = null\+\_\+int
+\item 
+logical \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a6f5bd281b373bf14dfd75f74ae3ec132}{correcpress}} = .false.
+\item 
+real \mbox{\hyperlink{structmoduleturbulence_1_1t__external_aefad9958df3a7179c3f135b15389cba0}{bottomrugosity}} = null\+\_\+real
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a7bb989c1d4ac96de7b2c6d8727cd183e}{waterpoints3d}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a6d5eee5625f1955d41e7f057011e45ae}{openpoints3d}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_afc150545dd87085e6925366c89826c96}{computefacesu3d}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a8fb38c24c9172a1091ac65370bc1cd84}{computefacesv3d}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a3677c379bd41ce3dc7b3c39d4f405d12}{computefacesw3d}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_a218303fd077909c692032bff4b04d228}{imposedtangentialfacesu}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_ae3d041b1c786888b0abd889ebc960ace}{imposedtangentialfacesv}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_aa727b6c9194ece22d306f2d366f1bdb0}{imposednormalfacesu}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_ad6508820fbbe7cd62f21669ac53cf292}{imposednormalfacesv}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbulence_1_1t__external_ad64786e7700802cdb87b6f24f0e65f2b}{waterpoints2d}} =$>$ null()
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Member Data Documentation}
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_af36adf2c295d7186d5ee9af82557ef4b}\label{structmoduleturbulence_1_1t__external_af36adf2c295d7186d5ee9af82557ef4b}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!bathymetry@{bathymetry}}
+\index{bathymetry@{bathymetry}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{bathymetry}{bathymetry}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleturbulence\+::t\+\_\+external\+::bathymetry =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a8ca74849647aa827be4bec92a9d96e7a}\label{structmoduleturbulence_1_1t__external_a8ca74849647aa827be4bec92a9d96e7a}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!begintime@{begintime}}
+\index{begintime@{begintime}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{begintime}{begintime}}
+{\footnotesize\ttfamily type(t\+\_\+time ) moduleturbulence\+::t\+\_\+external\+::begintime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_aefad9958df3a7179c3f135b15389cba0}\label{structmoduleturbulence_1_1t__external_aefad9958df3a7179c3f135b15389cba0}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!bottomrugosity@{bottomrugosity}}
+\index{bottomrugosity@{bottomrugosity}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{bottomrugosity}{bottomrugosity}}
+{\footnotesize\ttfamily real moduleturbulence\+::t\+\_\+external\+::bottomrugosity = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_ae3d188c982f639a924c764526f6452b1}\label{structmoduleturbulence_1_1t__external_ae3d188c982f639a924c764526f6452b1}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!chezy@{chezy}}
+\index{chezy@{chezy}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{chezy}{chezy}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleturbulence\+::t\+\_\+external\+::chezy =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_afc150545dd87085e6925366c89826c96}\label{structmoduleturbulence_1_1t__external_afc150545dd87085e6925366c89826c96}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!computefacesu3d@{computefacesu3d}}
+\index{computefacesu3d@{computefacesu3d}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{computefacesu3d}{computefacesu3d}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::computefacesu3d =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a8fb38c24c9172a1091ac65370bc1cd84}\label{structmoduleturbulence_1_1t__external_a8fb38c24c9172a1091ac65370bc1cd84}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!computefacesv3d@{computefacesv3d}}
+\index{computefacesv3d@{computefacesv3d}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{computefacesv3d}{computefacesv3d}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::computefacesv3d =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a3677c379bd41ce3dc7b3c39d4f405d12}\label{structmoduleturbulence_1_1t__external_a3677c379bd41ce3dc7b3c39d4f405d12}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!computefacesw3d@{computefacesw3d}}
+\index{computefacesw3d@{computefacesw3d}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{computefacesw3d}{computefacesw3d}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::computefacesw3d =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a6f5bd281b373bf14dfd75f74ae3ec132}\label{structmoduleturbulence_1_1t__external_a6f5bd281b373bf14dfd75f74ae3ec132}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!correcpress@{correcpress}}
+\index{correcpress@{correcpress}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{correcpress}{correcpress}}
+{\footnotesize\ttfamily logical moduleturbulence\+::t\+\_\+external\+::correcpress = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_aeac089a9b7af04e58ded9cd49d9e5487}\label{structmoduleturbulence_1_1t__external_aeac089a9b7af04e58ded9cd49d9e5487}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!densmethod@{densmethod}}
+\index{densmethod@{densmethod}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{densmethod}{densmethod}}
+{\footnotesize\ttfamily integer moduleturbulence\+::t\+\_\+external\+::densmethod = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_ad6d56a39ab212f972ba9523fa52f286b}\label{structmoduleturbulence_1_1t__external_ad6d56a39ab212f972ba9523fa52f286b}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!dt@{dt}}
+\index{dt@{dt}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{dt}{dt}}
+{\footnotesize\ttfamily real moduleturbulence\+::t\+\_\+external\+::dt\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a01678a9207b166073306a35562ca86ca}\label{structmoduleturbulence_1_1t__external_a01678a9207b166073306a35562ca86ca}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!dux@{dux}}
+\index{dux@{dux}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{dux}{dux}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleturbulence\+::t\+\_\+external\+::dux =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a7714994e44d3420566955b43de65eee9}\label{structmoduleturbulence_1_1t__external_a7714994e44d3420566955b43de65eee9}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!dvy@{dvy}}
+\index{dvy@{dvy}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{dvy}{dvy}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleturbulence\+::t\+\_\+external\+::dvy =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a2e25d508cac60812184ee1610678ebf7}\label{structmoduleturbulence_1_1t__external_a2e25d508cac60812184ee1610678ebf7}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!dwz@{dwz}}
+\index{dwz@{dwz}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{dwz}{dwz}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::dwz =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a0a1ceb9432fcadab867e3694545f96be}\label{structmoduleturbulence_1_1t__external_a0a1ceb9432fcadab867e3694545f96be}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!dyy@{dyy}}
+\index{dyy@{dyy}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{dyy}{dyy}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleturbulence\+::t\+\_\+external\+::dyy =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_ab56a9117445c00092ece9c9f75751334}\label{structmoduleturbulence_1_1t__external_ab56a9117445c00092ece9c9f75751334}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!dzx@{dzx}}
+\index{dzx@{dzx}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{dzx}{dzx}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleturbulence\+::t\+\_\+external\+::dzx =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a3aee240c95895f2202971d64fe9f9b45}\label{structmoduleturbulence_1_1t__external_a3aee240c95895f2202971d64fe9f9b45}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!dzy@{dzy}}
+\index{dzy@{dzy}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{dzy}{dzy}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleturbulence\+::t\+\_\+external\+::dzy =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_aa98c0a9253ceb780fe917ac69792ef3b}\label{structmoduleturbulence_1_1t__external_aa98c0a9253ceb780fe917ac69792ef3b}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!dzz@{dzz}}
+\index{dzz@{dzz}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{dzz}{dzz}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::dzz =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_ab57327ab1c37e30dd5947d595265ccfe}\label{structmoduleturbulence_1_1t__external_ab57327ab1c37e30dd5947d595265ccfe}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!endtime@{endtime}}
+\index{endtime@{endtime}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{endtime}{endtime}}
+{\footnotesize\ttfamily type(t\+\_\+time ) moduleturbulence\+::t\+\_\+external\+::endtime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_af9638996ffaae2e95d763853c4412f4a}\label{structmoduleturbulence_1_1t__external_af9638996ffaae2e95d763853c4412f4a}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!ht@{ht}}
+\index{ht@{ht}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{ht}{ht}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleturbulence\+::t\+\_\+external\+::ht =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_aa727b6c9194ece22d306f2d366f1bdb0}\label{structmoduleturbulence_1_1t__external_aa727b6c9194ece22d306f2d366f1bdb0}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!imposednormalfacesu@{imposednormalfacesu}}
+\index{imposednormalfacesu@{imposednormalfacesu}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{imposednormalfacesu}{imposednormalfacesu}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::imposednormalfacesu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_ad6508820fbbe7cd62f21669ac53cf292}\label{structmoduleturbulence_1_1t__external_ad6508820fbbe7cd62f21669ac53cf292}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!imposednormalfacesv@{imposednormalfacesv}}
+\index{imposednormalfacesv@{imposednormalfacesv}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{imposednormalfacesv}{imposednormalfacesv}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::imposednormalfacesv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a218303fd077909c692032bff4b04d228}\label{structmoduleturbulence_1_1t__external_a218303fd077909c692032bff4b04d228}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!imposedtangentialfacesu@{imposedtangentialfacesu}}
+\index{imposedtangentialfacesu@{imposedtangentialfacesu}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{imposedtangentialfacesu}{imposedtangentialfacesu}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::imposedtangentialfacesu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_ae3d041b1c786888b0abd889ebc960ace}\label{structmoduleturbulence_1_1t__external_ae3d041b1c786888b0abd889ebc960ace}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!imposedtangentialfacesv@{imposedtangentialfacesv}}
+\index{imposedtangentialfacesv@{imposedtangentialfacesv}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{imposedtangentialfacesv}{imposedtangentialfacesv}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::imposedtangentialfacesv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_aa6ec6ac693412c13bfd481f863084ed1}\label{structmoduleturbulence_1_1t__external_aa6ec6ac693412c13bfd481f863084ed1}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!kfloorz@{kfloorz}}
+\index{kfloorz@{kfloorz}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{kfloorz}{kfloorz}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:  ), pointer moduleturbulence\+::t\+\_\+external\+::kfloorz =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a6b321c67dcc78f2377ad64d1aff67b9d}\label{structmoduleturbulence_1_1t__external_a6b321c67dcc78f2377ad64d1aff67b9d}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!now@{now}}
+\index{now@{now}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{now}{now}}
+{\footnotesize\ttfamily type(t\+\_\+time ) moduleturbulence\+::t\+\_\+external\+::now\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a6d5eee5625f1955d41e7f057011e45ae}\label{structmoduleturbulence_1_1t__external_a6d5eee5625f1955d41e7f057011e45ae}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!openpoints3d@{openpoints3d}}
+\index{openpoints3d@{openpoints3d}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{openpoints3d}{openpoints3d}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::openpoints3d =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_af3395f5e91d5497a81f77c90aafd7f22}\label{structmoduleturbulence_1_1t__external_af3395f5e91d5497a81f77c90aafd7f22}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!salinity@{salinity}}
+\index{salinity@{salinity}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{salinity}{salinity}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::salinity =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a3ac506e0a2cbd45ba521fbc3d633fc95}\label{structmoduleturbulence_1_1t__external_a3ac506e0a2cbd45ba521fbc3d633fc95}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!sigmanopressure@{sigmanopressure}}
+\index{sigmanopressure@{sigmanopressure}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{sigmanopressure}{sigmanopressure}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::sigmanopressure =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_ac3bb1cea20f6284cef7649a68d623b7e}\label{structmoduleturbulence_1_1t__external_ac3bb1cea20f6284cef7649a68d623b7e}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!szz@{szz}}
+\index{szz@{szz}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{szz}{szz}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::szz =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a15c747d736b40fe995e5f569c3208c17}\label{structmoduleturbulence_1_1t__external_a15c747d736b40fe995e5f569c3208c17}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!temperature@{temperature}}
+\index{temperature@{temperature}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{temperature}{temperature}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::temperature =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a989ae003028ca74d58a0d8faa16bba15}\label{structmoduleturbulence_1_1t__external_a989ae003028ca74d58a0d8faa16bba15}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!velocityx@{velocityx}}
+\index{velocityx@{velocityx}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{velocityx}{velocityx}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::velocityx =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a1f65f4419f0eb443ee25a6de6bea3beb}\label{structmoduleturbulence_1_1t__external_a1f65f4419f0eb443ee25a6de6bea3beb}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!velocityy@{velocityy}}
+\index{velocityy@{velocityy}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{velocityy}{velocityy}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::velocityy =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_af11d54aeef00035d464165efde3ab10e}\label{structmoduleturbulence_1_1t__external_af11d54aeef00035d464165efde3ab10e}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!velocityz@{velocityz}}
+\index{velocityz@{velocityz}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{velocityz}{velocityz}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::velocityz =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_aa19f3a799ff84443687545943ca353c3}\label{structmoduleturbulence_1_1t__external_aa19f3a799ff84443687545943ca353c3}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!waterlevel@{waterlevel}}
+\index{waterlevel@{waterlevel}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{waterlevel}{waterlevel}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleturbulence\+::t\+\_\+external\+::waterlevel =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a7d9f3c1000cea2e0c138cf12f9c16b25}\label{structmoduleturbulence_1_1t__external_a7d9f3c1000cea2e0c138cf12f9c16b25}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!waterleveldt@{waterleveldt}}
+\index{waterleveldt@{waterleveldt}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{waterleveldt}{waterleveldt}}
+{\footnotesize\ttfamily real moduleturbulence\+::t\+\_\+external\+::waterleveldt = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_af9af0bcd9f547c9bae9d7fc52a897a78}\label{structmoduleturbulence_1_1t__external_af9af0bcd9f547c9bae9d7fc52a897a78}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!waterlevelold@{waterlevelold}}
+\index{waterlevelold@{waterlevelold}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{waterlevelold}{waterlevelold}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleturbulence\+::t\+\_\+external\+::waterlevelold =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_ad64786e7700802cdb87b6f24f0e65f2b}\label{structmoduleturbulence_1_1t__external_ad64786e7700802cdb87b6f24f0e65f2b}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!waterpoints2d@{waterpoints2d}}
+\index{waterpoints2d@{waterpoints2d}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{waterpoints2d}{waterpoints2d}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:  ), pointer moduleturbulence\+::t\+\_\+external\+::waterpoints2d =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a7bb989c1d4ac96de7b2c6d8727cd183e}\label{structmoduleturbulence_1_1t__external_a7bb989c1d4ac96de7b2c6d8727cd183e}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!waterpoints3d@{waterpoints3d}}
+\index{waterpoints3d@{waterpoints3d}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{waterpoints3d}{waterpoints3d}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::waterpoints3d =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbulence_1_1t__external_a0b3fb5c1b51d4919326da4e190a6b24b}\label{structmoduleturbulence_1_1t__external_a0b3fb5c1b51d4919326da4e190a6b24b}} 
+\index{moduleturbulence::t\_external@{moduleturbulence::t\_external}!zcellcenter@{zcellcenter}}
+\index{zcellcenter@{zcellcenter}!moduleturbulence::t\_external@{moduleturbulence::t\_external}}
+\doxysubsubsection{\texorpdfstring{zcellcenter}{zcellcenter}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbulence\+::t\+\_\+external\+::zcellcenter =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Projects/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\mbox{\hyperlink{_module_turbulence_8_f90}{Module\+Turbulence.\+F90}}\end{DoxyCompactItemize}

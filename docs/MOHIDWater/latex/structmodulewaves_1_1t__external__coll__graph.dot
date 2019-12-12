@@ -1,0 +1,7 @@
+digraph "modulewaves::t_external"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulewaves::t_external\n|- windvelocityu\l- windvelocityv\l- velocityu\l- velocityv\l- sealevel\l- waterpoints2d\l- openpoints2d\l- watercolumn\l- xx_ie\l- yy_ie\land 12 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

@@ -1,0 +1,10 @@
+digraph "moduleopenboundary::t_openboundary"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{moduleopenboundary\l::t_openboundary\n|- instanceid\l- starttime\l- size\l- worksize\l- imposedelevation\l- oldimposedelevation\l- averageimposedelevation\l- boundaryreferencelevel\l- initialreferencelevel\l- velocityu\land 12 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -station" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{moduleopenboundary\l::t_station\n|- elevation\l- openpoints\l- referencelevel\l- velocityu\l- velocityv\l- metricx\l- metricy\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleopenboundary_1_1t__station.html",tooltip=" "];
+}

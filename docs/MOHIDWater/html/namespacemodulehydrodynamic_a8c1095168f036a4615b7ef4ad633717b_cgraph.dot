@@ -1,0 +1,20 @@
+digraph "modulehydrodynamic::readinitialimposedsolution"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulehydrodynamic\l::readinitialimposedsolution",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="modulehydrodynamic\l::initial_geometry",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#aed12798a19237f32da3dbf20b90a6e41",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="modulehydrodynamic\l::initialimposedsolution\l_rotateflux",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a8c26fca4c056163f4f3568b6b4cd9a5c",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="modulehydrodynamic\l::readinitialimposedsolutionssh",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a84fa16e52a831245ac5b5b7a4b7a6372",tooltip=" "];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="modulehydrodynamic\l::readinitialimposedsolutionssh_astro",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#af09dd34787645bebd712c117372a5284",tooltip=" "];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="modulehydrodynamic\l::readinitialimposedsolutionvel",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a2333dbc517dbe737b4a9c1eb35b75197",tooltip=" "];
+  Node1 -> Node7 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 [label="modulehydrodynamic\l::readinitialimposedsolutionvel_astro",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a143f2d4883fd33ecd0396fa593418910",tooltip=" "];
+}

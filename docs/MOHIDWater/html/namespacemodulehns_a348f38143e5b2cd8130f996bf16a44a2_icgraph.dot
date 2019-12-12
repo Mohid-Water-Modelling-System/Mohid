@@ -1,0 +1,10 @@
+digraph "modulehns::gethnsspreading"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="RL";
+  Node1 [label="modulehns::gethnsspreading",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="modulelagrangianglobal\l::hnsoptions",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulelagrangianglobal.html#a262f7ae29a62989ca338ab8fa6acca79",tooltip=" "];
+}

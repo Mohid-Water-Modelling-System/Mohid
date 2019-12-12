@@ -1,0 +1,7 @@
+digraph "modulesedimentproperties::t_seagrassesroots"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulesedimentproperties\l::t_seagrassesroots\n|- id\l- biomass\l- length\l- occupation\l- nintfactor3dr\l- nintfactor2dr\l- pintfactor3dr\l- pintfactor2dr\l- rootsmort3dr\l- rootsmort2dr\l- uptakenh4s3d\l- uptakepo4s3d\l- defaultvalue\l- lbratio\l- volume\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

@@ -1,0 +1,9 @@
+digraph "modulehydrodynamicfile::t_input"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulehydrodynamicfile\l::t_input\n|- starttime\l- endtime\l- nextinput\l- file_type\l- loadalltomemory\l- nextblockinmemory\l- dt_hydrofile\l- initialwaterlevel\l- initialwaterfluxx\l- initialwaterfluxy\land 11 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -blockinmemory" ,arrowhead="odiamond"];
+  Node2 [label="{modulehydrodynamicfile\l::t_blockinmemory\n|- waterlevel\l- waterfluxx\l- waterfluxy\l- discharges\l- computefacesu3d\l- computefacesv3d\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulehydrodynamicfile_1_1t__blockinmemory.html",tooltip=" "];
+}

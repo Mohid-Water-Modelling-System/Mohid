@@ -19364,7 +19364,7 @@ do1 :   do while (associated(PropertyX))
     !--------------------------------------------------------------------------
 
     !>@author Joao Sobrinho Maretec
-    !>@Brief
+    !>@brief
     !>For each domain checks and starts twoway procedure
     !>@param[in] WaterPropertiesID, CurrentTime
     subroutine ComputeTwoWay (WaterPropertiesID, CurrentTime)
@@ -19424,7 +19424,7 @@ do1 :   do while (associated(PropertyX))
     !--------------------------------------------------------------------------
 
     !>@author Joao Sobrinho Maretec
-    !>@Brief
+    !>@brief
     !> Prepares TwoWay external variables, then for each property calls modify twoway
     !>@param[in] SonWaterPropertiesID, FatherWaterPropertiesID
     subroutine UpdateFatherModelWP(SonWaterPropertiesID, FatherWaterPropertiesID)
@@ -19948,7 +19948,7 @@ do1 :   do while (associated(PropertyX))
 
     !--------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
-    !>@Brief
+    !>@brief
     !> Sets concentration to its min or max value, if needed.
     !>@param[in] Property
     subroutine SetLimitsProperty(Property)
@@ -21927,9 +21927,9 @@ cd10:   if (CurrentTime > Me%SpecificHeat%LastActualization) then
 
     !--------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
-    !>@Brief
+    !>@brief
     !> Computes SpecificHeatUNESCO
-    !>@param[in] salinity, temperature, depth
+    !>@param[in] s, t, Depth, WaterPoints3D
     subroutine ComputeSpecificHeatUNESCO (s, t, Depth, WaterPoints3D)
         !Arguments-------------------------------------------------------------
 
@@ -27319,7 +27319,7 @@ cd1:    if (WaterPropertiesID > 0) then
     !--------------------------------------------------------------------------
 
     !>@author Joao Sobrinho Maretec
-    !>@Brief
+    !>@brief
     !> Gets Son Object Me%
     subroutine LocateObjSon (ObjWaterPropertiesID, ObjWaterPropertiesSon)
 

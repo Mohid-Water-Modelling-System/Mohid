@@ -1,0 +1,150 @@
+\hypertarget{_module_assimilation_8_f90}{}\doxysection{C\+:/\+Projects/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Assimilation.F90 File Reference}
+\label{_module_assimilation_8_f90}\index{C:/Projects/GitHub/Mohid/Software/MOHIDWater/ModuleAssimilation.F90@{C:/Projects/GitHub/Mohid/Software/MOHIDWater/ModuleAssimilation.F90}}
+\doxysubsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+interface \mbox{\hyperlink{interfacemoduleassimilation_1_1ungetassimilation}{moduleassimilation\+::ungetassimilation}}
+\item 
+type \mbox{\hyperlink{structmoduleassimilation_1_1t__field}{moduleassimilation\+::t\+\_\+field}}
+\item 
+type \mbox{\hyperlink{structmoduleassimilation_1_1t__output}{moduleassimilation\+::t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmoduleassimilation_1_1t__property}{moduleassimilation\+::t\+\_\+property}}
+\item 
+type \mbox{\hyperlink{structmoduleassimilation_1_1t__files}{moduleassimilation\+::t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmoduleassimilation_1_1t__external}{moduleassimilation\+::t\+\_\+external}}
+\item 
+type \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim}{moduleassimilation\+::t\+\_\+altimetric\+\_\+assim}}
+\item 
+type \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation}{moduleassimilation\+::t\+\_\+assimilation}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemoduleassimilation}{moduleassimilation}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_a686ae542667f0f0269fb4baa108cbcf7}{moduleassimilation\+::startassimilation}} (Assimilation\+ID, Time\+ID, Grid\+Data\+ID, Horizontal\+Grid\+ID, Horizontal\+Map\+ID, Map\+ID, Geometry\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleassimilation_a36567d94797edf3126246af1ea39e536}{moduleassimilation\+::constructdefaultvalues}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleassimilation_a1b4d27f4d26e160f4573114fe6adccfa}{moduleassimilation\+::checkoutputgroupname}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleassimilation_aad981de22073d1a61a32131d203265ca}{moduleassimilation\+::allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a7409230e777bc5f92a43eb6fe78da6b9}{moduleassimilation\+::readassimilationfilesname}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_aaef927508148ef953ad8a480d4843ece}{moduleassimilation\+::open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_ac14668590d74858a7daa3e19238d2a79}{moduleassimilation\+::constructtimeserie}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a6f4678dd5995e947ccdc126f9abf9f6c}{moduleassimilation\+::constructassimilationlist}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a26af0cc2dc6eb3e9e9dbefe2fb8c7b48}{moduleassimilation\+::constructaltimetricassimilation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_af8bbe3b809fb38aac25e711c6dc7dc2e}{moduleassimilation\+::constructproperty}} (New\+Property, Client\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a458bfa1ab529ff7ecd2b6105aa5c04c3}{moduleassimilation\+::constructassimilationfield}} (New\+Property, Client\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a1af2e006a02d8457d8516853b6a03307}{moduleassimilation\+::constructpropertycoefficients}} (New\+Property, Client\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a9edf40407a0e79e84d746e6bf866bf17}{moduleassimilation\+::findminimumcoef}} (Minimum, Field2D, Field3D, Water\+Points2D, Water\+Points3D)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleassimilation_a0290dba29cfc2f2e50954134308fdd93}{moduleassimilation\+::constructoutput}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleassimilation_a59854402d2db7e0920208b8293922fc2}{moduleassimilation\+::add\+\_\+property}} (New\+Property)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_a9dcf23578dc00d565791f0b2ce1edc7d}{moduleassimilation\+::getassimilationsize}} (Assimilation\+ID, I\+LB, I\+UB, J\+LB, J\+UB, K\+LB, K\+UB, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_abd0c368d410f21d94571c796df0d78c5}{moduleassimilation\+::getassimilationfield}} (Assimilation\+ID, ID, N\+\_\+\+Field, Field2D, Field3D, Group\+Out\+Put\+Name, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_a975b67c99f7210685408b97a30aef1ff}{moduleassimilation\+::getassimilationvectorfield}} (Assimilation\+ID, Vector\+X\+\_\+\+ID, Vector\+Y\+\_\+\+ID, N\+\_\+\+Field, Vector\+X\+\_\+2D, Vector\+Y\+\_\+2D, Vector\+X\+\_\+3D, Vector\+Y\+\_\+3D, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a91d65081df0418d8a1b46cb4548710f3}{moduleassimilation\+::rotatevectorfields}} (PropertyX, PropertyY)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_aeb67db12f57e948ab0d21c07cf0f3ee4}{moduleassimilation\+::getassimilationcoef}} (Assimilation\+ID, ID, N\+\_\+\+Field, Coef\+Field2D, Coef\+Field3D, Cold\+Relax\+Period, Cold\+Order, Minimum, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_ae8923d911da53170ca8bc79256ecfaee}{moduleassimilation\+::getassimilationaltimetry}} (Assimilation\+ID, Altimetric\+Assimilation, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_a4c4fab1da99106327a65575667e03252}{moduleassimilation\+::getassimilationaltimetrydt}} (Assimilation\+ID, Altimetry\+DT, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_aaab7e59362629aa1c11d99a2b3b6ad30}{moduleassimilation\+::getaltimetrydecaytime}} (Assimilation\+ID, Altimetry\+Decay\+Time, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_a49834c1e597575cf155649b2bfe4321b}{moduleassimilation\+::getaltimsigmadensanalyzed}} (Assimilation\+ID, Sigma\+Dens\+Analyzed, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_ae45ed729fac9768fcf97b5c5262c471a}{moduleassimilation\+::getwavecelerityfield}} (Assimilation\+ID, ID, Wave\+Celerity, Wave\+Direction, Average\+Value, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_aea7807de0a1c100aea360d7f4a30e2e5}{moduleassimilation\+::getnumberoffields}} (Assimilation\+ID, ID, Number\+Of\+Fields, S\+T\+AT)
+\item 
+integer function \mbox{\hyperlink{namespacemoduleassimilation_aee45dd52e66aa751b3a08a9da13cc241}{moduleassimilation\+::countnumoffields}} (ID)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a3a9adb0b25404594ea0591b684a7c40e}{moduleassimilation\+::ungetassimilation2d}} (Assimilation\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a73155621f7e95b5f4757f4efd48fee01}{moduleassimilation\+::ungetassimilation3d}} (Assimilation\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a06544a43532e67f29e5ac264d6870860}{moduleassimilation\+::ungetassimilation3d8}} (Assimilation\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a25c18cab5d2d7615f696e5f0ebfbada0}{moduleassimilation\+::searchproperty}} (PropertyX, Property\+X\+I\+D\+Number, N\+\_\+\+Field, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_a5932eaba41c6bd73ade2cb009b3824e8}{moduleassimilation\+::modifyassimilation}} (Assimilation\+ID, Temperature, Salinity, Water\+Level\+Model, Dens\+Method, Correc\+Press, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_af392c1f06d8b730776cfb5680aaf95cb}{moduleassimilation\+::altimetricassimilation}} (Temperature, Salinity, Water\+Level\+Model, Water\+Level\+To\+Assimilate, Variance\+Field\+To\+Assimilate, Water\+Level\+Analyzed, Temperature\+Analyzed, Salinity\+Analyzed, Dens\+Method, Correc\+Press, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_adb4698b9b7aa680222581e31452094dc}{moduleassimilation\+::loweringlifting}} (Column\+Pressure, Delta\+Pressure\+Surface, Column\+Temperature, Column\+Salinity, Column\+Density, Delta\+Temperature, Delta\+Salinity, Delta\+Density, Delta\+Pressure, S\+ZZ, Z\+Cell\+Center, D\+WZ, kbottom, kspl, kmin, i, j, Dens\+Method, Correc\+Press)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a689487c17f9fdb64311b351530c9244a}{moduleassimilation\+::changetemperaturesalinity}} (Column\+Pressure, Column\+Temperature, Column\+Salinity, Column\+Density, Delta\+Temperature, Delta\+Salinity, Delta\+Density, Delta\+Pressure, Delta\+Thermocline, S\+ZZ, Z\+Cell\+Center, D\+WZ, kspl, kmin, i, j)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a4473000cecbde1abb63d63fc9a6f5858}{moduleassimilation\+::spline\+\_\+alt}} (Depth, Column\+Property, kmin, Grad\+Prop\+\_\+U, Grad\+Prop\+\_\+L, D\+\_\+\+Grad\+Prop)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a5db3c59220db22267e7e1e7eca84a356}{moduleassimilation\+::splint}} (Depth, Column\+Property, D\+\_\+\+Grad\+Prop, kmin, Z\+\_\+n, Property\+\_\+U)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_ac07092b01bbf318f77800bb88c9f12bf}{moduleassimilation\+::assimilationfromfile}} (PropertyX)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a48b30161fd16a556f8e54eeaf6b054e3}{moduleassimilation\+::outputresultshdf}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a4802b71b408a488941f1becab34042ec}{moduleassimilation\+::output\+\_\+timeseries}} (PropertyX)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_ad7f96fa745bdccdc0281d15675836a9b}{moduleassimilation\+::readlockexternalvar}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a3215402dbc1d7602c94ca05f33ce52a7}{moduleassimilation\+::readunlockexternalvar}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_a3e8d98d577185433d513756aadd846f8}{moduleassimilation\+::killassimilation}} (Assimilation\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a457aa90cd01b96e0e4a625d41ea9ba78}{moduleassimilation\+::killaltimetricassimilation}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleassimilation_a90d72337a9f9a14b03745d53d1bb201f}{moduleassimilation\+::deallocateinstance}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a92631d1b5885e157d6d4ef36379213e9}{moduleassimilation\+::deallocatevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a68cb52758df87c362f43dd3e9690121b}{moduleassimilation\+::writefinalhdfoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a7c7eb17646a26837c5dfb9acc963b010}{moduleassimilation\+::ready}} (Obj\+Assimilation\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_acb3e0bb143f8372bac2b99052ba4943d}{moduleassimilation\+::locateobjassimilation}} (Obj\+Assimilation\+ID)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleassimilation_a34a9603a245a6727ce4bb588e23d6a1e}{moduleassimilation\+::dim\+\_\+2d}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleassimilation_afe612daf8dae0e1d9e9a616a4a7e0de3}{moduleassimilation\+::dim\+\_\+3d}} = 3
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleassimilation_a499da09faa567dd1b80df1e7fa56474e}{moduleassimilation\+::block\+\_\+begin}} = \textquotesingle{}$<$beginproperty$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleassimilation_a039648031db2c57e3be6056dfebfd3fd}{moduleassimilation\+::block\+\_\+end}} = \textquotesingle{}$<$endproperty$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleassimilation_a753c8b8fc9c47fad51b9f7f9036be719}{moduleassimilation\+::begin\+\_\+field}} = \textquotesingle{}$<$$<$begin\+\_\+field$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleassimilation_a88cdda9c84dfaccb47eac5ddb047daf1}{moduleassimilation\+::end\+\_\+field}} = \textquotesingle{}$<$$<$end\+\_\+field$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleassimilation_a36b7146a3f9058e33923acb96c85e214}{moduleassimilation\+::begin\+\_\+coef}} = \textquotesingle{}$<$$<$begin\+\_\+coef$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleassimilation_a7b3120ad1932e896ddce3214175b5bfa}{moduleassimilation\+::end\+\_\+coef}} = \textquotesingle{}$<$$<$end\+\_\+coef$>$$>$\textquotesingle{}
+\item 
+type(t\+\_\+assimilation), pointer \mbox{\hyperlink{namespacemoduleassimilation_a692d23fc7e1fb188a3a3f25d685b2bc6}{moduleassimilation\+::firstobjassimilation}}
+\item 
+type(t\+\_\+assimilation), pointer \mbox{\hyperlink{namespacemoduleassimilation_a849747d57f21e4c2903903a340619bea}{moduleassimilation\+::me}}
+\end{DoxyCompactItemize}

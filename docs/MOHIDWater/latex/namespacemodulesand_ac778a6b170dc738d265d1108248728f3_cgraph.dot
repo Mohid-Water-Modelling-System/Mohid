@@ -1,0 +1,24 @@
+digraph "modulesand::computehybridmorphevolution"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulesand::computehybridmorphevolution",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="modulesand::computealongshoredz1d",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#a608f78fe34da2344f75a4b2f32487eae",tooltip=" "];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="modulesand::boundarycondition1d",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#ac5edc4e9b694ab004e67e47cc9a22566",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="modulesand::computealongshoreflow1d",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#a88ad4d02a6e8f1f1c1585f441fd8a910",tooltip=" "];
+  Node4 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid"];
+  Node5 [label="modulesand::computenewbathymetryfromnewprofiles",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#a27c9023e77c121f3086720bf6e9e8842",tooltip=" "];
+  Node5 -> Node6 [color="midnightblue",fontsize="10",style="solid"];
+  Node6 [label="modulesand::interpolatenewbathymprofile",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#abe7195f0a91ff792f6a36bea021901b1",tooltip=" "];
+  Node1 -> Node7 [color="midnightblue",fontsize="10",style="solid"];
+  Node7 [label="modulesand::computeprofilecrossshoremovementdz",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#a5316ef806da7d9e5bca8d121c7f5fa28",tooltip=" "];
+  Node7 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node1 -> Node8 [color="midnightblue",fontsize="10",style="solid"];
+  Node8 [label="modulesand::hybridmorphnewbathymincrement",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#a16ec0bd3dc1304583be21920d21c0a74",tooltip=" "];
+}

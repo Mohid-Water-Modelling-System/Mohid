@@ -1,0 +1,18 @@
+digraph "modulejet::computeinitialjetproperties"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulejet::computeinitialjetproperties",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="modulejet::auxiliarvectors",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulejet.html#a188ea99d96436b044d3ea76f4ddfa467",tooltip=" "];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="modulejet::computeanglexy",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulejet.html#adbbd50d3810071999488736815c23285",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="modulejet::computeinitialdt",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulejet.html#a0425b9fdbf288a0e893428f44a92b9ea",tooltip=" "];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid"];
+  Node5 [label="modulejet::localambientprop",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulejet.html#a1eea8311f846796ccfa34a65730c5c55",tooltip=" "];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid"];
+  Node6 [label="modulejet::shearentrainmentcoef",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulejet.html#afbaba1fae7aab0a9a372600923511fed",tooltip=" "];
+}

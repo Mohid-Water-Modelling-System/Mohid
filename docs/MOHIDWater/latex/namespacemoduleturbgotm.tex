@@ -1,0 +1,343 @@
+\hypertarget{namespacemoduleturbgotm}{}\doxysection{moduleturbgotm Module Reference}
+\label{namespacemoduleturbgotm}\index{moduleturbgotm@{moduleturbgotm}}
+\doxysubsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmoduleturbgotm_1_1t__external}{t\+\_\+external}}
+\item 
+type \mbox{\hyperlink{structmoduleturbgotm_1_1t__files}{t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmoduleturbgotm_1_1t__id}{t\+\_\+id}}
+\item 
+type \mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm}{t\+\_\+turbgotm}}
+\item 
+interface \mbox{\hyperlink{interfacemoduleturbgotm_1_1ungetturbgotm}{ungetturbgotm}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbgotm_afec05d1f2478d9567072668933a062af}{startturbgotm}} (Turb\+G\+O\+T\+M\+ID, Time\+ID, Grid\+Data\+ID, Map\+ID, Horizontal\+Map\+ID, Horizontal\+Grid\+ID, Geometry\+ID, Continuous\+\_\+\+Compute, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbgotm_a1f367dad0fd7a9dba96b5da89226bfdb}{allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbgotm_ad863a5918db79e19552388fff6750b22}{allocatevariables}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbgotm_ab0d8f0e83e75ef88108e4b2bf04543c0}{turbgotm}} (Turb\+G\+O\+T\+M\+ID, NN, SS, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbgotm_a67c6b885be20c57ed033df6706d9adab}{production}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbgotm_ab114933503d89cc8e18f4e52c7e97c80}{read\+\_\+final\+\_\+turbulence\+\_\+file}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbgotm_ad942836f5c266b4ce7d03ca96fdf696a}{read\+\_\+final\+\_\+turbulence\+\_\+bin}} (Binary\+Format\+OK)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbgotm_aab5687675acff67809fd0f43e6323cd8}{read\+\_\+final\+\_\+turbulence\+\_\+hdf}} (H\+D\+F5\+Format\+OK)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbgotm_a01feda969236095bbd86a65a94f4e37c}{write\+\_\+final\+\_\+turbulence\+\_\+file}} (Write\+Continuous\+Format, Turb\+G\+O\+T\+M\+ID, Overwrite, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbgotm_afdd63df0733f254a488fb73b240eb944}{write\+\_\+final\+\_\+turbulence\+\_\+hdf}} (filename)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbgotm_a471003d8ec76b83e26d91b8ed4815546}{write\+\_\+final\+\_\+turbulence\+\_\+bin}} (filename)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbgotm_a6d3261fc0b6cba6819262e7f8ce2b140}{getmixinglenghturbgotm}} (Turb\+G\+O\+T\+M\+ID, Lupward, Ldownward, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbgotm_a96d85a3644e939450eb599e84624f5b3}{getviscosityturbgotm}} (Turb\+G\+O\+T\+M\+ID, Viscosity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbgotm_a44eb11a0b54701f863dfae9be213de0e}{getdiffusivityturbgotm}} (Turb\+G\+O\+T\+M\+ID, Diffusivity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbgotm_a087db16b86a3a5c9670ca783b6075e65}{getturbgotm\+\_\+turbeq}} (Turb\+G\+O\+T\+M\+ID, T\+KE, eps, L, P, B, F\+OC, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbgotm_a4858630313fbbb17b65257d59f9e67ca}{ungetturbgotm\+\_\+turbeq}} (Turb\+G\+O\+T\+M\+ID, tke, eps, L, P, B, F\+OC, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbgotm_ab21e7a83e00f82db5a1c214bd784426a}{ungetturb1}} (Turb\+G\+O\+T\+M\+ID, Array, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbgotm_a2596446f2aa54a9db3ed26b9552952d6}{setturbgotmbottomrugosity}} (Turb\+G\+O\+T\+M\+ID, Bottom\+Rugosity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbgotm_ac71371400c754c4786f6914ccc6d6c70}{setturbgotmsurfacerugosity}} (Turb\+G\+O\+T\+M\+ID, Surface\+Rugosity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbgotm_a868b912c54f8467afdf5608913e56f87}{setturbgotmwavesurfacefluxtke}} (Turb\+G\+O\+T\+M\+ID, Wave\+Surface\+Flux\+T\+KE, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbgotm_acbaf0e58ab0ad4a29aca5101ed59bdea}{setturbgotmwindshearvelocity}} (Turb\+G\+O\+T\+M\+ID, Wind\+Shear\+Velocity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbgotm_a9e719059bf7bff5946e65a3d8157ada6}{setturbgotmbottomshearvelocity}} (Turb\+G\+O\+T\+M\+ID, Bottom\+Shear\+Velocity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbgotm_a59463567a7797fc2bb742f83929626b1}{killturbgotm}} (Turb\+G\+O\+T\+M\+ID, Write\+Continuous\+Format, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbgotm_ab38c9de41229ce2e4ae46d12471c0a00}{deallocateinstance}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbgotm_aad945eb0d5a2d67bc28f53a95bed4242}{killgotmmemory}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbgotm_a8b59a232d6c61837f14e169cef43d695}{ready}} (Obj\+Turb\+G\+O\+T\+M\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbgotm_a2445ccc2c59cf2ae892fd78dda123a3d}{locateobjturbgotm}} (Obj\+Turb\+G\+O\+T\+M\+ID)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+type(\mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm}{t\+\_\+turbgotm}}), pointer \mbox{\hyperlink{namespacemoduleturbgotm_a16f7125a4269b004133d50c21b100a9d}{firstobjturbgotm}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm}{t\+\_\+turbgotm}}), pointer \mbox{\hyperlink{namespacemoduleturbgotm_ac86f138c93eff7a297646af1cbe15166}{me}} =$>$ null()
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemoduleturbgotm_a1f367dad0fd7a9dba96b5da89226bfdb}\label{namespacemoduleturbgotm_a1f367dad0fd7a9dba96b5da89226bfdb}} 
+\index{moduleturbgotm@{moduleturbgotm}!allocateinstance@{allocateinstance}}
+\index{allocateinstance@{allocateinstance}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{allocateinstance()}{allocateinstance()}}
+{\footnotesize\ttfamily subroutine, private moduleturbgotm\+::allocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 0
+\mbox{\Hypertarget{namespacemoduleturbgotm_ad863a5918db79e19552388fff6750b22}\label{namespacemoduleturbgotm_ad863a5918db79e19552388fff6750b22}} 
+\index{moduleturbgotm@{moduleturbgotm}!allocatevariables@{allocatevariables}}
+\index{allocatevariables@{allocatevariables}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{allocatevariables()}{allocatevariables()}}
+{\footnotesize\ttfamily subroutine, private moduleturbgotm\+::allocatevariables (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 1
+Here is the caller graph for this function\+:
+% FIG 2
+\mbox{\Hypertarget{namespacemoduleturbgotm_ab38c9de41229ce2e4ae46d12471c0a00}\label{namespacemoduleturbgotm_ab38c9de41229ce2e4ae46d12471c0a00}} 
+\index{moduleturbgotm@{moduleturbgotm}!deallocateinstance@{deallocateinstance}}
+\index{deallocateinstance@{deallocateinstance}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{deallocateinstance()}{deallocateinstance()}}
+{\footnotesize\ttfamily subroutine, private moduleturbgotm\+::deallocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 3
+\mbox{\Hypertarget{namespacemoduleturbgotm_a44eb11a0b54701f863dfae9be213de0e}\label{namespacemoduleturbgotm_a44eb11a0b54701f863dfae9be213de0e}} 
+\index{moduleturbgotm@{moduleturbgotm}!getdiffusivityturbgotm@{getdiffusivityturbgotm}}
+\index{getdiffusivityturbgotm@{getdiffusivityturbgotm}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{getdiffusivityturbgotm()}{getdiffusivityturbgotm()}}
+{\footnotesize\ttfamily subroutine, public moduleturbgotm\+::getdiffusivityturbgotm (\begin{DoxyParamCaption}\item[{integer}]{Turb\+G\+O\+T\+M\+ID,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Diffusivity,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 4
+Here is the caller graph for this function\+:
+% FIG 5
+\mbox{\Hypertarget{namespacemoduleturbgotm_a6d3261fc0b6cba6819262e7f8ce2b140}\label{namespacemoduleturbgotm_a6d3261fc0b6cba6819262e7f8ce2b140}} 
+\index{moduleturbgotm@{moduleturbgotm}!getmixinglenghturbgotm@{getmixinglenghturbgotm}}
+\index{getmixinglenghturbgotm@{getmixinglenghturbgotm}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{getmixinglenghturbgotm()}{getmixinglenghturbgotm()}}
+{\footnotesize\ttfamily subroutine, public moduleturbgotm\+::getmixinglenghturbgotm (\begin{DoxyParamCaption}\item[{integer}]{Turb\+G\+O\+T\+M\+ID,  }\item[{real, dimension(\+: , \+:, \+:), optional, pointer}]{Lupward,  }\item[{real, dimension(\+: , \+:, \+:), optional, pointer}]{Ldownward,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 6
+Here is the caller graph for this function\+:
+% FIG 7
+\mbox{\Hypertarget{namespacemoduleturbgotm_a087db16b86a3a5c9670ca783b6075e65}\label{namespacemoduleturbgotm_a087db16b86a3a5c9670ca783b6075e65}} 
+\index{moduleturbgotm@{moduleturbgotm}!getturbgotm\_turbeq@{getturbgotm\_turbeq}}
+\index{getturbgotm\_turbeq@{getturbgotm\_turbeq}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{getturbgotm\_turbeq()}{getturbgotm\_turbeq()}}
+{\footnotesize\ttfamily subroutine, public moduleturbgotm\+::getturbgotm\+\_\+turbeq (\begin{DoxyParamCaption}\item[{integer}]{Turb\+G\+O\+T\+M\+ID,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{T\+KE,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{eps,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{L,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{P,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{B,  }\item[{real, dimension(\+:,\+:  ), optional, pointer}]{F\+OC,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 8
+Here is the caller graph for this function\+:
+% FIG 9
+\mbox{\Hypertarget{namespacemoduleturbgotm_a96d85a3644e939450eb599e84624f5b3}\label{namespacemoduleturbgotm_a96d85a3644e939450eb599e84624f5b3}} 
+\index{moduleturbgotm@{moduleturbgotm}!getviscosityturbgotm@{getviscosityturbgotm}}
+\index{getviscosityturbgotm@{getviscosityturbgotm}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{getviscosityturbgotm()}{getviscosityturbgotm()}}
+{\footnotesize\ttfamily subroutine, public moduleturbgotm\+::getviscosityturbgotm (\begin{DoxyParamCaption}\item[{integer}]{Turb\+G\+O\+T\+M\+ID,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Viscosity,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 10
+Here is the caller graph for this function\+:
+% FIG 11
+\mbox{\Hypertarget{namespacemoduleturbgotm_aad945eb0d5a2d67bc28f53a95bed4242}\label{namespacemoduleturbgotm_aad945eb0d5a2d67bc28f53a95bed4242}} 
+\index{moduleturbgotm@{moduleturbgotm}!killgotmmemory@{killgotmmemory}}
+\index{killgotmmemory@{killgotmmemory}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{killgotmmemory()}{killgotmmemory()}}
+{\footnotesize\ttfamily subroutine moduleturbgotm\+::killgotmmemory (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 12
+Here is the caller graph for this function\+:
+% FIG 13
+\mbox{\Hypertarget{namespacemoduleturbgotm_a59463567a7797fc2bb742f83929626b1}\label{namespacemoduleturbgotm_a59463567a7797fc2bb742f83929626b1}} 
+\index{moduleturbgotm@{moduleturbgotm}!killturbgotm@{killturbgotm}}
+\index{killturbgotm@{killturbgotm}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{killturbgotm()}{killturbgotm()}}
+{\footnotesize\ttfamily subroutine, public moduleturbgotm\+::killturbgotm (\begin{DoxyParamCaption}\item[{integer}]{Turb\+G\+O\+T\+M\+ID,  }\item[{integer}]{Write\+Continuous\+Format,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 14
+Here is the caller graph for this function\+:
+% FIG 15
+\mbox{\Hypertarget{namespacemoduleturbgotm_a2445ccc2c59cf2ae892fd78dda123a3d}\label{namespacemoduleturbgotm_a2445ccc2c59cf2ae892fd78dda123a3d}} 
+\index{moduleturbgotm@{moduleturbgotm}!locateobjturbgotm@{locateobjturbgotm}}
+\index{locateobjturbgotm@{locateobjturbgotm}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{locateobjturbgotm()}{locateobjturbgotm()}}
+{\footnotesize\ttfamily subroutine moduleturbgotm\+::locateobjturbgotm (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Turb\+G\+O\+T\+M\+ID }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 16
+\mbox{\Hypertarget{namespacemoduleturbgotm_a67c6b885be20c57ed033df6706d9adab}\label{namespacemoduleturbgotm_a67c6b885be20c57ed033df6706d9adab}} 
+\index{moduleturbgotm@{moduleturbgotm}!production@{production}}
+\index{production@{production}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{production()}{production()}}
+{\footnotesize\ttfamily subroutine moduleturbgotm\+::production (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 17
+\mbox{\Hypertarget{namespacemoduleturbgotm_ad942836f5c266b4ce7d03ca96fdf696a}\label{namespacemoduleturbgotm_ad942836f5c266b4ce7d03ca96fdf696a}} 
+\index{moduleturbgotm@{moduleturbgotm}!read\_final\_turbulence\_bin@{read\_final\_turbulence\_bin}}
+\index{read\_final\_turbulence\_bin@{read\_final\_turbulence\_bin}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{read\_final\_turbulence\_bin()}{read\_final\_turbulence\_bin()}}
+{\footnotesize\ttfamily subroutine moduleturbgotm\+::read\+\_\+final\+\_\+turbulence\+\_\+bin (\begin{DoxyParamCaption}\item[{logical}]{Binary\+Format\+OK }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 18
+\mbox{\Hypertarget{namespacemoduleturbgotm_ab114933503d89cc8e18f4e52c7e97c80}\label{namespacemoduleturbgotm_ab114933503d89cc8e18f4e52c7e97c80}} 
+\index{moduleturbgotm@{moduleturbgotm}!read\_final\_turbulence\_file@{read\_final\_turbulence\_file}}
+\index{read\_final\_turbulence\_file@{read\_final\_turbulence\_file}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{read\_final\_turbulence\_file()}{read\_final\_turbulence\_file()}}
+{\footnotesize\ttfamily subroutine, private moduleturbgotm\+::read\+\_\+final\+\_\+turbulence\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 19
+Here is the caller graph for this function\+:
+% FIG 20
+\mbox{\Hypertarget{namespacemoduleturbgotm_aab5687675acff67809fd0f43e6323cd8}\label{namespacemoduleturbgotm_aab5687675acff67809fd0f43e6323cd8}} 
+\index{moduleturbgotm@{moduleturbgotm}!read\_final\_turbulence\_hdf@{read\_final\_turbulence\_hdf}}
+\index{read\_final\_turbulence\_hdf@{read\_final\_turbulence\_hdf}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{read\_final\_turbulence\_hdf()}{read\_final\_turbulence\_hdf()}}
+{\footnotesize\ttfamily subroutine moduleturbgotm\+::read\+\_\+final\+\_\+turbulence\+\_\+hdf (\begin{DoxyParamCaption}\item[{logical}]{H\+D\+F5\+Format\+OK }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 21
+\mbox{\Hypertarget{namespacemoduleturbgotm_a8b59a232d6c61837f14e169cef43d695}\label{namespacemoduleturbgotm_a8b59a232d6c61837f14e169cef43d695}} 
+\index{moduleturbgotm@{moduleturbgotm}!ready@{ready}}
+\index{ready@{ready}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{ready()}{ready()}}
+{\footnotesize\ttfamily subroutine, private moduleturbgotm\+::ready (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Turb\+G\+O\+T\+M\+\_\+\+ID,  }\item[{integer}]{ready\+\_\+ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 22
+Here is the caller graph for this function\+:
+% FIG 23
+\mbox{\Hypertarget{namespacemoduleturbgotm_a2596446f2aa54a9db3ed26b9552952d6}\label{namespacemoduleturbgotm_a2596446f2aa54a9db3ed26b9552952d6}} 
+\index{moduleturbgotm@{moduleturbgotm}!setturbgotmbottomrugosity@{setturbgotmbottomrugosity}}
+\index{setturbgotmbottomrugosity@{setturbgotmbottomrugosity}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{setturbgotmbottomrugosity()}{setturbgotmbottomrugosity()}}
+{\footnotesize\ttfamily subroutine, public moduleturbgotm\+::setturbgotmbottomrugosity (\begin{DoxyParamCaption}\item[{integer}]{Turb\+G\+O\+T\+M\+ID,  }\item[{real, dimension(\+:,\+:), pointer}]{Bottom\+Rugosity,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 24
+\mbox{\Hypertarget{namespacemoduleturbgotm_a9e719059bf7bff5946e65a3d8157ada6}\label{namespacemoduleturbgotm_a9e719059bf7bff5946e65a3d8157ada6}} 
+\index{moduleturbgotm@{moduleturbgotm}!setturbgotmbottomshearvelocity@{setturbgotmbottomshearvelocity}}
+\index{setturbgotmbottomshearvelocity@{setturbgotmbottomshearvelocity}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{setturbgotmbottomshearvelocity()}{setturbgotmbottomshearvelocity()}}
+{\footnotesize\ttfamily subroutine, public moduleturbgotm\+::setturbgotmbottomshearvelocity (\begin{DoxyParamCaption}\item[{integer}]{Turb\+G\+O\+T\+M\+ID,  }\item[{real, dimension(\+:,\+:), pointer}]{Bottom\+Shear\+Velocity,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 25
+\mbox{\Hypertarget{namespacemoduleturbgotm_ac71371400c754c4786f6914ccc6d6c70}\label{namespacemoduleturbgotm_ac71371400c754c4786f6914ccc6d6c70}} 
+\index{moduleturbgotm@{moduleturbgotm}!setturbgotmsurfacerugosity@{setturbgotmsurfacerugosity}}
+\index{setturbgotmsurfacerugosity@{setturbgotmsurfacerugosity}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{setturbgotmsurfacerugosity()}{setturbgotmsurfacerugosity()}}
+{\footnotesize\ttfamily subroutine, public moduleturbgotm\+::setturbgotmsurfacerugosity (\begin{DoxyParamCaption}\item[{integer}]{Turb\+G\+O\+T\+M\+ID,  }\item[{real, dimension(\+:,\+:), pointer}]{Surface\+Rugosity,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 26
+Here is the caller graph for this function\+:
+% FIG 27
+\mbox{\Hypertarget{namespacemoduleturbgotm_a868b912c54f8467afdf5608913e56f87}\label{namespacemoduleturbgotm_a868b912c54f8467afdf5608913e56f87}} 
+\index{moduleturbgotm@{moduleturbgotm}!setturbgotmwavesurfacefluxtke@{setturbgotmwavesurfacefluxtke}}
+\index{setturbgotmwavesurfacefluxtke@{setturbgotmwavesurfacefluxtke}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{setturbgotmwavesurfacefluxtke()}{setturbgotmwavesurfacefluxtke()}}
+{\footnotesize\ttfamily subroutine, public moduleturbgotm\+::setturbgotmwavesurfacefluxtke (\begin{DoxyParamCaption}\item[{integer}]{Turb\+G\+O\+T\+M\+ID,  }\item[{real, dimension(\+:,\+:), pointer}]{Wave\+Surface\+Flux\+T\+KE,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 28
+Here is the caller graph for this function\+:
+% FIG 29
+\mbox{\Hypertarget{namespacemoduleturbgotm_acbaf0e58ab0ad4a29aca5101ed59bdea}\label{namespacemoduleturbgotm_acbaf0e58ab0ad4a29aca5101ed59bdea}} 
+\index{moduleturbgotm@{moduleturbgotm}!setturbgotmwindshearvelocity@{setturbgotmwindshearvelocity}}
+\index{setturbgotmwindshearvelocity@{setturbgotmwindshearvelocity}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{setturbgotmwindshearvelocity()}{setturbgotmwindshearvelocity()}}
+{\footnotesize\ttfamily subroutine, public moduleturbgotm\+::setturbgotmwindshearvelocity (\begin{DoxyParamCaption}\item[{integer}]{Turb\+G\+O\+T\+M\+ID,  }\item[{real, dimension(\+:,\+:), pointer}]{Wind\+Shear\+Velocity,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 30
+\mbox{\Hypertarget{namespacemoduleturbgotm_afec05d1f2478d9567072668933a062af}\label{namespacemoduleturbgotm_afec05d1f2478d9567072668933a062af}} 
+\index{moduleturbgotm@{moduleturbgotm}!startturbgotm@{startturbgotm}}
+\index{startturbgotm@{startturbgotm}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{startturbgotm()}{startturbgotm()}}
+{\footnotesize\ttfamily subroutine, public moduleturbgotm\+::startturbgotm (\begin{DoxyParamCaption}\item[{integer}]{Turb\+G\+O\+T\+M\+ID,  }\item[{integer}]{Time\+ID,  }\item[{integer}]{Grid\+Data\+ID,  }\item[{integer}]{Map\+ID,  }\item[{integer}]{Horizontal\+Map\+ID,  }\item[{integer}]{Horizontal\+Grid\+ID,  }\item[{integer}]{Geometry\+ID,  }\item[{logical}]{Continuous\+\_\+\+Compute,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 31
+Here is the caller graph for this function\+:
+% FIG 32
+\mbox{\Hypertarget{namespacemoduleturbgotm_ab0d8f0e83e75ef88108e4b2bf04543c0}\label{namespacemoduleturbgotm_ab0d8f0e83e75ef88108e4b2bf04543c0}} 
+\index{moduleturbgotm@{moduleturbgotm}!turbgotm@{turbgotm}}
+\index{turbgotm@{turbgotm}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{turbgotm()}{turbgotm()}}
+{\footnotesize\ttfamily subroutine, public moduleturbgotm\+::turbgotm (\begin{DoxyParamCaption}\item[{integer}]{Turb\+G\+O\+T\+M\+ID,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{NN,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{SS,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 33
+Here is the caller graph for this function\+:
+% FIG 34
+\mbox{\Hypertarget{namespacemoduleturbgotm_ab21e7a83e00f82db5a1c214bd784426a}\label{namespacemoduleturbgotm_ab21e7a83e00f82db5a1c214bd784426a}} 
+\index{moduleturbgotm@{moduleturbgotm}!ungetturb1@{ungetturb1}}
+\index{ungetturb1@{ungetturb1}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{ungetturb1()}{ungetturb1()}}
+{\footnotesize\ttfamily subroutine, private moduleturbgotm\+::ungetturb1 (\begin{DoxyParamCaption}\item[{integer}]{Turb\+G\+O\+T\+M\+ID,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Array,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 35
+\mbox{\Hypertarget{namespacemoduleturbgotm_a4858630313fbbb17b65257d59f9e67ca}\label{namespacemoduleturbgotm_a4858630313fbbb17b65257d59f9e67ca}} 
+\index{moduleturbgotm@{moduleturbgotm}!ungetturbgotm\_turbeq@{ungetturbgotm\_turbeq}}
+\index{ungetturbgotm\_turbeq@{ungetturbgotm\_turbeq}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{ungetturbgotm\_turbeq()}{ungetturbgotm\_turbeq()}}
+{\footnotesize\ttfamily subroutine, public moduleturbgotm\+::ungetturbgotm\+\_\+turbeq (\begin{DoxyParamCaption}\item[{integer}]{Turb\+G\+O\+T\+M\+ID,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{tke,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{eps,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{L,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{P,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{B,  }\item[{real, dimension(\+:,\+:  ), optional, pointer}]{F\+OC,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 36
+Here is the caller graph for this function\+:
+% FIG 37
+\mbox{\Hypertarget{namespacemoduleturbgotm_a471003d8ec76b83e26d91b8ed4815546}\label{namespacemoduleturbgotm_a471003d8ec76b83e26d91b8ed4815546}} 
+\index{moduleturbgotm@{moduleturbgotm}!write\_final\_turbulence\_bin@{write\_final\_turbulence\_bin}}
+\index{write\_final\_turbulence\_bin@{write\_final\_turbulence\_bin}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{write\_final\_turbulence\_bin()}{write\_final\_turbulence\_bin()}}
+{\footnotesize\ttfamily subroutine moduleturbgotm\+::write\+\_\+final\+\_\+turbulence\+\_\+bin (\begin{DoxyParamCaption}\item[{character (len = $\ast$)}]{filename }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 38
+\mbox{\Hypertarget{namespacemoduleturbgotm_a01feda969236095bbd86a65a94f4e37c}\label{namespacemoduleturbgotm_a01feda969236095bbd86a65a94f4e37c}} 
+\index{moduleturbgotm@{moduleturbgotm}!write\_final\_turbulence\_file@{write\_final\_turbulence\_file}}
+\index{write\_final\_turbulence\_file@{write\_final\_turbulence\_file}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{write\_final\_turbulence\_file()}{write\_final\_turbulence\_file()}}
+{\footnotesize\ttfamily subroutine, public moduleturbgotm\+::write\+\_\+final\+\_\+turbulence\+\_\+file (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Write\+Continuous\+Format,  }\item[{integer, intent(in), optional}]{Turb\+G\+O\+T\+M\+ID,  }\item[{logical, intent(in), optional}]{Overwrite,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 39
+Here is the caller graph for this function\+:
+% FIG 40
+\mbox{\Hypertarget{namespacemoduleturbgotm_afdd63df0733f254a488fb73b240eb944}\label{namespacemoduleturbgotm_afdd63df0733f254a488fb73b240eb944}} 
+\index{moduleturbgotm@{moduleturbgotm}!write\_final\_turbulence\_hdf@{write\_final\_turbulence\_hdf}}
+\index{write\_final\_turbulence\_hdf@{write\_final\_turbulence\_hdf}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{write\_final\_turbulence\_hdf()}{write\_final\_turbulence\_hdf()}}
+{\footnotesize\ttfamily subroutine moduleturbgotm\+::write\+\_\+final\+\_\+turbulence\+\_\+hdf (\begin{DoxyParamCaption}\item[{character(len=$\ast$)}]{filename }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 41
+
+
+\doxysubsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemoduleturbgotm_a16f7125a4269b004133d50c21b100a9d}\label{namespacemoduleturbgotm_a16f7125a4269b004133d50c21b100a9d}} 
+\index{moduleturbgotm@{moduleturbgotm}!firstobjturbgotm@{firstobjturbgotm}}
+\index{firstobjturbgotm@{firstobjturbgotm}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{firstobjturbgotm}{firstobjturbgotm}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm}{t\+\_\+turbgotm}}), pointer moduleturbgotm\+::firstobjturbgotm =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbgotm_ac86f138c93eff7a297646af1cbe15166}\label{namespacemoduleturbgotm_ac86f138c93eff7a297646af1cbe15166}} 
+\index{moduleturbgotm@{moduleturbgotm}!me@{me}}
+\index{me@{me}!moduleturbgotm@{moduleturbgotm}}
+\doxysubsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmoduleturbgotm_1_1t__turbgotm}{t\+\_\+turbgotm}}), pointer moduleturbgotm\+::me =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+

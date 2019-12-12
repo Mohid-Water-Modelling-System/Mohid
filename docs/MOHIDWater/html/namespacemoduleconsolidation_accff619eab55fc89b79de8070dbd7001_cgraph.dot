@@ -1,0 +1,20 @@
+digraph "moduleconsolidation::killconsolidation"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="moduleconsolidation\l::killconsolidation",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="moduleconsolidation\l::deallocateinstance",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#ac59ee6a9bf70ef4f2f509cc55bb5b242",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="moduleconsolidation\l::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#ab6b8d86bedc5c2870f1fb998c297005e",tooltip=" "];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="moduleconsolidation\l::locateobjconsolidation",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a782ed1b2a1870dc38bceeca90e360669",tooltip=" "];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="moduleconsolidation\l::write_final_consolidation_hdf",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#abab71f3745fefbe658e80b47d85e3662",tooltip=" "];
+  Node5 -> Node6 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="moduleconsolidation\l::readlockexternalmodules",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a5157e525fb069b7984e826def43a4dfc",tooltip=" "];
+  Node5 -> Node7 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 [label="moduleconsolidation\l::readunlockexternalmodules",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a146c8502b0f191abd1664acdcd22a4c4",tooltip=" "];
+}

@@ -1,0 +1,10 @@
+digraph "moduleinterfacewaterair::t_property"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{moduleinterfacewaterair\l::t_property\n|- id\l- field\l- fieldu\l- fieldv\l- fieldx\l- fieldy\l- svpmethod\l- c1\l- c2\l- timeserie\l- boxtimeserie\l- cequalw2\l- outputhdf\l- constant\l- firstactualization\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -prev\n-next" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -evolution" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{moduleinterfacewaterair\l::t_evolution\n|- variable\l- dtinterval\l- lastcompute\l- nextcompute\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacewaterair_1_1t__evolution.html",tooltip=" "];
+}

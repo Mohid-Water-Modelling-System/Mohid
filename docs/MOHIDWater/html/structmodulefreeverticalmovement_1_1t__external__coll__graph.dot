@@ -1,0 +1,7 @@
+digraph "modulefreeverticalmovement::t_external"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulefreeverticalmovement\l::t_external\n|- landpoints\l- openpoints3d\l- waterpoints3d\l- concentration\l- spm\l- salinityfield\l- depositionprobability\l- shearvelocity\l- kfloor_z\l- watercolumn\land 6 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

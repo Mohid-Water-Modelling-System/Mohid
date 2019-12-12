@@ -1,0 +1,9 @@
+digraph "moduleinterfacesedimentwater::t_shear"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{moduleinterfacesedimentwater\l::t_shear\n|- currentvel\l- currentu\l- currentv\l- currentresidualu\l- currentresidualv\l- uface\l- vface\l- velocity\l- tension\l- tension_x\land 15 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -statistics" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{moduleinterfacesedimentwater\l::t_statistics\n|- id\l- file\l- on\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__statistics.html",tooltip=" "];
+}

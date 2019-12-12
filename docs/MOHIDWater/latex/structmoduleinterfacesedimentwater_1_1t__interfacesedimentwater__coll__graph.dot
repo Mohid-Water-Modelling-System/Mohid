@@ -1,0 +1,47 @@
+digraph "moduleinterfacesedimentwater::t_interfacesedimentwater"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{moduleinterfacesedimentwater\l::t_interfacesedimentwater\n|- instanceid\l- modelname\l- begintime\l- endtime\l- actualtime\l- size2d\l- worksize2d\l- watersize3d\l- waterworksize3d\l- sedimentsize3d\land 47 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -extwater" ,arrowhead="odiamond"];
+  Node2 [label="{moduleinterfacesedimentwater\l::t_ext_water\n|- chezy\l- dwz\l- szz\l- velocity_u\l- velocity_v\l- volumez\l- volumezold\l- waterpoints2d\l- openpoints2d\l- boundarypoints2d\land 19 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__ext__water.html",tooltip=" "];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -shear_stress" ,arrowhead="odiamond"];
+  Node3 [label="{moduleinterfacesedimentwater\l::t_shear\n|- currentvel\l- currentu\l- currentv\l- currentresidualu\l- currentresidualv\l- uface\l- vface\l- velocity\l- tension\l- tension_x\land 15 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__shear.html",tooltip=" "];
+  Node4 -> Node3 [color="grey25",fontsize="10",style="solid",label=" -statistics" ,arrowhead="odiamond"];
+  Node4 [label="{moduleinterfacesedimentwater\l::t_statistics\n|- id\l- file\l- on\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__statistics.html",tooltip=" "];
+  Node5 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -lastbenthicrate\n-firstbenthicrate" ,arrowhead="odiamond"];
+  Node5 [label="{moduleinterfacesedimentwater\l::t_benthicrate\n|- field\l- field2\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__benthicrate.html",tooltip=" "];
+  Node5 -> Node5 [color="grey25",fontsize="10",style="solid",label=" -prev\n-next" ,arrowhead="odiamond"];
+  Node6 -> Node5 [color="grey25",fontsize="10",style="solid",label=" -firstprop\n-id\n-secondprop" ,arrowhead="odiamond"];
+  Node6 [label="{moduleinterfacesedimentwater\l::t_id\n|- idnumber\l- name\l- description\l- units\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__id.html",tooltip=" "];
+  Node7 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -files" ,arrowhead="odiamond"];
+  Node7 [label="{moduleinterfacesedimentwater\l::t_files\n|- inputdata\l- final\l- initial\l- results\l- boxesfile\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__files.html",tooltip=" "];
+  Node8 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -externalvar" ,arrowhead="odiamond"];
+  Node8 [label="{moduleinterfacesedimentwater\l::t_ext_global\n|- now\l- xx_ie\l- yy_ie\l- gridcellarea\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__ext__global.html",tooltip=" "];
+  Node9 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -waveshear_stress" ,arrowhead="odiamond"];
+  Node9 [label="{moduleinterfacesedimentwater\l::t_waveshear\n|- yes\l- nonlinear\l- tension\l- tensionmean\l- tensioncurrents\l- chezyvel\l- cwphi\l- cphi\l- rugosityread\l- lastcompute\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__waveshear.html",tooltip=" "];
+  Node10 -> Node9 [color="grey25",fontsize="10",style="solid",label=" -rugosity" ,arrowhead="odiamond"];
+  Node10 [label="{moduleinterfacesedimentwater\l::t_property_2d\n|- id\l- field\l- scalar\l- constant\l- old\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__property__2d.html",tooltip=" "];
+  Node1 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond"];
+  Node11 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -extsed" ,arrowhead="odiamond"];
+  Node11 [label="{moduleinterfacesedimentwater\l::t_ext_sed\n|- minlayerthickness\l- dwz\l- szz\l- volumez\l- volumezold\l- waterpoints2d\l- ktop\l- openpoints2d\l- boundarypoints2d\l- waterpoints3d\land 12 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__ext__sed.html",tooltip=" "];
+  Node12 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -coupled" ,arrowhead="odiamond"];
+  Node12 [label="{moduleinterfacesedimentwater\l::t_coupled\n|- benthicecology\l- deposition\l- outputhdf\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__coupled.html",tooltip=" "];
+  Node13 -> Node12 [color="grey25",fontsize="10",style="solid",label=" -sedimentwaterfluxes\n-sedimentfluxes\n-outhdforigin\n-waterfluxes\n-timeserie\n-benthos\n-erosion\n-cequalw2\n-boxtimeserie\n-detritus\n..." ,arrowhead="odiamond"];
+  Node13 [label="{moduleinterfacesedimentwater\l::t_coupling\n|- nextcompute\l- dt_compute\l- yes\l- numberofproperties\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__coupling.html",tooltip=" "];
+  Node14 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -output" ,arrowhead="odiamond"];
+  Node14 [label="{moduleinterfacesedimentwater\l::t_output\n|- outtime\l- restartouttime\l- nextoutput\l- nextrestartoutput\l- writerestartfile\l- yes\l- writefinalfile\l- restartoverwrite\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__output.html",tooltip=" "];
+  Node15 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -consolidation" ,arrowhead="odiamond"];
+  Node15 [label="{moduleinterfacesedimentwater\l::t_consolidation\n|- yes\l- flux\l- lastcompute\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__consolidation.html",tooltip=" "];
+  Node10 -> Node15 [color="grey25",fontsize="10",style="solid",label=" -rate" ,arrowhead="odiamond"];
+  Node16 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -seagrasses" ,arrowhead="odiamond"];
+  Node16 [label="{moduleinterfacesedimentwater\l::t_seagrasses\n|- id\l- uptakenh4no3w2d\l- uptakenh4s2d\l- uptakepo4w2d\l- uptakepo4s2d\l- lightfactor2d\l- array2d\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__seagrasses.html",tooltip=" "];
+  Node17 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -firstproperty\n-lastproperty" ,arrowhead="odiamond"];
+  Node17 [label="{moduleinterfacesedimentwater\l::t_property\n|- id\l- mass_available\l- waterconcentration\l- massinkg\l- mass_fromwater\l- sedimentconcentration\l- fluxtowater\l- fluxtosediment\l- erosionflux\l- depositionflux\land 9 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__property.html",tooltip=" "];
+  Node18 -> Node17 [color="grey25",fontsize="10",style="solid",label=" -evolution" ,arrowhead="odiamond"];
+  Node18 [label="{moduleinterfacesedimentwater\l::t_evolution\n|- variable\l- benthos\l- benthicecology\l- benthiconly\l- cequalw2\l- detritus\l- sedimentwaterfluxes\l- sedimentfluxes\l- waterfluxes\l- erosion\l- deposition\l- dtinterval\l- lastcompute\l- nextcompute\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacesedimentwater_1_1t__evolution.html",tooltip=" "];
+  Node17 -> Node17 [color="grey25",fontsize="10",style="solid",label=" -prev\n-next" ,arrowhead="odiamond"];
+  Node10 -> Node17 [color="grey25",fontsize="10",style="solid",label=" -moleculardifcoef" ,arrowhead="odiamond"];
+  Node10 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -rugosity\n-critical_shear\l_erosion\n-sod\n-erosionrate\n-critical_shear\l_deposition\n-manningcoef" ,arrowhead="odiamond"];
+}

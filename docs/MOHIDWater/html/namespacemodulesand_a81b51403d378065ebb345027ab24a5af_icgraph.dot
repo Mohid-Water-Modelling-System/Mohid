@@ -1,0 +1,26 @@
+digraph "modulesand::fallvel"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="RL";
+  Node1 [label="modulesand::fallvel",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="modulesand::bailardtransport",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#a93c84a69d793110411e83cb30859f0e3",tooltip=" "];
+  Node2 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="modulesand::computefluxes",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#a5cbe25a8640cb153443de1585837b7a3",tooltip=" "];
+  Node3 -> Node4 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="modulesand::modifysand",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#a72127773a460332746476a09b3380e49",tooltip=" "];
+  Node1 -> Node5 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="modulesand::bijkertransport",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#ae86fef0e135985c199efb346e08b85dc",tooltip=" "];
+  Node5 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node6 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="modulesand::dibajniatransport",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#a2daf31a4265bfcae491e0968f275ec7a",tooltip=" "];
+  Node6 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node7 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 [label="modulesand::vanrijn1transport",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#abf8eba23882b69da0ba972e0af5b81ad",tooltip=" "];
+  Node7 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node8 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node8 [label="modulesand::vanrijn2transport",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#afb5faaa6c12c4db3fe47e079018ed0f7",tooltip=" "];
+  Node8 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+}

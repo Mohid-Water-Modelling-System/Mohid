@@ -1,0 +1,1027 @@
+\hypertarget{namespacemoduleoil}{}\doxysection{moduleoil Module Reference}
+\label{namespacemoduleoil}\index{moduleoil@{moduleoil}}
+\doxysubsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmoduleoil_1_1t__external}{t\+\_\+external}}
+\item 
+type \mbox{\hyperlink{structmoduleoil_1_1t__files}{t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmoduleoil_1_1t__oil}{t\+\_\+oil}}
+\item 
+type \mbox{\hyperlink{structmoduleoil_1_1t__state}{t\+\_\+state}}
+\item 
+type \mbox{\hyperlink{structmoduleoil_1_1t__timeserie}{t\+\_\+timeserie}}
+\item 
+type \mbox{\hyperlink{structmoduleoil_1_1t__var}{t\+\_\+var}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleoil_a65a42d1b037b7effaac748ed9de641b9}{startoil}} (Oil\+ID, Time\+ID, Enter\+Data\+ID, Horizontal\+Grid\+ID, Geometry\+ID, Map\+ID, DT, Cont\+Calc, Property\+List\+IN, Extract\+Type, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleoil_a932062e4d214e9b1e3f8504bad7dee40}{allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_aed259a357945d0fe3281c34d220a6dcd}{oiloptions}} (DT, Cont\+Calc, Extract\+Type)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_a25b9c130249a4691ccc1c06b3bae5a4e}{oiloptionsapi}} (Obj\+Enter\+Data, Extract\+Type, A\+PI)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_add8d9c35ee53aee7829af9a0f4b3dff4}{readtimeseriefile}} (Extract\+Type, Property\+List\+IN)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_af70b4b1248473e837294505db4f7ec5b}{allocatevariables}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleoil_a957aec9748df48f4722e500b1f600985}{getoildensityoil}} (Oil\+ID, Oil\+Density, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleoil_abeaffbf39f30e3630cefa9fdf3a69e82}{getoilapi}} (Oil\+ID, A\+PI, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleoil_a110af1cd38e3c7128a98fb3d2bed2fdb}{getoilspreadingvelocity}} (Oil\+ID, Spreading\+VelocityX, Spreading\+VelocityY, Diff\+Velocity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleoil_a4bba14809f66e683d6b93c629e986fc5}{getoilspreadinglist}} (Thickness\+Gradient, Fay)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleoil_ab0850c594da69306ab36555f8971e6e4}{getoilspreading}} (Oil\+ID, Spreading\+Method, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleoil_a2fe92325448f8b8b46f0b9a6c44129c1}{ungetoil}} (Oil\+ID, Array, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleoil_a4b104a789e2f264a4494966c5b9a47fd}{oilinternalprocesses}} (Oil\+ID, Lagrangian\+Time, Wind, Atmospheric\+Pressure, Water\+Temperature, Water\+Density, S\+PM, V\+Water\+Content, M\+Water\+Content, M\+Dispersed, M\+Dissolved\+DT, Oil\+Density, Mass\+I\+NI, Oil\+Viscosity, F\+M\+Dispersed, F\+M\+Evaporated, Vol\+Tot\+Oil\+Beached, Vol\+Tot\+Beached, Volume\+Total\+IN, Volume\+Total\+O\+UT, Area\+Total, Area\+Total\+O\+UT, Data\+Line\+IN, Wave\+Height, Wave\+Period, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_a9b26683d1a6211ffa180e7c4004596be}{density}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_a2aaa2968f62ce93c4b499b8b91d86e75}{viscosity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_a057ec48dbb4ce23ac0814ed1bdc90cc4}{evaporation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_af31781708e110ef05e0de36924287137}{dispersion}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_a9a79912febfdb0e994ca0e98a2f342bc}{sedimentation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_a1eb8385a1fb72338d92a438deda6ddb1}{dissolution}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_ab22a55bb01358e1000d700bd0b2eebe3}{emulsification}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_a0787ef4a57eb2967c2704c9a3fe30dbf}{chemdispersion}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_a2e2c8b7a65ec01bb12cb4ae2225bc7e2}{meccleanup}}
+\item 
+real function, private \mbox{\hyperlink{namespacemoduleoil_ac29f4466dc5d483c853827737c3aa61e}{f\+\_\+maxvwatercontent}} ()
+\item 
+real function, private \mbox{\hyperlink{namespacemoduleoil_af8b321b109edae35b2e3314b4cae8ee3}{f\+\_\+cdisp}} ()
+\item 
+real function, private \mbox{\hyperlink{namespacemoduleoil_ad53f4584cf329af849a4ee69c63351c9}{f\+\_\+ibp}} ()
+\item 
+real function, private \mbox{\hyperlink{namespacemoduleoil_adabc2068ec1e8096747e483ba890f006}{f\+\_\+slope}} ()
+\item 
+real function, private \mbox{\hyperlink{namespacemoduleoil_a554da2e0cba3e570da78338d2aeef85a}{f\+\_\+cvisc\+\_\+e}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_accb31df9c42356be9b53b31d0d888b3b}{evappropini}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_ac0b9f29833f831cd80144ac91359798f}{timeserieoutput}} (Data\+Line\+IN)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleoil_aa53749d5416d21d1602ffd0208f0f8f2}{oilactiveprocesses}} (Oil\+ID, Grid\+Thickness, Lagrangian\+Time, Water\+Temperature, Water\+Density, Vol\+Inic, DT, Area\+Total, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_a11e04f321f0ebc3e9a379f908b8a0cd2}{oilpropini}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_aeef3927895fe2023671f25edeb829a30}{areateoric}} (DT, Water\+Density, Delta)
+\item 
+real function, private \mbox{\hyperlink{namespacemoduleoil_a1e48ccf914b9fc3382e9fb87517e6a8d}{f\+\_\+thicknesslimit}} ()
+\item 
+real function, public \mbox{\hyperlink{namespacemoduleoil_aae34355db8babcba835b1b3af18baa95}{f\+\_\+fayarea}} (Vol\+Inic, A\+PI, Obj\+Enter\+Data)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleoil_a3515505fcda962cedd51dd5986ff6777}{killoil}} (Oil\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleoil_ae94c3b6ecc29b85e8ccbddf231f67646}{deallocateinstance}} ()
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleoil_afaa341d33088f674ca74e6ac763daa2d}{writefinaloil}} (Oil\+ID, Unit\+ID, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleoil_aaa3a2256f78ae25e941bfe7a937c796b}{readfinaloil}} (Oil\+ID, Unit\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_a16763a360a31b49d4f67bbba295472a5}{ready}} (Obj\+Oil\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleoil_aa0854458437dd99f9ef2103ed4f048b4}{locateobjoil}} (Obj\+Oil\+ID)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_a4c54c8c5599a96c18dbcd275ad63854a}{petit}} = 1.\+0E-\/10
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_a4755b7333b284419e721926797d7d9cc}{temp15}} = 15.\+0
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_abdd514937ab9c47037f4547fd9228fad}{cdens\+\_\+de}} = 0.\+18
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_aca63c50e0dbeec5aa0697522643eeb66}{cdens\+\_\+dt}} = 0.\+0008
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_aa67faf2d733fc126badfa6826889d04b}{freshwaterdensity15}} = 999.\+0
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_a17328240dfe3a5164beda37e30975304}{cvisc\+\_\+v}} = 2.\+5
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_a5144615100792e9b403610892988a8a1}{cvisc\+\_\+t}} = 5000.\+0
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_aeea5bdbe646124d8bd397fbe5a223fb6}{cvisc\+\_\+m}} = 0.\+65
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_a7ad579a5168861e86017221575d0b313}{cevap\+\_\+a}} = 6.\+3
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_a507a8e87d7d8d36e3b6b1f7ad9ca5698}{cevap\+\_\+b}} = 10.\+3
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_a5bedad0e5aa6ea6de8fbe130790ddcae}{cevap\+\_\+deltaz}} = 0.\+97
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_acde44825165b6fc78cec36ab327d519e}{cdisp\+\_\+d0}} = 37.\+5E-\/6
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_a26b3cfcf7bdde168be0e28fe85ef9054}{cdisp\+\_\+deltad}} = 65.\+0E-\/6
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_ae89ac5ef3bc360e058289d7370564447}{cdisp\+\_\+uvi}} = 4.\+0
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_aa8fdd7072f57d8703ac2a0aa5b73438b}{cdisp\+\_\+b}} = 0.\+032
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_aa8fc0a736aaeb89fe85f27d92b6700f5}{csed\+\_\+d0}} = 135.\+0E-\/6
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_a42957e6ffc6b29b2df9f369b5de99ac0}{csed\+\_\+deltad}} = 130.\+0E-\/6
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_a0be30fe03f8b242de5ca3172e8c7014c}{csed\+\_\+sticking}} = 1.\+0E-\/4
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_a87308e17b6b42f0df4a04bbfbe791a84}{solubilityfreshoil}} = 0.\+030
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_a43202f3556eded5c151df73d098477c6}{cdiss\+\_\+ktransfmass}} = 0.\+01
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_aa9c81e28b328f76962efa72af32162f9}{cdiss\+\_\+decayment}} = 0.\+1
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_ac1fb44ad8e24ebba2cdf05bac6d1351e}{cemuls\+\_\+1}} = 5.\+0E-\/7
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_a36f8acd949415f908de4279b101905ce}{cemuls\+\_\+2}} = 1.\+2E-\/5
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_a8e5cd4a6280206c46ff2a18cd101b8ff}{cfay\+\_\+1}} = 1.\+14
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleoil_a9023ee9f1ee5e3bbd3ef73b0fc3ad25b}{cfay\+\_\+2}} = 1.\+45
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_ae298702c324458a69504cb168fbc09c8}{colmassoil}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_aa67a0e7842c42e4504c82fd7f85324c0}{colvoloilbeached}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_af255dead494f9fb2acaf47a4d0dec9d4}{colvolumebeached}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a585198a23d58889aa724511f30843dff}{colvolumeoil}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a0329e06a783575a6ee4822170244d824}{colvolume}} = 5
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_ab1a2f215806040cbb2c3a4a06fc653cd}{colarea}} = 6
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_af89963f975b5fe3b77b9127ab82f09bd}{colareateoric}} = 7
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a8b3c2c19e4304e2265d2bf593bad3caf}{colthickness}} = 8
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_adaaeb4924cb8175bf48760820f0f86ab}{colmevaporated}} = 9
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_aa3ee857b2609932bc79ecde6ce062a04}{colvevaporated}} = 10
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_ae96f8585b6e356dddde5770967401e27}{colfmevaporated}} = 11
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a351b4b4c542f44239dc1769aabc19e82}{colmdispersed}} = 12
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_afc39ec2f9ea25dbc832655e39fdad7b3}{colvdispersed}} = 13
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_aa43dd6c5feda3ffd11eaf45da4be53b4}{colfmdispersed}} = 14
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_ab28c522cdb0ba8e9677c8bc1b4fcf6a0}{colmsedimented}} = 15
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_ad0b64aaf8de58d27bdb5ab1c3dc70e2a}{colvsedimented}} = 16
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_ab425dda8c296468b2905a264162f96e9}{colfmsedimented}} = 17
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a59d6f41aca9855d6a7327efac8f3f4a8}{colmdissolved}} = 18
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a9ffaf173e8c95b21bad287b5861ef859}{colvdissolved}} = 19
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_aca711e07505004093d7f821a746a5e0e}{colfmdissolved}} = 20
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a4a4c0c64d30f57fba354d9e4cc938720}{colmchemdispersed}} = 21
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a8e8fb4b278c65dccdc8d9f1800b6bd2d}{colvchemdispersed}} = 22
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a9bb0cdf66e197c1f1085b7005475fa28}{colfmchemdispersed}} =23
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a037325aef7bc894d7a245eaff634677f}{colmoilrecovered}} = 24
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a50de48619d92d9d816b55ef4169e63be}{colvoilrecovered}} = 25
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a3d323118340637b27ba2f0d81a08b14b}{colfmoilrecovered}} = 26
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_aef12293605401def345b9d9648095e37}{colmwatercontent}} = 27
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a24f3e477cedecbea5dbebf0029597e9a}{colvwatercontent}} = 28
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a5a4aff8481aa609e74b890613af52e7a}{coldensity}} = 29
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a0c2df7caf6e999192a0b444702e943fe}{colviscosity}} = 30
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a30c511c7fa2c51a98b83d1388c6777c2}{colnbr}} = 30
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a9bbc6e1f4a84d5cd13db1cf6c2a97b29}{fay\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_af5497b75883cdc370714d52a6e24a73f}{thicknessgradient\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a9323fa2198772c36833e461c7a6af583}{refined}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a26b19843dbe29efd606aed575f35992a}{crude}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a18fce47bd4924b7621307278097862ce}{pseudocomponents}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_abfa265d4d464527590649fbc8833c4cc}{evaporativeexposure}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a3bcbe2b9305965ab2c0223d559521a7a}{fingas}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_aadde4442048e01350a934a357e8954c7}{logarithmic}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_abe60bae5ccf18abdda41e423a7c5daab}{squareroot}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a801bc9da7585a2b9fbc555af6b0f1567}{delvigne}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a1d25086a7015cf324c3af9b593a745db}{mackay}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a1f519bc3501a2da321237e65077b9b85}{rasmussen}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a3cd7562168c72c156b2f1f6e784a5ae3}{rate}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleoil_a648f61975720c552bfe6573b095ffa9e}{amount}} = 2
+\item 
+type(\mbox{\hyperlink{structmoduleoil_1_1t__oil}{t\+\_\+oil}}), pointer \mbox{\hyperlink{namespacemoduleoil_a24a707e47b13ce99f1028c4db28223a3}{firstobjoil}}
+\item 
+type(\mbox{\hyperlink{structmoduleoil_1_1t__oil}{t\+\_\+oil}}), pointer \mbox{\hyperlink{namespacemoduleoil_a70419f6d697dd70aed5f5dff114f475f}{me}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemoduleoil_a932062e4d214e9b1e3f8504bad7dee40}\label{namespacemoduleoil_a932062e4d214e9b1e3f8504bad7dee40}} 
+\index{moduleoil@{moduleoil}!allocateinstance@{allocateinstance}}
+\index{allocateinstance@{allocateinstance}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{allocateinstance()}{allocateinstance()}}
+{\footnotesize\ttfamily subroutine moduleoil\+::allocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 0
+\mbox{\Hypertarget{namespacemoduleoil_af70b4b1248473e837294505db4f7ec5b}\label{namespacemoduleoil_af70b4b1248473e837294505db4f7ec5b}} 
+\index{moduleoil@{moduleoil}!allocatevariables@{allocatevariables}}
+\index{allocatevariables@{allocatevariables}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{allocatevariables()}{allocatevariables()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::allocatevariables (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 1
+\mbox{\Hypertarget{namespacemoduleoil_aeef3927895fe2023671f25edeb829a30}\label{namespacemoduleoil_aeef3927895fe2023671f25edeb829a30}} 
+\index{moduleoil@{moduleoil}!areateoric@{areateoric}}
+\index{areateoric@{areateoric}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{areateoric()}{areateoric()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::areateoric (\begin{DoxyParamCaption}\item[{real, intent(in)}]{DT,  }\item[{real, intent(in)}]{Water\+Density,  }\item[{real, intent(out)}]{Delta }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 2
+\mbox{\Hypertarget{namespacemoduleoil_a0787ef4a57eb2967c2704c9a3fe30dbf}\label{namespacemoduleoil_a0787ef4a57eb2967c2704c9a3fe30dbf}} 
+\index{moduleoil@{moduleoil}!chemdispersion@{chemdispersion}}
+\index{chemdispersion@{chemdispersion}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{chemdispersion()}{chemdispersion()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::chemdispersion (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 3
+\mbox{\Hypertarget{namespacemoduleoil_ae94c3b6ecc29b85e8ccbddf231f67646}\label{namespacemoduleoil_ae94c3b6ecc29b85e8ccbddf231f67646}} 
+\index{moduleoil@{moduleoil}!deallocateinstance@{deallocateinstance}}
+\index{deallocateinstance@{deallocateinstance}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{deallocateinstance()}{deallocateinstance()}}
+{\footnotesize\ttfamily subroutine moduleoil\+::deallocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 4
+\mbox{\Hypertarget{namespacemoduleoil_a9b26683d1a6211ffa180e7c4004596be}\label{namespacemoduleoil_a9b26683d1a6211ffa180e7c4004596be}} 
+\index{moduleoil@{moduleoil}!density@{density}}
+\index{density@{density}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{density()}{density()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::density (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 5
+\mbox{\Hypertarget{namespacemoduleoil_af31781708e110ef05e0de36924287137}\label{namespacemoduleoil_af31781708e110ef05e0de36924287137}} 
+\index{moduleoil@{moduleoil}!dispersion@{dispersion}}
+\index{dispersion@{dispersion}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{dispersion()}{dispersion()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::dispersion (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 6
+\mbox{\Hypertarget{namespacemoduleoil_a1eb8385a1fb72338d92a438deda6ddb1}\label{namespacemoduleoil_a1eb8385a1fb72338d92a438deda6ddb1}} 
+\index{moduleoil@{moduleoil}!dissolution@{dissolution}}
+\index{dissolution@{dissolution}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{dissolution()}{dissolution()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::dissolution (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 7
+\mbox{\Hypertarget{namespacemoduleoil_ab22a55bb01358e1000d700bd0b2eebe3}\label{namespacemoduleoil_ab22a55bb01358e1000d700bd0b2eebe3}} 
+\index{moduleoil@{moduleoil}!emulsification@{emulsification}}
+\index{emulsification@{emulsification}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{emulsification()}{emulsification()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::emulsification (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 8
+\mbox{\Hypertarget{namespacemoduleoil_a057ec48dbb4ce23ac0814ed1bdc90cc4}\label{namespacemoduleoil_a057ec48dbb4ce23ac0814ed1bdc90cc4}} 
+\index{moduleoil@{moduleoil}!evaporation@{evaporation}}
+\index{evaporation@{evaporation}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{evaporation()}{evaporation()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::evaporation (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 9
+\mbox{\Hypertarget{namespacemoduleoil_accb31df9c42356be9b53b31d0d888b3b}\label{namespacemoduleoil_accb31df9c42356be9b53b31d0d888b3b}} 
+\index{moduleoil@{moduleoil}!evappropini@{evappropini}}
+\index{evappropini@{evappropini}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{evappropini()}{evappropini()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::evappropini (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 10
+\mbox{\Hypertarget{namespacemoduleoil_af8b321b109edae35b2e3314b4cae8ee3}\label{namespacemoduleoil_af8b321b109edae35b2e3314b4cae8ee3}} 
+\index{moduleoil@{moduleoil}!f\_cdisp@{f\_cdisp}}
+\index{f\_cdisp@{f\_cdisp}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{f\_cdisp()}{f\_cdisp()}}
+{\footnotesize\ttfamily real function, private moduleoil\+::f\+\_\+cdisp (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 11
+\mbox{\Hypertarget{namespacemoduleoil_a554da2e0cba3e570da78338d2aeef85a}\label{namespacemoduleoil_a554da2e0cba3e570da78338d2aeef85a}} 
+\index{moduleoil@{moduleoil}!f\_cvisc\_e@{f\_cvisc\_e}}
+\index{f\_cvisc\_e@{f\_cvisc\_e}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{f\_cvisc\_e()}{f\_cvisc\_e()}}
+{\footnotesize\ttfamily real function, private moduleoil\+::f\+\_\+cvisc\+\_\+e (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 12
+\mbox{\Hypertarget{namespacemoduleoil_aae34355db8babcba835b1b3af18baa95}\label{namespacemoduleoil_aae34355db8babcba835b1b3af18baa95}} 
+\index{moduleoil@{moduleoil}!f\_fayarea@{f\_fayarea}}
+\index{f\_fayarea@{f\_fayarea}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{f\_fayarea()}{f\_fayarea()}}
+{\footnotesize\ttfamily real function, public moduleoil\+::f\+\_\+fayarea (\begin{DoxyParamCaption}\item[{real, intent(in)}]{Vol\+Inic,  }\item[{real, intent(in), optional}]{A\+PI,  }\item[{integer, optional}]{Obj\+Enter\+Data }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 13
+Here is the caller graph for this function\+:
+% FIG 14
+\mbox{\Hypertarget{namespacemoduleoil_ad53f4584cf329af849a4ee69c63351c9}\label{namespacemoduleoil_ad53f4584cf329af849a4ee69c63351c9}} 
+\index{moduleoil@{moduleoil}!f\_ibp@{f\_ibp}}
+\index{f\_ibp@{f\_ibp}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{f\_ibp()}{f\_ibp()}}
+{\footnotesize\ttfamily real function, private moduleoil\+::f\+\_\+ibp (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 15
+\mbox{\Hypertarget{namespacemoduleoil_ac29f4466dc5d483c853827737c3aa61e}\label{namespacemoduleoil_ac29f4466dc5d483c853827737c3aa61e}} 
+\index{moduleoil@{moduleoil}!f\_maxvwatercontent@{f\_maxvwatercontent}}
+\index{f\_maxvwatercontent@{f\_maxvwatercontent}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{f\_maxvwatercontent()}{f\_maxvwatercontent()}}
+{\footnotesize\ttfamily real function, private moduleoil\+::f\+\_\+maxvwatercontent (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 16
+\mbox{\Hypertarget{namespacemoduleoil_adabc2068ec1e8096747e483ba890f006}\label{namespacemoduleoil_adabc2068ec1e8096747e483ba890f006}} 
+\index{moduleoil@{moduleoil}!f\_slope@{f\_slope}}
+\index{f\_slope@{f\_slope}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{f\_slope()}{f\_slope()}}
+{\footnotesize\ttfamily real function, private moduleoil\+::f\+\_\+slope (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 17
+\mbox{\Hypertarget{namespacemoduleoil_a1e48ccf914b9fc3382e9fb87517e6a8d}\label{namespacemoduleoil_a1e48ccf914b9fc3382e9fb87517e6a8d}} 
+\index{moduleoil@{moduleoil}!f\_thicknesslimit@{f\_thicknesslimit}}
+\index{f\_thicknesslimit@{f\_thicknesslimit}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{f\_thicknesslimit()}{f\_thicknesslimit()}}
+{\footnotesize\ttfamily real function, private moduleoil\+::f\+\_\+thicknesslimit (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 18
+\mbox{\Hypertarget{namespacemoduleoil_abeaffbf39f30e3630cefa9fdf3a69e82}\label{namespacemoduleoil_abeaffbf39f30e3630cefa9fdf3a69e82}} 
+\index{moduleoil@{moduleoil}!getoilapi@{getoilapi}}
+\index{getoilapi@{getoilapi}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{getoilapi()}{getoilapi()}}
+{\footnotesize\ttfamily subroutine, public moduleoil\+::getoilapi (\begin{DoxyParamCaption}\item[{integer}]{Oil\+ID,  }\item[{real, intent(out)}]{A\+PI,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 19
+Here is the caller graph for this function\+:
+% FIG 20
+\mbox{\Hypertarget{namespacemoduleoil_a957aec9748df48f4722e500b1f600985}\label{namespacemoduleoil_a957aec9748df48f4722e500b1f600985}} 
+\index{moduleoil@{moduleoil}!getoildensityoil@{getoildensityoil}}
+\index{getoildensityoil@{getoildensityoil}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{getoildensityoil()}{getoildensityoil()}}
+{\footnotesize\ttfamily subroutine, public moduleoil\+::getoildensityoil (\begin{DoxyParamCaption}\item[{integer}]{Oil\+ID,  }\item[{real, intent(out)}]{Oil\+Density,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 21
+\mbox{\Hypertarget{namespacemoduleoil_ab0850c594da69306ab36555f8971e6e4}\label{namespacemoduleoil_ab0850c594da69306ab36555f8971e6e4}} 
+\index{moduleoil@{moduleoil}!getoilspreading@{getoilspreading}}
+\index{getoilspreading@{getoilspreading}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{getoilspreading()}{getoilspreading()}}
+{\footnotesize\ttfamily subroutine, public moduleoil\+::getoilspreading (\begin{DoxyParamCaption}\item[{integer}]{Oil\+ID,  }\item[{integer, intent(out)}]{Spreading\+Method,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 22
+Here is the caller graph for this function\+:
+% FIG 23
+\mbox{\Hypertarget{namespacemoduleoil_a4bba14809f66e683d6b93c629e986fc5}\label{namespacemoduleoil_a4bba14809f66e683d6b93c629e986fc5}} 
+\index{moduleoil@{moduleoil}!getoilspreadinglist@{getoilspreadinglist}}
+\index{getoilspreadinglist@{getoilspreadinglist}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{getoilspreadinglist()}{getoilspreadinglist()}}
+{\footnotesize\ttfamily subroutine, public moduleoil\+::getoilspreadinglist (\begin{DoxyParamCaption}\item[{integer, intent(out), optional}]{Thickness\+Gradient,  }\item[{integer, intent(out), optional}]{Fay }\end{DoxyParamCaption})}
+
+Here is the caller graph for this function\+:
+% FIG 24
+\mbox{\Hypertarget{namespacemoduleoil_a110af1cd38e3c7128a98fb3d2bed2fdb}\label{namespacemoduleoil_a110af1cd38e3c7128a98fb3d2bed2fdb}} 
+\index{moduleoil@{moduleoil}!getoilspreadingvelocity@{getoilspreadingvelocity}}
+\index{getoilspreadingvelocity@{getoilspreadingvelocity}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{getoilspreadingvelocity()}{getoilspreadingvelocity()}}
+{\footnotesize\ttfamily subroutine, public moduleoil\+::getoilspreadingvelocity (\begin{DoxyParamCaption}\item[{integer}]{Oil\+ID,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Spreading\+VelocityX,  }\item[{real, dimension(\+:,\+:), optional, pointer}]{Spreading\+VelocityY,  }\item[{real, optional}]{Diff\+Velocity,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 25
+Here is the caller graph for this function\+:
+% FIG 26
+\mbox{\Hypertarget{namespacemoduleoil_a3515505fcda962cedd51dd5986ff6777}\label{namespacemoduleoil_a3515505fcda962cedd51dd5986ff6777}} 
+\index{moduleoil@{moduleoil}!killoil@{killoil}}
+\index{killoil@{killoil}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{killoil()}{killoil()}}
+{\footnotesize\ttfamily subroutine, public moduleoil\+::killoil (\begin{DoxyParamCaption}\item[{integer}]{Oil\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 27
+Here is the caller graph for this function\+:
+% FIG 28
+\mbox{\Hypertarget{namespacemoduleoil_aa0854458437dd99f9ef2103ed4f048b4}\label{namespacemoduleoil_aa0854458437dd99f9ef2103ed4f048b4}} 
+\index{moduleoil@{moduleoil}!locateobjoil@{locateobjoil}}
+\index{locateobjoil@{locateobjoil}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{locateobjoil()}{locateobjoil()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::locateobjoil (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Oil\+ID }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 29
+\mbox{\Hypertarget{namespacemoduleoil_a2e2c8b7a65ec01bb12cb4ae2225bc7e2}\label{namespacemoduleoil_a2e2c8b7a65ec01bb12cb4ae2225bc7e2}} 
+\index{moduleoil@{moduleoil}!meccleanup@{meccleanup}}
+\index{meccleanup@{meccleanup}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{meccleanup()}{meccleanup()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::meccleanup (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 30
+\mbox{\Hypertarget{namespacemoduleoil_aa53749d5416d21d1602ffd0208f0f8f2}\label{namespacemoduleoil_aa53749d5416d21d1602ffd0208f0f8f2}} 
+\index{moduleoil@{moduleoil}!oilactiveprocesses@{oilactiveprocesses}}
+\index{oilactiveprocesses@{oilactiveprocesses}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{oilactiveprocesses()}{oilactiveprocesses()}}
+{\footnotesize\ttfamily subroutine, public moduleoil\+::oilactiveprocesses (\begin{DoxyParamCaption}\item[{integer}]{Oil\+ID,  }\item[{real, dimension(\+:,\+:), pointer}]{Grid\+Thickness,  }\item[{type (t\+\_\+time), intent(in)}]{Lagrangian\+Time,  }\item[{real, intent(in)}]{Water\+Temperature,  }\item[{real, intent(in)}]{Water\+Density,  }\item[{real, intent(in)}]{Vol\+Inic,  }\item[{real, intent(in)}]{DT,  }\item[{real, intent(in), optional}]{Area\+Total,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 31
+Here is the caller graph for this function\+:
+% FIG 32
+\mbox{\Hypertarget{namespacemoduleoil_a4b104a789e2f264a4494966c5b9a47fd}\label{namespacemoduleoil_a4b104a789e2f264a4494966c5b9a47fd}} 
+\index{moduleoil@{moduleoil}!oilinternalprocesses@{oilinternalprocesses}}
+\index{oilinternalprocesses@{oilinternalprocesses}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{oilinternalprocesses()}{oilinternalprocesses()}}
+{\footnotesize\ttfamily subroutine, public moduleoil\+::oilinternalprocesses (\begin{DoxyParamCaption}\item[{integer}]{Oil\+ID,  }\item[{type (t\+\_\+time), intent(in)}]{Lagrangian\+Time,  }\item[{real, intent(in)}]{Wind,  }\item[{real, intent(in)}]{Atmospheric\+Pressure,  }\item[{real, intent(in)}]{Water\+Temperature,  }\item[{real, intent(in)}]{Water\+Density,  }\item[{real, intent(in)}]{S\+PM,  }\item[{real, intent(out)}]{V\+Water\+Content,  }\item[{real, intent(out)}]{M\+Water\+Content,  }\item[{real, intent(out)}]{M\+Dispersed,  }\item[{real, intent(out)}]{M\+Dissolved\+DT,  }\item[{real, intent(out)}]{Oil\+Density,  }\item[{real, intent(out)}]{Mass\+I\+NI,  }\item[{real, intent(out)}]{Oil\+Viscosity,  }\item[{real, intent(out)}]{F\+M\+Dispersed,  }\item[{real, intent(out)}]{F\+M\+Evaporated,  }\item[{real, intent(in)}]{Vol\+Tot\+Oil\+Beached,  }\item[{real, intent(in)}]{Vol\+Tot\+Beached,  }\item[{real, intent(in)}]{Volume\+Total\+IN,  }\item[{real, intent(out)}]{Volume\+Total\+O\+UT,  }\item[{real, intent(in)}]{Area\+Total,  }\item[{real, intent(out)}]{Area\+Total\+O\+UT,  }\item[{real, dimension(\+:), optional, pointer}]{Data\+Line\+IN,  }\item[{real, intent(in)}]{Wave\+Height,  }\item[{real, intent(in)}]{Wave\+Period,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 33
+\mbox{\Hypertarget{namespacemoduleoil_aed259a357945d0fe3281c34d220a6dcd}\label{namespacemoduleoil_aed259a357945d0fe3281c34d220a6dcd}} 
+\index{moduleoil@{moduleoil}!oiloptions@{oiloptions}}
+\index{oiloptions@{oiloptions}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{oiloptions()}{oiloptions()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::oiloptions (\begin{DoxyParamCaption}\item[{real, intent(in)}]{DT,  }\item[{logical, intent(in)}]{Cont\+Calc,  }\item[{integer}]{Extract\+Type }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 34
+Here is the caller graph for this function\+:
+% FIG 35
+\mbox{\Hypertarget{namespacemoduleoil_a25b9c130249a4691ccc1c06b3bae5a4e}\label{namespacemoduleoil_a25b9c130249a4691ccc1c06b3bae5a4e}} 
+\index{moduleoil@{moduleoil}!oiloptionsapi@{oiloptionsapi}}
+\index{oiloptionsapi@{oiloptionsapi}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{oiloptionsapi()}{oiloptionsapi()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::oiloptionsapi (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Enter\+Data,  }\item[{integer, intent(in)}]{Extract\+Type,  }\item[{real, intent(out)}]{A\+PI }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 36
+\mbox{\Hypertarget{namespacemoduleoil_a11e04f321f0ebc3e9a379f908b8a0cd2}\label{namespacemoduleoil_a11e04f321f0ebc3e9a379f908b8a0cd2}} 
+\index{moduleoil@{moduleoil}!oilpropini@{oilpropini}}
+\index{oilpropini@{oilpropini}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{oilpropini()}{oilpropini()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::oilpropini (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 37
+Here is the caller graph for this function\+:
+% FIG 38
+\mbox{\Hypertarget{namespacemoduleoil_aaa3a2256f78ae25e941bfe7a937c796b}\label{namespacemoduleoil_aaa3a2256f78ae25e941bfe7a937c796b}} 
+\index{moduleoil@{moduleoil}!readfinaloil@{readfinaloil}}
+\index{readfinaloil@{readfinaloil}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{readfinaloil()}{readfinaloil()}}
+{\footnotesize\ttfamily subroutine, public moduleoil\+::readfinaloil (\begin{DoxyParamCaption}\item[{integer}]{Oil\+ID,  }\item[{integer}]{Unit\+ID,  }\item[{integer, optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 39
+\mbox{\Hypertarget{namespacemoduleoil_add8d9c35ee53aee7829af9a0f4b3dff4}\label{namespacemoduleoil_add8d9c35ee53aee7829af9a0f4b3dff4}} 
+\index{moduleoil@{moduleoil}!readtimeseriefile@{readtimeseriefile}}
+\index{readtimeseriefile@{readtimeseriefile}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{readtimeseriefile()}{readtimeseriefile()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::readtimeseriefile (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Extract\+Type,  }\item[{character($\ast$), dimension(\+:), optional, pointer}]{Property\+List\+IN }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 40
+\mbox{\Hypertarget{namespacemoduleoil_a16763a360a31b49d4f67bbba295472a5}\label{namespacemoduleoil_a16763a360a31b49d4f67bbba295472a5}} 
+\index{moduleoil@{moduleoil}!ready@{ready}}
+\index{ready@{ready}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{ready()}{ready()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::ready (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Oil\+\_\+\+ID,  }\item[{integer}]{ready\+\_\+ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 41
+Here is the caller graph for this function\+:
+% FIG 42
+\mbox{\Hypertarget{namespacemoduleoil_a9a79912febfdb0e994ca0e98a2f342bc}\label{namespacemoduleoil_a9a79912febfdb0e994ca0e98a2f342bc}} 
+\index{moduleoil@{moduleoil}!sedimentation@{sedimentation}}
+\index{sedimentation@{sedimentation}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{sedimentation()}{sedimentation()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::sedimentation (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 43
+\mbox{\Hypertarget{namespacemoduleoil_a65a42d1b037b7effaac748ed9de641b9}\label{namespacemoduleoil_a65a42d1b037b7effaac748ed9de641b9}} 
+\index{moduleoil@{moduleoil}!startoil@{startoil}}
+\index{startoil@{startoil}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{startoil()}{startoil()}}
+{\footnotesize\ttfamily subroutine, public moduleoil\+::startoil (\begin{DoxyParamCaption}\item[{integer}]{Oil\+ID,  }\item[{integer}]{Time\+ID,  }\item[{integer}]{Enter\+Data\+ID,  }\item[{integer}]{Horizontal\+Grid\+ID,  }\item[{integer}]{Geometry\+ID,  }\item[{integer}]{Map\+ID,  }\item[{real, intent(in)}]{DT,  }\item[{logical, intent(in)}]{Cont\+Calc,  }\item[{character($\ast$), dimension(\+:), optional, pointer}]{Property\+List\+IN,  }\item[{integer, intent(in), optional}]{Extract\+Type,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 44
+Here is the caller graph for this function\+:
+% FIG 45
+\mbox{\Hypertarget{namespacemoduleoil_ac0b9f29833f831cd80144ac91359798f}\label{namespacemoduleoil_ac0b9f29833f831cd80144ac91359798f}} 
+\index{moduleoil@{moduleoil}!timeserieoutput@{timeserieoutput}}
+\index{timeserieoutput@{timeserieoutput}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{timeserieoutput()}{timeserieoutput()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::timeserieoutput (\begin{DoxyParamCaption}\item[{real, dimension(\+:), optional, pointer}]{Data\+Line\+IN }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 46
+\mbox{\Hypertarget{namespacemoduleoil_a2fe92325448f8b8b46f0b9a6c44129c1}\label{namespacemoduleoil_a2fe92325448f8b8b46f0b9a6c44129c1}} 
+\index{moduleoil@{moduleoil}!ungetoil@{ungetoil}}
+\index{ungetoil@{ungetoil}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{ungetoil()}{ungetoil()}}
+{\footnotesize\ttfamily subroutine, public moduleoil\+::ungetoil (\begin{DoxyParamCaption}\item[{integer}]{Oil\+ID,  }\item[{real, dimension(\+:,\+:), pointer}]{Array,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 47
+Here is the caller graph for this function\+:
+% FIG 48
+\mbox{\Hypertarget{namespacemoduleoil_a2aaa2968f62ce93c4b499b8b91d86e75}\label{namespacemoduleoil_a2aaa2968f62ce93c4b499b8b91d86e75}} 
+\index{moduleoil@{moduleoil}!viscosity@{viscosity}}
+\index{viscosity@{viscosity}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{viscosity()}{viscosity()}}
+{\footnotesize\ttfamily subroutine, private moduleoil\+::viscosity (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 49
+\mbox{\Hypertarget{namespacemoduleoil_afaa341d33088f674ca74e6ac763daa2d}\label{namespacemoduleoil_afaa341d33088f674ca74e6ac763daa2d}} 
+\index{moduleoil@{moduleoil}!writefinaloil@{writefinaloil}}
+\index{writefinaloil@{writefinaloil}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{writefinaloil()}{writefinaloil()}}
+{\footnotesize\ttfamily subroutine, public moduleoil\+::writefinaloil (\begin{DoxyParamCaption}\item[{integer}]{Oil\+ID,  }\item[{integer}]{Unit\+ID,  }\item[{integer, optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 50
+
+
+\doxysubsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemoduleoil_a648f61975720c552bfe6573b095ffa9e}\label{namespacemoduleoil_a648f61975720c552bfe6573b095ffa9e}} 
+\index{moduleoil@{moduleoil}!amount@{amount}}
+\index{amount@{amount}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{amount}{amount}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::amount = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_abdd514937ab9c47037f4547fd9228fad}\label{namespacemoduleoil_abdd514937ab9c47037f4547fd9228fad}} 
+\index{moduleoil@{moduleoil}!cdens\_de@{cdens\_de}}
+\index{cdens\_de@{cdens\_de}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cdens\_de}{cdens\_de}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cdens\+\_\+de = 0.\+18\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_aca63c50e0dbeec5aa0697522643eeb66}\label{namespacemoduleoil_aca63c50e0dbeec5aa0697522643eeb66}} 
+\index{moduleoil@{moduleoil}!cdens\_dt@{cdens\_dt}}
+\index{cdens\_dt@{cdens\_dt}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cdens\_dt}{cdens\_dt}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cdens\+\_\+dt = 0.\+0008\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_aa8fdd7072f57d8703ac2a0aa5b73438b}\label{namespacemoduleoil_aa8fdd7072f57d8703ac2a0aa5b73438b}} 
+\index{moduleoil@{moduleoil}!cdisp\_b@{cdisp\_b}}
+\index{cdisp\_b@{cdisp\_b}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cdisp\_b}{cdisp\_b}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cdisp\+\_\+b = 0.\+032\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_acde44825165b6fc78cec36ab327d519e}\label{namespacemoduleoil_acde44825165b6fc78cec36ab327d519e}} 
+\index{moduleoil@{moduleoil}!cdisp\_d0@{cdisp\_d0}}
+\index{cdisp\_d0@{cdisp\_d0}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cdisp\_d0}{cdisp\_d0}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cdisp\+\_\+d0 = 37.\+5E-\/6\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a26b3cfcf7bdde168be0e28fe85ef9054}\label{namespacemoduleoil_a26b3cfcf7bdde168be0e28fe85ef9054}} 
+\index{moduleoil@{moduleoil}!cdisp\_deltad@{cdisp\_deltad}}
+\index{cdisp\_deltad@{cdisp\_deltad}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cdisp\_deltad}{cdisp\_deltad}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cdisp\+\_\+deltad = 65.\+0E-\/6\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_ae89ac5ef3bc360e058289d7370564447}\label{namespacemoduleoil_ae89ac5ef3bc360e058289d7370564447}} 
+\index{moduleoil@{moduleoil}!cdisp\_uvi@{cdisp\_uvi}}
+\index{cdisp\_uvi@{cdisp\_uvi}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cdisp\_uvi}{cdisp\_uvi}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cdisp\+\_\+uvi = 4.\+0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_aa9c81e28b328f76962efa72af32162f9}\label{namespacemoduleoil_aa9c81e28b328f76962efa72af32162f9}} 
+\index{moduleoil@{moduleoil}!cdiss\_decayment@{cdiss\_decayment}}
+\index{cdiss\_decayment@{cdiss\_decayment}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cdiss\_decayment}{cdiss\_decayment}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cdiss\+\_\+decayment = 0.\+1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a43202f3556eded5c151df73d098477c6}\label{namespacemoduleoil_a43202f3556eded5c151df73d098477c6}} 
+\index{moduleoil@{moduleoil}!cdiss\_ktransfmass@{cdiss\_ktransfmass}}
+\index{cdiss\_ktransfmass@{cdiss\_ktransfmass}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cdiss\_ktransfmass}{cdiss\_ktransfmass}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cdiss\+\_\+ktransfmass = 0.\+01\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_ac1fb44ad8e24ebba2cdf05bac6d1351e}\label{namespacemoduleoil_ac1fb44ad8e24ebba2cdf05bac6d1351e}} 
+\index{moduleoil@{moduleoil}!cemuls\_1@{cemuls\_1}}
+\index{cemuls\_1@{cemuls\_1}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cemuls\_1}{cemuls\_1}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cemuls\+\_\+1 = 5.\+0E-\/7\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a36f8acd949415f908de4279b101905ce}\label{namespacemoduleoil_a36f8acd949415f908de4279b101905ce}} 
+\index{moduleoil@{moduleoil}!cemuls\_2@{cemuls\_2}}
+\index{cemuls\_2@{cemuls\_2}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cemuls\_2}{cemuls\_2}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cemuls\+\_\+2 = 1.\+2E-\/5\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a7ad579a5168861e86017221575d0b313}\label{namespacemoduleoil_a7ad579a5168861e86017221575d0b313}} 
+\index{moduleoil@{moduleoil}!cevap\_a@{cevap\_a}}
+\index{cevap\_a@{cevap\_a}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cevap\_a}{cevap\_a}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cevap\+\_\+a = 6.\+3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a507a8e87d7d8d36e3b6b1f7ad9ca5698}\label{namespacemoduleoil_a507a8e87d7d8d36e3b6b1f7ad9ca5698}} 
+\index{moduleoil@{moduleoil}!cevap\_b@{cevap\_b}}
+\index{cevap\_b@{cevap\_b}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cevap\_b}{cevap\_b}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cevap\+\_\+b = 10.\+3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a5bedad0e5aa6ea6de8fbe130790ddcae}\label{namespacemoduleoil_a5bedad0e5aa6ea6de8fbe130790ddcae}} 
+\index{moduleoil@{moduleoil}!cevap\_deltaz@{cevap\_deltaz}}
+\index{cevap\_deltaz@{cevap\_deltaz}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cevap\_deltaz}{cevap\_deltaz}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cevap\+\_\+deltaz = 0.\+97\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a8e5cd4a6280206c46ff2a18cd101b8ff}\label{namespacemoduleoil_a8e5cd4a6280206c46ff2a18cd101b8ff}} 
+\index{moduleoil@{moduleoil}!cfay\_1@{cfay\_1}}
+\index{cfay\_1@{cfay\_1}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cfay\_1}{cfay\_1}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cfay\+\_\+1 = 1.\+14\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a9023ee9f1ee5e3bbd3ef73b0fc3ad25b}\label{namespacemoduleoil_a9023ee9f1ee5e3bbd3ef73b0fc3ad25b}} 
+\index{moduleoil@{moduleoil}!cfay\_2@{cfay\_2}}
+\index{cfay\_2@{cfay\_2}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cfay\_2}{cfay\_2}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cfay\+\_\+2 = 1.\+45\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_ab1a2f215806040cbb2c3a4a06fc653cd}\label{namespacemoduleoil_ab1a2f215806040cbb2c3a4a06fc653cd}} 
+\index{moduleoil@{moduleoil}!colarea@{colarea}}
+\index{colarea@{colarea}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colarea}{colarea}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colarea = 6\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_af89963f975b5fe3b77b9127ab82f09bd}\label{namespacemoduleoil_af89963f975b5fe3b77b9127ab82f09bd}} 
+\index{moduleoil@{moduleoil}!colareateoric@{colareateoric}}
+\index{colareateoric@{colareateoric}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colareateoric}{colareateoric}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colareateoric = 7\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a5a4aff8481aa609e74b890613af52e7a}\label{namespacemoduleoil_a5a4aff8481aa609e74b890613af52e7a}} 
+\index{moduleoil@{moduleoil}!coldensity@{coldensity}}
+\index{coldensity@{coldensity}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{coldensity}{coldensity}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::coldensity = 29\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a9bb0cdf66e197c1f1085b7005475fa28}\label{namespacemoduleoil_a9bb0cdf66e197c1f1085b7005475fa28}} 
+\index{moduleoil@{moduleoil}!colfmchemdispersed@{colfmchemdispersed}}
+\index{colfmchemdispersed@{colfmchemdispersed}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colfmchemdispersed}{colfmchemdispersed}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colfmchemdispersed =23\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_aa43dd6c5feda3ffd11eaf45da4be53b4}\label{namespacemoduleoil_aa43dd6c5feda3ffd11eaf45da4be53b4}} 
+\index{moduleoil@{moduleoil}!colfmdispersed@{colfmdispersed}}
+\index{colfmdispersed@{colfmdispersed}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colfmdispersed}{colfmdispersed}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colfmdispersed = 14\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_aca711e07505004093d7f821a746a5e0e}\label{namespacemoduleoil_aca711e07505004093d7f821a746a5e0e}} 
+\index{moduleoil@{moduleoil}!colfmdissolved@{colfmdissolved}}
+\index{colfmdissolved@{colfmdissolved}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colfmdissolved}{colfmdissolved}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colfmdissolved = 20\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_ae96f8585b6e356dddde5770967401e27}\label{namespacemoduleoil_ae96f8585b6e356dddde5770967401e27}} 
+\index{moduleoil@{moduleoil}!colfmevaporated@{colfmevaporated}}
+\index{colfmevaporated@{colfmevaporated}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colfmevaporated}{colfmevaporated}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colfmevaporated = 11\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a3d323118340637b27ba2f0d81a08b14b}\label{namespacemoduleoil_a3d323118340637b27ba2f0d81a08b14b}} 
+\index{moduleoil@{moduleoil}!colfmoilrecovered@{colfmoilrecovered}}
+\index{colfmoilrecovered@{colfmoilrecovered}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colfmoilrecovered}{colfmoilrecovered}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colfmoilrecovered = 26\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_ab425dda8c296468b2905a264162f96e9}\label{namespacemoduleoil_ab425dda8c296468b2905a264162f96e9}} 
+\index{moduleoil@{moduleoil}!colfmsedimented@{colfmsedimented}}
+\index{colfmsedimented@{colfmsedimented}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colfmsedimented}{colfmsedimented}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colfmsedimented = 17\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_ae298702c324458a69504cb168fbc09c8}\label{namespacemoduleoil_ae298702c324458a69504cb168fbc09c8}} 
+\index{moduleoil@{moduleoil}!colmassoil@{colmassoil}}
+\index{colmassoil@{colmassoil}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colmassoil}{colmassoil}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colmassoil = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a4a4c0c64d30f57fba354d9e4cc938720}\label{namespacemoduleoil_a4a4c0c64d30f57fba354d9e4cc938720}} 
+\index{moduleoil@{moduleoil}!colmchemdispersed@{colmchemdispersed}}
+\index{colmchemdispersed@{colmchemdispersed}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colmchemdispersed}{colmchemdispersed}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colmchemdispersed = 21\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a351b4b4c542f44239dc1769aabc19e82}\label{namespacemoduleoil_a351b4b4c542f44239dc1769aabc19e82}} 
+\index{moduleoil@{moduleoil}!colmdispersed@{colmdispersed}}
+\index{colmdispersed@{colmdispersed}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colmdispersed}{colmdispersed}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colmdispersed = 12\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a59d6f41aca9855d6a7327efac8f3f4a8}\label{namespacemoduleoil_a59d6f41aca9855d6a7327efac8f3f4a8}} 
+\index{moduleoil@{moduleoil}!colmdissolved@{colmdissolved}}
+\index{colmdissolved@{colmdissolved}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colmdissolved}{colmdissolved}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colmdissolved = 18\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_adaaeb4924cb8175bf48760820f0f86ab}\label{namespacemoduleoil_adaaeb4924cb8175bf48760820f0f86ab}} 
+\index{moduleoil@{moduleoil}!colmevaporated@{colmevaporated}}
+\index{colmevaporated@{colmevaporated}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colmevaporated}{colmevaporated}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colmevaporated = 9\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a037325aef7bc894d7a245eaff634677f}\label{namespacemoduleoil_a037325aef7bc894d7a245eaff634677f}} 
+\index{moduleoil@{moduleoil}!colmoilrecovered@{colmoilrecovered}}
+\index{colmoilrecovered@{colmoilrecovered}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colmoilrecovered}{colmoilrecovered}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colmoilrecovered = 24\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_ab28c522cdb0ba8e9677c8bc1b4fcf6a0}\label{namespacemoduleoil_ab28c522cdb0ba8e9677c8bc1b4fcf6a0}} 
+\index{moduleoil@{moduleoil}!colmsedimented@{colmsedimented}}
+\index{colmsedimented@{colmsedimented}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colmsedimented}{colmsedimented}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colmsedimented = 15\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_aef12293605401def345b9d9648095e37}\label{namespacemoduleoil_aef12293605401def345b9d9648095e37}} 
+\index{moduleoil@{moduleoil}!colmwatercontent@{colmwatercontent}}
+\index{colmwatercontent@{colmwatercontent}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colmwatercontent}{colmwatercontent}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colmwatercontent = 27\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a30c511c7fa2c51a98b83d1388c6777c2}\label{namespacemoduleoil_a30c511c7fa2c51a98b83d1388c6777c2}} 
+\index{moduleoil@{moduleoil}!colnbr@{colnbr}}
+\index{colnbr@{colnbr}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colnbr}{colnbr}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colnbr = 30\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a8b3c2c19e4304e2265d2bf593bad3caf}\label{namespacemoduleoil_a8b3c2c19e4304e2265d2bf593bad3caf}} 
+\index{moduleoil@{moduleoil}!colthickness@{colthickness}}
+\index{colthickness@{colthickness}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colthickness}{colthickness}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colthickness = 8\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a8e8fb4b278c65dccdc8d9f1800b6bd2d}\label{namespacemoduleoil_a8e8fb4b278c65dccdc8d9f1800b6bd2d}} 
+\index{moduleoil@{moduleoil}!colvchemdispersed@{colvchemdispersed}}
+\index{colvchemdispersed@{colvchemdispersed}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colvchemdispersed}{colvchemdispersed}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colvchemdispersed = 22\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_afc39ec2f9ea25dbc832655e39fdad7b3}\label{namespacemoduleoil_afc39ec2f9ea25dbc832655e39fdad7b3}} 
+\index{moduleoil@{moduleoil}!colvdispersed@{colvdispersed}}
+\index{colvdispersed@{colvdispersed}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colvdispersed}{colvdispersed}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colvdispersed = 13\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a9ffaf173e8c95b21bad287b5861ef859}\label{namespacemoduleoil_a9ffaf173e8c95b21bad287b5861ef859}} 
+\index{moduleoil@{moduleoil}!colvdissolved@{colvdissolved}}
+\index{colvdissolved@{colvdissolved}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colvdissolved}{colvdissolved}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colvdissolved = 19\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_aa3ee857b2609932bc79ecde6ce062a04}\label{namespacemoduleoil_aa3ee857b2609932bc79ecde6ce062a04}} 
+\index{moduleoil@{moduleoil}!colvevaporated@{colvevaporated}}
+\index{colvevaporated@{colvevaporated}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colvevaporated}{colvevaporated}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colvevaporated = 10\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a0c2df7caf6e999192a0b444702e943fe}\label{namespacemoduleoil_a0c2df7caf6e999192a0b444702e943fe}} 
+\index{moduleoil@{moduleoil}!colviscosity@{colviscosity}}
+\index{colviscosity@{colviscosity}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colviscosity}{colviscosity}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colviscosity = 30\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a50de48619d92d9d816b55ef4169e63be}\label{namespacemoduleoil_a50de48619d92d9d816b55ef4169e63be}} 
+\index{moduleoil@{moduleoil}!colvoilrecovered@{colvoilrecovered}}
+\index{colvoilrecovered@{colvoilrecovered}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colvoilrecovered}{colvoilrecovered}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colvoilrecovered = 25\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_aa67a0e7842c42e4504c82fd7f85324c0}\label{namespacemoduleoil_aa67a0e7842c42e4504c82fd7f85324c0}} 
+\index{moduleoil@{moduleoil}!colvoloilbeached@{colvoloilbeached}}
+\index{colvoloilbeached@{colvoloilbeached}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colvoloilbeached}{colvoloilbeached}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colvoloilbeached = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a0329e06a783575a6ee4822170244d824}\label{namespacemoduleoil_a0329e06a783575a6ee4822170244d824}} 
+\index{moduleoil@{moduleoil}!colvolume@{colvolume}}
+\index{colvolume@{colvolume}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colvolume}{colvolume}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colvolume = 5\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_af255dead494f9fb2acaf47a4d0dec9d4}\label{namespacemoduleoil_af255dead494f9fb2acaf47a4d0dec9d4}} 
+\index{moduleoil@{moduleoil}!colvolumebeached@{colvolumebeached}}
+\index{colvolumebeached@{colvolumebeached}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colvolumebeached}{colvolumebeached}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colvolumebeached = 3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a585198a23d58889aa724511f30843dff}\label{namespacemoduleoil_a585198a23d58889aa724511f30843dff}} 
+\index{moduleoil@{moduleoil}!colvolumeoil@{colvolumeoil}}
+\index{colvolumeoil@{colvolumeoil}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colvolumeoil}{colvolumeoil}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colvolumeoil = 4\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_ad0b64aaf8de58d27bdb5ab1c3dc70e2a}\label{namespacemoduleoil_ad0b64aaf8de58d27bdb5ab1c3dc70e2a}} 
+\index{moduleoil@{moduleoil}!colvsedimented@{colvsedimented}}
+\index{colvsedimented@{colvsedimented}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colvsedimented}{colvsedimented}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colvsedimented = 16\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a24f3e477cedecbea5dbebf0029597e9a}\label{namespacemoduleoil_a24f3e477cedecbea5dbebf0029597e9a}} 
+\index{moduleoil@{moduleoil}!colvwatercontent@{colvwatercontent}}
+\index{colvwatercontent@{colvwatercontent}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{colvwatercontent}{colvwatercontent}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::colvwatercontent = 28\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a26b19843dbe29efd606aed575f35992a}\label{namespacemoduleoil_a26b19843dbe29efd606aed575f35992a}} 
+\index{moduleoil@{moduleoil}!crude@{crude}}
+\index{crude@{crude}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{crude}{crude}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::crude = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_aa8fc0a736aaeb89fe85f27d92b6700f5}\label{namespacemoduleoil_aa8fc0a736aaeb89fe85f27d92b6700f5}} 
+\index{moduleoil@{moduleoil}!csed\_d0@{csed\_d0}}
+\index{csed\_d0@{csed\_d0}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{csed\_d0}{csed\_d0}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::csed\+\_\+d0 = 135.\+0E-\/6\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a42957e6ffc6b29b2df9f369b5de99ac0}\label{namespacemoduleoil_a42957e6ffc6b29b2df9f369b5de99ac0}} 
+\index{moduleoil@{moduleoil}!csed\_deltad@{csed\_deltad}}
+\index{csed\_deltad@{csed\_deltad}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{csed\_deltad}{csed\_deltad}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::csed\+\_\+deltad = 130.\+0E-\/6\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a0be30fe03f8b242de5ca3172e8c7014c}\label{namespacemoduleoil_a0be30fe03f8b242de5ca3172e8c7014c}} 
+\index{moduleoil@{moduleoil}!csed\_sticking@{csed\_sticking}}
+\index{csed\_sticking@{csed\_sticking}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{csed\_sticking}{csed\_sticking}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::csed\+\_\+sticking = 1.\+0E-\/4\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_aeea5bdbe646124d8bd397fbe5a223fb6}\label{namespacemoduleoil_aeea5bdbe646124d8bd397fbe5a223fb6}} 
+\index{moduleoil@{moduleoil}!cvisc\_m@{cvisc\_m}}
+\index{cvisc\_m@{cvisc\_m}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cvisc\_m}{cvisc\_m}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cvisc\+\_\+m = 0.\+65\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a5144615100792e9b403610892988a8a1}\label{namespacemoduleoil_a5144615100792e9b403610892988a8a1}} 
+\index{moduleoil@{moduleoil}!cvisc\_t@{cvisc\_t}}
+\index{cvisc\_t@{cvisc\_t}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cvisc\_t}{cvisc\_t}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cvisc\+\_\+t = 5000.\+0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a17328240dfe3a5164beda37e30975304}\label{namespacemoduleoil_a17328240dfe3a5164beda37e30975304}} 
+\index{moduleoil@{moduleoil}!cvisc\_v@{cvisc\_v}}
+\index{cvisc\_v@{cvisc\_v}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{cvisc\_v}{cvisc\_v}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::cvisc\+\_\+v = 2.\+5\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a801bc9da7585a2b9fbc555af6b0f1567}\label{namespacemoduleoil_a801bc9da7585a2b9fbc555af6b0f1567}} 
+\index{moduleoil@{moduleoil}!delvigne@{delvigne}}
+\index{delvigne@{delvigne}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{delvigne}{delvigne}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::delvigne = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_abfa265d4d464527590649fbc8833c4cc}\label{namespacemoduleoil_abfa265d4d464527590649fbc8833c4cc}} 
+\index{moduleoil@{moduleoil}!evaporativeexposure@{evaporativeexposure}}
+\index{evaporativeexposure@{evaporativeexposure}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{evaporativeexposure}{evaporativeexposure}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::evaporativeexposure = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a9bbc6e1f4a84d5cd13db1cf6c2a97b29}\label{namespacemoduleoil_a9bbc6e1f4a84d5cd13db1cf6c2a97b29}} 
+\index{moduleoil@{moduleoil}!fay\_@{fay\_}}
+\index{fay\_@{fay\_}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{fay\_}{fay\_}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::fay\+\_\+ = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a3bcbe2b9305965ab2c0223d559521a7a}\label{namespacemoduleoil_a3bcbe2b9305965ab2c0223d559521a7a}} 
+\index{moduleoil@{moduleoil}!fingas@{fingas}}
+\index{fingas@{fingas}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{fingas}{fingas}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::fingas = 3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a24a707e47b13ce99f1028c4db28223a3}\label{namespacemoduleoil_a24a707e47b13ce99f1028c4db28223a3}} 
+\index{moduleoil@{moduleoil}!firstobjoil@{firstobjoil}}
+\index{firstobjoil@{firstobjoil}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{firstobjoil}{firstobjoil}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmoduleoil_1_1t__oil}{t\+\_\+oil}}), pointer moduleoil\+::firstobjoil\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_aa67faf2d733fc126badfa6826889d04b}\label{namespacemoduleoil_aa67faf2d733fc126badfa6826889d04b}} 
+\index{moduleoil@{moduleoil}!freshwaterdensity15@{freshwaterdensity15}}
+\index{freshwaterdensity15@{freshwaterdensity15}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{freshwaterdensity15}{freshwaterdensity15}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::freshwaterdensity15 = 999.\+0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_aadde4442048e01350a934a357e8954c7}\label{namespacemoduleoil_aadde4442048e01350a934a357e8954c7}} 
+\index{moduleoil@{moduleoil}!logarithmic@{logarithmic}}
+\index{logarithmic@{logarithmic}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{logarithmic}{logarithmic}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::logarithmic = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a1d25086a7015cf324c3af9b593a745db}\label{namespacemoduleoil_a1d25086a7015cf324c3af9b593a745db}} 
+\index{moduleoil@{moduleoil}!mackay@{mackay}}
+\index{mackay@{mackay}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{mackay}{mackay}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::mackay = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a70419f6d697dd70aed5f5dff114f475f}\label{namespacemoduleoil_a70419f6d697dd70aed5f5dff114f475f}} 
+\index{moduleoil@{moduleoil}!me@{me}}
+\index{me@{me}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmoduleoil_1_1t__oil}{t\+\_\+oil}}), pointer moduleoil\+::me\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a4c54c8c5599a96c18dbcd275ad63854a}\label{namespacemoduleoil_a4c54c8c5599a96c18dbcd275ad63854a}} 
+\index{moduleoil@{moduleoil}!petit@{petit}}
+\index{petit@{petit}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{petit}{petit}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::petit = 1.\+0E-\/10\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a18fce47bd4924b7621307278097862ce}\label{namespacemoduleoil_a18fce47bd4924b7621307278097862ce}} 
+\index{moduleoil@{moduleoil}!pseudocomponents@{pseudocomponents}}
+\index{pseudocomponents@{pseudocomponents}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{pseudocomponents}{pseudocomponents}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::pseudocomponents = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a1f519bc3501a2da321237e65077b9b85}\label{namespacemoduleoil_a1f519bc3501a2da321237e65077b9b85}} 
+\index{moduleoil@{moduleoil}!rasmussen@{rasmussen}}
+\index{rasmussen@{rasmussen}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{rasmussen}{rasmussen}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::rasmussen = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a3cd7562168c72c156b2f1f6e784a5ae3}\label{namespacemoduleoil_a3cd7562168c72c156b2f1f6e784a5ae3}} 
+\index{moduleoil@{moduleoil}!rate@{rate}}
+\index{rate@{rate}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{rate}{rate}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::rate = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a9323fa2198772c36833e461c7a6af583}\label{namespacemoduleoil_a9323fa2198772c36833e461c7a6af583}} 
+\index{moduleoil@{moduleoil}!refined@{refined}}
+\index{refined@{refined}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{refined}{refined}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::refined = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a87308e17b6b42f0df4a04bbfbe791a84}\label{namespacemoduleoil_a87308e17b6b42f0df4a04bbfbe791a84}} 
+\index{moduleoil@{moduleoil}!solubilityfreshoil@{solubilityfreshoil}}
+\index{solubilityfreshoil@{solubilityfreshoil}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{solubilityfreshoil}{solubilityfreshoil}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::solubilityfreshoil = 0.\+030\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_abe60bae5ccf18abdda41e423a7c5daab}\label{namespacemoduleoil_abe60bae5ccf18abdda41e423a7c5daab}} 
+\index{moduleoil@{moduleoil}!squareroot@{squareroot}}
+\index{squareroot@{squareroot}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{squareroot}{squareroot}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::squareroot = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_a4755b7333b284419e721926797d7d9cc}\label{namespacemoduleoil_a4755b7333b284419e721926797d7d9cc}} 
+\index{moduleoil@{moduleoil}!temp15@{temp15}}
+\index{temp15@{temp15}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{temp15}{temp15}}
+{\footnotesize\ttfamily real, parameter moduleoil\+::temp15 = 15.\+0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleoil_af5497b75883cdc370714d52a6e24a73f}\label{namespacemoduleoil_af5497b75883cdc370714d52a6e24a73f}} 
+\index{moduleoil@{moduleoil}!thicknessgradient\_@{thicknessgradient\_}}
+\index{thicknessgradient\_@{thicknessgradient\_}!moduleoil@{moduleoil}}
+\doxysubsubsection{\texorpdfstring{thicknessgradient\_}{thicknessgradient\_}}
+{\footnotesize\ttfamily integer, parameter moduleoil\+::thicknessgradient\+\_\+ = 2\hspace{0.3cm}{\ttfamily [private]}}
+

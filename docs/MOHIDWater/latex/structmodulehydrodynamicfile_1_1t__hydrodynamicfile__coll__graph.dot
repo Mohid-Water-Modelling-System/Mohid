@@ -1,0 +1,25 @@
+digraph "modulehydrodynamicfile::t_hydrodynamicfile"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulehydrodynamicfile\l::t_hydrodynamicfile\n|- instanceid\l- size\l- worksize\l- objtopography\l- objhorizontalgrid\l- objtime\l- objgeometry\l- objmap\l- objhorizontalmap\l- objenterdata\l- objhydrointegration\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -files" ,arrowhead="odiamond"];
+  Node2 [label="{modulehydrodynamicfile\l::t_files\n|- inputfields\l- inputfieldsunit\l- inputversionnumber\l- outputfields\l- outputfieldsunit\l- outputversionnumber\l- integratedbathymetry\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulehydrodynamicfile_1_1t__files.html",tooltip=" "];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -timeintegration" ,arrowhead="odiamond"];
+  Node3 [label="{modulehydrodynamicfile\l::t_timeintegration\n|- nextoutput\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulehydrodynamicfile_1_1t__timeintegration.html",tooltip=" "];
+  Node4 -> Node3 [color="grey25",fontsize="10",style="solid",label=" -integrate3dtime" ,arrowhead="odiamond"];
+  Node4 [label="{modulehydrodynamicfile\l::t_stintegration\n|- waterlevel\l- waterfluxx\l- waterfluxy\l- discharges\l- computefacesu3d\l- computefacesv3d\l- waterpoints2d\l- windowon\l- windowsize\l- windowworksize\l- integrationstep\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulehydrodynamicfile_1_1t__stintegration.html",tooltip=" "];
+  Node1 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond"];
+  Node5 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -state" ,arrowhead="odiamond"];
+  Node5 [label="{modulehydrodynamicfile\l::t_state\n|- input\l- output\l- timeintegration\l- spaceintegration\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulehydrodynamicfile_1_1t__state.html",tooltip=" "];
+  Node6 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -spaceintegration" ,arrowhead="odiamond"];
+  Node6 [label="{modulehydrodynamicfile\l::t_spaceintegration\n|- batintegrationtype\l- vectorintegrationx\l- vectorintegrationy\l- batmin\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulehydrodynamicfile_1_1t__spaceintegration.html",tooltip=" "];
+  Node4 -> Node6 [color="grey25",fontsize="10",style="solid",label=" -integrate3dspace" ,arrowhead="odiamond"];
+  Node7 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -input" ,arrowhead="odiamond"];
+  Node7 [label="{modulehydrodynamicfile\l::t_input\n|- starttime\l- endtime\l- nextinput\l- file_type\l- loadalltomemory\l- nextblockinmemory\l- dt_hydrofile\l- initialwaterlevel\l- initialwaterfluxx\l- initialwaterfluxy\land 11 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulehydrodynamicfile_1_1t__input.html",tooltip=" "];
+  Node8 -> Node7 [color="grey25",fontsize="10",style="solid",label=" -blockinmemory" ,arrowhead="odiamond"];
+  Node8 [label="{modulehydrodynamicfile\l::t_blockinmemory\n|- waterlevel\l- waterfluxx\l- waterfluxy\l- discharges\l- computefacesu3d\l- computefacesv3d\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulehydrodynamicfile_1_1t__blockinmemory.html",tooltip=" "];
+  Node9 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -externalvar" ,arrowhead="odiamond"];
+  Node9 [label="{modulehydrodynamicfile\l::t_external\n|- now\l- dt\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulehydrodynamicfile_1_1t__external.html",tooltip=" "];
+}

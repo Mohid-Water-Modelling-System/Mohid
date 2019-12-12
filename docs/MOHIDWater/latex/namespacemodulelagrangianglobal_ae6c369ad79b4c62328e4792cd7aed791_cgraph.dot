@@ -1,0 +1,12 @@
+digraph "modulelagrangianglobal::readbooms"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulelagrangianglobal\l::readbooms",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="modulelagrangianglobal\l::countindividualbooms",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulelagrangianglobal.html#ac2d819c6cb2d9890063752019007589c",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="modulelagrangianglobal\l::readindividualbooms",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulelagrangianglobal.html#ac534055f33c12be80f6b5d331e9cca95",tooltip=" "];
+}

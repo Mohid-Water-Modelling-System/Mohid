@@ -1,0 +1,18 @@
+digraph "modulewaterproperties::t_bivalve"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulewaterproperties\l::t_bivalve\n|- nspecies\l- npropertiesfrombivalve\l- ncohortproperties\l- listdeadids\l- listnewbornsids\l- matrixnewborns\l- outputhdf\l- outputboxtimeserie\l- objhdf5\l- objboxdif\l- bivalvehdfoutputfile\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -firstspecies" ,arrowhead="odiamond"];
+  Node2 [label="{modulewaterproperties\l::t_species\n|- old\l- dtinterval\l- larvaetransport\l- warnonnegativevalues\l- cohortoutputhdf\l- cohortboxtimeserie\l- cohortstatistics\l- cohortstatisticsfile\l- populationhdf\l- populationboxtimeserie\land 19 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaterproperties_1_1t__species.html",tooltip=" "];
+  Node3 -> Node2 [color="grey25",fontsize="10",style="solid",label=" -sizeclasses" ,arrowhead="odiamond"];
+  Node3 [label="{modulewaterproperties\l::t_sizeclass\n|- name\l- density\l- minimum\l- maximum\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaterproperties_1_1t__sizeclass.html",tooltip=" "];
+  Node4 -> Node2 [color="grey25",fontsize="10",style="solid",label=" -id" ,arrowhead="odiamond"];
+  Node4 [label="{modulewaterproperties\l::t_id\n|- id\l- idnumber\l- name\l- description\l- units\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaterproperties_1_1t__id.html",tooltip=" "];
+  Node2 -> Node2 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond"];
+  Node5 -> Node2 [color="grey25",fontsize="10",style="solid",label=" -firstcohort" ,arrowhead="odiamond"];
+  Node5 [label="{modulewaterproperties\l::t_cohort\n|- atleastonelarvae\l- larvae\l- auxlarvael\l- auxlarvaeme\l- auxlarvaemv\l- auxlarvaemh\l- auxlarvaemr\l- auxlarvaen\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaterproperties_1_1t__cohort.html",tooltip=" "];
+  Node4 -> Node5 [color="grey25",fontsize="10",style="solid",label=" -id" ,arrowhead="odiamond"];
+  Node5 -> Node5 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond"];
+}

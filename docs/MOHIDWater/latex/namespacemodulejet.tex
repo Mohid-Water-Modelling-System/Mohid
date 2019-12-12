@@ -1,0 +1,681 @@
+\hypertarget{namespacemodulejet}{}\doxysection{modulejet Module Reference}
+\label{namespacemodulejet}\index{modulejet@{modulejet}}
+\doxysubsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulejet_1_1t__ambient}{t\+\_\+ambient}}
+\item 
+type \mbox{\hyperlink{structmodulejet_1_1t__evolution}{t\+\_\+evolution}}
+\item 
+type \mbox{\hyperlink{structmodulejet_1_1t__jet}{t\+\_\+jet}}
+\item 
+type \mbox{\hyperlink{structmodulejet_1_1t__numericaloptions}{t\+\_\+numericaloptions}}
+\item 
+type \mbox{\hyperlink{structmodulejet_1_1t__output}{t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmodulejet_1_1t__port}{t\+\_\+port}}
+\item 
+interface \mbox{\hyperlink{interfacemodulejet_1_1ungetjet}{ungetjet}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_a62e934340e7802fddd09c6c14676471d}{construct\+\_\+jet}} (Jet\+ID, File\+Name, Horizontal\+Grid\+ID, PositionX, PositionY, Flow, Salinity, Temperature, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_af21d1a641f05197da226314abaeccf5e}{allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_ad99b3da948112f106201831bbaaa074f}{readjetdata}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a6a2424bc396ad0eed996ed0d75430e3b}{computeportproperties}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_aabae5c457f7fe1dd3d3f540d56e94877}{modifyjet}} (Jet\+ID, Salinity, Temperature, VelU, VelV, VelW, S\+ZZ, I, J, Bottom\+Layer, Surface\+Layer, Out\+Put\+OK, Jet\+Flow, Jet\+Temperature, Jet\+Salinity, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_ab0790a91803700e0bd5e3ef9db5242c1}{resetvariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a8b1ef801e649c2313fee9754d2aeb58a}{computeinitialjetproperties}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_aa0e9555f7e9aa809220382ec3e33e9a5}{computestationaryplume}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_aa7fe235d6b33c696f614897ed43a1e19}{computeonetimestep}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a1eea8311f846796ccfa34a65730c5c55}{localambientprop}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a188ea99d96436b044d3ea76f4ddfa467}{auxiliarvectors}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_afbaba1fae7aab0a9a372600923511fed}{shearentrainmentcoef}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a0425b9fdbf288a0e893428f44a92b9ea}{computeinitialdt}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a8bbbce93ba8d9ba74525873c550cdf8b}{computedragentrainment}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a21b954c77f4addf0f268edc0e9448a18}{computeshearentrainment}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_abe8dc92537467b9dcd97c4a01b77f51c}{volumevariation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a05449786a790959e45db1fc1bd9f93f6}{densityvariation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a4aaeebe926aea33dd1391746d2cdaa32}{velocityvariation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a5241bdca6d72d79d96fdc8d9b63a291a}{thicknessvariation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a0d3bcdd114f549e27a46b673224a1f35}{computegeometry}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a9175197cbe465e40fa03bc6a7c788871}{plumetracjectory}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a7518a8afbcafcfeedfc10f5a3a205b33}{timecontrol}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a200bdafc097359afe09ed14b7a55d8b7}{jetoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a61dad6f878bf6cce690b9523901012ac}{cloudoutput}}
+\item 
+real function \mbox{\hyperlink{namespacemodulejet_adbbd50d3810071999488736815c23285}{computeanglexy}} (Modulus, X, Y)
+\item 
+real function \mbox{\hyperlink{namespacemodulejet_a54205285b4f5a4d3d7204aa240f92d64}{gaussianevolution}} (Center\+Value, Ambient\+Value, Radius, r)
+\item 
+real function \mbox{\hyperlink{namespacemodulejet_a5b1cd3a55b2e6494e998c7233db5ec58}{gaussrand}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemodulejet_a2cbc865fd41278d7ee8a6b0036bc3114}{cross\+\_\+product}} (AV, BV, CV)
+\begin{DoxyCompactList}\small\item\em ==================================================================== \end{DoxyCompactList}\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_a5bd04e69691ddf86217eae82701cb7ea}{getplumedilution}} (Jet\+ID, Plume\+Dilution, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_a864a38eff68cbab56308586d389f202b}{getplumelocation}} (Jet\+ID, PlumeX, PlumeY, PlumeZ, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_aace5b51fdfea28b29ddf40d44b7805b4}{getplumedensity}} (Jet\+ID, Plume\+Density, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_a6a3b06a4b31a48d3feabf8b545a6e8b2}{getplumesalinity}} (Jet\+ID, Plume\+Salinity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_aa64ddb0bd7c80f966b8ec54eb9a36c7c}{getplumetemperature}} (Jet\+ID, Plume\+Temperature, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_ab7e7ab36f584f4edd9e7f7835d1e0cee}{getplumevelocity}} (Jet\+ID, Plume\+VelU, Plume\+VelV, Plume\+VelW, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_a105341ffdec09f8266a68d6db9beba7f}{getplumemixinghorlength}} (Jet\+ID, Plume\+Hor\+Length, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_a50ced2ba527ab243cd3228d18867695d}{getplumethickness}} (Jet\+ID, Plume\+Thickness, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_a81ee4e71d54b53e9b3ab94bb817d66e8}{getoutputmatrix}} (Jet\+ID, Out\+Put\+Matrix, Out\+Put\+Lines, Out\+Put\+Columns, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_af33eb9ee692e4270d09338bd74aa8851}{getoutputheader}} (Jet\+ID, Out\+Put\+Header, Out\+Put\+Columns, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_adcc462c38759f6ba6caa1b8f33479fa8}{getportgeometry}} (Jet\+ID, H\+Z\+Angle, X\+Y\+Angle, Diameter, Number, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a3faa436f5c17dc03c594506d8e2e37ac}{ungetjetreal2d}} (Jet\+ID, Matrix2D, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_aaa0ceb23e085072c0cf5693f217b27ea}{ungetjetchar1d}} (Jet\+ID, Matrix1D, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_a98749a91e325a4b4041aa46d5abfde4e}{killjet}} (Jet\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_aed198ff7ee371124ec0afa1cd4cfe116}{deallocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a08cf17884b67eb6e393c3f7553f6398f}{ready}} (Obj\+Jet\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a0b2668a76b18f69741deda8796740f8f}{locateobjjet}} (Obj\+Jet\+ID)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulejet_a47f0eeeb3926639ae9bc14b922a7f57c}{corjet}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulejet_a0eac969bec0ab0471a9981f588069599}{jetlag}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulejet_a66d6965728ead70e0e7ec473e5f3892a}{mohidjet}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulejet_a40df7356ca4c8528a71bb58c601ebd49}{jet}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulejet_a9e881f4c022dfb8c88bf0a80253f418d}{cloud}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulejet_afc8a4f2043befe1347d4c124fa51f8fe}{field3d}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulejet_aded2b1f058efa2a87b81b1014237d1dd}{uniform}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulejet_a348a978ca201c1b1d5cce70caf9ffbca}{linear}} = 3
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulejet_aaf2968de3c9e21de5bf36921280173ea}{char\+\_\+corjet}} = \char`\"{}C\+O\+R\+J\+ET\char`\"{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulejet_a095e7e5dbe90a0743f6b20da582f4b36}{char\+\_\+jetlag}} = \char`\"{}J\+E\+T\+L\+AG\char`\"{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulejet_a5d2a3c56461cb3ab743e4cf3e43ef5c4}{char\+\_\+mohidjet}} = \char`\"{}M\+O\+H\+I\+D\+J\+ET\char`\"{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulejet_aefbc78bb0522ce92db2a8c9ebb93b89d}{char\+\_\+jet}} = \char`\"{}J\+ET\char`\"{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulejet_ada08e627a6d079948c1b003fbb4123d3}{char\+\_\+cloud}} = \char`\"{}C\+L\+O\+UD\char`\"{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulejet_ab29798d11a7038ce6bed995f6906602b}{char\+\_\+field3d}} = \char`\"{}F\+I\+E\+L\+D3D\char`\"{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulejet_a712a0fb09e3bed71ec54b3f527cf6620}{char\+\_\+uniform}} = \char`\"{}U\+N\+I\+F\+O\+RM\char`\"{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulejet_a8e1524ba4bcb2d9dc829cb15187def34}{char\+\_\+linear}} = \char`\"{}L\+I\+N\+E\+AR\char`\"{}
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulejet_a0d016ad4bb2860942a6dee0743ceb113}{sigmad}} = 0.\+5
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulejet_a1e044c780afebf2d2dbf72987f29c21c}{precision}} = 1e-\/4
+\item 
+type(\mbox{\hyperlink{structmodulejet_1_1t__jet}{t\+\_\+jet}}), pointer \mbox{\hyperlink{namespacemodulejet_a71f07968cb9db6433b4bf6e542b64236}{firstjet}}
+\item 
+type(\mbox{\hyperlink{structmodulejet_1_1t__jet}{t\+\_\+jet}}), pointer \mbox{\hyperlink{namespacemodulejet_ab55c2a250d5e25c16efdfeea48d0b3da}{me}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemodulejet_af21d1a641f05197da226314abaeccf5e}\label{namespacemodulejet_af21d1a641f05197da226314abaeccf5e}} 
+\index{modulejet@{modulejet}!allocateinstance@{allocateinstance}}
+\index{allocateinstance@{allocateinstance}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{allocateinstance()}{allocateinstance()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::allocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 0
+\mbox{\Hypertarget{namespacemodulejet_a188ea99d96436b044d3ea76f4ddfa467}\label{namespacemodulejet_a188ea99d96436b044d3ea76f4ddfa467}} 
+\index{modulejet@{modulejet}!auxiliarvectors@{auxiliarvectors}}
+\index{auxiliarvectors@{auxiliarvectors}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{auxiliarvectors()}{auxiliarvectors()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::auxiliarvectors (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 1
+Here is the caller graph for this function\+:
+% FIG 2
+\mbox{\Hypertarget{namespacemodulejet_a61dad6f878bf6cce690b9523901012ac}\label{namespacemodulejet_a61dad6f878bf6cce690b9523901012ac}} 
+\index{modulejet@{modulejet}!cloudoutput@{cloudoutput}}
+\index{cloudoutput@{cloudoutput}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{cloudoutput()}{cloudoutput()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::cloudoutput (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 3
+Here is the caller graph for this function\+:
+% FIG 4
+\mbox{\Hypertarget{namespacemodulejet_adbbd50d3810071999488736815c23285}\label{namespacemodulejet_adbbd50d3810071999488736815c23285}} 
+\index{modulejet@{modulejet}!computeanglexy@{computeanglexy}}
+\index{computeanglexy@{computeanglexy}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{computeanglexy()}{computeanglexy()}}
+{\footnotesize\ttfamily real function modulejet\+::computeanglexy (\begin{DoxyParamCaption}\item[{real}]{Modulus,  }\item[{real}]{X,  }\item[{real}]{Y }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 5
+\mbox{\Hypertarget{namespacemodulejet_a8bbbce93ba8d9ba74525873c550cdf8b}\label{namespacemodulejet_a8bbbce93ba8d9ba74525873c550cdf8b}} 
+\index{modulejet@{modulejet}!computedragentrainment@{computedragentrainment}}
+\index{computedragentrainment@{computedragentrainment}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{computedragentrainment()}{computedragentrainment()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::computedragentrainment (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 6
+\mbox{\Hypertarget{namespacemodulejet_a0d3bcdd114f549e27a46b673224a1f35}\label{namespacemodulejet_a0d3bcdd114f549e27a46b673224a1f35}} 
+\index{modulejet@{modulejet}!computegeometry@{computegeometry}}
+\index{computegeometry@{computegeometry}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{computegeometry()}{computegeometry()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::computegeometry (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 7
+\mbox{\Hypertarget{namespacemodulejet_a0425b9fdbf288a0e893428f44a92b9ea}\label{namespacemodulejet_a0425b9fdbf288a0e893428f44a92b9ea}} 
+\index{modulejet@{modulejet}!computeinitialdt@{computeinitialdt}}
+\index{computeinitialdt@{computeinitialdt}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{computeinitialdt()}{computeinitialdt()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::computeinitialdt (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 8
+\mbox{\Hypertarget{namespacemodulejet_a8b1ef801e649c2313fee9754d2aeb58a}\label{namespacemodulejet_a8b1ef801e649c2313fee9754d2aeb58a}} 
+\index{modulejet@{modulejet}!computeinitialjetproperties@{computeinitialjetproperties}}
+\index{computeinitialjetproperties@{computeinitialjetproperties}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{computeinitialjetproperties()}{computeinitialjetproperties()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::computeinitialjetproperties (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 9
+Here is the caller graph for this function\+:
+% FIG 10
+\mbox{\Hypertarget{namespacemodulejet_aa7fe235d6b33c696f614897ed43a1e19}\label{namespacemodulejet_aa7fe235d6b33c696f614897ed43a1e19}} 
+\index{modulejet@{modulejet}!computeonetimestep@{computeonetimestep}}
+\index{computeonetimestep@{computeonetimestep}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{computeonetimestep()}{computeonetimestep()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::computeonetimestep (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 11
+Here is the caller graph for this function\+:
+% FIG 12
+\mbox{\Hypertarget{namespacemodulejet_a6a2424bc396ad0eed996ed0d75430e3b}\label{namespacemodulejet_a6a2424bc396ad0eed996ed0d75430e3b}} 
+\index{modulejet@{modulejet}!computeportproperties@{computeportproperties}}
+\index{computeportproperties@{computeportproperties}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{computeportproperties()}{computeportproperties()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::computeportproperties (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 13
+\mbox{\Hypertarget{namespacemodulejet_a21b954c77f4addf0f268edc0e9448a18}\label{namespacemodulejet_a21b954c77f4addf0f268edc0e9448a18}} 
+\index{modulejet@{modulejet}!computeshearentrainment@{computeshearentrainment}}
+\index{computeshearentrainment@{computeshearentrainment}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{computeshearentrainment()}{computeshearentrainment()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::computeshearentrainment (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 14
+\mbox{\Hypertarget{namespacemodulejet_aa0e9555f7e9aa809220382ec3e33e9a5}\label{namespacemodulejet_aa0e9555f7e9aa809220382ec3e33e9a5}} 
+\index{modulejet@{modulejet}!computestationaryplume@{computestationaryplume}}
+\index{computestationaryplume@{computestationaryplume}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{computestationaryplume()}{computestationaryplume()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::computestationaryplume (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 15
+Here is the caller graph for this function\+:
+% FIG 16
+\mbox{\Hypertarget{namespacemodulejet_a62e934340e7802fddd09c6c14676471d}\label{namespacemodulejet_a62e934340e7802fddd09c6c14676471d}} 
+\index{modulejet@{modulejet}!construct\_jet@{construct\_jet}}
+\index{construct\_jet@{construct\_jet}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{construct\_jet()}{construct\_jet()}}
+{\footnotesize\ttfamily subroutine, public modulejet\+::construct\+\_\+jet (\begin{DoxyParamCaption}\item[{integer}]{Jet\+ID,  }\item[{character(len=$\ast$)}]{File\+Name,  }\item[{integer}]{Horizontal\+Grid\+ID,  }\item[{real}]{PositionX,  }\item[{real}]{PositionY,  }\item[{real}]{Flow,  }\item[{real}]{Salinity,  }\item[{real}]{Temperature,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 17
+Here is the caller graph for this function\+:
+% FIG 18
+\mbox{\Hypertarget{namespacemodulejet_a2cbc865fd41278d7ee8a6b0036bc3114}\label{namespacemodulejet_a2cbc865fd41278d7ee8a6b0036bc3114}} 
+\index{modulejet@{modulejet}!cross\_product@{cross\_product}}
+\index{cross\_product@{cross\_product}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{cross\_product()}{cross\_product()}}
+{\footnotesize\ttfamily subroutine modulejet\+::cross\+\_\+product (\begin{DoxyParamCaption}\item[{real, dimension(1\+:3), intent(in)}]{AV,  }\item[{real, dimension(1\+:3), intent(in)}]{BV,  }\item[{real, dimension(1\+:3), intent(out)}]{CV }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+==================================================================== 
+
+\doxysubsection*{============================================================================================================ }Here is the caller graph for this function\+:
+% FIG 19
+\mbox{\Hypertarget{namespacemodulejet_aed198ff7ee371124ec0afa1cd4cfe116}\label{namespacemodulejet_aed198ff7ee371124ec0afa1cd4cfe116}} 
+\index{modulejet@{modulejet}!deallocateinstance@{deallocateinstance}}
+\index{deallocateinstance@{deallocateinstance}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{deallocateinstance()}{deallocateinstance()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::deallocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 20
+\mbox{\Hypertarget{namespacemodulejet_a05449786a790959e45db1fc1bd9f93f6}\label{namespacemodulejet_a05449786a790959e45db1fc1bd9f93f6}} 
+\index{modulejet@{modulejet}!densityvariation@{densityvariation}}
+\index{densityvariation@{densityvariation}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{densityvariation()}{densityvariation()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::densityvariation (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 21
+\mbox{\Hypertarget{namespacemodulejet_a54205285b4f5a4d3d7204aa240f92d64}\label{namespacemodulejet_a54205285b4f5a4d3d7204aa240f92d64}} 
+\index{modulejet@{modulejet}!gaussianevolution@{gaussianevolution}}
+\index{gaussianevolution@{gaussianevolution}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{gaussianevolution()}{gaussianevolution()}}
+{\footnotesize\ttfamily real function modulejet\+::gaussianevolution (\begin{DoxyParamCaption}\item[{real}]{Center\+Value,  }\item[{real}]{Ambient\+Value,  }\item[{real}]{Radius,  }\item[{real}]{r }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 22
+\mbox{\Hypertarget{namespacemodulejet_a5b1cd3a55b2e6494e998c7233db5ec58}\label{namespacemodulejet_a5b1cd3a55b2e6494e998c7233db5ec58}} 
+\index{modulejet@{modulejet}!gaussrand@{gaussrand}}
+\index{gaussrand@{gaussrand}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{gaussrand()}{gaussrand()}}
+{\footnotesize\ttfamily real function modulejet\+::gaussrand (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 23
+\mbox{\Hypertarget{namespacemodulejet_af33eb9ee692e4270d09338bd74aa8851}\label{namespacemodulejet_af33eb9ee692e4270d09338bd74aa8851}} 
+\index{modulejet@{modulejet}!getoutputheader@{getoutputheader}}
+\index{getoutputheader@{getoutputheader}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{getoutputheader()}{getoutputheader()}}
+{\footnotesize\ttfamily subroutine, public modulejet\+::getoutputheader (\begin{DoxyParamCaption}\item[{integer}]{Jet\+ID,  }\item[{character(len=stringlength), dimension(\+:), pointer}]{Out\+Put\+Header,  }\item[{integer, intent(out), optional}]{Out\+Put\+Columns,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 24
+\mbox{\Hypertarget{namespacemodulejet_a81ee4e71d54b53e9b3ab94bb817d66e8}\label{namespacemodulejet_a81ee4e71d54b53e9b3ab94bb817d66e8}} 
+\index{modulejet@{modulejet}!getoutputmatrix@{getoutputmatrix}}
+\index{getoutputmatrix@{getoutputmatrix}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{getoutputmatrix()}{getoutputmatrix()}}
+{\footnotesize\ttfamily subroutine, public modulejet\+::getoutputmatrix (\begin{DoxyParamCaption}\item[{integer}]{Jet\+ID,  }\item[{real, dimension(\+:,\+:), pointer}]{Out\+Put\+Matrix,  }\item[{integer, intent(out), optional}]{Out\+Put\+Lines,  }\item[{integer, intent(out), optional}]{Out\+Put\+Columns,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 25
+\mbox{\Hypertarget{namespacemodulejet_aace5b51fdfea28b29ddf40d44b7805b4}\label{namespacemodulejet_aace5b51fdfea28b29ddf40d44b7805b4}} 
+\index{modulejet@{modulejet}!getplumedensity@{getplumedensity}}
+\index{getplumedensity@{getplumedensity}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{getplumedensity()}{getplumedensity()}}
+{\footnotesize\ttfamily subroutine, public modulejet\+::getplumedensity (\begin{DoxyParamCaption}\item[{integer}]{Jet\+ID,  }\item[{real}]{Plume\+Density,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 26
+Here is the caller graph for this function\+:
+% FIG 27
+\mbox{\Hypertarget{namespacemodulejet_a5bd04e69691ddf86217eae82701cb7ea}\label{namespacemodulejet_a5bd04e69691ddf86217eae82701cb7ea}} 
+\index{modulejet@{modulejet}!getplumedilution@{getplumedilution}}
+\index{getplumedilution@{getplumedilution}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{getplumedilution()}{getplumedilution()}}
+{\footnotesize\ttfamily subroutine, public modulejet\+::getplumedilution (\begin{DoxyParamCaption}\item[{integer}]{Jet\+ID,  }\item[{real}]{Plume\+Dilution,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 28
+Here is the caller graph for this function\+:
+% FIG 29
+\mbox{\Hypertarget{namespacemodulejet_a864a38eff68cbab56308586d389f202b}\label{namespacemodulejet_a864a38eff68cbab56308586d389f202b}} 
+\index{modulejet@{modulejet}!getplumelocation@{getplumelocation}}
+\index{getplumelocation@{getplumelocation}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{getplumelocation()}{getplumelocation()}}
+{\footnotesize\ttfamily subroutine, public modulejet\+::getplumelocation (\begin{DoxyParamCaption}\item[{integer}]{Jet\+ID,  }\item[{real}]{PlumeX,  }\item[{real}]{PlumeY,  }\item[{real}]{PlumeZ,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 30
+Here is the caller graph for this function\+:
+% FIG 31
+\mbox{\Hypertarget{namespacemodulejet_a105341ffdec09f8266a68d6db9beba7f}\label{namespacemodulejet_a105341ffdec09f8266a68d6db9beba7f}} 
+\index{modulejet@{modulejet}!getplumemixinghorlength@{getplumemixinghorlength}}
+\index{getplumemixinghorlength@{getplumemixinghorlength}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{getplumemixinghorlength()}{getplumemixinghorlength()}}
+{\footnotesize\ttfamily subroutine, public modulejet\+::getplumemixinghorlength (\begin{DoxyParamCaption}\item[{integer}]{Jet\+ID,  }\item[{real}]{Plume\+Hor\+Length,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 32
+Here is the caller graph for this function\+:
+% FIG 33
+\mbox{\Hypertarget{namespacemodulejet_a6a3b06a4b31a48d3feabf8b545a6e8b2}\label{namespacemodulejet_a6a3b06a4b31a48d3feabf8b545a6e8b2}} 
+\index{modulejet@{modulejet}!getplumesalinity@{getplumesalinity}}
+\index{getplumesalinity@{getplumesalinity}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{getplumesalinity()}{getplumesalinity()}}
+{\footnotesize\ttfamily subroutine, public modulejet\+::getplumesalinity (\begin{DoxyParamCaption}\item[{integer}]{Jet\+ID,  }\item[{real}]{Plume\+Salinity,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 34
+Here is the caller graph for this function\+:
+% FIG 35
+\mbox{\Hypertarget{namespacemodulejet_aa64ddb0bd7c80f966b8ec54eb9a36c7c}\label{namespacemodulejet_aa64ddb0bd7c80f966b8ec54eb9a36c7c}} 
+\index{modulejet@{modulejet}!getplumetemperature@{getplumetemperature}}
+\index{getplumetemperature@{getplumetemperature}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{getplumetemperature()}{getplumetemperature()}}
+{\footnotesize\ttfamily subroutine, public modulejet\+::getplumetemperature (\begin{DoxyParamCaption}\item[{integer}]{Jet\+ID,  }\item[{real}]{Plume\+Temperature,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 36
+Here is the caller graph for this function\+:
+% FIG 37
+\mbox{\Hypertarget{namespacemodulejet_a50ced2ba527ab243cd3228d18867695d}\label{namespacemodulejet_a50ced2ba527ab243cd3228d18867695d}} 
+\index{modulejet@{modulejet}!getplumethickness@{getplumethickness}}
+\index{getplumethickness@{getplumethickness}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{getplumethickness()}{getplumethickness()}}
+{\footnotesize\ttfamily subroutine, public modulejet\+::getplumethickness (\begin{DoxyParamCaption}\item[{integer}]{Jet\+ID,  }\item[{real}]{Plume\+Thickness,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 38
+Here is the caller graph for this function\+:
+% FIG 39
+\mbox{\Hypertarget{namespacemodulejet_ab7e7ab36f584f4edd9e7f7835d1e0cee}\label{namespacemodulejet_ab7e7ab36f584f4edd9e7f7835d1e0cee}} 
+\index{modulejet@{modulejet}!getplumevelocity@{getplumevelocity}}
+\index{getplumevelocity@{getplumevelocity}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{getplumevelocity()}{getplumevelocity()}}
+{\footnotesize\ttfamily subroutine, public modulejet\+::getplumevelocity (\begin{DoxyParamCaption}\item[{integer}]{Jet\+ID,  }\item[{real}]{Plume\+VelU,  }\item[{real}]{Plume\+VelV,  }\item[{real}]{Plume\+VelW,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 40
+Here is the caller graph for this function\+:
+% FIG 41
+\mbox{\Hypertarget{namespacemodulejet_adcc462c38759f6ba6caa1b8f33479fa8}\label{namespacemodulejet_adcc462c38759f6ba6caa1b8f33479fa8}} 
+\index{modulejet@{modulejet}!getportgeometry@{getportgeometry}}
+\index{getportgeometry@{getportgeometry}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{getportgeometry()}{getportgeometry()}}
+{\footnotesize\ttfamily subroutine, public modulejet\+::getportgeometry (\begin{DoxyParamCaption}\item[{integer}]{Jet\+ID,  }\item[{real, intent(out), optional}]{H\+Z\+Angle,  }\item[{real, intent(out), optional}]{X\+Y\+Angle,  }\item[{real, intent(out), optional}]{Diameter,  }\item[{integer, intent(out), optional}]{Number,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 42
+\mbox{\Hypertarget{namespacemodulejet_a200bdafc097359afe09ed14b7a55d8b7}\label{namespacemodulejet_a200bdafc097359afe09ed14b7a55d8b7}} 
+\index{modulejet@{modulejet}!jetoutput@{jetoutput}}
+\index{jetoutput@{jetoutput}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{jetoutput()}{jetoutput()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::jetoutput (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 43
+\mbox{\Hypertarget{namespacemodulejet_a98749a91e325a4b4041aa46d5abfde4e}\label{namespacemodulejet_a98749a91e325a4b4041aa46d5abfde4e}} 
+\index{modulejet@{modulejet}!killjet@{killjet}}
+\index{killjet@{killjet}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{killjet()}{killjet()}}
+{\footnotesize\ttfamily subroutine, public modulejet\+::killjet (\begin{DoxyParamCaption}\item[{integer}]{Jet\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 44
+Here is the caller graph for this function\+:
+% FIG 45
+\mbox{\Hypertarget{namespacemodulejet_a1eea8311f846796ccfa34a65730c5c55}\label{namespacemodulejet_a1eea8311f846796ccfa34a65730c5c55}} 
+\index{modulejet@{modulejet}!localambientprop@{localambientprop}}
+\index{localambientprop@{localambientprop}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{localambientprop()}{localambientprop()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::localambientprop (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 46
+\mbox{\Hypertarget{namespacemodulejet_a0b2668a76b18f69741deda8796740f8f}\label{namespacemodulejet_a0b2668a76b18f69741deda8796740f8f}} 
+\index{modulejet@{modulejet}!locateobjjet@{locateobjjet}}
+\index{locateobjjet@{locateobjjet}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{locateobjjet()}{locateobjjet()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::locateobjjet (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Jet\+ID }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 47
+\mbox{\Hypertarget{namespacemodulejet_aabae5c457f7fe1dd3d3f540d56e94877}\label{namespacemodulejet_aabae5c457f7fe1dd3d3f540d56e94877}} 
+\index{modulejet@{modulejet}!modifyjet@{modifyjet}}
+\index{modifyjet@{modifyjet}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{modifyjet()}{modifyjet()}}
+{\footnotesize\ttfamily subroutine, public modulejet\+::modifyjet (\begin{DoxyParamCaption}\item[{integer}]{Jet\+ID,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Salinity,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Temperature,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{VelU,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{VelV,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{VelW,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{S\+ZZ,  }\item[{integer}]{I,  }\item[{integer}]{J,  }\item[{integer}]{Bottom\+Layer,  }\item[{integer}]{Surface\+Layer,  }\item[{logical}]{Out\+Put\+OK,  }\item[{real}]{Jet\+Flow,  }\item[{real}]{Jet\+Temperature,  }\item[{real}]{Jet\+Salinity,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 48
+Here is the caller graph for this function\+:
+% FIG 49
+\mbox{\Hypertarget{namespacemodulejet_a9175197cbe465e40fa03bc6a7c788871}\label{namespacemodulejet_a9175197cbe465e40fa03bc6a7c788871}} 
+\index{modulejet@{modulejet}!plumetracjectory@{plumetracjectory}}
+\index{plumetracjectory@{plumetracjectory}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{plumetracjectory()}{plumetracjectory()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::plumetracjectory (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 50
+\mbox{\Hypertarget{namespacemodulejet_ad99b3da948112f106201831bbaaa074f}\label{namespacemodulejet_ad99b3da948112f106201831bbaaa074f}} 
+\index{modulejet@{modulejet}!readjetdata@{readjetdata}}
+\index{readjetdata@{readjetdata}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{readjetdata()}{readjetdata()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::readjetdata (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 51
+\mbox{\Hypertarget{namespacemodulejet_a08cf17884b67eb6e393c3f7553f6398f}\label{namespacemodulejet_a08cf17884b67eb6e393c3f7553f6398f}} 
+\index{modulejet@{modulejet}!ready@{ready}}
+\index{ready@{ready}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{ready()}{ready()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::ready (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Jet\+\_\+\+ID,  }\item[{integer}]{ready\+\_\+ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 52
+Here is the caller graph for this function\+:
+% FIG 53
+\mbox{\Hypertarget{namespacemodulejet_ab0790a91803700e0bd5e3ef9db5242c1}\label{namespacemodulejet_ab0790a91803700e0bd5e3ef9db5242c1}} 
+\index{modulejet@{modulejet}!resetvariables@{resetvariables}}
+\index{resetvariables@{resetvariables}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{resetvariables()}{resetvariables()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::resetvariables (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 54
+\mbox{\Hypertarget{namespacemodulejet_afbaba1fae7aab0a9a372600923511fed}\label{namespacemodulejet_afbaba1fae7aab0a9a372600923511fed}} 
+\index{modulejet@{modulejet}!shearentrainmentcoef@{shearentrainmentcoef}}
+\index{shearentrainmentcoef@{shearentrainmentcoef}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{shearentrainmentcoef()}{shearentrainmentcoef()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::shearentrainmentcoef (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 55
+\mbox{\Hypertarget{namespacemodulejet_a5241bdca6d72d79d96fdc8d9b63a291a}\label{namespacemodulejet_a5241bdca6d72d79d96fdc8d9b63a291a}} 
+\index{modulejet@{modulejet}!thicknessvariation@{thicknessvariation}}
+\index{thicknessvariation@{thicknessvariation}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{thicknessvariation()}{thicknessvariation()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::thicknessvariation (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 56
+\mbox{\Hypertarget{namespacemodulejet_a7518a8afbcafcfeedfc10f5a3a205b33}\label{namespacemodulejet_a7518a8afbcafcfeedfc10f5a3a205b33}} 
+\index{modulejet@{modulejet}!timecontrol@{timecontrol}}
+\index{timecontrol@{timecontrol}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{timecontrol()}{timecontrol()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::timecontrol (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 57
+Here is the caller graph for this function\+:
+% FIG 58
+\mbox{\Hypertarget{namespacemodulejet_aaa0ceb23e085072c0cf5693f217b27ea}\label{namespacemodulejet_aaa0ceb23e085072c0cf5693f217b27ea}} 
+\index{modulejet@{modulejet}!ungetjetchar1d@{ungetjetchar1d}}
+\index{ungetjetchar1d@{ungetjetchar1d}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{ungetjetchar1d()}{ungetjetchar1d()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::ungetjetchar1d (\begin{DoxyParamCaption}\item[{integer}]{Jet\+ID,  }\item[{character(len=$\ast$), dimension(\+:), pointer}]{Matrix1D,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 59
+\mbox{\Hypertarget{namespacemodulejet_a3faa436f5c17dc03c594506d8e2e37ac}\label{namespacemodulejet_a3faa436f5c17dc03c594506d8e2e37ac}} 
+\index{modulejet@{modulejet}!ungetjetreal2d@{ungetjetreal2d}}
+\index{ungetjetreal2d@{ungetjetreal2d}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{ungetjetreal2d()}{ungetjetreal2d()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::ungetjetreal2d (\begin{DoxyParamCaption}\item[{integer}]{Jet\+ID,  }\item[{real, dimension(\+:,\+:), pointer}]{Matrix2D,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 60
+\mbox{\Hypertarget{namespacemodulejet_a4aaeebe926aea33dd1391746d2cdaa32}\label{namespacemodulejet_a4aaeebe926aea33dd1391746d2cdaa32}} 
+\index{modulejet@{modulejet}!velocityvariation@{velocityvariation}}
+\index{velocityvariation@{velocityvariation}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{velocityvariation()}{velocityvariation()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::velocityvariation (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 61
+\mbox{\Hypertarget{namespacemodulejet_abe8dc92537467b9dcd97c4a01b77f51c}\label{namespacemodulejet_abe8dc92537467b9dcd97c4a01b77f51c}} 
+\index{modulejet@{modulejet}!volumevariation@{volumevariation}}
+\index{volumevariation@{volumevariation}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{volumevariation()}{volumevariation()}}
+{\footnotesize\ttfamily subroutine, private modulejet\+::volumevariation (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 62
+
+
+\doxysubsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemodulejet_ada08e627a6d079948c1b003fbb4123d3}\label{namespacemodulejet_ada08e627a6d079948c1b003fbb4123d3}} 
+\index{modulejet@{modulejet}!char\_cloud@{char\_cloud}}
+\index{char\_cloud@{char\_cloud}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{char\_cloud}{char\_cloud}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulejet\+::char\+\_\+cloud = \char`\"{}C\+L\+O\+UD\char`\"{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_aaf2968de3c9e21de5bf36921280173ea}\label{namespacemodulejet_aaf2968de3c9e21de5bf36921280173ea}} 
+\index{modulejet@{modulejet}!char\_corjet@{char\_corjet}}
+\index{char\_corjet@{char\_corjet}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{char\_corjet}{char\_corjet}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulejet\+::char\+\_\+corjet = \char`\"{}C\+O\+R\+J\+ET\char`\"{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_ab29798d11a7038ce6bed995f6906602b}\label{namespacemodulejet_ab29798d11a7038ce6bed995f6906602b}} 
+\index{modulejet@{modulejet}!char\_field3d@{char\_field3d}}
+\index{char\_field3d@{char\_field3d}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{char\_field3d}{char\_field3d}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulejet\+::char\+\_\+field3d = \char`\"{}F\+I\+E\+L\+D3D\char`\"{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_aefbc78bb0522ce92db2a8c9ebb93b89d}\label{namespacemodulejet_aefbc78bb0522ce92db2a8c9ebb93b89d}} 
+\index{modulejet@{modulejet}!char\_jet@{char\_jet}}
+\index{char\_jet@{char\_jet}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{char\_jet}{char\_jet}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulejet\+::char\+\_\+jet = \char`\"{}J\+ET\char`\"{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_a095e7e5dbe90a0743f6b20da582f4b36}\label{namespacemodulejet_a095e7e5dbe90a0743f6b20da582f4b36}} 
+\index{modulejet@{modulejet}!char\_jetlag@{char\_jetlag}}
+\index{char\_jetlag@{char\_jetlag}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{char\_jetlag}{char\_jetlag}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulejet\+::char\+\_\+jetlag = \char`\"{}J\+E\+T\+L\+AG\char`\"{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_a8e1524ba4bcb2d9dc829cb15187def34}\label{namespacemodulejet_a8e1524ba4bcb2d9dc829cb15187def34}} 
+\index{modulejet@{modulejet}!char\_linear@{char\_linear}}
+\index{char\_linear@{char\_linear}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{char\_linear}{char\_linear}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulejet\+::char\+\_\+linear = \char`\"{}L\+I\+N\+E\+AR\char`\"{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_a5d2a3c56461cb3ab743e4cf3e43ef5c4}\label{namespacemodulejet_a5d2a3c56461cb3ab743e4cf3e43ef5c4}} 
+\index{modulejet@{modulejet}!char\_mohidjet@{char\_mohidjet}}
+\index{char\_mohidjet@{char\_mohidjet}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{char\_mohidjet}{char\_mohidjet}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulejet\+::char\+\_\+mohidjet = \char`\"{}M\+O\+H\+I\+D\+J\+ET\char`\"{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_a712a0fb09e3bed71ec54b3f527cf6620}\label{namespacemodulejet_a712a0fb09e3bed71ec54b3f527cf6620}} 
+\index{modulejet@{modulejet}!char\_uniform@{char\_uniform}}
+\index{char\_uniform@{char\_uniform}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{char\_uniform}{char\_uniform}}
+{\footnotesize\ttfamily character(len = stringlength), parameter modulejet\+::char\+\_\+uniform = \char`\"{}U\+N\+I\+F\+O\+RM\char`\"{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_a9e881f4c022dfb8c88bf0a80253f418d}\label{namespacemodulejet_a9e881f4c022dfb8c88bf0a80253f418d}} 
+\index{modulejet@{modulejet}!cloud@{cloud}}
+\index{cloud@{cloud}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{cloud}{cloud}}
+{\footnotesize\ttfamily integer, parameter modulejet\+::cloud = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_a47f0eeeb3926639ae9bc14b922a7f57c}\label{namespacemodulejet_a47f0eeeb3926639ae9bc14b922a7f57c}} 
+\index{modulejet@{modulejet}!corjet@{corjet}}
+\index{corjet@{corjet}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{corjet}{corjet}}
+{\footnotesize\ttfamily integer, parameter modulejet\+::corjet = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_afc8a4f2043befe1347d4c124fa51f8fe}\label{namespacemodulejet_afc8a4f2043befe1347d4c124fa51f8fe}} 
+\index{modulejet@{modulejet}!field3d@{field3d}}
+\index{field3d@{field3d}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{field3d}{field3d}}
+{\footnotesize\ttfamily integer, parameter modulejet\+::field3d = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_a71f07968cb9db6433b4bf6e542b64236}\label{namespacemodulejet_a71f07968cb9db6433b4bf6e542b64236}} 
+\index{modulejet@{modulejet}!firstjet@{firstjet}}
+\index{firstjet@{firstjet}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{firstjet}{firstjet}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulejet_1_1t__jet}{t\+\_\+jet}}), pointer modulejet\+::firstjet\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_a40df7356ca4c8528a71bb58c601ebd49}\label{namespacemodulejet_a40df7356ca4c8528a71bb58c601ebd49}} 
+\index{modulejet@{modulejet}!jet@{jet}}
+\index{jet@{jet}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{jet}{jet}}
+{\footnotesize\ttfamily integer, parameter modulejet\+::jet = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_a0eac969bec0ab0471a9981f588069599}\label{namespacemodulejet_a0eac969bec0ab0471a9981f588069599}} 
+\index{modulejet@{modulejet}!jetlag@{jetlag}}
+\index{jetlag@{jetlag}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{jetlag}{jetlag}}
+{\footnotesize\ttfamily integer, parameter modulejet\+::jetlag = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_a348a978ca201c1b1d5cce70caf9ffbca}\label{namespacemodulejet_a348a978ca201c1b1d5cce70caf9ffbca}} 
+\index{modulejet@{modulejet}!linear@{linear}}
+\index{linear@{linear}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{linear}{linear}}
+{\footnotesize\ttfamily integer, parameter modulejet\+::linear = 3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_ab55c2a250d5e25c16efdfeea48d0b3da}\label{namespacemodulejet_ab55c2a250d5e25c16efdfeea48d0b3da}} 
+\index{modulejet@{modulejet}!me@{me}}
+\index{me@{me}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulejet_1_1t__jet}{t\+\_\+jet}}), pointer modulejet\+::me\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_a66d6965728ead70e0e7ec473e5f3892a}\label{namespacemodulejet_a66d6965728ead70e0e7ec473e5f3892a}} 
+\index{modulejet@{modulejet}!mohidjet@{mohidjet}}
+\index{mohidjet@{mohidjet}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{mohidjet}{mohidjet}}
+{\footnotesize\ttfamily integer, parameter modulejet\+::mohidjet = 3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_a1e044c780afebf2d2dbf72987f29c21c}\label{namespacemodulejet_a1e044c780afebf2d2dbf72987f29c21c}} 
+\index{modulejet@{modulejet}!precision@{precision}}
+\index{precision@{precision}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{precision}{precision}}
+{\footnotesize\ttfamily real, parameter modulejet\+::precision = 1e-\/4\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_a0d016ad4bb2860942a6dee0743ceb113}\label{namespacemodulejet_a0d016ad4bb2860942a6dee0743ceb113}} 
+\index{modulejet@{modulejet}!sigmad@{sigmad}}
+\index{sigmad@{sigmad}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{sigmad}{sigmad}}
+{\footnotesize\ttfamily real, parameter modulejet\+::sigmad = 0.\+5\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulejet_aded2b1f058efa2a87b81b1014237d1dd}\label{namespacemodulejet_aded2b1f058efa2a87b81b1014237d1dd}} 
+\index{modulejet@{modulejet}!uniform@{uniform}}
+\index{uniform@{uniform}!modulejet@{modulejet}}
+\doxysubsubsection{\texorpdfstring{uniform}{uniform}}
+{\footnotesize\ttfamily integer, parameter modulejet\+::uniform = 2\hspace{0.3cm}{\ttfamily [private]}}
+

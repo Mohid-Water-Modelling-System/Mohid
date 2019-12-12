@@ -1,0 +1,7 @@
+digraph "moduleinterfacesedimentwater::t_ext_sed"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{moduleinterfacesedimentwater\l::t_ext_sed\n|- minlayerthickness\l- dwz\l- szz\l- volumez\l- volumezold\l- waterpoints2d\l- ktop\l- openpoints2d\l- boundarypoints2d\l- waterpoints3d\land 12 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

@@ -1,0 +1,18 @@
+digraph "modulehydrodynamic::modify_inertiaforces"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulehydrodynamic\l::modify_inertiaforces",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="modulehydrodynamic\l::inertialforces_centrifugal_cir",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#aabc485600c103dd16fb445785105c81f",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="modulehydrodynamic\l::inertialforces_centrifugal_x",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#ae87491713d96598fd863664c3a1c9491",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="modulehydrodynamic\l::inertialforces_centrifugal_y",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a12a034ee8de2eaeed8de4eb7e6e4d66e",tooltip=" "];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid"];
+  Node5 [label="modulehydrodynamic\l::inertialforces_coriolis_x",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a39ac9b143a7361ae05949c1e62d89936",tooltip=" "];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid"];
+  Node6 [label="modulehydrodynamic\l::inertialforces_coriolis_y",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a674b2732bad0953234068d91497f7f06",tooltip=" "];
+}

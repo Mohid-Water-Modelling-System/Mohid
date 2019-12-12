@@ -1,0 +1,20 @@
+digraph "moduleopenboundary::computereferencelevel"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="moduleopenboundary\l::computereferencelevel",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="modulegauge::getijreferencelevel",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#a9b801d4a79f8bfd52e8276c2b5525b5e",tooltip=" "];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="modulegauge::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#a8ece20a220d6beae6919846687d6fe8f",tooltip=" "];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="modulegauge::locateobjgauge",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#ad450a5738058992462096cd7d19b5a94",tooltip=" "];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid"];
+  Node5 [label="modulegauge::getngauges",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#a7a4e1ac4c0d2468bf869594a8677a7d0",tooltip=" "];
+  Node5 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid"];
+  Node6 [label="modulegauge::getreferencelevel",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#a3f8df5ad4b3209ed0c1f3dda8945093f",tooltip=" "];
+  Node6 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+}

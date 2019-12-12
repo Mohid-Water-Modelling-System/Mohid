@@ -1,0 +1,30 @@
+digraph "moduleinterfacesedimentwater::setsubmodulesconstructor"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="moduleinterfacesedimentwater\l::setsubmodulesconstructor",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="modulehydrodynamic\l::sethydrodynamicchezy",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#aa753ccba1fb48238465631f89ecd8cb6",tooltip=" "];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="modulehydrodynamic\l::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a541821548a44af36e71f5eddedae890e",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="modulehydrodynamic\l::sethydrodynamicmanning",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#afcbe369a4cc8b78bc18a290f3e05a412",tooltip=" "];
+  Node4 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="modulehydrodynamic\l::sethydrodynamicrugositymatrix",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#abf6161f88fc2f65b07d9f8764a501633",tooltip=" "];
+  Node5 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="modulehydrodynamic\l::setshearstressmethod",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#abc0b4b19014469e3102675a4dbffe103",tooltip=" "];
+  Node6 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node7 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 [label="moduleturbulence::setturbulencebottomrugosity",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleturbulence.html#a9df29956676b28634ce0733aa108c62e",tooltip=" "];
+  Node7 -> Node8 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node8 [label="moduleturbgotm::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleturbgotm.html#a8b59a232d6c61837f14e169cef43d695",tooltip=" "];
+  Node8 -> Node9 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node9 [label="moduleturbgotm::locateobjturbgotm",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleturbgotm.html#a2445ccc2c59cf2ae892fd78dda123a3d",tooltip=" "];
+  Node1 -> Node10 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node10 [label="modulehydrodynamic\l::setwaveshearstress",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a820fb4f4565d7dc61e2cfa6517a1390f",tooltip=" "];
+  Node10 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+}

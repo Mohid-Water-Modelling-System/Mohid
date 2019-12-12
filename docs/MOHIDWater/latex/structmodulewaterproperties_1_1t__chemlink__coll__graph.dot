@@ -1,0 +1,31 @@
+digraph "modulewaterproperties::t_chemlink"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulewaterproperties\l::t_chemlink\n|- numberofcomponents\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -components" ,arrowhead="odiamond"];
+  Node2 [label="{modulewaterproperties\l::t_chemitem\n|- numberofatoms\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaterproperties_1_1t__chemitem.html",tooltip=" "];
+  Node3 -> Node2 [color="grey25",fontsize="10",style="solid",label=" -property" ,arrowhead="odiamond"];
+  Node3 [label="{modulewaterproperties\l::t_property\n|- id\l- iscoefficient\l- particulate\l- non_cohesive\l- scalar\l- old\l- warnonnegativevalues\l- addoffset\l- offset\l- timeserie\land 22 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaterproperties_1_1t__property.html",tooltip=" "];
+  Node4 -> Node3 [color="grey25",fontsize="10",style="solid",label=" -evolution" ,arrowhead="odiamond"];
+  Node4 [label="{modulewaterproperties\l::t_evolution\n|- variable\l- dtinterval\l- lastcompute\l- nextcompute\l- waterquality\l- macroalgae\l- seagrassesleaves\l- cequalw2\l- life\l- bivalve\land 31 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaterproperties_1_1t__evolution.html",tooltip=" "];
+  Node5 -> Node4 [color="grey25",fontsize="10",style="solid",label=" -freevert_parameters" ,arrowhead="odiamond"];
+  Node5 [label="{modulewaterproperties\l::t_freeverticalmovparameters\n|- ws_value\l- chs\l- kl\l- kl1\l- m\l- ml\l- impexp_advv\l- saltint\l- ws_type\l- saltint_value\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaterproperties_1_1t__freeverticalmovparameters.html",tooltip=" "];
+  Node6 -> Node4 [color="grey25",fontsize="10",style="solid",label=" -filtration" ,arrowhead="odiamond"];
+  Node6 [label="{modulewaterproperties\l::t_filtration\n|- id\l- rate\l- cumulative\l- cumulativepermeter\l- filterfeedermass\l- on\l- freeze\l- excretions\l- feedermasson\l- typeof\land 6 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaterproperties_1_1t__filtration.html",tooltip=" "];
+  Node7 -> Node4 [color="grey25",fontsize="10",style="solid",label=" -extinction" ,arrowhead="odiamond"];
+  Node7 [label="{modulewaterproperties\l::t_lightextinction\n|- coefficient\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaterproperties_1_1t__lightextinction.html",tooltip=" "];
+  Node8 -> Node4 [color="grey25",fontsize="10",style="solid",label=" -reinitialize" ,arrowhead="odiamond"];
+  Node8 [label="{modulewaterproperties\l::t_reinitialize\n|- on\l- onlyonce\l- boxcells\l- boxesvalues\l- boxesnumber\l- dates\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaterproperties_1_1t__reinitialize.html",tooltip=" "];
+  Node9 -> Node4 [color="grey25",fontsize="10",style="solid",label=" -partition" ,arrowhead="odiamond"];
+  Node9 [label="{modulewaterproperties\l::t_partition\n|- couple\l- couple_id\l- fraction\l- rate\l- empiriccoef\l- sedimentrefconc\l- maxconc\l- usesedimentrefconc\l- salinityeffect\l- noncompliancecriteria\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaterproperties_1_1t__partition.html",tooltip=" "];
+  Node10 -> Node4 [color="grey25",fontsize="10",style="solid",label=" -advec_difus_parameters" ,arrowhead="odiamond"];
+  Node10 [label="{modulewaterproperties\l::t_advectiondiffusion\l_parameters\n|- boundarycondition\l- decaytime\l- schmidtnumberh\l- schmidtcoefv\l- schmidtbackgroundv\l- advectionv_imp_exp\l- diffusionv_imp_exp\l- advectionh_imp_exp\l- diffusionh_imp_exp\l- implicith_direction\land 12 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaterproperties_1_1t__advectiondiffusion__parameters.html",tooltip=" "];
+  Node11 -> Node3 [color="grey25",fontsize="10",style="solid",label=" -submodel" ,arrowhead="odiamond"];
+  Node11 [label="{modulewaterproperties\l::t_submodel\n|- on\l- twoway\l- set\l- interpoltime\l- initial\l- extrapolate\l- vertcomunic\l- nextfield\l- previousfield\l- twowaywaitperiod\land 8 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaterproperties_1_1t__submodel.html",tooltip=" "];
+  Node12 -> Node3 [color="grey25",fontsize="10",style="solid",label=" -assimilation" ,arrowhead="odiamond"];
+  Node12 [label="{modulewaterproperties\l::t_localassimila\n|- scalar\l- field\l- decaytime\l- groupoutputname\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaterproperties_1_1t__localassimila.html",tooltip=" "];
+  Node3 -> Node3 [color="grey25",fontsize="10",style="solid",label=" -prev\n-next" ,arrowhead="odiamond"];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -species" ,arrowhead="odiamond"];
+}

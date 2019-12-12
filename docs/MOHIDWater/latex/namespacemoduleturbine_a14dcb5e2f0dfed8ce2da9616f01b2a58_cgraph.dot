@@ -1,0 +1,16 @@
+digraph "moduleturbine::killturbine"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="moduleturbine::killturbine",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="moduleturbine::deallocateinstance",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleturbine.html#af2af37c97b47092470d2bf90bd9bc56e",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="moduleturbine::deassociate\l_external_modules",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleturbine.html#a9ba3c2694581c5c8d730d5cacd9c2a61",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="moduleturbine::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleturbine.html#a05e91853a3be1ed656ff05d69618a83d",tooltip=" "];
+  Node4 -> Node5 [color="midnightblue",fontsize="10",style="solid"];
+  Node5 [label="moduleturbine::locateobjshell",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleturbine.html#ad69845ea1216f04acc515267e6a71770",tooltip=" "];
+}

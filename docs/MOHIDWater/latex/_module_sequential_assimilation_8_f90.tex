@@ -1,0 +1,176 @@
+\hypertarget{_module_sequential_assimilation_8_f90}{}\doxysection{C\+:/\+Projects/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Sequential\+Assimilation.F90 File Reference}
+\label{_module_sequential_assimilation_8_f90}\index{C:/Projects/GitHub/Mohid/Software/MOHIDWater/ModuleSequentialAssimilation.F90@{C:/Projects/GitHub/Mohid/Software/MOHIDWater/ModuleSequentialAssimilation.F90}}
+\doxysubsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__timeserie}{modulesequentialassimilation\+::t\+\_\+timeserie}}
+\item 
+type \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__localization}{modulesequentialassimilation\+::t\+\_\+localization}}
+\item 
+type \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__property}{modulesequentialassimilation\+::t\+\_\+property}}
+\item 
+type \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__measure}{modulesequentialassimilation\+::t\+\_\+measure}}
+\item 
+type \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__stateprop}{modulesequentialassimilation\+::t\+\_\+stateprop}}
+\item 
+type \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__fullstate}{modulesequentialassimilation\+::t\+\_\+fullstate}}
+\item 
+type \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__files}{modulesequentialassimilation\+::t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__output}{modulesequentialassimilation\+::t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__errortimeserie}{modulesequentialassimilation\+::t\+\_\+errortimeserie}}
+\item 
+type \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__external}{modulesequentialassimilation\+::t\+\_\+external}}
+\item 
+type \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation}{modulesequentialassimilation\+::t\+\_\+sequentialassimilation}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulesequentialassimilation}{modulesequentialassimilation}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesequentialassimilation_af7b9f893222a8a590e41b22e1cbb87e8}{modulesequentialassimilation\+::startsequentialassimilation}} (Sequential\+Assimilation\+ID, Grid\+Data\+ID, Horizontal\+Grid\+ID, Time\+ID, Hydrodynamic\+ID, Water\+Properties\+ID, Geometry\+ID, Map\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_aa0f41510375f375c75e2f8a43000247e}{modulesequentialassimilation\+::allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a3da335c8c675b830ec8be82762a0bb61}{modulesequentialassimilation\+::constructsequentialassimilation}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulesequentialassimilation_a6a108acb64c98821e2a33f354767a9c1}{modulesequentialassimilation\+::constructwaterfaces}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_ad625646f49c7f79a25eece8ee6fc763c}{modulesequentialassimilation\+::read\+\_\+seqassimilation\+\_\+files\+\_\+name}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_aab4ab0277115cb693a57157090d95c51}{modulesequentialassimilation\+::constructoptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a37aa5f00e0026d3fb403e9d6fd041de3}{modulesequentialassimilation\+::constructproperty}} (New\+Property, Client\+Number)
+\item 
+logical function \mbox{\hyperlink{namespacemodulesequentialassimilation_a8c49e08db24e999a05be06bf048eeb25}{modulesequentialassimilation\+::propertyinwaterpropertieslist}} (Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_af3fc907b2e8cf5fb7cad188eb652528d}{modulesequentialassimilation\+::constructmeasurement}} (New\+Measure, Property\+Dimension)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a47355d6dd2eb8e4c089b3f5c5170d3d7}{modulesequentialassimilation\+::addproperty}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a4263d5378b1943e8de2e1465b38720e8}{modulesequentialassimilation\+::addmeasurement}} (New\+Measure)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a199d6fc518c2a4bb9604a7fdbf0ca4e6}{modulesequentialassimilation\+::constructlog}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_adb290ebd31525621b87da4ea0f2c443c}{modulesequentialassimilation\+::constructseqassimvariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_af08be0960351f7f29fe3b0b796b72da3}{modulesequentialassimilation\+::allocatevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a891242d04c33e25fc2d6c1b0bbbcdb59}{modulesequentialassimilation\+::addwaterproperty}} (New\+Water\+Property, First\+Water\+Property, Last\+Water\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_ab636e048b1738282bf697c69d3e4fd10}{modulesequentialassimilation\+::constructinitialstatecov}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_aa4ca5ec886a894c6fe06ffd71d5fcb55}{modulesequentialassimilation\+::constructmeasurestateloc}} (Measure\+Localization, Property\+Dim, Property\+Type, Property\+Window2D, Property\+Window, Measure\+State\+Location)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a09e6002fa92db2aafb977540ff4479fb}{modulesequentialassimilation\+::objectiveanalysis}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a4636d1cd0c10613f19a1ca651b6b482f}{modulesequentialassimilation\+::constructoutputtime}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a6440d55f49615b21ea0d328d0121e669}{modulesequentialassimilation\+::openhdf5outputfile}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulesequentialassimilation_a9aa173ea83e0e960fe1561e3a9f183be}{modulesequentialassimilation\+::constructtimeserie}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulesequentialassimilation_aeee40d5724f1d4056ec3c81965e2d7c8}{modulesequentialassimilation\+::constructerrortimeserie}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesequentialassimilation_a79adcfc8fb983a24237bd6bba818eca8}{modulesequentialassimilation\+::getseqassimilationtime}} (Sequential\+Assimilation\+ID, Assimilation\+Time, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesequentialassimilation_a1df3565c62b239e627e2abf8edf5339e}{modulesequentialassimilation\+::getseqassimilationoptions}} (Sequential\+Assimilation\+ID, State\+Cov\+Evolution, State\+Cov\+Rank, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesequentialassimilation_a0b54df1b07a9718187dcc6448f23026c}{modulesequentialassimilation\+::setmodelinitialstate}} (Cycle\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a19283cb361ee6cdaa626fd20bad85d11}{modulesequentialassimilation\+::copyfullmodelstate}} (Cycle\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a30f7a4267c0bcf30928733c782104389}{modulesequentialassimilation\+::disturbfullmodelstate}} (Cycle\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a063e8f5d94cc80db103c79a0ec38a127}{modulesequentialassimilation\+::setdisturbedstateinmodel}} (Cycle\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_ad07159048364faf26c59ebffd5b246a3}{modulesequentialassimilation\+::copyundisturbedstatetomodel}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesequentialassimilation_a817e5028ea901157ba1c90a514305c15}{modulesequentialassimilation\+::getmodelresult}} (Cycle\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a1a5a1be9fa72ef3b8fe621128b7e3759}{modulesequentialassimilation\+::copymodelresulttofs}} (Obj\+Full\+State)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesequentialassimilation_a89d62f9ba6c7cad76cf6a6dd37165fab}{modulesequentialassimilation\+::covariancecalculationseek}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulesequentialassimilation_aaf3bc60a00c40a50536d48987d7294dd}{modulesequentialassimilation\+::reorthonormalization}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesequentialassimilation_a4b01359595340ca852b276b1258601df}{modulesequentialassimilation\+::modifysequentialassimilation}} (Sequential\+Assimilation\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a7972ca7b3c19868e67ca455d375e45af}{modulesequentialassimilation\+::readmeasures}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a33c7157ae5930272ff775ccd732bcb33}{modulesequentialassimilation\+::initialucalculationseek}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a413c75d9b44cd4a5fdf9caf890550305}{modulesequentialassimilation\+::ucalculationseek}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_abc672947c709e077d461068b3e7ae140}{modulesequentialassimilation\+::constructmodelstate}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a1cda513ededcf93d8f84bd9f6e39ba43}{modulesequentialassimilation\+::seekanalysis}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a5cad8b44cf828f7b0f86fffd43e9f8a7}{modulesequentialassimilation\+::addpropertytostate}} (Obj\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_ad6321e8248e2b795443ddc551cbc9446}{modulesequentialassimilation\+::actualizeopenfaces}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulesequentialassimilation_a5ba1ccc67425087e399ba6f24403f98e}{modulesequentialassimilation\+::renormalization}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_adcd2e5938f9991a133ebe1cf7eb7ad2f}{modulesequentialassimilation\+::copymodelanalysedstate}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a80cfe86b207ec25cc26de13d8bad205c}{modulesequentialassimilation\+::seqassimilationoutput}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulesequentialassimilation_a2481d2ea20d9e305e0090e324dd3893e}{modulesequentialassimilation\+::centerfield}} (Prop\+Center, Prop\+Faces, Type\+Z\+UV, Size)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulesequentialassimilation_aa1246853229add1c591a38826af67ea2}{modulesequentialassimilation\+::centerfieldr8}} (Prop\+Center, Prop\+Faces, Type\+Z\+UV, Size)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulesequentialassimilation_a484eaebcabbe127119b8f5623e94c654}{modulesequentialassimilation\+::outputtimeseries}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulesequentialassimilation_a4f7834d6d8d5c26c37c74e758a14b521}{modulesequentialassimilation\+::eofoutput}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulesequentialassimilation_a50ed5db30b7f431f2b333f7f86d5ef99}{modulesequentialassimilation\+::killsequentialassimilation}} (Sequential\+Assimilation\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_adf87f0a5e3f8680e6eab41ee6c53dd51}{modulesequentialassimilation\+::deassociate\+\_\+external\+\_\+modules}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_aa604c23d9d9ee0bb814f499c565fde3f}{modulesequentialassimilation\+::deallocatevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a7077ed60ddc61ad6d71f0df6d63bd587}{modulesequentialassimilation\+::killfullstate}} (Obj\+Full\+State)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a3d80f83cfeb707312981be037f194082}{modulesequentialassimilation\+::deallocateinstance}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a612c7f8e7d5560ffd80850c43f9e9c35}{modulesequentialassimilation\+::ready}} (Obj\+Sequential\+Assimilation\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulesequentialassimilation_a1d6ec9ce245a5aa2d80e8f35b8142e21}{modulesequentialassimilation\+::locateobjsequentialassimilation}} (Obj\+Sequential\+Assimilation\+ID)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulesequentialassimilation_a6bfe22e83fbd61cf96b89f47b9c5457d}{modulesequentialassimilation\+::seek}} = 1
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulesequentialassimilation_ad4132c410b5be746f6b8bde4d0189f58}{modulesequentialassimilation\+::block\+\_\+begin}} = \textquotesingle{}$<$beginproperty$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulesequentialassimilation_a0ebbde5c40726c4eca6067a14224a1e3}{modulesequentialassimilation\+::block\+\_\+end}} = \textquotesingle{}$<$endproperty$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulesequentialassimilation_a77da16ccbaea28106a79c214310680da}{modulesequentialassimilation\+::begin\+\_\+measure}} = \textquotesingle{}$<$$<$begin\+\_\+measure$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulesequentialassimilation_a8d0203558728a88dd0a053f23e6c74b7}{modulesequentialassimilation\+::end\+\_\+measure}} = \textquotesingle{}$<$$<$end\+\_\+measure$>$$>$\textquotesingle{}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulesequentialassimilation_a48f688b3f14326b500dfd683d18bd069}{modulesequentialassimilation\+::dim\+\_\+2d}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulesequentialassimilation_aad55b299403480a62edd2b52abc58065}{modulesequentialassimilation\+::dim\+\_\+3d}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulesequentialassimilation_aa961250cecdb6e41645fbc89696d9fdd}{modulesequentialassimilation\+::directionx\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulesequentialassimilation_a1e47dbaf200f3d3d8d5d05f73c786294}{modulesequentialassimilation\+::directiony\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulesequentialassimilation_af1500c1b270c95ca463c500d6af31177}{modulesequentialassimilation\+::timeserie}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulesequentialassimilation_a9f871dcd1917128408934c12201b788f}{modulesequentialassimilation\+::profiletimeserie}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulesequentialassimilation_af5f287d70e177aabed0e646fcd67dd61}{modulesequentialassimilation\+::hdf}} = 3
+\item 
+type(t\+\_\+sequentialassimilation), pointer \mbox{\hyperlink{namespacemodulesequentialassimilation_a056c2a02f7b1564811985bd04900793f}{modulesequentialassimilation\+::firstobjseqassimilation}} =$>$ null()
+\item 
+type(t\+\_\+sequentialassimilation), pointer \mbox{\hyperlink{namespacemodulesequentialassimilation_afebfebdaf1bfbc40b82684dd17f50357}{modulesequentialassimilation\+::me}} =$>$ null()
+\end{DoxyCompactItemize}

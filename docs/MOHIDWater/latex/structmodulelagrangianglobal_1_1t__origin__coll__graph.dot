@@ -1,0 +1,33 @@
+digraph "modulelagrangianglobal::t_origin"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulelagrangianglobal\l::t_origin\n|- name\l- id\l- groupid\l- old\l- emissionspatial\l- emissiontemporal\l- emissionon\l- dt_emit\l- flow\l- nbrparticlesiteration\land 107 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond"];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -firstpartic" ,arrowhead="odiamond"];
+  Node2 [label="{modulelagrangianglobal\l::t_partic\n|- id\l- concentration\l- concentrationinterpol\l- ambientconc\l- mass\l- tpercursoh\l- tpercursoz\l- ud_old\l- vd_old\l- wd_old\land 66 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulelagrangianglobal_1_1t__partic.html",tooltip=" "];
+  Node2 -> Node2 [color="grey25",fontsize="10",style="solid",label=" -prev\n-next" ,arrowhead="odiamond"];
+  Node3 -> Node2 [color="grey25",fontsize="10",style="solid",label=" -geometry" ,arrowhead="odiamond"];
+  Node3 [label="{modulelagrangianglobal\l::t_particlegeometry\n|- volumeoil\l- volume\l- initialvolume\l- volvar\l- thickness\l- voronoiarea\l- dropletsdiameter\l- area\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulelagrangianglobal_1_1t__particlegeometry.html",tooltip=" "];
+  Node4 -> Node2 [color="grey25",fontsize="10",style="solid",label=" -position" ,arrowhead="odiamond"];
+  Node4 [label="{modulelagrangianglobal\l::t_position\n|- i\l- j\l- k\l- x\l- y\l- cartx\l- carty\l- coordx\l- coordy\l- z\land 12 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulelagrangianglobal_1_1t__position.html",tooltip=" "];
+  Node5 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -humanbody" ,arrowhead="odiamond"];
+  Node5 [label="{modulelagrangianglobal\l::t_humanbody\n|- drowned\l- atthebottom\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulelagrangianglobal_1_1t__humanbody.html",tooltip=" "];
+  Node6 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -floatingobject" ,arrowhead="odiamond"];
+  Node6 [label="{modulelagrangianglobal\l::t_floatingobject\n|- airdragcoef\l- waterdragcoef\l- immersionratio\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulelagrangianglobal_1_1t__floatingobject.html",tooltip=" "];
+  Node7 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -firstproperty" ,arrowhead="odiamond"];
+  Node7 [label="{modulelagrangianglobal\l::t_property\n|- id\l- name\l- units\l- concentration\l- min_concentration\l- ambientconcentration\l- haveambientconcentration\l- t90variable\l- t90compute\l- t90var_method\land 25 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulelagrangianglobal_1_1t__property.html",tooltip=" "];
+  Node7 -> Node7 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond"];
+  Node8 -> Node7 [color="grey25",fontsize="10",style="solid",label=" -sedimentpartition\n-waterpartition" ,arrowhead="odiamond"];
+  Node8 [label="{modulelagrangianglobal\l::t_partition\n|- on\l- coefficient\l- transferrate\l- coupleprop\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulelagrangianglobal_1_1t__partition.html",tooltip=" "];
+  Node9 -> Node7 [color="grey25",fontsize="10",style="solid",label=" -larvae" ,arrowhead="odiamond"];
+  Node9 [label="{modulelagrangianglobal\l::t_larvae\n|- vertical_migration\l- compute_larvae_velocity\l- light_relation\l- larvae_max_depth\l- larvae_min_depth\l- larvae_velocity\l- migration_time\l- radiation_limit\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulelagrangianglobal_1_1t__larvae.html",tooltip=" "];
+  Node10 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -state" ,arrowhead="odiamond"];
+  Node10 [label="{modulelagrangianglobal\l::t_state\n|- contcalc\l- wqm\l- larvae\l- wind\l- sedimentation\l- deposition\l- criticalslope\l- variablegeom\l- shearvel\l- oil\land 39 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulelagrangianglobal_1_1t__state.html",tooltip=" "];
+  Node11 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -movement" ,arrowhead="odiamond"];
+  Node11 [label="{modulelagrangianglobal\l::t_movement\n|- movtype\l- varvelhx\l- varvelh\l- diffusioncoefh\l- turbgradk\l- standarddeviationtype\l- varvelvx\l- varvelv\l- diffusioncoefv\l- diffusioncoefhon\land 46 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulelagrangianglobal_1_1t__movement.html",tooltip=" "];
+  Node4 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -position" ,arrowhead="odiamond"];
+  Node12 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -deposition" ,arrowhead="odiamond"];
+  Node12 [label="{modulelagrangianglobal\l::t_deposition\n|- bottomdistance\l- tauerosion\l- erosionrate\l- taudeposition\l- tdecaymix\l- bottomemission\l- tauuncertainty\l- mixsedon\l- criticalslopeon\l- criticalslope\l- criticalthickness\l- criticalslopevel\l- criticalslopeveluncertainty\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulelagrangianglobal_1_1t__deposition.html",tooltip=" "];
+}

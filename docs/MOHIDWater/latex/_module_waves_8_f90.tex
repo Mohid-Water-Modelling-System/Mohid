@@ -1,0 +1,150 @@
+\hypertarget{_module_waves_8_f90}{}\doxysection{C\+:/\+Projects/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Waves.F90 File Reference}
+\label{_module_waves_8_f90}\index{C:/Projects/GitHub/Mohid/Software/MOHIDWater/ModuleWaves.F90@{C:/Projects/GitHub/Mohid/Software/MOHIDWater/ModuleWaves.F90}}
+\doxysubsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulewaves_1_1t__external}{modulewaves\+::t\+\_\+external}}
+\item 
+type \mbox{\hyperlink{structmodulewaves_1_1t__output}{modulewaves\+::t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmodulewaves_1_1t__runswan}{modulewaves\+::t\+\_\+runswan}}
+\item 
+type \mbox{\hyperlink{structmodulewaves_1_1t__waveproperty}{modulewaves\+::t\+\_\+waveproperty}}
+\item 
+type \mbox{\hyperlink{structmodulewaves_1_1t__waveproperty3d}{modulewaves\+::t\+\_\+waveproperty3d}}
+\item 
+type \mbox{\hyperlink{structmodulewaves_1_1t__waves}{modulewaves\+::t\+\_\+waves}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulewaves}{modulewaves}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaves_afb65a1617589473a3eac08eef0cc3a2b}{modulewaves\+::startwaves}} (Model\+Name, Waves\+ID, Time\+ID, Horizontal\+Map\+ID, Horizontal\+Grid\+ID, Grid\+Data\+ID, Geometry\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_a297c227bd5b05df6253e23b3cba4aaca}{modulewaves\+::allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_abfbc4de9c60ff461e62bcb11b5e7aad8}{modulewaves\+::readwavesfilesname}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_ad44cb14b28b28a735447792076b5f1f5}{modulewaves\+::constructglobalvariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_a41194554ad5f331ce92bbcc1ac85a374}{modulewaves\+::constructwaveparameters}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_a5465d7c0bebb4ccf791eba8d2dfb8a8d}{modulewaves\+::readwaveparameters}} (Wave\+Property, Begin\+Block, End\+Block)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_a8f1215445f8fd38dbf41e7339b28cf9f}{modulewaves\+::readstokesdriftspectrum}} (Wave\+Property3D, Begin\+Block, End\+Block)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_ad471c985c50cab76ec8f36df2211dc37}{modulewaves\+::open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_a069825270a300a70ba32518f571bcb90}{modulewaves\+::constructglobaloutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_a86eae20876164ce3f5e09fbb27e80f64}{modulewaves\+::construct\+\_\+time\+\_\+serie}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_ae74bdf3f12b1f411d55edf56bb284dc1}{modulewaves\+::constructfetch}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaves_a87b9e4a4fb336f9ea383004f7732a8e5}{modulewaves\+::computeanglelist}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_a945cce4a681b204911670731bf66725a}{modulewaves\+::computefetchdistancegrid}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaves_a885bbbf547ce705b1cd35ecfebe8df37}{modulewaves\+::computefetchdistanceanddepthgrid}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_aae4352dfe2bb084d6d5d956c1bdadea3}{modulewaves\+::computefetchdistancepolygon}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_a1ef67144876afbf33cc3bff9a3c88ebd}{modulewaves\+::computefetch}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaves_a27cdbb0680c11412da65be9051fe9100}{modulewaves\+::computedepth}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_a509d19a4e531573684282a3b2e47fb4a}{modulewaves\+::constructlandarea}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaves_a566d06de3bff651d00d4a28e0e06157b}{modulewaves\+::output\+\_\+griddata}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaves_a12875a6c82df32faa0d9a05dd2d67b1e}{modulewaves\+::getwaves}} (Waves\+ID, Wave\+Period, Wave\+Height, Abw, Ubw, Wave\+Length, Wave\+Direction, Breaking\+Wave\+Height, Wave\+Surface\+Flux\+T\+KE, Last\+Compute, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaves_af1623a677ea698d686e5a5faa283eea1}{modulewaves\+::getwavesoptions}} (Waves\+ID, Wave\+Parameters\+ON, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaves_a0fa381ad7f743e71a910cb5aafaea3c4}{modulewaves\+::getwavesstress}} (Waves\+ID, Radiation\+StressX, Radiation\+StressY, Last\+Compute, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaves_a53569d674a6deea3e1da241680a758b3}{modulewaves\+::getwavesforcing3d}} (Waves\+ID, Wave\+Induced\+PressureJ, Stokes\+Drift\+SpectrumX, Stokes\+Drift\+SpectrumY, Nb\+Freq, Wave\+Number, Atm\+To\+Wave\+MomentumU, Atm\+To\+Wave\+MomentumV, Wave\+To\+Ocean\+MomentumU, Wave\+To\+Ocean\+MomentumV, Last\+Compute, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaves_a0c5557cca037fc7fe0c05098f278075d}{modulewaves\+::ungetwaves}} (Waves\+ID, Array, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaves_a889d8243c00922f75bfc878e13f4990d}{modulewaves\+::ungetwaves3d}} (Waves\+ID, Array1, Array2, Array3, Array4, Array5, Array6, Array7, Array8, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaves_a58822c6f40408298926b3e3778be3adc}{modulewaves\+::setwaveswind}} (Waves\+ID, WindU, WindV, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaves_a27286ddaee0e46cf76c86b80a35ee9ad}{modulewaves\+::setgeneric4dvalues}} (Waves\+ID, Current\+Value4D, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaves_aa5ff8156c82807bd7134751bf6b90824}{modulewaves\+::setwavessealevelvel2dswan}} (Waves\+ID, Sea\+Level, VelU, VelV, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaves_ad08ecc5e93cabd5c4b166e1af608e044}{modulewaves\+::modifywaves}} (Waves\+ID, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaves_a6a63e2ee3bdd7ee4378a33408a4668a7}{modulewaves\+::computewaveparameters}} (Waves\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaves_a3aa2de7449377be15fcc0bbb463170ed}{modulewaves\+::computeabw}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_af86c07d276fd3f5fe89a2adc94d0518f}{modulewaves\+::computewaveheightsimple}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_a13f51790900a5a9f5a5b30632d881229}{modulewaves\+::computewaveheightfetch}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_a8fac90eb88cf4a39a40d63dbc040c2fa}{modulewaves\+::computewaveperiodsimple}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_abd3acb5aa4305dcf02b29e94c10a666f}{modulewaves\+::computewaveperiodfetch}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_ad48d7252dffb5d91c6b1bd578279b9f6}{modulewaves\+::computewavedirection}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_acea107970c1ba41962a9affab7ff313a}{modulewaves\+::computewavelength}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaves_ad23198cd88a84595114e626504892d21}{modulewaves\+::computeavindepthstokesdriftvel}}
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaves_a98626046a012cf7b692f0a35191e231e}{modulewaves\+::computeavindepthstokesdriftadvx}} (Av\+In\+Depth\+Stokes\+Drift\+AdvX)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulewaves_a2c6ef8f51e579b38f56e8b4ec076f0aa}{modulewaves\+::computeavindepthstokesdriftadvy}} (Av\+In\+Depth\+Stokes\+Drift\+AdvY)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_ad109b1bb3a215d9d37fee5e04428decc}{modulewaves\+::computestokesspecwavenum}} (Wave\+Number)
+\item 
+real function, public \mbox{\hyperlink{namespacemodulewaves_a5f64bacf936301755ac7472613db2a12}{modulewaves\+::computeradiationstress}} (D, z, Om, Option, i, j)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_a89f925f57b1b3b8af0ce6bb51398f224}{modulewaves\+::output\+\_\+results\+\_\+hdf}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_ad7f81476715cc55364572aacbf0b2696}{modulewaves\+::output\+\_\+timeseries}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulewaves_ac7cfc1f43634cac51c36130e5d101c5d}{modulewaves\+::killwaves}} (Waves\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_ae0f81c5ccbee665024d621b4578f59ed}{modulewaves\+::deallocateinstance}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_a15beb6e5dff252a4c77c47d43f9b6385}{modulewaves\+::ready}} (Obj\+Waves\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulewaves_a0b543189e013d4ce00f78f873ab7f481}{modulewaves\+::locateobjwaves}} (Waves\+ID)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaves_a37ca976268a75e2ffe857357fae6261e}{modulewaves\+::old}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaves_afc5fc3687c43abb90ea8cc2924589fce}{modulewaves\+::cequalw2}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaves_a8b9afda07a4ea806082f5af67fe11d9b}{modulewaves\+::distancegrid}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaves_a87b7edc9eb41fa478761848a60f71b4c}{modulewaves\+::distancepolygon}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaves_a27abfbda301e88b5203ea2a634fa7a94}{modulewaves\+::depthlocal}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaves_aa5509403ebbe9faf3f9a266a1e8786e5}{modulewaves\+::depthaverage}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaves_a06e058d903999d0b1ea133a633d3ba26}{modulewaves\+::depthdefined}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaves_a4a5a7aa45ca3a0cba93680cb36c91160}{modulewaves\+::sxx\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaves_a5389f28c1b6c4aaa509cbbc3861822ac}{modulewaves\+::syy\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaves_aeb9c4e523fb97892db7106b076e0baec}{modulewaves\+::sxy\+\_\+}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulewaves_a586347f5ce4be595211e01d98332e9fb}{modulewaves\+::syx\+\_\+}} = 4
+\item 
+type(t\+\_\+waves), pointer \mbox{\hyperlink{namespacemodulewaves_ac5eadc9545afc228b69aa1f9ddd61a8d}{modulewaves\+::firstobjwaves}}
+\item 
+type(t\+\_\+waves), pointer \mbox{\hyperlink{namespacemodulewaves_a14ae225a2982d0eb7560d9a9f889afb4}{modulewaves\+::me}}
+\end{DoxyCompactItemize}

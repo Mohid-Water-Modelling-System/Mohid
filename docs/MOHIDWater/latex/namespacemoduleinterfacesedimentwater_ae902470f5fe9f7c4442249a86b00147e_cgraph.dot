@@ -1,0 +1,18 @@
+digraph "moduleinterfacesedimentwater::setsubmodulesmodifier"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="moduleinterfacesedimentwater\l::setsubmodulesmodifier",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="modelname",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$_main_8_f90.html#af0ae0b978e6573bc461573aa66062e83",tooltip=" "];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="modelpath",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$_main_8_f90.html#ada5b220b45dcba73a75264dcde43e3bd",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="moduleinterfacesedimentwater\l::search_property",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleinterfacesedimentwater.html#ae241bc3d883ac6be0459ecc4b5128d68",tooltip=" "];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid"];
+  Node5 [label="moduleinterfacesedimentwater\l::setfluxestosedimentcolumn",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleinterfacesedimentwater.html#a1493bc1b914a1c9424edba0cd5747eef",tooltip=" "];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid"];
+  Node6 [label="moduleinterfacesedimentwater\l::setfluxestowatercolumn",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleinterfacesedimentwater.html#a9c3a165d2ddf84d84404172f34db61ab",tooltip=" "];
+}

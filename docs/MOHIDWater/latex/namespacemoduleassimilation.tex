@@ -1,0 +1,641 @@
+\hypertarget{namespacemoduleassimilation}{}\doxysection{moduleassimilation Module Reference}
+\label{namespacemoduleassimilation}\index{moduleassimilation@{moduleassimilation}}
+\doxysubsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim}{t\+\_\+altimetric\+\_\+assim}}
+\item 
+type \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation}{t\+\_\+assimilation}}
+\item 
+type \mbox{\hyperlink{structmoduleassimilation_1_1t__external}{t\+\_\+external}}
+\item 
+type \mbox{\hyperlink{structmoduleassimilation_1_1t__field}{t\+\_\+field}}
+\item 
+type \mbox{\hyperlink{structmoduleassimilation_1_1t__files}{t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmoduleassimilation_1_1t__output}{t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmoduleassimilation_1_1t__property}{t\+\_\+property}}
+\item 
+interface \mbox{\hyperlink{interfacemoduleassimilation_1_1ungetassimilation}{ungetassimilation}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_a686ae542667f0f0269fb4baa108cbcf7}{startassimilation}} (Assimilation\+ID, Time\+ID, Grid\+Data\+ID, Horizontal\+Grid\+ID, Horizontal\+Map\+ID, Map\+ID, Geometry\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleassimilation_a36567d94797edf3126246af1ea39e536}{constructdefaultvalues}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleassimilation_a1b4d27f4d26e160f4573114fe6adccfa}{checkoutputgroupname}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleassimilation_aad981de22073d1a61a32131d203265ca}{allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a7409230e777bc5f92a43eb6fe78da6b9}{readassimilationfilesname}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_aaef927508148ef953ad8a480d4843ece}{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_ac14668590d74858a7daa3e19238d2a79}{constructtimeserie}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a6f4678dd5995e947ccdc126f9abf9f6c}{constructassimilationlist}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a26af0cc2dc6eb3e9e9dbefe2fb8c7b48}{constructaltimetricassimilation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_af8bbe3b809fb38aac25e711c6dc7dc2e}{constructproperty}} (New\+Property, Client\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a458bfa1ab529ff7ecd2b6105aa5c04c3}{constructassimilationfield}} (New\+Property, Client\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a1af2e006a02d8457d8516853b6a03307}{constructpropertycoefficients}} (New\+Property, Client\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a9edf40407a0e79e84d746e6bf866bf17}{findminimumcoef}} (Minimum, Field2D, Field3D, Water\+Points2D, Water\+Points3D)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleassimilation_a0290dba29cfc2f2e50954134308fdd93}{constructoutput}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleassimilation_a59854402d2db7e0920208b8293922fc2}{add\+\_\+property}} (New\+Property)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_a9dcf23578dc00d565791f0b2ce1edc7d}{getassimilationsize}} (Assimilation\+ID, I\+LB, I\+UB, J\+LB, J\+UB, K\+LB, K\+UB, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_abd0c368d410f21d94571c796df0d78c5}{getassimilationfield}} (Assimilation\+ID, ID, N\+\_\+\+Field, Field2D, Field3D, Group\+Out\+Put\+Name, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_a975b67c99f7210685408b97a30aef1ff}{getassimilationvectorfield}} (Assimilation\+ID, Vector\+X\+\_\+\+ID, Vector\+Y\+\_\+\+ID, N\+\_\+\+Field, Vector\+X\+\_\+2D, Vector\+Y\+\_\+2D, Vector\+X\+\_\+3D, Vector\+Y\+\_\+3D, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a91d65081df0418d8a1b46cb4548710f3}{rotatevectorfields}} (PropertyX, PropertyY)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_aeb67db12f57e948ab0d21c07cf0f3ee4}{getassimilationcoef}} (Assimilation\+ID, ID, N\+\_\+\+Field, Coef\+Field2D, Coef\+Field3D, Cold\+Relax\+Period, Cold\+Order, Minimum, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_ae8923d911da53170ca8bc79256ecfaee}{getassimilationaltimetry}} (Assimilation\+ID, Altimetric\+Assimilation, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_a4c4fab1da99106327a65575667e03252}{getassimilationaltimetrydt}} (Assimilation\+ID, Altimetry\+DT, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_aaab7e59362629aa1c11d99a2b3b6ad30}{getaltimetrydecaytime}} (Assimilation\+ID, Altimetry\+Decay\+Time, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_a49834c1e597575cf155649b2bfe4321b}{getaltimsigmadensanalyzed}} (Assimilation\+ID, Sigma\+Dens\+Analyzed, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_ae45ed729fac9768fcf97b5c5262c471a}{getwavecelerityfield}} (Assimilation\+ID, ID, Wave\+Celerity, Wave\+Direction, Average\+Value, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_aea7807de0a1c100aea360d7f4a30e2e5}{getnumberoffields}} (Assimilation\+ID, ID, Number\+Of\+Fields, S\+T\+AT)
+\item 
+integer function \mbox{\hyperlink{namespacemoduleassimilation_aee45dd52e66aa751b3a08a9da13cc241}{countnumoffields}} (ID)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a3a9adb0b25404594ea0591b684a7c40e}{ungetassimilation2d}} (Assimilation\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a73155621f7e95b5f4757f4efd48fee01}{ungetassimilation3d}} (Assimilation\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a06544a43532e67f29e5ac264d6870860}{ungetassimilation3d8}} (Assimilation\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a25c18cab5d2d7615f696e5f0ebfbada0}{searchproperty}} (PropertyX, Property\+X\+I\+D\+Number, N\+\_\+\+Field, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_a5932eaba41c6bd73ade2cb009b3824e8}{modifyassimilation}} (Assimilation\+ID, Temperature, Salinity, Water\+Level\+Model, Dens\+Method, Correc\+Press, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_af392c1f06d8b730776cfb5680aaf95cb}{altimetricassimilation}} (Temperature, Salinity, Water\+Level\+Model, Water\+Level\+To\+Assimilate, Variance\+Field\+To\+Assimilate, Water\+Level\+Analyzed, Temperature\+Analyzed, Salinity\+Analyzed, Dens\+Method, Correc\+Press, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_adb4698b9b7aa680222581e31452094dc}{loweringlifting}} (Column\+Pressure, Delta\+Pressure\+Surface, Column\+Temperature, Column\+Salinity, Column\+Density, Delta\+Temperature, Delta\+Salinity, Delta\+Density, Delta\+Pressure, S\+ZZ, Z\+Cell\+Center, D\+WZ, kbottom, kspl, kmin, i, j, Dens\+Method, Correc\+Press)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a689487c17f9fdb64311b351530c9244a}{changetemperaturesalinity}} (Column\+Pressure, Column\+Temperature, Column\+Salinity, Column\+Density, Delta\+Temperature, Delta\+Salinity, Delta\+Density, Delta\+Pressure, Delta\+Thermocline, S\+ZZ, Z\+Cell\+Center, D\+WZ, kspl, kmin, i, j)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a4473000cecbde1abb63d63fc9a6f5858}{spline\+\_\+alt}} (Depth, Column\+Property, kmin, Grad\+Prop\+\_\+U, Grad\+Prop\+\_\+L, D\+\_\+\+Grad\+Prop)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a5db3c59220db22267e7e1e7eca84a356}{splint}} (Depth, Column\+Property, D\+\_\+\+Grad\+Prop, kmin, Z\+\_\+n, Property\+\_\+U)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_ac07092b01bbf318f77800bb88c9f12bf}{assimilationfromfile}} (PropertyX)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a48b30161fd16a556f8e54eeaf6b054e3}{outputresultshdf}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a4802b71b408a488941f1becab34042ec}{output\+\_\+timeseries}} (PropertyX)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_ad7f96fa745bdccdc0281d15675836a9b}{readlockexternalvar}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a3215402dbc1d7602c94ca05f33ce52a7}{readunlockexternalvar}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleassimilation_a3e8d98d577185433d513756aadd846f8}{killassimilation}} (Assimilation\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a457aa90cd01b96e0e4a625d41ea9ba78}{killaltimetricassimilation}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleassimilation_a90d72337a9f9a14b03745d53d1bb201f}{deallocateinstance}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a92631d1b5885e157d6d4ef36379213e9}{deallocatevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a68cb52758df87c362f43dd3e9690121b}{writefinalhdfoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_a7c7eb17646a26837c5dfb9acc963b010}{ready}} (Obj\+Assimilation\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleassimilation_acb3e0bb143f8372bac2b99052ba4943d}{locateobjassimilation}} (Obj\+Assimilation\+ID)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleassimilation_a34a9603a245a6727ce4bb588e23d6a1e}{dim\+\_\+2d}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleassimilation_afe612daf8dae0e1d9e9a616a4a7e0de3}{dim\+\_\+3d}} = 3
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleassimilation_a499da09faa567dd1b80df1e7fa56474e}{block\+\_\+begin}} = \textquotesingle{}$<$beginproperty$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleassimilation_a039648031db2c57e3be6056dfebfd3fd}{block\+\_\+end}} = \textquotesingle{}$<$endproperty$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleassimilation_a753c8b8fc9c47fad51b9f7f9036be719}{begin\+\_\+field}} = \textquotesingle{}$<$$<$begin\+\_\+field$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleassimilation_a88cdda9c84dfaccb47eac5ddb047daf1}{end\+\_\+field}} = \textquotesingle{}$<$$<$end\+\_\+field$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleassimilation_a36b7146a3f9058e33923acb96c85e214}{begin\+\_\+coef}} = \textquotesingle{}$<$$<$begin\+\_\+coef$>$$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleassimilation_a7b3120ad1932e896ddce3214175b5bfa}{end\+\_\+coef}} = \textquotesingle{}$<$$<$end\+\_\+coef$>$$>$\textquotesingle{}
+\item 
+type(\mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation}{t\+\_\+assimilation}}), pointer \mbox{\hyperlink{namespacemoduleassimilation_a692d23fc7e1fb188a3a3f25d685b2bc6}{firstobjassimilation}}
+\item 
+type(\mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation}{t\+\_\+assimilation}}), pointer \mbox{\hyperlink{namespacemoduleassimilation_a849747d57f21e4c2903903a340619bea}{me}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemoduleassimilation_a59854402d2db7e0920208b8293922fc2}\label{namespacemoduleassimilation_a59854402d2db7e0920208b8293922fc2}} 
+\index{moduleassimilation@{moduleassimilation}!add\_property@{add\_property}}
+\index{add\_property@{add\_property}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{add\_property()}{add\_property()}}
+{\footnotesize\ttfamily subroutine moduleassimilation\+::add\+\_\+property (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleassimilation_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 0
+\mbox{\Hypertarget{namespacemoduleassimilation_aad981de22073d1a61a32131d203265ca}\label{namespacemoduleassimilation_aad981de22073d1a61a32131d203265ca}} 
+\index{moduleassimilation@{moduleassimilation}!allocateinstance@{allocateinstance}}
+\index{allocateinstance@{allocateinstance}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{allocateinstance()}{allocateinstance()}}
+{\footnotesize\ttfamily subroutine moduleassimilation\+::allocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 1
+\mbox{\Hypertarget{namespacemoduleassimilation_af392c1f06d8b730776cfb5680aaf95cb}\label{namespacemoduleassimilation_af392c1f06d8b730776cfb5680aaf95cb}} 
+\index{moduleassimilation@{moduleassimilation}!altimetricassimilation@{altimetricassimilation}}
+\index{altimetricassimilation@{altimetricassimilation}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{altimetricassimilation()}{altimetricassimilation()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::altimetricassimilation (\begin{DoxyParamCaption}\item[{real, dimension(\+:,\+:,\+:), pointer}]{Temperature,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Salinity,  }\item[{real, dimension(\+:,\+:), pointer}]{Water\+Level\+Model,  }\item[{real, dimension(\+:,\+:), pointer}]{Water\+Level\+To\+Assimilate,  }\item[{real, dimension(\+:,\+:), pointer}]{Variance\+Field\+To\+Assimilate,  }\item[{real, dimension(\+:,\+:), pointer}]{Water\+Level\+Analyzed,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Temperature\+Analyzed,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Salinity\+Analyzed,  }\item[{integer}]{Dens\+Method,  }\item[{logical}]{Correc\+Press,  }\item[{integer, optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 2
+Here is the caller graph for this function\+:
+% FIG 3
+\mbox{\Hypertarget{namespacemoduleassimilation_ac07092b01bbf318f77800bb88c9f12bf}\label{namespacemoduleassimilation_ac07092b01bbf318f77800bb88c9f12bf}} 
+\index{moduleassimilation@{moduleassimilation}!assimilationfromfile@{assimilationfromfile}}
+\index{assimilationfromfile@{assimilationfromfile}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{assimilationfromfile()}{assimilationfromfile()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::assimilationfromfile (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleassimilation_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 4
+Here is the caller graph for this function\+:
+% FIG 5
+\mbox{\Hypertarget{namespacemoduleassimilation_a689487c17f9fdb64311b351530c9244a}\label{namespacemoduleassimilation_a689487c17f9fdb64311b351530c9244a}} 
+\index{moduleassimilation@{moduleassimilation}!changetemperaturesalinity@{changetemperaturesalinity}}
+\index{changetemperaturesalinity@{changetemperaturesalinity}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{changetemperaturesalinity()}{changetemperaturesalinity()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::changetemperaturesalinity (\begin{DoxyParamCaption}\item[{real}]{Column\+Pressure,  }\item[{real, dimension (\+:), pointer}]{Column\+Temperature,  }\item[{real, dimension (\+:), pointer}]{Column\+Salinity,  }\item[{real, dimension (\+:), pointer}]{Column\+Density,  }\item[{real, dimension (\+:), pointer}]{Delta\+Temperature,  }\item[{real, dimension (\+:), pointer}]{Delta\+Salinity,  }\item[{real, dimension (\+:), pointer}]{Delta\+Density,  }\item[{real, dimension (\+:), pointer}]{Delta\+Pressure,  }\item[{real}]{Delta\+Thermocline,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{S\+ZZ,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Z\+Cell\+Center,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{D\+WZ,  }\item[{integer}]{kspl,  }\item[{integer}]{kmin,  }\item[{integer}]{i,  }\item[{integer}]{j }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 6
+Here is the caller graph for this function\+:
+% FIG 7
+\mbox{\Hypertarget{namespacemoduleassimilation_a1b4d27f4d26e160f4573114fe6adccfa}\label{namespacemoduleassimilation_a1b4d27f4d26e160f4573114fe6adccfa}} 
+\index{moduleassimilation@{moduleassimilation}!checkoutputgroupname@{checkoutputgroupname}}
+\index{checkoutputgroupname@{checkoutputgroupname}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{checkoutputgroupname()}{checkoutputgroupname()}}
+{\footnotesize\ttfamily subroutine moduleassimilation\+::checkoutputgroupname (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 8
+Here is the caller graph for this function\+:
+% FIG 9
+\mbox{\Hypertarget{namespacemoduleassimilation_a26af0cc2dc6eb3e9e9dbefe2fb8c7b48}\label{namespacemoduleassimilation_a26af0cc2dc6eb3e9e9dbefe2fb8c7b48}} 
+\index{moduleassimilation@{moduleassimilation}!constructaltimetricassimilation@{constructaltimetricassimilation}}
+\index{constructaltimetricassimilation@{constructaltimetricassimilation}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{constructaltimetricassimilation()}{constructaltimetricassimilation()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::constructaltimetricassimilation (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 10
+\mbox{\Hypertarget{namespacemoduleassimilation_a458bfa1ab529ff7ecd2b6105aa5c04c3}\label{namespacemoduleassimilation_a458bfa1ab529ff7ecd2b6105aa5c04c3}} 
+\index{moduleassimilation@{moduleassimilation}!constructassimilationfield@{constructassimilationfield}}
+\index{constructassimilationfield@{constructassimilationfield}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{constructassimilationfield()}{constructassimilationfield()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::constructassimilationfield (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleassimilation_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property,  }\item[{integer}]{Client\+Number }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 11
+\mbox{\Hypertarget{namespacemoduleassimilation_a6f4678dd5995e947ccdc126f9abf9f6c}\label{namespacemoduleassimilation_a6f4678dd5995e947ccdc126f9abf9f6c}} 
+\index{moduleassimilation@{moduleassimilation}!constructassimilationlist@{constructassimilationlist}}
+\index{constructassimilationlist@{constructassimilationlist}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{constructassimilationlist()}{constructassimilationlist()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::constructassimilationlist (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 12
+Here is the caller graph for this function\+:
+% FIG 13
+\mbox{\Hypertarget{namespacemoduleassimilation_a36567d94797edf3126246af1ea39e536}\label{namespacemoduleassimilation_a36567d94797edf3126246af1ea39e536}} 
+\index{moduleassimilation@{moduleassimilation}!constructdefaultvalues@{constructdefaultvalues}}
+\index{constructdefaultvalues@{constructdefaultvalues}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{constructdefaultvalues()}{constructdefaultvalues()}}
+{\footnotesize\ttfamily subroutine moduleassimilation\+::constructdefaultvalues (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 14
+\mbox{\Hypertarget{namespacemoduleassimilation_a0290dba29cfc2f2e50954134308fdd93}\label{namespacemoduleassimilation_a0290dba29cfc2f2e50954134308fdd93}} 
+\index{moduleassimilation@{moduleassimilation}!constructoutput@{constructoutput}}
+\index{constructoutput@{constructoutput}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{constructoutput()}{constructoutput()}}
+{\footnotesize\ttfamily subroutine moduleassimilation\+::constructoutput (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 15
+\mbox{\Hypertarget{namespacemoduleassimilation_af8bbe3b809fb38aac25e711c6dc7dc2e}\label{namespacemoduleassimilation_af8bbe3b809fb38aac25e711c6dc7dc2e}} 
+\index{moduleassimilation@{moduleassimilation}!constructproperty@{constructproperty}}
+\index{constructproperty@{constructproperty}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{constructproperty()}{constructproperty()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::constructproperty (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleassimilation_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property,  }\item[{integer}]{Client\+Number }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 16
+Here is the caller graph for this function\+:
+% FIG 17
+\mbox{\Hypertarget{namespacemoduleassimilation_a1af2e006a02d8457d8516853b6a03307}\label{namespacemoduleassimilation_a1af2e006a02d8457d8516853b6a03307}} 
+\index{moduleassimilation@{moduleassimilation}!constructpropertycoefficients@{constructpropertycoefficients}}
+\index{constructpropertycoefficients@{constructpropertycoefficients}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{constructpropertycoefficients()}{constructpropertycoefficients()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::constructpropertycoefficients (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleassimilation_1_1t__property}{t\+\_\+property}}), pointer}]{New\+Property,  }\item[{integer}]{Client\+Number }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 18
+Here is the caller graph for this function\+:
+% FIG 19
+\mbox{\Hypertarget{namespacemoduleassimilation_ac14668590d74858a7daa3e19238d2a79}\label{namespacemoduleassimilation_ac14668590d74858a7daa3e19238d2a79}} 
+\index{moduleassimilation@{moduleassimilation}!constructtimeserie@{constructtimeserie}}
+\index{constructtimeserie@{constructtimeserie}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{constructtimeserie()}{constructtimeserie()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::constructtimeserie (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 20
+\mbox{\Hypertarget{namespacemoduleassimilation_aee45dd52e66aa751b3a08a9da13cc241}\label{namespacemoduleassimilation_aee45dd52e66aa751b3a08a9da13cc241}} 
+\index{moduleassimilation@{moduleassimilation}!countnumoffields@{countnumoffields}}
+\index{countnumoffields@{countnumoffields}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{countnumoffields()}{countnumoffields()}}
+{\footnotesize\ttfamily integer function moduleassimilation\+::countnumoffields (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{ID }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 21
+\mbox{\Hypertarget{namespacemoduleassimilation_a90d72337a9f9a14b03745d53d1bb201f}\label{namespacemoduleassimilation_a90d72337a9f9a14b03745d53d1bb201f}} 
+\index{moduleassimilation@{moduleassimilation}!deallocateinstance@{deallocateinstance}}
+\index{deallocateinstance@{deallocateinstance}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{deallocateinstance()}{deallocateinstance()}}
+{\footnotesize\ttfamily subroutine moduleassimilation\+::deallocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 22
+\mbox{\Hypertarget{namespacemoduleassimilation_a92631d1b5885e157d6d4ef36379213e9}\label{namespacemoduleassimilation_a92631d1b5885e157d6d4ef36379213e9}} 
+\index{moduleassimilation@{moduleassimilation}!deallocatevariables@{deallocatevariables}}
+\index{deallocatevariables@{deallocatevariables}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{deallocatevariables()}{deallocatevariables()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::deallocatevariables (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 23
+\mbox{\Hypertarget{namespacemoduleassimilation_a9edf40407a0e79e84d746e6bf866bf17}\label{namespacemoduleassimilation_a9edf40407a0e79e84d746e6bf866bf17}} 
+\index{moduleassimilation@{moduleassimilation}!findminimumcoef@{findminimumcoef}}
+\index{findminimumcoef@{findminimumcoef}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{findminimumcoef()}{findminimumcoef()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::findminimumcoef (\begin{DoxyParamCaption}\item[{real}]{Minimum,  }\item[{real, dimension(\+:,\+:  ), optional, pointer}]{Field2D,  }\item[{real, dimension(\+:,\+:,\+:), optional, pointer}]{Field3D,  }\item[{integer, dimension(\+:,\+:  ), optional, pointer}]{Water\+Points2D,  }\item[{integer, dimension(\+:,\+:,\+:), optional, pointer}]{Water\+Points3D }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 24
+\mbox{\Hypertarget{namespacemoduleassimilation_aaab7e59362629aa1c11d99a2b3b6ad30}\label{namespacemoduleassimilation_aaab7e59362629aa1c11d99a2b3b6ad30}} 
+\index{moduleassimilation@{moduleassimilation}!getaltimetrydecaytime@{getaltimetrydecaytime}}
+\index{getaltimetrydecaytime@{getaltimetrydecaytime}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{getaltimetrydecaytime()}{getaltimetrydecaytime()}}
+{\footnotesize\ttfamily subroutine, public moduleassimilation\+::getaltimetrydecaytime (\begin{DoxyParamCaption}\item[{integer}]{Assimilation\+ID,  }\item[{real, intent(out)}]{Altimetry\+Decay\+Time,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 25
+\mbox{\Hypertarget{namespacemoduleassimilation_a49834c1e597575cf155649b2bfe4321b}\label{namespacemoduleassimilation_a49834c1e597575cf155649b2bfe4321b}} 
+\index{moduleassimilation@{moduleassimilation}!getaltimsigmadensanalyzed@{getaltimsigmadensanalyzed}}
+\index{getaltimsigmadensanalyzed@{getaltimsigmadensanalyzed}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{getaltimsigmadensanalyzed()}{getaltimsigmadensanalyzed()}}
+{\footnotesize\ttfamily subroutine, public moduleassimilation\+::getaltimsigmadensanalyzed (\begin{DoxyParamCaption}\item[{integer}]{Assimilation\+ID,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Sigma\+Dens\+Analyzed,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 26
+\mbox{\Hypertarget{namespacemoduleassimilation_ae8923d911da53170ca8bc79256ecfaee}\label{namespacemoduleassimilation_ae8923d911da53170ca8bc79256ecfaee}} 
+\index{moduleassimilation@{moduleassimilation}!getassimilationaltimetry@{getassimilationaltimetry}}
+\index{getassimilationaltimetry@{getassimilationaltimetry}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{getassimilationaltimetry()}{getassimilationaltimetry()}}
+{\footnotesize\ttfamily subroutine, public moduleassimilation\+::getassimilationaltimetry (\begin{DoxyParamCaption}\item[{integer}]{Assimilation\+ID,  }\item[{logical, intent(out)}]{Altimetric\+Assimilation,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 27
+Here is the caller graph for this function\+:
+% FIG 28
+\mbox{\Hypertarget{namespacemoduleassimilation_a4c4fab1da99106327a65575667e03252}\label{namespacemoduleassimilation_a4c4fab1da99106327a65575667e03252}} 
+\index{moduleassimilation@{moduleassimilation}!getassimilationaltimetrydt@{getassimilationaltimetrydt}}
+\index{getassimilationaltimetrydt@{getassimilationaltimetrydt}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{getassimilationaltimetrydt()}{getassimilationaltimetrydt()}}
+{\footnotesize\ttfamily subroutine, public moduleassimilation\+::getassimilationaltimetrydt (\begin{DoxyParamCaption}\item[{integer}]{Assimilation\+ID,  }\item[{real, intent(out)}]{Altimetry\+DT,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 29
+Here is the caller graph for this function\+:
+% FIG 30
+\mbox{\Hypertarget{namespacemoduleassimilation_aeb67db12f57e948ab0d21c07cf0f3ee4}\label{namespacemoduleassimilation_aeb67db12f57e948ab0d21c07cf0f3ee4}} 
+\index{moduleassimilation@{moduleassimilation}!getassimilationcoef@{getassimilationcoef}}
+\index{getassimilationcoef@{getassimilationcoef}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{getassimilationcoef()}{getassimilationcoef()}}
+{\footnotesize\ttfamily subroutine, public moduleassimilation\+::getassimilationcoef (\begin{DoxyParamCaption}\item[{integer}]{Assimilation\+ID,  }\item[{integer, intent(in)}]{ID,  }\item[{integer, intent(in), optional}]{N\+\_\+\+Field,  }\item[{real, dimension(\+:,\+:  ), optional, pointer}]{Coef\+Field2D,  }\item[{real, dimension(\+:,\+:,\+:), optional, pointer}]{Coef\+Field3D,  }\item[{real, intent(out), optional}]{Cold\+Relax\+Period,  }\item[{real, intent(out), optional}]{Cold\+Order,  }\item[{real, intent(out), optional}]{Minimum,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 31
+Here is the caller graph for this function\+:
+% FIG 32
+\mbox{\Hypertarget{namespacemoduleassimilation_abd0c368d410f21d94571c796df0d78c5}\label{namespacemoduleassimilation_abd0c368d410f21d94571c796df0d78c5}} 
+\index{moduleassimilation@{moduleassimilation}!getassimilationfield@{getassimilationfield}}
+\index{getassimilationfield@{getassimilationfield}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{getassimilationfield()}{getassimilationfield()}}
+{\footnotesize\ttfamily subroutine, public moduleassimilation\+::getassimilationfield (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Assimilation\+ID,  }\item[{integer, intent(in)}]{ID,  }\item[{integer, intent(in), optional}]{N\+\_\+\+Field,  }\item[{real, dimension(\+:,\+:  ), optional, pointer}]{Field2D,  }\item[{real, dimension(\+:,\+:,\+:), optional, pointer}]{Field3D,  }\item[{character(len=stringlength), optional}]{Group\+Out\+Put\+Name,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 33
+Here is the caller graph for this function\+:
+% FIG 34
+\mbox{\Hypertarget{namespacemoduleassimilation_a9dcf23578dc00d565791f0b2ce1edc7d}\label{namespacemoduleassimilation_a9dcf23578dc00d565791f0b2ce1edc7d}} 
+\index{moduleassimilation@{moduleassimilation}!getassimilationsize@{getassimilationsize}}
+\index{getassimilationsize@{getassimilationsize}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{getassimilationsize()}{getassimilationsize()}}
+{\footnotesize\ttfamily subroutine, public moduleassimilation\+::getassimilationsize (\begin{DoxyParamCaption}\item[{integer}]{Assimilation\+ID,  }\item[{integer, intent(out), optional}]{I\+LB,  }\item[{integer, intent(out), optional}]{I\+UB,  }\item[{integer, intent(out), optional}]{J\+LB,  }\item[{integer, intent(out), optional}]{J\+UB,  }\item[{integer, intent(out), optional}]{K\+LB,  }\item[{integer, intent(out), optional}]{K\+UB,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 35
+\mbox{\Hypertarget{namespacemoduleassimilation_a975b67c99f7210685408b97a30aef1ff}\label{namespacemoduleassimilation_a975b67c99f7210685408b97a30aef1ff}} 
+\index{moduleassimilation@{moduleassimilation}!getassimilationvectorfield@{getassimilationvectorfield}}
+\index{getassimilationvectorfield@{getassimilationvectorfield}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{getassimilationvectorfield()}{getassimilationvectorfield()}}
+{\footnotesize\ttfamily subroutine, public moduleassimilation\+::getassimilationvectorfield (\begin{DoxyParamCaption}\item[{integer}]{Assimilation\+ID,  }\item[{integer}]{Vector\+X\+\_\+\+ID,  }\item[{integer}]{Vector\+Y\+\_\+\+ID,  }\item[{integer, optional}]{N\+\_\+\+Field,  }\item[{real, dimension(\+:,\+:  ), optional, pointer}]{Vector\+X\+\_\+2D,  }\item[{real, dimension(\+:,\+:  ), optional, pointer}]{Vector\+Y\+\_\+2D,  }\item[{real, dimension(\+:,\+:,\+:), optional, pointer}]{Vector\+X\+\_\+3D,  }\item[{real, dimension(\+:,\+:,\+:), optional, pointer}]{Vector\+Y\+\_\+3D,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 36
+Here is the caller graph for this function\+:
+% FIG 37
+\mbox{\Hypertarget{namespacemoduleassimilation_aea7807de0a1c100aea360d7f4a30e2e5}\label{namespacemoduleassimilation_aea7807de0a1c100aea360d7f4a30e2e5}} 
+\index{moduleassimilation@{moduleassimilation}!getnumberoffields@{getnumberoffields}}
+\index{getnumberoffields@{getnumberoffields}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{getnumberoffields()}{getnumberoffields()}}
+{\footnotesize\ttfamily subroutine, public moduleassimilation\+::getnumberoffields (\begin{DoxyParamCaption}\item[{integer, intent(in)}]{Assimilation\+ID,  }\item[{integer, intent(in)}]{ID,  }\item[{integer, intent(out)}]{Number\+Of\+Fields,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 38
+Here is the caller graph for this function\+:
+% FIG 39
+\mbox{\Hypertarget{namespacemoduleassimilation_ae45ed729fac9768fcf97b5c5262c471a}\label{namespacemoduleassimilation_ae45ed729fac9768fcf97b5c5262c471a}} 
+\index{moduleassimilation@{moduleassimilation}!getwavecelerityfield@{getwavecelerityfield}}
+\index{getwavecelerityfield@{getwavecelerityfield}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{getwavecelerityfield()}{getwavecelerityfield()}}
+{\footnotesize\ttfamily subroutine, public moduleassimilation\+::getwavecelerityfield (\begin{DoxyParamCaption}\item[{integer}]{Assimilation\+ID,  }\item[{integer}]{ID,  }\item[{real, dimension(\+:,\+:  ), pointer}]{Wave\+Celerity,  }\item[{real, optional}]{Wave\+Direction,  }\item[{real, optional}]{Average\+Value,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 40
+Here is the caller graph for this function\+:
+% FIG 41
+\mbox{\Hypertarget{namespacemoduleassimilation_a457aa90cd01b96e0e4a625d41ea9ba78}\label{namespacemoduleassimilation_a457aa90cd01b96e0e4a625d41ea9ba78}} 
+\index{moduleassimilation@{moduleassimilation}!killaltimetricassimilation@{killaltimetricassimilation}}
+\index{killaltimetricassimilation@{killaltimetricassimilation}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{killaltimetricassimilation()}{killaltimetricassimilation()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::killaltimetricassimilation (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 42
+\mbox{\Hypertarget{namespacemoduleassimilation_a3e8d98d577185433d513756aadd846f8}\label{namespacemoduleassimilation_a3e8d98d577185433d513756aadd846f8}} 
+\index{moduleassimilation@{moduleassimilation}!killassimilation@{killassimilation}}
+\index{killassimilation@{killassimilation}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{killassimilation()}{killassimilation()}}
+{\footnotesize\ttfamily subroutine, public moduleassimilation\+::killassimilation (\begin{DoxyParamCaption}\item[{integer}]{Assimilation\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 43
+\mbox{\Hypertarget{namespacemoduleassimilation_acb3e0bb143f8372bac2b99052ba4943d}\label{namespacemoduleassimilation_acb3e0bb143f8372bac2b99052ba4943d}} 
+\index{moduleassimilation@{moduleassimilation}!locateobjassimilation@{locateobjassimilation}}
+\index{locateobjassimilation@{locateobjassimilation}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{locateobjassimilation()}{locateobjassimilation()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::locateobjassimilation (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Assimilation\+ID }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 44
+\mbox{\Hypertarget{namespacemoduleassimilation_adb4698b9b7aa680222581e31452094dc}\label{namespacemoduleassimilation_adb4698b9b7aa680222581e31452094dc}} 
+\index{moduleassimilation@{moduleassimilation}!loweringlifting@{loweringlifting}}
+\index{loweringlifting@{loweringlifting}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{loweringlifting()}{loweringlifting()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::loweringlifting (\begin{DoxyParamCaption}\item[{real}]{Column\+Pressure,  }\item[{real}]{Delta\+Pressure\+Surface,  }\item[{real, dimension (\+:), pointer}]{Column\+Temperature,  }\item[{real, dimension (\+:), pointer}]{Column\+Salinity,  }\item[{real, dimension (\+:), pointer}]{Column\+Density,  }\item[{real, dimension (\+:), pointer}]{Delta\+Temperature,  }\item[{real, dimension (\+:), pointer}]{Delta\+Salinity,  }\item[{real, dimension (\+:), pointer}]{Delta\+Density,  }\item[{real, dimension (\+:), pointer}]{Delta\+Pressure,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{S\+ZZ,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Z\+Cell\+Center,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{D\+WZ,  }\item[{integer}]{kbottom,  }\item[{integer}]{kspl,  }\item[{integer}]{kmin,  }\item[{integer}]{i,  }\item[{integer}]{j,  }\item[{integer}]{Dens\+Method,  }\item[{logical}]{Correc\+Press }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 45
+Here is the caller graph for this function\+:
+% FIG 46
+\mbox{\Hypertarget{namespacemoduleassimilation_a5932eaba41c6bd73ade2cb009b3824e8}\label{namespacemoduleassimilation_a5932eaba41c6bd73ade2cb009b3824e8}} 
+\index{moduleassimilation@{moduleassimilation}!modifyassimilation@{modifyassimilation}}
+\index{modifyassimilation@{modifyassimilation}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{modifyassimilation()}{modifyassimilation()}}
+{\footnotesize\ttfamily subroutine, public moduleassimilation\+::modifyassimilation (\begin{DoxyParamCaption}\item[{integer}]{Assimilation\+ID,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Temperature,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Salinity,  }\item[{real, dimension(\+:,\+:  ), pointer}]{Water\+Level\+Model,  }\item[{integer}]{Dens\+Method,  }\item[{logical}]{Correc\+Press,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 47
+\mbox{\Hypertarget{namespacemoduleassimilation_aaef927508148ef953ad8a480d4843ece}\label{namespacemoduleassimilation_aaef927508148ef953ad8a480d4843ece}} 
+\index{moduleassimilation@{moduleassimilation}!open\_hdf5\_output\_file@{open\_hdf5\_output\_file}}
+\index{open\_hdf5\_output\_file@{open\_hdf5\_output\_file}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{open\_hdf5\_output\_file()}{open\_hdf5\_output\_file()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::open\+\_\+hdf5\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 48
+\mbox{\Hypertarget{namespacemoduleassimilation_a4802b71b408a488941f1becab34042ec}\label{namespacemoduleassimilation_a4802b71b408a488941f1becab34042ec}} 
+\index{moduleassimilation@{moduleassimilation}!output\_timeseries@{output\_timeseries}}
+\index{output\_timeseries@{output\_timeseries}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{output\_timeseries()}{output\_timeseries()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::output\+\_\+timeseries (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleassimilation_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 49
+\mbox{\Hypertarget{namespacemoduleassimilation_a48b30161fd16a556f8e54eeaf6b054e3}\label{namespacemoduleassimilation_a48b30161fd16a556f8e54eeaf6b054e3}} 
+\index{moduleassimilation@{moduleassimilation}!outputresultshdf@{outputresultshdf}}
+\index{outputresultshdf@{outputresultshdf}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{outputresultshdf()}{outputresultshdf()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::outputresultshdf (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 50
+\mbox{\Hypertarget{namespacemoduleassimilation_a7409230e777bc5f92a43eb6fe78da6b9}\label{namespacemoduleassimilation_a7409230e777bc5f92a43eb6fe78da6b9}} 
+\index{moduleassimilation@{moduleassimilation}!readassimilationfilesname@{readassimilationfilesname}}
+\index{readassimilationfilesname@{readassimilationfilesname}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{readassimilationfilesname()}{readassimilationfilesname()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::readassimilationfilesname (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 51
+\mbox{\Hypertarget{namespacemoduleassimilation_ad7f96fa745bdccdc0281d15675836a9b}\label{namespacemoduleassimilation_ad7f96fa745bdccdc0281d15675836a9b}} 
+\index{moduleassimilation@{moduleassimilation}!readlockexternalvar@{readlockexternalvar}}
+\index{readlockexternalvar@{readlockexternalvar}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{readlockexternalvar()}{readlockexternalvar()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::readlockexternalvar (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 52
+\mbox{\Hypertarget{namespacemoduleassimilation_a3215402dbc1d7602c94ca05f33ce52a7}\label{namespacemoduleassimilation_a3215402dbc1d7602c94ca05f33ce52a7}} 
+\index{moduleassimilation@{moduleassimilation}!readunlockexternalvar@{readunlockexternalvar}}
+\index{readunlockexternalvar@{readunlockexternalvar}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{readunlockexternalvar()}{readunlockexternalvar()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::readunlockexternalvar (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 53
+\mbox{\Hypertarget{namespacemoduleassimilation_a7c7eb17646a26837c5dfb9acc963b010}\label{namespacemoduleassimilation_a7c7eb17646a26837c5dfb9acc963b010}} 
+\index{moduleassimilation@{moduleassimilation}!ready@{ready}}
+\index{ready@{ready}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{ready()}{ready()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::ready (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Assimilation\+\_\+\+ID,  }\item[{integer}]{ready\+\_\+ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 54
+Here is the caller graph for this function\+:
+% FIG 55
+\mbox{\Hypertarget{namespacemoduleassimilation_a91d65081df0418d8a1b46cb4548710f3}\label{namespacemoduleassimilation_a91d65081df0418d8a1b46cb4548710f3}} 
+\index{moduleassimilation@{moduleassimilation}!rotatevectorfields@{rotatevectorfields}}
+\index{rotatevectorfields@{rotatevectorfields}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{rotatevectorfields()}{rotatevectorfields()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::rotatevectorfields (\begin{DoxyParamCaption}\item[{type (\mbox{\hyperlink{structmoduleassimilation_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX,  }\item[{type (\mbox{\hyperlink{structmoduleassimilation_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyY }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 56
+\mbox{\Hypertarget{namespacemoduleassimilation_a25c18cab5d2d7615f696e5f0ebfbada0}\label{namespacemoduleassimilation_a25c18cab5d2d7615f696e5f0ebfbada0}} 
+\index{moduleassimilation@{moduleassimilation}!searchproperty@{searchproperty}}
+\index{searchproperty@{searchproperty}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{searchproperty()}{searchproperty()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::searchproperty (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmoduleassimilation_1_1t__property}{t\+\_\+property}}), pointer}]{PropertyX,  }\item[{integer, intent(in)}]{Property\+X\+I\+D\+Number,  }\item[{integer, intent(in), optional}]{N\+\_\+\+Field,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 57
+Here is the caller graph for this function\+:
+% FIG 58
+\mbox{\Hypertarget{namespacemoduleassimilation_a4473000cecbde1abb63d63fc9a6f5858}\label{namespacemoduleassimilation_a4473000cecbde1abb63d63fc9a6f5858}} 
+\index{moduleassimilation@{moduleassimilation}!spline\_alt@{spline\_alt}}
+\index{spline\_alt@{spline\_alt}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{spline\_alt()}{spline\_alt()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::spline\+\_\+alt (\begin{DoxyParamCaption}\item[{real, dimension(\+:), pointer}]{Depth,  }\item[{real, dimension(\+:), pointer}]{Column\+Property,  }\item[{integer}]{kmin,  }\item[{real}]{Grad\+Prop\+\_\+U,  }\item[{real}]{Grad\+Prop\+\_\+L,  }\item[{real, dimension(\+:), pointer}]{D\+\_\+\+Grad\+Prop }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 59
+\mbox{\Hypertarget{namespacemoduleassimilation_a5db3c59220db22267e7e1e7eca84a356}\label{namespacemoduleassimilation_a5db3c59220db22267e7e1e7eca84a356}} 
+\index{moduleassimilation@{moduleassimilation}!splint@{splint}}
+\index{splint@{splint}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{splint()}{splint()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::splint (\begin{DoxyParamCaption}\item[{real, dimension(\+:), pointer}]{Depth,  }\item[{real, dimension(\+:), pointer}]{Column\+Property,  }\item[{real, dimension(\+:), pointer}]{D\+\_\+\+Grad\+Prop,  }\item[{integer}]{kmin,  }\item[{real}]{Z\+\_\+n,  }\item[{real}]{Property\+\_\+U }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 60
+\mbox{\Hypertarget{namespacemoduleassimilation_a686ae542667f0f0269fb4baa108cbcf7}\label{namespacemoduleassimilation_a686ae542667f0f0269fb4baa108cbcf7}} 
+\index{moduleassimilation@{moduleassimilation}!startassimilation@{startassimilation}}
+\index{startassimilation@{startassimilation}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{startassimilation()}{startassimilation()}}
+{\footnotesize\ttfamily subroutine, public moduleassimilation\+::startassimilation (\begin{DoxyParamCaption}\item[{integer}]{Assimilation\+ID,  }\item[{integer}]{Time\+ID,  }\item[{integer}]{Grid\+Data\+ID,  }\item[{integer}]{Horizontal\+Grid\+ID,  }\item[{integer}]{Horizontal\+Map\+ID,  }\item[{integer}]{Map\+ID,  }\item[{integer}]{Geometry\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 61
+Here is the caller graph for this function\+:
+% FIG 62
+\mbox{\Hypertarget{namespacemoduleassimilation_a3a9adb0b25404594ea0591b684a7c40e}\label{namespacemoduleassimilation_a3a9adb0b25404594ea0591b684a7c40e}} 
+\index{moduleassimilation@{moduleassimilation}!ungetassimilation2d@{ungetassimilation2d}}
+\index{ungetassimilation2d@{ungetassimilation2d}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{ungetassimilation2d()}{ungetassimilation2d()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::ungetassimilation2d (\begin{DoxyParamCaption}\item[{integer}]{Assimilation\+ID,  }\item[{real, dimension(\+:,\+:), pointer}]{Array,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 63
+\mbox{\Hypertarget{namespacemoduleassimilation_a73155621f7e95b5f4757f4efd48fee01}\label{namespacemoduleassimilation_a73155621f7e95b5f4757f4efd48fee01}} 
+\index{moduleassimilation@{moduleassimilation}!ungetassimilation3d@{ungetassimilation3d}}
+\index{ungetassimilation3d@{ungetassimilation3d}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{ungetassimilation3d()}{ungetassimilation3d()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::ungetassimilation3d (\begin{DoxyParamCaption}\item[{integer}]{Assimilation\+ID,  }\item[{real(4), dimension(\+:,\+:,\+:), pointer}]{Array,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 64
+\mbox{\Hypertarget{namespacemoduleassimilation_a06544a43532e67f29e5ac264d6870860}\label{namespacemoduleassimilation_a06544a43532e67f29e5ac264d6870860}} 
+\index{moduleassimilation@{moduleassimilation}!ungetassimilation3d8@{ungetassimilation3d8}}
+\index{ungetassimilation3d8@{ungetassimilation3d8}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{ungetassimilation3d8()}{ungetassimilation3d8()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::ungetassimilation3d8 (\begin{DoxyParamCaption}\item[{integer}]{Assimilation\+ID,  }\item[{real(8), dimension(\+:,\+:,\+:), pointer}]{Array,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 65
+\mbox{\Hypertarget{namespacemoduleassimilation_a68cb52758df87c362f43dd3e9690121b}\label{namespacemoduleassimilation_a68cb52758df87c362f43dd3e9690121b}} 
+\index{moduleassimilation@{moduleassimilation}!writefinalhdfoutput@{writefinalhdfoutput}}
+\index{writefinalhdfoutput@{writefinalhdfoutput}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{writefinalhdfoutput()}{writefinalhdfoutput()}}
+{\footnotesize\ttfamily subroutine, private moduleassimilation\+::writefinalhdfoutput (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 66
+Here is the caller graph for this function\+:
+% FIG 67
+
+
+\doxysubsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemoduleassimilation_a36b7146a3f9058e33923acb96c85e214}\label{namespacemoduleassimilation_a36b7146a3f9058e33923acb96c85e214}} 
+\index{moduleassimilation@{moduleassimilation}!begin\_coef@{begin\_coef}}
+\index{begin\_coef@{begin\_coef}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{begin\_coef}{begin\_coef}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleassimilation\+::begin\+\_\+coef = \textquotesingle{}$<$$<$begin\+\_\+coef$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleassimilation_a753c8b8fc9c47fad51b9f7f9036be719}\label{namespacemoduleassimilation_a753c8b8fc9c47fad51b9f7f9036be719}} 
+\index{moduleassimilation@{moduleassimilation}!begin\_field@{begin\_field}}
+\index{begin\_field@{begin\_field}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{begin\_field}{begin\_field}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleassimilation\+::begin\+\_\+field = \textquotesingle{}$<$$<$begin\+\_\+field$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleassimilation_a499da09faa567dd1b80df1e7fa56474e}\label{namespacemoduleassimilation_a499da09faa567dd1b80df1e7fa56474e}} 
+\index{moduleassimilation@{moduleassimilation}!block\_begin@{block\_begin}}
+\index{block\_begin@{block\_begin}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{block\_begin}{block\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleassimilation\+::block\+\_\+begin = \textquotesingle{}$<$beginproperty$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleassimilation_a039648031db2c57e3be6056dfebfd3fd}\label{namespacemoduleassimilation_a039648031db2c57e3be6056dfebfd3fd}} 
+\index{moduleassimilation@{moduleassimilation}!block\_end@{block\_end}}
+\index{block\_end@{block\_end}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{block\_end}{block\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleassimilation\+::block\+\_\+end = \textquotesingle{}$<$endproperty$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleassimilation_a34a9603a245a6727ce4bb588e23d6a1e}\label{namespacemoduleassimilation_a34a9603a245a6727ce4bb588e23d6a1e}} 
+\index{moduleassimilation@{moduleassimilation}!dim\_2d@{dim\_2d}}
+\index{dim\_2d@{dim\_2d}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{dim\_2d}{dim\_2d}}
+{\footnotesize\ttfamily integer, parameter moduleassimilation\+::dim\+\_\+2d = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleassimilation_afe612daf8dae0e1d9e9a616a4a7e0de3}\label{namespacemoduleassimilation_afe612daf8dae0e1d9e9a616a4a7e0de3}} 
+\index{moduleassimilation@{moduleassimilation}!dim\_3d@{dim\_3d}}
+\index{dim\_3d@{dim\_3d}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{dim\_3d}{dim\_3d}}
+{\footnotesize\ttfamily integer, parameter moduleassimilation\+::dim\+\_\+3d = 3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleassimilation_a7b3120ad1932e896ddce3214175b5bfa}\label{namespacemoduleassimilation_a7b3120ad1932e896ddce3214175b5bfa}} 
+\index{moduleassimilation@{moduleassimilation}!end\_coef@{end\_coef}}
+\index{end\_coef@{end\_coef}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{end\_coef}{end\_coef}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleassimilation\+::end\+\_\+coef = \textquotesingle{}$<$$<$end\+\_\+coef$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleassimilation_a88cdda9c84dfaccb47eac5ddb047daf1}\label{namespacemoduleassimilation_a88cdda9c84dfaccb47eac5ddb047daf1}} 
+\index{moduleassimilation@{moduleassimilation}!end\_field@{end\_field}}
+\index{end\_field@{end\_field}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{end\_field}{end\_field}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleassimilation\+::end\+\_\+field = \textquotesingle{}$<$$<$end\+\_\+field$>$$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleassimilation_a692d23fc7e1fb188a3a3f25d685b2bc6}\label{namespacemoduleassimilation_a692d23fc7e1fb188a3a3f25d685b2bc6}} 
+\index{moduleassimilation@{moduleassimilation}!firstobjassimilation@{firstobjassimilation}}
+\index{firstobjassimilation@{firstobjassimilation}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{firstobjassimilation}{firstobjassimilation}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation}{t\+\_\+assimilation}}), pointer moduleassimilation\+::firstobjassimilation\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleassimilation_a849747d57f21e4c2903903a340619bea}\label{namespacemoduleassimilation_a849747d57f21e4c2903903a340619bea}} 
+\index{moduleassimilation@{moduleassimilation}!me@{me}}
+\index{me@{me}!moduleassimilation@{moduleassimilation}}
+\doxysubsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation}{t\+\_\+assimilation}}), pointer moduleassimilation\+::me\hspace{0.3cm}{\ttfamily [private]}}
+

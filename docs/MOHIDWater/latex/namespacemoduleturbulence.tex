@@ -1,0 +1,915 @@
+\hypertarget{namespacemoduleturbulence}{}\doxysection{moduleturbulence Module Reference}
+\label{namespacemoduleturbulence}\index{moduleturbulence@{moduleturbulence}}
+\doxysubsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__diffusivity}{t\+\_\+diffusivity}}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__external}{t\+\_\+external}}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__files}{t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__output}{t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__statistics}{t\+\_\+statistics}}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__turboptions}{t\+\_\+turboptions}}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__turbulence}{t\+\_\+turbulence}}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__turbvar}{t\+\_\+turbvar}}
+\item 
+type \mbox{\hyperlink{structmoduleturbulence_1_1t__viscosity}{t\+\_\+viscosity}}
+\item 
+interface \mbox{\hyperlink{interfacemoduleturbulence_1_1ungetturbulence}{ungetturbulence}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_ace39b4cf089aa70cd60b083a3e341bc9}{constructturbulence}} (Model\+Name, Turbulence\+ID, Turb\+G\+O\+T\+M\+ID, Horizontal\+Grid\+ID, Geometry\+ID, Map\+ID, Grid\+Data\+ID, Horizontal\+Map\+ID, Time\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a90657496e68df9748a112f2c597aeda7}{allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_abb6ebc59b95b0d9ec2ec468d7ab4b43a}{construct\+\_\+time\+\_\+serie}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a4e5f190dd7da54cb916c8956e331e54c}{construct\+\_\+output\+\_\+profile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_afa8dd99716d657032435779e03fff106}{open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_aed366fd3ef93f5aff7c411412fbeb93a}{allocatevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a5e493c3242c2ad7a0f5df2178a37aa3b}{constructmldstatistics}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a7d9753f3c1a5db2dfb55d80111926a99}{inichorizontalmodels}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a676ecd9b2dc8e4fd2506801b206e0fdc}{inicverticalmodels}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a59fa0936c4e079b4094b7b50f09a8092}{inicnihoulleendertseemodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_ad051a97467f11a69e59b2a477e516ba9}{turbulenceoptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_ad670a65f522fc5db35f455468f147913}{checkverticalturbulenceoption}} (String, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a2df9458a1ab29d4f5f3fd747ded725b4}{checkhorizontalturbulenceoption}} (String, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_af876648dc22afb9f49305a2d9c2f1be4}{inicfilehorizontalmodel}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbulence_abccdbd06f5d7520144dadb5297887cfb}{inicfileverticalmodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a1d7775ffdad42a39e0e66a78b56f8faf}{inicconstanthorizontalmodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a7dcc612b541b2355f6ee7df80ef63634}{inicestuarysmagorinskymodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_ad65bc066b505edcac467325fc067aa87}{inicestuarymodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a3ccb54fdbe649b382ed14de6135fd7b9}{inicsmagorinskymodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a2cecb8eb2b3e94ef70af30650d368ef8}{inicconstantverticalmodel}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbulence_af52d9bce4123a146f0b750fab46833ee}{iniclayersverticalmodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_af1c597f7f366a455e6e36dbc70ea56b6}{inicmixinglengthhorizontal}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_a37e3796794d913feea94c19ec07b14fb}{gethorizontalviscosity}} (Turbulence\+ID, Horizontal\+Center\+Viscosity, Horizontal\+Corner\+Viscosity, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbulence_a7e2b5e220e823c62e0ceb84ca26e734b}{getturbulencemodelslist}} (Constant, Estuary, Smagorinsky, Leendertsee, Backhaus, Pacanowski, Nihoul, Turbulence\+Equation)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_a2ef11327f7c8ee6d8580c79c1a68bbdc}{getverticalviscosity}} (Turbulence\+ID, Vertical\+Viscosity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_a6067ede135e4137914b0f3958ddc0353}{getverticaldiffusivity}} (Turbulence\+ID, Vertical\+Diffusivity\+Center, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_ad3675f05df244e553dafe1a09eb8f7e1}{getmixinglengthhorizontal}} (Turbulence\+ID, Mixing\+LengthX, Mixing\+LengthY, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_a9ca6f654636dff4860b7e20134c59253}{getmixinglengthvertical}} (Turbulence\+ID, Lupward, Ldownward, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_a8e849950710589a5439a724899ac2b8d}{getmld\+\_\+surf}} (Turbulence\+ID, M\+L\+D\+\_\+\+Surf, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_a78bc503a0ceb792c161200d1e1e51bf0}{getcontinuousgotm}} (Turbulence\+ID, Continuous, Model\+G\+O\+TM, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a3efe4fb95ca7fe2eff42a33023683bd8}{ungetturbulence3d}} (Turbulence\+ID, Array, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a036689ae17a2c12c06edbd02b17281c1}{ungetturbulence2d}} (Turbulence\+ID, Array, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_a9df29956676b28634ce0733aa108c62e}{setturbulencebottomrugosity}} (Turbulence\+ID, Bottom\+Rugosity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_aa75d43b0bd3a1b14c9baa4fe1ba2e6f7}{turbulence}} (Turbulence\+ID, VelocityX, VelocityY, VelocityZ, Chezy, Temperature, Salinity, Sigma\+No\+Pressure, Water\+Level, Water\+Level\+Old, Water\+Level\+DT, Dens\+Method, Correc\+Press, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a5f1e04626a1dd3845c37639bd960e2e6}{imposeturbvertlimit}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a3366379c368e20e48c460dff1f7585d8}{output\+\_\+results\+\_\+hdf}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_aaab5a3be952e034c14a581ba00fb2d22}{leendertseemodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a823fa2230f79873d97eb37068c46756f}{backhausmodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_ac17c49932990b363ac1d4fc06653ff7a}{pacanowskimodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a403c337f711237d4bc2b5d439e974a19}{nihoulmodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_aaa0e2c6e1a9ea1d07cb81974aeb2b1f8}{richardson}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_ab1caba5ca0b728449a98a3884fda59e8}{turbulenceequationmodel}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbulence_ab31d00156edd7f09041fb314d6d0445a}{smagorinsky3dmodel}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbulence_a60c4e6500b8bfaf5e8e8a202db2203ba}{wavebreaking}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_ad38c50749e5db481714069b7e366c4e7}{computemixedlayerdepth}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a217345ed46e74ae2c1880a07108c9487}{output\+\_\+statistics}} (Value2D, Statistics\+ID)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_ad434d19fe537a51091b39515c951a2a3}{output\+\_\+timeseries}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a72996c619e984f58e135b17214de8718}{output\+\_\+profile}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a256cd0709bb85cc0f9cd463e00938709}{write\+\_\+hdf5\+\_\+format}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_abcd63973fdc2c7e7d3ad23e011bee2d5}{estuarymodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a80e74aea32fd0cd9fd8e273cb359791a}{smagorinskymodel}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_ab7894e5b2120544a23a97a5dec146823}{turbulentviscosity\+\_\+cellcorner}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbulence_a350c5c3bf3571f6247e3278025c35a0c}{imposeturbhorizlimit}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleturbulence_a16fdef89832180a7e41d6bd450c05746}{killturbulence}} (Turbulence\+ID, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleturbulence_aad40d3e2593854d66c21ebbd92791ba0}{deallocateinstance}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_aee156286cd0fad2976b9e8c3c1d52ec6}{ready}} (Obj\+Turbulence\+\_\+\+Id, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleturbulence_a36b249a1813247cecf28481893bc0ea2}{locateobjturbulence}} (Obj\+Turbulence\+\_\+\+Id)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_ad62b0db026f88d0c2b487beade4e08eb}{kinematicviscosity}} = 1.\+3e-\/6
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_ac4e0b3b2db8e62f3e9d95ec50f14bdf8}{cnh}} = -\/0.\+8
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_adddd5559eb5d60561f50c8458e67485b}{cvk}} = 0.\+41
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_ae9d9f2ae68b9865d04266017aa207f35}{delta}} = 0.\+5
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_a50b658339ff4d17b0ff8d430db7111dc}{g}} = 9.\+81
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_a9ff8d5e43c5a70b1652f6a7a9b1a4167}{richardsonmax}} = 10.\+0
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_ada81f70a31cb8c32d07fd796bfe1e5af}{cbk1}} = 7.\+0
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_ae6bb5f3b916bb34da86c6520bb9a8911}{cbk2}} = -\/0.\+25
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_a0750fdf99ef02d010fc2f831cbf9a47e}{cbk3}} = 0.\+0025
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_a52421696a2b6905e1b41cb0b06ca3d58}{cbk4}} = 0.\+0002669
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_ac8e07e705f846c0aeb2da32508e51a10}{cbk5}} = 1.\+75
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_a50fd1ae32293b82b44a38e05f942167b}{cpw1}} = 5.\+0
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_acce43cc93279db98af00c54476c61907}{icpw2}} = -\/2.\+0
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_ae0ec8e0f40d2dde1eb4818c1b1c64440}{cpw4}} = 0.\+00001
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_a8f01dbc0f39a5dd8da2489f20d7a9533}{gama}} = 1.\+4
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleturbulence_a54890d68b5eb7ba1cdad66eef22b56a6}{gama2}} = 1.\+2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a1a6e5da84d7a92e32fbe23db2fd9c51d}{constant\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_aa745ad2596a9341093ee58a720d8788b}{estuary\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a29d7fdceea6d5b2feff6d666d0532452}{smagorinsky\+\_\+}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a5b737b397ea4d53ee93ebaa2536042bb}{file2d\+\_\+}} = 10
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_ac18db79bbfe34ce5f8ecc3c5a81e44f2}{leendertsee\+\_\+}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a2e4474631725c7959668fd9dfe8f90d0}{backhaus\+\_\+}} = 5
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a3919ba926fe406c56c698575129339b3}{pacanowski\+\_\+}} = 6
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_adadd9f612e4d053afcc2457f3e728ce1}{nihoul\+\_\+}} = 7
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a4458bdc093d13a35fdeaae3b5d7a5de9}{turbulenceequation\+\_\+}} = 8
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a7eb55bedf9f4cbaeb7e86ac31b2223a2}{layers\+\_\+}} = 9
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a0c9974d78cad27746ab531d210087c49}{smagorinsky3d\+\_\+}} = 99
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a6d843198335720f3520b5b04ae013ef0}{tke\+\_\+mld\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a7b1c6356cf135cccdc1fa4593c7a8e7e}{rich\+\_\+mld\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleturbulence_a8c9c8f005ce1bb83a3e5a8cebd69bae4}{brunt\+\_\+mld\+\_\+}} = 3
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleturbulence_a860d5ece29b255ab5d250a33b6b5106c}{viscosity\+\_\+h\+\_\+begin}} = \textquotesingle{}$<$begin\+\_\+viscosity\+\_\+h$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleturbulence_a134ebac9140a7aa6099ca4888f990ea8}{viscosity\+\_\+h\+\_\+end}} = \textquotesingle{}$<$end\+\_\+viscosity\+\_\+h$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleturbulence_aa207229e0ff82c7ac123a9b078a51f6a}{viscosity\+\_\+v\+\_\+begin}} = \textquotesingle{}$<$begin\+\_\+viscosity\+\_\+v$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleturbulence_a2b0fb2fa55418700724ffc5e0f294858}{viscosity\+\_\+v\+\_\+end}} = \textquotesingle{}$<$end\+\_\+viscosity\+\_\+v$>$\textquotesingle{}
+\item 
+type(\mbox{\hyperlink{structmoduleturbulence_1_1t__turbulence}{t\+\_\+turbulence}}), pointer \mbox{\hyperlink{namespacemoduleturbulence_af5759b7ab5d1b988fb35e62f93a6d7ed}{firstobjturbulence}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmoduleturbulence_1_1t__turbulence}{t\+\_\+turbulence}}), pointer \mbox{\hyperlink{namespacemoduleturbulence_aa8a18b46ae48dcd9b22bd9078b5f6c72}{me}} =$>$ null()
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemoduleturbulence_a90657496e68df9748a112f2c597aeda7}\label{namespacemoduleturbulence_a90657496e68df9748a112f2c597aeda7}} 
+\index{moduleturbulence@{moduleturbulence}!allocateinstance@{allocateinstance}}
+\index{allocateinstance@{allocateinstance}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{allocateinstance()}{allocateinstance()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::allocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_aed366fd3ef93f5aff7c411412fbeb93a}\label{namespacemoduleturbulence_aed366fd3ef93f5aff7c411412fbeb93a}} 
+\index{moduleturbulence@{moduleturbulence}!allocatevariables@{allocatevariables}}
+\index{allocatevariables@{allocatevariables}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{allocatevariables()}{allocatevariables()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::allocatevariables (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a823fa2230f79873d97eb37068c46756f}\label{namespacemoduleturbulence_a823fa2230f79873d97eb37068c46756f}} 
+\index{moduleturbulence@{moduleturbulence}!backhausmodel@{backhausmodel}}
+\index{backhausmodel@{backhausmodel}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{backhausmodel()}{backhausmodel()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::backhausmodel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 0
+\mbox{\Hypertarget{namespacemoduleturbulence_a2df9458a1ab29d4f5f3fd747ded725b4}\label{namespacemoduleturbulence_a2df9458a1ab29d4f5f3fd747ded725b4}} 
+\index{moduleturbulence@{moduleturbulence}!checkhorizontalturbulenceoption@{checkhorizontalturbulenceoption}}
+\index{checkhorizontalturbulenceoption@{checkhorizontalturbulenceoption}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{checkhorizontalturbulenceoption()}{checkhorizontalturbulenceoption()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::checkhorizontalturbulenceoption (\begin{DoxyParamCaption}\item[{character(len = $\ast$), intent(in)}]{String,  }\item[{integer}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 1
+\mbox{\Hypertarget{namespacemoduleturbulence_ad670a65f522fc5db35f455468f147913}\label{namespacemoduleturbulence_ad670a65f522fc5db35f455468f147913}} 
+\index{moduleturbulence@{moduleturbulence}!checkverticalturbulenceoption@{checkverticalturbulenceoption}}
+\index{checkverticalturbulenceoption@{checkverticalturbulenceoption}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{checkverticalturbulenceoption()}{checkverticalturbulenceoption()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::checkverticalturbulenceoption (\begin{DoxyParamCaption}\item[{character(len = $\ast$), intent(in)}]{String,  }\item[{integer}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 2
+\mbox{\Hypertarget{namespacemoduleturbulence_ad38c50749e5db481714069b7e366c4e7}\label{namespacemoduleturbulence_ad38c50749e5db481714069b7e366c4e7}} 
+\index{moduleturbulence@{moduleturbulence}!computemixedlayerdepth@{computemixedlayerdepth}}
+\index{computemixedlayerdepth@{computemixedlayerdepth}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{computemixedlayerdepth()}{computemixedlayerdepth()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::computemixedlayerdepth (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 3
+Here is the caller graph for this function\+:
+% FIG 4
+\mbox{\Hypertarget{namespacemoduleturbulence_a4e5f190dd7da54cb916c8956e331e54c}\label{namespacemoduleturbulence_a4e5f190dd7da54cb916c8956e331e54c}} 
+\index{moduleturbulence@{moduleturbulence}!construct\_output\_profile@{construct\_output\_profile}}
+\index{construct\_output\_profile@{construct\_output\_profile}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{construct\_output\_profile()}{construct\_output\_profile()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::construct\+\_\+output\+\_\+profile (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 5
+\mbox{\Hypertarget{namespacemoduleturbulence_abb6ebc59b95b0d9ec2ec468d7ab4b43a}\label{namespacemoduleturbulence_abb6ebc59b95b0d9ec2ec468d7ab4b43a}} 
+\index{moduleturbulence@{moduleturbulence}!construct\_time\_serie@{construct\_time\_serie}}
+\index{construct\_time\_serie@{construct\_time\_serie}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{construct\_time\_serie()}{construct\_time\_serie()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::construct\+\_\+time\+\_\+serie (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 6
+Here is the caller graph for this function\+:
+% FIG 7
+\mbox{\Hypertarget{namespacemoduleturbulence_a5e493c3242c2ad7a0f5df2178a37aa3b}\label{namespacemoduleturbulence_a5e493c3242c2ad7a0f5df2178a37aa3b}} 
+\index{moduleturbulence@{moduleturbulence}!constructmldstatistics@{constructmldstatistics}}
+\index{constructmldstatistics@{constructmldstatistics}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{constructmldstatistics()}{constructmldstatistics()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::constructmldstatistics (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 8
+\mbox{\Hypertarget{namespacemoduleturbulence_ace39b4cf089aa70cd60b083a3e341bc9}\label{namespacemoduleturbulence_ace39b4cf089aa70cd60b083a3e341bc9}} 
+\index{moduleturbulence@{moduleturbulence}!constructturbulence@{constructturbulence}}
+\index{constructturbulence@{constructturbulence}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{constructturbulence()}{constructturbulence()}}
+{\footnotesize\ttfamily subroutine, public moduleturbulence\+::constructturbulence (\begin{DoxyParamCaption}\item[{character(len=$\ast$)}]{Model\+Name,  }\item[{integer}]{Turbulence\+ID,  }\item[{integer}]{Turb\+G\+O\+T\+M\+ID,  }\item[{integer}]{Horizontal\+Grid\+ID,  }\item[{integer}]{Geometry\+ID,  }\item[{integer}]{Map\+ID,  }\item[{integer}]{Grid\+Data\+ID,  }\item[{integer}]{Horizontal\+Map\+ID,  }\item[{integer}]{Time\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 9
+Here is the caller graph for this function\+:
+% FIG 10
+\mbox{\Hypertarget{namespacemoduleturbulence_aad40d3e2593854d66c21ebbd92791ba0}\label{namespacemoduleturbulence_aad40d3e2593854d66c21ebbd92791ba0}} 
+\index{moduleturbulence@{moduleturbulence}!deallocateinstance@{deallocateinstance}}
+\index{deallocateinstance@{deallocateinstance}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{deallocateinstance()}{deallocateinstance()}}
+{\footnotesize\ttfamily subroutine moduleturbulence\+::deallocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_abcd63973fdc2c7e7d3ad23e011bee2d5}\label{namespacemoduleturbulence_abcd63973fdc2c7e7d3ad23e011bee2d5}} 
+\index{moduleturbulence@{moduleturbulence}!estuarymodel@{estuarymodel}}
+\index{estuarymodel@{estuarymodel}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{estuarymodel()}{estuarymodel()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::estuarymodel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 11
+\mbox{\Hypertarget{namespacemoduleturbulence_a78bc503a0ceb792c161200d1e1e51bf0}\label{namespacemoduleturbulence_a78bc503a0ceb792c161200d1e1e51bf0}} 
+\index{moduleturbulence@{moduleturbulence}!getcontinuousgotm@{getcontinuousgotm}}
+\index{getcontinuousgotm@{getcontinuousgotm}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{getcontinuousgotm()}{getcontinuousgotm()}}
+{\footnotesize\ttfamily subroutine, public moduleturbulence\+::getcontinuousgotm (\begin{DoxyParamCaption}\item[{integer}]{Turbulence\+ID,  }\item[{logical, intent(out)}]{Continuous,  }\item[{logical, intent(out)}]{Model\+G\+O\+TM,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 12
+Here is the caller graph for this function\+:
+% FIG 13
+\mbox{\Hypertarget{namespacemoduleturbulence_a37e3796794d913feea94c19ec07b14fb}\label{namespacemoduleturbulence_a37e3796794d913feea94c19ec07b14fb}} 
+\index{moduleturbulence@{moduleturbulence}!gethorizontalviscosity@{gethorizontalviscosity}}
+\index{gethorizontalviscosity@{gethorizontalviscosity}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{gethorizontalviscosity()}{gethorizontalviscosity()}}
+{\footnotesize\ttfamily subroutine, public moduleturbulence\+::gethorizontalviscosity (\begin{DoxyParamCaption}\item[{integer}]{Turbulence\+ID,  }\item[{real, dimension(\+:,\+:,\+:), optional, pointer}]{Horizontal\+Center\+Viscosity,  }\item[{real, dimension(\+:,\+:,\+:), optional, pointer}]{Horizontal\+Corner\+Viscosity,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 14
+Here is the caller graph for this function\+:
+% FIG 15
+\mbox{\Hypertarget{namespacemoduleturbulence_ad3675f05df244e553dafe1a09eb8f7e1}\label{namespacemoduleturbulence_ad3675f05df244e553dafe1a09eb8f7e1}} 
+\index{moduleturbulence@{moduleturbulence}!getmixinglengthhorizontal@{getmixinglengthhorizontal}}
+\index{getmixinglengthhorizontal@{getmixinglengthhorizontal}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{getmixinglengthhorizontal()}{getmixinglengthhorizontal()}}
+{\footnotesize\ttfamily subroutine, public moduleturbulence\+::getmixinglengthhorizontal (\begin{DoxyParamCaption}\item[{integer}]{Turbulence\+ID,  }\item[{real, dimension(\+:,\+:,\+:), optional, pointer}]{Mixing\+LengthX,  }\item[{real, dimension(\+:,\+:,\+:), optional, pointer}]{Mixing\+LengthY,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 16
+\mbox{\Hypertarget{namespacemoduleturbulence_a9ca6f654636dff4860b7e20134c59253}\label{namespacemoduleturbulence_a9ca6f654636dff4860b7e20134c59253}} 
+\index{moduleturbulence@{moduleturbulence}!getmixinglengthvertical@{getmixinglengthvertical}}
+\index{getmixinglengthvertical@{getmixinglengthvertical}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{getmixinglengthvertical()}{getmixinglengthvertical()}}
+{\footnotesize\ttfamily subroutine, public moduleturbulence\+::getmixinglengthvertical (\begin{DoxyParamCaption}\item[{integer}]{Turbulence\+ID,  }\item[{real, dimension(\+:,\+:,\+:), optional, pointer}]{Lupward,  }\item[{real, dimension(\+:,\+:,\+:), optional, pointer}]{Ldownward,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 17
+\mbox{\Hypertarget{namespacemoduleturbulence_a8e849950710589a5439a724899ac2b8d}\label{namespacemoduleturbulence_a8e849950710589a5439a724899ac2b8d}} 
+\index{moduleturbulence@{moduleturbulence}!getmld\_surf@{getmld\_surf}}
+\index{getmld\_surf@{getmld\_surf}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{getmld\_surf()}{getmld\_surf()}}
+{\footnotesize\ttfamily subroutine, public moduleturbulence\+::getmld\+\_\+surf (\begin{DoxyParamCaption}\item[{integer}]{Turbulence\+ID,  }\item[{real, dimension(\+:,\+:), pointer}]{M\+L\+D\+\_\+\+Surf,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 18
+\mbox{\Hypertarget{namespacemoduleturbulence_a7e2b5e220e823c62e0ceb84ca26e734b}\label{namespacemoduleturbulence_a7e2b5e220e823c62e0ceb84ca26e734b}} 
+\index{moduleturbulence@{moduleturbulence}!getturbulencemodelslist@{getturbulencemodelslist}}
+\index{getturbulencemodelslist@{getturbulencemodelslist}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{getturbulencemodelslist()}{getturbulencemodelslist()}}
+{\footnotesize\ttfamily subroutine moduleturbulence\+::getturbulencemodelslist (\begin{DoxyParamCaption}\item[{integer, intent(out), optional}]{Constant,  }\item[{integer, intent(out), optional}]{Estuary,  }\item[{integer, intent(out), optional}]{Smagorinsky,  }\item[{integer, intent(out), optional}]{Leendertsee,  }\item[{integer, intent(out), optional}]{Backhaus,  }\item[{integer, intent(out), optional}]{Pacanowski,  }\item[{integer, intent(out), optional}]{Nihoul,  }\item[{integer, intent(out), optional}]{Turbulence\+Equation }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a6067ede135e4137914b0f3958ddc0353}\label{namespacemoduleturbulence_a6067ede135e4137914b0f3958ddc0353}} 
+\index{moduleturbulence@{moduleturbulence}!getverticaldiffusivity@{getverticaldiffusivity}}
+\index{getverticaldiffusivity@{getverticaldiffusivity}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{getverticaldiffusivity()}{getverticaldiffusivity()}}
+{\footnotesize\ttfamily subroutine, public moduleturbulence\+::getverticaldiffusivity (\begin{DoxyParamCaption}\item[{integer}]{Turbulence\+ID,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Vertical\+Diffusivity\+Center,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 19
+Here is the caller graph for this function\+:
+% FIG 20
+\mbox{\Hypertarget{namespacemoduleturbulence_a2ef11327f7c8ee6d8580c79c1a68bbdc}\label{namespacemoduleturbulence_a2ef11327f7c8ee6d8580c79c1a68bbdc}} 
+\index{moduleturbulence@{moduleturbulence}!getverticalviscosity@{getverticalviscosity}}
+\index{getverticalviscosity@{getverticalviscosity}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{getverticalviscosity()}{getverticalviscosity()}}
+{\footnotesize\ttfamily subroutine, public moduleturbulence\+::getverticalviscosity (\begin{DoxyParamCaption}\item[{integer}]{Turbulence\+ID,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Vertical\+Viscosity,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 21
+\mbox{\Hypertarget{namespacemoduleturbulence_a350c5c3bf3571f6247e3278025c35a0c}\label{namespacemoduleturbulence_a350c5c3bf3571f6247e3278025c35a0c}} 
+\index{moduleturbulence@{moduleturbulence}!imposeturbhorizlimit@{imposeturbhorizlimit}}
+\index{imposeturbhorizlimit@{imposeturbhorizlimit}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{imposeturbhorizlimit()}{imposeturbhorizlimit()}}
+{\footnotesize\ttfamily subroutine moduleturbulence\+::imposeturbhorizlimit (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 22
+\mbox{\Hypertarget{namespacemoduleturbulence_a5f1e04626a1dd3845c37639bd960e2e6}\label{namespacemoduleturbulence_a5f1e04626a1dd3845c37639bd960e2e6}} 
+\index{moduleturbulence@{moduleturbulence}!imposeturbvertlimit@{imposeturbvertlimit}}
+\index{imposeturbvertlimit@{imposeturbvertlimit}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{imposeturbvertlimit()}{imposeturbvertlimit()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::imposeturbvertlimit (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 23
+\mbox{\Hypertarget{namespacemoduleturbulence_a1d7775ffdad42a39e0e66a78b56f8faf}\label{namespacemoduleturbulence_a1d7775ffdad42a39e0e66a78b56f8faf}} 
+\index{moduleturbulence@{moduleturbulence}!inicconstanthorizontalmodel@{inicconstanthorizontalmodel}}
+\index{inicconstanthorizontalmodel@{inicconstanthorizontalmodel}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{inicconstanthorizontalmodel()}{inicconstanthorizontalmodel()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::inicconstanthorizontalmodel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 24
+\mbox{\Hypertarget{namespacemoduleturbulence_a2cecb8eb2b3e94ef70af30650d368ef8}\label{namespacemoduleturbulence_a2cecb8eb2b3e94ef70af30650d368ef8}} 
+\index{moduleturbulence@{moduleturbulence}!inicconstantverticalmodel@{inicconstantverticalmodel}}
+\index{inicconstantverticalmodel@{inicconstantverticalmodel}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{inicconstantverticalmodel()}{inicconstantverticalmodel()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::inicconstantverticalmodel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 25
+\mbox{\Hypertarget{namespacemoduleturbulence_ad65bc066b505edcac467325fc067aa87}\label{namespacemoduleturbulence_ad65bc066b505edcac467325fc067aa87}} 
+\index{moduleturbulence@{moduleturbulence}!inicestuarymodel@{inicestuarymodel}}
+\index{inicestuarymodel@{inicestuarymodel}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{inicestuarymodel()}{inicestuarymodel()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::inicestuarymodel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 26
+\mbox{\Hypertarget{namespacemoduleturbulence_a7dcc612b541b2355f6ee7df80ef63634}\label{namespacemoduleturbulence_a7dcc612b541b2355f6ee7df80ef63634}} 
+\index{moduleturbulence@{moduleturbulence}!inicestuarysmagorinskymodel@{inicestuarysmagorinskymodel}}
+\index{inicestuarysmagorinskymodel@{inicestuarysmagorinskymodel}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{inicestuarysmagorinskymodel()}{inicestuarysmagorinskymodel()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::inicestuarysmagorinskymodel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 27
+\mbox{\Hypertarget{namespacemoduleturbulence_af876648dc22afb9f49305a2d9c2f1be4}\label{namespacemoduleturbulence_af876648dc22afb9f49305a2d9c2f1be4}} 
+\index{moduleturbulence@{moduleturbulence}!inicfilehorizontalmodel@{inicfilehorizontalmodel}}
+\index{inicfilehorizontalmodel@{inicfilehorizontalmodel}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{inicfilehorizontalmodel()}{inicfilehorizontalmodel()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::inicfilehorizontalmodel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 28
+\mbox{\Hypertarget{namespacemoduleturbulence_abccdbd06f5d7520144dadb5297887cfb}\label{namespacemoduleturbulence_abccdbd06f5d7520144dadb5297887cfb}} 
+\index{moduleturbulence@{moduleturbulence}!inicfileverticalmodel@{inicfileverticalmodel}}
+\index{inicfileverticalmodel@{inicfileverticalmodel}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{inicfileverticalmodel()}{inicfileverticalmodel()}}
+{\footnotesize\ttfamily subroutine moduleturbulence\+::inicfileverticalmodel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 29
+\mbox{\Hypertarget{namespacemoduleturbulence_a7d9753f3c1a5db2dfb55d80111926a99}\label{namespacemoduleturbulence_a7d9753f3c1a5db2dfb55d80111926a99}} 
+\index{moduleturbulence@{moduleturbulence}!inichorizontalmodels@{inichorizontalmodels}}
+\index{inichorizontalmodels@{inichorizontalmodels}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{inichorizontalmodels()}{inichorizontalmodels()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::inichorizontalmodels (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 30
+Here is the caller graph for this function\+:
+% FIG 31
+\mbox{\Hypertarget{namespacemoduleturbulence_af52d9bce4123a146f0b750fab46833ee}\label{namespacemoduleturbulence_af52d9bce4123a146f0b750fab46833ee}} 
+\index{moduleturbulence@{moduleturbulence}!iniclayersverticalmodel@{iniclayersverticalmodel}}
+\index{iniclayersverticalmodel@{iniclayersverticalmodel}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{iniclayersverticalmodel()}{iniclayersverticalmodel()}}
+{\footnotesize\ttfamily subroutine moduleturbulence\+::iniclayersverticalmodel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 32
+\mbox{\Hypertarget{namespacemoduleturbulence_af1c597f7f366a455e6e36dbc70ea56b6}\label{namespacemoduleturbulence_af1c597f7f366a455e6e36dbc70ea56b6}} 
+\index{moduleturbulence@{moduleturbulence}!inicmixinglengthhorizontal@{inicmixinglengthhorizontal}}
+\index{inicmixinglengthhorizontal@{inicmixinglengthhorizontal}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{inicmixinglengthhorizontal()}{inicmixinglengthhorizontal()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::inicmixinglengthhorizontal (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 33
+\mbox{\Hypertarget{namespacemoduleturbulence_a59fa0936c4e079b4094b7b50f09a8092}\label{namespacemoduleturbulence_a59fa0936c4e079b4094b7b50f09a8092}} 
+\index{moduleturbulence@{moduleturbulence}!inicnihoulleendertseemodel@{inicnihoulleendertseemodel}}
+\index{inicnihoulleendertseemodel@{inicnihoulleendertseemodel}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{inicnihoulleendertseemodel()}{inicnihoulleendertseemodel()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::inicnihoulleendertseemodel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 34
+\mbox{\Hypertarget{namespacemoduleturbulence_a3ccb54fdbe649b382ed14de6135fd7b9}\label{namespacemoduleturbulence_a3ccb54fdbe649b382ed14de6135fd7b9}} 
+\index{moduleturbulence@{moduleturbulence}!inicsmagorinskymodel@{inicsmagorinskymodel}}
+\index{inicsmagorinskymodel@{inicsmagorinskymodel}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{inicsmagorinskymodel()}{inicsmagorinskymodel()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::inicsmagorinskymodel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 35
+\mbox{\Hypertarget{namespacemoduleturbulence_a676ecd9b2dc8e4fd2506801b206e0fdc}\label{namespacemoduleturbulence_a676ecd9b2dc8e4fd2506801b206e0fdc}} 
+\index{moduleturbulence@{moduleturbulence}!inicverticalmodels@{inicverticalmodels}}
+\index{inicverticalmodels@{inicverticalmodels}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{inicverticalmodels()}{inicverticalmodels()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::inicverticalmodels (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 36
+Here is the caller graph for this function\+:
+% FIG 37
+\mbox{\Hypertarget{namespacemoduleturbulence_a16fdef89832180a7e41d6bd450c05746}\label{namespacemoduleturbulence_a16fdef89832180a7e41d6bd450c05746}} 
+\index{moduleturbulence@{moduleturbulence}!killturbulence@{killturbulence}}
+\index{killturbulence@{killturbulence}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{killturbulence()}{killturbulence()}}
+{\footnotesize\ttfamily subroutine, public moduleturbulence\+::killturbulence (\begin{DoxyParamCaption}\item[{integer}]{Turbulence\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 38
+Here is the caller graph for this function\+:
+% FIG 39
+\mbox{\Hypertarget{namespacemoduleturbulence_aaab5a3be952e034c14a581ba00fb2d22}\label{namespacemoduleturbulence_aaab5a3be952e034c14a581ba00fb2d22}} 
+\index{moduleturbulence@{moduleturbulence}!leendertseemodel@{leendertseemodel}}
+\index{leendertseemodel@{leendertseemodel}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{leendertseemodel()}{leendertseemodel()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::leendertseemodel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 40
+\mbox{\Hypertarget{namespacemoduleturbulence_a36b249a1813247cecf28481893bc0ea2}\label{namespacemoduleturbulence_a36b249a1813247cecf28481893bc0ea2}} 
+\index{moduleturbulence@{moduleturbulence}!locateobjturbulence@{locateobjturbulence}}
+\index{locateobjturbulence@{locateobjturbulence}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{locateobjturbulence()}{locateobjturbulence()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::locateobjturbulence (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Turbulence\+\_\+\+Id }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 41
+\mbox{\Hypertarget{namespacemoduleturbulence_a403c337f711237d4bc2b5d439e974a19}\label{namespacemoduleturbulence_a403c337f711237d4bc2b5d439e974a19}} 
+\index{moduleturbulence@{moduleturbulence}!nihoulmodel@{nihoulmodel}}
+\index{nihoulmodel@{nihoulmodel}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{nihoulmodel()}{nihoulmodel()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::nihoulmodel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 42
+\mbox{\Hypertarget{namespacemoduleturbulence_afa8dd99716d657032435779e03fff106}\label{namespacemoduleturbulence_afa8dd99716d657032435779e03fff106}} 
+\index{moduleturbulence@{moduleturbulence}!open\_hdf5\_output\_file@{open\_hdf5\_output\_file}}
+\index{open\_hdf5\_output\_file@{open\_hdf5\_output\_file}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{open\_hdf5\_output\_file()}{open\_hdf5\_output\_file()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::open\+\_\+hdf5\+\_\+output\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 43
+\mbox{\Hypertarget{namespacemoduleturbulence_a72996c619e984f58e135b17214de8718}\label{namespacemoduleturbulence_a72996c619e984f58e135b17214de8718}} 
+\index{moduleturbulence@{moduleturbulence}!output\_profile@{output\_profile}}
+\index{output\_profile@{output\_profile}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{output\_profile()}{output\_profile()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::output\+\_\+profile (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 44
+\mbox{\Hypertarget{namespacemoduleturbulence_a3366379c368e20e48c460dff1f7585d8}\label{namespacemoduleturbulence_a3366379c368e20e48c460dff1f7585d8}} 
+\index{moduleturbulence@{moduleturbulence}!output\_results\_hdf@{output\_results\_hdf}}
+\index{output\_results\_hdf@{output\_results\_hdf}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{output\_results\_hdf()}{output\_results\_hdf()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::output\+\_\+results\+\_\+hdf (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 45
+Here is the caller graph for this function\+:
+% FIG 46
+\mbox{\Hypertarget{namespacemoduleturbulence_a217345ed46e74ae2c1880a07108c9487}\label{namespacemoduleturbulence_a217345ed46e74ae2c1880a07108c9487}} 
+\index{moduleturbulence@{moduleturbulence}!output\_statistics@{output\_statistics}}
+\index{output\_statistics@{output\_statistics}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{output\_statistics()}{output\_statistics()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::output\+\_\+statistics (\begin{DoxyParamCaption}\item[{real, dimension(\+:,\+:), pointer}]{Value2D,  }\item[{integer}]{Statistics\+ID }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 47
+\mbox{\Hypertarget{namespacemoduleturbulence_ad434d19fe537a51091b39515c951a2a3}\label{namespacemoduleturbulence_ad434d19fe537a51091b39515c951a2a3}} 
+\index{moduleturbulence@{moduleturbulence}!output\_timeseries@{output\_timeseries}}
+\index{output\_timeseries@{output\_timeseries}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{output\_timeseries()}{output\_timeseries()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::output\+\_\+timeseries (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 48
+\mbox{\Hypertarget{namespacemoduleturbulence_ac17c49932990b363ac1d4fc06653ff7a}\label{namespacemoduleturbulence_ac17c49932990b363ac1d4fc06653ff7a}} 
+\index{moduleturbulence@{moduleturbulence}!pacanowskimodel@{pacanowskimodel}}
+\index{pacanowskimodel@{pacanowskimodel}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{pacanowskimodel()}{pacanowskimodel()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::pacanowskimodel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 49
+\mbox{\Hypertarget{namespacemoduleturbulence_aee156286cd0fad2976b9e8c3c1d52ec6}\label{namespacemoduleturbulence_aee156286cd0fad2976b9e8c3c1d52ec6}} 
+\index{moduleturbulence@{moduleturbulence}!ready@{ready}}
+\index{ready@{ready}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{ready()}{ready()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::ready (\begin{DoxyParamCaption}\item[{integer}]{Obj\+Turbulence\+\_\+\+Id,  }\item[{integer}]{ready\+\_\+ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 50
+\mbox{\Hypertarget{namespacemoduleturbulence_aaa0e2c6e1a9ea1d07cb81974aeb2b1f8}\label{namespacemoduleturbulence_aaa0e2c6e1a9ea1d07cb81974aeb2b1f8}} 
+\index{moduleturbulence@{moduleturbulence}!richardson@{richardson}}
+\index{richardson@{richardson}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{richardson()}{richardson()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::richardson (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 51
+\mbox{\Hypertarget{namespacemoduleturbulence_a9df29956676b28634ce0733aa108c62e}\label{namespacemoduleturbulence_a9df29956676b28634ce0733aa108c62e}} 
+\index{moduleturbulence@{moduleturbulence}!setturbulencebottomrugosity@{setturbulencebottomrugosity}}
+\index{setturbulencebottomrugosity@{setturbulencebottomrugosity}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{setturbulencebottomrugosity()}{setturbulencebottomrugosity()}}
+{\footnotesize\ttfamily subroutine, public moduleturbulence\+::setturbulencebottomrugosity (\begin{DoxyParamCaption}\item[{integer}]{Turbulence\+ID,  }\item[{real, intent(in)}]{Bottom\+Rugosity,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 52
+Here is the caller graph for this function\+:
+% FIG 53
+\mbox{\Hypertarget{namespacemoduleturbulence_ab31d00156edd7f09041fb314d6d0445a}\label{namespacemoduleturbulence_ab31d00156edd7f09041fb314d6d0445a}} 
+\index{moduleturbulence@{moduleturbulence}!smagorinsky3dmodel@{smagorinsky3dmodel}}
+\index{smagorinsky3dmodel@{smagorinsky3dmodel}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{smagorinsky3dmodel()}{smagorinsky3dmodel()}}
+{\footnotesize\ttfamily subroutine moduleturbulence\+::smagorinsky3dmodel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 54
+\mbox{\Hypertarget{namespacemoduleturbulence_a80e74aea32fd0cd9fd8e273cb359791a}\label{namespacemoduleturbulence_a80e74aea32fd0cd9fd8e273cb359791a}} 
+\index{moduleturbulence@{moduleturbulence}!smagorinskymodel@{smagorinskymodel}}
+\index{smagorinskymodel@{smagorinskymodel}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{smagorinskymodel()}{smagorinskymodel()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::smagorinskymodel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 55
+\mbox{\Hypertarget{namespacemoduleturbulence_aa75d43b0bd3a1b14c9baa4fe1ba2e6f7}\label{namespacemoduleturbulence_aa75d43b0bd3a1b14c9baa4fe1ba2e6f7}} 
+\index{moduleturbulence@{moduleturbulence}!turbulence@{turbulence}}
+\index{turbulence@{turbulence}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{turbulence()}{turbulence()}}
+{\footnotesize\ttfamily subroutine, public moduleturbulence\+::turbulence (\begin{DoxyParamCaption}\item[{integer}]{Turbulence\+ID,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{VelocityX,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{VelocityY,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{VelocityZ,  }\item[{real, dimension(\+:,\+:  ), pointer}]{Chezy,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Temperature,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Salinity,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Sigma\+No\+Pressure,  }\item[{real, dimension(\+:,\+:  ), pointer}]{Water\+Level,  }\item[{real, dimension(\+:,\+:  ), pointer}]{Water\+Level\+Old,  }\item[{real, intent(in)}]{Water\+Level\+DT,  }\item[{integer, intent(in)}]{Dens\+Method,  }\item[{logical, intent(in)}]{Correc\+Press,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 56
+Here is the caller graph for this function\+:
+% FIG 57
+\mbox{\Hypertarget{namespacemoduleturbulence_ab1caba5ca0b728449a98a3884fda59e8}\label{namespacemoduleturbulence_ab1caba5ca0b728449a98a3884fda59e8}} 
+\index{moduleturbulence@{moduleturbulence}!turbulenceequationmodel@{turbulenceequationmodel}}
+\index{turbulenceequationmodel@{turbulenceequationmodel}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{turbulenceequationmodel()}{turbulenceequationmodel()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::turbulenceequationmodel (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 58
+Here is the caller graph for this function\+:
+% FIG 59
+\mbox{\Hypertarget{namespacemoduleturbulence_ad051a97467f11a69e59b2a477e516ba9}\label{namespacemoduleturbulence_ad051a97467f11a69e59b2a477e516ba9}} 
+\index{moduleturbulence@{moduleturbulence}!turbulenceoptions@{turbulenceoptions}}
+\index{turbulenceoptions@{turbulenceoptions}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{turbulenceoptions()}{turbulenceoptions()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::turbulenceoptions (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 60
+Here is the caller graph for this function\+:
+% FIG 61
+\mbox{\Hypertarget{namespacemoduleturbulence_ab7894e5b2120544a23a97a5dec146823}\label{namespacemoduleturbulence_ab7894e5b2120544a23a97a5dec146823}} 
+\index{moduleturbulence@{moduleturbulence}!turbulentviscosity\_cellcorner@{turbulentviscosity\_cellcorner}}
+\index{turbulentviscosity\_cellcorner@{turbulentviscosity\_cellcorner}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{turbulentviscosity\_cellcorner()}{turbulentviscosity\_cellcorner()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::turbulentviscosity\+\_\+cellcorner (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 62
+\mbox{\Hypertarget{namespacemoduleturbulence_a036689ae17a2c12c06edbd02b17281c1}\label{namespacemoduleturbulence_a036689ae17a2c12c06edbd02b17281c1}} 
+\index{moduleturbulence@{moduleturbulence}!ungetturbulence2d@{ungetturbulence2d}}
+\index{ungetturbulence2d@{ungetturbulence2d}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{ungetturbulence2d()}{ungetturbulence2d()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::ungetturbulence2d (\begin{DoxyParamCaption}\item[{integer}]{Turbulence\+ID,  }\item[{real, dimension(\+:,\+:), pointer}]{Array,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 63
+\mbox{\Hypertarget{namespacemoduleturbulence_a3efe4fb95ca7fe2eff42a33023683bd8}\label{namespacemoduleturbulence_a3efe4fb95ca7fe2eff42a33023683bd8}} 
+\index{moduleturbulence@{moduleturbulence}!ungetturbulence3d@{ungetturbulence3d}}
+\index{ungetturbulence3d@{ungetturbulence3d}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{ungetturbulence3d()}{ungetturbulence3d()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::ungetturbulence3d (\begin{DoxyParamCaption}\item[{integer}]{Turbulence\+ID,  }\item[{real, dimension(\+:,\+:,\+:), pointer}]{Array,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 64
+\mbox{\Hypertarget{namespacemoduleturbulence_a60c4e6500b8bfaf5e8e8a202db2203ba}\label{namespacemoduleturbulence_a60c4e6500b8bfaf5e8e8a202db2203ba}} 
+\index{moduleturbulence@{moduleturbulence}!wavebreaking@{wavebreaking}}
+\index{wavebreaking@{wavebreaking}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{wavebreaking()}{wavebreaking()}}
+{\footnotesize\ttfamily subroutine moduleturbulence\+::wavebreaking (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 65
+\mbox{\Hypertarget{namespacemoduleturbulence_a256cd0709bb85cc0f9cd463e00938709}\label{namespacemoduleturbulence_a256cd0709bb85cc0f9cd463e00938709}} 
+\index{moduleturbulence@{moduleturbulence}!write\_hdf5\_format@{write\_hdf5\_format}}
+\index{write\_hdf5\_format@{write\_hdf5\_format}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{write\_hdf5\_format()}{write\_hdf5\_format()}}
+{\footnotesize\ttfamily subroutine, private moduleturbulence\+::write\+\_\+hdf5\+\_\+format (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 66
+
+
+\doxysubsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemoduleturbulence_a2e4474631725c7959668fd9dfe8f90d0}\label{namespacemoduleturbulence_a2e4474631725c7959668fd9dfe8f90d0}} 
+\index{moduleturbulence@{moduleturbulence}!backhaus\_@{backhaus\_}}
+\index{backhaus\_@{backhaus\_}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{backhaus\_}{backhaus\_}}
+{\footnotesize\ttfamily integer, parameter moduleturbulence\+::backhaus\+\_\+ = 5\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a8c9c8f005ce1bb83a3e5a8cebd69bae4}\label{namespacemoduleturbulence_a8c9c8f005ce1bb83a3e5a8cebd69bae4}} 
+\index{moduleturbulence@{moduleturbulence}!brunt\_mld\_@{brunt\_mld\_}}
+\index{brunt\_mld\_@{brunt\_mld\_}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{brunt\_mld\_}{brunt\_mld\_}}
+{\footnotesize\ttfamily integer, parameter moduleturbulence\+::brunt\+\_\+mld\+\_\+ = 3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_ada81f70a31cb8c32d07fd796bfe1e5af}\label{namespacemoduleturbulence_ada81f70a31cb8c32d07fd796bfe1e5af}} 
+\index{moduleturbulence@{moduleturbulence}!cbk1@{cbk1}}
+\index{cbk1@{cbk1}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{cbk1}{cbk1}}
+{\footnotesize\ttfamily real, parameter moduleturbulence\+::cbk1 = 7.\+0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_ae6bb5f3b916bb34da86c6520bb9a8911}\label{namespacemoduleturbulence_ae6bb5f3b916bb34da86c6520bb9a8911}} 
+\index{moduleturbulence@{moduleturbulence}!cbk2@{cbk2}}
+\index{cbk2@{cbk2}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{cbk2}{cbk2}}
+{\footnotesize\ttfamily real, parameter moduleturbulence\+::cbk2 = -\/0.\+25\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a0750fdf99ef02d010fc2f831cbf9a47e}\label{namespacemoduleturbulence_a0750fdf99ef02d010fc2f831cbf9a47e}} 
+\index{moduleturbulence@{moduleturbulence}!cbk3@{cbk3}}
+\index{cbk3@{cbk3}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{cbk3}{cbk3}}
+{\footnotesize\ttfamily real, parameter moduleturbulence\+::cbk3 = 0.\+0025\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a52421696a2b6905e1b41cb0b06ca3d58}\label{namespacemoduleturbulence_a52421696a2b6905e1b41cb0b06ca3d58}} 
+\index{moduleturbulence@{moduleturbulence}!cbk4@{cbk4}}
+\index{cbk4@{cbk4}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{cbk4}{cbk4}}
+{\footnotesize\ttfamily real, parameter moduleturbulence\+::cbk4 = 0.\+0002669\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_ac8e07e705f846c0aeb2da32508e51a10}\label{namespacemoduleturbulence_ac8e07e705f846c0aeb2da32508e51a10}} 
+\index{moduleturbulence@{moduleturbulence}!cbk5@{cbk5}}
+\index{cbk5@{cbk5}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{cbk5}{cbk5}}
+{\footnotesize\ttfamily real, parameter moduleturbulence\+::cbk5 = 1.\+75\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_ac4e0b3b2db8e62f3e9d95ec50f14bdf8}\label{namespacemoduleturbulence_ac4e0b3b2db8e62f3e9d95ec50f14bdf8}} 
+\index{moduleturbulence@{moduleturbulence}!cnh@{cnh}}
+\index{cnh@{cnh}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{cnh}{cnh}}
+{\footnotesize\ttfamily real, parameter moduleturbulence\+::cnh = -\/0.\+8\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a1a6e5da84d7a92e32fbe23db2fd9c51d}\label{namespacemoduleturbulence_a1a6e5da84d7a92e32fbe23db2fd9c51d}} 
+\index{moduleturbulence@{moduleturbulence}!constant\_@{constant\_}}
+\index{constant\_@{constant\_}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{constant\_}{constant\_}}
+{\footnotesize\ttfamily integer, parameter moduleturbulence\+::constant\+\_\+ = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a50fd1ae32293b82b44a38e05f942167b}\label{namespacemoduleturbulence_a50fd1ae32293b82b44a38e05f942167b}} 
+\index{moduleturbulence@{moduleturbulence}!cpw1@{cpw1}}
+\index{cpw1@{cpw1}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{cpw1}{cpw1}}
+{\footnotesize\ttfamily real, parameter moduleturbulence\+::cpw1 = 5.\+0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_ae0ec8e0f40d2dde1eb4818c1b1c64440}\label{namespacemoduleturbulence_ae0ec8e0f40d2dde1eb4818c1b1c64440}} 
+\index{moduleturbulence@{moduleturbulence}!cpw4@{cpw4}}
+\index{cpw4@{cpw4}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{cpw4}{cpw4}}
+{\footnotesize\ttfamily real, parameter moduleturbulence\+::cpw4 = 0.\+00001\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_adddd5559eb5d60561f50c8458e67485b}\label{namespacemoduleturbulence_adddd5559eb5d60561f50c8458e67485b}} 
+\index{moduleturbulence@{moduleturbulence}!cvk@{cvk}}
+\index{cvk@{cvk}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{cvk}{cvk}}
+{\footnotesize\ttfamily real, parameter moduleturbulence\+::cvk = 0.\+41\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_ae9d9f2ae68b9865d04266017aa207f35}\label{namespacemoduleturbulence_ae9d9f2ae68b9865d04266017aa207f35}} 
+\index{moduleturbulence@{moduleturbulence}!delta@{delta}}
+\index{delta@{delta}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{delta}{delta}}
+{\footnotesize\ttfamily real, parameter moduleturbulence\+::delta = 0.\+5\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_aa745ad2596a9341093ee58a720d8788b}\label{namespacemoduleturbulence_aa745ad2596a9341093ee58a720d8788b}} 
+\index{moduleturbulence@{moduleturbulence}!estuary\_@{estuary\_}}
+\index{estuary\_@{estuary\_}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{estuary\_}{estuary\_}}
+{\footnotesize\ttfamily integer, parameter moduleturbulence\+::estuary\+\_\+ = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a5b737b397ea4d53ee93ebaa2536042bb}\label{namespacemoduleturbulence_a5b737b397ea4d53ee93ebaa2536042bb}} 
+\index{moduleturbulence@{moduleturbulence}!file2d\_@{file2d\_}}
+\index{file2d\_@{file2d\_}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{file2d\_}{file2d\_}}
+{\footnotesize\ttfamily integer, parameter moduleturbulence\+::file2d\+\_\+ = 10\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_af5759b7ab5d1b988fb35e62f93a6d7ed}\label{namespacemoduleturbulence_af5759b7ab5d1b988fb35e62f93a6d7ed}} 
+\index{moduleturbulence@{moduleturbulence}!firstobjturbulence@{firstobjturbulence}}
+\index{firstobjturbulence@{firstobjturbulence}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{firstobjturbulence}{firstobjturbulence}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmoduleturbulence_1_1t__turbulence}{t\+\_\+turbulence}}), pointer moduleturbulence\+::firstobjturbulence =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a50b658339ff4d17b0ff8d430db7111dc}\label{namespacemoduleturbulence_a50b658339ff4d17b0ff8d430db7111dc}} 
+\index{moduleturbulence@{moduleturbulence}!g@{g}}
+\index{g@{g}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{g}{g}}
+{\footnotesize\ttfamily real, parameter moduleturbulence\+::g = 9.\+81\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a8f01dbc0f39a5dd8da2489f20d7a9533}\label{namespacemoduleturbulence_a8f01dbc0f39a5dd8da2489f20d7a9533}} 
+\index{moduleturbulence@{moduleturbulence}!gama@{gama}}
+\index{gama@{gama}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{gama}{gama}}
+{\footnotesize\ttfamily real, parameter moduleturbulence\+::gama = 1.\+4\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a54890d68b5eb7ba1cdad66eef22b56a6}\label{namespacemoduleturbulence_a54890d68b5eb7ba1cdad66eef22b56a6}} 
+\index{moduleturbulence@{moduleturbulence}!gama2@{gama2}}
+\index{gama2@{gama2}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{gama2}{gama2}}
+{\footnotesize\ttfamily real, parameter moduleturbulence\+::gama2 = 1.\+2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_acce43cc93279db98af00c54476c61907}\label{namespacemoduleturbulence_acce43cc93279db98af00c54476c61907}} 
+\index{moduleturbulence@{moduleturbulence}!icpw2@{icpw2}}
+\index{icpw2@{icpw2}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{icpw2}{icpw2}}
+{\footnotesize\ttfamily real, parameter moduleturbulence\+::icpw2 = -\/2.\+0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_ad62b0db026f88d0c2b487beade4e08eb}\label{namespacemoduleturbulence_ad62b0db026f88d0c2b487beade4e08eb}} 
+\index{moduleturbulence@{moduleturbulence}!kinematicviscosity@{kinematicviscosity}}
+\index{kinematicviscosity@{kinematicviscosity}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{kinematicviscosity}{kinematicviscosity}}
+{\footnotesize\ttfamily real, parameter moduleturbulence\+::kinematicviscosity = 1.\+3e-\/6\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a7eb55bedf9f4cbaeb7e86ac31b2223a2}\label{namespacemoduleturbulence_a7eb55bedf9f4cbaeb7e86ac31b2223a2}} 
+\index{moduleturbulence@{moduleturbulence}!layers\_@{layers\_}}
+\index{layers\_@{layers\_}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{layers\_}{layers\_}}
+{\footnotesize\ttfamily integer, parameter moduleturbulence\+::layers\+\_\+ = 9\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_ac18db79bbfe34ce5f8ecc3c5a81e44f2}\label{namespacemoduleturbulence_ac18db79bbfe34ce5f8ecc3c5a81e44f2}} 
+\index{moduleturbulence@{moduleturbulence}!leendertsee\_@{leendertsee\_}}
+\index{leendertsee\_@{leendertsee\_}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{leendertsee\_}{leendertsee\_}}
+{\footnotesize\ttfamily integer, parameter moduleturbulence\+::leendertsee\+\_\+ = 4\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_aa8a18b46ae48dcd9b22bd9078b5f6c72}\label{namespacemoduleturbulence_aa8a18b46ae48dcd9b22bd9078b5f6c72}} 
+\index{moduleturbulence@{moduleturbulence}!me@{me}}
+\index{me@{me}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmoduleturbulence_1_1t__turbulence}{t\+\_\+turbulence}}), pointer moduleturbulence\+::me =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_adadd9f612e4d053afcc2457f3e728ce1}\label{namespacemoduleturbulence_adadd9f612e4d053afcc2457f3e728ce1}} 
+\index{moduleturbulence@{moduleturbulence}!nihoul\_@{nihoul\_}}
+\index{nihoul\_@{nihoul\_}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{nihoul\_}{nihoul\_}}
+{\footnotesize\ttfamily integer, parameter moduleturbulence\+::nihoul\+\_\+ = 7\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a3919ba926fe406c56c698575129339b3}\label{namespacemoduleturbulence_a3919ba926fe406c56c698575129339b3}} 
+\index{moduleturbulence@{moduleturbulence}!pacanowski\_@{pacanowski\_}}
+\index{pacanowski\_@{pacanowski\_}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{pacanowski\_}{pacanowski\_}}
+{\footnotesize\ttfamily integer, parameter moduleturbulence\+::pacanowski\+\_\+ = 6\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a7b1c6356cf135cccdc1fa4593c7a8e7e}\label{namespacemoduleturbulence_a7b1c6356cf135cccdc1fa4593c7a8e7e}} 
+\index{moduleturbulence@{moduleturbulence}!rich\_mld\_@{rich\_mld\_}}
+\index{rich\_mld\_@{rich\_mld\_}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{rich\_mld\_}{rich\_mld\_}}
+{\footnotesize\ttfamily integer, parameter moduleturbulence\+::rich\+\_\+mld\+\_\+ = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a9ff8d5e43c5a70b1652f6a7a9b1a4167}\label{namespacemoduleturbulence_a9ff8d5e43c5a70b1652f6a7a9b1a4167}} 
+\index{moduleturbulence@{moduleturbulence}!richardsonmax@{richardsonmax}}
+\index{richardsonmax@{richardsonmax}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{richardsonmax}{richardsonmax}}
+{\footnotesize\ttfamily real, parameter moduleturbulence\+::richardsonmax = 10.\+0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a0c9974d78cad27746ab531d210087c49}\label{namespacemoduleturbulence_a0c9974d78cad27746ab531d210087c49}} 
+\index{moduleturbulence@{moduleturbulence}!smagorinsky3d\_@{smagorinsky3d\_}}
+\index{smagorinsky3d\_@{smagorinsky3d\_}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{smagorinsky3d\_}{smagorinsky3d\_}}
+{\footnotesize\ttfamily integer, parameter moduleturbulence\+::smagorinsky3d\+\_\+ = 99\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a29d7fdceea6d5b2feff6d666d0532452}\label{namespacemoduleturbulence_a29d7fdceea6d5b2feff6d666d0532452}} 
+\index{moduleturbulence@{moduleturbulence}!smagorinsky\_@{smagorinsky\_}}
+\index{smagorinsky\_@{smagorinsky\_}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{smagorinsky\_}{smagorinsky\_}}
+{\footnotesize\ttfamily integer, parameter moduleturbulence\+::smagorinsky\+\_\+ = 3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a6d843198335720f3520b5b04ae013ef0}\label{namespacemoduleturbulence_a6d843198335720f3520b5b04ae013ef0}} 
+\index{moduleturbulence@{moduleturbulence}!tke\_mld\_@{tke\_mld\_}}
+\index{tke\_mld\_@{tke\_mld\_}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{tke\_mld\_}{tke\_mld\_}}
+{\footnotesize\ttfamily integer, parameter moduleturbulence\+::tke\+\_\+mld\+\_\+ = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a4458bdc093d13a35fdeaae3b5d7a5de9}\label{namespacemoduleturbulence_a4458bdc093d13a35fdeaae3b5d7a5de9}} 
+\index{moduleturbulence@{moduleturbulence}!turbulenceequation\_@{turbulenceequation\_}}
+\index{turbulenceequation\_@{turbulenceequation\_}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{turbulenceequation\_}{turbulenceequation\_}}
+{\footnotesize\ttfamily integer, parameter moduleturbulence\+::turbulenceequation\+\_\+ = 8\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a860d5ece29b255ab5d250a33b6b5106c}\label{namespacemoduleturbulence_a860d5ece29b255ab5d250a33b6b5106c}} 
+\index{moduleturbulence@{moduleturbulence}!viscosity\_h\_begin@{viscosity\_h\_begin}}
+\index{viscosity\_h\_begin@{viscosity\_h\_begin}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{viscosity\_h\_begin}{viscosity\_h\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleturbulence\+::viscosity\+\_\+h\+\_\+begin = \textquotesingle{}$<$begin\+\_\+viscosity\+\_\+h$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a134ebac9140a7aa6099ca4888f990ea8}\label{namespacemoduleturbulence_a134ebac9140a7aa6099ca4888f990ea8}} 
+\index{moduleturbulence@{moduleturbulence}!viscosity\_h\_end@{viscosity\_h\_end}}
+\index{viscosity\_h\_end@{viscosity\_h\_end}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{viscosity\_h\_end}{viscosity\_h\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleturbulence\+::viscosity\+\_\+h\+\_\+end = \textquotesingle{}$<$end\+\_\+viscosity\+\_\+h$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_aa207229e0ff82c7ac123a9b078a51f6a}\label{namespacemoduleturbulence_aa207229e0ff82c7ac123a9b078a51f6a}} 
+\index{moduleturbulence@{moduleturbulence}!viscosity\_v\_begin@{viscosity\_v\_begin}}
+\index{viscosity\_v\_begin@{viscosity\_v\_begin}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{viscosity\_v\_begin}{viscosity\_v\_begin}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleturbulence\+::viscosity\+\_\+v\+\_\+begin = \textquotesingle{}$<$begin\+\_\+viscosity\+\_\+v$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemoduleturbulence_a2b0fb2fa55418700724ffc5e0f294858}\label{namespacemoduleturbulence_a2b0fb2fa55418700724ffc5e0f294858}} 
+\index{moduleturbulence@{moduleturbulence}!viscosity\_v\_end@{viscosity\_v\_end}}
+\index{viscosity\_v\_end@{viscosity\_v\_end}!moduleturbulence@{moduleturbulence}}
+\doxysubsubsection{\texorpdfstring{viscosity\_v\_end}{viscosity\_v\_end}}
+{\footnotesize\ttfamily character(len = stringlength), parameter moduleturbulence\+::viscosity\+\_\+v\+\_\+end = \textquotesingle{}$<$end\+\_\+viscosity\+\_\+v$>$\textquotesingle{}\hspace{0.3cm}{\ttfamily [private]}}
+

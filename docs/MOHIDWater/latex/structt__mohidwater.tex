@@ -1,0 +1,185 @@
+\hypertarget{structt__mohidwater}{}\doxysection{t\+\_\+mohidwater Type Reference}
+\label{structt__mohidwater}\index{t\_mohidwater@{t\_mohidwater}}
+
+
+Collaboration diagram for t\+\_\+mohidwater\+:
+% FIG 0
+\doxysubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+integer \mbox{\hyperlink{structt__mohidwater_a0a359fc3c055701adbb7e8924400a058}{modelid}} = 0
+\item 
+integer \mbox{\hyperlink{structt__mohidwater_a18b052f877e26c5149ebdc7eeb512a6f}{modellevel}} = null\+\_\+int
+\item 
+character(stringlength) \mbox{\hyperlink{structt__mohidwater_a2fa81df78e121e3d3d3ed86c7418baed}{modelname}} = null\+\_\+str
+\item 
+character(pathlength) \mbox{\hyperlink{structt__mohidwater_a708b382221db444db0db8be56ef6217c}{modelpath}} = null\+\_\+str
+\item 
+integer \mbox{\hyperlink{structt__mohidwater_a4a8a8808c3467535ecae11691f593018}{horizontalgridid}} = 0
+\item 
+integer \mbox{\hyperlink{structt__mohidwater_a4f6e51cfb614f1053e52922042b9e216}{hydrodynamicid}} = 0
+\item 
+integer \mbox{\hyperlink{structt__mohidwater_a7357bc7c465189d816f7e9b274f28f3b}{waterpropertiesid}} = 0
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structt__mohidwater_a18a3fa1f7da7d0ce0da21d5a3684a5c3}{currenttime}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structt__mohidwater_ac39517ef24d9f66cdbb955c318815dbe}{startiteration}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structt__mohidwater_aa1feffefbd0a0e77cdb39c0ade0fd00b}{startfatheriteration}}
+\item 
+logical \mbox{\hyperlink{structt__mohidwater_a819a96f8e0e8111541b690cae104cedf}{subon}} = .false.
+\item 
+integer \mbox{\hyperlink{structt__mohidwater_afc22070230ff950c49fcbb74e2ba3907}{nsubmodels}} = null\+\_\+int
+\item 
+type(\mbox{\hyperlink{structt__modellink}{t\+\_\+modellink}}) \mbox{\hyperlink{structt__mohidwater_aeea42ebf091eb3739f37bb7989889070}{fatherlink}}
+\item 
+type(\mbox{\hyperlink{structt__modellink}{t\+\_\+modellink}}), dimension(\+:), pointer \mbox{\hyperlink{structt__mohidwater_a45145584a628f0b4c8a57bcecb69e528}{submodellink}} =$>$ null()
+\item 
+integer \mbox{\hyperlink{structt__mohidwater_a54126fcc689790d742a67920acb370fb}{mpi\+\_\+id}} = null\+\_\+int
+\item 
+integer \mbox{\hyperlink{structt__mohidwater_aee6f1cdce9bee123f704b5bbbaf23409}{masterid}} = null\+\_\+int
+\item 
+integer \mbox{\hyperlink{structt__mohidwater_a984574b72f9fc231f6d16cf297924eb6}{lastslaveid}} = null\+\_\+int
+\item 
+integer, dimension(\+:), pointer \mbox{\hyperlink{structt__mohidwater_a5fa78be1b704669273c49ea22f9fcf1e}{submpiid}} =$>$ null()
+\item 
+integer \mbox{\hyperlink{structt__mohidwater_ab92440ecc1231af7892092ad3f590087}{fathergridid}} = null\+\_\+int
+\item 
+type(\mbox{\hyperlink{structt__mohidwater}{t\+\_\+mohidwater}}), pointer \mbox{\hyperlink{structt__mohidwater_ac227e5caafada2310594d9b54c6dafab}{fathermodel}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structt__mohidwater}{t\+\_\+mohidwater}}), pointer \mbox{\hyperlink{structt__mohidwater_a6e1b81b4f3f2ec19270c29c4510c06c1}{next}} =$>$ null()
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Member Data Documentation}
+\mbox{\Hypertarget{structt__mohidwater_a18a3fa1f7da7d0ce0da21d5a3684a5c3}\label{structt__mohidwater_a18a3fa1f7da7d0ce0da21d5a3684a5c3}} 
+\index{t\_mohidwater@{t\_mohidwater}!currenttime@{currenttime}}
+\index{currenttime@{currenttime}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{currenttime}{currenttime}}
+{\footnotesize\ttfamily type (t\+\_\+time) t\+\_\+mohidwater\+::currenttime}
+
+\mbox{\Hypertarget{structt__mohidwater_ab92440ecc1231af7892092ad3f590087}\label{structt__mohidwater_ab92440ecc1231af7892092ad3f590087}} 
+\index{t\_mohidwater@{t\_mohidwater}!fathergridid@{fathergridid}}
+\index{fathergridid@{fathergridid}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{fathergridid}{fathergridid}}
+{\footnotesize\ttfamily integer t\+\_\+mohidwater\+::fathergridid = null\+\_\+int}
+
+\mbox{\Hypertarget{structt__mohidwater_aeea42ebf091eb3739f37bb7989889070}\label{structt__mohidwater_aeea42ebf091eb3739f37bb7989889070}} 
+\index{t\_mohidwater@{t\_mohidwater}!fatherlink@{fatherlink}}
+\index{fatherlink@{fatherlink}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{fatherlink}{fatherlink}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structt__modellink}{t\+\_\+modellink}}) t\+\_\+mohidwater\+::fatherlink}
+
+\mbox{\Hypertarget{structt__mohidwater_ac227e5caafada2310594d9b54c6dafab}\label{structt__mohidwater_ac227e5caafada2310594d9b54c6dafab}} 
+\index{t\_mohidwater@{t\_mohidwater}!fathermodel@{fathermodel}}
+\index{fathermodel@{fathermodel}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{fathermodel}{fathermodel}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structt__mohidwater}{t\+\_\+mohidwater}}), pointer t\+\_\+mohidwater\+::fathermodel =$>$ null()}
+
+\mbox{\Hypertarget{structt__mohidwater_a4a8a8808c3467535ecae11691f593018}\label{structt__mohidwater_a4a8a8808c3467535ecae11691f593018}} 
+\index{t\_mohidwater@{t\_mohidwater}!horizontalgridid@{horizontalgridid}}
+\index{horizontalgridid@{horizontalgridid}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{horizontalgridid}{horizontalgridid}}
+{\footnotesize\ttfamily integer t\+\_\+mohidwater\+::horizontalgridid = 0}
+
+\mbox{\Hypertarget{structt__mohidwater_a4f6e51cfb614f1053e52922042b9e216}\label{structt__mohidwater_a4f6e51cfb614f1053e52922042b9e216}} 
+\index{t\_mohidwater@{t\_mohidwater}!hydrodynamicid@{hydrodynamicid}}
+\index{hydrodynamicid@{hydrodynamicid}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{hydrodynamicid}{hydrodynamicid}}
+{\footnotesize\ttfamily integer t\+\_\+mohidwater\+::hydrodynamicid = 0}
+
+\mbox{\Hypertarget{structt__mohidwater_a984574b72f9fc231f6d16cf297924eb6}\label{structt__mohidwater_a984574b72f9fc231f6d16cf297924eb6}} 
+\index{t\_mohidwater@{t\_mohidwater}!lastslaveid@{lastslaveid}}
+\index{lastslaveid@{lastslaveid}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{lastslaveid}{lastslaveid}}
+{\footnotesize\ttfamily integer t\+\_\+mohidwater\+::lastslaveid = null\+\_\+int}
+
+\mbox{\Hypertarget{structt__mohidwater_aee6f1cdce9bee123f704b5bbbaf23409}\label{structt__mohidwater_aee6f1cdce9bee123f704b5bbbaf23409}} 
+\index{t\_mohidwater@{t\_mohidwater}!masterid@{masterid}}
+\index{masterid@{masterid}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{masterid}{masterid}}
+{\footnotesize\ttfamily integer t\+\_\+mohidwater\+::masterid = null\+\_\+int}
+
+\mbox{\Hypertarget{structt__mohidwater_a0a359fc3c055701adbb7e8924400a058}\label{structt__mohidwater_a0a359fc3c055701adbb7e8924400a058}} 
+\index{t\_mohidwater@{t\_mohidwater}!modelid@{modelid}}
+\index{modelid@{modelid}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{modelid}{modelid}}
+{\footnotesize\ttfamily integer t\+\_\+mohidwater\+::modelid = 0}
+
+\mbox{\Hypertarget{structt__mohidwater_a18b052f877e26c5149ebdc7eeb512a6f}\label{structt__mohidwater_a18b052f877e26c5149ebdc7eeb512a6f}} 
+\index{t\_mohidwater@{t\_mohidwater}!modellevel@{modellevel}}
+\index{modellevel@{modellevel}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{modellevel}{modellevel}}
+{\footnotesize\ttfamily integer t\+\_\+mohidwater\+::modellevel = null\+\_\+int}
+
+\mbox{\Hypertarget{structt__mohidwater_a2fa81df78e121e3d3d3ed86c7418baed}\label{structt__mohidwater_a2fa81df78e121e3d3d3ed86c7418baed}} 
+\index{t\_mohidwater@{t\_mohidwater}!modelname@{modelname}}
+\index{modelname@{modelname}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{modelname}{modelname}}
+{\footnotesize\ttfamily character(stringlength) t\+\_\+mohidwater\+::modelname = null\+\_\+str}
+
+\mbox{\Hypertarget{structt__mohidwater_a708b382221db444db0db8be56ef6217c}\label{structt__mohidwater_a708b382221db444db0db8be56ef6217c}} 
+\index{t\_mohidwater@{t\_mohidwater}!modelpath@{modelpath}}
+\index{modelpath@{modelpath}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{modelpath}{modelpath}}
+{\footnotesize\ttfamily character(pathlength) t\+\_\+mohidwater\+::modelpath = null\+\_\+str}
+
+\mbox{\Hypertarget{structt__mohidwater_a54126fcc689790d742a67920acb370fb}\label{structt__mohidwater_a54126fcc689790d742a67920acb370fb}} 
+\index{t\_mohidwater@{t\_mohidwater}!mpi\_id@{mpi\_id}}
+\index{mpi\_id@{mpi\_id}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{mpi\_id}{mpi\_id}}
+{\footnotesize\ttfamily integer t\+\_\+mohidwater\+::mpi\+\_\+id = null\+\_\+int}
+
+\mbox{\Hypertarget{structt__mohidwater_a6e1b81b4f3f2ec19270c29c4510c06c1}\label{structt__mohidwater_a6e1b81b4f3f2ec19270c29c4510c06c1}} 
+\index{t\_mohidwater@{t\_mohidwater}!next@{next}}
+\index{next@{next}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{next}{next}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structt__mohidwater}{t\+\_\+mohidwater}}), pointer t\+\_\+mohidwater\+::next =$>$ null()}
+
+\mbox{\Hypertarget{structt__mohidwater_afc22070230ff950c49fcbb74e2ba3907}\label{structt__mohidwater_afc22070230ff950c49fcbb74e2ba3907}} 
+\index{t\_mohidwater@{t\_mohidwater}!nsubmodels@{nsubmodels}}
+\index{nsubmodels@{nsubmodels}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{nsubmodels}{nsubmodels}}
+{\footnotesize\ttfamily integer t\+\_\+mohidwater\+::nsubmodels = null\+\_\+int}
+
+\mbox{\Hypertarget{structt__mohidwater_aa1feffefbd0a0e77cdb39c0ade0fd00b}\label{structt__mohidwater_aa1feffefbd0a0e77cdb39c0ade0fd00b}} 
+\index{t\_mohidwater@{t\_mohidwater}!startfatheriteration@{startfatheriteration}}
+\index{startfatheriteration@{startfatheriteration}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{startfatheriteration}{startfatheriteration}}
+{\footnotesize\ttfamily type (t\+\_\+time) t\+\_\+mohidwater\+::startfatheriteration}
+
+\mbox{\Hypertarget{structt__mohidwater_ac39517ef24d9f66cdbb955c318815dbe}\label{structt__mohidwater_ac39517ef24d9f66cdbb955c318815dbe}} 
+\index{t\_mohidwater@{t\_mohidwater}!startiteration@{startiteration}}
+\index{startiteration@{startiteration}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{startiteration}{startiteration}}
+{\footnotesize\ttfamily type (t\+\_\+time) t\+\_\+mohidwater\+::startiteration}
+
+\mbox{\Hypertarget{structt__mohidwater_a45145584a628f0b4c8a57bcecb69e528}\label{structt__mohidwater_a45145584a628f0b4c8a57bcecb69e528}} 
+\index{t\_mohidwater@{t\_mohidwater}!submodellink@{submodellink}}
+\index{submodellink@{submodellink}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{submodellink}{submodellink}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structt__modellink}{t\+\_\+modellink}}), dimension(\+:), pointer t\+\_\+mohidwater\+::submodellink =$>$ null()}
+
+\mbox{\Hypertarget{structt__mohidwater_a5fa78be1b704669273c49ea22f9fcf1e}\label{structt__mohidwater_a5fa78be1b704669273c49ea22f9fcf1e}} 
+\index{t\_mohidwater@{t\_mohidwater}!submpiid@{submpiid}}
+\index{submpiid@{submpiid}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{submpiid}{submpiid}}
+{\footnotesize\ttfamily integer, dimension(\+:), pointer t\+\_\+mohidwater\+::submpiid =$>$ null()}
+
+\mbox{\Hypertarget{structt__mohidwater_a819a96f8e0e8111541b690cae104cedf}\label{structt__mohidwater_a819a96f8e0e8111541b690cae104cedf}} 
+\index{t\_mohidwater@{t\_mohidwater}!subon@{subon}}
+\index{subon@{subon}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{subon}{subon}}
+{\footnotesize\ttfamily logical t\+\_\+mohidwater\+::subon = .false.}
+
+\mbox{\Hypertarget{structt__mohidwater_a7357bc7c465189d816f7e9b274f28f3b}\label{structt__mohidwater_a7357bc7c465189d816f7e9b274f28f3b}} 
+\index{t\_mohidwater@{t\_mohidwater}!waterpropertiesid@{waterpropertiesid}}
+\index{waterpropertiesid@{waterpropertiesid}!t\_mohidwater@{t\_mohidwater}}
+\doxysubsubsection{\texorpdfstring{waterpropertiesid}{waterpropertiesid}}
+{\footnotesize\ttfamily integer t\+\_\+mohidwater\+::waterpropertiesid = 0}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Projects/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\mbox{\hyperlink{_main_8_f90}{Main.\+F90}}\end{DoxyCompactItemize}

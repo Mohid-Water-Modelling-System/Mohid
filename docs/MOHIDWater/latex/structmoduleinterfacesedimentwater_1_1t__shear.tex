@@ -1,0 +1,225 @@
+\hypertarget{structmoduleinterfacesedimentwater_1_1t__shear}{}\doxysection{moduleinterfacesedimentwater\+::t\+\_\+shear Type Reference}
+\label{structmoduleinterfacesedimentwater_1_1t__shear}\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+
+
+Collaboration diagram for moduleinterfacesedimentwater\+::t\+\_\+shear\+:
+% FIG 0
+\doxysubsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_af9cb891ee4f9244313b09ac4131c6d26}{currentvel}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_a20e40ff5ada283e2ffe8ff3c80cad742}{currentu}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_aade31fc6df484b80013186f13c71ee80}{currentv}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_acd2060c8b558dc7636a7dca4f8dbded7}{currentresidualu}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_a6ca241d82877d56df066d77a91abac0f}{currentresidualv}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_a4d4a5ec668829e434fac79616e813edc}{uface}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_a9f4b6e349ad399bcac1b1359447b6105}{vface}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_afefb87ef9ef9943c4aef27d2e170df24}{velocity}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_ad8edb614120128df699ddc31f04f13ff}{tension}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_a5e75f5ca890afffb506c6044b3bbd035}{tension\+\_\+x}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_a893e96a97f7659831022b96cb382ec21}{tension\+\_\+y}} =$>$ null()
+\item 
+logical \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_a1fcbc56033658189874ee7e865c5f7eb}{limitation}} = .false.
+\item 
+real \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_ac4a7660cde1f5a4bfa8041d8e03fc138}{referencedepth}} = null\+\_\+real
+\item 
+real \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_ab4e04c55ea3d82452b23f353a8c5f0ac}{referenceshearstress}} = null\+\_\+real
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_aa9af12e72272ec647e10f1ae43fa8b34}{lastcompute}}
+\item 
+real \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_afbc575ca2985afa5a84a9bb005891af4}{dt}} = null\+\_\+real
+\item 
+type(\mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__statistics}{t\+\_\+statistics}}) \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_a92e5ff961021739718c446dad0baa69e}{statistics}}
+\item 
+logical \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_a8e73d826c747195cb72cbb8e5014dcc7}{intertidalrunoff}} = .false.
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_af0bdff1dec5b3f07da955bbae2e92bec}{method}} = 1
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_a74c9b7fcb89a2fb983173cacd8f7b7a7}{efficiencyfactorcurrent}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_ab616e13e605d375beeb8cc48f1c1d6ad}{efficiencyfactormean}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_ab8a8006f82bb07166ee54193a89eb224}{efficiencyfactorwaves}} =$>$ null()
+\item 
+real \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_a69f3a8620d7efbd29fe26228c2cb2ed4}{residual\+\_\+period}} = Fill\+Value\+Real
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_ad0919179eb8b82bf02d2ee0963c218fb}{residual\+\_\+tau}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_a909a6a7bd5926e872fa796109cd4712f}{residual\+\_\+tau\+\_\+x}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__shear_ace8708119a9164b0923a8b55798713ac}{residual\+\_\+tau\+\_\+y}} =$>$ null()
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Member Data Documentation}
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_acd2060c8b558dc7636a7dca4f8dbded7}\label{structmoduleinterfacesedimentwater_1_1t__shear_acd2060c8b558dc7636a7dca4f8dbded7}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!currentresidualu@{currentresidualu}}
+\index{currentresidualu@{currentresidualu}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{currentresidualu}{currentresidualu}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer moduleinterfacesedimentwater\+::t\+\_\+shear\+::currentresidualu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_a6ca241d82877d56df066d77a91abac0f}\label{structmoduleinterfacesedimentwater_1_1t__shear_a6ca241d82877d56df066d77a91abac0f}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!currentresidualv@{currentresidualv}}
+\index{currentresidualv@{currentresidualv}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{currentresidualv}{currentresidualv}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer moduleinterfacesedimentwater\+::t\+\_\+shear\+::currentresidualv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_a20e40ff5ada283e2ffe8ff3c80cad742}\label{structmoduleinterfacesedimentwater_1_1t__shear_a20e40ff5ada283e2ffe8ff3c80cad742}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!currentu@{currentu}}
+\index{currentu@{currentu}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{currentu}{currentu}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer moduleinterfacesedimentwater\+::t\+\_\+shear\+::currentu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_aade31fc6df484b80013186f13c71ee80}\label{structmoduleinterfacesedimentwater_1_1t__shear_aade31fc6df484b80013186f13c71ee80}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!currentv@{currentv}}
+\index{currentv@{currentv}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{currentv}{currentv}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer moduleinterfacesedimentwater\+::t\+\_\+shear\+::currentv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_af9cb891ee4f9244313b09ac4131c6d26}\label{structmoduleinterfacesedimentwater_1_1t__shear_af9cb891ee4f9244313b09ac4131c6d26}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!currentvel@{currentvel}}
+\index{currentvel@{currentvel}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{currentvel}{currentvel}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer moduleinterfacesedimentwater\+::t\+\_\+shear\+::currentvel =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_afbc575ca2985afa5a84a9bb005891af4}\label{structmoduleinterfacesedimentwater_1_1t__shear_afbc575ca2985afa5a84a9bb005891af4}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!dt@{dt}}
+\index{dt@{dt}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{dt}{dt}}
+{\footnotesize\ttfamily real moduleinterfacesedimentwater\+::t\+\_\+shear\+::dt = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_a74c9b7fcb89a2fb983173cacd8f7b7a7}\label{structmoduleinterfacesedimentwater_1_1t__shear_a74c9b7fcb89a2fb983173cacd8f7b7a7}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!efficiencyfactorcurrent@{efficiencyfactorcurrent}}
+\index{efficiencyfactorcurrent@{efficiencyfactorcurrent}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{efficiencyfactorcurrent}{efficiencyfactorcurrent}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer moduleinterfacesedimentwater\+::t\+\_\+shear\+::efficiencyfactorcurrent =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_ab616e13e605d375beeb8cc48f1c1d6ad}\label{structmoduleinterfacesedimentwater_1_1t__shear_ab616e13e605d375beeb8cc48f1c1d6ad}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!efficiencyfactormean@{efficiencyfactormean}}
+\index{efficiencyfactormean@{efficiencyfactormean}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{efficiencyfactormean}{efficiencyfactormean}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer moduleinterfacesedimentwater\+::t\+\_\+shear\+::efficiencyfactormean =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_ab8a8006f82bb07166ee54193a89eb224}\label{structmoduleinterfacesedimentwater_1_1t__shear_ab8a8006f82bb07166ee54193a89eb224}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!efficiencyfactorwaves@{efficiencyfactorwaves}}
+\index{efficiencyfactorwaves@{efficiencyfactorwaves}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{efficiencyfactorwaves}{efficiencyfactorwaves}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer moduleinterfacesedimentwater\+::t\+\_\+shear\+::efficiencyfactorwaves =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_a8e73d826c747195cb72cbb8e5014dcc7}\label{structmoduleinterfacesedimentwater_1_1t__shear_a8e73d826c747195cb72cbb8e5014dcc7}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!intertidalrunoff@{intertidalrunoff}}
+\index{intertidalrunoff@{intertidalrunoff}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{intertidalrunoff}{intertidalrunoff}}
+{\footnotesize\ttfamily logical moduleinterfacesedimentwater\+::t\+\_\+shear\+::intertidalrunoff = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_aa9af12e72272ec647e10f1ae43fa8b34}\label{structmoduleinterfacesedimentwater_1_1t__shear_aa9af12e72272ec647e10f1ae43fa8b34}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!lastcompute@{lastcompute}}
+\index{lastcompute@{lastcompute}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{lastcompute}{lastcompute}}
+{\footnotesize\ttfamily type (t\+\_\+time) moduleinterfacesedimentwater\+::t\+\_\+shear\+::lastcompute\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_a1fcbc56033658189874ee7e865c5f7eb}\label{structmoduleinterfacesedimentwater_1_1t__shear_a1fcbc56033658189874ee7e865c5f7eb}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!limitation@{limitation}}
+\index{limitation@{limitation}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{limitation}{limitation}}
+{\footnotesize\ttfamily logical moduleinterfacesedimentwater\+::t\+\_\+shear\+::limitation = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_af0bdff1dec5b3f07da955bbae2e92bec}\label{structmoduleinterfacesedimentwater_1_1t__shear_af0bdff1dec5b3f07da955bbae2e92bec}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!method@{method}}
+\index{method@{method}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{method}{method}}
+{\footnotesize\ttfamily integer moduleinterfacesedimentwater\+::t\+\_\+shear\+::method = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_ac4a7660cde1f5a4bfa8041d8e03fc138}\label{structmoduleinterfacesedimentwater_1_1t__shear_ac4a7660cde1f5a4bfa8041d8e03fc138}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!referencedepth@{referencedepth}}
+\index{referencedepth@{referencedepth}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{referencedepth}{referencedepth}}
+{\footnotesize\ttfamily real moduleinterfacesedimentwater\+::t\+\_\+shear\+::referencedepth = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_ab4e04c55ea3d82452b23f353a8c5f0ac}\label{structmoduleinterfacesedimentwater_1_1t__shear_ab4e04c55ea3d82452b23f353a8c5f0ac}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!referenceshearstress@{referenceshearstress}}
+\index{referenceshearstress@{referenceshearstress}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{referenceshearstress}{referenceshearstress}}
+{\footnotesize\ttfamily real moduleinterfacesedimentwater\+::t\+\_\+shear\+::referenceshearstress = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_a69f3a8620d7efbd29fe26228c2cb2ed4}\label{structmoduleinterfacesedimentwater_1_1t__shear_a69f3a8620d7efbd29fe26228c2cb2ed4}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!residual\_period@{residual\_period}}
+\index{residual\_period@{residual\_period}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{residual\_period}{residual\_period}}
+{\footnotesize\ttfamily real moduleinterfacesedimentwater\+::t\+\_\+shear\+::residual\+\_\+period = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_ad0919179eb8b82bf02d2ee0963c218fb}\label{structmoduleinterfacesedimentwater_1_1t__shear_ad0919179eb8b82bf02d2ee0963c218fb}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!residual\_tau@{residual\_tau}}
+\index{residual\_tau@{residual\_tau}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{residual\_tau}{residual\_tau}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer moduleinterfacesedimentwater\+::t\+\_\+shear\+::residual\+\_\+tau =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_a909a6a7bd5926e872fa796109cd4712f}\label{structmoduleinterfacesedimentwater_1_1t__shear_a909a6a7bd5926e872fa796109cd4712f}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!residual\_tau\_x@{residual\_tau\_x}}
+\index{residual\_tau\_x@{residual\_tau\_x}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{residual\_tau\_x}{residual\_tau\_x}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer moduleinterfacesedimentwater\+::t\+\_\+shear\+::residual\+\_\+tau\+\_\+x =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_ace8708119a9164b0923a8b55798713ac}\label{structmoduleinterfacesedimentwater_1_1t__shear_ace8708119a9164b0923a8b55798713ac}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!residual\_tau\_y@{residual\_tau\_y}}
+\index{residual\_tau\_y@{residual\_tau\_y}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{residual\_tau\_y}{residual\_tau\_y}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer moduleinterfacesedimentwater\+::t\+\_\+shear\+::residual\+\_\+tau\+\_\+y =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_a92e5ff961021739718c446dad0baa69e}\label{structmoduleinterfacesedimentwater_1_1t__shear_a92e5ff961021739718c446dad0baa69e}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!statistics@{statistics}}
+\index{statistics@{statistics}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{statistics}{statistics}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmoduleinterfacesedimentwater_1_1t__statistics}{t\+\_\+statistics}}) moduleinterfacesedimentwater\+::t\+\_\+shear\+::statistics\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_ad8edb614120128df699ddc31f04f13ff}\label{structmoduleinterfacesedimentwater_1_1t__shear_ad8edb614120128df699ddc31f04f13ff}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!tension@{tension}}
+\index{tension@{tension}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{tension}{tension}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer moduleinterfacesedimentwater\+::t\+\_\+shear\+::tension =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_a5e75f5ca890afffb506c6044b3bbd035}\label{structmoduleinterfacesedimentwater_1_1t__shear_a5e75f5ca890afffb506c6044b3bbd035}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!tension\_x@{tension\_x}}
+\index{tension\_x@{tension\_x}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{tension\_x}{tension\_x}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer moduleinterfacesedimentwater\+::t\+\_\+shear\+::tension\+\_\+x =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_a893e96a97f7659831022b96cb382ec21}\label{structmoduleinterfacesedimentwater_1_1t__shear_a893e96a97f7659831022b96cb382ec21}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!tension\_y@{tension\_y}}
+\index{tension\_y@{tension\_y}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{tension\_y}{tension\_y}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer moduleinterfacesedimentwater\+::t\+\_\+shear\+::tension\+\_\+y =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_a4d4a5ec668829e434fac79616e813edc}\label{structmoduleinterfacesedimentwater_1_1t__shear_a4d4a5ec668829e434fac79616e813edc}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!uface@{uface}}
+\index{uface@{uface}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{uface}{uface}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer moduleinterfacesedimentwater\+::t\+\_\+shear\+::uface =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_afefb87ef9ef9943c4aef27d2e170df24}\label{structmoduleinterfacesedimentwater_1_1t__shear_afefb87ef9ef9943c4aef27d2e170df24}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!velocity@{velocity}}
+\index{velocity@{velocity}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{velocity}{velocity}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer moduleinterfacesedimentwater\+::t\+\_\+shear\+::velocity =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacesedimentwater_1_1t__shear_a9f4b6e349ad399bcac1b1359447b6105}\label{structmoduleinterfacesedimentwater_1_1t__shear_a9f4b6e349ad399bcac1b1359447b6105}} 
+\index{moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}!vface@{vface}}
+\index{vface@{vface}!moduleinterfacesedimentwater::t\_shear@{moduleinterfacesedimentwater::t\_shear}}
+\doxysubsubsection{\texorpdfstring{vface}{vface}}
+{\footnotesize\ttfamily real, dimension (\+:,\+:), pointer moduleinterfacesedimentwater\+::t\+\_\+shear\+::vface =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Projects/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\mbox{\hyperlink{_module_interface_sediment_water_8_f90}{Module\+Interface\+Sediment\+Water.\+F90}}\end{DoxyCompactItemize}

@@ -1,0 +1,7 @@
+digraph "moduleoil_0d::t_external"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{moduleoil_0d::t_external\n|- now\l- begintime\l- endtime\l- backtracking\l- area\l- wind\l- atmosphericpressure\l- watertemperature\l- waterdensity\l- spm\l- waveheight\l- waveperiod\l- voloilbeached\l- volumebeached\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

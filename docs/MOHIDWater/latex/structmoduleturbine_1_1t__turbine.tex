@@ -1,0 +1,193 @@
+\hypertarget{structmoduleturbine_1_1t__turbine}{}\doxysection{moduleturbine\+::t\+\_\+turbine Type Reference}
+\label{structmoduleturbine_1_1t__turbine}\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+
+
+Collaboration diagram for moduleturbine\+::t\+\_\+turbine\+:
+% FIG 0
+\doxysubsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+integer \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_a1161393ae163aa532155fd870a4410df}{instanceid}}
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_a3254282ee285eb1ecdf61321a37717c0}{size}}
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_a6059588b2893e21ed0385e3c4974c62a}{worksize}}
+\item 
+real, dimension(\+:, \+:, \+:), pointer \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_aff602110ef54775715f875aaa5a9041e}{turbineacceleration}}
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_af21ad178f80d9ac63627c0396ac267ad}{power}}
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_aff0a034e42c0a9427d855d706e5f7ea4}{energy}}
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_a301b046c3643018178d9ae58ec52af7a}{turbinevelocity}}
+\item 
+real \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_abce99daf95471789cc4e64a84317b242}{totalpower}}
+\item 
+integer, dimension(\+:), pointer \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_af425b317d4ed8020c08214d2c7838019}{turbinetimeserielist}}
+\item 
+integer \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_a3e1327e26fff7fc0a9a090ba20c8d8ff}{nturbines}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_a9be8b3e5f434b005cd735b47684e3d4e}{nturbinests}} = 0
+\item 
+type(\mbox{\hyperlink{structmoduleturbine_1_1t__turbine__param}{t\+\_\+turbine\+\_\+param}}), pointer \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_a91405bb207b6e469e0d21d62cdbeab66}{turbine}}
+\item 
+type(\mbox{\hyperlink{structmoduleturbine_1_1t__turbine}{t\+\_\+turbine}}), pointer \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_a12f3ba2fdde75e05346cb284e2975532}{next}}
+\item 
+character(pathlength) \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_a98e69430bcdbe5d38fd091eec41a0fe0}{datafile}}
+\item 
+integer \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_a91cd3ef600cda2c16347c430784b29c9}{objenterdata}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_a259a49d5f8806b353137a3528c0951db}{objhorizontalgrid}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_a1af08fb7ef39aa25ff83dd3e4d58a52b}{objgeometry}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_a0a80b3cee6c1d15b4c87e76da2f0393b}{objtimeserie}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_a8d35dd295c1f725a25834969c2cc407e}{objtime}} = 0
+\item 
+logical \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_aef7161343b6308d9a7307c125417c499}{timeserieon}} = .false.
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_a110d515d45e9e9d96187da8d9b73a43c}{duz}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleturbine_1_1t__turbine_a2fe567e8f083f6d03e856480cd47a2d5}{kfloor\+\_\+z}} =$>$ null()
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Member Data Documentation}
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_a98e69430bcdbe5d38fd091eec41a0fe0}\label{structmoduleturbine_1_1t__turbine_a98e69430bcdbe5d38fd091eec41a0fe0}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!datafile@{datafile}}
+\index{datafile@{datafile}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{datafile}{datafile}}
+{\footnotesize\ttfamily character(pathlength) moduleturbine\+::t\+\_\+turbine\+::datafile\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_a110d515d45e9e9d96187da8d9b73a43c}\label{structmoduleturbine_1_1t__turbine_a110d515d45e9e9d96187da8d9b73a43c}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!duz@{duz}}
+\index{duz@{duz}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{duz}{duz}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleturbine\+::t\+\_\+turbine\+::duz =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_aff0a034e42c0a9427d855d706e5f7ea4}\label{structmoduleturbine_1_1t__turbine_aff0a034e42c0a9427d855d706e5f7ea4}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!energy@{energy}}
+\index{energy@{energy}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{energy}{energy}}
+{\footnotesize\ttfamily real, dimension(\+:), pointer moduleturbine\+::t\+\_\+turbine\+::energy\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_a1161393ae163aa532155fd870a4410df}\label{structmoduleturbine_1_1t__turbine_a1161393ae163aa532155fd870a4410df}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!instanceid@{instanceid}}
+\index{instanceid@{instanceid}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{instanceid}{instanceid}}
+{\footnotesize\ttfamily integer moduleturbine\+::t\+\_\+turbine\+::instanceid\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_a2fe567e8f083f6d03e856480cd47a2d5}\label{structmoduleturbine_1_1t__turbine_a2fe567e8f083f6d03e856480cd47a2d5}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!kfloor\_z@{kfloor\_z}}
+\index{kfloor\_z@{kfloor\_z}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{kfloor\_z}{kfloor\_z}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:), pointer moduleturbine\+::t\+\_\+turbine\+::kfloor\+\_\+z =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_a12f3ba2fdde75e05346cb284e2975532}\label{structmoduleturbine_1_1t__turbine_a12f3ba2fdde75e05346cb284e2975532}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!next@{next}}
+\index{next@{next}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{next}{next}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleturbine_1_1t__turbine}{t\+\_\+turbine}}), pointer moduleturbine\+::t\+\_\+turbine\+::next\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_a3e1327e26fff7fc0a9a090ba20c8d8ff}\label{structmoduleturbine_1_1t__turbine_a3e1327e26fff7fc0a9a090ba20c8d8ff}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!nturbines@{nturbines}}
+\index{nturbines@{nturbines}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{nturbines}{nturbines}}
+{\footnotesize\ttfamily integer moduleturbine\+::t\+\_\+turbine\+::nturbines = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_a9be8b3e5f434b005cd735b47684e3d4e}\label{structmoduleturbine_1_1t__turbine_a9be8b3e5f434b005cd735b47684e3d4e}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!nturbinests@{nturbinests}}
+\index{nturbinests@{nturbinests}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{nturbinests}{nturbinests}}
+{\footnotesize\ttfamily integer moduleturbine\+::t\+\_\+turbine\+::nturbinests = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_a91cd3ef600cda2c16347c430784b29c9}\label{structmoduleturbine_1_1t__turbine_a91cd3ef600cda2c16347c430784b29c9}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!objenterdata@{objenterdata}}
+\index{objenterdata@{objenterdata}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{objenterdata}{objenterdata}}
+{\footnotesize\ttfamily integer moduleturbine\+::t\+\_\+turbine\+::objenterdata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_a1af08fb7ef39aa25ff83dd3e4d58a52b}\label{structmoduleturbine_1_1t__turbine_a1af08fb7ef39aa25ff83dd3e4d58a52b}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!objgeometry@{objgeometry}}
+\index{objgeometry@{objgeometry}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{objgeometry}{objgeometry}}
+{\footnotesize\ttfamily integer moduleturbine\+::t\+\_\+turbine\+::objgeometry = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_a259a49d5f8806b353137a3528c0951db}\label{structmoduleturbine_1_1t__turbine_a259a49d5f8806b353137a3528c0951db}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!objhorizontalgrid@{objhorizontalgrid}}
+\index{objhorizontalgrid@{objhorizontalgrid}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{objhorizontalgrid}{objhorizontalgrid}}
+{\footnotesize\ttfamily integer moduleturbine\+::t\+\_\+turbine\+::objhorizontalgrid = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_a8d35dd295c1f725a25834969c2cc407e}\label{structmoduleturbine_1_1t__turbine_a8d35dd295c1f725a25834969c2cc407e}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!objtime@{objtime}}
+\index{objtime@{objtime}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{objtime}{objtime}}
+{\footnotesize\ttfamily integer moduleturbine\+::t\+\_\+turbine\+::objtime = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_a0a80b3cee6c1d15b4c87e76da2f0393b}\label{structmoduleturbine_1_1t__turbine_a0a80b3cee6c1d15b4c87e76da2f0393b}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!objtimeserie@{objtimeserie}}
+\index{objtimeserie@{objtimeserie}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{objtimeserie}{objtimeserie}}
+{\footnotesize\ttfamily integer moduleturbine\+::t\+\_\+turbine\+::objtimeserie = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_af21ad178f80d9ac63627c0396ac267ad}\label{structmoduleturbine_1_1t__turbine_af21ad178f80d9ac63627c0396ac267ad}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!power@{power}}
+\index{power@{power}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{power}{power}}
+{\footnotesize\ttfamily real, dimension(\+:), pointer moduleturbine\+::t\+\_\+turbine\+::power\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_a3254282ee285eb1ecdf61321a37717c0}\label{structmoduleturbine_1_1t__turbine_a3254282ee285eb1ecdf61321a37717c0}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!size@{size}}
+\index{size@{size}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{size}{size}}
+{\footnotesize\ttfamily type (t\+\_\+size3d) moduleturbine\+::t\+\_\+turbine\+::size\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_aef7161343b6308d9a7307c125417c499}\label{structmoduleturbine_1_1t__turbine_aef7161343b6308d9a7307c125417c499}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!timeserieon@{timeserieon}}
+\index{timeserieon@{timeserieon}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{timeserieon}{timeserieon}}
+{\footnotesize\ttfamily logical moduleturbine\+::t\+\_\+turbine\+::timeserieon = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_abce99daf95471789cc4e64a84317b242}\label{structmoduleturbine_1_1t__turbine_abce99daf95471789cc4e64a84317b242}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!totalpower@{totalpower}}
+\index{totalpower@{totalpower}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{totalpower}{totalpower}}
+{\footnotesize\ttfamily real moduleturbine\+::t\+\_\+turbine\+::totalpower\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_a91405bb207b6e469e0d21d62cdbeab66}\label{structmoduleturbine_1_1t__turbine_a91405bb207b6e469e0d21d62cdbeab66}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!turbine@{turbine}}
+\index{turbine@{turbine}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{turbine}{turbine}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleturbine_1_1t__turbine__param}{t\+\_\+turbine\+\_\+param}}), pointer moduleturbine\+::t\+\_\+turbine\+::turbine\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_aff602110ef54775715f875aaa5a9041e}\label{structmoduleturbine_1_1t__turbine_aff602110ef54775715f875aaa5a9041e}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!turbineacceleration@{turbineacceleration}}
+\index{turbineacceleration@{turbineacceleration}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{turbineacceleration}{turbineacceleration}}
+{\footnotesize\ttfamily real, dimension(\+:, \+:, \+:), pointer moduleturbine\+::t\+\_\+turbine\+::turbineacceleration\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_af425b317d4ed8020c08214d2c7838019}\label{structmoduleturbine_1_1t__turbine_af425b317d4ed8020c08214d2c7838019}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!turbinetimeserielist@{turbinetimeserielist}}
+\index{turbinetimeserielist@{turbinetimeserielist}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{turbinetimeserielist}{turbinetimeserielist}}
+{\footnotesize\ttfamily integer, dimension(\+:), pointer moduleturbine\+::t\+\_\+turbine\+::turbinetimeserielist\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_a301b046c3643018178d9ae58ec52af7a}\label{structmoduleturbine_1_1t__turbine_a301b046c3643018178d9ae58ec52af7a}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!turbinevelocity@{turbinevelocity}}
+\index{turbinevelocity@{turbinevelocity}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{turbinevelocity}{turbinevelocity}}
+{\footnotesize\ttfamily real, dimension(\+:), pointer moduleturbine\+::t\+\_\+turbine\+::turbinevelocity\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleturbine_1_1t__turbine_a6059588b2893e21ed0385e3c4974c62a}\label{structmoduleturbine_1_1t__turbine_a6059588b2893e21ed0385e3c4974c62a}} 
+\index{moduleturbine::t\_turbine@{moduleturbine::t\_turbine}!worksize@{worksize}}
+\index{worksize@{worksize}!moduleturbine::t\_turbine@{moduleturbine::t\_turbine}}
+\doxysubsubsection{\texorpdfstring{worksize}{worksize}}
+{\footnotesize\ttfamily type (t\+\_\+size3d) moduleturbine\+::t\+\_\+turbine\+::worksize\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Projects/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\mbox{\hyperlink{_module_turbine_8_f90}{Module\+Turbine.\+F90}}\end{DoxyCompactItemize}

@@ -1,0 +1,18 @@
+digraph "modulejet::t_jet"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulejet::t_jet\n|- instanceid\l- size\l- worksize\l- objenterdata\l- objhorizontalgrid\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -numericaloptions" ,arrowhead="odiamond"];
+  Node2 [label="{modulejet::t_numericaloptions\n|- maxsimulationperiod\l- minsimulationperiod\l- maxdv\l- maxdt\l- parametrization\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulejet_1_1t__numericaloptions.html",tooltip=" "];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -port" ,arrowhead="odiamond"];
+  Node3 [label="{modulejet::t_port\n|- hzangle\l- xyangle\l- totalflow\l- flow\l- diameter\l- x\l- y\l- z\l- salinity\l- temperature\land 12 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulejet_1_1t__port.html",tooltip=" "];
+  Node4 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -evolution" ,arrowhead="odiamond"];
+  Node4 [label="{modulejet::t_evolution\n|- hzangle\l- xyangle\l- volume\l- volumeold\l- dv\l- initialvolume\l- dilution\l- diameter\l- dilution_old\l- diameter_old\land 51 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulejet_1_1t__evolution.html",tooltip=" "];
+  Node5 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -output" ,arrowhead="odiamond"];
+  Node5 [label="{modulejet::t_output\n|- dt\l- timeout\l- matrix\l- header\l- number\l- axisx\l- axisy\l- formattype\l- ok\l- particlesnumber\land 14 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulejet_1_1t__output.html",tooltip=" "];
+  Node6 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -ambient" ,arrowhead="odiamond"];
+  Node6 [label="{modulejet::t_ambient\n|- density\l- salinity\l- temperature\l- velu\l- velv\l- velw\l- szz\l- bottomlayer\l- surfacelayer\l- i\land 21 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulejet_1_1t__ambient.html",tooltip=" "];
+  Node1 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond"];
+}

@@ -1,0 +1,10 @@
+digraph "modulehydrodynamic::modify_diffusion_uy_vx"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulehydrodynamic\l::modify_diffusion_uy_vx",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="modulehydrodynamic\l::diffusionalongnotcoveredfaces",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#ab381daa0e16a21aa8f474a88fc7d11b7",tooltip=" "];
+}

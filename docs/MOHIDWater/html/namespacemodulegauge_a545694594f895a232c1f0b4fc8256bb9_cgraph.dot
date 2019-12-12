@@ -1,0 +1,18 @@
+digraph "modulegauge::killgauge"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulegauge::killgauge",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="modulegauge::deallocateinstance",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#a9e3c4492d77966e5e963fad0f376379f",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="modulegauge::killgaugelist",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#a773a918cd865d16ad9720682f4f76009",tooltip=" "];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="modulegauge::killtidalwavelist",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#acb5358a89d47698a9abd5cea060b0cc8",tooltip=" "];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="modulegauge::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#a8ece20a220d6beae6919846687d6fe8f",tooltip=" "];
+  Node5 -> Node6 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="modulegauge::locateobjgauge",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#ad450a5738058992462096cd7d19b5a94",tooltip=" "];
+}

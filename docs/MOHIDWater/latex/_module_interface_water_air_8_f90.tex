@@ -1,0 +1,244 @@
+\hypertarget{_module_interface_water_air_8_f90}{}\doxysection{C\+:/\+Projects/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Interface\+Water\+Air.F90 File Reference}
+\label{_module_interface_water_air_8_f90}\index{C:/Projects/GitHub/Mohid/Software/MOHIDWater/ModuleInterfaceWaterAir.F90@{C:/Projects/GitHub/Mohid/Software/MOHIDWater/ModuleInterfaceWaterAir.F90}}
+\doxysubsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__files}{moduleinterfacewaterair\+::t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__output}{moduleinterfacewaterair\+::t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__ext__global}{moduleinterfacewaterair\+::t\+\_\+ext\+\_\+global}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__ext__options}{moduleinterfacewaterair\+::t\+\_\+ext\+\_\+options}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__int__options}{moduleinterfacewaterair\+::t\+\_\+int\+\_\+options}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__ext__water}{moduleinterfacewaterair\+::t\+\_\+ext\+\_\+water}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__extfield}{moduleinterfacewaterair\+::t\+\_\+extfield}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__ext__atm}{moduleinterfacewaterair\+::t\+\_\+ext\+\_\+atm}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__local__atm}{moduleinterfacewaterair\+::t\+\_\+local\+\_\+atm}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__evolution}{moduleinterfacewaterair\+::t\+\_\+evolution}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{moduleinterfacewaterair\+::t\+\_\+property}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__coupling}{moduleinterfacewaterair\+::t\+\_\+coupling}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__coupled}{moduleinterfacewaterair\+::t\+\_\+coupled}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__rugosity}{moduleinterfacewaterair\+::t\+\_\+rugosity}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__waveflux}{moduleinterfacewaterair\+::t\+\_\+waveflux}}
+\item 
+type \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair}{moduleinterfacewaterair\+::t\+\_\+interfacewaterair}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemoduleinterfacewaterair}{moduleinterfacewaterair}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleinterfacewaterair_a1d15121ff2d6a7ec0e45dffd0506037a}{moduleinterfacewaterair\+::startinterfacewaterair}} (Model\+Name, Obj\+Interface\+Water\+Air\+ID, Time\+ID, Horizontal\+Grid\+ID, Water\+Grid\+Data\+ID, Water\+Horizontal\+Map\+ID, Water\+Map\+ID, Water\+Geometry\+ID, Hydrodynamic\+ID, Turb\+G\+O\+T\+M\+ID, Waves\+ID, Water\+Properties\+ID, Atmosphere\+ID, Lagrangian\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_aac230f23ec15f17b04185abc9c918ba1}{moduleinterfacewaterair\+::allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a8a015dc245f72a1e32671973e4ef4538}{moduleinterfacewaterair\+::readwaterairfilesname}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_aade4da5319abf6cc9115d08e4cfb448b}{moduleinterfacewaterair\+::constructglobalvariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ad1e0a14ea6e30cf93be9661a4a71a0f7}{moduleinterfacewaterair\+::allocatecoarevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ae5a4815896d07094361faa53fb69aa03}{moduleinterfacewaterair\+::constructrugosity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_af474bb755901d845cb8a0f3efa8ffcbe}{moduleinterfacewaterair\+::constructwavefluxtke}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a0102df656b49a2adcbef76f5a3a9e6d0}{moduleinterfacewaterair\+::construct\+\_\+propertylist}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleinterfacewaterair_a9b32248d73ce68c55c1d8671b779f48a}{moduleinterfacewaterair\+::searchproperty}} (PropertyX, Property\+X\+I\+D\+Number, Print\+Warning, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a1c130410b812b0bf92e6ba11c0bd282a}{moduleinterfacewaterair\+::construct\+\_\+property}} (New\+Property, Client\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ab978efce2a9105b81e6223878df6e3ae}{moduleinterfacewaterair\+::construct\+\_\+propertyvalues}} (New\+Property, Client\+Number)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a49127aa503109a2b4f86aee6e0d4d665}{moduleinterfacewaterair\+::construct\+\_\+propertyevolution}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_aa99a2e7fefb8e45ed29092e8c068982a}{moduleinterfacewaterair\+::construct\+\_\+propertyoutput}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a2a801625d49cd1732858f2dc52a71271}{moduleinterfacewaterair\+::add\+\_\+property}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleinterfacewaterair_a48080272c5d72deaf3fe655740d02ccc}{moduleinterfacewaterair\+::open\+\_\+hdf5\+\_\+output\+\_\+file}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleinterfacewaterair_a1512570388fa7585da06c4fd36fc27ae}{moduleinterfacewaterair\+::constructglobaloutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a26e91289c0b811bff694b61c7a06fb15}{moduleinterfacewaterair\+::construct\+\_\+sub\+\_\+modules}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a49e85ee8a7b283a5ec88a2c8db419d3e}{moduleinterfacewaterair\+::construct\+\_\+time\+\_\+serie}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a657983e875ad047622b576288b98dd2e}{moduleinterfacewaterair\+::startoutputboxfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a7bb7aa6672e098e262e702265ea4cbef}{moduleinterfacewaterair\+::checkinternaloptions}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a6ca031d04555d7ec7193b26144ed978f}{moduleinterfacewaterair\+::checkoptionswater}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_afa8defb4c07e4d9150f1507fc3ea475a}{moduleinterfacewaterair\+::checkoptionsair}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_acc8f2f52f650494e800b421332c39060}{moduleinterfacewaterair\+::setsubmodulesconstructor}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleinterfacewaterair_abba77353f44ae39342d577e54d38ad95}{moduleinterfacewaterair\+::search\+\_\+property}} (PropertyX, Property\+X\+ID, Print\+Warning, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a859b7054113f5f1ab347adbd693c2e16}{moduleinterfacewaterair\+::readlockexternalglobal}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a78276c71fe608663c6c964c59c8c7626}{moduleinterfacewaterair\+::readlockexternalwater}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ada112545191c798704451772d5803ea0}{moduleinterfacewaterair\+::readunlockexternalglobal}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a380a0dfa2a33b7c2eef433d69fdf7fef}{moduleinterfacewaterair\+::readunlockexternalwater}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleinterfacewaterair_ad372fa1a038ce383360d4422cc25923d}{moduleinterfacewaterair\+::modifyinterfacewaterair}} (Obj\+Interface\+Water\+Air\+ID, Lagrangian\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a44a9529a1162816a090c836bc75d3f29}{moduleinterfacewaterair\+::modifylocalatmvariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a91edae849454c0ec7ebcefd91556486e}{moduleinterfacewaterair\+::modifywaterairfluxes}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ad58b286425c066f4643dc56d5a605645}{moduleinterfacewaterair\+::modifyalbedo}} (Prop\+Albedo)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a5442677ffd4780b9f170ffed821b8185}{moduleinterfacewaterair\+::computelatentheat}} (Prop\+Latent\+Heat)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a75fdc03352ad6627e770e22eddc20f05}{moduleinterfacewaterair\+::modifylatentheat}} (Prop\+Latent\+Heat)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a9ae768b301ebc2c73524836b992b568d}{moduleinterfacewaterair\+::modifynonsolarflux}} (Prop\+Non\+Solar\+Flux)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a440fa94544c221014817ea4b5bea703a}{moduleinterfacewaterair\+::computenonsolarflux}} (Prop\+Non\+Solar\+Flux)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a57d8dae2ec14a4562c48bbccb24a5f96}{moduleinterfacewaterair\+::modifysurfaceradiation}} (Prop\+Surface\+Radiation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ac9ef1ef38af46f9428d5e550057e60b9}{moduleinterfacewaterair\+::computesurfaceradiation}} (Prop\+Surface\+Radiation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_abe46b3644f7d36d7d60cc3a86eb0de5f}{moduleinterfacewaterair\+::computesensibleheat}} (Prop\+Sensible\+Heat)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a2724f68137207e7ade1ca13b482d8f81}{moduleinterfacewaterair\+::modifysensibleheat}} (Prop\+Sensible\+Heat)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a808beb15bad5f77afa64f469679f1229}{moduleinterfacewaterair\+::computeevaporation}} (Prop\+Evaporation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a0c61f58f27a4d911118aadbccbbd1920}{moduleinterfacewaterair\+::modifyevaporation}} (Prop\+Evaporation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a88a4ad4c4d7d19f977f8154341d169fd}{moduleinterfacewaterair\+::modifysurfacewaterflux}} (Prop\+Surface\+Water\+Flux)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a6cfc460eb2c0c3821a172285fe7ae066}{moduleinterfacewaterair\+::computeuplongwaverad}} (Prop\+Upward\+Long\+Wave\+Radiation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ae3df7c61e2dbd50895d272ec3bdb3d28}{moduleinterfacewaterair\+::computedownlongwaverad}} (Prop\+Downward\+Long\+Wave\+Radiation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a446911b7d3595fa04059369d70ebf75e}{moduleinterfacewaterair\+::modifynetlongwaveradiation}} (Prop\+Net\+Long\+Wave\+Radiation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a1210cfaa400404020add49f99363970b}{moduleinterfacewaterair\+::computecoareheatbudget}} (Prop\+Latent\+Heat, Prop\+Sensible\+Heat, Prop\+Net\+Long\+Wave\+Radiation, Prop\+Up\+Long\+Wave\+Radiation, Prop\+Down\+Long\+Wave\+Radiation, Prop\+Surface\+Radiation, Prop\+Non\+Solar\+Flux)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a4dbe6db87de8afe751f851ce37f72dda}{moduleinterfacewaterair\+::computewarmlayer}} (Prop\+Net\+Long\+Wave\+Radiation, Prop\+Up\+Long\+Wave\+Radiation, Prop\+Down\+Long\+Wave\+Radiation, Prop\+Surface\+Radiation, Water\+Density)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a542e31b196bb8758541444a1a4f7bd77}{moduleinterfacewaterair\+::computecoaresurfacefluxes}} (Prop\+Latent\+Heat, Prop\+Sensible\+Heat, Prop\+Net\+Long\+Wave\+Radiation, Prop\+Up\+Long\+Wave\+Radiation, Prop\+Down\+Long\+Wave\+Radiation, Prop\+Surface\+Radiation, Prop\+Non\+Solar\+Flux, Water\+Density)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ae6acdb7a76bd3e0edd25e31a74d3ab48}{moduleinterfacewaterair\+::firstguess}} (Air\+Temperature, Moisture\+Content\+Air, Delta\+Sat\+Vap\+Press\+Corr, Visa, Interface\+Moisture\+Content, Wind\+Velocity, C\+O\+A\+R\+E\+Wind\+Velocity, Cool\+Skin\+Hum\+Depression, Delta\+Sat\+Vap\+Press, Delta\+Temp\+Interface, Cool\+Skin\+Temp\+Depression, Scailing\+Velocity\+Par, Scailing\+Temperature\+Par, Scailing\+Moisture\+Par, Cool\+Skin\+Thickness, P\+B\+L\+Height, Nits, i, j)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_adca22635eac17186131c131155bfb929}{moduleinterfacewaterair\+::bulkloop}} (Prop\+Latent\+Heat, Prop\+Sensible\+Heat, Prop\+Net\+Long\+Wave\+Radiation, Prop\+Surface\+Radiation, Air\+Temperature, Water\+Density, Delta\+Temp\+Interface, Scailing\+Temperature\+Par, Charn, Scailing\+Moisture\+Par, Delta\+Sat\+Vap\+Press, Cool\+Skin\+Temp\+Depression, Air\+Density, Visa, Cool\+Skin\+Hum\+Depression, Cool\+Skin\+Thickness, Bigc, Lat\+Heat\+Vap, Scailing\+Velocity\+Par, C\+O\+A\+R\+E\+Wind\+Velocity, Delta\+Sat\+Vap\+Press\+Corr, Moisture\+Content\+Air, Wind\+Velocity, P\+B\+L\+Height, i, j, K\+UB, Nits)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a285710ae41f9eb54923e88dfcaf64681}{moduleinterfacewaterair\+::checkradiationoptions}} (Prop\+Net\+Long\+Wave\+Radiation, Prop\+Up\+Long\+Wave\+Radiation, Prop\+Down\+Long\+Wave\+Radiation, Prop\+Surface\+Radiation)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a7ad682cf919390b70351f87d094eb4fb}{moduleinterfacewaterair\+::checklatentsensibleoptions}} (Prop\+Latent\+Heat, Prop\+Sensible\+Heat)
+\item 
+real function, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a65968d6dee9f2e512ec37dd5d4fe8fe1}{moduleinterfacewaterair\+::psit}} (zet)
+\item 
+real function, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_af976a3b281048d4f32222b16621b556a}{moduleinterfacewaterair\+::psiu}} (zet)
+\item 
+real function, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_adc7a37061f983410896c39bb15a20517}{moduleinterfacewaterair\+::airviscosity}} (Temperature)
+\item 
+real function, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ad635dbe2d03621ece4e4eeb32fc65bb6}{moduleinterfacewaterair\+::watervapourdiffusivity}} (Temperature)
+\item 
+real function, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ab0d1bf1d73b112083b7be11d6c22aebc}{moduleinterfacewaterair\+::heatdiffusivity}} (Temperature, Air\+Density, Cpa)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleinterfacewaterair_a09c4f1b7db1459cc4893f784b8310831}{moduleinterfacewaterair\+::modifywindstress}} (Prop\+Wind\+Stress)
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleinterfacewaterair_aa8b103904b5c34125450b64aeff53081}{moduleinterfacewaterair\+::computetauwind}} (Prop\+Wind\+Stress)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ac1f2af410795916d4c7572b0b5a8e963}{moduleinterfacewaterair\+::modifyturbulentke}} (Prop\+Turbulent\+KE)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_afa753f72a101e83d20369a3801986adb}{moduleinterfacewaterair\+::computetkewind}} (Prop\+Turbulent\+KE)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ad4e148f79fe842f02dfc2fd7eb424091}{moduleinterfacewaterair\+::modifyoxygenflux}} (Property\+O2)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a9e9d9c5604753ebdf47d735d1c6b2fe4}{moduleinterfacewaterair\+::modifyaerationflux}} (Flux)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a562697e89f9cb3b375137d30b5b565eb}{moduleinterfacewaterair\+::modifycarbondioxideflux}} (Prop\+Carbon\+Dioxide)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ad16fde1df2013d74710f42901a89754e}{moduleinterfacewaterair\+::modifyco2aerationflux}} (Flux)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a8f1f7fa64a06041e2cb84a386c86e9e1}{moduleinterfacewaterair\+::modifyammoniaflux}} (Prop\+Ammonia\+Flux)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ac260263b243a28d2d9eb0dce7188d3b0}{moduleinterfacewaterair\+::modifynitrateflux}} (Prop\+Nitrate\+Flux)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a067a8627bd218eba128377b9cca8031f}{moduleinterfacewaterair\+::modifywindshearvelocity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_abb9a2be6b590714a3c5b58da190ce52f}{moduleinterfacewaterair\+::computewavesrugosity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_aa7f512949a9b145b55378017e58558a7}{moduleinterfacewaterair\+::modifyrugosity}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a2494cba9b6646ce732323f31ef820a97}{moduleinterfacewaterair\+::modifywavefluxtke}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a739b5f50c0652ff91c9f777fbf68729f}{moduleinterfacewaterair\+::output\+\_\+timeseries}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a8c2f4a754ac1aeb4a3a8045d639e609f}{moduleinterfacewaterair\+::output\+\_\+boxtimeseries}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_af0bc1dab0d7eafb5b7f4996d24e4d0bf}{moduleinterfacewaterair\+::output\+\_\+results\+\_\+hdf}}
+\item 
+subroutine \mbox{\hyperlink{namespacemoduleinterfacewaterair_a5f28ad0176312886bacef9cc171cb2e1}{moduleinterfacewaterair\+::setsubmodulesmodifier}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemoduleinterfacewaterair_a9492d98237c53dd77ad30ffe270b64cd}{moduleinterfacewaterair\+::killinterfacewaterair}} (Obj\+Interface\+Water\+Air\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_ab0b32961ac4c2950c8d474148dba7b1d}{moduleinterfacewaterair\+::deallocateinstance}} ()
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a519b1351dce06ffef1eb101335e6361f}{moduleinterfacewaterair\+::ready}} (Obj\+Interface\+Water\+Air\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemoduleinterfacewaterair_a17c41a363434acdb52729214d81e9e86}{moduleinterfacewaterair\+::locateobjinterfacewaterair}} (Obj\+Interface\+Water\+Air\+ID)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a5b4bd7da5a9e3e4da1bfe7edd8b805ac}{moduleinterfacewaterair\+::prop\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$beginproperty$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_abb372346805a352ba54048bced113782}{moduleinterfacewaterair\+::prop\+\_\+block\+\_\+end}} = \textquotesingle{}$<$endproperty$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a0278d4530d0ebedf0d59117a3c772f93}{moduleinterfacewaterair\+::rugosity\+\_\+begin}} = \textquotesingle{}$<$begin\+\_\+rugosity$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a58a4130456c2f79f5500a5ccb4517cfd}{moduleinterfacewaterair\+::rugosity\+\_\+end}} = \textquotesingle{}$<$end\+\_\+rugosity$>$\textquotesingle{}
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_af9d25ee72bf87831a84be25bc8435c55}{moduleinterfacewaterair\+::wateremissivity}} = 0.\+96
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a4c926bc0f796609398890a390dc9d36c}{moduleinterfacewaterair\+::stefanboltzmann}} = 5.\+669e-\/08
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a8155eb359d8312366017041e27b20e8b}{moduleinterfacewaterair\+::bowencoefficient}} = 0.\+47
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a65185c3b0a782bd2b12e894ee2619550}{moduleinterfacewaterair\+::referencedensity}} = 1000.
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a56a7408ea5d0be55c3bed3cda2294990}{moduleinterfacewaterair\+::reflatentheatofvaporization}} = 2.\+5e6
+\item 
+real, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_ac4e6928da233e97fced767b3ff6b8482}{moduleinterfacewaterair\+::cde}} = 0.\+63E-\/06
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a9e6fc9893e6a61442860c5361e65ef24}{moduleinterfacewaterair\+::nowave}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a48f8ac61c3aadc9ee602467e19d9939a}{moduleinterfacewaterair\+::surfacerugosityfromhs}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_a1a742a8ff8b7f163b4dc4673bdf8482f}{moduleinterfacewaterair\+::surfacerugosityfromhsw}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_af9a5813643af305d2fcb128710906ce2}{moduleinterfacewaterair\+::constant}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_ab0bf8dbd48fafcd7c122816cd5ebce18}{moduleinterfacewaterair\+::windfunction}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemoduleinterfacewaterair_afc5639ec5cd09597dc78cfe2ee596fd0}{moduleinterfacewaterair\+::shearvelocity}} = 3
+\item 
+type(t\+\_\+interfacewaterair), pointer \mbox{\hyperlink{namespacemoduleinterfacewaterair_a55db38560ef3abcb02cfd5a7c17dc800}{moduleinterfacewaterair\+::firstobjinterfacewaterair}} =$>$ null()
+\item 
+type(t\+\_\+interfacewaterair), pointer \mbox{\hyperlink{namespacemoduleinterfacewaterair_afff814b0fb4c5feeb5a9e6278d4f6fb5}{moduleinterfacewaterair\+::me}} =$>$ null()
+\end{DoxyCompactItemize}

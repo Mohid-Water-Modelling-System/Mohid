@@ -1,0 +1,12 @@
+digraph "modulelagrangianglobal::t_property"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulelagrangianglobal\l::t_property\n|- id\l- name\l- units\l- concentration\l- min_concentration\l- ambientconcentration\l- haveambientconcentration\l- t90variable\l- t90compute\l- t90var_method\land 25 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -sedimentpartition\n-waterpartition" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{modulelagrangianglobal\l::t_partition\n|- on\l- coefficient\l- transferrate\l- coupleprop\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulelagrangianglobal_1_1t__partition.html",tooltip=" "];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -larvae" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 [label="{modulelagrangianglobal\l::t_larvae\n|- vertical_migration\l- compute_larvae_velocity\l- light_relation\l- larvae_max_depth\l- larvae_min_depth\l- larvae_velocity\l- migration_time\l- radiation_limit\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulelagrangianglobal_1_1t__larvae.html",tooltip=" "];
+}

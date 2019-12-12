@@ -1,0 +1,14 @@
+digraph "modulegauge::killtidalwavelist"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="RL";
+  Node1 [label="modulegauge::killtidalwavelist",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="modulegauge::killgaugelist",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#a773a918cd865d16ad9720682f4f76009",tooltip=" "];
+  Node2 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="modulegauge::killgauge",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#a545694594f895a232c1f0b4fc8256bb9",tooltip=" "];
+  Node3 -> Node4 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="moduleopenboundary\l::killopenboundary",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleopenboundary.html#aeb84e486854c5a1124aae3804680b09b",tooltip=" "];
+}

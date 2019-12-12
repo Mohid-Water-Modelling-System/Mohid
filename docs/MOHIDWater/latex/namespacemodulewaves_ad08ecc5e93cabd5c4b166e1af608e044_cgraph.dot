@@ -1,0 +1,35 @@
+digraph "modulewaves::modifywaves"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulewaves::modifywaves",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="modulewaves::computeabw",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a3aa2de7449377be15fcc0bbb463170ed",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="modulewaves::computestokesspecwavenum",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#ad109b1bb3a215d9d37fee5e04428decc",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="modulewaves::computewavedirection",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#ad48d7252dffb5d91c6b1bd578279b9f6",tooltip=" "];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid"];
+  Node5 [label="modulewaves::computewaveheightfetch",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a13f51790900a5a9f5a5b30632d881229",tooltip=" "];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid"];
+  Node6 [label="modulewaves::computewaveheightsimple",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#af86c07d276fd3f5fe89a2adc94d0518f",tooltip=" "];
+  Node1 -> Node7 [color="midnightblue",fontsize="10",style="solid"];
+  Node7 [label="modulewaves::computewavelength",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#acea107970c1ba41962a9affab7ff313a",tooltip=" "];
+  Node1 -> Node8 [color="midnightblue",fontsize="10",style="solid"];
+  Node8 [label="modulewaves::computewaveparameters",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a6a63e2ee3bdd7ee4378a33408a4668a7",tooltip=" "];
+  Node8 -> Node9 [color="midnightblue",fontsize="10",style="solid"];
+  Node9 [label="modulewaves::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a15beb6e5dff252a4c77c47d43f9b6385",tooltip=" "];
+  Node9 -> Node10 [color="midnightblue",fontsize="10",style="solid"];
+  Node10 [label="modulewaves::locateobjwaves",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a0b543189e013d4ce00f78f873ab7f481",tooltip=" "];
+  Node1 -> Node11 [color="midnightblue",fontsize="10",style="solid"];
+  Node11 [label="modulewaves::computewaveperiodfetch",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#abd3acb5aa4305dcf02b29e94c10a666f",tooltip=" "];
+  Node1 -> Node12 [color="midnightblue",fontsize="10",style="solid"];
+  Node12 [label="modulewaves::computewaveperiodsimple",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a8fac90eb88cf4a39a40d63dbc040c2fa",tooltip=" "];
+  Node1 -> Node13 [color="midnightblue",fontsize="10",style="solid"];
+  Node13 [label="modulewaves::output\l_results_hdf",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a89f925f57b1b3b8af0ce6bb51398f224",tooltip=" "];
+  Node1 -> Node14 [color="midnightblue",fontsize="10",style="solid"];
+  Node14 [label="modulewaves::output\l_timeseries",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#ad7f81476715cc55364572aacbf0b2696",tooltip=" "];
+  Node1 -> Node9 [color="midnightblue",fontsize="10",style="solid"];
+}

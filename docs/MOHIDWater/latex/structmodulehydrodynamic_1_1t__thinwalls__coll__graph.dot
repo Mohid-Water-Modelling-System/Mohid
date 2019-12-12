@@ -1,0 +1,7 @@
+digraph "modulehydrodynamic::t_thinwalls"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulehydrodynamic\l::t_thinwalls\n|- faceu_i\l- faceu_j\l- faceu_k\l- facev_i\l- facev_j\l- facev_k\l- facew_i\l- facew_j\l- facew_k\l- uon\land 11 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

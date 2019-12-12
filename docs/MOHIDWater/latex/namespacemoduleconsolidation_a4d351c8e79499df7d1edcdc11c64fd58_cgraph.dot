@@ -1,0 +1,20 @@
+digraph "moduleconsolidation::construct_globalvariables"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="moduleconsolidation\l::construct_globalvariables",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="moduleconsolidation\l::allocatevariables",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a8bde788846d06954ea13eb84223da96a",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="moduleconsolidation\l::construct_parameters",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a4699e64424e9e130e7f46758181721ec",tooltip=" "];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="moduleconsolidation\l::constructscalar3d",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#af867c8406bedea1eef3287708029fa21",tooltip=" "];
+  Node3 -> Node5 [color="midnightblue",fontsize="10",style="solid"];
+  Node5 [label="moduleconsolidation\l::read_old_parameters",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#ad228e075c84afa273170a1c50c1a9f41",tooltip=" "];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid"];
+  Node6 [label="moduleconsolidation\l::readlockexternalmodules",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a5157e525fb069b7984e826def43a4dfc",tooltip=" "];
+  Node1 -> Node7 [color="midnightblue",fontsize="10",style="solid"];
+  Node7 [label="moduleconsolidation\l::readunlockexternalmodules",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a146c8502b0f191abd1664acdcd22a4c4",tooltip=" "];
+}

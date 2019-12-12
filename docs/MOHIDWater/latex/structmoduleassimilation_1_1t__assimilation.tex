@@ -1,0 +1,225 @@
+\hypertarget{structmoduleassimilation_1_1t__assimilation}{}\doxysection{moduleassimilation\+::t\+\_\+assimilation Type Reference}
+\label{structmoduleassimilation_1_1t__assimilation}\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+
+
+Collaboration diagram for moduleassimilation\+::t\+\_\+assimilation\+:
+% FIG 0
+\doxysubsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+logical \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_a3cecf0ead82f9a2c82307269a607f731}{altimetricassimilation}} = .false.
+\item 
+integer \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_ad96087a20806849511a7db4f09d2fbed}{instanceid}} = null\+\_\+int
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_a9c746cc93e613ee9da2e2e86fb1099be}{lastcall}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_a61d01c90265b4534d8fa0402aa372449}{endtime}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_a6586968649f2f6f5b4ebd8c1bbba95ec}{actualtime}}
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_a2f692ba76b1f31f17e872fabf4ab34b9}{size}}
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_aecb77a5309099cd24cc6fd85fd2a8bdf}{worksize}}
+\item 
+type(\mbox{\hyperlink{structmoduleassimilation_1_1t__files}{t\+\_\+files}}) \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_a4139c62474b80327feebfa4b343de7c2}{files}}
+\item 
+type(\mbox{\hyperlink{structmoduleassimilation_1_1t__output}{t\+\_\+output}}) \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_ac4425502d1f806ea11093902edd8a233}{output}}
+\item 
+type(\mbox{\hyperlink{structmoduleassimilation_1_1t__external}{t\+\_\+external}}) \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_a979ca2ae5534f69530e2ee921e0bfd61}{externalvar}}
+\item 
+type(\mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim}{t\+\_\+altimetric\+\_\+assim}}) \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_a9215eb5b653391f9ce20443d7008f565}{altimetric\+\_\+assim}}
+\item 
+type(\mbox{\hyperlink{structmoduleassimilation_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_aae69109593c6df05b14adff6f0b27f77}{firstassimilationprop}}
+\item 
+type(\mbox{\hyperlink{structmoduleassimilation_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_afa0283c1a63a0c5921e5722d20824fd6}{lastassimilationprop}}
+\item 
+integer \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_a24c8f3b22d1ea6ce3073fc13a8a8f383}{propertiesnumber}} = null\+\_\+int
+\item 
+real \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_ab373288d2b04352c8440af93d79cea57}{coldrelaxperioddefault}} = null\+\_\+real
+\item 
+integer \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_a87dc1129a4f6f9f96b4e12028a26984c}{objhdf5}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_add169ed71165f1a4b459349ab59360dd}{objenterdata}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_a46807cb646220a9387fb4fcfaa7e64c8}{objgriddata}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_a62694b73a5ffa3844dcbc5a719a14c4e}{objhorizontalgrid}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_ac3cc5e6abab074cbc11bb51fcbc18436}{objgeometry}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_af488d974b1386f81edbda66188420152}{objhorizontalmap}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_aa4975981153d2db619142dc7b8f7f6e1}{objmap}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_ad2e324621dd5944127b6338d5915e182}{objtime}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_ae156da2ae4a479881566c31986661e67}{objtimeserie}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_a1d7a04c61c27380378372e2d8a730171}{objwaterproperties}} = 0
+\item 
+type(\mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation}{t\+\_\+assimilation}}), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation_ae60f80f625de3ed7c12c4c35016487d1}{next}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Member Data Documentation}
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_a6586968649f2f6f5b4ebd8c1bbba95ec}\label{structmoduleassimilation_1_1t__assimilation_a6586968649f2f6f5b4ebd8c1bbba95ec}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!actualtime@{actualtime}}
+\index{actualtime@{actualtime}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{actualtime}{actualtime}}
+{\footnotesize\ttfamily type(t\+\_\+time) moduleassimilation\+::t\+\_\+assimilation\+::actualtime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_a9215eb5b653391f9ce20443d7008f565}\label{structmoduleassimilation_1_1t__assimilation_a9215eb5b653391f9ce20443d7008f565}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!altimetric\_assim@{altimetric\_assim}}
+\index{altimetric\_assim@{altimetric\_assim}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{altimetric\_assim}{altimetric\_assim}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim}{t\+\_\+altimetric\+\_\+assim}}) moduleassimilation\+::t\+\_\+assimilation\+::altimetric\+\_\+assim\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_a3cecf0ead82f9a2c82307269a607f731}\label{structmoduleassimilation_1_1t__assimilation_a3cecf0ead82f9a2c82307269a607f731}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!altimetricassimilation@{altimetricassimilation}}
+\index{altimetricassimilation@{altimetricassimilation}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{altimetricassimilation}{altimetricassimilation}}
+{\footnotesize\ttfamily logical moduleassimilation\+::t\+\_\+assimilation\+::altimetricassimilation = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_ab373288d2b04352c8440af93d79cea57}\label{structmoduleassimilation_1_1t__assimilation_ab373288d2b04352c8440af93d79cea57}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!coldrelaxperioddefault@{coldrelaxperioddefault}}
+\index{coldrelaxperioddefault@{coldrelaxperioddefault}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{coldrelaxperioddefault}{coldrelaxperioddefault}}
+{\footnotesize\ttfamily real moduleassimilation\+::t\+\_\+assimilation\+::coldrelaxperioddefault = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_a61d01c90265b4534d8fa0402aa372449}\label{structmoduleassimilation_1_1t__assimilation_a61d01c90265b4534d8fa0402aa372449}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!endtime@{endtime}}
+\index{endtime@{endtime}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{endtime}{endtime}}
+{\footnotesize\ttfamily type(t\+\_\+time) moduleassimilation\+::t\+\_\+assimilation\+::endtime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_a979ca2ae5534f69530e2ee921e0bfd61}\label{structmoduleassimilation_1_1t__assimilation_a979ca2ae5534f69530e2ee921e0bfd61}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!externalvar@{externalvar}}
+\index{externalvar@{externalvar}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{externalvar}{externalvar}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleassimilation_1_1t__external}{t\+\_\+external}} ) moduleassimilation\+::t\+\_\+assimilation\+::externalvar\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_a4139c62474b80327feebfa4b343de7c2}\label{structmoduleassimilation_1_1t__assimilation_a4139c62474b80327feebfa4b343de7c2}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!files@{files}}
+\index{files@{files}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{files}{files}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleassimilation_1_1t__files}{t\+\_\+files}}) moduleassimilation\+::t\+\_\+assimilation\+::files\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_aae69109593c6df05b14adff6f0b27f77}\label{structmoduleassimilation_1_1t__assimilation_aae69109593c6df05b14adff6f0b27f77}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!firstassimilationprop@{firstassimilationprop}}
+\index{firstassimilationprop@{firstassimilationprop}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{firstassimilationprop}{firstassimilationprop}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleassimilation_1_1t__property}{t\+\_\+property}}), pointer moduleassimilation\+::t\+\_\+assimilation\+::firstassimilationprop\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_ad96087a20806849511a7db4f09d2fbed}\label{structmoduleassimilation_1_1t__assimilation_ad96087a20806849511a7db4f09d2fbed}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!instanceid@{instanceid}}
+\index{instanceid@{instanceid}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{instanceid}{instanceid}}
+{\footnotesize\ttfamily integer moduleassimilation\+::t\+\_\+assimilation\+::instanceid = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_afa0283c1a63a0c5921e5722d20824fd6}\label{structmoduleassimilation_1_1t__assimilation_afa0283c1a63a0c5921e5722d20824fd6}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!lastassimilationprop@{lastassimilationprop}}
+\index{lastassimilationprop@{lastassimilationprop}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{lastassimilationprop}{lastassimilationprop}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleassimilation_1_1t__property}{t\+\_\+property}}), pointer moduleassimilation\+::t\+\_\+assimilation\+::lastassimilationprop\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_a9c746cc93e613ee9da2e2e86fb1099be}\label{structmoduleassimilation_1_1t__assimilation_a9c746cc93e613ee9da2e2e86fb1099be}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!lastcall@{lastcall}}
+\index{lastcall@{lastcall}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{lastcall}{lastcall}}
+{\footnotesize\ttfamily type(t\+\_\+time) moduleassimilation\+::t\+\_\+assimilation\+::lastcall\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_ae60f80f625de3ed7c12c4c35016487d1}\label{structmoduleassimilation_1_1t__assimilation_ae60f80f625de3ed7c12c4c35016487d1}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!next@{next}}
+\index{next@{next}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{next}{next}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleassimilation_1_1t__assimilation}{t\+\_\+assimilation}}), pointer moduleassimilation\+::t\+\_\+assimilation\+::next\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_add169ed71165f1a4b459349ab59360dd}\label{structmoduleassimilation_1_1t__assimilation_add169ed71165f1a4b459349ab59360dd}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!objenterdata@{objenterdata}}
+\index{objenterdata@{objenterdata}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{objenterdata}{objenterdata}}
+{\footnotesize\ttfamily integer moduleassimilation\+::t\+\_\+assimilation\+::objenterdata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_ac3cc5e6abab074cbc11bb51fcbc18436}\label{structmoduleassimilation_1_1t__assimilation_ac3cc5e6abab074cbc11bb51fcbc18436}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!objgeometry@{objgeometry}}
+\index{objgeometry@{objgeometry}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{objgeometry}{objgeometry}}
+{\footnotesize\ttfamily integer moduleassimilation\+::t\+\_\+assimilation\+::objgeometry = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_a46807cb646220a9387fb4fcfaa7e64c8}\label{structmoduleassimilation_1_1t__assimilation_a46807cb646220a9387fb4fcfaa7e64c8}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!objgriddata@{objgriddata}}
+\index{objgriddata@{objgriddata}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{objgriddata}{objgriddata}}
+{\footnotesize\ttfamily integer moduleassimilation\+::t\+\_\+assimilation\+::objgriddata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_a87dc1129a4f6f9f96b4e12028a26984c}\label{structmoduleassimilation_1_1t__assimilation_a87dc1129a4f6f9f96b4e12028a26984c}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!objhdf5@{objhdf5}}
+\index{objhdf5@{objhdf5}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{objhdf5}{objhdf5}}
+{\footnotesize\ttfamily integer moduleassimilation\+::t\+\_\+assimilation\+::objhdf5 = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_a62694b73a5ffa3844dcbc5a719a14c4e}\label{structmoduleassimilation_1_1t__assimilation_a62694b73a5ffa3844dcbc5a719a14c4e}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!objhorizontalgrid@{objhorizontalgrid}}
+\index{objhorizontalgrid@{objhorizontalgrid}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{objhorizontalgrid}{objhorizontalgrid}}
+{\footnotesize\ttfamily integer moduleassimilation\+::t\+\_\+assimilation\+::objhorizontalgrid = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_af488d974b1386f81edbda66188420152}\label{structmoduleassimilation_1_1t__assimilation_af488d974b1386f81edbda66188420152}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!objhorizontalmap@{objhorizontalmap}}
+\index{objhorizontalmap@{objhorizontalmap}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{objhorizontalmap}{objhorizontalmap}}
+{\footnotesize\ttfamily integer moduleassimilation\+::t\+\_\+assimilation\+::objhorizontalmap = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_aa4975981153d2db619142dc7b8f7f6e1}\label{structmoduleassimilation_1_1t__assimilation_aa4975981153d2db619142dc7b8f7f6e1}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!objmap@{objmap}}
+\index{objmap@{objmap}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{objmap}{objmap}}
+{\footnotesize\ttfamily integer moduleassimilation\+::t\+\_\+assimilation\+::objmap = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_ad2e324621dd5944127b6338d5915e182}\label{structmoduleassimilation_1_1t__assimilation_ad2e324621dd5944127b6338d5915e182}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!objtime@{objtime}}
+\index{objtime@{objtime}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{objtime}{objtime}}
+{\footnotesize\ttfamily integer moduleassimilation\+::t\+\_\+assimilation\+::objtime = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_ae156da2ae4a479881566c31986661e67}\label{structmoduleassimilation_1_1t__assimilation_ae156da2ae4a479881566c31986661e67}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!objtimeserie@{objtimeserie}}
+\index{objtimeserie@{objtimeserie}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{objtimeserie}{objtimeserie}}
+{\footnotesize\ttfamily integer moduleassimilation\+::t\+\_\+assimilation\+::objtimeserie = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_a1d7a04c61c27380378372e2d8a730171}\label{structmoduleassimilation_1_1t__assimilation_a1d7a04c61c27380378372e2d8a730171}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!objwaterproperties@{objwaterproperties}}
+\index{objwaterproperties@{objwaterproperties}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{objwaterproperties}{objwaterproperties}}
+{\footnotesize\ttfamily integer moduleassimilation\+::t\+\_\+assimilation\+::objwaterproperties = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_ac4425502d1f806ea11093902edd8a233}\label{structmoduleassimilation_1_1t__assimilation_ac4425502d1f806ea11093902edd8a233}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!output@{output}}
+\index{output@{output}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{output}{output}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleassimilation_1_1t__output}{t\+\_\+output}}) moduleassimilation\+::t\+\_\+assimilation\+::output\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_a24c8f3b22d1ea6ce3073fc13a8a8f383}\label{structmoduleassimilation_1_1t__assimilation_a24c8f3b22d1ea6ce3073fc13a8a8f383}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!propertiesnumber@{propertiesnumber}}
+\index{propertiesnumber@{propertiesnumber}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{propertiesnumber}{propertiesnumber}}
+{\footnotesize\ttfamily integer moduleassimilation\+::t\+\_\+assimilation\+::propertiesnumber = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_a2f692ba76b1f31f17e872fabf4ab34b9}\label{structmoduleassimilation_1_1t__assimilation_a2f692ba76b1f31f17e872fabf4ab34b9}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!size@{size}}
+\index{size@{size}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{size}{size}}
+{\footnotesize\ttfamily type(t\+\_\+size3d) moduleassimilation\+::t\+\_\+assimilation\+::size\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__assimilation_aecb77a5309099cd24cc6fd85fd2a8bdf}\label{structmoduleassimilation_1_1t__assimilation_aecb77a5309099cd24cc6fd85fd2a8bdf}} 
+\index{moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}!worksize@{worksize}}
+\index{worksize@{worksize}!moduleassimilation::t\_assimilation@{moduleassimilation::t\_assimilation}}
+\doxysubsubsection{\texorpdfstring{worksize}{worksize}}
+{\footnotesize\ttfamily type(t\+\_\+size3d) moduleassimilation\+::t\+\_\+assimilation\+::worksize\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Projects/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\mbox{\hyperlink{_module_assimilation_8_f90}{Module\+Assimilation.\+F90}}\end{DoxyCompactItemize}

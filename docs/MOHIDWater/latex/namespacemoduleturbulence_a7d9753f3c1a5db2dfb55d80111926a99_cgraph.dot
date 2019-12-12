@@ -1,0 +1,20 @@
+digraph "moduleturbulence::inichorizontalmodels"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="moduleturbulence::inichorizontalmodels",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="moduleturbulence::inicconstanthorizontalmodel",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleturbulence.html#a1d7775ffdad42a39e0e66a78b56f8faf",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="moduleturbulence::inicestuarymodel",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleturbulence.html#ad65bc066b505edcac467325fc067aa87",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="moduleturbulence::inicestuarysmagorinskymodel",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleturbulence.html#a7dcc612b541b2355f6ee7df80ef63634",tooltip=" "];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid"];
+  Node5 [label="moduleturbulence::inicfilehorizontalmodel",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleturbulence.html#af876648dc22afb9f49305a2d9c2f1be4",tooltip=" "];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid"];
+  Node6 [label="moduleturbulence::inicsmagorinskymodel",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleturbulence.html#a3ccb54fdbe649b382ed14de6135fd7b9",tooltip=" "];
+  Node1 -> Node7 [color="midnightblue",fontsize="10",style="solid"];
+  Node7 [label="moduleturbulence::turbulentviscosity\l_cellcorner",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleturbulence.html#ab7894e5b2120544a23a97a5dec146823",tooltip=" "];
+}

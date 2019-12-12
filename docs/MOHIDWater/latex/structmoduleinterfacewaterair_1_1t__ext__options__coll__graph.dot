@@ -1,0 +1,7 @@
+digraph "moduleinterfacewaterair::t_ext_options"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{moduleinterfacewaterair\l::t_ext_options\n|- heatfluxyes\l- oxygenfluxyes\l- carbondioxidefluxyes\l- ammoniafluxyes\l- nitratefluxyes\l- wqmyes\l- surfacewaterfluxyes\l- hydrodynamicwindyes\l- hydrodynamicatmpressureyes\l- oilyes\land 10 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

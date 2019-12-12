@@ -1,0 +1,16 @@
+digraph "moduleinterfacesedimentwater::construct_benthicratelist"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="moduleinterfacesedimentwater\l::construct_benthicratelist",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="moduleinterfacesedimentwater\l::add_benthicrate",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleinterfacesedimentwater.html#a9d88824cf037c2b56b53fc58c3274259",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="moduleinterfacesedimentwater\l::construct_benthicrate",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleinterfacesedimentwater.html#ab413235c8b7ada790b2fdaa8d3598925",tooltip=" "];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="moduleinterfacesedimentwater\l::construct_benthicrateid",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleinterfacesedimentwater.html#a079a9bc42bec35aabbd6e236c075228e",tooltip=" "];
+  Node3 -> Node5 [color="midnightblue",fontsize="10",style="solid"];
+  Node5 [label="moduleinterfacesedimentwater\l::construct_benthicratevalues",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleinterfacesedimentwater.html#a6172f96194c964b013cd855127df7b8d",tooltip=" "];
+}

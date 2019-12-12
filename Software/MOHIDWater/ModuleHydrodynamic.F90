@@ -10589,9 +10589,9 @@ i7:             if (.not. ContinuousGOTM)  then
     end subroutine Construct_Sub_Modules
     !------------------------------------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
-    !>@Brief
+    !>@brief
     !>Checks if a discharge is of type "upscaling" and constructs it
-    !>@param[in] FatherID, ObjHydrodynamicFather, SonID
+    !>@param[in] FatherID, ObjFather, SonID
     subroutine Set_Upscaling_Discharges(FatherID, ObjFather, SonID)
         !Arguments-------------------------------------------------------------
         integer,           intent(IN )              :: FatherID, SonID
@@ -16869,7 +16869,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
     !--------------------------------------------------------------------------
 
     !>@author Joao Sobrinho Maretec
-    !>@Brief
+    !>@brief
     !>Gets logical variable TwoWay
     !>@param[in] HydrodynamicID, TwoWayOn, STAT
     subroutine GetModelHasTwoWay(HydrodynamicID, TwoWayOn, STAT)
@@ -46344,7 +46344,7 @@ cd4:            if (BoundaryPoints(i, j) == Boundary) then
     end Subroutine Modify_VerticalWaterFlow2
 
     !>@author Paulo Chambel Hidromod
-    !>@Brief
+    !>@brief
     !>Computes vertical waterflow.
     !>Edited By Joao Sobrinho - 09-2019
     !>@param[in] Grid
@@ -46435,10 +46435,9 @@ cd4:            if (BoundaryPoints(i, j) == Boundary) then
 
     !----------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
-    !>@Brief
+    !>@brief
     !>Computes vertical waterflow for a variable grid
-    !>@param[in] Volume_Z_New, Volume_Z_Old, WaterFlux_X, WaterFlux_Y, WaterFlux_Z, ComputeFaces3D_U, &
-    !>ComputeFaces3D_V, DT
+    !>@param[in] Volume_Z_New, Volume_Z_Old, WaterFlux_X, WaterFlux_Y, WaterFlux_Z, ComputeFaces3D_U, ComputeFaces3D_V, DT
     subroutine WaterFlux_Z_VarGrid (Volume_Z_New, Volume_Z_Old, WaterFlux_X, WaterFlux_Y, WaterFlux_Z, &
          ComputeFaces3D_U, ComputeFaces3D_V, DT)
 
@@ -46484,7 +46483,7 @@ cd4:            if (BoundaryPoints(i, j) == Boundary) then
 
     !--------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
-    !>@Brief
+    !>@brief
     !>Computes vertical waterflow for a fixed grid
     !>@param[in] WaterFlux_X, WaterFlux_Y, WaterFlux_Z, ComputeFaces3D_U, ComputeFaces3D_V
     subroutine WaterFlux_Z_FixGrid (WaterFlux_X, WaterFlux_Y, WaterFlux_Z, ComputeFaces3D_U, ComputeFaces3D_V)
@@ -47241,7 +47240,7 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
 
     !-----------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
-    !>@Brief
+    !>@brief
     !> computes vertical velocity
     Subroutine ComputeCartesianVertVelocity(Grid, MeshSlope)
 
@@ -48459,7 +48458,7 @@ dok:            do  k = kbottom, KUB
 
     !------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
-    !>@Brief
+    !>@brief
     !> Adds BarotropicForce to TiCoef_3D
     Subroutine AddBarotropicForce (PressureBackwardInTime)
         !Arguments------------------------------------------------------------
@@ -48483,7 +48482,7 @@ dok:            do  k = kbottom, KUB
     end subroutine AddBarotropicForce
 
     !>@author Joao Sobrinho Maretec
-    !>@Brief
+    !>@brief
     !> Adds AddWaterPressure_acceleration to TiCoef_3D - direction North-South
     Subroutine AddWaterPressure_acceleration_S (PressureBackwardInTime)
         !Arguments------------------------------------------------------------
@@ -48616,7 +48615,7 @@ dok:            do  k = kbottom, KUB
     end subroutine AddWaterPressure_acceleration_S
 
     !>@author Joao Sobrinho Maretec
-    !>@Brief
+    !>@brief
     !> Adds AddWaterPressure_acceleration to TiCoef_3D - direction East-West
     Subroutine AddWaterPressure_acceleration_W (PressureBackwardInTime)
         !Arguments------------------------------------------------------------
@@ -48751,7 +48750,7 @@ dok:            do  k = kbottom, KUB
     !--------------------------------------------------------------------------------------
 
     !>@author Joao Sobrinho Maretec
-    !>@Brief
+    !>@brief
     !> Adds TidePotential to TiCoef_3D
     Subroutine AddTidePotential
         !Arguments------------------------------------------------------------
@@ -48880,7 +48879,7 @@ dok:            do  k = kbottom, KUB
 
     !------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
-    !>@Brief
+    !>@brief
     !> Adds AddAtmPressure to TiCoef_3D
     Subroutine AddAtmPressure
         !Arguments------------------------------------------------------------
@@ -53697,7 +53696,7 @@ do5:            do i = ILB, IUB
     !End------------------------------------------------------------------------------
 
     !>@author Joao Sobrinho Maretec
-    !>@Brief
+    !>@brief
     !>Checks and starts TwoWay nesting
     !>@param[in] HydrodynamicID
     subroutine ComputeTwoWay(HydrodynamicID)
@@ -53873,7 +53872,7 @@ do5:            do i = ILB, IUB
 
 !--------------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
-    !>@Brief
+    !>@brief
     !> Constructs Updates facedensity matrix.
     subroutine FaceDensityUpdate
         !External-------------------------------------------------------------

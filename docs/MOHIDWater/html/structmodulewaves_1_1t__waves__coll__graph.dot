@@ -1,0 +1,18 @@
+digraph "modulewaves::t_waves"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulewaves::t_waves\n|- instanceid\l- modelname\l- begintime\l- endtime\l- actualtime\l- lastcompute\l- size\l- worksize\l- wavetooceanmomentumu\l- waveperiod\land 54 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -output" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{modulewaves::t_output\n|- outtime\l- nextoutput\l- timeserie\l- hdf\l- number\l- outputgriddata\l- fetchdistances\l- fetchdepths\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaves_1_1t__output.html",tooltip=" "];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -runswan" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 [label="{modulewaves::t_runswan\n|- on\l- inputvector\l- outsealevel\l- outvelx\l- outvely\l- outgridx\l- outgridy\l- objbathymgrid\l- objbathym\l- nextrun\land 6 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaves_1_1t__runswan.html",tooltip=" "];
+  Node4 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -externalvar" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node4 [label="{modulewaves::t_external\n|- windvelocityu\l- windvelocityv\l- velocityu\l- velocityv\l- sealevel\l- waterpoints2d\l- openpoints2d\l- watercolumn\l- xx_ie\l- yy_ie\land 12 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaves_1_1t__external.html",tooltip=" "];
+  Node1 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node5 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -stokesdriftspectrumx\n-stokesdriftspectrumy" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node5 [label="{modulewaves::t_waveproperty3d\n|- id\l- on\l- constant\l- source\l- field\l- pseudoopenpoints\l- outputhdf\l- timeserieon\l- freq\l- wavenumber\l- nbfreq\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaves_1_1t__waveproperty3d.html",tooltip=" "];
+  Node6 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -waveheight\n-wavetooceanmomentumv\n-radiationstress\n-waveinducedpressurej\n-wavesurfacefluxtke\n-breakingwaveheight\n-atmtowavemomentumu\n-atmtowavemomentumv\n-ubw\n-wavelength\n..." ,arrowhead="odiamond",fontname="Helvetica"];
+  Node6 [label="{modulewaves::t_waveproperty\n|- id\l- on\l- constant\l- source\l- field\l- fieldinputref\l- fieldu\l- fieldv\l- fieldx\l- fieldy\land 6 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaves_1_1t__waveproperty.html",tooltip=" "];
+}

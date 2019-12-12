@@ -1,0 +1,10 @@
+digraph "modulewaterproperties::t_cohort"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulewaterproperties\l::t_cohort\n|- atleastonelarvae\l- larvae\l- auxlarvael\l- auxlarvaeme\l- auxlarvaemv\l- auxlarvaemh\l- auxlarvaemr\l- auxlarvaen\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -id" ,arrowhead="odiamond"];
+  Node2 [label="{modulewaterproperties\l::t_id\n|- id\l- idnumber\l- name\l- description\l- units\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulewaterproperties_1_1t__id.html",tooltip=" "];
+  Node1 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond"];
+}

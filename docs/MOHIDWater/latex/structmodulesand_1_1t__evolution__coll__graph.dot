@@ -1,0 +1,7 @@
+digraph "modulesand::t_evolution"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulesand::t_evolution\n|- old\l- sanddt\l- dzdt\l- bathymdt\l- nextsand\l- nextbatim\l- nextdz\l- bathym\l- bathymtype\l- gama\l- numericmethod\l- addbedrock2bathym\l- direction\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

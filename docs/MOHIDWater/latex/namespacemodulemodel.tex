@@ -1,0 +1,217 @@
+\hypertarget{namespacemodulemodel}{}\doxysection{modulemodel Module Reference}
+\label{namespacemodulemodel}\index{modulemodel@{modulemodel}}
+\doxysubsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulemodel_1_1t__column}{t\+\_\+column}}
+\item 
+type \mbox{\hyperlink{structmodulemodel_1_1t__externalvar}{t\+\_\+externalvar}}
+\item 
+type \mbox{\hyperlink{structmodulemodel_1_1t__model}{t\+\_\+model}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_abcddd2b6e97f110b0c5b3bb00f069570}{constructmodel}} (Lag\+Instance, Model\+Names, Model\+Paths, Number\+Of\+Models, Obj\+Lagrangian\+Global, Model\+ID, Initial\+System\+Time, M\+P\+I\+\_\+\+ID, Master\+ID, Last\+Slave\+ID, Model\+Path, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemodel_a5bbc8de2114f1ac7367a9db6d923e85a}{allocateinstance}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a4273c6982391135a62686fbcf6a0861c}{getmodeltimelimits}} (Model\+ID, Begin\+Time, End\+Time, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a548beb7d8ae7799facee13efde759d64}{getmodeltimestep}} (Model\+ID, DT, Variable, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a61debfb6b3b629e1cd4bbdfe3c1c1ad1}{getsubmodelwindow}} (Model\+ID, Sub\+Model\+Window, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a2bb34f8b006f66681bc7e7276eb4579e}{getsubmodelwindowon}} (Model\+ID, Sub\+Model\+Window\+ON, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a16524bfd3d2f97fbf9b45e5e99e495e8}{getmodelcurrenttime}} (Model\+ID, Current\+Time, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a542c4b413e51723c7c3826e7a1e3b8a6}{getmodelinstanceids}} (Model\+ID, Horizontal\+Grid\+ID, Hydrodynamic\+ID, Water\+Properties\+ID, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a4eb372bc7bfa08656aec97c250f8cf7b}{updatetimeandmapping}} (Model\+ID, Global\+\_\+\+Current\+Time, Do\+Next\+Step, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a16a07d5b28a4877790acec46aed111b6}{runmodel}} (Model\+ID, D\+T\+\_\+\+Father, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulemodel_ab22d85061a595a03c83c11766cba5587}{runonemodel}} (Predicted\+DT, D\+T\+\_\+\+Father)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulemodel_a23647852257627fb606f6868bc295162}{killmodel}} (Model\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemodel_aa1baf5876ac43380b98e011bcf1517da}{deallocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulemodel_af5d93bbd065add89f5cd52475a40e7fc}{ready}} (Model\+ID, ready\+\_\+)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulemodel_a9d28e193fe25ac78b7f97d328ea3d7f4}{readquerystring\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulemodel_a58d33da3b782f55628340bd21722de76}{readcommandline\+\_\+}} = 2
+\item 
+type(\mbox{\hyperlink{structmodulemodel_1_1t__model}{t\+\_\+model}}), pointer \mbox{\hyperlink{namespacemodulemodel_ac561b0a5644fa2248aaefbf844e5a4aa}{firstmodel}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmodulemodel_1_1t__model}{t\+\_\+model}}), pointer \mbox{\hyperlink{namespacemodulemodel_a98337e796a74b39490b015ac045f4570}{me}} =$>$ null()
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemodulemodel_a5bbc8de2114f1ac7367a9db6d923e85a}\label{namespacemodulemodel_a5bbc8de2114f1ac7367a9db6d923e85a}} 
+\index{modulemodel@{modulemodel}!allocateinstance@{allocateinstance}}
+\index{allocateinstance@{allocateinstance}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{allocateinstance()}{allocateinstance()}}
+{\footnotesize\ttfamily subroutine, private modulemodel\+::allocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 0
+\mbox{\Hypertarget{namespacemodulemodel_abcddd2b6e97f110b0c5b3bb00f069570}\label{namespacemodulemodel_abcddd2b6e97f110b0c5b3bb00f069570}} 
+\index{modulemodel@{modulemodel}!constructmodel@{constructmodel}}
+\index{constructmodel@{constructmodel}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{constructmodel()}{constructmodel()}}
+{\footnotesize\ttfamily subroutine, public modulemodel\+::constructmodel (\begin{DoxyParamCaption}\item[{integer, dimension(\+:,\+:), pointer}]{Lag\+Instance,  }\item[{character(len=$\ast$), dimension(\+:  ), pointer}]{Model\+Names,  }\item[{character(len=$\ast$), dimension(\+:  ), pointer}]{Model\+Paths,  }\item[{integer}]{Number\+Of\+Models,  }\item[{integer}]{Obj\+Lagrangian\+Global,  }\item[{integer}]{Model\+ID,  }\item[{type (t\+\_\+time)}]{Initial\+System\+Time,  }\item[{integer, intent(in), optional}]{M\+P\+I\+\_\+\+ID,  }\item[{integer, intent(in), optional}]{Master\+ID,  }\item[{integer, intent(in), optional}]{Last\+Slave\+ID,  }\item[{character(len=$\ast$), intent(in), optional}]{Model\+Path,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 1
+Here is the caller graph for this function\+:
+% FIG 2
+\mbox{\Hypertarget{namespacemodulemodel_aa1baf5876ac43380b98e011bcf1517da}\label{namespacemodulemodel_aa1baf5876ac43380b98e011bcf1517da}} 
+\index{modulemodel@{modulemodel}!deallocateinstance@{deallocateinstance}}
+\index{deallocateinstance@{deallocateinstance}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{deallocateinstance()}{deallocateinstance()}}
+{\footnotesize\ttfamily subroutine, private modulemodel\+::deallocateinstance (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 3
+\mbox{\Hypertarget{namespacemodulemodel_a16524bfd3d2f97fbf9b45e5e99e495e8}\label{namespacemodulemodel_a16524bfd3d2f97fbf9b45e5e99e495e8}} 
+\index{modulemodel@{modulemodel}!getmodelcurrenttime@{getmodelcurrenttime}}
+\index{getmodelcurrenttime@{getmodelcurrenttime}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{getmodelcurrenttime()}{getmodelcurrenttime()}}
+{\footnotesize\ttfamily subroutine, public modulemodel\+::getmodelcurrenttime (\begin{DoxyParamCaption}\item[{integer}]{Model\+ID,  }\item[{type (t\+\_\+time)}]{Current\+Time,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 4
+Here is the caller graph for this function\+:
+% FIG 5
+\mbox{\Hypertarget{namespacemodulemodel_a542c4b413e51723c7c3826e7a1e3b8a6}\label{namespacemodulemodel_a542c4b413e51723c7c3826e7a1e3b8a6}} 
+\index{modulemodel@{modulemodel}!getmodelinstanceids@{getmodelinstanceids}}
+\index{getmodelinstanceids@{getmodelinstanceids}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{getmodelinstanceids()}{getmodelinstanceids()}}
+{\footnotesize\ttfamily subroutine, public modulemodel\+::getmodelinstanceids (\begin{DoxyParamCaption}\item[{integer}]{Model\+ID,  }\item[{integer, intent(out), optional}]{Horizontal\+Grid\+ID,  }\item[{integer, intent(out), optional}]{Hydrodynamic\+ID,  }\item[{integer, intent(out), optional}]{Water\+Properties\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 6
+Here is the caller graph for this function\+:
+% FIG 7
+\mbox{\Hypertarget{namespacemodulemodel_a4273c6982391135a62686fbcf6a0861c}\label{namespacemodulemodel_a4273c6982391135a62686fbcf6a0861c}} 
+\index{modulemodel@{modulemodel}!getmodeltimelimits@{getmodeltimelimits}}
+\index{getmodeltimelimits@{getmodeltimelimits}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{getmodeltimelimits()}{getmodeltimelimits()}}
+{\footnotesize\ttfamily subroutine, public modulemodel\+::getmodeltimelimits (\begin{DoxyParamCaption}\item[{integer}]{Model\+ID,  }\item[{type (t\+\_\+time), intent(out)}]{Begin\+Time,  }\item[{type (t\+\_\+time), intent(out)}]{End\+Time,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 8
+Here is the caller graph for this function\+:
+% FIG 9
+\mbox{\Hypertarget{namespacemodulemodel_a548beb7d8ae7799facee13efde759d64}\label{namespacemodulemodel_a548beb7d8ae7799facee13efde759d64}} 
+\index{modulemodel@{modulemodel}!getmodeltimestep@{getmodeltimestep}}
+\index{getmodeltimestep@{getmodeltimestep}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{getmodeltimestep()}{getmodeltimestep()}}
+{\footnotesize\ttfamily subroutine, public modulemodel\+::getmodeltimestep (\begin{DoxyParamCaption}\item[{integer}]{Model\+ID,  }\item[{real, intent(out)}]{DT,  }\item[{logical, intent(out), optional}]{Variable,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 10
+Here is the caller graph for this function\+:
+% FIG 11
+\mbox{\Hypertarget{namespacemodulemodel_a61debfb6b3b629e1cd4bbdfe3c1c1ad1}\label{namespacemodulemodel_a61debfb6b3b629e1cd4bbdfe3c1c1ad1}} 
+\index{modulemodel@{modulemodel}!getsubmodelwindow@{getsubmodelwindow}}
+\index{getsubmodelwindow@{getsubmodelwindow}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{getsubmodelwindow()}{getsubmodelwindow()}}
+{\footnotesize\ttfamily subroutine, public modulemodel\+::getsubmodelwindow (\begin{DoxyParamCaption}\item[{integer}]{Model\+ID,  }\item[{type (t\+\_\+size2d)}]{Sub\+Model\+Window,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 12
+Here is the caller graph for this function\+:
+% FIG 13
+\mbox{\Hypertarget{namespacemodulemodel_a2bb34f8b006f66681bc7e7276eb4579e}\label{namespacemodulemodel_a2bb34f8b006f66681bc7e7276eb4579e}} 
+\index{modulemodel@{modulemodel}!getsubmodelwindowon@{getsubmodelwindowon}}
+\index{getsubmodelwindowon@{getsubmodelwindowon}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{getsubmodelwindowon()}{getsubmodelwindowon()}}
+{\footnotesize\ttfamily subroutine, public modulemodel\+::getsubmodelwindowon (\begin{DoxyParamCaption}\item[{integer}]{Model\+ID,  }\item[{logical}]{Sub\+Model\+Window\+ON,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 14
+Here is the caller graph for this function\+:
+% FIG 15
+\mbox{\Hypertarget{namespacemodulemodel_a23647852257627fb606f6868bc295162}\label{namespacemodulemodel_a23647852257627fb606f6868bc295162}} 
+\index{modulemodel@{modulemodel}!killmodel@{killmodel}}
+\index{killmodel@{killmodel}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{killmodel()}{killmodel()}}
+{\footnotesize\ttfamily subroutine, public modulemodel\+::killmodel (\begin{DoxyParamCaption}\item[{integer}]{Model\+ID,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 16
+Here is the caller graph for this function\+:
+% FIG 17
+\mbox{\Hypertarget{namespacemodulemodel_af5d93bbd065add89f5cd52475a40e7fc}\label{namespacemodulemodel_af5d93bbd065add89f5cd52475a40e7fc}} 
+\index{modulemodel@{modulemodel}!ready@{ready}}
+\index{ready@{ready}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{ready()}{ready()}}
+{\footnotesize\ttfamily subroutine, private modulemodel\+::ready (\begin{DoxyParamCaption}\item[{integer}]{Model\+ID,  }\item[{integer}]{ready\+\_\+ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 18
+\mbox{\Hypertarget{namespacemodulemodel_a16a07d5b28a4877790acec46aed111b6}\label{namespacemodulemodel_a16a07d5b28a4877790acec46aed111b6}} 
+\index{modulemodel@{modulemodel}!runmodel@{runmodel}}
+\index{runmodel@{runmodel}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{runmodel()}{runmodel()}}
+{\footnotesize\ttfamily subroutine, public modulemodel\+::runmodel (\begin{DoxyParamCaption}\item[{integer}]{Model\+ID,  }\item[{real}]{D\+T\+\_\+\+Father,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 19
+Here is the caller graph for this function\+:
+% FIG 20
+\mbox{\Hypertarget{namespacemodulemodel_ab22d85061a595a03c83c11766cba5587}\label{namespacemodulemodel_ab22d85061a595a03c83c11766cba5587}} 
+\index{modulemodel@{modulemodel}!runonemodel@{runonemodel}}
+\index{runonemodel@{runonemodel}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{runonemodel()}{runonemodel()}}
+{\footnotesize\ttfamily subroutine modulemodel\+::runonemodel (\begin{DoxyParamCaption}\item[{type(t\+\_\+newdt)}]{Predicted\+DT,  }\item[{real}]{D\+T\+\_\+\+Father }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 21
+Here is the caller graph for this function\+:
+% FIG 22
+\mbox{\Hypertarget{namespacemodulemodel_a4eb372bc7bfa08656aec97c250f8cf7b}\label{namespacemodulemodel_a4eb372bc7bfa08656aec97c250f8cf7b}} 
+\index{modulemodel@{modulemodel}!updatetimeandmapping@{updatetimeandmapping}}
+\index{updatetimeandmapping@{updatetimeandmapping}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{updatetimeandmapping()}{updatetimeandmapping()}}
+{\footnotesize\ttfamily subroutine, public modulemodel\+::updatetimeandmapping (\begin{DoxyParamCaption}\item[{integer}]{Model\+ID,  }\item[{type (t\+\_\+time), intent(in)}]{Global\+\_\+\+Current\+Time,  }\item[{logical}]{Do\+Next\+Step,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 23
+Here is the caller graph for this function\+:
+% FIG 24
+
+
+\doxysubsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemodulemodel_ac561b0a5644fa2248aaefbf844e5a4aa}\label{namespacemodulemodel_ac561b0a5644fa2248aaefbf844e5a4aa}} 
+\index{modulemodel@{modulemodel}!firstmodel@{firstmodel}}
+\index{firstmodel@{firstmodel}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{firstmodel}{firstmodel}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulemodel_1_1t__model}{t\+\_\+model}}), pointer modulemodel\+::firstmodel =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulemodel_a98337e796a74b39490b015ac045f4570}\label{namespacemodulemodel_a98337e796a74b39490b015ac045f4570}} 
+\index{modulemodel@{modulemodel}!me@{me}}
+\index{me@{me}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{me}{me}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulemodel_1_1t__model}{t\+\_\+model}}), pointer modulemodel\+::me =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulemodel_a58d33da3b782f55628340bd21722de76}\label{namespacemodulemodel_a58d33da3b782f55628340bd21722de76}} 
+\index{modulemodel@{modulemodel}!readcommandline\_@{readcommandline\_}}
+\index{readcommandline\_@{readcommandline\_}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{readcommandline\_}{readcommandline\_}}
+{\footnotesize\ttfamily integer, parameter modulemodel\+::readcommandline\+\_\+ = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulemodel_a9d28e193fe25ac78b7f97d328ea3d7f4}\label{namespacemodulemodel_a9d28e193fe25ac78b7f97d328ea3d7f4}} 
+\index{modulemodel@{modulemodel}!readquerystring\_@{readquerystring\_}}
+\index{readquerystring\_@{readquerystring\_}!modulemodel@{modulemodel}}
+\doxysubsubsection{\texorpdfstring{readquerystring\_}{readquerystring\_}}
+{\footnotesize\ttfamily integer, parameter modulemodel\+::readquerystring\+\_\+ = 1\hspace{0.3cm}{\ttfamily [private]}}
+

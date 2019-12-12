@@ -1,0 +1,7 @@
+digraph "modulelagrangian::t_externalvar"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulelagrangian::t\l_externalvar\n|- now\l- begintime\l- endtime\l- runperiod\l- bathymetry\l- xx\l- yy\l- xx_ie\l- yy_ie\l- boundarypoints2d\land 51 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

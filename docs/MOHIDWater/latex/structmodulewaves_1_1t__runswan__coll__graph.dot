@@ -1,0 +1,7 @@
+digraph "modulewaves::t_runswan"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulewaves::t_runswan\n|- on\l- inputvector\l- outsealevel\l- outvelx\l- outvely\l- outgridx\l- outgridy\l- objbathymgrid\l- objbathym\l- nextrun\land 6 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

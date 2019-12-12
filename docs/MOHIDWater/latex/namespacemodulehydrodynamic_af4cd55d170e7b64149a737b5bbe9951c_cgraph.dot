@@ -1,0 +1,18 @@
+digraph "modulehydrodynamic::waterlevel_tsunami"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulehydrodynamic\l::waterlevel_tsunami",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="modulehydrodynamic\l::faultinputfile",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a639b9213d8587d0f1a43c4b8f842d43f",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="modulehydrodynamic\l::faultokada1985",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#af90f1292b4b75aa67f18563e3030e056",tooltip=" "];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="modulehydrodynamic\l::dip_slip",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a95f2fab061ef070b4278d48f1e7028e2",tooltip=" "];
+  Node3 -> Node5 [color="midnightblue",fontsize="10",style="solid"];
+  Node5 [label="modulehydrodynamic\l::stereo_projection",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a1d685e489f857af3dd0c69835d0b081d",tooltip=" "];
+  Node3 -> Node6 [color="midnightblue",fontsize="10",style="solid"];
+  Node6 [label="modulehydrodynamic\l::strike_slip",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a38a2568403edbdf1d10000f553f39252",tooltip=" "];
+}

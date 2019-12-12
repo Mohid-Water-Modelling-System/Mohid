@@ -1,0 +1,7 @@
+digraph "moduleturbgotm::t_external"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{moduleturbgotm::t_external\n|- dwz\l- dzz\l- nn\l- ss\l- waterpoints3d\l- waterpoints2d\l- computefacesu3d\l- computefacesv3d\l- landpoints\l- openpoints3d\land 10 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

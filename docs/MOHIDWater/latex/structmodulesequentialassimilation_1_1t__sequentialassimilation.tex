@@ -1,0 +1,545 @@
+\hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation}{}\doxysection{modulesequentialassimilation\+::t\+\_\+sequentialassimilation Type Reference}
+\label{structmodulesequentialassimilation_1_1t__sequentialassimilation}\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+
+
+Collaboration diagram for modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+:
+% FIG 0
+\doxysubsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_aab1a0ea57cd595907f313d4e31c2d653}{instanceid}} = null\+\_\+int
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a9984d46c7696f3ac252a19a872adb8b2}{size}}
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a77516f639dc599681bee9849ccb83fe6}{worksize}}
+\item 
+type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__files}{t\+\_\+files}}) \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_ae0604880381a97dcb270bc2f8fd9f264}{files}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a1827e541d867e55247eb725f639503fc}{currenttime}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a013a589c15030380d242f3100a7042d9}{endtime}}
+\item 
+type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__output}{t\+\_\+output}}) \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a65b7796d1c40af01322dcaee7b3aaa57}{output}}
+\item 
+type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__output}{t\+\_\+output}}) \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a24cb44422d8ea353a44b85a6d96c8f7d}{eof\+\_\+output}}
+\item 
+type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__errortimeserie}{t\+\_\+errortimeserie}}), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a11f6d08cf68fda68a74b733b7d7310f9}{firsterrortimeserie}}
+\item 
+logical \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_adb79f7885339264859970a5da2a5cb07}{hydroseqassim}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_aff1687917a9617f7096d90ed463e447e}{waterseqassim}} = .false.
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a254ebae232ce599996eb3c518af35b84}{assimilationtime}}
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_add07e441d4a01c73f201da28d6d54277}{method}} = null\+\_\+int
+\item 
+real \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_afcc30225732605137088115bd243bb57}{dt}} = null\+\_\+real
+\item 
+character(len=stringlength) \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_ae527f9ec376a28d327b32194bb90f9ca}{initialstatecovfile}} = null\+\_\+str
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_afd2dfa5cd3d6793faa9eb171e52e70e6}{statecovrank}} = null\+\_\+int
+\item 
+logical \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a3dbfdb8b5d6b59cabc7ba7322afab480}{objectiveanalysis}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_af564751301b96b5a5b6c323fac802250}{measureerrorvar}} = .true.
+\item 
+real \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a81ddb73b8f5e3066377ba0cd827d3a2a}{forgettingfactor}} = null\+\_\+real
+\item 
+logical \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_ac69b6300a23296d11bbbfa78247ee320}{statecovevolution}} = .false.
+\item 
+real \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_ab34115e149a13305ca422b5185c6027b}{statecov\+\_\+linfactor}} = null\+\_\+real
+\item 
+logical \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a2b4c8219c7ec13cb88e8c3e4732931ec}{statecov\+\_\+evolution\+\_\+split}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a4ef421bac5fe8139970e6d511e0cadda}{renormalization}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_ad3a349826dc60eaa1720cbe59ed022fe}{reorthonormalization}} = .false.
+\item 
+real \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a3e9b0b72b0bddf302ce00197fca861cb}{reorthonorm\+\_\+dt}} = null\+\_\+real
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a3b9ba1fa96b44c41b624590081e915c9}{reorthonormtime}}
+\item 
+real(8), dimension(\+:, \+:), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a93013a6dfc98c6635516495dbe256aae}{state}} =$>$ null()
+\item 
+integer, dimension(\+:, \+:), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a401e25fe4ddf68447e943cfd2d38d658}{openpointstate}} =$>$ null()
+\item 
+real(8), dimension(\+:, \+:), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a3f62175ad47b4c4bb8c14010bdaa4c91}{measuredstate}} =$>$ null()
+\item 
+real, dimension(\+:, \+:), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_af95cc939b2bc7f72ccdfb891aaf1d54d}{measuresinvcov}} =$>$ null()
+\item 
+real, dimension(\+:, \+:), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a89dc49ba6208e5106281b52d45107c83}{observoperator}} =$>$ null()
+\item 
+real(8), dimension(\+:, \+:), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a02222b6ca1cc12dcc8e8d9f604000582}{lmatrix}} =$>$ null()
+\item 
+real, dimension(\+:, \+:), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a883975799c59b4c6c1798be416a37bab}{invumatrix}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__fullstate}{t\+\_\+fullstate}}) \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_ae1e4aba5eb34a197c4a3661aaa5e65cc}{fs}}
+\item 
+type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__fullstate}{t\+\_\+fullstate}}), dimension(\+:), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_affb77e12642c01bb98f2d1c1d3354f81}{dfs}} =$>$ null()
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a5f56e301cd2851450486573bcc239d74}{fullwaterpropnumber}}
+\item 
+integer, dimension(\+:), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_aa4247ddf78fab6f87a65712951a39c5b}{propertiesidarray}} =$>$ null()
+\item 
+logical \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a322e03d53e27756f53e102b931a83a5e}{hydrosubmodel}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a34c1d404765b2c48c63aaaf8ef58c7ce}{perturbestate}} = .true.
+\item 
+type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_adeeb2959549abd50c876bf6a2b2a1981}{firstproperty}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a82518b23c48e2049070e0735f2665d28}{lastproperty}} =$>$ null()
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_ad1848ac630612e5a324774a30b8af54a}{propertiesnumber}} = Fill\+Value\+Int
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a11607eb82a9eada97e7ed9fb68f72caf}{statevarnumber}} = 0
+\item 
+logical \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a951b21754d76c3d51fee65caa35ec197}{propertiesinfaces}} = .false.
+\item 
+type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__measure}{t\+\_\+measure}}), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a77d85312d1742674fc727e5be89bdddd}{firstmeasure}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__measure}{t\+\_\+measure}}), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a577e30f8c565093305b97fc425d00742}{lastmeasure}} =$>$ null()
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a8eb65605f9f7a320fac04575a4e90450}{measuresnumber}} = Fill\+Value\+Int
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a043d6d4f7cef3964e1bd3ebdfeac5a25}{currentmeasuresnumber}} = null\+\_\+int
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_aba7a1438edc5f27d8b3e00a26372a840}{previousmeasuresnumber}} = null\+\_\+int
+\item 
+type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__external}{t\+\_\+external}}) \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_aa41f1784a41941632f7c8e9849a676c2}{external\+\_\+var}}
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a1dadee004028a21cff7bd4423fdc6199}{waterfacesu}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a7b78e3baf5f95c031dee33c6a2ee121c}{waterfacesv}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_ab574c619925271a2c39e7d220848f319}{openfacesu}} =$>$ null()
+\item 
+integer, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a0e81dc1a936c9a43c6eaf1578b8faffa}{openfacesv}} =$>$ null()
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_acd2b9bbfbbd41196d3490876473fe25d}{objenterdata}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a151b4fde23165bd1c1150c526e189a8e}{objtime}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a13e5d2c726e3e0b301730edf5d7e5956}{objcovhdf5}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a4b69a8596da113a4397c496583803563}{objhydrodynamic}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_afd8372369a629b3a0b233c32e2efe33e}{objwaterproperties}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a8840dc3ce26202a58279068812eebc48}{objgeometry}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a8f1ff6eb25010f8d4326af1b6adbd984}{objmap}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_ac03f123f27194be5f24c5b3b84644ed9}{objhdf5}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_ab7e0153903334b63c122d6bdd20208d1}{objgriddata}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_ad82139e542def8fde4d2572e99010136}{objhorizontalgrid}} = 0
+\item 
+integer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a979d77eef76b714b1278940ed8f32e64}{objtimeserie}} = 0
+\item 
+type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation}{t\+\_\+sequentialassimilation}}), pointer \mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation_a1252fe6b96af5f9e702f8f7fe574313e}{next}} =$>$ null()
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Member Data Documentation}
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a254ebae232ce599996eb3c518af35b84}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a254ebae232ce599996eb3c518af35b84}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!assimilationtime@{assimilationtime}}
+\index{assimilationtime@{assimilationtime}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{assimilationtime}{assimilationtime}}
+{\footnotesize\ttfamily type (t\+\_\+time) modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::assimilationtime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a043d6d4f7cef3964e1bd3ebdfeac5a25}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a043d6d4f7cef3964e1bd3ebdfeac5a25}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!currentmeasuresnumber@{currentmeasuresnumber}}
+\index{currentmeasuresnumber@{currentmeasuresnumber}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{currentmeasuresnumber}{currentmeasuresnumber}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::currentmeasuresnumber = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a1827e541d867e55247eb725f639503fc}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a1827e541d867e55247eb725f639503fc}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!currenttime@{currenttime}}
+\index{currenttime@{currenttime}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{currenttime}{currenttime}}
+{\footnotesize\ttfamily type(t\+\_\+time) modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::currenttime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_affb77e12642c01bb98f2d1c1d3354f81}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_affb77e12642c01bb98f2d1c1d3354f81}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!dfs@{dfs}}
+\index{dfs@{dfs}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{dfs}{dfs}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__fullstate}{t\+\_\+fullstate}}), dimension (\+:), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::dfs =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_afcc30225732605137088115bd243bb57}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_afcc30225732605137088115bd243bb57}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!dt@{dt}}
+\index{dt@{dt}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{dt}{dt}}
+{\footnotesize\ttfamily real modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::dt = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a013a589c15030380d242f3100a7042d9}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a013a589c15030380d242f3100a7042d9}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!endtime@{endtime}}
+\index{endtime@{endtime}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{endtime}{endtime}}
+{\footnotesize\ttfamily type(t\+\_\+time) modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::endtime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a24cb44422d8ea353a44b85a6d96c8f7d}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a24cb44422d8ea353a44b85a6d96c8f7d}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!eof\_output@{eof\_output}}
+\index{eof\_output@{eof\_output}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{eof\_output}{eof\_output}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__output}{t\+\_\+output}}) modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::eof\+\_\+output\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_aa41f1784a41941632f7c8e9849a676c2}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_aa41f1784a41941632f7c8e9849a676c2}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!external\_var@{external\_var}}
+\index{external\_var@{external\_var}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{external\_var}{external\_var}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__external}{t\+\_\+external}}) modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::external\+\_\+var\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_ae0604880381a97dcb270bc2f8fd9f264}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_ae0604880381a97dcb270bc2f8fd9f264}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!files@{files}}
+\index{files@{files}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{files}{files}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__files}{t\+\_\+files}}) modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::files\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a11f6d08cf68fda68a74b733b7d7310f9}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a11f6d08cf68fda68a74b733b7d7310f9}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!firsterrortimeserie@{firsterrortimeserie}}
+\index{firsterrortimeserie@{firsterrortimeserie}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{firsterrortimeserie}{firsterrortimeserie}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__errortimeserie}{t\+\_\+errortimeserie}}), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::firsterrortimeserie\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a77d85312d1742674fc727e5be89bdddd}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a77d85312d1742674fc727e5be89bdddd}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!firstmeasure@{firstmeasure}}
+\index{firstmeasure@{firstmeasure}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{firstmeasure}{firstmeasure}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__measure}{t\+\_\+measure}}), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::firstmeasure =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_adeeb2959549abd50c876bf6a2b2a1981}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_adeeb2959549abd50c876bf6a2b2a1981}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!firstproperty@{firstproperty}}
+\index{firstproperty@{firstproperty}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{firstproperty}{firstproperty}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__property}{t\+\_\+property}}), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::firstproperty =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a81ddb73b8f5e3066377ba0cd827d3a2a}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a81ddb73b8f5e3066377ba0cd827d3a2a}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!forgettingfactor@{forgettingfactor}}
+\index{forgettingfactor@{forgettingfactor}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{forgettingfactor}{forgettingfactor}}
+{\footnotesize\ttfamily real modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::forgettingfactor = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_ae1e4aba5eb34a197c4a3661aaa5e65cc}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_ae1e4aba5eb34a197c4a3661aaa5e65cc}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!fs@{fs}}
+\index{fs@{fs}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{fs}{fs}}
+{\footnotesize\ttfamily type (\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__fullstate}{t\+\_\+fullstate}}) modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::fs\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a5f56e301cd2851450486573bcc239d74}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a5f56e301cd2851450486573bcc239d74}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!fullwaterpropnumber@{fullwaterpropnumber}}
+\index{fullwaterpropnumber@{fullwaterpropnumber}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{fullwaterpropnumber}{fullwaterpropnumber}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::fullwaterpropnumber\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_adb79f7885339264859970a5da2a5cb07}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_adb79f7885339264859970a5da2a5cb07}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!hydroseqassim@{hydroseqassim}}
+\index{hydroseqassim@{hydroseqassim}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{hydroseqassim}{hydroseqassim}}
+{\footnotesize\ttfamily logical modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::hydroseqassim = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a322e03d53e27756f53e102b931a83a5e}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a322e03d53e27756f53e102b931a83a5e}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!hydrosubmodel@{hydrosubmodel}}
+\index{hydrosubmodel@{hydrosubmodel}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{hydrosubmodel}{hydrosubmodel}}
+{\footnotesize\ttfamily logical modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::hydrosubmodel = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_ae527f9ec376a28d327b32194bb90f9ca}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_ae527f9ec376a28d327b32194bb90f9ca}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!initialstatecovfile@{initialstatecovfile}}
+\index{initialstatecovfile@{initialstatecovfile}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{initialstatecovfile}{initialstatecovfile}}
+{\footnotesize\ttfamily character(len=stringlength) modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::initialstatecovfile = null\+\_\+str\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_aab1a0ea57cd595907f313d4e31c2d653}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_aab1a0ea57cd595907f313d4e31c2d653}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!instanceid@{instanceid}}
+\index{instanceid@{instanceid}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{instanceid}{instanceid}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::instanceid = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a883975799c59b4c6c1798be416a37bab}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a883975799c59b4c6c1798be416a37bab}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!invumatrix@{invumatrix}}
+\index{invumatrix@{invumatrix}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{invumatrix}{invumatrix}}
+{\footnotesize\ttfamily real, dimension (\+:, \+:), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::invumatrix =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a577e30f8c565093305b97fc425d00742}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a577e30f8c565093305b97fc425d00742}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!lastmeasure@{lastmeasure}}
+\index{lastmeasure@{lastmeasure}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{lastmeasure}{lastmeasure}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__measure}{t\+\_\+measure}}), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::lastmeasure =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a82518b23c48e2049070e0735f2665d28}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a82518b23c48e2049070e0735f2665d28}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!lastproperty@{lastproperty}}
+\index{lastproperty@{lastproperty}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{lastproperty}{lastproperty}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__property}{t\+\_\+property}}), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::lastproperty =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a02222b6ca1cc12dcc8e8d9f604000582}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a02222b6ca1cc12dcc8e8d9f604000582}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!lmatrix@{lmatrix}}
+\index{lmatrix@{lmatrix}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{lmatrix}{lmatrix}}
+{\footnotesize\ttfamily real(8), dimension (\+:, \+:), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::lmatrix =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a3f62175ad47b4c4bb8c14010bdaa4c91}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a3f62175ad47b4c4bb8c14010bdaa4c91}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!measuredstate@{measuredstate}}
+\index{measuredstate@{measuredstate}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{measuredstate}{measuredstate}}
+{\footnotesize\ttfamily real(8), dimension (\+:, \+:), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::measuredstate =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_af564751301b96b5a5b6c323fac802250}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_af564751301b96b5a5b6c323fac802250}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!measureerrorvar@{measureerrorvar}}
+\index{measureerrorvar@{measureerrorvar}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{measureerrorvar}{measureerrorvar}}
+{\footnotesize\ttfamily logical modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::measureerrorvar = .true.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_af95cc939b2bc7f72ccdfb891aaf1d54d}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_af95cc939b2bc7f72ccdfb891aaf1d54d}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!measuresinvcov@{measuresinvcov}}
+\index{measuresinvcov@{measuresinvcov}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{measuresinvcov}{measuresinvcov}}
+{\footnotesize\ttfamily real, dimension (\+:, \+:), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::measuresinvcov =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a8eb65605f9f7a320fac04575a4e90450}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a8eb65605f9f7a320fac04575a4e90450}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!measuresnumber@{measuresnumber}}
+\index{measuresnumber@{measuresnumber}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{measuresnumber}{measuresnumber}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::measuresnumber = Fill\+Value\+Int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_add07e441d4a01c73f201da28d6d54277}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_add07e441d4a01c73f201da28d6d54277}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!method@{method}}
+\index{method@{method}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{method}{method}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::method = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a1252fe6b96af5f9e702f8f7fe574313e}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a1252fe6b96af5f9e702f8f7fe574313e}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!next@{next}}
+\index{next@{next}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{next}{next}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__sequentialassimilation}{t\+\_\+sequentialassimilation}}), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::next =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a13e5d2c726e3e0b301730edf5d7e5956}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a13e5d2c726e3e0b301730edf5d7e5956}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!objcovhdf5@{objcovhdf5}}
+\index{objcovhdf5@{objcovhdf5}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{objcovhdf5}{objcovhdf5}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::objcovhdf5 = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a3dbfdb8b5d6b59cabc7ba7322afab480}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a3dbfdb8b5d6b59cabc7ba7322afab480}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!objectiveanalysis@{objectiveanalysis}}
+\index{objectiveanalysis@{objectiveanalysis}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{objectiveanalysis}{objectiveanalysis}}
+{\footnotesize\ttfamily logical modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::objectiveanalysis = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_acd2b9bbfbbd41196d3490876473fe25d}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_acd2b9bbfbbd41196d3490876473fe25d}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!objenterdata@{objenterdata}}
+\index{objenterdata@{objenterdata}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{objenterdata}{objenterdata}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::objenterdata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a8840dc3ce26202a58279068812eebc48}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a8840dc3ce26202a58279068812eebc48}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!objgeometry@{objgeometry}}
+\index{objgeometry@{objgeometry}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{objgeometry}{objgeometry}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::objgeometry = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_ab7e0153903334b63c122d6bdd20208d1}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_ab7e0153903334b63c122d6bdd20208d1}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!objgriddata@{objgriddata}}
+\index{objgriddata@{objgriddata}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{objgriddata}{objgriddata}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::objgriddata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_ac03f123f27194be5f24c5b3b84644ed9}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_ac03f123f27194be5f24c5b3b84644ed9}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!objhdf5@{objhdf5}}
+\index{objhdf5@{objhdf5}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{objhdf5}{objhdf5}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::objhdf5 = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_ad82139e542def8fde4d2572e99010136}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_ad82139e542def8fde4d2572e99010136}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!objhorizontalgrid@{objhorizontalgrid}}
+\index{objhorizontalgrid@{objhorizontalgrid}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{objhorizontalgrid}{objhorizontalgrid}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::objhorizontalgrid = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a4b69a8596da113a4397c496583803563}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a4b69a8596da113a4397c496583803563}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!objhydrodynamic@{objhydrodynamic}}
+\index{objhydrodynamic@{objhydrodynamic}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{objhydrodynamic}{objhydrodynamic}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::objhydrodynamic = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a8f1ff6eb25010f8d4326af1b6adbd984}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a8f1ff6eb25010f8d4326af1b6adbd984}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!objmap@{objmap}}
+\index{objmap@{objmap}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{objmap}{objmap}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::objmap = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a151b4fde23165bd1c1150c526e189a8e}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a151b4fde23165bd1c1150c526e189a8e}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!objtime@{objtime}}
+\index{objtime@{objtime}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{objtime}{objtime}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::objtime = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a979d77eef76b714b1278940ed8f32e64}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a979d77eef76b714b1278940ed8f32e64}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!objtimeserie@{objtimeserie}}
+\index{objtimeserie@{objtimeserie}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{objtimeserie}{objtimeserie}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::objtimeserie = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_afd8372369a629b3a0b233c32e2efe33e}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_afd8372369a629b3a0b233c32e2efe33e}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!objwaterproperties@{objwaterproperties}}
+\index{objwaterproperties@{objwaterproperties}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{objwaterproperties}{objwaterproperties}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::objwaterproperties = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a89dc49ba6208e5106281b52d45107c83}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a89dc49ba6208e5106281b52d45107c83}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!observoperator@{observoperator}}
+\index{observoperator@{observoperator}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{observoperator}{observoperator}}
+{\footnotesize\ttfamily real, dimension (\+:, \+:), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::observoperator =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_ab574c619925271a2c39e7d220848f319}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_ab574c619925271a2c39e7d220848f319}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!openfacesu@{openfacesu}}
+\index{openfacesu@{openfacesu}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{openfacesu}{openfacesu}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::openfacesu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a0e81dc1a936c9a43c6eaf1578b8faffa}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a0e81dc1a936c9a43c6eaf1578b8faffa}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!openfacesv@{openfacesv}}
+\index{openfacesv@{openfacesv}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{openfacesv}{openfacesv}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::openfacesv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a401e25fe4ddf68447e943cfd2d38d658}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a401e25fe4ddf68447e943cfd2d38d658}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!openpointstate@{openpointstate}}
+\index{openpointstate@{openpointstate}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{openpointstate}{openpointstate}}
+{\footnotesize\ttfamily integer, dimension (\+:, \+:), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::openpointstate =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a65b7796d1c40af01322dcaee7b3aaa57}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a65b7796d1c40af01322dcaee7b3aaa57}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!output@{output}}
+\index{output@{output}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{output}{output}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesequentialassimilation_1_1t__output}{t\+\_\+output}}) modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::output\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a34c1d404765b2c48c63aaaf8ef58c7ce}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a34c1d404765b2c48c63aaaf8ef58c7ce}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!perturbestate@{perturbestate}}
+\index{perturbestate@{perturbestate}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{perturbestate}{perturbestate}}
+{\footnotesize\ttfamily logical modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::perturbestate = .true.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_aba7a1438edc5f27d8b3e00a26372a840}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_aba7a1438edc5f27d8b3e00a26372a840}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!previousmeasuresnumber@{previousmeasuresnumber}}
+\index{previousmeasuresnumber@{previousmeasuresnumber}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{previousmeasuresnumber}{previousmeasuresnumber}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::previousmeasuresnumber = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_aa4247ddf78fab6f87a65712951a39c5b}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_aa4247ddf78fab6f87a65712951a39c5b}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!propertiesidarray@{propertiesidarray}}
+\index{propertiesidarray@{propertiesidarray}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{propertiesidarray}{propertiesidarray}}
+{\footnotesize\ttfamily integer, dimension(\+:), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::propertiesidarray =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a951b21754d76c3d51fee65caa35ec197}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a951b21754d76c3d51fee65caa35ec197}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!propertiesinfaces@{propertiesinfaces}}
+\index{propertiesinfaces@{propertiesinfaces}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{propertiesinfaces}{propertiesinfaces}}
+{\footnotesize\ttfamily logical modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::propertiesinfaces = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_ad1848ac630612e5a324774a30b8af54a}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_ad1848ac630612e5a324774a30b8af54a}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!propertiesnumber@{propertiesnumber}}
+\index{propertiesnumber@{propertiesnumber}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{propertiesnumber}{propertiesnumber}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::propertiesnumber = Fill\+Value\+Int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a4ef421bac5fe8139970e6d511e0cadda}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a4ef421bac5fe8139970e6d511e0cadda}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!renormalization@{renormalization}}
+\index{renormalization@{renormalization}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{renormalization}{renormalization}}
+{\footnotesize\ttfamily logical modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::renormalization = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a3e9b0b72b0bddf302ce00197fca861cb}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a3e9b0b72b0bddf302ce00197fca861cb}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!reorthonorm\_dt@{reorthonorm\_dt}}
+\index{reorthonorm\_dt@{reorthonorm\_dt}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{reorthonorm\_dt}{reorthonorm\_dt}}
+{\footnotesize\ttfamily real modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::reorthonorm\+\_\+dt = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_ad3a349826dc60eaa1720cbe59ed022fe}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_ad3a349826dc60eaa1720cbe59ed022fe}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!reorthonormalization@{reorthonormalization}}
+\index{reorthonormalization@{reorthonormalization}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{reorthonormalization}{reorthonormalization}}
+{\footnotesize\ttfamily logical modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::reorthonormalization = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a3b9ba1fa96b44c41b624590081e915c9}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a3b9ba1fa96b44c41b624590081e915c9}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!reorthonormtime@{reorthonormtime}}
+\index{reorthonormtime@{reorthonormtime}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{reorthonormtime}{reorthonormtime}}
+{\footnotesize\ttfamily type (t\+\_\+time) modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::reorthonormtime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a9984d46c7696f3ac252a19a872adb8b2}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a9984d46c7696f3ac252a19a872adb8b2}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!size@{size}}
+\index{size@{size}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{size}{size}}
+{\footnotesize\ttfamily type (t\+\_\+size3d) modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::size\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a93013a6dfc98c6635516495dbe256aae}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a93013a6dfc98c6635516495dbe256aae}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!state@{state}}
+\index{state@{state}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{state}{state}}
+{\footnotesize\ttfamily real(8), dimension (\+:, \+:), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::state =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a2b4c8219c7ec13cb88e8c3e4732931ec}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a2b4c8219c7ec13cb88e8c3e4732931ec}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!statecov\_evolution\_split@{statecov\_evolution\_split}}
+\index{statecov\_evolution\_split@{statecov\_evolution\_split}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{statecov\_evolution\_split}{statecov\_evolution\_split}}
+{\footnotesize\ttfamily logical modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::statecov\+\_\+evolution\+\_\+split = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_ab34115e149a13305ca422b5185c6027b}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_ab34115e149a13305ca422b5185c6027b}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!statecov\_linfactor@{statecov\_linfactor}}
+\index{statecov\_linfactor@{statecov\_linfactor}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{statecov\_linfactor}{statecov\_linfactor}}
+{\footnotesize\ttfamily real modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::statecov\+\_\+linfactor = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_ac69b6300a23296d11bbbfa78247ee320}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_ac69b6300a23296d11bbbfa78247ee320}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!statecovevolution@{statecovevolution}}
+\index{statecovevolution@{statecovevolution}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{statecovevolution}{statecovevolution}}
+{\footnotesize\ttfamily logical modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::statecovevolution = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_afd2dfa5cd3d6793faa9eb171e52e70e6}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_afd2dfa5cd3d6793faa9eb171e52e70e6}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!statecovrank@{statecovrank}}
+\index{statecovrank@{statecovrank}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{statecovrank}{statecovrank}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::statecovrank = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a11607eb82a9eada97e7ed9fb68f72caf}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a11607eb82a9eada97e7ed9fb68f72caf}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!statevarnumber@{statevarnumber}}
+\index{statevarnumber@{statevarnumber}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{statevarnumber}{statevarnumber}}
+{\footnotesize\ttfamily integer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::statevarnumber = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a1dadee004028a21cff7bd4423fdc6199}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a1dadee004028a21cff7bd4423fdc6199}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!waterfacesu@{waterfacesu}}
+\index{waterfacesu@{waterfacesu}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{waterfacesu}{waterfacesu}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::waterfacesu =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a7b78e3baf5f95c031dee33c6a2ee121c}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a7b78e3baf5f95c031dee33c6a2ee121c}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!waterfacesv@{waterfacesv}}
+\index{waterfacesv@{waterfacesv}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{waterfacesv}{waterfacesv}}
+{\footnotesize\ttfamily integer, dimension(\+:,\+:,\+:), pointer modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::waterfacesv =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_aff1687917a9617f7096d90ed463e447e}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_aff1687917a9617f7096d90ed463e447e}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!waterseqassim@{waterseqassim}}
+\index{waterseqassim@{waterseqassim}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{waterseqassim}{waterseqassim}}
+{\footnotesize\ttfamily logical modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::waterseqassim = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesequentialassimilation_1_1t__sequentialassimilation_a77516f639dc599681bee9849ccb83fe6}\label{structmodulesequentialassimilation_1_1t__sequentialassimilation_a77516f639dc599681bee9849ccb83fe6}} 
+\index{modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}!worksize@{worksize}}
+\index{worksize@{worksize}!modulesequentialassimilation::t\_sequentialassimilation@{modulesequentialassimilation::t\_sequentialassimilation}}
+\doxysubsubsection{\texorpdfstring{worksize}{worksize}}
+{\footnotesize\ttfamily type (t\+\_\+size3d) modulesequentialassimilation\+::t\+\_\+sequentialassimilation\+::worksize\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Projects/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\mbox{\hyperlink{_module_sequential_assimilation_8_f90}{Module\+Sequential\+Assimilation.\+F90}}\end{DoxyCompactItemize}

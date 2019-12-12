@@ -1,0 +1,60 @@
+\hypertarget{_main_8_f90}{}\doxysection{C\+:/\+Projects/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Main.F90 File Reference}
+\label{_main_8_f90}\index{C:/Projects/GitHub/Mohid/Software/MOHIDWater/Main.F90@{C:/Projects/GitHub/Mohid/Software/MOHIDWater/Main.F90}}
+\doxysubsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structt__modellink}{t\+\_\+modellink}}
+\item 
+type \mbox{\hyperlink{structt__mohidwater}{t\+\_\+mohidwater}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+program \mbox{\hyperlink{_main_8_f90_a22cacab418d9e36dcaa8c3aef44b4185}{mohidwater}}
+\item 
+subroutine \mbox{\hyperlink{_main_8_f90_abc6cfc7bca3f0c4dda032a34b9690319}{constructmohidwater}}
+\item 
+subroutine \mbox{\hyperlink{_main_8_f90_a364d1a7b4621ef3a56c71daf2af5147e}{constructmohidwatermpi}}
+\item 
+subroutine \mbox{\hyperlink{_main_8_f90_a02fa61b3a3e945d0354664955c2666fb}{constructmodellist}}
+\item 
+subroutine \mbox{\hyperlink{_main_8_f90_a2f77a4f5e6866a09c535fb9958312f17}{addnewmodel}} (Aux\+String, M\+P\+I\+\_\+\+ID, Master\+ID, Last\+Slave\+ID)
+\item 
+subroutine \mbox{\hyperlink{_main_8_f90_a98b6185e00bdaa093569c6645482e68b}{modifymohidwater}}
+\item 
+logical function \mbox{\hyperlink{_main_8_f90_a5a877f32d8c35a58c7bd824a65b07dba}{doonetimestep}} (D\+T\+Min\+Parallel)
+\item 
+subroutine \mbox{\hyperlink{_main_8_f90_a5128f2face71ee4677d8367d5cb5b14b}{killmohidwater}}
+\item 
+subroutine \mbox{\hyperlink{_main_8_f90_afa8be84014e1a3928a646b3e9fc25c72}{killmohidwatermpi}}
+\item 
+subroutine \mbox{\hyperlink{_main_8_f90_a74bd4029918792f13597d8cba73a7faf}{getsystemtime}} (Time)
+\item 
+integer function \mbox{\hyperlink{_main_8_f90_acdc3261ecd63c8e82b3392ec60df4db9}{modellevel\+\_\+f}} (String)
+\item 
+character(len=pathlength) function \mbox{\hyperlink{_main_8_f90_af0ae0b978e6573bc461573aa66062e83}{modelname}} (Model\+Path)
+\item 
+character(len=pathlength) function \mbox{\hyperlink{_main_8_f90_ada5b220b45dcba73a75264dcde43e3bd}{modelpath}} (String, Level)
+\item 
+subroutine \mbox{\hyperlink{_main_8_f90_a9860c624aeb5adadafab3c941c17395e}{setfilesname}} (Folder)
+\item 
+subroutine \mbox{\hyperlink{_main_8_f90_a21af06ec88c487727156f8a6158380c6}{searchminmaxtimestep}} (D\+Tmin, D\+Tmax)
+\item 
+subroutine \mbox{\hyperlink{_main_8_f90_a7e852b1ed4379c79f70b17003d08f3c5}{submodelcomunication}} (Current\+Model)
+\item 
+subroutine \mbox{\hyperlink{_main_8_f90_a27516f33f4d1cea85cbc73fd9de518e6}{receiveinformationmpi}} (Current\+Model)
+\item 
+subroutine \mbox{\hyperlink{_main_8_f90_a2d87b03d6958553abb9960de430dc290}{sendinformationmpi}} (Current\+Model)
+\item 
+subroutine \mbox{\hyperlink{_main_8_f90_a4c5ecbd810307fa557d4b4e6719c7fd1}{updatesubmodelvalues}} (Current\+Model)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{_main_8_f90_a2f77a4f5e6866a09c535fb9958312f17}\label{_main_8_f90_a2f77a4f5e6866a09c535fb9958312f17}} 
+\index{Main.F90@{Main.F90}!addnewmodel@{addnewmodel}}
+\index{addnewmodel@{addnewmodel}!Main.F90@{Main.F90}}
+\doxysubsubsection{\texorpdfstring{addnewmodel()}{addnewmodel()}}
+{\footnotesize\ttfamily subroutine mohidwater\+::addnewmodel (\begin{DoxyParamCaption}\item[{character(len=$\ast$)}]{Aux\+String,  }\item[{integer, optional}]{M\+P\+I\+\_\+\+ID,  }\item[{integer, optional}]{Master\+ID,  }\item[{integer, optional}]{Last\+Slave\+ID }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:

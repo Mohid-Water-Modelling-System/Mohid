@@ -1,0 +1,9 @@
+digraph "modulesedimentproperties::t_coupled"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulesedimentproperties\l::t_coupled\n||}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -seagrassesroots\n-timeserie\n-minimumconcentration\n-surfacefluxes\n-sedimentquality\n-boxtimeserie\n-advectiondiffusion\n-outputhdf\n-partition\n-bioturbation\n..." ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{modulesedimentproperties\l::t_coupling\n|- nextcompute\l- dt_compute\l- yes\l- numberofproperties\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesedimentproperties_1_1t__coupling.html",tooltip=" "];
+}

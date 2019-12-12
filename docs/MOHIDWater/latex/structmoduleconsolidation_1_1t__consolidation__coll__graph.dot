@@ -1,0 +1,18 @@
+digraph "moduleconsolidation::t_consolidation"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{moduleconsolidation\l::t_consolidation\n|- sedgeometryfile\l- instanceid\l- size\l- worksize\l- watervolume\l- watervolumeold\l- drysedimentvolume\l- drysedimentvolumeold\l- velocityu\l- watervelocityu\land 40 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond"];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -waterfluxes" ,arrowhead="odiamond"];
+  Node2 [label="{moduleconsolidation\l::t_waterfluxes\n|- x\l- y\l- z\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleconsolidation_1_1t__waterfluxes.html",tooltip=" "];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -files" ,arrowhead="odiamond"];
+  Node3 [label="{moduleconsolidation\l::t_files\n|- initial\l- final\l- outputfields\l- constructdata\l- boxesfilename\l- domainfile\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleconsolidation_1_1t__files.html",tooltip=" "];
+  Node4 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -stationaryporosity\n-criticalshearstress\n-porosity" ,arrowhead="odiamond"];
+  Node4 [label="{moduleconsolidation\l::t_property_3d\n|- id\l- field\l- scalar\l- old\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleconsolidation_1_1t__property__3d.html",tooltip=" "];
+  Node5 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -externalvar" ,arrowhead="odiamond"];
+  Node5 [label="{moduleconsolidation\l::t_external\n|- now\l- waterpoints3d\l- openpoints3d\l- computefacesu3d\l- computefacesv3d\l- computefacesw3d\l- dwz\l- gridcellarea\l- szz\l- volume\land 6 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleconsolidation_1_1t__external.html",tooltip=" "];
+  Node6 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -output" ,arrowhead="odiamond"];
+  Node6 [label="{moduleconsolidation\l::t_output\n|- true\l- outtime\l- nextoutput\l- number\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleconsolidation_1_1t__output.html",tooltip=" "];
+}

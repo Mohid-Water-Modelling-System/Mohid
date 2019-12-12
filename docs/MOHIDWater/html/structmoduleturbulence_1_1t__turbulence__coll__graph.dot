@@ -1,0 +1,24 @@
+digraph "moduleturbulence::t_turbulence"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{moduleturbulence::t\l_turbulence\n|- instanceid\l- modelname\l- size\l- worksize\l- mixinglengthh\l- firstiteration\l- objtime\l- objenterdata\l- objhorizontalgrid\l- objgeometry\land 7 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -diffusivity" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{moduleturbulence::t\l_diffusivity\n|- vertical\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleturbulence_1_1t__diffusivity.html",tooltip=" "];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -viscosity" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 [label="{moduleturbulence::t\l_viscosity\n|- vertical\l- horizontalcenter\l- horizontalcenterini\l- horizontalcorner\l- background\l- vertmax\l- vertmaxon\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleturbulence_1_1t__viscosity.html",tooltip=" "];
+  Node4 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -turboptions" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node4 [label="{moduleturbulence::t\l_turboptions\n|- modturb\l- modvish\l- mld_method\l- continuous_compute\l- mld_calc\l- mld_calc_bot\l- densitymethod\l- pressurecorrec\l- readcontinuousformat\l- writecontinuousformat\l- continuousformat\l- wavebreaking\l- coefbreaking\l- vishvariableintime\l- wavesurftke\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleturbulence_1_1t__turboptions.html",tooltip=" "];
+  Node5 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -files" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node5 [label="{moduleturbulence::t\l_files\n|- constructdata\l- outputfields\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleturbulence_1_1t__files.html",tooltip=" "];
+  Node6 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -externalvar" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node6 [label="{moduleturbulence::t\l_external\n|- now\l- begintime\l- endtime\l- dt\l- velocityx\l- velocityy\l- velocityz\l- chezy\l- zcellcenter\l- szz\land 29 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleturbulence_1_1t__external.html",tooltip=" "];
+  Node1 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node7 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -output" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node7 [label="{moduleturbulence::t\l_output\n|- nextoutput\l- number\l- nextrestartoutput\l- on\l- writerestartfile\l- restartoverwrite\l- run_end\l- outtime\l- restartouttime\l- aux3d\l- timeserie\l- profileon\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleturbulence_1_1t__output.html",tooltip=" "];
+  Node8 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -turbvar" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node8 [label="{moduleturbulence::t\l_turbvar\n|- richardson\l- fprandtl\l- fbruntv\l- mixinglengthx\l- mixinglengthy\l- mixinglengthz\l- ldownward\l- vmod\l- vertprandtlnumber\l- mld_surf\land 18 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleturbulence_1_1t__turbvar.html",tooltip=" "];
+  Node9 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -statmld" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node9 [label="{moduleturbulence::t\l_statistics\n|- id\l- frbv_id\l- file\l- on\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleturbulence_1_1t__statistics.html",tooltip=" "];
+}

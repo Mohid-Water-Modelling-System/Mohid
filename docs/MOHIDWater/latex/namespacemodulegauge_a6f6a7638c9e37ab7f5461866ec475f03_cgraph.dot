@@ -1,0 +1,22 @@
+digraph "modulegauge::readgaugedataascii"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulegauge::readgaugedataascii",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="modulegauge::addgauge2list",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#a672a5d3f45d4bf6b413012a0705ca328",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="modulegauge::readgaugedata",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#a6be887d8098d9844b158ef75048c3473",tooltip=" "];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="modulegauge::calc_decimal\l_geo_coord",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#adb09b4f645d53ae4da6e979cbda1d5ea",tooltip=" "];
+  Node3 -> Node5 [color="midnightblue",fontsize="10",style="solid"];
+  Node5 [label="modulegauge::readharmonics",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#a9095cfa51e7b4150e1d3889efe30b265",tooltip=" "];
+  Node5 -> Node6 [color="midnightblue",fontsize="10",style="solid"];
+  Node6 [label="modulegauge::newwave",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#ad253767480082a0c9e00cc725e85786e",tooltip=" "];
+  Node1 -> Node7 [color="midnightblue",fontsize="10",style="solid"];
+  Node7 [label="modulegauge::readoldform",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulegauge.html#a046651f5fe7a0df46688f6d3467b09b5",tooltip=" "];
+  Node7 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node7 -> Node6 [color="midnightblue",fontsize="10",style="solid"];
+}

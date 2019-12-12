@@ -1,0 +1,249 @@
+\hypertarget{structmoduleassimilation_1_1t__altimetric__assim}{}\doxysection{moduleassimilation\+::t\+\_\+altimetric\+\_\+assim Type Reference}
+\label{structmoduleassimilation_1_1t__altimetric__assim}\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+
+
+Collaboration diagram for moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+:
+% FIG 0
+\doxysubsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+real \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_a3c72c9b2d2034fc264af169579f80bd6}{dtaltimassimilation}} = null\+\_\+real
+\item 
+real \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_af87ed940a4406a343eed264225b91eee}{altimetricdepth}} = null\+\_\+real
+\item 
+real \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_aa97b029c5de5aad72de9955efc0af9c9}{altimdecaytime}} = null\+\_\+real
+\item 
+logical \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_a393c5a5212975d59ce40372dba4b578f}{usevariancefield}} = .false.
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_a61e9c5691bcf6aaef654853d305b73e0}{columntemperature}} =$>$ null()
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_ab19ef851d842c97d96395063a750498c}{columnsalinity}} =$>$ null()
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_af342188397daab8f7bfc4c7e91d8caf5}{columndensity}} =$>$ null()
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_a195e8321502ed47d17c564f3aae52060}{deltatemperature}} =$>$ null()
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_aa513181d126981471990ec33a6d3c482}{deltasalinity}} =$>$ null()
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_a3b33aa2f8a0d48962f8caaff20c4e76f}{deltadensity}} =$>$ null()
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_ac365197d8d2d40a88d732095288a5cbc}{deltapressure}} =$>$ null()
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_afd41d1c385e04034e686560ef36d38b4}{auxdepth}} =$>$ null()
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_a64545fa2218c304935ab2e74a0901593}{d\+\_\+gradtemp}} =$>$ null()
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_a7b90c4a793a2d070f1d7b261d3eeb602}{d\+\_\+gradsalin}} =$>$ null()
+\item 
+real, dimension(\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_abbcc86f441c6bcda89382499ef33fba5}{auxspline}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_a961537a739537d8bc8e0134e7e39c8b8}{waterleveltoassimilate}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_a6d0ac2e107227d8dfa0c50ae8e5295b9}{variancefieldtoassimilate}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_a909d39b4cac99093b845692a31835fad}{delta\+\_\+waterlevel}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_a059c65d6e30d3ba80ef95019401b663b}{delta\+\_\+waterleveltoassimilate}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_ae059d92cf73e24d2af15941033c6955e}{delta\+\_\+waterlevelcolumn}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_a4c4f38ce9d445755921d11b8bd92ea67}{pressureanomaly}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_af6a550a77c138d28c10d22639430a8f0}{waterlevelanalized}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_ab3783e4dc1ebc7eba08c7404043df8d7}{observation\+\_\+error}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_abfa13de78a63995021050f468807753a}{model\+\_\+error}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_a1ba81b39d585933dcdb69343a1f281db}{gain}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_aa6934acb3ea6c737fc9f237333b0e323}{sigmadensanalyzed}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_a9dfb2a49ba0fd6ca50309cd8d09a175a}{temperatureanalyzed}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_a4c17fc3f72c90cf667672c07a61bd9c2}{salinityanalyzed}} =$>$ null()
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmoduleassimilation_1_1t__altimetric__assim_a95837627a8f84b69c35afbe0bad84a67}{nextcompute}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Member Data Documentation}
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_aa97b029c5de5aad72de9955efc0af9c9}\label{structmoduleassimilation_1_1t__altimetric__assim_aa97b029c5de5aad72de9955efc0af9c9}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!altimdecaytime@{altimdecaytime}}
+\index{altimdecaytime@{altimdecaytime}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{altimdecaytime}{altimdecaytime}}
+{\footnotesize\ttfamily real moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::altimdecaytime = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_af87ed940a4406a343eed264225b91eee}\label{structmoduleassimilation_1_1t__altimetric__assim_af87ed940a4406a343eed264225b91eee}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!altimetricdepth@{altimetricdepth}}
+\index{altimetricdepth@{altimetricdepth}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{altimetricdepth}{altimetricdepth}}
+{\footnotesize\ttfamily real moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::altimetricdepth = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_afd41d1c385e04034e686560ef36d38b4}\label{structmoduleassimilation_1_1t__altimetric__assim_afd41d1c385e04034e686560ef36d38b4}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!auxdepth@{auxdepth}}
+\index{auxdepth@{auxdepth}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{auxdepth}{auxdepth}}
+{\footnotesize\ttfamily real, dimension(\+:    ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::auxdepth =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_abbcc86f441c6bcda89382499ef33fba5}\label{structmoduleassimilation_1_1t__altimetric__assim_abbcc86f441c6bcda89382499ef33fba5}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!auxspline@{auxspline}}
+\index{auxspline@{auxspline}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{auxspline}{auxspline}}
+{\footnotesize\ttfamily real, dimension(\+:    ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::auxspline =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_af342188397daab8f7bfc4c7e91d8caf5}\label{structmoduleassimilation_1_1t__altimetric__assim_af342188397daab8f7bfc4c7e91d8caf5}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!columndensity@{columndensity}}
+\index{columndensity@{columndensity}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{columndensity}{columndensity}}
+{\footnotesize\ttfamily real, dimension(\+:    ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::columndensity =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_ab19ef851d842c97d96395063a750498c}\label{structmoduleassimilation_1_1t__altimetric__assim_ab19ef851d842c97d96395063a750498c}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!columnsalinity@{columnsalinity}}
+\index{columnsalinity@{columnsalinity}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{columnsalinity}{columnsalinity}}
+{\footnotesize\ttfamily real, dimension(\+:    ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::columnsalinity =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_a61e9c5691bcf6aaef654853d305b73e0}\label{structmoduleassimilation_1_1t__altimetric__assim_a61e9c5691bcf6aaef654853d305b73e0}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!columntemperature@{columntemperature}}
+\index{columntemperature@{columntemperature}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{columntemperature}{columntemperature}}
+{\footnotesize\ttfamily real, dimension(\+:    ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::columntemperature =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_a7b90c4a793a2d070f1d7b261d3eeb602}\label{structmoduleassimilation_1_1t__altimetric__assim_a7b90c4a793a2d070f1d7b261d3eeb602}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!d\_gradsalin@{d\_gradsalin}}
+\index{d\_gradsalin@{d\_gradsalin}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{d\_gradsalin}{d\_gradsalin}}
+{\footnotesize\ttfamily real, dimension(\+:    ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::d\+\_\+gradsalin =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_a64545fa2218c304935ab2e74a0901593}\label{structmoduleassimilation_1_1t__altimetric__assim_a64545fa2218c304935ab2e74a0901593}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!d\_gradtemp@{d\_gradtemp}}
+\index{d\_gradtemp@{d\_gradtemp}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{d\_gradtemp}{d\_gradtemp}}
+{\footnotesize\ttfamily real, dimension(\+:    ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::d\+\_\+gradtemp =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_a909d39b4cac99093b845692a31835fad}\label{structmoduleassimilation_1_1t__altimetric__assim_a909d39b4cac99093b845692a31835fad}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!delta\_waterlevel@{delta\_waterlevel}}
+\index{delta\_waterlevel@{delta\_waterlevel}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{delta\_waterlevel}{delta\_waterlevel}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::delta\+\_\+waterlevel =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_ae059d92cf73e24d2af15941033c6955e}\label{structmoduleassimilation_1_1t__altimetric__assim_ae059d92cf73e24d2af15941033c6955e}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!delta\_waterlevelcolumn@{delta\_waterlevelcolumn}}
+\index{delta\_waterlevelcolumn@{delta\_waterlevelcolumn}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{delta\_waterlevelcolumn}{delta\_waterlevelcolumn}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::delta\+\_\+waterlevelcolumn =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_a059c65d6e30d3ba80ef95019401b663b}\label{structmoduleassimilation_1_1t__altimetric__assim_a059c65d6e30d3ba80ef95019401b663b}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!delta\_waterleveltoassimilate@{delta\_waterleveltoassimilate}}
+\index{delta\_waterleveltoassimilate@{delta\_waterleveltoassimilate}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{delta\_waterleveltoassimilate}{delta\_waterleveltoassimilate}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::delta\+\_\+waterleveltoassimilate =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_a3b33aa2f8a0d48962f8caaff20c4e76f}\label{structmoduleassimilation_1_1t__altimetric__assim_a3b33aa2f8a0d48962f8caaff20c4e76f}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!deltadensity@{deltadensity}}
+\index{deltadensity@{deltadensity}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{deltadensity}{deltadensity}}
+{\footnotesize\ttfamily real, dimension(\+:    ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::deltadensity =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_ac365197d8d2d40a88d732095288a5cbc}\label{structmoduleassimilation_1_1t__altimetric__assim_ac365197d8d2d40a88d732095288a5cbc}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!deltapressure@{deltapressure}}
+\index{deltapressure@{deltapressure}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{deltapressure}{deltapressure}}
+{\footnotesize\ttfamily real, dimension(\+:    ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::deltapressure =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_aa513181d126981471990ec33a6d3c482}\label{structmoduleassimilation_1_1t__altimetric__assim_aa513181d126981471990ec33a6d3c482}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!deltasalinity@{deltasalinity}}
+\index{deltasalinity@{deltasalinity}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{deltasalinity}{deltasalinity}}
+{\footnotesize\ttfamily real, dimension(\+:    ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::deltasalinity =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_a195e8321502ed47d17c564f3aae52060}\label{structmoduleassimilation_1_1t__altimetric__assim_a195e8321502ed47d17c564f3aae52060}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!deltatemperature@{deltatemperature}}
+\index{deltatemperature@{deltatemperature}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{deltatemperature}{deltatemperature}}
+{\footnotesize\ttfamily real, dimension(\+:    ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::deltatemperature =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_a3c72c9b2d2034fc264af169579f80bd6}\label{structmoduleassimilation_1_1t__altimetric__assim_a3c72c9b2d2034fc264af169579f80bd6}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!dtaltimassimilation@{dtaltimassimilation}}
+\index{dtaltimassimilation@{dtaltimassimilation}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{dtaltimassimilation}{dtaltimassimilation}}
+{\footnotesize\ttfamily real moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::dtaltimassimilation = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_a1ba81b39d585933dcdb69343a1f281db}\label{structmoduleassimilation_1_1t__altimetric__assim_a1ba81b39d585933dcdb69343a1f281db}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!gain@{gain}}
+\index{gain@{gain}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{gain}{gain}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::gain =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_abfa13de78a63995021050f468807753a}\label{structmoduleassimilation_1_1t__altimetric__assim_abfa13de78a63995021050f468807753a}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!model\_error@{model\_error}}
+\index{model\_error@{model\_error}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{model\_error}{model\_error}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::model\+\_\+error =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_a95837627a8f84b69c35afbe0bad84a67}\label{structmoduleassimilation_1_1t__altimetric__assim_a95837627a8f84b69c35afbe0bad84a67}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!nextcompute@{nextcompute}}
+\index{nextcompute@{nextcompute}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{nextcompute}{nextcompute}}
+{\footnotesize\ttfamily type(t\+\_\+time) moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::nextcompute\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_ab3783e4dc1ebc7eba08c7404043df8d7}\label{structmoduleassimilation_1_1t__altimetric__assim_ab3783e4dc1ebc7eba08c7404043df8d7}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!observation\_error@{observation\_error}}
+\index{observation\_error@{observation\_error}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{observation\_error}{observation\_error}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::observation\+\_\+error =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_a4c4f38ce9d445755921d11b8bd92ea67}\label{structmoduleassimilation_1_1t__altimetric__assim_a4c4f38ce9d445755921d11b8bd92ea67}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!pressureanomaly@{pressureanomaly}}
+\index{pressureanomaly@{pressureanomaly}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{pressureanomaly}{pressureanomaly}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::pressureanomaly =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_a4c17fc3f72c90cf667672c07a61bd9c2}\label{structmoduleassimilation_1_1t__altimetric__assim_a4c17fc3f72c90cf667672c07a61bd9c2}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!salinityanalyzed@{salinityanalyzed}}
+\index{salinityanalyzed@{salinityanalyzed}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{salinityanalyzed}{salinityanalyzed}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::salinityanalyzed =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_aa6934acb3ea6c737fc9f237333b0e323}\label{structmoduleassimilation_1_1t__altimetric__assim_aa6934acb3ea6c737fc9f237333b0e323}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!sigmadensanalyzed@{sigmadensanalyzed}}
+\index{sigmadensanalyzed@{sigmadensanalyzed}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{sigmadensanalyzed}{sigmadensanalyzed}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::sigmadensanalyzed =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_a9dfb2a49ba0fd6ca50309cd8d09a175a}\label{structmoduleassimilation_1_1t__altimetric__assim_a9dfb2a49ba0fd6ca50309cd8d09a175a}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!temperatureanalyzed@{temperatureanalyzed}}
+\index{temperatureanalyzed@{temperatureanalyzed}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{temperatureanalyzed}{temperatureanalyzed}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::temperatureanalyzed =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_a393c5a5212975d59ce40372dba4b578f}\label{structmoduleassimilation_1_1t__altimetric__assim_a393c5a5212975d59ce40372dba4b578f}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!usevariancefield@{usevariancefield}}
+\index{usevariancefield@{usevariancefield}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{usevariancefield}{usevariancefield}}
+{\footnotesize\ttfamily logical moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::usevariancefield = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_a6d0ac2e107227d8dfa0c50ae8e5295b9}\label{structmoduleassimilation_1_1t__altimetric__assim_a6d0ac2e107227d8dfa0c50ae8e5295b9}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!variancefieldtoassimilate@{variancefieldtoassimilate}}
+\index{variancefieldtoassimilate@{variancefieldtoassimilate}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{variancefieldtoassimilate}{variancefieldtoassimilate}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::variancefieldtoassimilate =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_af6a550a77c138d28c10d22639430a8f0}\label{structmoduleassimilation_1_1t__altimetric__assim_af6a550a77c138d28c10d22639430a8f0}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!waterlevelanalized@{waterlevelanalized}}
+\index{waterlevelanalized@{waterlevelanalized}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{waterlevelanalized}{waterlevelanalized}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::waterlevelanalized =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleassimilation_1_1t__altimetric__assim_a961537a739537d8bc8e0134e7e39c8b8}\label{structmoduleassimilation_1_1t__altimetric__assim_a961537a739537d8bc8e0134e7e39c8b8}} 
+\index{moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}!waterleveltoassimilate@{waterleveltoassimilate}}
+\index{waterleveltoassimilate@{waterleveltoassimilate}!moduleassimilation::t\_altimetric\_assim@{moduleassimilation::t\_altimetric\_assim}}
+\doxysubsubsection{\texorpdfstring{waterleveltoassimilate}{waterleveltoassimilate}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer moduleassimilation\+::t\+\_\+altimetric\+\_\+assim\+::waterleveltoassimilate =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Projects/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\mbox{\hyperlink{_module_assimilation_8_f90}{Module\+Assimilation.\+F90}}\end{DoxyCompactItemize}

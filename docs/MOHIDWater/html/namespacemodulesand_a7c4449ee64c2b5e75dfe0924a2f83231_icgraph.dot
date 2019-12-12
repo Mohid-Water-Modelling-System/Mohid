@@ -1,0 +1,20 @@
+digraph "modulesand::computedischarges"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="RL";
+  Node1 [label="modulesand::computedischarges",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="modulesand::computeevolution",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#ad15b8bd8644b2a7c104622be042c70be",tooltip=" "];
+  Node1 -> Node3 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="modulesand::computeevolution\l_centraldifferences",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#a0a0730547aa0d650a7bcc24395ba4cea",tooltip=" "];
+  Node3 -> Node4 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="modulesand::modifysand",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#a72127773a460332746476a09b3380e49",tooltip=" "];
+  Node1 -> Node5 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="modulesand::computeevolution\l_upwindorder2",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#ade72cd18189ac41b25eef5f7f97591dc",tooltip=" "];
+  Node5 -> Node4 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node6 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="modulesand::computeevolutionx",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesand.html#ad268df300c7a0630289b49a2bcd4c48a",tooltip=" "];
+  Node6 -> Node4 [dir="back",color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+}

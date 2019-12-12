@@ -1,0 +1,40 @@
+digraph "moduleinterfacewaterair::t_interfacewaterair"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{moduleinterfacewaterair\l::t_interfacewaterair\n|- instanceid\l- modelname\l- begintime\l- endtime\l- actualtime\l- lasttimeinstant\l- size2d\l- worksize2d\l- size3d\l- worksize3d\land 52 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -coupled" ,arrowhead="odiamond"];
+  Node2 [label="{moduleinterfacewaterair\l::t_coupled\n||}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacewaterair_1_1t__coupled.html",tooltip=" "];
+  Node3 -> Node2 [color="grey25",fontsize="10",style="solid",label=" -timeserie\n-cequalw2\n-boxtimeserie" ,arrowhead="odiamond"];
+  Node3 [label="{moduleinterfacewaterair\l::t_coupling\n|- nextcompute\l- dt_compute\l- yes\l- numberofproperties\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacewaterair_1_1t__coupling.html",tooltip=" "];
+  Node4 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -localatm" ,arrowhead="odiamond"];
+  Node4 [label="{moduleinterfacewaterair\l::t_local_atm\n||}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacewaterair_1_1t__local__atm.html",tooltip=" "];
+  Node5 -> Node4 [color="grey25",fontsize="10",style="solid",label=" -mslp\n-windvelocityu\n-winddirection\n-windvelocityv\n-atmosphericpressure" ,arrowhead="odiamond"];
+  Node5 [label="{moduleinterfacewaterair\l::t_extfield\n|- field\l- yes\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacewaterair_1_1t__extfield.html",tooltip=" "];
+  Node6 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -extoptions" ,arrowhead="odiamond"];
+  Node6 [label="{moduleinterfacewaterair\l::t_ext_options\n|- heatfluxyes\l- oxygenfluxyes\l- carbondioxidefluxyes\l- ammoniafluxyes\l- nitratefluxyes\l- wqmyes\l- surfacewaterfluxyes\l- hydrodynamicwindyes\l- hydrodynamicatmpressureyes\l- oilyes\land 10 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacewaterair_1_1t__ext__options.html",tooltip=" "];
+  Node7 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -extatm" ,arrowhead="odiamond"];
+  Node7 [label="{moduleinterfacewaterair\l::t_ext_atm\n|- atmosphericpressure\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacewaterair_1_1t__ext__atm.html",tooltip=" "];
+  Node5 -> Node7 [color="grey25",fontsize="10",style="solid",label=" -relativehumidity\n-airtemperature\n-mslp\n-atmospdeposredunh4\n-cloudcover\n-solarradiation\n-windvelocityu\n-atmospdeposoxidno3\n-winddirection\n-windvelocityv\n..." ,arrowhead="odiamond"];
+  Node8 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -files" ,arrowhead="odiamond"];
+  Node8 [label="{moduleinterfacewaterair\l::t_files\n|- inputdata\l- results\l- boxesfile\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacewaterair_1_1t__files.html",tooltip=" "];
+  Node9 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -extwater" ,arrowhead="odiamond"];
+  Node9 [label="{moduleinterfacewaterair\l::t_ext_water\n|- watertemperature\l- watersalinity\l- watervelocity\l- waterdepth\l- density\l- waterpoints2d\l- waterpoints3d\l- bathymetry\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacewaterair_1_1t__ext__water.html",tooltip=" "];
+  Node1 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond"];
+  Node10 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -wavefluxtke" ,arrowhead="odiamond"];
+  Node10 [label="{moduleinterfacewaterair\l::t_waveflux\n|- id\l- field\l- constant\l- on\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacewaterair_1_1t__waveflux.html",tooltip=" "];
+  Node11 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -intoptions" ,arrowhead="odiamond"];
+  Node11 [label="{moduleinterfacewaterair\l::t_int_options\n|- evaporation\l- windstress\l- surfacewaterflux\l- latentheat\l- sensibleheat\l- netlongwaveradiation\l- upwardlongwaveradiation\l- downwardlongwaveradiation\l- nonsolarflux\l- oxygenflux\land 10 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacewaterair_1_1t__int__options.html",tooltip=" "];
+  Node12 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -firstproperty\n-lastproperty" ,arrowhead="odiamond"];
+  Node12 [label="{moduleinterfacewaterair\l::t_property\n|- id\l- field\l- fieldu\l- fieldv\l- fieldx\l- fieldy\l- svpmethod\l- c1\l- c2\l- timeserie\l- boxtimeserie\l- cequalw2\l- outputhdf\l- constant\l- firstactualization\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacewaterair_1_1t__property.html",tooltip=" "];
+  Node12 -> Node12 [color="grey25",fontsize="10",style="solid",label=" -prev\n-next" ,arrowhead="odiamond"];
+  Node13 -> Node12 [color="grey25",fontsize="10",style="solid",label=" -evolution" ,arrowhead="odiamond"];
+  Node13 [label="{moduleinterfacewaterair\l::t_evolution\n|- variable\l- dtinterval\l- lastcompute\l- nextcompute\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacewaterair_1_1t__evolution.html",tooltip=" "];
+  Node14 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -rugosity" ,arrowhead="odiamond"];
+  Node14 [label="{moduleinterfacewaterair\l::t_rugosity\n|- id\l- field\l- scalar\l- wavesrelation\l- constant\l- on\l- wavesfunction\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacewaterair_1_1t__rugosity.html",tooltip=" "];
+  Node15 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -output" ,arrowhead="odiamond"];
+  Node15 [label="{moduleinterfacewaterair\l::t_output\n|- outtime\l- nextoutput\l- yes\l- number\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacewaterair_1_1t__output.html",tooltip=" "];
+  Node16 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -externalvar" ,arrowhead="odiamond"];
+  Node16 [label="{moduleinterfacewaterair\l::t_ext_global\n|- now\l- gridcellarea\l- backtracking\l- dwz\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmoduleinterfacewaterair_1_1t__ext__global.html",tooltip=" "];
+}

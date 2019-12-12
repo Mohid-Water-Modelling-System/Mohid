@@ -1,0 +1,44 @@
+digraph "moduleinterfacesedimentwater::readlockexternalsediment"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="moduleinterfacesedimentwater\l::readlockexternalsediment",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="modulesediment::getcohesivecontent",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesediment.html#a595e3a876982089ba4949f113b1a0580",tooltip=" "];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="modulesediment::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesediment.html#a2427e7af36c908526797cc897f1dca07",tooltip=" "];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="modulesediment::locateobjsediment",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesediment.html#a3719cfe21de51d5aff6e236bffdbe06d",tooltip=" "];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid"];
+  Node5 [label="modulesediment::getcohesivemass",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesediment.html#ae44dda471948f0f9a9a2e1c32fd50738",tooltip=" "];
+  Node5 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid"];
+  Node6 [label="moduleconsolidation\l::getconsolidationcriticalshear",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a9ca5460ab4ca639ac19eb7de5aea9bf6",tooltip=" "];
+  Node6 -> Node7 [color="midnightblue",fontsize="10",style="solid"];
+  Node7 [label="moduleconsolidation\l::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#ab6b8d86bedc5c2870f1fb998c297005e",tooltip=" "];
+  Node7 -> Node8 [color="midnightblue",fontsize="10",style="solid"];
+  Node8 [label="moduleconsolidation\l::locateobjconsolidation",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a782ed1b2a1870dc38bceeca90e360669",tooltip=" "];
+  Node1 -> Node9 [color="midnightblue",fontsize="10",style="solid"];
+  Node9 [label="moduleconsolidation\l::getconsolidationdrysedvolume",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a34d40947baf053926b3fe4e02b7c1225",tooltip=" "];
+  Node9 -> Node7 [color="midnightblue",fontsize="10",style="solid"];
+  Node1 -> Node10 [color="midnightblue",fontsize="10",style="solid"];
+  Node10 [label="moduleconsolidation\l::getconsolidationporosity",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a47de60bcd271300a187a9ce6257be08e",tooltip=" "];
+  Node10 -> Node7 [color="midnightblue",fontsize="10",style="solid"];
+  Node1 -> Node11 [color="midnightblue",fontsize="10",style="solid"];
+  Node11 [label="moduleconsolidation\l::getconsolidationwaterfluxes",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#ab2cf2636db758f412f7c627b38eb6231",tooltip=" "];
+  Node11 -> Node7 [color="midnightblue",fontsize="10",style="solid"];
+  Node1 -> Node12 [color="midnightblue",fontsize="10",style="solid"];
+  Node12 [label="moduleconsolidation\l::getsedimentcolumnfull",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#ae9552437552ade51a4c1aefcb033a0e7",tooltip=" "];
+  Node12 -> Node7 [color="midnightblue",fontsize="10",style="solid"];
+  Node1 -> Node13 [color="midnightblue",fontsize="10",style="solid"];
+  Node13 [label="modulesedimentproperties\l::getsedimentdrydensity",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesedimentproperties.html#ac8feadd6cbbbb852c325a183475aaa8c",tooltip=" "];
+  Node13 -> Node14 [color="midnightblue",fontsize="10",style="solid"];
+  Node14 [label="modulesedimentproperties\l::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesedimentproperties.html#a0ac80b6b6970285688cd69f623317e33",tooltip=" "];
+  Node14 -> Node15 [color="midnightblue",fontsize="10",style="solid"];
+  Node15 [label="modulesedimentproperties\l::locateobjsedimentproperties",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesedimentproperties.html#a8bdf617b0165523af238758f5b5a5767",tooltip=" "];
+  Node1 -> Node16 [color="midnightblue",fontsize="10",style="solid"];
+  Node16 [label="modulesediment::gettopcriticalshear",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulesediment.html#ac51110b9c285467a4e284c185a4a98b1",tooltip=" "];
+  Node16 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+}

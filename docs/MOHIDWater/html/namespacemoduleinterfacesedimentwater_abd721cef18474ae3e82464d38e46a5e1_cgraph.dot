@@ -1,0 +1,27 @@
+digraph "moduleinterfacesedimentwater::readlockexternalwater"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="moduleinterfacesedimentwater\l::readlockexternalwater",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="modulehydrodynamic\l::getchezy",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a377c174d00228d8f36d2d1c5e10a7f32",tooltip=" "];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="modulehydrodynamic\l::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a541821548a44af36e71f5eddedae890e",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="modulehydrodynamic\l::gethorizontalvelocity",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#aba7eae61c437ef648710efabc4d39e36",tooltip=" "];
+  Node4 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="modulehydrodynamic\l::getresidualhorizontalvelocity",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a5e97af02320deab67308d99bcf2745e1",tooltip=" "];
+  Node5 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="modulehydrodynamic\l::getresidualvelocityon",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehydrodynamic.html#a987751c28d42e91f65901a19ca158b03",tooltip=" "];
+  Node6 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node7 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 [label="modulewaves::getwaves",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a12875a6c82df32faa0d9a05dd2d67b1e",tooltip=" "];
+  Node7 -> Node8 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node8 [label="modulewaves::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a15beb6e5dff252a4c77c47d43f9b6385",tooltip=" "];
+  Node8 -> Node9 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node9 [label="modulewaves::locateobjwaves",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a0b543189e013d4ce00f78f873ab7f481",tooltip=" "];
+}

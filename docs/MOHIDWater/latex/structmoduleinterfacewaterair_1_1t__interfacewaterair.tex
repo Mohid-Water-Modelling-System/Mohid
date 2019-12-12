@@ -1,0 +1,625 @@
+\hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair}{}\doxysection{moduleinterfacewaterair\+::t\+\_\+interfacewaterair Type Reference}
+\label{structmoduleinterfacewaterair_1_1t__interfacewaterair}\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+
+
+Collaboration diagram for moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+:
+% FIG 0
+\doxysubsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a2cd9e17c290a1b4be4364da5f49e8771}{instanceid}} = null\+\_\+int
+\item 
+character(pathlength) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a9f877b64f327c7f367746bd82e8624af}{modelname}} = null\+\_\+str
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_ab099f67cbdf292a1261b953d6e08f6c2}{begintime}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a04203ce2f53b03b8f95950299a3adde4}{endtime}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a18503a941fceaf3752c78bce44a9fd5c}{actualtime}}
+\item 
+type(t\+\_\+time) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a158f880cf4ed803902c5045aba3b19b4}{lasttimeinstant}}
+\item 
+type(t\+\_\+size2d) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_af10730be71cb2980b2992854788df2e2}{size2d}}
+\item 
+type(t\+\_\+size2d) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a27d573de29e9c409cf7e87df81a7a3a8}{worksize2d}}
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_aa0b50911262f4de99ad57ed34deddd8b}{size3d}}
+\item 
+type(t\+\_\+size3d) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a00afa83ce20dbb4efa3c061989c3094c}{worksize3d}}
+\item 
+type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__files}{t\+\_\+files}}) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a7897eb0ef6bf9c01573a4f33051e38d5}{files}}
+\item 
+type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__output}{t\+\_\+output}}) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_ae3e7e538068c5c983cb5971cfdc3c3f1}{output}}
+\item 
+type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a41f01218d20c4ca837d40f9377c3d40f}{firstproperty}}
+\item 
+type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a82bd23bc130816ed2d4b7e4f11991b5b}{lastproperty}}
+\item 
+type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__coupled}{t\+\_\+coupled}}) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a3b26b0715444c3e42905dc9b997f1c6b}{coupled}}
+\item 
+type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__ext__global}{t\+\_\+ext\+\_\+global}}) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0c32e72a22b84b957a13456a1bbb91bd}{externalvar}}
+\item 
+type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__ext__water}{t\+\_\+ext\+\_\+water}}) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a7c6aaae2f3d164083332481189456821}{extwater}}
+\item 
+type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__ext__atm}{t\+\_\+ext\+\_\+atm}}) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_ac28caef8a71d9bdde3b2604e2519dd5a}{extatm}}
+\item 
+type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__ext__options}{t\+\_\+ext\+\_\+options}}) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a5a3e251fbc2bf4ce1522287eedcb30f3}{extoptions}}
+\item 
+type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__int__options}{t\+\_\+int\+\_\+options}}) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a81b82c90211999c2b6df771deb8da6b3}{intoptions}}
+\item 
+type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__local__atm}{t\+\_\+local\+\_\+atm}}) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_aa17565e399c0277611dbe0fdfcbdc9fc}{localatm}}
+\item 
+type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__rugosity}{t\+\_\+rugosity}}) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_ab7fbb28ba9302f4937bb5aa90fe596d8}{rugosity}}
+\item 
+type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__waveflux}{t\+\_\+waveflux}}) \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a29ddca3f8d9e503026620b126cef15e1}{wavefluxtke}}
+\item 
+logical \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_aeb93efbad162f0096bf291069e9f0c4e}{coare}} = .false.
+\item 
+real \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_af25b5f2b31284db6c58781a1230fd177}{reflectioncoef}} = Fill\+Value\+Real
+\item 
+real \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a987a44ef9468e27eb8d68b4a61fe8304}{cdwind}} = Fill\+Value\+Real
+\item 
+real \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a02c1c266136d185bde9c53697cdd77f4}{windheight}} = Fill\+Value\+Real
+\item 
+real \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a1044a03b5da21056e34613829bce7651}{airmeasurementheight}} = Fill\+Value\+Real
+\item 
+real \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0e078b45d344a84a0a416cc3547c5274}{warmingabovewatertemp}} = 0.
+\item 
+real \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0bb0008891d8c5bc04c537b4fb14cfce}{boundarylayerdepth}} = Fill\+Value\+Real
+\item 
+logical \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a3141c10c53e1a1f1bb2b05fedf4cafb1}{definecdwind}} = .false.
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_ac54ebe77d74f0298703df9ed8ab6d656}{cdwindmethod}} = Fill\+Value\+Int
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a45ae472e512aff1e3d3ab57e0c3b8d18}{surfacetemperature}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_ab1762af83f6ffd38fcd4b811b377ef16}{fxp}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a03e6d1ab429e6501c0c76e34f2dd1edb}{warmlayerthickness}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a15597bd04749fe4386b6e09ce5fedc22}{tau}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a00c8bdec80dafc9b7b5045e723584805}{tau\+\_\+ac}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a1c577018b327b6653c9bb3f478e8f652}{accumulatedenergy}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_acadc3dcae94bfbf01aadeb1d91e9afd4}{warmlayertempdiff}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a1a1256397c66db12a18d4b0dbe62b08b}{al}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a8075707bfb346b5d19f8cde2d8ed5e32}{rainflux}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_afe4f1b7cf32cd586e89c3b5763aef0f7}{lastlatentheat}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a14939fa45708c7d0588e716de109d2dd}{lastsensibleheat}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_ab790217cdeafb1bb260208d5191e8665}{surfacealbedo}} =$>$ null()
+\item 
+real(8), dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a01e2dc12aed7af405dc041b73be0fbf9}{scalar2d}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a9606611bb277a933979fe8bf6f85eb56}{windshearvelocity}} =$>$ null()
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a27d17295a65138bdd382a849ff9ac966}{aerationequation}} = Fill\+Value\+Int
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_ae95adc8394537c6c0c17d221625af5c9}{co2aerationequation}} = Fill\+Value\+Int
+\item 
+real \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_abd514b64d6341e28ce136e9d1cc271d6}{altitude}} = Fill\+Value\+Real
+\item 
+real \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0ef47de07c36dc08f3410726e6670cc1}{altitudecorrection}} = Fill\+Value\+Real
+\item 
+real \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_ad1a591491542262cdc0fe16f321a4f51}{renatmdep}} = Fill\+Value\+Real
+\item 
+real \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_ad6951fa97325144bcb7aba5170d19623}{oxnatmdep}} = Fill\+Value\+Real
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a2e7b34e6a47e0cd2397d5fef02f954db}{propertiesnumber}} = 0
+\item 
+logical \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_aa1079ffe15c6a39c44e49034895efcf1}{energythreshold}} = .false.
+\item 
+logical \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a90c309461fe57ec2439b9868cff73904}{jump}} = .true.
+\item 
+logical \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0b06ff291167358791f5f6b39a4cd45f}{jwarm}} = .false.
+\item 
+real \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a87cb54251ac784f375c5300e37fba3b0}{jcool}} = 0.
+\item 
+logical \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a9a73cf553eef59fd7ba8a1a71221bdc8}{evapreqconv}} = .false.
+\item 
+real \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a833013655a8b2849c909007bff1d0fc8}{conversionfactorevap}} = 1.\+0
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a50345426c5c03e39e79883247b9799fa}{objboxdif}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a19c25f804b4cefcea62a503279c3fa45}{objenterdata}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a5fffde334e600470dcdb009c366c6288}{objtimeserie}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_aaef8691e3fbcefc111b495f9291bb5dc}{objhdf5}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a69732e3520a330bb8d882f2817d719f1}{objtime}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a444be8d247f6c5e743c76222d28124a7}{objhorizontalgrid}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a8337349d6771fd0e996dbeed85e2be2e}{objgriddata}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_aedad6ef3cec29fd951ef7ee0c6cda7f9}{objgeometry}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a8e7976d9ff6f5e837f87937f1bd41255}{objhorizontalmap}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a6ff4fc8ac196080754ae2d9e030b04bc}{objmap}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0fe09289a5293dbc9a97b8d5e9e9f445}{objhydrodynamic}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_ae59f9b190ab45c88834370c19b339f7a}{objturbgotm}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a8aabb0ee8e8d25621c3df982be3412d2}{objwaves}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a664ebe919daa71e52788785c9b281ea1}{objwaterproperties}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_aeca6334907bde0eb30c9660278d8ceed}{objatmosphere}} = 0
+\item 
+integer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a2e91532be628a57f6e37b78776d51dec}{objlagrangian}} = 0
+\item 
+type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair}{t\+\_\+interfacewaterair}}), pointer \mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0af341e3f2d2117d06a4b90fee302e7a}{next}} =$>$ null()
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Member Data Documentation}
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a1c577018b327b6653c9bb3f478e8f652}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a1c577018b327b6653c9bb3f478e8f652}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!accumulatedenergy@{accumulatedenergy}}
+\index{accumulatedenergy@{accumulatedenergy}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{accumulatedenergy}{accumulatedenergy}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::accumulatedenergy =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a18503a941fceaf3752c78bce44a9fd5c}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a18503a941fceaf3752c78bce44a9fd5c}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!actualtime@{actualtime}}
+\index{actualtime@{actualtime}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{actualtime}{actualtime}}
+{\footnotesize\ttfamily type(t\+\_\+time ) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::actualtime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a27d17295a65138bdd382a849ff9ac966}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a27d17295a65138bdd382a849ff9ac966}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!aerationequation@{aerationequation}}
+\index{aerationequation@{aerationequation}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{aerationequation}{aerationequation}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::aerationequation = Fill\+Value\+Int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a1044a03b5da21056e34613829bce7651}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a1044a03b5da21056e34613829bce7651}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!airmeasurementheight@{airmeasurementheight}}
+\index{airmeasurementheight@{airmeasurementheight}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{airmeasurementheight}{airmeasurementheight}}
+{\footnotesize\ttfamily real moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::airmeasurementheight = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a1a1256397c66db12a18d4b0dbe62b08b}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a1a1256397c66db12a18d4b0dbe62b08b}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!al@{al}}
+\index{al@{al}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{al}{al}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::al =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_abd514b64d6341e28ce136e9d1cc271d6}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_abd514b64d6341e28ce136e9d1cc271d6}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!altitude@{altitude}}
+\index{altitude@{altitude}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{altitude}{altitude}}
+{\footnotesize\ttfamily real moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::altitude = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0ef47de07c36dc08f3410726e6670cc1}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0ef47de07c36dc08f3410726e6670cc1}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!altitudecorrection@{altitudecorrection}}
+\index{altitudecorrection@{altitudecorrection}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{altitudecorrection}{altitudecorrection}}
+{\footnotesize\ttfamily real moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::altitudecorrection = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_ab099f67cbdf292a1261b953d6e08f6c2}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_ab099f67cbdf292a1261b953d6e08f6c2}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!begintime@{begintime}}
+\index{begintime@{begintime}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{begintime}{begintime}}
+{\footnotesize\ttfamily type(t\+\_\+time ) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::begintime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0bb0008891d8c5bc04c537b4fb14cfce}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0bb0008891d8c5bc04c537b4fb14cfce}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!boundarylayerdepth@{boundarylayerdepth}}
+\index{boundarylayerdepth@{boundarylayerdepth}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{boundarylayerdepth}{boundarylayerdepth}}
+{\footnotesize\ttfamily real moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::boundarylayerdepth = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a987a44ef9468e27eb8d68b4a61fe8304}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a987a44ef9468e27eb8d68b4a61fe8304}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!cdwind@{cdwind}}
+\index{cdwind@{cdwind}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{cdwind}{cdwind}}
+{\footnotesize\ttfamily real moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::cdwind = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_ac54ebe77d74f0298703df9ed8ab6d656}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_ac54ebe77d74f0298703df9ed8ab6d656}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!cdwindmethod@{cdwindmethod}}
+\index{cdwindmethod@{cdwindmethod}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{cdwindmethod}{cdwindmethod}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::cdwindmethod = Fill\+Value\+Int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_ae95adc8394537c6c0c17d221625af5c9}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_ae95adc8394537c6c0c17d221625af5c9}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!co2aerationequation@{co2aerationequation}}
+\index{co2aerationequation@{co2aerationequation}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{co2aerationequation}{co2aerationequation}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::co2aerationequation = Fill\+Value\+Int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_aeb93efbad162f0096bf291069e9f0c4e}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_aeb93efbad162f0096bf291069e9f0c4e}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!coare@{coare}}
+\index{coare@{coare}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{coare}{coare}}
+{\footnotesize\ttfamily logical moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::coare = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a833013655a8b2849c909007bff1d0fc8}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a833013655a8b2849c909007bff1d0fc8}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!conversionfactorevap@{conversionfactorevap}}
+\index{conversionfactorevap@{conversionfactorevap}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{conversionfactorevap}{conversionfactorevap}}
+{\footnotesize\ttfamily real moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::conversionfactorevap = 1.\+0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a3b26b0715444c3e42905dc9b997f1c6b}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a3b26b0715444c3e42905dc9b997f1c6b}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!coupled@{coupled}}
+\index{coupled@{coupled}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{coupled}{coupled}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__coupled}{t\+\_\+coupled}} ) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::coupled\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a3141c10c53e1a1f1bb2b05fedf4cafb1}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a3141c10c53e1a1f1bb2b05fedf4cafb1}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!definecdwind@{definecdwind}}
+\index{definecdwind@{definecdwind}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{definecdwind}{definecdwind}}
+{\footnotesize\ttfamily logical moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::definecdwind = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a04203ce2f53b03b8f95950299a3adde4}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a04203ce2f53b03b8f95950299a3adde4}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!endtime@{endtime}}
+\index{endtime@{endtime}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{endtime}{endtime}}
+{\footnotesize\ttfamily type(t\+\_\+time ) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::endtime\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_aa1079ffe15c6a39c44e49034895efcf1}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_aa1079ffe15c6a39c44e49034895efcf1}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!energythreshold@{energythreshold}}
+\index{energythreshold@{energythreshold}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{energythreshold}{energythreshold}}
+{\footnotesize\ttfamily logical moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::energythreshold = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a9a73cf553eef59fd7ba8a1a71221bdc8}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a9a73cf553eef59fd7ba8a1a71221bdc8}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!evapreqconv@{evapreqconv}}
+\index{evapreqconv@{evapreqconv}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{evapreqconv}{evapreqconv}}
+{\footnotesize\ttfamily logical moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::evapreqconv = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_ac28caef8a71d9bdde3b2604e2519dd5a}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_ac28caef8a71d9bdde3b2604e2519dd5a}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!extatm@{extatm}}
+\index{extatm@{extatm}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{extatm}{extatm}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__ext__atm}{t\+\_\+ext\+\_\+atm}} ) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::extatm\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0c32e72a22b84b957a13456a1bbb91bd}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0c32e72a22b84b957a13456a1bbb91bd}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!externalvar@{externalvar}}
+\index{externalvar@{externalvar}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{externalvar}{externalvar}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__ext__global}{t\+\_\+ext\+\_\+global}} ) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::externalvar\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a5a3e251fbc2bf4ce1522287eedcb30f3}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a5a3e251fbc2bf4ce1522287eedcb30f3}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!extoptions@{extoptions}}
+\index{extoptions@{extoptions}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{extoptions}{extoptions}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__ext__options}{t\+\_\+ext\+\_\+options}}) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::extoptions\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a7c6aaae2f3d164083332481189456821}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a7c6aaae2f3d164083332481189456821}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!extwater@{extwater}}
+\index{extwater@{extwater}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{extwater}{extwater}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__ext__water}{t\+\_\+ext\+\_\+water}} ) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::extwater\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a7897eb0ef6bf9c01573a4f33051e38d5}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a7897eb0ef6bf9c01573a4f33051e38d5}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!files@{files}}
+\index{files@{files}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{files}{files}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__files}{t\+\_\+files}} ) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::files\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a41f01218d20c4ca837d40f9377c3d40f}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a41f01218d20c4ca837d40f9377c3d40f}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!firstproperty@{firstproperty}}
+\index{firstproperty@{firstproperty}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{firstproperty}{firstproperty}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}} ), pointer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::firstproperty\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_ab1762af83f6ffd38fcd4b811b377ef16}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_ab1762af83f6ffd38fcd4b811b377ef16}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!fxp@{fxp}}
+\index{fxp@{fxp}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{fxp}{fxp}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::fxp =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a2cd9e17c290a1b4be4364da5f49e8771}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a2cd9e17c290a1b4be4364da5f49e8771}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!instanceid@{instanceid}}
+\index{instanceid@{instanceid}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{instanceid}{instanceid}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::instanceid = null\+\_\+int\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a81b82c90211999c2b6df771deb8da6b3}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a81b82c90211999c2b6df771deb8da6b3}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!intoptions@{intoptions}}
+\index{intoptions@{intoptions}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{intoptions}{intoptions}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__int__options}{t\+\_\+int\+\_\+options}}) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::intoptions\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a87cb54251ac784f375c5300e37fba3b0}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a87cb54251ac784f375c5300e37fba3b0}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!jcool@{jcool}}
+\index{jcool@{jcool}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{jcool}{jcool}}
+{\footnotesize\ttfamily real moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::jcool = 0.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a90c309461fe57ec2439b9868cff73904}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a90c309461fe57ec2439b9868cff73904}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!jump@{jump}}
+\index{jump@{jump}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{jump}{jump}}
+{\footnotesize\ttfamily logical moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::jump = .true.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0b06ff291167358791f5f6b39a4cd45f}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0b06ff291167358791f5f6b39a4cd45f}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!jwarm@{jwarm}}
+\index{jwarm@{jwarm}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{jwarm}{jwarm}}
+{\footnotesize\ttfamily logical moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::jwarm = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_afe4f1b7cf32cd586e89c3b5763aef0f7}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_afe4f1b7cf32cd586e89c3b5763aef0f7}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!lastlatentheat@{lastlatentheat}}
+\index{lastlatentheat@{lastlatentheat}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{lastlatentheat}{lastlatentheat}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::lastlatentheat =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a82bd23bc130816ed2d4b7e4f11991b5b}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a82bd23bc130816ed2d4b7e4f11991b5b}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!lastproperty@{lastproperty}}
+\index{lastproperty@{lastproperty}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{lastproperty}{lastproperty}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__property}{t\+\_\+property}} ), pointer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::lastproperty\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a14939fa45708c7d0588e716de109d2dd}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a14939fa45708c7d0588e716de109d2dd}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!lastsensibleheat@{lastsensibleheat}}
+\index{lastsensibleheat@{lastsensibleheat}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{lastsensibleheat}{lastsensibleheat}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::lastsensibleheat =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a158f880cf4ed803902c5045aba3b19b4}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a158f880cf4ed803902c5045aba3b19b4}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!lasttimeinstant@{lasttimeinstant}}
+\index{lasttimeinstant@{lasttimeinstant}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{lasttimeinstant}{lasttimeinstant}}
+{\footnotesize\ttfamily type(t\+\_\+time ) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::lasttimeinstant\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_aa17565e399c0277611dbe0fdfcbdc9fc}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_aa17565e399c0277611dbe0fdfcbdc9fc}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!localatm@{localatm}}
+\index{localatm@{localatm}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{localatm}{localatm}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__local__atm}{t\+\_\+local\+\_\+atm}} ) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::localatm\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a9f877b64f327c7f367746bd82e8624af}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a9f877b64f327c7f367746bd82e8624af}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!modelname@{modelname}}
+\index{modelname@{modelname}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{modelname}{modelname}}
+{\footnotesize\ttfamily character(pathlength) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::modelname = null\+\_\+str\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0af341e3f2d2117d06a4b90fee302e7a}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0af341e3f2d2117d06a4b90fee302e7a}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!next@{next}}
+\index{next@{next}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{next}{next}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__interfacewaterair}{t\+\_\+interfacewaterair}}), pointer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::next =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_aeca6334907bde0eb30c9660278d8ceed}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_aeca6334907bde0eb30c9660278d8ceed}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!objatmosphere@{objatmosphere}}
+\index{objatmosphere@{objatmosphere}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{objatmosphere}{objatmosphere}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::objatmosphere = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a50345426c5c03e39e79883247b9799fa}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a50345426c5c03e39e79883247b9799fa}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!objboxdif@{objboxdif}}
+\index{objboxdif@{objboxdif}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{objboxdif}{objboxdif}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::objboxdif = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a19c25f804b4cefcea62a503279c3fa45}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a19c25f804b4cefcea62a503279c3fa45}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!objenterdata@{objenterdata}}
+\index{objenterdata@{objenterdata}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{objenterdata}{objenterdata}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::objenterdata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_aedad6ef3cec29fd951ef7ee0c6cda7f9}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_aedad6ef3cec29fd951ef7ee0c6cda7f9}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!objgeometry@{objgeometry}}
+\index{objgeometry@{objgeometry}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{objgeometry}{objgeometry}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::objgeometry = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a8337349d6771fd0e996dbeed85e2be2e}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a8337349d6771fd0e996dbeed85e2be2e}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!objgriddata@{objgriddata}}
+\index{objgriddata@{objgriddata}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{objgriddata}{objgriddata}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::objgriddata = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_aaef8691e3fbcefc111b495f9291bb5dc}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_aaef8691e3fbcefc111b495f9291bb5dc}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!objhdf5@{objhdf5}}
+\index{objhdf5@{objhdf5}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{objhdf5}{objhdf5}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::objhdf5 = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a444be8d247f6c5e743c76222d28124a7}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a444be8d247f6c5e743c76222d28124a7}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!objhorizontalgrid@{objhorizontalgrid}}
+\index{objhorizontalgrid@{objhorizontalgrid}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{objhorizontalgrid}{objhorizontalgrid}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::objhorizontalgrid = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a8e7976d9ff6f5e837f87937f1bd41255}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a8e7976d9ff6f5e837f87937f1bd41255}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!objhorizontalmap@{objhorizontalmap}}
+\index{objhorizontalmap@{objhorizontalmap}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{objhorizontalmap}{objhorizontalmap}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::objhorizontalmap = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0fe09289a5293dbc9a97b8d5e9e9f445}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0fe09289a5293dbc9a97b8d5e9e9f445}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!objhydrodynamic@{objhydrodynamic}}
+\index{objhydrodynamic@{objhydrodynamic}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{objhydrodynamic}{objhydrodynamic}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::objhydrodynamic = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a2e91532be628a57f6e37b78776d51dec}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a2e91532be628a57f6e37b78776d51dec}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!objlagrangian@{objlagrangian}}
+\index{objlagrangian@{objlagrangian}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{objlagrangian}{objlagrangian}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::objlagrangian = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a6ff4fc8ac196080754ae2d9e030b04bc}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a6ff4fc8ac196080754ae2d9e030b04bc}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!objmap@{objmap}}
+\index{objmap@{objmap}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{objmap}{objmap}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::objmap = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a69732e3520a330bb8d882f2817d719f1}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a69732e3520a330bb8d882f2817d719f1}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!objtime@{objtime}}
+\index{objtime@{objtime}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{objtime}{objtime}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::objtime = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a5fffde334e600470dcdb009c366c6288}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a5fffde334e600470dcdb009c366c6288}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!objtimeserie@{objtimeserie}}
+\index{objtimeserie@{objtimeserie}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{objtimeserie}{objtimeserie}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::objtimeserie = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_ae59f9b190ab45c88834370c19b339f7a}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_ae59f9b190ab45c88834370c19b339f7a}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!objturbgotm@{objturbgotm}}
+\index{objturbgotm@{objturbgotm}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{objturbgotm}{objturbgotm}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::objturbgotm = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a664ebe919daa71e52788785c9b281ea1}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a664ebe919daa71e52788785c9b281ea1}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!objwaterproperties@{objwaterproperties}}
+\index{objwaterproperties@{objwaterproperties}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{objwaterproperties}{objwaterproperties}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::objwaterproperties = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a8aabb0ee8e8d25621c3df982be3412d2}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a8aabb0ee8e8d25621c3df982be3412d2}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!objwaves@{objwaves}}
+\index{objwaves@{objwaves}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{objwaves}{objwaves}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::objwaves = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_ae3e7e538068c5c983cb5971cfdc3c3f1}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_ae3e7e538068c5c983cb5971cfdc3c3f1}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!output@{output}}
+\index{output@{output}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{output}{output}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__output}{t\+\_\+output}} ) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::output\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_ad6951fa97325144bcb7aba5170d19623}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_ad6951fa97325144bcb7aba5170d19623}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!oxnatmdep@{oxnatmdep}}
+\index{oxnatmdep@{oxnatmdep}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{oxnatmdep}{oxnatmdep}}
+{\footnotesize\ttfamily real moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::oxnatmdep = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a2e7b34e6a47e0cd2397d5fef02f954db}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a2e7b34e6a47e0cd2397d5fef02f954db}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!propertiesnumber@{propertiesnumber}}
+\index{propertiesnumber@{propertiesnumber}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{propertiesnumber}{propertiesnumber}}
+{\footnotesize\ttfamily integer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::propertiesnumber = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a8075707bfb346b5d19f8cde2d8ed5e32}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a8075707bfb346b5d19f8cde2d8ed5e32}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!rainflux@{rainflux}}
+\index{rainflux@{rainflux}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{rainflux}{rainflux}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::rainflux =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_af25b5f2b31284db6c58781a1230fd177}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_af25b5f2b31284db6c58781a1230fd177}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!reflectioncoef@{reflectioncoef}}
+\index{reflectioncoef@{reflectioncoef}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{reflectioncoef}{reflectioncoef}}
+{\footnotesize\ttfamily real moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::reflectioncoef = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_ad1a591491542262cdc0fe16f321a4f51}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_ad1a591491542262cdc0fe16f321a4f51}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!renatmdep@{renatmdep}}
+\index{renatmdep@{renatmdep}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{renatmdep}{renatmdep}}
+{\footnotesize\ttfamily real moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::renatmdep = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_ab7fbb28ba9302f4937bb5aa90fe596d8}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_ab7fbb28ba9302f4937bb5aa90fe596d8}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!rugosity@{rugosity}}
+\index{rugosity@{rugosity}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{rugosity}{rugosity}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__rugosity}{t\+\_\+rugosity}} ) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::rugosity\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a01e2dc12aed7af405dc041b73be0fbf9}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a01e2dc12aed7af405dc041b73be0fbf9}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!scalar2d@{scalar2d}}
+\index{scalar2d@{scalar2d}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{scalar2d}{scalar2d}}
+{\footnotesize\ttfamily real(8), dimension(\+:,\+:), pointer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::scalar2d =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_af10730be71cb2980b2992854788df2e2}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_af10730be71cb2980b2992854788df2e2}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!size2d@{size2d}}
+\index{size2d@{size2d}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{size2d}{size2d}}
+{\footnotesize\ttfamily type(t\+\_\+size2d ) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::size2d\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_aa0b50911262f4de99ad57ed34deddd8b}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_aa0b50911262f4de99ad57ed34deddd8b}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!size3d@{size3d}}
+\index{size3d@{size3d}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{size3d}{size3d}}
+{\footnotesize\ttfamily type(t\+\_\+size3d ) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::size3d\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_ab790217cdeafb1bb260208d5191e8665}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_ab790217cdeafb1bb260208d5191e8665}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!surfacealbedo@{surfacealbedo}}
+\index{surfacealbedo@{surfacealbedo}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{surfacealbedo}{surfacealbedo}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::surfacealbedo =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a45ae472e512aff1e3d3ab57e0c3b8d18}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a45ae472e512aff1e3d3ab57e0c3b8d18}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!surfacetemperature@{surfacetemperature}}
+\index{surfacetemperature@{surfacetemperature}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{surfacetemperature}{surfacetemperature}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::surfacetemperature =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a15597bd04749fe4386b6e09ce5fedc22}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a15597bd04749fe4386b6e09ce5fedc22}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!tau@{tau}}
+\index{tau@{tau}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{tau}{tau}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::tau =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a00c8bdec80dafc9b7b5045e723584805}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a00c8bdec80dafc9b7b5045e723584805}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!tau\_ac@{tau\_ac}}
+\index{tau\_ac@{tau\_ac}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{tau\_ac}{tau\_ac}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::tau\+\_\+ac =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0e078b45d344a84a0a416cc3547c5274}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a0e078b45d344a84a0a416cc3547c5274}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!warmingabovewatertemp@{warmingabovewatertemp}}
+\index{warmingabovewatertemp@{warmingabovewatertemp}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{warmingabovewatertemp}{warmingabovewatertemp}}
+{\footnotesize\ttfamily real moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::warmingabovewatertemp = 0.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_acadc3dcae94bfbf01aadeb1d91e9afd4}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_acadc3dcae94bfbf01aadeb1d91e9afd4}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!warmlayertempdiff@{warmlayertempdiff}}
+\index{warmlayertempdiff@{warmlayertempdiff}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{warmlayertempdiff}{warmlayertempdiff}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::warmlayertempdiff =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a03e6d1ab429e6501c0c76e34f2dd1edb}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a03e6d1ab429e6501c0c76e34f2dd1edb}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!warmlayerthickness@{warmlayerthickness}}
+\index{warmlayerthickness@{warmlayerthickness}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{warmlayerthickness}{warmlayerthickness}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::warmlayerthickness =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a29ddca3f8d9e503026620b126cef15e1}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a29ddca3f8d9e503026620b126cef15e1}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!wavefluxtke@{wavefluxtke}}
+\index{wavefluxtke@{wavefluxtke}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{wavefluxtke}{wavefluxtke}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmoduleinterfacewaterair_1_1t__waveflux}{t\+\_\+waveflux}} ) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::wavefluxtke\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a02c1c266136d185bde9c53697cdd77f4}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a02c1c266136d185bde9c53697cdd77f4}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!windheight@{windheight}}
+\index{windheight@{windheight}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{windheight}{windheight}}
+{\footnotesize\ttfamily real moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::windheight = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a9606611bb277a933979fe8bf6f85eb56}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a9606611bb277a933979fe8bf6f85eb56}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!windshearvelocity@{windshearvelocity}}
+\index{windshearvelocity@{windshearvelocity}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{windshearvelocity}{windshearvelocity}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:), pointer moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::windshearvelocity =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a27d573de29e9c409cf7e87df81a7a3a8}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a27d573de29e9c409cf7e87df81a7a3a8}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!worksize2d@{worksize2d}}
+\index{worksize2d@{worksize2d}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{worksize2d}{worksize2d}}
+{\footnotesize\ttfamily type(t\+\_\+size2d ) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::worksize2d\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmoduleinterfacewaterair_1_1t__interfacewaterair_a00afa83ce20dbb4efa3c061989c3094c}\label{structmoduleinterfacewaterair_1_1t__interfacewaterair_a00afa83ce20dbb4efa3c061989c3094c}} 
+\index{moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}!worksize3d@{worksize3d}}
+\index{worksize3d@{worksize3d}!moduleinterfacewaterair::t\_interfacewaterair@{moduleinterfacewaterair::t\_interfacewaterair}}
+\doxysubsubsection{\texorpdfstring{worksize3d}{worksize3d}}
+{\footnotesize\ttfamily type(t\+\_\+size3d ) moduleinterfacewaterair\+::t\+\_\+interfacewaterair\+::worksize3d\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Projects/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\mbox{\hyperlink{_module_interface_water_air_8_f90}{Module\+Interface\+Water\+Air.\+F90}}\end{DoxyCompactItemize}

@@ -1,0 +1,7 @@
+digraph "moduleoil::t_var"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{moduleoil::t_var\n|- oiltype\l- pourpoint\l- dtoilinternalprocesses\l- massoil\l- massini\l- volume\l- volumeoil\l- volinic\l- slickthickness\l- oilthickness\land 105 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

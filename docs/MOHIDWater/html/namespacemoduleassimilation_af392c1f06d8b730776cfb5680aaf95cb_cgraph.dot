@@ -1,0 +1,16 @@
+digraph "moduleassimilation::altimetricassimilation"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="moduleassimilation\l::altimetricassimilation",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="moduleassimilation\l::loweringlifting",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleassimilation.html#adb4698b9b7aa680222581e31452094dc",tooltip=" "];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="moduleassimilation\l::changetemperaturesalinity",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleassimilation.html#a689487c17f9fdb64311b351530c9244a",tooltip=" "];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="moduleassimilation\l::spline_alt",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleassimilation.html#a4473000cecbde1abb63d63fc9a6f5858",tooltip=" "];
+  Node3 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="moduleassimilation\l::splint",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleassimilation.html#a5db3c59220db22267e7e1e7eca84a356",tooltip=" "];
+}

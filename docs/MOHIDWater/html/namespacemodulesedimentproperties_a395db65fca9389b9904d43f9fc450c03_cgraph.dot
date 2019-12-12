@@ -1,0 +1,41 @@
+digraph "modulesedimentproperties::readlockexternalvar"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulesedimentproperties\l::readlockexternalvar",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node2 [label="moduleconsolidation\l::getconsolidationdepth",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a7d4c44834bf2eef5548235e522170c91",tooltip=" "];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node3 [label="moduleconsolidation\l::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#ab6b8d86bedc5c2870f1fb998c297005e",tooltip=" "];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node4 [label="moduleconsolidation\l::locateobjconsolidation",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a782ed1b2a1870dc38bceeca90e360669",tooltip=" "];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node5 [label="moduleconsolidation\l::getconsolidationdrysedvolume",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a34d40947baf053926b3fe4e02b7c1225",tooltip=" "];
+  Node5 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node6 [label="moduleconsolidation\l::getconsolidationktopstate",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#ace4ba590047f774affd5abf5e15b7e41",tooltip=" "];
+  Node6 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node7 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node7 [label="moduleconsolidation\l::getconsolidationporosity",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a47de60bcd271300a187a9ce6257be08e",tooltip=" "];
+  Node7 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node8 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node8 [label="moduleconsolidation\l::getconsolidationtortuosity",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a6f6333d1cd3299be92039f6e03e3b5b8",tooltip=" "];
+  Node8 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node9 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node9 [label="moduleconsolidation\l::getconsolidationvelocityxy",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#ad474911e58923dc9beb19e05548a5073",tooltip=" "];
+  Node9 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node10 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node10 [label="moduleconsolidation\l::getconsolidationvelocityz",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a1a8c6ae3e68c283ceaaa0a81fb8f531b",tooltip=" "];
+  Node10 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node11 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node11 [label="moduleconsolidation\l::getconsolidationwaterfluxes",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#ab2cf2636db758f412f7c627b38eb6231",tooltip=" "];
+  Node11 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node12 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node12 [label="moduleconsolidation\l::getconsolidationwaterpercentage",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#ab90e8e4b9e87d2f8313a0f2860b3d4c8",tooltip=" "];
+  Node12 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node1 -> Node13 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+  Node13 [label="moduleconsolidation\l::getconsolidationwatervolume",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleconsolidation.html#a26b0c6595143115c8e9db2d46e42ba05",tooltip=" "];
+  Node13 -> Node3 [color="midnightblue",fontsize="10",style="solid",fontname="Helvetica"];
+}

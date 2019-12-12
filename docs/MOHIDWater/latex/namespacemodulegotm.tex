@@ -1,0 +1,567 @@
+\hypertarget{namespacemodulegotm}{}\doxysection{modulegotm Module Reference}
+\label{namespacemodulegotm}\index{modulegotm@{modulegotm}}
+\doxysubsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulegotm_1_1t__gotm}{t\+\_\+gotm}}
+\item 
+type \mbox{\hyperlink{structmodulegotm_1_1t__gotmexport}{t\+\_\+gotmexport}}
+\item 
+type \mbox{\hyperlink{structmodulegotm_1_1t__gotmimport}{t\+\_\+gotmimport}}
+\item 
+type \mbox{\hyperlink{structmodulegotm_1_1t__gotmparameters}{t\+\_\+gotmparameters}}
+\item 
+type \mbox{\hyperlink{structmodulegotm_1_1t__gotmtrid}{t\+\_\+gotmtrid}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegotm_acc6ad2c4bea63b4d44a941b81fcbf402}{clear\+\_\+turbulence\+\_\+parameters}} (Obj\+Gotmparameters)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegotm_af408ddba849a968ba4867373805e4b3b}{copy\+\_\+turbulence\+\_\+parameters}} (targetP, sourceP)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegotm_a88820406e3c80bbfc120dbf96b66424b}{init\+\_\+turbulence\+\_\+parameters}} (Obj\+Gotmparameters, namlst, fn, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegotm_a2bcdea4da65e0575591794282ca6ba41}{init\+\_\+turbulence}} (Obj\+Gotm, Obj\+G\+O\+T\+M\+Parameters, K\+LB, K\+UB, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegotm_a52589088a0366839f7e6684a9917a71a}{kill\+\_\+turbulence}} (Obj\+Gotm, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulegotm_a4ca35153e188114f4f02fe276d302d14}{do\+\_\+turbulence}} (Obj\+G\+O\+TM, nlev, dt, depth, u\+\_\+taus, u\+\_\+taub, z0s, z0b, h, NN, SS, P, B, Foc)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a0e2f0ad43d12c00ed95b6fdef24dc5eb}{stabilityfunctions}} (Obj\+G\+O\+TM, nlev, NN, SS)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_ae39109acd910c29deba62e83a6edce50}{do\+\_\+tke}} (Obj\+G\+O\+TM, nlev, dt, u\+\_\+taus, u\+\_\+taub, z0s, h, NN, SS, P, B, Foc)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a2d9e32d408a390b64575234c5dd95f62}{lengthscale}} (Obj\+G\+O\+TM, nlev, dt, z0b, z0s, u\+\_\+taus, u\+\_\+taub, depth, h, NN, P, B, Foc)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_ac05dd8d50f9ddc2c286122142f8a400e}{dissipationeq}} (Obj\+G\+O\+TM, nlev, dt, z0b, z0s, u\+\_\+taus, u\+\_\+taub, h, NN, P, B, Foc)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a91db88191066626042c7b8aba8a116ab}{algebraiclength}} (Obj\+G\+O\+TM, method, nlev, z0b, z0s, depth, h, NN)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a8afda9608a508419c6574b11765db424}{ispralength}} (Obj\+G\+O\+TM, nlev, NN, h, depth)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a4287a5fde4824d73e35ee66bf90b5f3b}{internal\+\_\+wave}} (Obj\+G\+O\+TM, nlev, NN, SS)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a41a284016e83d9fe85740b08ed8abdc2}{kolpran}} (Obj\+G\+O\+TM, nlev, u\+\_\+taub, u\+\_\+taus, z0b, z0s)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a82edc4e2eec49fb4f24fc31918908aef}{lengthscaleeq}} (Obj\+G\+O\+TM, nlev, dt, z0b, z0s, depth, h, NN, P, B, numtke)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a2ac21e06e59e99b089466cd065b15ca3}{potentialml}} (Obj\+G\+O\+TM, nlev, z0b, z0s, h, depth, NN)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_afc07b47188fabbcdd572769fce2e7e97}{tkealgebraic}} (Obj\+G\+O\+TM, nlev, u\+\_\+taus, u\+\_\+taub, NN, SS)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_aa2677c2275ef6e84a615765d4db0772c}{tkeeq}} (Obj\+G\+O\+TM, N, dt, u\+\_\+taus, u\+\_\+taub, z0s, h, P, B, numtke, Foc)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a8f3eabf069e4530d9ca2df0e3228c074}{cmue\+\_\+ca}} (Obj\+G\+O\+TM, nlev)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a38a0c42b81c2a8bae8ae60d20ed0df23}{cmue\+\_\+caqe}} (Obj\+G\+O\+TM, nlev)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a2b38e80c2393abb45f25640cd3fda481}{cmue\+\_\+cb}} (Obj\+G\+O\+TM, nlev)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_ab183ae0777bf5a1d3c5b4ebbb9c2b9b5}{cmue\+\_\+cbqe}} (Obj\+G\+O\+TM, nlev)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a39841630271ec0cdc9e21a9bc1bfc289}{cmue\+\_\+kc}} (Obj\+G\+O\+TM, nlev)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_ab365e1ebbb95df9750427f6340cac165}{cmue\+\_\+kcqe}} (Obj\+G\+O\+TM, nlev)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a35d3226a2d10d64e249360320b18c8a4}{cmue\+\_\+ma}} (Obj\+G\+O\+TM, nlev, NN, SS)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a9f8f0a6e92610182a87816932d096a5a}{cmue\+\_\+rf}} (Obj\+G\+O\+TM, nlev, NN, SS)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulegotm_a532d05762eb6990a602d72c0cf825f66}{cmue\+\_\+sg}} (Obj\+G\+O\+TM, nlev, NN, SS)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulegotm_a95c763a61ad96de7516848ea4a686fdb}{tridiagonal}} (Obj\+G\+O\+TM, N, fi, lt, value)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a0f598f7a7591ef502047d7bf9b41d8c4}{unknown\+\_\+}} =-\/99
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_adb6c42c1323d939b70b00c98f2106d11}{success\+\_\+}} = 0
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_af65e84e018f76a3a2d29f65589808c9d}{off\+\_\+err\+\_\+}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a97522a5857d2ea9ecdacaa45e530f142}{on\+\_\+err\+\_\+}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_ac9524a6d32be82ce6528becff10d08ff}{read\+\_\+lock\+\_\+err\+\_\+}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_ae9156b93cafbf0c50087599b64ff3d3d}{write\+\_\+lock\+\_\+err\+\_\+}} = 4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a39953f54bbdc8da782f3b50feef9d448}{idle\+\_\+err\+\_\+}} = 5
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a98f0c25fc8853b787887f1ed35c706ad}{nbusers\+\_\+err\+\_\+}} = 6
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a2e888b1f33eea5d6198b2b74c27aa11d}{null\+\_\+int}} = -\/9999
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulegotm_a89fe021c998471f10e1252fbabba387c}{null\+\_\+real}} = -\/9.\+999E+15
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulegotm_a2faf16339e8c12fe4c7d39478460810f}{fillvaluereal}} =-\/9.\+9e15
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a6843f6d6c95d7d5cbd9b92d5b399bd7c}{fillvalueint}} =-\/9999999
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_ac70f3cf4ffada602b184d8ccf56aea81}{tke\+\_\+local\+\_\+eq}} =1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_af7d3b24a327afe4fa750141548a9e5f8}{tke\+\_\+keps}} =2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_aed350ab9bde0bdf934d954e5c261a039}{tke\+\_\+my}} =3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_abce18d4dc4ce96034c9b581092bd7970}{kanclay}} =1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a9ee68515a5fff9c9166a6b82ed456933}{burbaum}} =2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a08f200dfeb5a1b203cdf3f9887ec48f0}{canutoa}} =3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_ac0ab48f659edad60f836fc9e986a8fec}{canutob}} =4
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a2b67d69c6a8ac1632483b71fcbc9c20a}{kanclayqe}} =5
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_acc6f8d4ca9ecc05782e1e5fe37b2a4ea}{burbaumqe}} =6
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a91892f852a1a0e7dbdd26d799d01d3c2}{canutoaqe}} =7
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a1adf4ea0176bd82b7aa9864f7d8aaf83}{canutobqe}} =8
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a4d0033e085531c87c93b030f6591c704}{constant}} =9
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_aefc13e1296f71005638e19eff270dd6a}{munkanderson}} =10
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a8b80733c09f1d2f777468f16b9df9563}{schumgerz}} =11
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a1844fb45e0887b6144045352f62f1af5}{fluxrich}} =12
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a4403b4cce1e34ad86c1aa0e705d4222c}{diss\+\_\+eq}} =8
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a090551467cbb9673b88edf6c5db10b2b}{length\+\_\+eq}} =9
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a55510aacb7d64ac380e762ba61964376}{bougeaultandre}} =6
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulegotm_a8de26216ba29e73b224d20ca6cb44664}{ispra\+\_\+length}} =6
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Function/\+Subroutine Documentation}
+\mbox{\Hypertarget{namespacemodulegotm_a91db88191066626042c7b8aba8a116ab}\label{namespacemodulegotm_a91db88191066626042c7b8aba8a116ab}} 
+\index{modulegotm@{modulegotm}!algebraiclength@{algebraiclength}}
+\index{algebraiclength@{algebraiclength}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{algebraiclength()}{algebraiclength()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::algebraiclength (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{method,  }\item[{integer, intent(in)}]{nlev,  }\item[{double precision, intent(in)}]{z0b,  }\item[{double precision, intent(in)}]{z0s,  }\item[{double precision, intent(in)}]{depth,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{h,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{NN }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 0
+Here is the caller graph for this function\+:
+% FIG 1
+\mbox{\Hypertarget{namespacemodulegotm_acc6ad2c4bea63b4d44a941b81fcbf402}\label{namespacemodulegotm_acc6ad2c4bea63b4d44a941b81fcbf402}} 
+\index{modulegotm@{modulegotm}!clear\_turbulence\_parameters@{clear\_turbulence\_parameters}}
+\index{clear\_turbulence\_parameters@{clear\_turbulence\_parameters}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{clear\_turbulence\_parameters()}{clear\_turbulence\_parameters()}}
+{\footnotesize\ttfamily subroutine, public modulegotm\+::clear\+\_\+turbulence\+\_\+parameters (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegotm_1_1t__gotmparameters}{t\+\_\+gotmparameters}} ), pointer}]{Obj\+Gotmparameters }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{namespacemodulegotm_a8f3eabf069e4530d9ca2df0e3228c074}\label{namespacemodulegotm_a8f3eabf069e4530d9ca2df0e3228c074}} 
+\index{modulegotm@{modulegotm}!cmue\_ca@{cmue\_ca}}
+\index{cmue\_ca@{cmue\_ca}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{cmue\_ca()}{cmue\_ca()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::cmue\+\_\+ca (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 2
+\mbox{\Hypertarget{namespacemodulegotm_a38a0c42b81c2a8bae8ae60d20ed0df23}\label{namespacemodulegotm_a38a0c42b81c2a8bae8ae60d20ed0df23}} 
+\index{modulegotm@{modulegotm}!cmue\_caqe@{cmue\_caqe}}
+\index{cmue\_caqe@{cmue\_caqe}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{cmue\_caqe()}{cmue\_caqe()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::cmue\+\_\+caqe (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 3
+\mbox{\Hypertarget{namespacemodulegotm_a2b38e80c2393abb45f25640cd3fda481}\label{namespacemodulegotm_a2b38e80c2393abb45f25640cd3fda481}} 
+\index{modulegotm@{modulegotm}!cmue\_cb@{cmue\_cb}}
+\index{cmue\_cb@{cmue\_cb}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{cmue\_cb()}{cmue\_cb()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::cmue\+\_\+cb (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 4
+\mbox{\Hypertarget{namespacemodulegotm_ab183ae0777bf5a1d3c5b4ebbb9c2b9b5}\label{namespacemodulegotm_ab183ae0777bf5a1d3c5b4ebbb9c2b9b5}} 
+\index{modulegotm@{modulegotm}!cmue\_cbqe@{cmue\_cbqe}}
+\index{cmue\_cbqe@{cmue\_cbqe}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{cmue\_cbqe()}{cmue\_cbqe()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::cmue\+\_\+cbqe (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 5
+\mbox{\Hypertarget{namespacemodulegotm_a39841630271ec0cdc9e21a9bc1bfc289}\label{namespacemodulegotm_a39841630271ec0cdc9e21a9bc1bfc289}} 
+\index{modulegotm@{modulegotm}!cmue\_kc@{cmue\_kc}}
+\index{cmue\_kc@{cmue\_kc}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{cmue\_kc()}{cmue\_kc()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::cmue\+\_\+kc (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 6
+\mbox{\Hypertarget{namespacemodulegotm_ab365e1ebbb95df9750427f6340cac165}\label{namespacemodulegotm_ab365e1ebbb95df9750427f6340cac165}} 
+\index{modulegotm@{modulegotm}!cmue\_kcqe@{cmue\_kcqe}}
+\index{cmue\_kcqe@{cmue\_kcqe}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{cmue\_kcqe()}{cmue\_kcqe()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::cmue\+\_\+kcqe (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 7
+\mbox{\Hypertarget{namespacemodulegotm_a35d3226a2d10d64e249360320b18c8a4}\label{namespacemodulegotm_a35d3226a2d10d64e249360320b18c8a4}} 
+\index{modulegotm@{modulegotm}!cmue\_ma@{cmue\_ma}}
+\index{cmue\_ma@{cmue\_ma}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{cmue\_ma()}{cmue\_ma()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::cmue\+\_\+ma (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{NN,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{SS }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 8
+\mbox{\Hypertarget{namespacemodulegotm_a9f8f0a6e92610182a87816932d096a5a}\label{namespacemodulegotm_a9f8f0a6e92610182a87816932d096a5a}} 
+\index{modulegotm@{modulegotm}!cmue\_rf@{cmue\_rf}}
+\index{cmue\_rf@{cmue\_rf}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{cmue\_rf()}{cmue\_rf()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::cmue\+\_\+rf (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{NN,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{SS }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 9
+\mbox{\Hypertarget{namespacemodulegotm_a532d05762eb6990a602d72c0cf825f66}\label{namespacemodulegotm_a532d05762eb6990a602d72c0cf825f66}} 
+\index{modulegotm@{modulegotm}!cmue\_sg@{cmue\_sg}}
+\index{cmue\_sg@{cmue\_sg}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{cmue\_sg()}{cmue\_sg()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::cmue\+\_\+sg (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{NN,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{SS }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 10
+\mbox{\Hypertarget{namespacemodulegotm_af408ddba849a968ba4867373805e4b3b}\label{namespacemodulegotm_af408ddba849a968ba4867373805e4b3b}} 
+\index{modulegotm@{modulegotm}!copy\_turbulence\_parameters@{copy\_turbulence\_parameters}}
+\index{copy\_turbulence\_parameters@{copy\_turbulence\_parameters}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{copy\_turbulence\_parameters()}{copy\_turbulence\_parameters()}}
+{\footnotesize\ttfamily subroutine, public modulegotm\+::copy\+\_\+turbulence\+\_\+parameters (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegotm_1_1t__gotmparameters}{t\+\_\+gotmparameters}} ), pointer}]{targetP,  }\item[{type(\mbox{\hyperlink{structmodulegotm_1_1t__gotmparameters}{t\+\_\+gotmparameters}} ), pointer}]{sourceP }\end{DoxyParamCaption})}
+
+\mbox{\Hypertarget{namespacemodulegotm_ac05dd8d50f9ddc2c286122142f8a400e}\label{namespacemodulegotm_ac05dd8d50f9ddc2c286122142f8a400e}} 
+\index{modulegotm@{modulegotm}!dissipationeq@{dissipationeq}}
+\index{dissipationeq@{dissipationeq}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{dissipationeq()}{dissipationeq()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::dissipationeq (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev,  }\item[{double precision, intent(in)}]{dt,  }\item[{double precision, intent(in)}]{z0b,  }\item[{double precision, intent(in)}]{z0s,  }\item[{double precision, intent(in)}]{u\+\_\+taus,  }\item[{double precision, intent(in)}]{u\+\_\+taub,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{h,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{NN,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{P,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{B,  }\item[{double precision, intent(in), optional}]{Foc }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 11
+Here is the caller graph for this function\+:
+% FIG 12
+\mbox{\Hypertarget{namespacemodulegotm_ae39109acd910c29deba62e83a6edce50}\label{namespacemodulegotm_ae39109acd910c29deba62e83a6edce50}} 
+\index{modulegotm@{modulegotm}!do\_tke@{do\_tke}}
+\index{do\_tke@{do\_tke}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{do\_tke()}{do\_tke()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::do\+\_\+tke (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev,  }\item[{double precision, intent(in)}]{dt,  }\item[{double precision, intent(in)}]{u\+\_\+taus,  }\item[{double precision, intent(in)}]{u\+\_\+taub,  }\item[{double precision, intent(in)}]{z0s,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{h,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{NN,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{SS,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{P,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{B,  }\item[{double precision, intent(in), optional}]{Foc }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 13
+Here is the caller graph for this function\+:
+% FIG 14
+\mbox{\Hypertarget{namespacemodulegotm_a4ca35153e188114f4f02fe276d302d14}\label{namespacemodulegotm_a4ca35153e188114f4f02fe276d302d14}} 
+\index{modulegotm@{modulegotm}!do\_turbulence@{do\_turbulence}}
+\index{do\_turbulence@{do\_turbulence}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{do\_turbulence()}{do\_turbulence()}}
+{\footnotesize\ttfamily subroutine, public modulegotm\+::do\+\_\+turbulence (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegotm_1_1t__gotm}{t\+\_\+gotm}}), pointer}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev,  }\item[{double precision, intent(in)}]{dt,  }\item[{double precision, intent(in)}]{depth,  }\item[{double precision, intent(in)}]{u\+\_\+taus,  }\item[{double precision, intent(in)}]{u\+\_\+taub,  }\item[{double precision, intent(in)}]{z0s,  }\item[{double precision, intent(in)}]{z0b,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{h,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{NN,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{SS,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{P,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{B,  }\item[{double precision, intent(in), optional}]{Foc }\end{DoxyParamCaption})}
+
+Here is the call graph for this function\+:
+% FIG 15
+Here is the caller graph for this function\+:
+% FIG 16
+\mbox{\Hypertarget{namespacemodulegotm_a2bcdea4da65e0575591794282ca6ba41}\label{namespacemodulegotm_a2bcdea4da65e0575591794282ca6ba41}} 
+\index{modulegotm@{modulegotm}!init\_turbulence@{init\_turbulence}}
+\index{init\_turbulence@{init\_turbulence}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{init\_turbulence()}{init\_turbulence()}}
+{\footnotesize\ttfamily subroutine, public modulegotm\+::init\+\_\+turbulence (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegotm_1_1t__gotm}{t\+\_\+gotm}}), pointer}]{Obj\+Gotm,  }\item[{type(\mbox{\hyperlink{structmodulegotm_1_1t__gotmparameters}{t\+\_\+gotmparameters}}), pointer}]{Obj\+G\+O\+T\+M\+Parameters,  }\item[{integer}]{K\+LB,  }\item[{integer}]{K\+UB,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the caller graph for this function\+:
+% FIG 17
+\mbox{\Hypertarget{namespacemodulegotm_a88820406e3c80bbfc120dbf96b66424b}\label{namespacemodulegotm_a88820406e3c80bbfc120dbf96b66424b}} 
+\index{modulegotm@{modulegotm}!init\_turbulence\_parameters@{init\_turbulence\_parameters}}
+\index{init\_turbulence\_parameters@{init\_turbulence\_parameters}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{init\_turbulence\_parameters()}{init\_turbulence\_parameters()}}
+{\footnotesize\ttfamily subroutine, public modulegotm\+::init\+\_\+turbulence\+\_\+parameters (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegotm_1_1t__gotmparameters}{t\+\_\+gotmparameters}} ), pointer}]{Obj\+Gotmparameters,  }\item[{integer, intent(in)}]{namlst,  }\item[{character(len=$\ast$), intent(in)}]{fn,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the caller graph for this function\+:
+% FIG 18
+\mbox{\Hypertarget{namespacemodulegotm_a4287a5fde4824d73e35ee66bf90b5f3b}\label{namespacemodulegotm_a4287a5fde4824d73e35ee66bf90b5f3b}} 
+\index{modulegotm@{modulegotm}!internal\_wave@{internal\_wave}}
+\index{internal\_wave@{internal\_wave}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{internal\_wave()}{internal\_wave()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::internal\+\_\+wave (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{NN,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{SS }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 19
+\mbox{\Hypertarget{namespacemodulegotm_a8afda9608a508419c6574b11765db424}\label{namespacemodulegotm_a8afda9608a508419c6574b11765db424}} 
+\index{modulegotm@{modulegotm}!ispralength@{ispralength}}
+\index{ispralength@{ispralength}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{ispralength()}{ispralength()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::ispralength (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{NN,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{h,  }\item[{double precision, intent(in)}]{depth }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 20
+\mbox{\Hypertarget{namespacemodulegotm_a52589088a0366839f7e6684a9917a71a}\label{namespacemodulegotm_a52589088a0366839f7e6684a9917a71a}} 
+\index{modulegotm@{modulegotm}!kill\_turbulence@{kill\_turbulence}}
+\index{kill\_turbulence@{kill\_turbulence}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{kill\_turbulence()}{kill\_turbulence()}}
+{\footnotesize\ttfamily subroutine, public modulegotm\+::kill\+\_\+turbulence (\begin{DoxyParamCaption}\item[{type(\mbox{\hyperlink{structmodulegotm_1_1t__gotm}{t\+\_\+gotm}}), pointer}]{Obj\+Gotm,  }\item[{integer, intent(out), optional}]{S\+T\+AT }\end{DoxyParamCaption})}
+
+Here is the caller graph for this function\+:
+% FIG 21
+\mbox{\Hypertarget{namespacemodulegotm_a41a284016e83d9fe85740b08ed8abdc2}\label{namespacemodulegotm_a41a284016e83d9fe85740b08ed8abdc2}} 
+\index{modulegotm@{modulegotm}!kolpran@{kolpran}}
+\index{kolpran@{kolpran}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{kolpran()}{kolpran()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::kolpran (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev,  }\item[{double precision, intent(in)}]{u\+\_\+taub,  }\item[{double precision, intent(in)}]{u\+\_\+taus,  }\item[{double precision, intent(in)}]{z0b,  }\item[{double precision, intent(in)}]{z0s }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 22
+\mbox{\Hypertarget{namespacemodulegotm_a2d9e32d408a390b64575234c5dd95f62}\label{namespacemodulegotm_a2d9e32d408a390b64575234c5dd95f62}} 
+\index{modulegotm@{modulegotm}!lengthscale@{lengthscale}}
+\index{lengthscale@{lengthscale}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{lengthscale()}{lengthscale()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::lengthscale (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev,  }\item[{double precision, intent(in)}]{dt,  }\item[{double precision, intent(in)}]{z0b,  }\item[{double precision, intent(in)}]{z0s,  }\item[{double precision, intent(in)}]{u\+\_\+taus,  }\item[{double precision, intent(in)}]{u\+\_\+taub,  }\item[{double precision, intent(in)}]{depth,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{h,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{NN,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{P,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{B,  }\item[{double precision, intent(in), optional}]{Foc }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 23
+Here is the caller graph for this function\+:
+% FIG 24
+\mbox{\Hypertarget{namespacemodulegotm_a82edc4e2eec49fb4f24fc31918908aef}\label{namespacemodulegotm_a82edc4e2eec49fb4f24fc31918908aef}} 
+\index{modulegotm@{modulegotm}!lengthscaleeq@{lengthscaleeq}}
+\index{lengthscaleeq@{lengthscaleeq}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{lengthscaleeq()}{lengthscaleeq()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::lengthscaleeq (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev,  }\item[{double precision, intent(in)}]{dt,  }\item[{double precision, intent(in)}]{z0b,  }\item[{double precision, intent(in)}]{z0s,  }\item[{double precision, intent(in)}]{depth,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{h,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{NN,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{P,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{B,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{numtke }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 25
+Here is the caller graph for this function\+:
+% FIG 26
+\mbox{\Hypertarget{namespacemodulegotm_a2ac21e06e59e99b089466cd065b15ca3}\label{namespacemodulegotm_a2ac21e06e59e99b089466cd065b15ca3}} 
+\index{modulegotm@{modulegotm}!potentialml@{potentialml}}
+\index{potentialml@{potentialml}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{potentialml()}{potentialml()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::potentialml (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev,  }\item[{double precision, intent(in)}]{z0b,  }\item[{double precision, intent(in)}]{z0s,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{h,  }\item[{double precision, intent(in)}]{depth,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{NN }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 27
+\mbox{\Hypertarget{namespacemodulegotm_a0e2f0ad43d12c00ed95b6fdef24dc5eb}\label{namespacemodulegotm_a0e2f0ad43d12c00ed95b6fdef24dc5eb}} 
+\index{modulegotm@{modulegotm}!stabilityfunctions@{stabilityfunctions}}
+\index{stabilityfunctions@{stabilityfunctions}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{stabilityfunctions()}{stabilityfunctions()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::stabilityfunctions (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{NN,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{SS }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 28
+Here is the caller graph for this function\+:
+% FIG 29
+\mbox{\Hypertarget{namespacemodulegotm_afc07b47188fabbcdd572769fce2e7e97}\label{namespacemodulegotm_afc07b47188fabbcdd572769fce2e7e97}} 
+\index{modulegotm@{modulegotm}!tkealgebraic@{tkealgebraic}}
+\index{tkealgebraic@{tkealgebraic}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{tkealgebraic()}{tkealgebraic()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::tkealgebraic (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{nlev,  }\item[{double precision, intent(in)}]{u\+\_\+taus,  }\item[{double precision, intent(in)}]{u\+\_\+taub,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{NN,  }\item[{double precision, dimension(0\+:nlev), intent(in)}]{SS }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 30
+\mbox{\Hypertarget{namespacemodulegotm_aa2677c2275ef6e84a615765d4db0772c}\label{namespacemodulegotm_aa2677c2275ef6e84a615765d4db0772c}} 
+\index{modulegotm@{modulegotm}!tkeeq@{tkeeq}}
+\index{tkeeq@{tkeeq}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{tkeeq()}{tkeeq()}}
+{\footnotesize\ttfamily subroutine, private modulegotm\+::tkeeq (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{N,  }\item[{double precision, intent(in)}]{dt,  }\item[{double precision, intent(in)}]{u\+\_\+taus,  }\item[{double precision, intent(in)}]{u\+\_\+taub,  }\item[{double precision, intent(in)}]{z0s,  }\item[{double precision, dimension(0\+:n), intent(in)}]{h,  }\item[{double precision, dimension(0\+:n), intent(in)}]{P,  }\item[{double precision, dimension(0\+:n), intent(in)}]{B,  }\item[{double precision, dimension(0\+:n), intent(in)}]{numtke,  }\item[{double precision, intent(in), optional}]{Foc }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the call graph for this function\+:
+% FIG 31
+Here is the caller graph for this function\+:
+% FIG 32
+\mbox{\Hypertarget{namespacemodulegotm_a95c763a61ad96de7516848ea4a686fdb}\label{namespacemodulegotm_a95c763a61ad96de7516848ea4a686fdb}} 
+\index{modulegotm@{modulegotm}!tridiagonal@{tridiagonal}}
+\index{tridiagonal@{tridiagonal}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{tridiagonal()}{tridiagonal()}}
+{\footnotesize\ttfamily subroutine modulegotm\+::tridiagonal (\begin{DoxyParamCaption}\item[{}]{Obj\+G\+O\+TM,  }\item[{integer, intent(in)}]{N,  }\item[{integer, intent(in)}]{fi,  }\item[{integer, intent(in)}]{lt,  }\item[{double precision, dimension(0\+:n)}]{value }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [private]}}
+
+Here is the caller graph for this function\+:
+% FIG 33
+
+
+\doxysubsection{Variable Documentation}
+\mbox{\Hypertarget{namespacemodulegotm_a55510aacb7d64ac380e762ba61964376}\label{namespacemodulegotm_a55510aacb7d64ac380e762ba61964376}} 
+\index{modulegotm@{modulegotm}!bougeaultandre@{bougeaultandre}}
+\index{bougeaultandre@{bougeaultandre}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{bougeaultandre}{bougeaultandre}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::bougeaultandre =6\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a9ee68515a5fff9c9166a6b82ed456933}\label{namespacemodulegotm_a9ee68515a5fff9c9166a6b82ed456933}} 
+\index{modulegotm@{modulegotm}!burbaum@{burbaum}}
+\index{burbaum@{burbaum}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{burbaum}{burbaum}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::burbaum =2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_acc6f8d4ca9ecc05782e1e5fe37b2a4ea}\label{namespacemodulegotm_acc6f8d4ca9ecc05782e1e5fe37b2a4ea}} 
+\index{modulegotm@{modulegotm}!burbaumqe@{burbaumqe}}
+\index{burbaumqe@{burbaumqe}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{burbaumqe}{burbaumqe}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::burbaumqe =6\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a08f200dfeb5a1b203cdf3f9887ec48f0}\label{namespacemodulegotm_a08f200dfeb5a1b203cdf3f9887ec48f0}} 
+\index{modulegotm@{modulegotm}!canutoa@{canutoa}}
+\index{canutoa@{canutoa}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{canutoa}{canutoa}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::canutoa =3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a91892f852a1a0e7dbdd26d799d01d3c2}\label{namespacemodulegotm_a91892f852a1a0e7dbdd26d799d01d3c2}} 
+\index{modulegotm@{modulegotm}!canutoaqe@{canutoaqe}}
+\index{canutoaqe@{canutoaqe}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{canutoaqe}{canutoaqe}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::canutoaqe =7\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_ac0ab48f659edad60f836fc9e986a8fec}\label{namespacemodulegotm_ac0ab48f659edad60f836fc9e986a8fec}} 
+\index{modulegotm@{modulegotm}!canutob@{canutob}}
+\index{canutob@{canutob}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{canutob}{canutob}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::canutob =4\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a1adf4ea0176bd82b7aa9864f7d8aaf83}\label{namespacemodulegotm_a1adf4ea0176bd82b7aa9864f7d8aaf83}} 
+\index{modulegotm@{modulegotm}!canutobqe@{canutobqe}}
+\index{canutobqe@{canutobqe}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{canutobqe}{canutobqe}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::canutobqe =8\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a4d0033e085531c87c93b030f6591c704}\label{namespacemodulegotm_a4d0033e085531c87c93b030f6591c704}} 
+\index{modulegotm@{modulegotm}!constant@{constant}}
+\index{constant@{constant}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{constant}{constant}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::constant =9\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a4403b4cce1e34ad86c1aa0e705d4222c}\label{namespacemodulegotm_a4403b4cce1e34ad86c1aa0e705d4222c}} 
+\index{modulegotm@{modulegotm}!diss\_eq@{diss\_eq}}
+\index{diss\_eq@{diss\_eq}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{diss\_eq}{diss\_eq}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::diss\+\_\+eq =8\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a6843f6d6c95d7d5cbd9b92d5b399bd7c}\label{namespacemodulegotm_a6843f6d6c95d7d5cbd9b92d5b399bd7c}} 
+\index{modulegotm@{modulegotm}!fillvalueint@{fillvalueint}}
+\index{fillvalueint@{fillvalueint}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{fillvalueint}{fillvalueint}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::fillvalueint =-\/9999999\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a2faf16339e8c12fe4c7d39478460810f}\label{namespacemodulegotm_a2faf16339e8c12fe4c7d39478460810f}} 
+\index{modulegotm@{modulegotm}!fillvaluereal@{fillvaluereal}}
+\index{fillvaluereal@{fillvaluereal}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{fillvaluereal}{fillvaluereal}}
+{\footnotesize\ttfamily real, parameter modulegotm\+::fillvaluereal =-\/9.\+9e15\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a1844fb45e0887b6144045352f62f1af5}\label{namespacemodulegotm_a1844fb45e0887b6144045352f62f1af5}} 
+\index{modulegotm@{modulegotm}!fluxrich@{fluxrich}}
+\index{fluxrich@{fluxrich}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{fluxrich}{fluxrich}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::fluxrich =12\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a39953f54bbdc8da782f3b50feef9d448}\label{namespacemodulegotm_a39953f54bbdc8da782f3b50feef9d448}} 
+\index{modulegotm@{modulegotm}!idle\_err\_@{idle\_err\_}}
+\index{idle\_err\_@{idle\_err\_}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{idle\_err\_}{idle\_err\_}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::idle\+\_\+err\+\_\+ = 5\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a8de26216ba29e73b224d20ca6cb44664}\label{namespacemodulegotm_a8de26216ba29e73b224d20ca6cb44664}} 
+\index{modulegotm@{modulegotm}!ispra\_length@{ispra\_length}}
+\index{ispra\_length@{ispra\_length}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{ispra\_length}{ispra\_length}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::ispra\+\_\+length =6\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_abce18d4dc4ce96034c9b581092bd7970}\label{namespacemodulegotm_abce18d4dc4ce96034c9b581092bd7970}} 
+\index{modulegotm@{modulegotm}!kanclay@{kanclay}}
+\index{kanclay@{kanclay}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{kanclay}{kanclay}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::kanclay =1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a2b67d69c6a8ac1632483b71fcbc9c20a}\label{namespacemodulegotm_a2b67d69c6a8ac1632483b71fcbc9c20a}} 
+\index{modulegotm@{modulegotm}!kanclayqe@{kanclayqe}}
+\index{kanclayqe@{kanclayqe}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{kanclayqe}{kanclayqe}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::kanclayqe =5\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a090551467cbb9673b88edf6c5db10b2b}\label{namespacemodulegotm_a090551467cbb9673b88edf6c5db10b2b}} 
+\index{modulegotm@{modulegotm}!length\_eq@{length\_eq}}
+\index{length\_eq@{length\_eq}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{length\_eq}{length\_eq}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::length\+\_\+eq =9\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_aefc13e1296f71005638e19eff270dd6a}\label{namespacemodulegotm_aefc13e1296f71005638e19eff270dd6a}} 
+\index{modulegotm@{modulegotm}!munkanderson@{munkanderson}}
+\index{munkanderson@{munkanderson}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{munkanderson}{munkanderson}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::munkanderson =10\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a98f0c25fc8853b787887f1ed35c706ad}\label{namespacemodulegotm_a98f0c25fc8853b787887f1ed35c706ad}} 
+\index{modulegotm@{modulegotm}!nbusers\_err\_@{nbusers\_err\_}}
+\index{nbusers\_err\_@{nbusers\_err\_}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{nbusers\_err\_}{nbusers\_err\_}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::nbusers\+\_\+err\+\_\+ = 6\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a2e888b1f33eea5d6198b2b74c27aa11d}\label{namespacemodulegotm_a2e888b1f33eea5d6198b2b74c27aa11d}} 
+\index{modulegotm@{modulegotm}!null\_int@{null\_int}}
+\index{null\_int@{null\_int}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{null\_int}{null\_int}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::null\+\_\+int = -\/9999\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a89fe021c998471f10e1252fbabba387c}\label{namespacemodulegotm_a89fe021c998471f10e1252fbabba387c}} 
+\index{modulegotm@{modulegotm}!null\_real@{null\_real}}
+\index{null\_real@{null\_real}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{null\_real}{null\_real}}
+{\footnotesize\ttfamily real, parameter modulegotm\+::null\+\_\+real = -\/9.\+999E+15\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_af65e84e018f76a3a2d29f65589808c9d}\label{namespacemodulegotm_af65e84e018f76a3a2d29f65589808c9d}} 
+\index{modulegotm@{modulegotm}!off\_err\_@{off\_err\_}}
+\index{off\_err\_@{off\_err\_}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{off\_err\_}{off\_err\_}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::off\+\_\+err\+\_\+ = 1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a97522a5857d2ea9ecdacaa45e530f142}\label{namespacemodulegotm_a97522a5857d2ea9ecdacaa45e530f142}} 
+\index{modulegotm@{modulegotm}!on\_err\_@{on\_err\_}}
+\index{on\_err\_@{on\_err\_}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{on\_err\_}{on\_err\_}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::on\+\_\+err\+\_\+ = 2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_ac9524a6d32be82ce6528becff10d08ff}\label{namespacemodulegotm_ac9524a6d32be82ce6528becff10d08ff}} 
+\index{modulegotm@{modulegotm}!read\_lock\_err\_@{read\_lock\_err\_}}
+\index{read\_lock\_err\_@{read\_lock\_err\_}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{read\_lock\_err\_}{read\_lock\_err\_}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::read\+\_\+lock\+\_\+err\+\_\+ = 3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a8b80733c09f1d2f777468f16b9df9563}\label{namespacemodulegotm_a8b80733c09f1d2f777468f16b9df9563}} 
+\index{modulegotm@{modulegotm}!schumgerz@{schumgerz}}
+\index{schumgerz@{schumgerz}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{schumgerz}{schumgerz}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::schumgerz =11\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_adb6c42c1323d939b70b00c98f2106d11}\label{namespacemodulegotm_adb6c42c1323d939b70b00c98f2106d11}} 
+\index{modulegotm@{modulegotm}!success\_@{success\_}}
+\index{success\_@{success\_}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{success\_}{success\_}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::success\+\_\+ = 0\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_af7d3b24a327afe4fa750141548a9e5f8}\label{namespacemodulegotm_af7d3b24a327afe4fa750141548a9e5f8}} 
+\index{modulegotm@{modulegotm}!tke\_keps@{tke\_keps}}
+\index{tke\_keps@{tke\_keps}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{tke\_keps}{tke\_keps}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::tke\+\_\+keps =2\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_ac70f3cf4ffada602b184d8ccf56aea81}\label{namespacemodulegotm_ac70f3cf4ffada602b184d8ccf56aea81}} 
+\index{modulegotm@{modulegotm}!tke\_local\_eq@{tke\_local\_eq}}
+\index{tke\_local\_eq@{tke\_local\_eq}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{tke\_local\_eq}{tke\_local\_eq}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::tke\+\_\+local\+\_\+eq =1\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_aed350ab9bde0bdf934d954e5c261a039}\label{namespacemodulegotm_aed350ab9bde0bdf934d954e5c261a039}} 
+\index{modulegotm@{modulegotm}!tke\_my@{tke\_my}}
+\index{tke\_my@{tke\_my}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{tke\_my}{tke\_my}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::tke\+\_\+my =3\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_a0f598f7a7591ef502047d7bf9b41d8c4}\label{namespacemodulegotm_a0f598f7a7591ef502047d7bf9b41d8c4}} 
+\index{modulegotm@{modulegotm}!unknown\_@{unknown\_}}
+\index{unknown\_@{unknown\_}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{unknown\_}{unknown\_}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::unknown\+\_\+ =-\/99\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{namespacemodulegotm_ae9156b93cafbf0c50087599b64ff3d3d}\label{namespacemodulegotm_ae9156b93cafbf0c50087599b64ff3d3d}} 
+\index{modulegotm@{modulegotm}!write\_lock\_err\_@{write\_lock\_err\_}}
+\index{write\_lock\_err\_@{write\_lock\_err\_}!modulegotm@{modulegotm}}
+\doxysubsubsection{\texorpdfstring{write\_lock\_err\_}{write\_lock\_err\_}}
+{\footnotesize\ttfamily integer, parameter modulegotm\+::write\+\_\+lock\+\_\+err\+\_\+ = 4\hspace{0.3cm}{\ttfamily [private]}}
+

@@ -1,0 +1,160 @@
+\hypertarget{_module_jet_8_f90}{}\doxysection{C\+:/\+Projects/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Jet.F90 File Reference}
+\label{_module_jet_8_f90}\index{C:/Projects/GitHub/Mohid/Software/MOHIDWater/ModuleJet.F90@{C:/Projects/GitHub/Mohid/Software/MOHIDWater/ModuleJet.F90}}
+\doxysubsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+interface \mbox{\hyperlink{interfacemodulejet_1_1ungetjet}{modulejet\+::ungetjet}}
+\item 
+type \mbox{\hyperlink{structmodulejet_1_1t__port}{modulejet\+::t\+\_\+port}}
+\item 
+type \mbox{\hyperlink{structmodulejet_1_1t__ambient}{modulejet\+::t\+\_\+ambient}}
+\item 
+type \mbox{\hyperlink{structmodulejet_1_1t__numericaloptions}{modulejet\+::t\+\_\+numericaloptions}}
+\item 
+type \mbox{\hyperlink{structmodulejet_1_1t__output}{modulejet\+::t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmodulejet_1_1t__evolution}{modulejet\+::t\+\_\+evolution}}
+\item 
+type \mbox{\hyperlink{structmodulejet_1_1t__jet}{modulejet\+::t\+\_\+jet}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulejet}{modulejet}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_a62e934340e7802fddd09c6c14676471d}{modulejet\+::construct\+\_\+jet}} (Jet\+ID, File\+Name, Horizontal\+Grid\+ID, PositionX, PositionY, Flow, Salinity, Temperature, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_af21d1a641f05197da226314abaeccf5e}{modulejet\+::allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_ad99b3da948112f106201831bbaaa074f}{modulejet\+::readjetdata}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a6a2424bc396ad0eed996ed0d75430e3b}{modulejet\+::computeportproperties}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_aabae5c457f7fe1dd3d3f540d56e94877}{modulejet\+::modifyjet}} (Jet\+ID, Salinity, Temperature, VelU, VelV, VelW, S\+ZZ, I, J, Bottom\+Layer, Surface\+Layer, Out\+Put\+OK, Jet\+Flow, Jet\+Temperature, Jet\+Salinity, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_ab0790a91803700e0bd5e3ef9db5242c1}{modulejet\+::resetvariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a8b1ef801e649c2313fee9754d2aeb58a}{modulejet\+::computeinitialjetproperties}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_aa0e9555f7e9aa809220382ec3e33e9a5}{modulejet\+::computestationaryplume}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_aa7fe235d6b33c696f614897ed43a1e19}{modulejet\+::computeonetimestep}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a1eea8311f846796ccfa34a65730c5c55}{modulejet\+::localambientprop}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a188ea99d96436b044d3ea76f4ddfa467}{modulejet\+::auxiliarvectors}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_afbaba1fae7aab0a9a372600923511fed}{modulejet\+::shearentrainmentcoef}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a0425b9fdbf288a0e893428f44a92b9ea}{modulejet\+::computeinitialdt}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a8bbbce93ba8d9ba74525873c550cdf8b}{modulejet\+::computedragentrainment}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a21b954c77f4addf0f268edc0e9448a18}{modulejet\+::computeshearentrainment}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_abe8dc92537467b9dcd97c4a01b77f51c}{modulejet\+::volumevariation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a05449786a790959e45db1fc1bd9f93f6}{modulejet\+::densityvariation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a4aaeebe926aea33dd1391746d2cdaa32}{modulejet\+::velocityvariation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a5241bdca6d72d79d96fdc8d9b63a291a}{modulejet\+::thicknessvariation}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a0d3bcdd114f549e27a46b673224a1f35}{modulejet\+::computegeometry}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a9175197cbe465e40fa03bc6a7c788871}{modulejet\+::plumetracjectory}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a7518a8afbcafcfeedfc10f5a3a205b33}{modulejet\+::timecontrol}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a200bdafc097359afe09ed14b7a55d8b7}{modulejet\+::jetoutput}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a61dad6f878bf6cce690b9523901012ac}{modulejet\+::cloudoutput}}
+\item 
+real function \mbox{\hyperlink{namespacemodulejet_adbbd50d3810071999488736815c23285}{modulejet\+::computeanglexy}} (Modulus, X, Y)
+\item 
+real function \mbox{\hyperlink{namespacemodulejet_a54205285b4f5a4d3d7204aa240f92d64}{modulejet\+::gaussianevolution}} (Center\+Value, Ambient\+Value, Radius, r)
+\item 
+real function \mbox{\hyperlink{namespacemodulejet_a5b1cd3a55b2e6494e998c7233db5ec58}{modulejet\+::gaussrand}} ()
+\item 
+subroutine \mbox{\hyperlink{namespacemodulejet_a2cbc865fd41278d7ee8a6b0036bc3114}{modulejet\+::cross\+\_\+product}} (AV, BV, CV)
+\begin{DoxyCompactList}\small\item\em ==================================================================== \end{DoxyCompactList}\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_a5bd04e69691ddf86217eae82701cb7ea}{modulejet\+::getplumedilution}} (Jet\+ID, Plume\+Dilution, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_a864a38eff68cbab56308586d389f202b}{modulejet\+::getplumelocation}} (Jet\+ID, PlumeX, PlumeY, PlumeZ, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_aace5b51fdfea28b29ddf40d44b7805b4}{modulejet\+::getplumedensity}} (Jet\+ID, Plume\+Density, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_a6a3b06a4b31a48d3feabf8b545a6e8b2}{modulejet\+::getplumesalinity}} (Jet\+ID, Plume\+Salinity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_aa64ddb0bd7c80f966b8ec54eb9a36c7c}{modulejet\+::getplumetemperature}} (Jet\+ID, Plume\+Temperature, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_ab7e7ab36f584f4edd9e7f7835d1e0cee}{modulejet\+::getplumevelocity}} (Jet\+ID, Plume\+VelU, Plume\+VelV, Plume\+VelW, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_a105341ffdec09f8266a68d6db9beba7f}{modulejet\+::getplumemixinghorlength}} (Jet\+ID, Plume\+Hor\+Length, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_a50ced2ba527ab243cd3228d18867695d}{modulejet\+::getplumethickness}} (Jet\+ID, Plume\+Thickness, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_a81ee4e71d54b53e9b3ab94bb817d66e8}{modulejet\+::getoutputmatrix}} (Jet\+ID, Out\+Put\+Matrix, Out\+Put\+Lines, Out\+Put\+Columns, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_af33eb9ee692e4270d09338bd74aa8851}{modulejet\+::getoutputheader}} (Jet\+ID, Out\+Put\+Header, Out\+Put\+Columns, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_adcc462c38759f6ba6caa1b8f33479fa8}{modulejet\+::getportgeometry}} (Jet\+ID, H\+Z\+Angle, X\+Y\+Angle, Diameter, Number, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a3faa436f5c17dc03c594506d8e2e37ac}{modulejet\+::ungetjetreal2d}} (Jet\+ID, Matrix2D, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_aaa0ceb23e085072c0cf5693f217b27ea}{modulejet\+::ungetjetchar1d}} (Jet\+ID, Matrix1D, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulejet_a98749a91e325a4b4041aa46d5abfde4e}{modulejet\+::killjet}} (Jet\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_aed198ff7ee371124ec0afa1cd4cfe116}{modulejet\+::deallocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a08cf17884b67eb6e393c3f7553f6398f}{modulejet\+::ready}} (Obj\+Jet\+\_\+\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulejet_a0b2668a76b18f69741deda8796740f8f}{modulejet\+::locateobjjet}} (Obj\+Jet\+ID)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulejet_a47f0eeeb3926639ae9bc14b922a7f57c}{modulejet\+::corjet}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulejet_a0eac969bec0ab0471a9981f588069599}{modulejet\+::jetlag}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulejet_a66d6965728ead70e0e7ec473e5f3892a}{modulejet\+::mohidjet}} = 3
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulejet_a40df7356ca4c8528a71bb58c601ebd49}{modulejet\+::jet}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulejet_a9e881f4c022dfb8c88bf0a80253f418d}{modulejet\+::cloud}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulejet_afc8a4f2043befe1347d4c124fa51f8fe}{modulejet\+::field3d}} = 1
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulejet_aded2b1f058efa2a87b81b1014237d1dd}{modulejet\+::uniform}} = 2
+\item 
+integer, parameter \mbox{\hyperlink{namespacemodulejet_a348a978ca201c1b1d5cce70caf9ffbca}{modulejet\+::linear}} = 3
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulejet_aaf2968de3c9e21de5bf36921280173ea}{modulejet\+::char\+\_\+corjet}} = \char`\"{}C\+O\+R\+J\+ET\char`\"{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulejet_a095e7e5dbe90a0743f6b20da582f4b36}{modulejet\+::char\+\_\+jetlag}} = \char`\"{}J\+E\+T\+L\+AG\char`\"{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulejet_a5d2a3c56461cb3ab743e4cf3e43ef5c4}{modulejet\+::char\+\_\+mohidjet}} = \char`\"{}M\+O\+H\+I\+D\+J\+ET\char`\"{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulejet_aefbc78bb0522ce92db2a8c9ebb93b89d}{modulejet\+::char\+\_\+jet}} = \char`\"{}J\+ET\char`\"{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulejet_ada08e627a6d079948c1b003fbb4123d3}{modulejet\+::char\+\_\+cloud}} = \char`\"{}C\+L\+O\+UD\char`\"{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulejet_ab29798d11a7038ce6bed995f6906602b}{modulejet\+::char\+\_\+field3d}} = \char`\"{}F\+I\+E\+L\+D3D\char`\"{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulejet_a712a0fb09e3bed71ec54b3f527cf6620}{modulejet\+::char\+\_\+uniform}} = \char`\"{}U\+N\+I\+F\+O\+RM\char`\"{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulejet_a8e1524ba4bcb2d9dc829cb15187def34}{modulejet\+::char\+\_\+linear}} = \char`\"{}L\+I\+N\+E\+AR\char`\"{}
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulejet_a0d016ad4bb2860942a6dee0743ceb113}{modulejet\+::sigmad}} = 0.\+5
+\item 
+real, parameter \mbox{\hyperlink{namespacemodulejet_a1e044c780afebf2d2dbf72987f29c21c}{modulejet\+::precision}} = 1e-\/4
+\item 
+type(t\+\_\+jet), pointer \mbox{\hyperlink{namespacemodulejet_a71f07968cb9db6433b4bf6e542b64236}{modulejet\+::firstjet}}
+\item 
+type(t\+\_\+jet), pointer \mbox{\hyperlink{namespacemodulejet_ab55c2a250d5e25c16efdfeea48d0b3da}{modulejet\+::me}}
+\end{DoxyCompactItemize}

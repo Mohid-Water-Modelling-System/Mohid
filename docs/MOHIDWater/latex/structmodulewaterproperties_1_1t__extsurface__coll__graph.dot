@@ -1,0 +1,7 @@
+digraph "modulewaterproperties::t_extsurface"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulewaterproperties\l::t_extsurface\n|- evaporation\l- precipitation\l- precipitationon\l- oxygenflux\l- carbondioxideflux\l- ammoniaflux\l- nitrateflux\l- windshearvelocity\l- nonsolarradiation\l- surfaceradiation\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

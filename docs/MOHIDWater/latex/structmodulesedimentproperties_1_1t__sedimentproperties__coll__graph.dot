@@ -1,0 +1,39 @@
+digraph "modulesedimentproperties::t_sedimentproperties"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulesedimentproperties\l::t_sedimentproperties\n|- instanceid\l- size\l- worksize\l- begintime\l- endtime\l- nextcompute\l- propertiesnumber\l- sedimentratesnumber\l- partitionmatrix\l- independentterm\land 30 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond"];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -files" ,arrowhead="odiamond"];
+  Node2 [label="{modulesedimentproperties\l::t_files\n|- initial\l- final\l- hdfresults\l- inputdata\l- boxesfile\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesedimentproperties_1_1t__files.html",tooltip=" "];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -coupled" ,arrowhead="odiamond"];
+  Node3 [label="{modulesedimentproperties\l::t_coupled\n||}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesedimentproperties_1_1t__coupled.html",tooltip=" "];
+  Node4 -> Node3 [color="grey25",fontsize="10",style="solid",label=" -seagrassesroots\n-timeserie\n-minimumconcentration\n-surfacefluxes\n-sedimentquality\n-boxtimeserie\n-advectiondiffusion\n-outputhdf\n-partition\n-bioturbation\n..." ,arrowhead="odiamond"];
+  Node4 [label="{modulesedimentproperties\l::t_coupling\n|- nextcompute\l- dt_compute\l- yes\l- numberofproperties\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesedimentproperties_1_1t__coupling.html",tooltip=" "];
+  Node5 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -firstsedimentrate\n-lastsedimentrate" ,arrowhead="odiamond"];
+  Node5 [label="{modulesedimentproperties\l::t_sedimentrate\n|- field\l- field2\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesedimentproperties_1_1t__sedimentrate.html",tooltip=" "];
+  Node6 -> Node5 [color="grey25",fontsize="10",style="solid",label=" -firstprop\n-id\n-secondprop" ,arrowhead="odiamond"];
+  Node6 [label="{modulesedimentproperties\l::t_id\n|- idnumber\l- name\l- description\l- units\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesedimentproperties_1_1t__id.html",tooltip=" "];
+  Node5 -> Node5 [color="grey25",fontsize="10",style="solid",label=" -prev\n-next" ,arrowhead="odiamond"];
+  Node7 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -output" ,arrowhead="odiamond"];
+  Node7 [label="{modulesedimentproperties\l::t_output\n|- outtime\l- nextoutput\l- yes\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesedimentproperties_1_1t__output.html",tooltip=" "];
+  Node8 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -firstproperty\n-lastproperty" ,arrowhead="odiamond"];
+  Node8 [label="{modulesedimentproperties\l::t_property\n|- id\l- scalar\l- iscoefficient\l- particulate\l- old\l- timeserie\l- boxtimeserie\l- outputhdf\l- concentration\l- horizontaldiffusivity\l- verticaldiffusivity\l- mass_created\l- boundaryflux\l- minvalue\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesedimentproperties_1_1t__property.html",tooltip=" "];
+  Node9 -> Node8 [color="grey25",fontsize="10",style="solid",label=" -evolution" ,arrowhead="odiamond"];
+  Node9 [label="{modulesedimentproperties\l::t_evolution\n|- variable\l- sedimentquality\l- partitioning\l- advectiondiffusion\l- computebioturbation\l- surfacefluxes\l- minconcentration\l- seagrassesroots\l- lastcompute\l- nextcompute\l- dtinterval\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesedimentproperties_1_1t__evolution.html",tooltip=" "];
+  Node10 -> Node9 [color="grey25",fontsize="10",style="solid",label=" -partition" ,arrowhead="odiamond"];
+  Node10 [label="{modulesedimentproperties\l::t_partition\n|- couple\l- couple_id\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesedimentproperties_1_1t__partition.html",tooltip=" "];
+  Node11 -> Node10 [color="grey25",fontsize="10",style="solid",label=" -fraction\n-rate" ,arrowhead="odiamond"];
+  Node11 [label="{modulesedimentproperties\l::t_property_3d\n|- id\l- scalar\l- field\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesedimentproperties_1_1t__property__3d.html",tooltip=" "];
+  Node12 -> Node9 [color="grey25",fontsize="10",style="solid",label=" -bioturbation" ,arrowhead="odiamond"];
+  Node12 [label="{modulesedimentproperties\l::t_bioturbation\n|- defaultcoef\l- biodepth\l- decaycoef\l- coef\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesedimentproperties_1_1t__bioturbation.html",tooltip=" "];
+  Node13 -> Node9 [color="grey25",fontsize="10",style="solid",label=" -advec_difus_parameters" ,arrowhead="odiamond"];
+  Node13 [label="{modulesedimentproperties\l::t_advectiondiffusion\l_parameters\n|- boundarycondition\l- diffusion_method\l- molecular_diff_coef\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesedimentproperties_1_1t__advectiondiffusion__parameters.html",tooltip=" "];
+  Node8 -> Node8 [color="grey25",fontsize="10",style="solid",label=" -prev\n-next" ,arrowhead="odiamond"];
+  Node14 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -seagrassesroots" ,arrowhead="odiamond"];
+  Node14 [label="{modulesedimentproperties\l::t_seagrassesroots\n|- id\l- biomass\l- length\l- occupation\l- nintfactor3dr\l- nintfactor2dr\l- pintfactor3dr\l- pintfactor2dr\l- rootsmort3dr\l- rootsmort2dr\l- uptakenh4s3d\l- uptakepo4s3d\l- defaultvalue\l- lbratio\l- volume\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesedimentproperties_1_1t__seagrassesroots.html",tooltip=" "];
+  Node11 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -sediment_drydensity\n-horizontaldiffcoef\n-verticaldiffcoef" ,arrowhead="odiamond"];
+  Node15 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -externalvar" ,arrowhead="odiamond"];
+  Node15 [label="{modulesedimentproperties\l::t_external\n|- now\l- gridcellarea\l- waterflux\l- dwz\l- dzz\l- szz\l- waterpercentage\l- volumez\l- watervolume\l- watervolumeold\land 26 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulesedimentproperties_1_1t__external.html",tooltip=" "];
+}

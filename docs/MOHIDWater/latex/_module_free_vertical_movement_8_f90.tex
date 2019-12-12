@@ -1,0 +1,104 @@
+\hypertarget{_module_free_vertical_movement_8_f90}{}\doxysection{C\+:/\+Projects/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\+Module\+Free\+Vertical\+Movement.F90 File Reference}
+\label{_module_free_vertical_movement_8_f90}\index{C:/Projects/GitHub/Mohid/Software/MOHIDWater/ModuleFreeVerticalMovement.F90@{C:/Projects/GitHub/Mohid/Software/MOHIDWater/ModuleFreeVerticalMovement.F90}}
+\doxysubsection*{Data Types}
+\begin{DoxyCompactItemize}
+\item 
+type \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__property}{modulefreeverticalmovement\+::t\+\_\+property}}
+\item 
+type \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__def}{modulefreeverticalmovement\+::t\+\_\+def}}
+\item 
+type \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__external}{modulefreeverticalmovement\+::t\+\_\+external}}
+\item 
+type \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__options}{modulefreeverticalmovement\+::t\+\_\+options}}
+\item 
+type \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__files}{modulefreeverticalmovement\+::t\+\_\+files}}
+\item 
+type \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__output}{modulefreeverticalmovement\+::t\+\_\+output}}
+\item 
+type \mbox{\hyperlink{structmodulefreeverticalmovement_1_1t__freeverticalmovement}{modulefreeverticalmovement\+::t\+\_\+freeverticalmovement}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Modules}
+\begin{DoxyCompactItemize}
+\item 
+module \mbox{\hyperlink{namespacemodulefreeverticalmovement}{modulefreeverticalmovement}}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions/\+Subroutines}
+\begin{DoxyCompactItemize}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulefreeverticalmovement_a3b98553e1845617e703a449e92c798c9}{modulefreeverticalmovement\+::construct\+\_\+freeverticalmovement}} (Free\+Vertical\+Movement\+ID, Time\+ID, Horizontal\+Grid\+ID, Map\+ID, Geometry\+ID, Turb\+G\+O\+T\+M\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulefreeverticalmovement_a07f25d7228ee74ef7003eea9ba19e494}{modulefreeverticalmovement\+::allocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulefreeverticalmovement_a7ec18a4b674d7b9ea1339f2a93116e0a}{modulefreeverticalmovement\+::allocatevariables}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulefreeverticalmovement_a5ca7e73e0a11ea273e8a65cdd0734e44}{modulefreeverticalmovement\+::construct\+\_\+propertylist}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulefreeverticalmovement_af393a68b806664c9eea39ca1dec93cf9}{modulefreeverticalmovement\+::construct\+\_\+property}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulefreeverticalmovement_a5899cd9d999076fff990bfecf3b374a7}{modulefreeverticalmovement\+::construct\+\_\+propertyparameters}} (New\+Property)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulefreeverticalmovement_a2b10bad3ef2fbac72aed08e6bf29bcd6}{modulefreeverticalmovement\+::readclarifieroprions}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulefreeverticalmovement_a9138567f31f0c9e91b69d5268c3855ce}{modulefreeverticalmovement\+::add\+\_\+property}} (New\+Property)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulefreeverticalmovement_adb8368e5dfca81f3d1a6bd7881e19c7f}{modulefreeverticalmovement\+::readfreevertmovfilesname}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulefreeverticalmovement_a2ca295c9f72cbcb4ce9b0d893235eca0}{modulefreeverticalmovement\+::construct\+\_\+time\+\_\+serie}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulefreeverticalmovement_a70493770ba7c42e3f3d4dc5f09ae0e45}{modulefreeverticalmovement\+::modify\+\_\+freeverticalmovement}} (Free\+Vertical\+Movement\+ID, Concentration, S\+PM, S\+P\+M\+I\+S\+Coef, Salinity\+Field, Property\+ID, I\+S\+\_\+\+Coef, D\+T\+Prop, Current\+Time, No\+Flux, No\+FluxW, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulefreeverticalmovement_ac736b639239aa370175df19fc8836c97}{modulefreeverticalmovement\+::freeverticalmovementiteration}} (PropertyX)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulefreeverticalmovement_a31ae6c338b4621e00f2dd8c66bb9268f}{modulefreeverticalmovement\+::verticalfreeconvection}} (PropertyX)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulefreeverticalmovement_a42b3411647c7bb8c92b023c61a0c49cc}{modulefreeverticalmovement\+::calcverticalfreeconvflux}} (PropertyX, Weigth)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulefreeverticalmovement_ab6e298fcea3ea467957f90a97c8032df}{modulefreeverticalmovement\+::vertical\+\_\+velocity}} (PropertyX)
+\item 
+real function \mbox{\hyperlink{namespacemodulefreeverticalmovement_a543eec774fcc212b6cb45cb2eb05b988}{modulefreeverticalmovement\+::timeserievalue}} (Obj\+Time\+Serie, Now, Time\+Serie\+Column)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulefreeverticalmovement_ad4e1681fa973f2a527c8fb380ad6fa31}{modulefreeverticalmovement\+::bottomboundary}} (PropertyX)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulefreeverticalmovement_a074424b5e6d0b4d4588c869805dbf784}{modulefreeverticalmovement\+::output\+\_\+timeseries}}
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulefreeverticalmovement_ae1df1a4ce293addb56cc6c44759de660}{modulefreeverticalmovement\+::get\+\_\+freevelocity}} (Free\+Vertical\+Movement\+ID, Property\+ID, Free\+\_\+\+Velocity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulefreeverticalmovement_ae2c2c24a260e587fdae043cc60422788}{modulefreeverticalmovement\+::get\+\_\+freeconvflux}} (Free\+Vertical\+Movement\+ID, Property\+ID, Free\+Conv\+Flux, S\+T\+AT)
+\item 
+logical function, public \mbox{\hyperlink{namespacemodulefreeverticalmovement_abe59234b027e4daf4dad54daa42f5438}{modulefreeverticalmovement\+::freevertpropertyexists}} (Free\+Vertical\+Movement\+ID, Property\+ID)
+\item 
+logical function, public \mbox{\hyperlink{namespacemodulefreeverticalmovement_a5df00d9a684664131c8c007872e866a8}{modulefreeverticalmovement\+::freevertpropertyhasdeposition}} (Free\+Vertical\+Movement\+ID, Property\+ID)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulefreeverticalmovement_aeb0cb26f03549d5f06df5b4559b58017}{modulefreeverticalmovement\+::getfreevertmovoptions}} (Free\+Vertical\+Movement\+ID, Salinity, S\+PM, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulefreeverticalmovement_a0dee0aecf95b688c425cff9d35e998aa}{modulefreeverticalmovement\+::ungetfreeverticalmovement}} (Free\+Vertical\+Movement\+ID, Array, S\+T\+AT)
+\item 
+subroutine \mbox{\hyperlink{namespacemodulefreeverticalmovement_a7533a239e57263d95d53d832615113be}{modulefreeverticalmovement\+::search\+\_\+property}} (PropertyX, Property\+X\+ID, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulefreeverticalmovement_af516e84df0a0267e1305aeeba0e3d131}{modulefreeverticalmovement\+::setdepositionprobability}} (Free\+Vertical\+Movement\+ID, Deposition\+Probability, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulefreeverticalmovement_a09fc990d2d2ac27c1577ca26d525281a}{modulefreeverticalmovement\+::setshearvelocity}} (Free\+Vertical\+Movement\+ID, Shear\+Velocity, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulefreeverticalmovement_a9259d59598e55228b4b8a0ac729e3373}{modulefreeverticalmovement\+::setsandparameters}} (Free\+Vertical\+Movement\+ID, Property\+ID, Sand\+Diameter, Relative\+Density, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulefreeverticalmovement_a7aea36a1bc080954215034040adc4468}{modulefreeverticalmovement\+::getdepositionintertidalzones}} (Free\+Vertical\+Movement\+ID, Deposition\+Intertidal\+Zones, S\+T\+AT)
+\item 
+subroutine, public \mbox{\hyperlink{namespacemodulefreeverticalmovement_a73edd544e82908b2861ea9c544516ab3}{modulefreeverticalmovement\+::kill\+\_\+freeverticalmovement}} (Free\+Vertical\+Movement\+ID, S\+T\+AT)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulefreeverticalmovement_a336eabf740dc9afccbeae27f1bd4c8f4}{modulefreeverticalmovement\+::deallocateinstance}}
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulefreeverticalmovement_a6822a6ac8c2596feb6110b6fa936b42b}{modulefreeverticalmovement\+::ready}} (Free\+Vertical\+Movement\+ID, ready\+\_\+)
+\item 
+subroutine, private \mbox{\hyperlink{namespacemodulefreeverticalmovement_a5b77a0a606cd82e8b48959c866cc4029}{modulefreeverticalmovement\+::locateobjfreeverticalmovement}} (Free\+Vertical\+Movement\+ID)
+\end{DoxyCompactItemize}
+\doxysubsection*{Variables}
+\begin{DoxyCompactItemize}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulefreeverticalmovement_a1ece5e8dc845d51331f4b843dcc6c478}{modulefreeverticalmovement\+::prop\+\_\+block\+\_\+begin}} = \textquotesingle{}$<$beginproperty$>$\textquotesingle{}
+\item 
+character(len=stringlength), parameter \mbox{\hyperlink{namespacemodulefreeverticalmovement_aa4fffdbed67b4800eea74f1389195f60}{modulefreeverticalmovement\+::prop\+\_\+block\+\_\+end}} = \textquotesingle{}$<$endproperty$>$\textquotesingle{}
+\item 
+type(t\+\_\+freeverticalmovement), pointer \mbox{\hyperlink{namespacemodulefreeverticalmovement_af05afdb031d50e81aaa92c9b99793254}{modulefreeverticalmovement\+::firstobjfreeverticalmovement}} =$>$ null()
+\item 
+type(t\+\_\+freeverticalmovement), pointer \mbox{\hyperlink{namespacemodulefreeverticalmovement_a28b010cc15d0e2ac1ad1a9ddf71afb4d}{modulefreeverticalmovement\+::me}} =$>$ null()
+\end{DoxyCompactItemize}

@@ -1,0 +1,19 @@
+digraph "modulelagrangianglobal::setlagsolarradiationglobal"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulelagrangianglobal\l::setlagsolarradiationglobal",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="modelname",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$_main_8_f90.html#af0ae0b978e6573bc461573aa66062e83",tooltip=" "];
+  Node2 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="modelpath",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$_main_8_f90.html#ada5b220b45dcba73a75264dcde43e3bd",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="modulehns::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehns.html#a1b4bda03d346568b51278fca35b05366",tooltip=" "];
+  Node4 -> Node5 [color="midnightblue",fontsize="10",style="solid"];
+  Node5 [label="modulehns::locateobjhns",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehns.html#aff869b6b5dffbe4b2d00b777a1c0455d",tooltip=" "];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid"];
+  Node6 [label="modulelagrangianglobal\l::returnmodelindex",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulelagrangianglobal.html#a446618968d07df360f90a4ddc2d93a99",tooltip=" "];
+  Node6 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+}

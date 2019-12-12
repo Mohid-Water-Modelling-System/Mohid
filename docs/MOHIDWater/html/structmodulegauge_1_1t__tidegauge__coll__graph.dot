@@ -1,0 +1,13 @@
+digraph "modulegauge::t_tidegauge"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulegauge::t_tidegauge\n|- name\l- longitude\l- latitude\l- decimallatitude\l- decimallongitude\l- metric_x\l- metric_y\l- definedmetric\l- grid_i\l- grid_j\land 17 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -firstwave\n-lastwave" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{modulegauge::t_tidalwave\n|- name\l- amplitude\l- phase\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulegauge_1_1t__tidalwave.html",tooltip=" "];
+  Node2 -> Node2 [color="grey25",fontsize="10",style="solid",label=" -prev\n-next" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -velocityu\n-velocityv" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 [label="{modulegauge::t_tidalvelocity\n|- name\l- amplitude\l- phase\l- nwaves\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulegauge_1_1t__tidalvelocity.html",tooltip=" "];
+  Node1 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -prev\n-next" ,arrowhead="odiamond",fontname="Helvetica"];
+}

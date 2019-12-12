@@ -1,0 +1,7 @@
+digraph "modulegotm::t_gotmparameters"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulegotm::t_gotmparameters\n|- cde\l- sig_e0\l- sig_e1\l- craig_m\l- const_num\l- const_nuh\l- k_min\l- eps_min\l- l_min\l- kappa\land 41 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+}

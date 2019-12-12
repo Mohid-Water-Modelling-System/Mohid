@@ -1,0 +1,24 @@
+digraph "modulewaves::constructfetch"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulewaves::constructfetch",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="modulewaves::computeanglelist",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a87b9e4a4fb336f9ea383004f7732a8e5",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="modulewaves::computedepth",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a27cdbb0680c11412da65be9051fe9100",tooltip=" "];
+  Node1 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="modulewaves::computefetch",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a1ef67144876afbf33cc3bff9a3c88ebd",tooltip=" "];
+  Node1 -> Node5 [color="midnightblue",fontsize="10",style="solid"];
+  Node5 [label="modulewaves::computefetchdistanceanddepthgrid",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a885bbbf547ce705b1cd35ecfebe8df37",tooltip=" "];
+  Node1 -> Node6 [color="midnightblue",fontsize="10",style="solid"];
+  Node6 [label="modulewaves::computefetchdistancegrid",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a945cce4a681b204911670731bf66725a",tooltip=" "];
+  Node1 -> Node7 [color="midnightblue",fontsize="10",style="solid"];
+  Node7 [label="modulewaves::computefetchdistancepolygon",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#aae4352dfe2bb084d6d5d956c1bdadea3",tooltip=" "];
+  Node1 -> Node8 [color="midnightblue",fontsize="10",style="solid"];
+  Node8 [label="modulewaves::constructlandarea",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a509d19a4e531573684282a3b2e47fb4a",tooltip=" "];
+  Node1 -> Node9 [color="midnightblue",fontsize="10",style="solid"];
+  Node9 [label="modulewaves::output\l_griddata",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulewaves.html#a566d06de3bff651d00d4a28e0e06157b",tooltip=" "];
+}

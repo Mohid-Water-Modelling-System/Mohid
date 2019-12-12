@@ -1,0 +1,9 @@
+digraph "modulehydrodynamic::t_tsunami"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulehydrodynamic\l::t_tsunami\n|- on\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -fault" ,arrowhead="odiamond"];
+  Node2 [label="{modulehydrodynamic\l::t_fault\n|- inputmethod\l- filename\l- objgriddata\l- hh\l- l\l- w\l- d\l- th\l- dl\l- rd\l- y0\l- x0\l- t0\l- amplification\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulehydrodynamic_1_1t__fault.html",tooltip=" "];
+}

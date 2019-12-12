@@ -1,0 +1,14 @@
+digraph "modulehns::gethnsdensity"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  rankdir="LR";
+  Node1 [label="modulehns::gethnsdensity",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node1 -> Node2 [color="midnightblue",fontsize="10",style="solid"];
+  Node2 [label="moduleoil_0d::density",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemoduleoil__0d.html#a365dbbed79663b6925c5964691b6fae2",tooltip=" "];
+  Node1 -> Node3 [color="midnightblue",fontsize="10",style="solid"];
+  Node3 [label="modulehns::ready",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehns.html#a1b4bda03d346568b51278fca35b05366",tooltip=" "];
+  Node3 -> Node4 [color="midnightblue",fontsize="10",style="solid"];
+  Node4 [label="modulehns::locateobjhns",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$namespacemodulehns.html#aff869b6b5dffbe4b2d00b777a1c0455d",tooltip=" "];
+}

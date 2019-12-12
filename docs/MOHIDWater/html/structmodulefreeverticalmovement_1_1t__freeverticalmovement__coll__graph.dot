@@ -1,0 +1,21 @@
+digraph "modulefreeverticalmovement::t_freeverticalmovement"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulefreeverticalmovement\l::t_freeverticalmovement\n|- instanceid\l- size\l- worksize\l- ticoef3\l- depositionintertidalzones\l- waterpointsoropenpoints\l- vecg\l- vecw\l- thomas\l- maxthreads\land 9 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -externalvar" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{modulefreeverticalmovement\l::t_external\n|- landpoints\l- openpoints3d\l- waterpoints3d\l- concentration\l- spm\l- salinityfield\l- depositionprobability\l- shearvelocity\l- kfloor_z\l- watercolumn\land 6 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulefreeverticalmovement_1_1t__external.html",tooltip=" "];
+  Node3 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -coef3" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 [label="{modulefreeverticalmovement\l::t_def\n|- d\l- e\l- f\l- d_flux\l- e_flux\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulefreeverticalmovement_1_1t__def.html",tooltip=" "];
+  Node4 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -output" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node4 [label="{modulefreeverticalmovement\l::t_output\n|- nextoutput\l- number\l- nextrestartoutput\l- on\l- writerestartfile\l- restartoverwrite\l- run_end\l- outtime\l- restartouttime\l- aux3d\l- timeserie\l- profileon\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulefreeverticalmovement_1_1t__output.html",tooltip=" "];
+  Node1 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -next" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node5 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -files" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node5 [label="{modulefreeverticalmovement\l::t_files\n|- constructdata\l- initial\l- outputfields\l- final\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulefreeverticalmovement_1_1t__files.html",tooltip=" "];
+  Node6 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -needs" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node6 [label="{modulefreeverticalmovement\l::t_options\n|- salinity\l- spm\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulefreeverticalmovement_1_1t__options.html",tooltip=" "];
+  Node7 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -firstproperty\n-lastproperty" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node7 [label="{modulefreeverticalmovement\l::t_property\n|- id\l- ws_value\l- chs\l- kl\l- kl1\l- m\l- ml\l- impexp_advv\l- salinityeffect\l- salinitylimit\land 14 more...\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulefreeverticalmovement_1_1t__property.html",tooltip=" "];
+  Node7 -> Node7 [color="grey25",fontsize="10",style="solid",label=" -prev\n-next" ,arrowhead="odiamond",fontname="Helvetica"];
+}

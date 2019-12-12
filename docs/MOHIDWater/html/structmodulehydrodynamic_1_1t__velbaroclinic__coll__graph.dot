@@ -1,0 +1,14 @@
+digraph "modulehydrodynamic::t_velbaroclinic"
+{
+ // LATEX_PDF_SIZE
+  edge [fontname="Helvetica",fontsize="10",labelfontname="Helvetica",labelfontsize="10"];
+  node [fontname="Helvetica",fontsize="10",shape=record];
+  Node1 [label="{modulehydrodynamic\l::t_velbaroclinic\n|- w_new\l- w_old\l- u2d\l- v2d\l- uv2d\l- celeritytype\l- internalcelerity\l- trelaxout\l- trelaxin\l- minleavingbaroclincvel\l- baroclinicnormalradiation\l- baroclinicobcdiscret\l- storebaroclinicwave\l- dtwave\l|}",height=0.2,width=0.4,color="black", fillcolor="grey75", style="filled", fontcolor="black",tooltip=" "];
+  Node2 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -imposednormxy\n-imposedtangx\n-imposedtangy\n-imposedtangxy\n-imposednormx\n-imposednormy" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node2 [label="{modulehydrodynamic\l::t_imposed\n|- number\l- dtinterval\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulehydrodynamic_1_1t__imposed.html",tooltip=" "];
+  Node3 -> Node2 [color="grey25",fontsize="10",style="solid",label=" -firstinstant\n-lastinstant" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node3 [label="{modulehydrodynamic\l::t_instantbound\n|- timeb\l- baroclvel\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulehydrodynamic_1_1t__instantbound.html",tooltip=" "];
+  Node3 -> Node3 [color="grey25",fontsize="10",style="solid",label=" -prev\n-next" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node4 -> Node1 [color="grey25",fontsize="10",style="solid",label=" -u\n-v\n-vu\n-uv" ,arrowhead="odiamond",fontname="Helvetica"];
+  Node4 [label="{modulehydrodynamic\l::t_vel_uv\n|- id\l- id_astro\l- new\l- old\l- default\l- intypezuv\l|}",height=0.2,width=0.4,color="black", fillcolor="white", style="filled",URL="$structmodulehydrodynamic_1_1t__vel__uv.html",tooltip=" "];
+}

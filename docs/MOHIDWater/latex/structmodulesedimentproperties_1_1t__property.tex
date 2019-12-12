@@ -1,0 +1,153 @@
+\hypertarget{structmodulesedimentproperties_1_1t__property}{}\doxysection{modulesedimentproperties\+::t\+\_\+property Type Reference}
+\label{structmodulesedimentproperties_1_1t__property}\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+
+
+Collaboration diagram for modulesedimentproperties\+::t\+\_\+property\+:
+% FIG 0
+\doxysubsection*{Private Attributes}
+\begin{DoxyCompactItemize}
+\item 
+type(t\+\_\+propertyid) \mbox{\hyperlink{structmodulesedimentproperties_1_1t__property_ab7daeabf018896be126b3e14c731f744}{id}}
+\item 
+type(\mbox{\hyperlink{structmodulesedimentproperties_1_1t__evolution}{t\+\_\+evolution}}) \mbox{\hyperlink{structmodulesedimentproperties_1_1t__property_a43e1601b873d0aadfaa9c249108d90d1}{evolution}}
+\item 
+real \mbox{\hyperlink{structmodulesedimentproperties_1_1t__property_ae34934be871a97cb52206f40da608f4d}{scalar}} = Fill\+Value\+Real
+\item 
+real \mbox{\hyperlink{structmodulesedimentproperties_1_1t__property_a6d857a43be1b2febc8f69710a1676e69}{iscoefficient}} = null\+\_\+real
+\item 
+logical \mbox{\hyperlink{structmodulesedimentproperties_1_1t__property_acc03cfc793c3e3b17056eba48c02933c}{particulate}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulesedimentproperties_1_1t__property_a908d65a614ea197e7b62a671c1a64d2c}{old}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulesedimentproperties_1_1t__property_a7188ec04eb229e4b0ac709b21ff729c3}{timeserie}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulesedimentproperties_1_1t__property_af69140711ab266b0da12299b2caf8f5f}{boxtimeserie}} = .false.
+\item 
+logical \mbox{\hyperlink{structmodulesedimentproperties_1_1t__property_abfe5af4d075dc51967b5c53ee49ca768}{outputhdf}} = .false.
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulesedimentproperties_1_1t__property_a30840c8afa89e41751180235051ed62d}{concentration}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulesedimentproperties_1_1t__property_a89635b72e9515d6db1ae3405f231a4b8}{horizontaldiffusivity}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulesedimentproperties_1_1t__property_abe845847d5bef4cece4c2f37635203d2}{verticaldiffusivity}} =$>$ null()
+\item 
+real, dimension(\+:,\+:,\+:), pointer \mbox{\hyperlink{structmodulesedimentproperties_1_1t__property_a942c84631494fd73c5b44c381d1abfbe}{mass\+\_\+created}} =$>$ null()
+\item 
+real, dimension(\+:,\+:), pointer \mbox{\hyperlink{structmodulesedimentproperties_1_1t__property_a9abab2d3a9397ed91fb149c1b4816796}{boundaryflux}} =$>$ null()
+\item 
+real \mbox{\hyperlink{structmodulesedimentproperties_1_1t__property_a65eccf1f14ab1f52e28139b5243b1876}{minvalue}} = Fill\+Value\+Real
+\item 
+type(\mbox{\hyperlink{structmodulesedimentproperties_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmodulesedimentproperties_1_1t__property_a60e451790b62d97e641b25d8459fee22}{next}} =$>$ null()
+\item 
+type(\mbox{\hyperlink{structmodulesedimentproperties_1_1t__property}{t\+\_\+property}}), pointer \mbox{\hyperlink{structmodulesedimentproperties_1_1t__property_a5e3c23b461f5c79078a9d63483ab64e2}{prev}} =$>$ null()
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Member Data Documentation}
+\mbox{\Hypertarget{structmodulesedimentproperties_1_1t__property_a9abab2d3a9397ed91fb149c1b4816796}\label{structmodulesedimentproperties_1_1t__property_a9abab2d3a9397ed91fb149c1b4816796}} 
+\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}!boundaryflux@{boundaryflux}}
+\index{boundaryflux@{boundaryflux}!modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+\doxysubsubsection{\texorpdfstring{boundaryflux}{boundaryflux}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:  ), pointer modulesedimentproperties\+::t\+\_\+property\+::boundaryflux =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesedimentproperties_1_1t__property_af69140711ab266b0da12299b2caf8f5f}\label{structmodulesedimentproperties_1_1t__property_af69140711ab266b0da12299b2caf8f5f}} 
+\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}!boxtimeserie@{boxtimeserie}}
+\index{boxtimeserie@{boxtimeserie}!modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+\doxysubsubsection{\texorpdfstring{boxtimeserie}{boxtimeserie}}
+{\footnotesize\ttfamily logical modulesedimentproperties\+::t\+\_\+property\+::boxtimeserie = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesedimentproperties_1_1t__property_a30840c8afa89e41751180235051ed62d}\label{structmodulesedimentproperties_1_1t__property_a30840c8afa89e41751180235051ed62d}} 
+\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}!concentration@{concentration}}
+\index{concentration@{concentration}!modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+\doxysubsubsection{\texorpdfstring{concentration}{concentration}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulesedimentproperties\+::t\+\_\+property\+::concentration =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesedimentproperties_1_1t__property_a43e1601b873d0aadfaa9c249108d90d1}\label{structmodulesedimentproperties_1_1t__property_a43e1601b873d0aadfaa9c249108d90d1}} 
+\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}!evolution@{evolution}}
+\index{evolution@{evolution}!modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+\doxysubsubsection{\texorpdfstring{evolution}{evolution}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesedimentproperties_1_1t__evolution}{t\+\_\+evolution}}) modulesedimentproperties\+::t\+\_\+property\+::evolution\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesedimentproperties_1_1t__property_a89635b72e9515d6db1ae3405f231a4b8}\label{structmodulesedimentproperties_1_1t__property_a89635b72e9515d6db1ae3405f231a4b8}} 
+\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}!horizontaldiffusivity@{horizontaldiffusivity}}
+\index{horizontaldiffusivity@{horizontaldiffusivity}!modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+\doxysubsubsection{\texorpdfstring{horizontaldiffusivity}{horizontaldiffusivity}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulesedimentproperties\+::t\+\_\+property\+::horizontaldiffusivity =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesedimentproperties_1_1t__property_ab7daeabf018896be126b3e14c731f744}\label{structmodulesedimentproperties_1_1t__property_ab7daeabf018896be126b3e14c731f744}} 
+\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}!id@{id}}
+\index{id@{id}!modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+\doxysubsubsection{\texorpdfstring{id}{id}}
+{\footnotesize\ttfamily type(t\+\_\+propertyid) modulesedimentproperties\+::t\+\_\+property\+::id\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesedimentproperties_1_1t__property_a6d857a43be1b2febc8f69710a1676e69}\label{structmodulesedimentproperties_1_1t__property_a6d857a43be1b2febc8f69710a1676e69}} 
+\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}!iscoefficient@{iscoefficient}}
+\index{iscoefficient@{iscoefficient}!modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+\doxysubsubsection{\texorpdfstring{iscoefficient}{iscoefficient}}
+{\footnotesize\ttfamily real modulesedimentproperties\+::t\+\_\+property\+::iscoefficient = null\+\_\+real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesedimentproperties_1_1t__property_a942c84631494fd73c5b44c381d1abfbe}\label{structmodulesedimentproperties_1_1t__property_a942c84631494fd73c5b44c381d1abfbe}} 
+\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}!mass\_created@{mass\_created}}
+\index{mass\_created@{mass\_created}!modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+\doxysubsubsection{\texorpdfstring{mass\_created}{mass\_created}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulesedimentproperties\+::t\+\_\+property\+::mass\+\_\+created =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesedimentproperties_1_1t__property_a65eccf1f14ab1f52e28139b5243b1876}\label{structmodulesedimentproperties_1_1t__property_a65eccf1f14ab1f52e28139b5243b1876}} 
+\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}!minvalue@{minvalue}}
+\index{minvalue@{minvalue}!modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+\doxysubsubsection{\texorpdfstring{minvalue}{minvalue}}
+{\footnotesize\ttfamily real modulesedimentproperties\+::t\+\_\+property\+::minvalue = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesedimentproperties_1_1t__property_a60e451790b62d97e641b25d8459fee22}\label{structmodulesedimentproperties_1_1t__property_a60e451790b62d97e641b25d8459fee22}} 
+\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}!next@{next}}
+\index{next@{next}!modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+\doxysubsubsection{\texorpdfstring{next}{next}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesedimentproperties_1_1t__property}{t\+\_\+property}}), pointer modulesedimentproperties\+::t\+\_\+property\+::next =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesedimentproperties_1_1t__property_a908d65a614ea197e7b62a671c1a64d2c}\label{structmodulesedimentproperties_1_1t__property_a908d65a614ea197e7b62a671c1a64d2c}} 
+\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}!old@{old}}
+\index{old@{old}!modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+\doxysubsubsection{\texorpdfstring{old}{old}}
+{\footnotesize\ttfamily logical modulesedimentproperties\+::t\+\_\+property\+::old = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesedimentproperties_1_1t__property_abfe5af4d075dc51967b5c53ee49ca768}\label{structmodulesedimentproperties_1_1t__property_abfe5af4d075dc51967b5c53ee49ca768}} 
+\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}!outputhdf@{outputhdf}}
+\index{outputhdf@{outputhdf}!modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+\doxysubsubsection{\texorpdfstring{outputhdf}{outputhdf}}
+{\footnotesize\ttfamily logical modulesedimentproperties\+::t\+\_\+property\+::outputhdf = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesedimentproperties_1_1t__property_acc03cfc793c3e3b17056eba48c02933c}\label{structmodulesedimentproperties_1_1t__property_acc03cfc793c3e3b17056eba48c02933c}} 
+\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}!particulate@{particulate}}
+\index{particulate@{particulate}!modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+\doxysubsubsection{\texorpdfstring{particulate}{particulate}}
+{\footnotesize\ttfamily logical modulesedimentproperties\+::t\+\_\+property\+::particulate = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesedimentproperties_1_1t__property_a5e3c23b461f5c79078a9d63483ab64e2}\label{structmodulesedimentproperties_1_1t__property_a5e3c23b461f5c79078a9d63483ab64e2}} 
+\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}!prev@{prev}}
+\index{prev@{prev}!modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+\doxysubsubsection{\texorpdfstring{prev}{prev}}
+{\footnotesize\ttfamily type(\mbox{\hyperlink{structmodulesedimentproperties_1_1t__property}{t\+\_\+property}}), pointer modulesedimentproperties\+::t\+\_\+property\+::prev =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesedimentproperties_1_1t__property_ae34934be871a97cb52206f40da608f4d}\label{structmodulesedimentproperties_1_1t__property_ae34934be871a97cb52206f40da608f4d}} 
+\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}!scalar@{scalar}}
+\index{scalar@{scalar}!modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+\doxysubsubsection{\texorpdfstring{scalar}{scalar}}
+{\footnotesize\ttfamily real modulesedimentproperties\+::t\+\_\+property\+::scalar = Fill\+Value\+Real\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesedimentproperties_1_1t__property_a7188ec04eb229e4b0ac709b21ff729c3}\label{structmodulesedimentproperties_1_1t__property_a7188ec04eb229e4b0ac709b21ff729c3}} 
+\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}!timeserie@{timeserie}}
+\index{timeserie@{timeserie}!modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+\doxysubsubsection{\texorpdfstring{timeserie}{timeserie}}
+{\footnotesize\ttfamily logical modulesedimentproperties\+::t\+\_\+property\+::timeserie = .false.\hspace{0.3cm}{\ttfamily [private]}}
+
+\mbox{\Hypertarget{structmodulesedimentproperties_1_1t__property_abe845847d5bef4cece4c2f37635203d2}\label{structmodulesedimentproperties_1_1t__property_abe845847d5bef4cece4c2f37635203d2}} 
+\index{modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}!verticaldiffusivity@{verticaldiffusivity}}
+\index{verticaldiffusivity@{verticaldiffusivity}!modulesedimentproperties::t\_property@{modulesedimentproperties::t\_property}}
+\doxysubsubsection{\texorpdfstring{verticaldiffusivity}{verticaldiffusivity}}
+{\footnotesize\ttfamily real, dimension(\+:,\+:,\+:), pointer modulesedimentproperties\+::t\+\_\+property\+::verticaldiffusivity =$>$ null()\hspace{0.3cm}{\ttfamily [private]}}
+
+
+
+The documentation for this type was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+C\+:/\+Projects/\+Git\+Hub/\+Mohid/\+Software/\+M\+O\+H\+I\+D\+Water/\mbox{\hyperlink{_module_sediment_properties_8_f90}{Module\+Sediment\+Properties.\+F90}}\end{DoxyCompactItemize}
