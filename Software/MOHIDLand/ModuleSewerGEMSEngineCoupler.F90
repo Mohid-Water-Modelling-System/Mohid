@@ -516,12 +516,12 @@
         ClientModule = 'SewerGEMSEngineCoupler',                              &
         STAT         = STAT_CALL)
     if (STAT_CALL /= SUCCESS_) stop 'SewerGEMSEngineCoupler::getSewerGEMSEngineFilesPaths - SWMM_dat file not readable'    
-    if (iflag == 0) then
+    if (iflag /= 0) then
         self%SWMM_timeSeries_location = dummy
     else
         self%SWMM_timeSeries_location = ""
         self%SWMM_timeSeries_dir = ""
-    endif
+    end if
     
     call GetData(dummy,                                            &
         fileID, iflag,                                             &
@@ -532,7 +532,7 @@
     if (STAT_CALL /= SUCCESS_) stop 'SewerGEMSEngineCoupler::getSewerGEMSEngineFilesPaths - SWMM_dat file not readable'
     if (iflag /= 0) then
         self%SWMM_dat = dummy
-    endif    
+    end if
     
     end subroutine getSewerGEMSEngineFilesPaths
 
