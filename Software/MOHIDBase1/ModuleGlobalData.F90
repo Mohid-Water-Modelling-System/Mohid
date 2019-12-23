@@ -161,6 +161,7 @@ Module ModuleGlobalData
     character(LEN = 1), parameter :: semicolumn = char(59)   !";"
     character(LEN = 1), parameter :: tab        = char(9)    !" "
     character(LEN = 1), parameter :: backslash  = char(92)   !"\"
+    character(LEN = 1), parameter :: exclamation= char(33)   !"!"
 
     logical, parameter :: OFF    = .FALSE.
     logical, parameter :: ON     = .TRUE.

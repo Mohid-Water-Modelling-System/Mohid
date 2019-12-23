@@ -480,7 +480,11 @@ Module ModuleBasinGeometry
                           keyword      ='TRESHOLD_AREA',                                     &
                           ClientModule ='ModuleBasinGeometry',                               &
                           STAT         = STAT_CALL)        
-            if (STAT_CALL /= SUCCESS_ .or. flag == 0) stop 'ReadDataFile - ModuleBasinGeometry - ERR04z'
+            if (STAT_CALL /= SUCCESS_) stop 'ReadDataFile - ModuleBasinGeometry - ERR04z'
+            if(flag == 0 .and. .not. Me%FlatSolution)then
+                write(*,*)"Please define TRESHOLD_AREA in BasinGeometry."
+                stop 'ReadDataFile - ModuleBasinGeometry - ERR04z1'
+            endif
 
             !Micro Channels Percentage
             call GetData (MicroChannelPer, ObjEnterData, flag,                               &
