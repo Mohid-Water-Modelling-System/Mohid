@@ -10728,7 +10728,8 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         integer                                     :: ILB, IUB, JLB, JUB
         real, dimension(6)  , target                :: AuxTime
         real, dimension(:)  , pointer               :: TimePointer
-        integer                                     :: dis 
+        integer                                     :: dis
+        logical                                     :: dbg = .false.
 
         if (MonitorPerformance) call StartWatch ("ModuleRunOff", "RunOffOutput")
 
@@ -10858,13 +10859,15 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
 
             !Writes Storm Water Volume of each Cell
             if (Me%StormWaterDrainage) then
+                
+                if(dbg) then
+                
                 call HDF5WriteData   (Me%ObjHDF5, "//Results/storm water volume",      &
                                       "storm water volume", "m3",                      &
                                       Array2D      = Me%StormWaterVolume,              &
                                       OutputNumber = Me%OutPut%NextOutPut,             &
                                       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR120'
-                
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR120'                
                 
                 !Writes Flow X
                 call HDF5WriteData   (Me%ObjHDF5,                                       &
@@ -10875,7 +10878,6 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                       OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR130'
-
                 
                 !Writes SW Flow Y
                 call HDF5WriteData   (Me%ObjHDF5,                                       &
@@ -10886,8 +10888,6 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                       OutputNumber = Me%OutPut%NextOutPut,              &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR140'
-                
-
                
                 !Writes SW Modulus
                 call HDF5WriteData   (Me%ObjHDF5,                                       &
@@ -10899,10 +10899,13 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR150'
                 
+                end if
                 
             endif
             
             if (Me%StormWaterModel) then
+                
+                if (dbg) then
                 
                 !sum of potential street gutter flow from all street gutters draining to 
                 !a grid cell with a storm water SWMM node
@@ -10936,11 +10939,14 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                       OutputNumber = Me%OutPut%NextOutPut,                  &
                                       STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR190'
-           
+                
+                end if           
                 
             endif
             
             if (Me%Use1D2DInteractionMapping) then
+                
+                if (dbg) then
                     
                 !River level from 1D model in river nodes
                 call HDF5WriteData   (Me%ObjHDF5, "//Results/node river level", &
@@ -10972,10 +10978,11 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                                         Array2D      = Me%iFlowToChannels,          &
                                         OutputNumber = Me%OutPut%NextOutPut,        &
                                         STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR194'                      
+                if (STAT_CALL /= SUCCESS_) stop 'RunOffOutput - ModuleRunOff - ERR194'
+                
+                end if
                     
-            endif            
-
+            endif
            
             !Writes everything to disk
             call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
