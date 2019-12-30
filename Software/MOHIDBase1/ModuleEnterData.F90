@@ -206,6 +206,7 @@ Module ModuleEnterData
         integer                                     :: STAT_
         integer                                     :: I, line
         integer                                     :: FORM_
+        logical                                     :: FoundComment = .false.
 
         !----------------------------------------------------------------------
 
@@ -287,6 +288,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                         write(*,*) 'Line  : ', Me%BufferSize + 1
                         stop 'ModuleEnterData - ConstructEnterData - ERR05' 
                     end if
+                    
                     Me%BufferSize = Me%BufferSize + 1
                 end do do2
 
@@ -305,18 +307,32 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     do3 :       do I = 1, Me%BufferSize
                     read (Me%unit, "(A)") string
                     string = adjustl(string)
-
+                    
+                    FoundComment = .false.
+ 
                     do line = 1, line_length
-
-                        one_char = string(line:line)
-
-                        if(one_char == tab)then
+                        
+                        if(FoundComment)then
+                            
                             string(line:line) = space
-                        end if
-
+                            
+                        else
+                            
+                            if(string(line:line) == tab)then
+                                string(line:line) = space
+                            end if
+                            
+                            if(string(line:line) == exclamation)then
+                                FoundComment = .true.
+                                string(line:line) = space
+                            endif
+                        endif
+                        
                     end do
-
+                    
                     Me%BufferLines(I)%full_line = string
+
+                        
                 end do do3
 
                 call UnitsManager          (Me%unit, CLOSE_FILE, STAT = STAT_CALL)

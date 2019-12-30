@@ -48,6 +48,8 @@ program HDF5ToGridData
      character(PathLength)                :: HDFFile
 !     logical                              :: InstantOnName
      logical                              :: AllInstants
+     !Curvilinear (default) or Non Curvilenar 
+     logical                              :: CurvilinearGrid
      integer                              :: NumberOfHDFInstants
 !     type (T_Time)                        :: TimeInstant
      integer                              :: Instant
@@ -122,7 +124,7 @@ program HDF5ToGridData
         write(*,*)
         
          call ConstructEnterData (ObjEnterData, DataFile, STAT = STAT_CALL)
-         if (STAT_CALL /= SUCCESS_) stop 'HDF5ToGridData - ERR000'
+         if (STAT_CALL /= SUCCESS_) stop 'HDF5ToGridData - ERR010'
 
          call GetData(HDFFile,                             &
                       ObjEnterData, iflag,                 &
@@ -130,13 +132,13 @@ program HDF5ToGridData
                       keyword      = 'HDF_FILE',           &
                       ClientModule = 'HDF5ToGridData',     &
                       STAT         = STAT_CALL)
-         if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataFile - HDF5ToGridData - ERR010'
+         if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataFile - HDF5ToGridData - ERR020'
 
         !Verifies if file exists
         inquire(FILE = HDFFile, EXIST = Exist)
         if (.not. Exist) then
             write(*,*)'HDF5 file does not exist:'//trim(HDFFile)
-            stop 'ReadDataFile - HDF5ToGridData - ERR20'
+            stop 'ReadDataFile - HDF5ToGridData - ERR030'
         endif
 
         call GetData(AllInstants,                         &
@@ -146,7 +148,7 @@ program HDF5ToGridData
                   Default      = .false.,                 &
                   ClientModule = 'HDF5ToGridData',        &
                   STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataFile - HDF5ToGridData - ERR050'
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataFile - HDF5ToGridData - ERR040'
 
         if (.not. AllInstants) then
         
@@ -157,9 +159,19 @@ program HDF5ToGridData
                           Default      = 1,                       &
                           ClientModule = 'HDF5ToGridData',        &
                           STAT         = STAT_CALL)
-             if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataFile - HDF5ToGridData - ERR060'            
+             if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataFile - HDF5ToGridData - ERR050'            
             
         endif   
+        
+         call GetData(CurvilinearGrid,                                                  &
+                      ObjEnterData, iflag,                                              &
+                      SearchType   = FromFile,                                          &
+                      keyword      = 'CURVILINEAR',                                     &
+                      Default      = .true.,                                            &
+                      ClientModule = 'HDF5ToGridData',                                  &
+                      STAT         = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataFile - HDF5ToGridData - ERR060'
+        
         
     end subroutine ReadDataFile
     
@@ -246,12 +258,12 @@ cd2 :           if (BlockFound) then
                                   ClientModule = 'HDF5ToGridData',        &
                                   STAT         = STAT_CALL)
                             if (STAT_CALL .NE. SUCCESS_ .OR. iflag .EQ. 0)          &
-                            stop 'ReadDataFile - HDF5ToGridData - ERR060'  
+                            stop 'ConvertHDF5ToGridData - HDF5ToGridData - ERR060'  
                     
                         if (.not.CheckPropertyName(Property)) then
                             write(*,*)
                             write(*,*) 'The property name is not recognised by the model.'
-                            write(*,*) 'ReadDataFile - HDF5ToGridData - WRN70'
+                            write(*,*) 'ConvertHDF5ToGridData - HDF5ToGridData - WRN70'
                         endif           
 
                     ! Obtain parameter group
@@ -263,7 +275,7 @@ cd2 :           if (BlockFound) then
                                  ClientModule = 'HDF5ToGridData',           &
                                  STAT         = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)           &
-                    stop 'ReadDataFile - HDF5ToGridData - ERR080'
+                    stop 'ConvertHDF5ToGridData - HDF5ToGridData - ERR080'
                             
                     !verify if group exists (not GetHDF5DataSetExist)
                     call GetHDF5GroupExist (ObjHDF5, GroupName = trim(HDFGroup),    &
@@ -404,6 +416,7 @@ cd2 :           if (BlockFound) then
         !Arguments-------------------------------------------------------------
          real, dimension(:,:  ), pointer             :: PropertyField 
          character(len=PathLength)                   :: Output
+         real, dimension(:    ), pointer             :: XX, YY 
 
         !Local-----------------------------------------------------------------
         integer                     :: STAT_CALL !, UnitID, i, j
@@ -416,6 +429,8 @@ cd2 :           if (BlockFound) then
         !Size2D%IUB = Size%IUB
         !Size2D%JLB = Size%JLB
         !Size2D%JUB = Size%JUB
+
+        if (CurvilinearGrid) then
 
 
         call WriteGridData  (FileName       = Output,                                       &
@@ -435,8 +450,39 @@ cd2 :           if (BlockFound) then
                              Overwrite      = .true.,                                       &
                              GridData2D_Real= PropertyField,                                &
                              STAT           = STAT_CALL) 
-        if(STAT_CALL .ne. SUCCESS_)stop 'ConstructGrid - ModuleWRFFormat - ERR01'
+            if(STAT_CALL .ne. SUCCESS_)stop 'WriteGrid2D - HDF5ToGridData - ERR010'
 
+        else
+            
+            allocate(XX(Size%JLB:Size%JUB+1))
+            allocate(YY(Size%ILB:Size%IUB+1))
+            
+            XX(Size%JLB:Size%JUB+1) = ConnectionX(1,Size%JLB:Size%JUB+1) - ConnectionX(1,1)
+            YY(Size%ILB:Size%IUB+1) = ConnectionY(Size%ILB:Size%IUB+1,1)- ConnectionY(1,1)
+            
+            call WriteGridData  (FileName       = Output,                                       &
+                                 XX             = XX,                                           &
+                                 YY             = YY,                                           &
+                                 COMENT1        = 'Grid Data created from HDF file',            &
+                                 COMENT2        = trim(HDFFile),                                &
+                                 WorkSize       = Size,                                         &
+                                 CoordType      = CoordType,                                    &
+                                 Xorig          = ConnectionX(1,1),                             &
+                                 Yorig          = ConnectionY(1,1),                             &
+                                 Zone           = -99,                                          &
+                                 GRID_ANGLE     = 0.,                                           &
+                                 Latitude       = Latitude,                                     &
+                                 Longitude      = Longitude,                                    &
+                                 FillValue      = -99.,                                         &
+                                 Overwrite      = .true.,                                       &
+                                 GridData2D_Real= PropertyField,                                &
+                                 STAT           = STAT_CALL) 
+            if(STAT_CALL .ne. SUCCESS_)stop 'WriteGrid2D - HDF5ToGridData - ERR020'   
+            
+            deallocate(XX, YY)
+            nullify   (XX, YY)
+            
+        endif
 
 
     end subroutine WriteGrid2D
