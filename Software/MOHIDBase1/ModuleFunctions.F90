@@ -1935,10 +1935,9 @@ Module ModuleFunctions
         integer                                           :: CHUNK
         !Begin-----------------------------------------------------------------
 
-        KUB = Size%KUB
-        KLB = Size%KLB
-        JUB = Size%JUB
-        JLB = Size%JLB
+        KUB = Size%KUB; JUB = Size%JUB
+        KLB = Size%KLB; JLB = Size%JLB
+        
         if (DoMethod == 1) then
             CHUNK = CHUNK_J(JLB, JUB)
 
@@ -1957,7 +1956,6 @@ Module ModuleFunctions
             !$OMP END DO
             !$OMP END PARALLEL
                 
-        
         else
             CHUNK = CHUNK_K(KLB, KUB)
             !$OMP PARALLEL PRIVATE(i,j,k)
@@ -1991,15 +1989,13 @@ Module ModuleFunctions
         integer, intent(IN)                               :: DoMethod
         integer, dimension(:,:), pointer, intent(IN)      :: KFloor
         !Local-----------------------------------------------------------------
-        integer                                           :: i, j, k, kbottom, KUB, KLB, JUB, JLB
-        integer                                           :: CHUNK
+        integer                                           :: i, j, k, kbottom, KUB, KLB, JUB, JLB, CHUNK
         real                                              :: Aux
         !Begin-----------------------------------------------------------------
 
-        KUB = Size%KUB
-        KLB = Size%KLB
-        JUB = Size%JUB
-        JLB = Size%JLB
+        KUB = Size%KUB; JUB = Size%JUB
+        KLB = Size%KLB; JLB = Size%JLB
+        
         if (DoMethod == 1) then
             CHUNK = CHUNK_J(JLB, JUB)
             !$OMP PARALLEL PRIVATE(i,j,k, kbottom, Aux)
@@ -2045,16 +2041,11 @@ Module ModuleFunctions
         real, dimension(:, :, :), pointer, intent (IN)    :: MatrixB
         type (T_Size3D)                                   :: Size
         !Local-----------------------------------------------------------------
-        integer                                           :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB
-        integer                                           :: CHUNK
+        integer                                           :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB, CHUNK
         !Begin-----------------------------------------------------------------
 
-        KUB = Size%KUB
-        KLB = Size%KLB
-        JUB = Size%JUB
-        JLB = Size%JLB
-        IUB = Size%IUB
-        ILB = Size%ILB
+        KUB = Size%KUB; JUB = Size%JUB; IUB = Size%IUB
+        KLB = Size%KLB; JLB = Size%JLB; ILB = Size%ILB
 
         CHUNK = CHUNK_K(KLB, KUB)
 

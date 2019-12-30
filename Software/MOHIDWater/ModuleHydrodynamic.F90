@@ -152,7 +152,7 @@ Module ModuleHydrodynamic
     use ModuleTwoWay,           only : ConstructTwoWayHydrodynamic, ModifyTwoWay,        &
                                        AllocateTwoWayAux, PrepTwoWay, UngetTwoWayExternal_Vars, &
                                        ConstructUpscalingDischarges, UpscaleDischarge, &
-                                       GetUpscalingDischarge, UpscalingSinkSources
+                                       GetUpscalingDischarge, UpscalingVolumeVariation
 #ifdef _USE_MPI
     use ModuleHorizontalGrid,   only : ReceiveSendProperitiesMPI, THOMAS_DDecompHorizGrid
 #endif
@@ -8411,7 +8411,6 @@ cd21:   if (Baroclinic) then
                             SearchType   = FromFile,                                           &
                             ClientModule ='ModuleHydrodynamic',                                &
                             STAT         = STAT_CALL)
-
                 if (STAT_CALL /= SUCCESS_)                                                      &
                     call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1225')
 
@@ -8422,21 +8421,18 @@ cd21:   if (Baroclinic) then
                              SearchType   = FromFile,                                           &
                              ClientModule ='ModuleHydrodynamic',                                &
                              STAT         = STAT_CALL)
-
                 if (STAT_CALL /= SUCCESS_)                                                      &
                     call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1228')
                 
-                call GetData(Me%OutPut%Upscaling%MassSinkSource,                              &
+                call GetData(Me%OutPut%Upscaling%MassSinkSource,                              & !Sobrinho
                              Me%ObjEnterData, iflag,                                          &
-                             Keyword      = 'TWO_WAY_SINK_SOURCE',                            &
+                             Keyword      = 'UPSCALING_SINK_SOURCE',                          &
                              Default      = .false.,                                          &
                              SearchType   = FromFile,                                         &
                              ClientModule ='ModuleHydrodynamic',                              &
                              STAT         = STAT_CALL)
-
                 if (STAT_CALL /= SUCCESS_)                                                      &
                     call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1229')
-                
 
             else
                 write(*,*) 'Keyword TWO_WAY must ONLY be defined in son domains'
@@ -8499,7 +8495,7 @@ cd21:   if (Baroclinic) then
         
         call GetData(Me%ComputeOptions%GlobalOptimization,                                         &
                      Me%ObjEnterData, iflag,                                            &
-                     Keyword    = 'GLOBAL_OPT',                                         &
+                     Keyword    = 'USE_OPTIMIZATIONS',                                  &
                      Default    = .false.,                                              &
                      SearchType = FromFile,                                             &
                      ClientModule ='ModuleHydrodynamic',                                &
@@ -14632,52 +14628,41 @@ cd3 :       if (present(OldVelocity_V)) then
 
     !--------------------------------------------------------------------------
 
-    subroutine GetVelocityModulus(HydrodynamicID, VelocityModulus, STAT)
+    subroutine GetVelocityModulus(HydrodynamicID, VelocityModulus, Compute, STAT)
 
         !Arguments-------------------------------------------------------------
-        integer,              intent(IN )           :: HydrodynamicID
-        real, dimension(:,:,:), pointer, optional   :: VelocityModulus
-        integer, optional,    intent(OUT) :: STAT
-
-
+        integer,                         intent(IN ) :: HydrodynamicID
+        real, dimension(:,:,:), pointer, intent(OUT) :: VelocityModulus
+        integer, optional,               intent(OUT) :: STAT
+        logical, optional,               intent(IN)  :: Compute
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
-
         call Ready(HydrodynamicID, ready_)
 
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
             if(.not. associated(Me%OutPut%ModulusH))then
-
                 write(*,*)'Please activate Hydrodynamic outputs'
                 call SetError(FATAL_, INTERNAL_, 'GetVelocityModulus - Hydrodynamic - ERR01')
-
             endif
 
             call Read_Lock(mHydrodynamic_, Me%InstanceID)
+            if (Compute .and. Me%ComputeOptions%MatrixesOutputOpt) call ModifyMatrixesOutput
+            
             VelocityModulus => Me%OutPut%ModulusH
-
 
             STAT_ = SUCCESS_
         else
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT))                                                    &
             STAT = STAT_
-
-        !----------------------------------------------------------------------
 
     end subroutine GetVelocityModulus
 
@@ -14691,20 +14676,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer,           intent(IN )              :: HydrodynamicID
         real, dimension(:,:,:), optional, pointer   :: Velocity_W
         real, dimension(:,:,:), optional, pointer   :: Velocity_Across
-
         integer, optional, intent(OUT) :: STAT
-
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -14727,7 +14704,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT))  STAT = STAT_
 
         !----------------------------------------------------------------------
@@ -14744,18 +14720,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         real, dimension(:,:), optional, pointer  :: WaterLevelOld
         real,    optional, intent(OUT)           :: DT
         integer, optional, intent(OUT)           :: STAT
-
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -14786,7 +14755,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         if (present(STAT))                                                    &
             STAT = STAT_
-
         !----------------------------------------------------------------------
 
     end subroutine GetWaterLevel
@@ -14805,15 +14773,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         logical                        :: MslpYes               !Mean Sea Level Pressure
         integer, optional, intent(OUT) :: STAT
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -14824,29 +14787,21 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             SurfaceWaterFluxYes  = Me%ComputeOptions%SurfaceWaterFlux
 
             if (Me%ComputeOptions%AtmPressure .or. Me%ComputeOptions%InvertBarometer) then
-
 case1 :         select case(Me%ComputeOptions%AtmPressureType)
 
                     !Use atmospheric pressure
                     case(1)
-
                         AtmPressureYes       = .true.
                         MslpYes              = .false.
-
                     !Use Mean Sea Level Pressure (MSLP)
                     case(2)
-
                         AtmPressureYes       = .false.
                         MslpYes              = .true.
-
                     !Same as case(1)
                     case default
-
                         AtmPressureYes       = .true.
                         MslpYes              = .false.
-
                 end select case1
-
             endif
 
             if (Me%ComputeOptions%Wind == NoWind_) then
@@ -14860,9 +14815,7 @@ case1 :         select case(Me%ComputeOptions%AtmPressureType)
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT)) STAT = STAT_
-
 
         !----------------------------------------------------------------------
     end subroutine GetHydrodynamicAirOptions
@@ -14875,18 +14828,11 @@ case1 :         select case(Me%ComputeOptions%AtmPressureType)
         integer,           intent(IN ) :: HydrodynamicID
         real, dimension(:,:), pointer  :: Chezy
         integer, optional, intent(OUT) :: STAT
-
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -14902,10 +14848,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT))                                                    &
             STAT = STAT_
-
         !----------------------------------------------------------------------
 
     end subroutine GetChezy
@@ -14919,18 +14863,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer,           intent(IN ) :: HydrodynamicID
         logical,           intent(OUT) :: cdsubModel
         integer, optional, intent(OUT) :: STAT
-
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -14948,13 +14885,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
 
         if (present(STAT))                                                    &
             STAT = STAT_
-
         !----------------------------------------------------------------------
 
     end subroutine GetHydroNeedsFather
 
     !--------------------------------------------------------------------------
-
 
     !--------------------------------------------------------------------------
 
@@ -14964,12 +14899,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
         integer                                     :: AssimilationID
         logical,        intent(OUT)                 :: AltimetricAssimilation
         integer,       intent(OUT),   optional      :: STAT
-
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(AssimilationID, ready_)
@@ -14990,19 +14922,14 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
     !--------------------------------------------------------------------------
 
-
     subroutine GetVertical1D (HydrodynamicID, Vertical1D, STAT)
          !Arguments-------------------------------------------------------------
         integer,           intent(IN ) :: HydrodynamicID
         logical,           intent(OUT) :: Vertical1D
         integer, optional, intent(OUT) :: STAT
-
-
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15026,7 +14953,6 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         if (present(STAT)) STAT = STAT_
 
     end subroutine GetVertical1D
-
     !--------------------------------------------------------------------------
 
     !--------------------------------------------------------------------------
@@ -15037,13 +14963,9 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         integer,           intent(IN ) :: HydrodynamicID
         logical,           intent(OUT) :: XZFlow
         integer, optional, intent(OUT) :: STAT
-
-
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15100,18 +15022,14 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                               &
 
     subroutine GetCyclicBoundary(HydrodynamicID, CyclicBoundaryON,          &
                                  CyclicBoundaryDirection, STAT)
-
         !Arguments------------------------------------------------------------
         integer                                     :: HydrodynamicID
         logical                                     :: CyclicBoundaryON
         integer                                     :: CyclicBoundaryDirection
         integer, intent(OUT), optional              :: STAT
-
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15139,26 +15057,18 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                               &
         integer,                         intent(IN ) :: HydrodynamicID
         real(8), dimension(:,:,:), pointer, optional :: SubModelqX
         real(8), dimension(:,:,:), pointer, optional :: SubModelqY
-
         integer, optional, intent(OUT) :: STAT
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
 
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                               &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-
 
 cd2 :       if (present(SubModelqX)) then
                 call Read_Lock(mHydrodynamic_, Me%InstanceID)
@@ -15191,17 +15101,11 @@ cd3 :       if (present(SubModelqY)) then
         integer,                         intent(IN ) :: HydrodynamicID
         real,    dimension(:,:),   pointer           :: ChezyVelUV
         integer, optional, intent(OUT)               :: STAT
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15217,10 +15121,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                               &
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT))                                                  &
             STAT = STAT_
-
         !----------------------------------------------------------------------
 
     end subroutine GetChezyVelUV
@@ -15230,25 +15132,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                               &
     !--------------------------------------------------------------------------
 
     subroutine UngetHydrodynamic3Dreal4(HydrodynamicID, Array, STAT)
-
         !Arguments-------------------------------------------------------------
-
         integer,               intent(IN ) :: HydrodynamicID
         real(4), pointer, dimension(:,:,:) :: Array
         integer, optional,     intent(OUT) :: STAT
-
-
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15265,8 +15157,6 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
         if (present(STAT)) STAT = STAT_
 
-        !----------------------------------------------------------------------
-
     end subroutine UngetHydrodynamic3Dreal4
 
     !--------------------------------------------------------------------------
@@ -15279,19 +15169,11 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer,           intent(IN )   :: HydrodynamicID
         integer, pointer, dimension(:,:) :: Array
         integer, optional, intent(OUT)   :: STAT
-
-
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15314,8 +15196,6 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
     !--------------------------------------------------------------------------
 
-
-
     !--------------------------------------------------------------------------
 
     subroutine UngetHydrodynamic2Dreal4(HydrodynamicID, Array, STAT)
@@ -15324,19 +15204,11 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer,           intent(IN )   :: HydrodynamicID
         real(4), pointer, dimension(:,:) :: Array
         integer, optional, intent(OUT)   :: STAT
-
-
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15353,8 +15225,6 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
         if (present(STAT)) STAT = STAT_
 
-        !----------------------------------------------------------------------
-
     end subroutine UngetHydrodynamic2Dreal4
 
     !--------------------------------------------------------------------------
@@ -15363,24 +15233,15 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     !--------------------------------------------------------------------------
 
     subroutine UngetHydrodynamic2Dreal8(HydrodynamicID, Array, STAT)
-
         !Arguments-------------------------------------------------------------
         integer,           intent(IN )   :: HydrodynamicID
         real(8), pointer, dimension(:,:) :: Array
         integer, optional, intent(OUT)   :: STAT
-
-
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15397,35 +15258,22 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
         if (present(STAT)) STAT = STAT_
 
-        !----------------------------------------------------------------------
-
     end subroutine UngetHydrodynamic2Dreal8
 
     !--------------------------------------------------------------------------
 
-
     !--------------------------------------------------------------------------
 
     subroutine UngetHydrodynamic3Dreal8(HydrodynamicID, Array, STAT)
-
         !Arguments-------------------------------------------------------------
-
         integer,               intent(IN ) :: HydrodynamicID
         real(8), pointer, dimension(:,:,:) :: Array
         integer, optional,    intent (OUT) :: STAT
-
-
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15441,8 +15289,6 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         end if cd1
 
         if (present(STAT)) STAT = STAT_
-
-        !----------------------------------------------------------------------
 
     end subroutine UngetHydrodynamic3Dreal8
 
@@ -15485,32 +15331,22 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         integer                         :: HydrodynamicID
         logical, intent(IN)             :: Manning
         integer, optional, intent(OUT)  :: STAT
-
         !Local-----------------------------------------------------------------
         integer                         :: ready_
         integer                         :: STAT_
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
 
 cd1 :   if (ready_ == IDLE_ERR_)then
-
             Me%External_Var%Manning = Manning
-
             STAT_ = SUCCESS_
-
         else cd1
-
             STAT_ = ready_
-
         end if cd1
 
         if (present(STAT)) STAT = STAT_
-
-        !----------------------------------------------------------------------
 
     end subroutine SetHydrodynamicManning
 
@@ -15523,13 +15359,10 @@ cd1 :   if (ready_ == IDLE_ERR_)then
         logical, intent(IN)             :: Chezy
         real,    intent(IN)             :: ChezyCoef
         integer, optional, intent(OUT)  :: STAT
-
         !Local-----------------------------------------------------------------
         integer                         :: ready_
         integer                         :: STAT_
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15540,34 +15373,25 @@ cd1 :   if (ready_ == IDLE_ERR_)then
             Me%External_Var%ChezyCoef = ChezyCoef
 
             STAT_ = SUCCESS_
-
         else cd1
-
             STAT_ = ready_
-
         end if cd1
 
         if (present(STAT)) STAT = STAT_
-
-        !----------------------------------------------------------------------
 
     end subroutine SetHydrodynamicChezy
 
     !--------------------------------------------------------------------------
 
     subroutine SetHydrodynamicRugosityMatrix (HydrodynamicID, RugosityMatrix, STAT)
-
         !Arguments-------------------------------------------------------------
         integer                         :: HydrodynamicID
         real, dimension(:, :), pointer  :: RugosityMatrix
         integer, optional, intent(OUT)  :: STAT
-
         !Local-----------------------------------------------------------------
         integer                         :: ready_
         integer                         :: STAT_
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15579,9 +15403,7 @@ cd1 :   if (ready_ == IDLE_ERR_)then
             STAT_ = SUCCESS_
 
         else cd1
-
             STAT_ = ready_
-
         end if cd1
 
         if (present(STAT)) STAT = STAT_
@@ -15590,21 +15412,16 @@ cd1 :   if (ready_ == IDLE_ERR_)then
 
     !--------------------------------------------------------------------------
 
-
     !--------------------------------------------------------------------------
     subroutine SetSurfaceWaterFlux(HydrodynamicID, SurfaceWaterFlux, STAT)
-
         !Arguments---------------------------------------------------------------
         integer                                     :: HydrodynamicID
         real, pointer, dimension(:,:)               :: SurfaceWaterFlux
         integer,            optional, intent(OUT)   :: STAT
-
         !Local-------------------------------------------------------------------
         integer                                     :: ready_
         integer                                     :: STAT_
-
         !------------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15619,14 +15436,11 @@ cd1 :   if (ready_ == IDLE_ERR_)then
             STAT_ = ready_
         end if
 
-
         if (present(STAT))STAT = STAT_
 
     end subroutine SetSurfaceWaterFlux
 
-
     !--------------------------------------------------------------------------
-
 
     subroutine SetBottomWaterFlux(HydrodynamicID, BottomWaterFlux, STAT)
 
@@ -15634,11 +15448,9 @@ cd1 :   if (ready_ == IDLE_ERR_)then
         integer                                     :: HydrodynamicID
         real(8), pointer, dimension(:,:)            :: BottomWaterFlux
         integer,            optional, intent(OUT)   :: STAT
-
         !Local-------------------------------------------------------------------
         integer                                     :: ready_
         integer                                     :: STAT_
-
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -15655,7 +15467,6 @@ cd1 :   if (ready_ == IDLE_ERR_)then
             STAT_ = ready_
         end if
 
-
         if (present(STAT))STAT = STAT_
 
     end subroutine SetBottomWaterFlux
@@ -15669,13 +15480,10 @@ cd1 :   if (ready_ == IDLE_ERR_)then
         real, pointer, dimension(:,:)               :: WindStress_X
         real, pointer, dimension(:,:)               :: WindStress_Y
         integer,            optional, intent(OUT)   :: STAT
-
         !Local-------------------------------------------------------------------
         integer                                     :: ready_
         integer                                     :: STAT_
-
         !------------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15691,12 +15499,10 @@ cd1 :   if (ready_ == IDLE_ERR_)then
             STAT_ = ready_
         end if
 
-
         if (present(STAT))STAT = STAT_
 
     end subroutine SetWindStress
     !--------------------------------------------------------------------------
-
 
     !--------------------------------------------------------------------------
     subroutine SetAtmosphericPressure(HydrodynamicID, AtmosphericPressure, STAT)
@@ -15705,13 +15511,10 @@ cd1 :   if (ready_ == IDLE_ERR_)then
         integer                                     :: HydrodynamicID
         real, pointer, dimension(:,:)               :: AtmosphericPressure
         integer,            optional, intent(OUT)   :: STAT
-
         !Local-------------------------------------------------------------------
         integer                                     :: ready_
         integer                                     :: STAT_
-
         !------------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15726,7 +15529,6 @@ cd1 :   if (ready_ == IDLE_ERR_)then
             STAT_ = ready_
         end if
 
-
         if (present(STAT))STAT = STAT_
 
     end subroutine SetAtmosphericPressure
@@ -15738,13 +15540,10 @@ cd1 :   if (ready_ == IDLE_ERR_)then
         integer                                     :: HydrodynamicID
         real, pointer, dimension(:,:)               :: WaveChezyVel
         integer,            optional, intent(OUT)   :: STAT
-
         !Local-------------------------------------------------------------------
         integer                                     :: ready_
         integer                                     :: STAT_
-
         !------------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15774,13 +15573,10 @@ cd1 :   if (ready_ == IDLE_ERR_)then
         integer                                     :: HydrodynamicID
         real, dimension(:,:), pointer               :: WaterLevel
         integer,            optional, intent(OUT)   :: STAT
-
         !Local-------------------------------------------------------------------
         integer                                     :: ready_
         integer                                     :: STAT_
-
         !------------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15796,7 +15592,6 @@ cd1 :   if (ready_ == IDLE_ERR_)then
             STAT_ = ready_
         end if
 
-
         if (present(STAT))STAT = STAT_
 
     end subroutine SetWaterLevel
@@ -15805,17 +15600,14 @@ cd1 :   if (ready_ == IDLE_ERR_)then
 
     subroutine SetHorizontalVelocity(HydrodynamicID, Velocity_U, Velocity_V,    &
                                      OldVelocity_U, OldVelocity_V, STAT)
-
         !Arguments---------------------------------------------------------------
         integer                                     :: HydrodynamicID
         real, dimension(:,:,:), pointer, optional   :: Velocity_U, Velocity_V
         real, dimension(:,:,:), pointer, optional   :: OldVelocity_U, OldVelocity_V
         integer,            optional, intent(OUT)   :: STAT
-
         !Local-------------------------------------------------------------------
         integer                                     :: ready_
         integer                                     :: STAT_
-
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -15847,7 +15639,6 @@ cd5 :       if (present(OldVelocity_V)) then
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT))STAT = STAT_
 
     end subroutine SetHorizontalVelocity
@@ -15861,13 +15652,10 @@ cd5 :       if (present(OldVelocity_V)) then
         real, dimension(:,:,:), optional, pointer   :: Velocity_W
         real, dimension(:,:,:), optional, pointer   :: Velocity_Across
         integer,            optional, intent(OUT)   :: STAT
-
         !Local-------------------------------------------------------------------
         integer                                     :: ready_
         integer                                     :: STAT_
-
         !------------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15889,7 +15677,6 @@ cd3 :       if (present(Velocity_Across)) then
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT))STAT = STAT_
 
     end subroutine SetVerticalVelocity
@@ -15897,18 +15684,15 @@ cd3 :       if (present(Velocity_Across)) then
     !--------------------------------------------------------------------------
 
     subroutine SetWaterFluxes(HydrodynamicID, WaterFluxX, WaterFluxY, WaterFluxZ, STAT)
-
         !Arguments---------------------------------------------------------------
         integer                                      :: HydrodynamicID
         real(8), dimension(:,:,:), pointer, optional :: WaterFluxX
         real(8), dimension(:,:,:), pointer, optional :: WaterFluxY
         real(8), dimension(:,:,:), pointer, optional :: WaterFluxZ
         integer,            optional, intent(OUT)    :: STAT
-
         !Local-------------------------------------------------------------------
         integer                                      :: ready_
         integer                                      :: STAT_
-
         !------------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -15930,7 +15714,6 @@ cd4 :       if (present(WaterFluxZ)) then
             end if cd4
             !CAUTION: WaterFluxX/WaterFluxY/WaterFluxZ is an external variable/memory space!
 
-
             STAT_ = SUCCESS_
 
         else
@@ -15951,13 +15734,10 @@ cd4 :       if (present(WaterFluxZ)) then
         real(8), dimension(:,:,:), pointer, optional :: SubModelqX
         real(8), dimension(:,:,:), pointer, optional :: SubModelqY
         integer,            optional, intent(OUT)    :: STAT
-
         !Local-------------------------------------------------------------------
         integer                                      :: ready_
         integer                                      :: STAT_
-
         !------------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -15979,7 +15759,6 @@ cd3 :       if (present(SubModelqY)) then
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT))STAT = STAT_
 
     end subroutine SetSubModelFluxes
@@ -15987,18 +15766,14 @@ cd3 :       if (present(SubModelqY)) then
     !--------------------------------------------------------------------------
 
     subroutine SetChezyVelUV(HydrodynamicID, ChezyVelUV, STAT)
-
         !Arguments---------------------------------------------------------------
         integer                                      :: HydrodynamicID
         real,    dimension(:,:),   pointer           :: ChezyVelUV
         integer,            optional, intent(OUT)    :: STAT
-
         !Local-------------------------------------------------------------------
         integer                                      :: ready_
         integer                                      :: STAT_
-
         !------------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -16009,11 +15784,9 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             !CAUTION: ChezyVelUV is an external variable/memory space!
 
             STAT_ = SUCCESS_
-
         else
             STAT_ = ready_
         end if cd1
-
 
         if (present(STAT))STAT = STAT_
 
@@ -16027,13 +15800,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         integer                                      :: HydrodynamicID
         logical                                      :: VirtualRun
         integer, optional, intent(OUT)               :: STAT
-
         !Local-------------------------------------------------------------------
         integer                                      :: ready_
         integer                                      :: STAT_
-
         !------------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -16057,19 +15827,15 @@ cd1 :   if (ready_ == IDLE_ERR_)then
     !--------------------------------------------------------------------------
 
     subroutine ReSetHydrodynamicProperties(HydrodynamicID, STAT)
-
         !Arguments---------------------------------------------------------------
         integer                                      :: HydrodynamicID
         integer,            optional, intent(OUT)    :: STAT
-
         !Local-------------------------------------------------------------------
         integer                                      :: ready_
         integer                                      :: STAT_
-
         !------------------------------------------------------------------------
 
         !This is a compilation of sets (one for each variable) for internal memory spaces
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -16110,7 +15876,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT))STAT = STAT_
 
     end subroutine ReSetHydrodynamicProperties
@@ -16120,18 +15885,14 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 #endif _USE_SEQASSIMILATION
 
     subroutine SetShearStressMethod (HydrodynamicID, ShearStressMethod, STAT)
-
         !Arguments-------------------------------------------------------------
         integer                         :: HydrodynamicID
         integer, intent(IN)             :: ShearStressMethod
         integer, optional, intent(OUT)  :: STAT
-
         !Local-----------------------------------------------------------------
         integer                         :: ready_
         integer                         :: STAT_
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -16155,18 +15916,14 @@ cd1 :   if (ready_ == IDLE_ERR_)then
     !--------------------------------------------------------------------------
 
     subroutine SetWaveShearStress (HydrodynamicID, WaveShearStress, STAT)
-
         !Arguments-------------------------------------------------------------
         integer                         :: HydrodynamicID
         logical, intent(IN)             :: WaveShearStress
         integer, optional, intent(OUT)  :: STAT
-
         !Local-----------------------------------------------------------------
         integer                         :: ready_
         integer                         :: STAT_
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -16178,9 +15935,7 @@ cd1 :   if (ready_ == IDLE_ERR_)then
             STAT_ = SUCCESS_
 
         else cd1
-
             STAT_ = ready_
-
         end if cd1
 
         if (present(STAT)) STAT = STAT_
@@ -16188,8 +15943,6 @@ cd1 :   if (ready_ == IDLE_ERR_)then
     end subroutine SetWaveShearStress
 
     !----------------------------------------------------------------------
-
-
 
     !--------------------------------------------------------------------------
 
@@ -16759,7 +16512,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
 
                 if (Me%ComputeOptions%TwoWay)then
                     call AllocateTwoWayAux(HydrodynamicFatherID, HydrodynamicID)
-                    if (Me%OutPut%Upscaling%MassSinkSource .or. ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
+                    if (Me%OutPut%Upscaling%MassSinkSource .or. ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then !Sobrinho
                         !Next if is here to prevent more than one allocation (when one parent domain has two or more son domains)
                         if (.not. allocated(ObjHydrodynamicFather%OutPut%Upscaling%CopyVel)) &
                         allocate(ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(ILB:IUB, JLB:JUB, KLB:KUB))
@@ -53305,13 +53058,7 @@ do5:            do i = ILB, IUB
                 
                 MakeCopy = .false.
 
-                if(i == HydrodynamicID)then
-                    !does nothing
-                else
-
-                    call Ready (i, ready_) ! points Me% to current domain i
-
-                endif
+                if (i /= HydrodynamicID) call Ready (i, ready_) ! points Me% to current domain i
 
                 AuxHydrodynamicID = Me%FatherInstanceID    ! Changes ID to Father
 
@@ -53323,14 +53070,10 @@ do5:            do i = ILB, IUB
                     
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge .or. Me%OutPut%Upscaling%MassSinkSource)then
                         MakeCopy = .true.
-                        ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = &
-                        ObjHydrodynamicFather%Velocity%Horizontal%U%New(:,:,:)
+                        ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = ObjHydrodynamicFather%Velocity%Horizontal%U%New(:,:,:)
                     endif
                     !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
-                    call PrepTwoWay (SonID             = AuxHydrodynamicID,   &
-                                     FatherID          = Me%FatherInstanceID, &
-                                     CallerID          = mHydrodynamic_,      &
-                                     STAT              = STAT_CALL)
+                    call PrepTwoWay (SonID = AuxHydrodynamicID, FatherID = Me%FatherInstanceID, CallerID = mHydrodynamic_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR01.'
 
     !-------------------------------------------Updates father U matrix with son information-------------------------------------
@@ -53344,18 +53087,14 @@ do5:            do i = ILB, IUB
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR02.'
                     
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge) &
-                        call UpscaleDischarge(SonID       = AuxHydrodynamicID,                               &
-                                              Father_old  = ObjHydrodynamicFather%OutPut%Upscaling%CopyVel,         &
-                                              Father      = ObjHydrodynamicFather%Velocity%Horizontal%U%New, &
-                                              VelocityID  = VelocityU_, STAT = STAT_CALL)
+                        call UpscaleDischarge(SonID = AuxHydrodynamicID, Father_old  = ObjHydrodynamicFather%OutPut%Upscaling%CopyVel, &
+                                              Father = ObjHydrodynamicFather%Velocity%Horizontal%U%New, VelocityID  = VelocityU_, STAT = STAT_CALL)
                     !Account for sinks and sources of Volume due to upscaling.
                     if (Me%OutPut%Upscaling%MassSinkSource) &
-                        call UpscalingSinkSources(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated,   &
-                                                  ObjHydrodynamicFather%Velocity%Horizontal%U%New,       &
-                                                  ObjHydrodynamicFather%Velocity%DT, VelocityU_)
-                    if (MakeCopy) &
-                        ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = &
-                        ObjHydrodynamicFather%Velocity%Horizontal%V%New(:,:,:)
+                        call UpscalingVolumeVariation(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated,   &
+                                                  ObjHydrodynamicFather%Velocity%Horizontal%U%New, ObjHydrodynamicFather%Velocity%DT, VelocityU_)
+                    
+                    if (MakeCopy) ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = ObjHydrodynamicFather%Velocity%Horizontal%V%New(:,:,:)
                     
     !-------------------------------------------Updates father V matrix with son information-------------------------------------
                     
@@ -53368,18 +53107,14 @@ do5:            do i = ILB, IUB
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR03.'
                     
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge) &
-                        call UpscaleDischarge(SonID       = AuxHydrodynamicID,                               &
-                                              Father_old  = ObjHydrodynamicFather%OutPut%Upscaling%CopyVel,         &
-                                              Father      = ObjHydrodynamicFather%Velocity%Horizontal%V%New, &
-                                              VelocityID  = VelocityV_, STAT = STAT_CALL)
+                        call UpscaleDischarge(SonID = AuxHydrodynamicID, Father_old  = ObjHydrodynamicFather%OutPut%Upscaling%CopyVel, &
+                                              Father = ObjHydrodynamicFather%Velocity%Horizontal%V%New, VelocityID  = VelocityV_, STAT = STAT_CALL)
                     !Account for sinks and sources of Volume due to upscaling.
                     if (Me%OutPut%Upscaling%MassSinkSource) &
-                        call UpscalingSinkSources(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated,   &
-                                                  ObjHydrodynamicFather%Velocity%Horizontal%V%New,       &
-                                                  ObjHydrodynamicFather%Velocity%DT, VelocityV_)  
-                    if (MakeCopy) &
-                        ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = &
-                        ObjHydrodynamicFather%Velocity%Vertical%Cartesian(:,:,:)
+                        call UpscalingVolumeVariation(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated,   &
+                                                  ObjHydrodynamicFather%Velocity%Horizontal%V%New, ObjHydrodynamicFather%Velocity%DT, VelocityV_)
+                    
+                    if (MakeCopy) ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = ObjHydrodynamicFather%Velocity%Vertical%Cartesian(:,:,:)
                     
     !-------------------------------------------Updates father W matrix with son information-------------------------------------
                     
@@ -53392,25 +53127,19 @@ do5:            do i = ILB, IUB
                     
                     !Account for sinks and sources of Volume due to upscaling.
                     if (Me%OutPut%Upscaling%MassSinkSource) &
-                        call UpscalingSinkSources(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated,   &
-                                                  ObjHydrodynamicFather%Velocity%Vertical%Cartesian,       &
-                                                  ObjHydrodynamicFather%Velocity%DT, VelocityW_)
+                        call UpscalingVolumeVariation(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated,   &
+                                                  ObjHydrodynamicFather%Velocity%Vertical%Cartesian, ObjHydrodynamicFather%Velocity%DT, VelocityW_)
                         
                     if (Me%ComputeOptions%TwoWayWaterLevel) then
-
                         call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
                                            FatherMatrix2D   = ObjHydrodynamicFather%WaterLevel%New,              &
                                            SonMatrix2D      = Me%WaterLevel%New,                                 &
                                            CallerID         = mHydrodynamic_,                                    &
                                            STAT             = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR05.'
-
                     endif
 
-                    call UngetTwoWayExternal_Vars(SonID             = AuxHydrodynamicID,   &
-                                                  FatherID          = Me%FatherInstanceID, &
-                                                  CallerID          = mHydrodynamic_,      &
-                                                  STAT              = STAT_CALL)
+                    call UngetTwoWayExternal_Vars(SonID = AuxHydrodynamicID, FatherID = Me%FatherInstanceID, CallerID = mHydrodynamic_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR06.'
                 endif
             enddo
@@ -53489,7 +53218,7 @@ do5:            do i = ILB, IUB
 !--------------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !> Constructs Updates facedensity matrix.
+    !> Updates facedensity matrix.
     subroutine FaceDensityUpdate
         !External-------------------------------------------------------------
         real,    dimension(:,:  ), pointer :: DUX_VY
@@ -53497,53 +53226,43 @@ do5:            do i = ILB, IUB
         !Local-----------------------------------------------------------------
         integer                            :: i, j, k, KUB, IUB, JUB, ILB, JLB, KLB
 
-        !$ integer                         :: CHUNK
+        integer                            :: CHUNK
         !Begin-------------------------------------------------------------------------
 
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB; KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB; KLB = Me%WorkSize%KLB
         DUX_VY   => Me%External_Var%DUX_VY
         Density  => Me%External_Var%Density
+        CHUNK = CHUNK_K(KLB, KUB)
 
         if (associated(Density))then
-
+            !$OMP PARALLEL PRIVATE( i,j,k)
             if (Me%Direction%di == 1)then
-                !$CHUNK = CHUNK_K(KLB, KUB)
-                !$OMP PARALLEL PRIVATE( i,j,k)
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do k=KLB, KUB
                 do j=JLB, JUB
                 do i=ILB, IUB
                     if (Me%External_Var%ComputeFaces3D_UV(i, j, k)==1) then
-                            Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k),            &
-                                                        Density(i-1, j, k), DUX_VY(i, j), DUX_VY(i-1, j))
+                            Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k), Density(i-1, j, k), DUX_VY(i, j), DUX_VY(i-1, j))
                     endif
                 enddo
                 enddo
                 enddo
                 !$OMP END DO
-                !$OMP END PARALLEL
             else
-                !$CHUNK = CHUNK_K(KLB, KUB)
-                !$OMP PARALLEL PRIVATE( i,j,k)
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do k=KLB, KUB
                 do j=JLB, JUB
                 do i=ILB, IUB
                     if (Me%External_Var%ComputeFaces3D_UV(i, j, k)==1) then
-                            Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k),            &
-                                                        Density(i, j-1, k), DUX_VY(i, j), DUX_VY(i, j-1))
+                            Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k), Density(i, j-1, k), DUX_VY(i, j), DUX_VY(i, j-1))
                     endif
                 enddo
                 enddo
                 enddo
                 !$OMP END DO
-                !$OMP END PARALLEL
             endif
+            !$OMP END PARALLEL
         endif
 
         nullify(Density, DUX_VY)
@@ -54247,7 +53966,7 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         integer                             :: WorkILB, WorkIUB, WorkJLB, WorkJUB
         integer                             :: WorkKLB, WorkKUB, Index
         integer                             :: i, j, k, kbottom, ObjHDF5
-        real, dimension(:, :, :), pointer   :: SZZ, DWZ, SinksSourcesVolume   !flavio
+        real, dimension(:, :, :), pointer   :: SZZ, DWZ, SinksSourcesVolume
         integer, dimension(:,:,:), pointer  :: WaterPoints3D, ComputeFaces3D_W ! flavio
         integer, dimension(:,:,:), pointer  :: OpenPoints3D
         integer, dimension(:,:),   pointer  :: KFloorZ
@@ -54500,7 +54219,7 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
 
         endif
         
-        if (Me%OutPut%Upscaling%MassSinkSource) then
+        if (Me%OutPut%Upscaling%MassSinkSource) then !Sobrinho
             SinksSourcesVolume => Me%Output%Upscaling%VolumeCreated
             call HDF5WriteData  (ObjHDF5,                                            &
                                  "/Results/"//"MassSinkSource",                      &

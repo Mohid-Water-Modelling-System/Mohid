@@ -264,8 +264,9 @@ Module ModuleWaterProperties
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
                                           ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
-                                          SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977
-                                          !SpecificHeatUNESCO Sobrinho
+                                          SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977, &
+                                          GetPointer
+                                          
     use mpi
 #else _USE_MPI
     use ModuleFunctions,            only: SigmaLeendertse, SigmaUNESCO, SigmaWang,              &
@@ -278,8 +279,8 @@ Module ModuleWaterProperties
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
                                           ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
-                                          SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977
-                                          !SpecificHeatUNESCO Sobrinho
+                                          SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977, &
+                                          GetPointer
 #endif _USE_MPI
 
     use ModuleTurbulence,           only: GetHorizontalViscosity, GetVerticalDiffusivity,       &
@@ -512,8 +513,8 @@ Module ModuleWaterProperties
     private ::      Reinitialize_Solution
     private ::      ModifySpecificHeat
     private ::          ComputeSpecificHeatUNESCO
-    private ::      ComputeTwoWay
-    private ::          UpdateFatherModelWP
+    private ::      Upscaling
+    private ::          Compute_wp_upscaling
     private ::      OutPut_Results_HDF
     private ::      OutPut_SurfaceResults_HDF
     private ::      OutPut_TimeSeries
@@ -943,6 +944,7 @@ Module ModuleWaterProperties
         logical                                 :: OutputSurfaceHDF     = .false.
         logical                                 :: OutputProfile        = .false.
         logical                                 :: OutputHDFSedVel      = .false.
+        logical                                 :: UpscalingSinkSource  = .false.
         logical                                 :: BoxTimeSerie         = .false.
         logical                                 :: BoxIntegrationByArea = .false.
         logical                                 :: Statistics           = .false.
@@ -956,6 +958,7 @@ Module ModuleWaterProperties
         real, pointer, dimension(:,:  )         :: SurfaceFlux
         real, pointer, dimension(:,:,:)         :: Mass_Created
         real, pointer, dimension(:,:,:)         :: Mass_Destroid
+        real, allocatable, dimension(:,:,:)     :: UpscalingMassLoss
         real, pointer, dimension(:,:  )         :: BottomFlux
         real, pointer, dimension(:,:,:)         :: Filtration
         real, pointer, dimension(:    )         :: DischConc
@@ -1863,7 +1866,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         call GetData(Me%Optimize,                               &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromFile,                   &
-                     keyword      = 'OPTIMIZE',                 &
+                     keyword      = 'USE_OPTIMIZATIONS',        &
                      default      = .false.,                    &
                      ClientModule = 'ModuleWaterProperties',    &
                      STAT         = status)
@@ -7589,15 +7592,25 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         else
             NewProperty%Evolution%ImposeDryCells = .true.
         endif
+        
+        !Checks if user wants to compute and output mass destroid or gained due to upscaling
+        call GetData(NewProperty%UpscalingSinkSource,                                   &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'UPSCALING_SINK_SOURCE',                          &
+                     Default        = .false.,                                          &
+                     SearchType     = FromBlock,                                        &
+                     ClientModule   = 'ModuleWaterProperties',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_PropertyOutPut - ModuleWaterProperties - ERR08')
 
-
+        if (NewProperty%UpscalingSinkSource) allocate(NewProperty%UpscalingMassLoss(ILB:IUB, JLB:JUB, KLB:KUB))
+        NewProperty%UpscalingMassLoss = 0.0
 
         ! if the property is not 'OLD' the property values in the domain and
         ! in the boundaries are initialized
         ! if it's true ('OLD') this same values are read from the final file of the
         ! previous run
 cd1 :   if (.not.NewProperty%Old) then
-
 
             call ConstructFillMatrix  (PropertyID           = NewProperty%ID,               &
                                        EnterDataID          = Me%ObjEnterData,              &
@@ -7697,18 +7710,11 @@ cd2 :           if      (BoundaryMethod=='EXTERIOR'        ) then
 
 do4 :               do J = JLB, JUB
 do5 :               do I = ILB, IUB
-
 cd5 :                   if (Me%ExternalVar%BoundaryPoints2D(i, j) == Boundary) then
-
 do6 :                       do K = WKLB, WKUB
-
-                                NewProperty%Assimilation%Field(i, j, k) =               &
-                                    NewProperty%Assimilation%scalar
-
+                                NewProperty%Assimilation%Field(i, j, k) = NewProperty%Assimilation%scalar
                             end do do6
-
                         endif cd5
-
                     end do do5
                     end do do4
 
@@ -9633,10 +9639,8 @@ cd1:    if (BoundaryCondition == Orlanski) then
             call CloseAllAndStop ('ReadSubModelOptions - ModuleWaterProperties - ERR40')
 
         if (NewProperty%Submodel%TwoWay .and. .not. NewProperty%SubModel%ON) then
-
             write(*,*) 'Keyword TWO_WAY must ONLY be defined in nested son domains'
             call CloseAllAndStop ('ReadSubModelOptions - ModuleWaterProperties - ERR50')
-
         endif
 
         if (NewProperty%Submodel%TwoWay)then
@@ -10554,7 +10558,7 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
                      SearchType     = ExtractType,                                      &
                      ClientModule   = 'ModuleWaterProperties',                          &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_PropertyOutPut - ModuleWaterProperties - ERR01')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_PropertyOutPut - ModuleWaterProperties - ERR07')
 
     end subroutine Construct_PropertyOutPut
 
@@ -12484,7 +12488,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             
             if (.not. associated (Me%Next))then
-                Call ComputeTwoWay (WaterPropertiesID, Me%ExternalVar%Now)
+                Call Upscaling (WaterPropertiesID, Me%ExternalVar%Now)
             endif
 
             if(Me%OutPut%Yes)                                 &
@@ -16884,6 +16888,7 @@ cd5:                if (TotalVolume > 0.) then
 
             call GetVelocityModulus(HydrodynamicID  = Me%ObjHydrodynamic,               &
                                     VelocityModulus = Me%ExternalVar%VelocityModulus,   &
+                                    Compute         = .true.,                           &
                                     STAT            = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Bivalve_Processes - ModuleWaterProperties - ERR01')
@@ -19367,8 +19372,7 @@ do1 :   do while (associated(PropertyX))
     !>@Brief
     !>For each domain checks and starts twoway procedure
     !>@param[in] WaterPropertiesID, CurrentTime
-    subroutine ComputeTwoWay (WaterPropertiesID, CurrentTime)
-
+    subroutine Upscaling (WaterPropertiesID, CurrentTime)
     !External ----------------------------------------------------------------------------
     type (T_Property), pointer                  :: PropertyX
     type (T_Time)                               :: CurrentTime
@@ -19377,7 +19381,7 @@ do1 :   do while (associated(PropertyX))
     !Locals
     integer                                     :: ID, ready_
     !Begin------------------------------------------------------------------------------
-    if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "ComputeTwoWay")
+    if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "Upscaling")
 
     if(.not. Me%Start2way)then
 
@@ -19387,7 +19391,6 @@ do1 :   do while (associated(PropertyX))
         do while (associated(PropertyX))
             if (PropertyX%Submodel%TwoWay) then
                 if (CurrentTime - Me%BeginTime .gt. PropertyX%Submodel%TwoWayWaitPeriod)then
-
                     Me%Start2way = .true.
                     exit
                 endif
@@ -19398,28 +19401,20 @@ do1 :   do while (associated(PropertyX))
     endif
 
     if (Me%Start2way)then
+        do ID = WaterPropertiesID, 2, -1
+            if (ID /= WaterPropertiesID) call Ready (ID, ready_) ! points Me% to domain "ID"
 
-            do ID = WaterPropertiesID, 2, -1
-                if(ID == WaterPropertiesID)then
-                    !does nothing
-                else
-                    call Ready (ID, ready_) ! points Me% to domain "ID"
-                endif
-
-                FatherWaterpropertiesID = Me%WPFatherInstanceID    ! Changes ID to Father
-                    
-                    ! ID = sonID ,  FatherWaterpropertiesID = FatherID
-                if (FatherWaterpropertiesID > 0) then
-                    call UpdateFatherModelWP(ID, FatherWaterpropertiesID)
-                endif
-            enddo
-
-            call Ready (WaterPropertiesID, ready_) ! swithes back to the final Domain
+            FatherWaterpropertiesID = Me%WPFatherInstanceID    ! Changes ID to Father
+                
+            ! ID = sonID ,  FatherWaterpropertiesID = FatherID
+            if (FatherWaterpropertiesID > 0) call Compute_wp_upscaling(ID, FatherWaterpropertiesID)
+        enddo
+        call Ready (WaterPropertiesID, ready_) ! swithes back to the final Domain
     endif
 
-    if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "ComputeTwoWay")
+    if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "Upscaling")
 
-    end subroutine ComputeTwoWay
+    end subroutine Upscaling
 
     !--------------------------------------------------------------------------
 
@@ -19427,18 +19422,17 @@ do1 :   do while (associated(PropertyX))
     !>@Brief
     !> Prepares TwoWay external variables, then for each property calls modify twoway
     !>@param[in] SonWaterPropertiesID, FatherWaterPropertiesID
-    subroutine UpdateFatherModelWP(SonWaterPropertiesID, FatherWaterPropertiesID)
+    subroutine Compute_wp_upscaling(SonWaterPropertiesID, FatherWaterPropertiesID)
         !Arguments--------------------------------------------------------------------------------------------
-        integer                                 :: SonWaterPropertiesID, FatherWaterPropertiesID
+        integer, intent(IN)                     :: SonWaterPropertiesID, FatherWaterPropertiesID
         !Local variables--------------------------------------------------------------------------------------
         type (T_WaterProperties), pointer       :: ObjWaterPropertiesFather
         type (T_Property), pointer              :: PropertyX, PropertyFather
         real(8), dimension(:,:,:), pointer      :: FatherFlow
         integer                                 :: STAT_CALL
         logical                                 :: FirstTime
-
         !Begin------------------------------------------------------------------------------
-        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "UpdateFatherModelWP")
+        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "Compute_wp_upscaling")
         FirstTime = .true.
 
         !Me% is pointing to Son domain!
@@ -19446,64 +19440,58 @@ do1 :   do while (associated(PropertyX))
 
         call LocateObjFather(ObjWaterPropertiesFather, FatherWaterPropertiesID) !Gets father solution
         !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
-        call PrepTwoWay (SonID             = SonWaterPropertiesID,    &
-                         FatherID          = FatherWaterPropertiesID, &
-                         CallerID          = mWATERPROPERTIES_,       &
-                         STAT              = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - failed PrepTwoWay'
+        call PrepTwoWay (SonID = SonWaterPropertiesID, FatherID = FatherWaterPropertiesID, CallerID = mWATERPROPERTIES_, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - failed PrepTwoWay'
         
         if (ObjWaterPropertiesFather%Coupled%UpscalingDischarge%Yes) then
             !Get matrix from hydrodynamic module
             call GetDischargesFluxes(FatherWaterPropertiesID, Discharges = FatherFlow, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - failed getdischargeFluxes matrix'
+            if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - failed getdischargeFluxes matrix'
             !Update the matrix with upscaling flux
             call GetUpscalingDischarge(FatherWaterPropertiesID, FatherFlow, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - failed to get upscaling discharge flow'
+            if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - failed to get upscaling discharge flow'
         endif
-        
         
         !Assimilates all the properties with twoway option ON
         do while (associated(PropertyX))
             
-            call Search_PropertyFather(ObjWaterPropertiesFather, PropertyFather,            &
-                                        PropertyX%ID%IDNumber, STAT = STAT_CALL)
+            call Search_PropertyFather(ObjWaterPropertiesFather, PropertyFather, PropertyX%ID%IDNumber, STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_)then
 
                 if (PropertyX%Submodel%TwoWay)then
-
                     if(PropertyX%Evolution%NextCompute == PropertyFather%Evolution%LastCompute)then
                     !Assimilation of son domain into father domain
-                        
+                        !Account for change in concentration
+                        if (PropertyX%UpscalingSinkSource) &
+                            PropertyX%UpscalingMassLoss(:,:,:) = PropertyX%UpscalingMassLoss(:,:,:) + PropertyFather%Concentration(:,:,:)
+
                         call ModifyTwoWay (SonID            = SonWaterPropertiesID,                 &
                                            FatherMatrix     = PropertyFather%Concentration,         &
                                            SonMatrix        = PropertyX%Concentration,              &
                                            CallerID         = mWATERPROPERTIES_,                    &
                                            TD               = PropertyX%Submodel%TwoWayTimeDecay,   &
                                            STAT             = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR02.'
+                        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR02.'
                         
                         if (ObjWaterPropertiesFather%Coupled%UpscalingDischarge%Yes) then
-                            call UpscaleDischarge_WP(FatherID    = FatherWaterPropertiesID,                 &
-                                                     Prop        = PropertyFather%Concentration,            &
-                                                     PropVector  = PropertyFather%DischConc,                &
-                                                     Flow        = FatherFlow,                              &
-                                                     FlowVector  = ObjWaterPropertiesFather%Discharge%Flow, &
-                                                     dI          = ObjWaterPropertiesFather%Discharge%i,    &
-                                                     dJ          = ObjWaterPropertiesFather%Discharge%j,    &
-                                                     dK          = ObjWaterPropertiesFather%Discharge%k,    &
-                                                     Kmin        = ObjWaterPropertiesFather%Discharge%kmin, &
-                                                     Kmax        = ObjWaterPropertiesFather%Discharge%kmin, &
-                                                     FirstTime   = FirstTime)
+                            call UpscaleDischarge_WP(FatherID = FatherWaterPropertiesID,                 &
+                                                     Prop = PropertyFather%Concentration, PropVector = PropertyFather%DischConc,           &
+                                                     Flow = FatherFlow, FlowVector = ObjWaterPropertiesFather%Discharge%Flow,              &
+                                                     dI = ObjWaterPropertiesFather%Discharge%i, dJ = ObjWaterPropertiesFather%Discharge%j, &
+                                                     dK = ObjWaterPropertiesFather%Discharge%k,                                            &
+                                                     Kmin = ObjWaterPropertiesFather%Discharge%kmin, Kmax = ObjWaterPropertiesFather%Discharge%kmin, &
+                                                     FirstTime = FirstTime)
                             FirstTime = .false.
                         endif
                         
-
+                        if (PropertyX%UpscalingSinkSource) &
+                            PropertyX%UpscalingMassLoss(:,:,:) = PropertyX%UpscalingMassLoss(:,:,:) - PropertyFather%Concentration(:,:,:)
                     endif
                 endif
             else
                 write(*,*)'Cant find property in submodel for the 2way algorithm'
                 write(*,*)'Property missing = ', trim(PropertyX%ID%Name)
-                call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR03')
+                call CloseAllAndStop ('Compute_wp_upscaling - ModuleWaterProperties - ERR03')
             endif
 
             nullify (PropertyFather)
@@ -19513,21 +19501,17 @@ do1 :   do while (associated(PropertyX))
 
         nullify (PropertyX)
 
-        call UngetTwoWayExternal_Vars(SonID             = SonWaterPropertiesID,    &
-                                      FatherID          = FatherWaterPropertiesID, &
-                                      CallerID          = mWATERPROPERTIES_,       &
-                                      STAT              = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR04.'
+        call UngetTwoWayExternal_Vars(SonID = SonWaterPropertiesID, FatherID = FatherWaterPropertiesID, CallerID = mWATERPROPERTIES_, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR04.'
         
         if (ObjWaterPropertiesFather%Coupled%UpscalingDischarge%Yes) then
             call unGetHydrodynamic(FatherWaterPropertiesID, FatherFlow, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR05.')
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Compute_wp_upscaling - ModuleWaterProperties - ERR05.')
         endif
 
-    if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "UpdateFatherModelWP")
+    if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "Compute_wp_upscaling")
 
-    end subroutine UpdateFatherModelWP
+    end subroutine Compute_wp_upscaling
 
     !------------------------------------------------------------------------------------
 
@@ -22625,8 +22609,17 @@ sp:                     if (.not. SimpleOutPut) then
                         if (STAT_CALL /= SUCCESS_)                                      &
                             call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR150')
                     endif
-
-
+                    
+                    if (PropertyX%UpscalingSinkSource) then
+                        call HDF5WriteData(ObjHDF5,                                     &
+                                           "/Results/Upscaling/"//PropertyX%ID%Name,   &
+                                           PropertyX%ID%Name,                           &
+                                           PropertyX%ID%Units,                          &
+                                           Array3D      = GetPointer(PropertyX%UpscalingMassLoss),  &
+                                           OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR121') 
+                    endif
 
                     if (FirstTime) FirstTime = .false.
 
