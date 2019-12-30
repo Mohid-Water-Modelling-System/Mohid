@@ -312,6 +312,7 @@ Module ModuleFillMatrix
         real                                        :: CoefValue        = null_real
         real                                        :: Dif              = null_real
         logical                                     :: SlowStartON      = .false. 
+        real                                        :: SlowStartPeriod  = null_real
        ! WaveType = 1 (Sine), WaveType = 2 (Cnoidal), WaveType = 3 (solitary)
         integer                                     :: WaveType      = null_int
         real,    dimension(:,:), pointer            :: X2D           => null()
@@ -4752,7 +4753,7 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR125' 
         
         
-        !Gets if the wave is to imposed gradually or not along the wave period.
+        !Gets if the wave is to imposed gradually or not along a period (by default wave period).
         call GetData(Me%AnalyticWave%SlowStartON,                                       &
                      Me%ObjEnterData , iflag,                                           &
                      SearchType   = ExtractType,                                        &
@@ -4761,6 +4762,19 @@ i5:             if (      Me%Sponge%Growing .and. Aux >  Me%Matrix3D(i, j, k)) t
                      ClientModule = 'ModuleFillMatrix',                                 &
                      STAT         = STAT_CALL)                                      
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR126'
+        
+        if (Me%AnalyticWave%SlowStartON) then
+        
+            call GetData(Me%AnalyticWave%SlowStartPeriod,                               &
+                         Me%ObjEnterData , iflag,                                       &
+                         SearchType   = ExtractType,                                    &
+                         keyword      = 'SLOWSTART_PERIOD',                             &
+                         default      = Me%AnalyticWave%Period,                         &
+                         ClientModule = 'ModuleFillMatrix',                             &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticWave - ModuleFillMatrix - ERR126a'         
+            
+        endif            
         
         !Gets the dif coef.
         call GetData(Me%AnalyticWave%Dif,                                               &
@@ -10339,7 +10353,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         type (T_Time)                                   :: Now, RefDate
         real(8)                                         :: Amplitude, Period, AverageValue
         real(8)                                         :: TimeSeconds, T1, T2, T3, Dir, A
-        real(8)                                         :: StartPeriod, T4
+        real(8)                                         :: StartPeriod, T4, SlowStartPeriod
         logical                                         :: SlowStartON
         integer                                         :: WaveType, n     
         
@@ -10353,6 +10367,8 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         WaveType        = Me%AnalyticWave%WaveType
         AverageValue    = Me%AnalyticWave%AverageValue
         SlowStartON     = Me%AnalyticWave%SlowStartON
+        SlowStartPeriod = Me%AnalyticWave%SlowStartPeriod
+        
         
         call SetDate(RefDate, Year = 2018, Month = 1, Day = 1, Hour = 0, Minute = 0, Second = 0)        
         
@@ -10410,8 +10426,9 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
                     if (T4 >= 0) then
 
-                        if (T4 < Period) then
-                            A = A * T4 / Period
+                        if (T4 < SlowStartPeriod) then
+                            A = A * T4 / SlowStartPeriod
+
                         endif
 
                     else

@@ -126,7 +126,7 @@ Module ModuleInterfaceSedimentWater
                                           CHUNK_J, CHUNK_I
     use ModuleHDF5,                 only: ConstructHDF5, GetHDF5FileAccess, HDF5SetLimits,  &
                                           HDF5WriteData, HDF5FlushMemory, HDF5ReadWindow,   &
-                                          KillHDF5
+                                          GetHDF5GroupExist, KillHDF5
     use ModuleGridData,             only: GetGridData, UngetGridData
     use ModuleHorizontalGrid,       only: GetHorizontalGrid, GetHorizontalGridSize,         &
                                           WriteHorizontalGrid, UnGetHorizontalGrid,         &
@@ -163,7 +163,8 @@ Module ModuleInterfaceSedimentWater
                                           SetWaveChezyVel, SetHydrodynamicChezy,            &
                                           GetResidualVelocityON,                            &
                                           GetResidualHorizontalVelocity,                    &
-                                          SetShearStressMethod, SetWaveShearStress
+                                          SetShearStressMethod, SetWaveShearStress,         &
+                                          GetResidualVelocityPeriod
                                           
 #ifndef _LAGRANGIAN_                                         
 #ifdef  _LAGRANGIAN_GLOBAL_                                         
@@ -585,16 +586,26 @@ Module ModuleInterfaceSedimentWater
          real, pointer, dimension (:,:)             :: VFace            => null()         
          real, pointer, dimension (:,:)             :: Velocity         => null()
          real, pointer, dimension (:,:)             :: Tension          => null()
+         real, pointer, dimension (:,:)             :: Tension_X        => null()         
+         real, pointer, dimension (:,:)             :: Tension_Y        => null()         
          logical                                    :: Limitation           = .false.      
          real                                       :: ReferenceDepth       = null_real
          real                                       :: ReferenceShearStress = null_real
          type (T_Time)                              :: LastCompute
+         real                                       :: DT                   = null_real
          type (T_Statistics)                        :: Statistics
          logical                                    :: IntertidalRunOff     = .false.
          integer                                    :: Method               = 1
          real, pointer, dimension (:,:)             :: EfficiencyFactorCurrent => null()
          real, pointer, dimension (:,:)             :: EfficiencyFactorMean    => null()
          real, pointer, dimension (:,:)             :: EfficiencyFactorWaves   => null()
+         
+         real                                       :: Residual_Period      = FillValueReal
+         real, pointer, dimension (:,:)             :: Residual_Tau         => null()
+         real, pointer, dimension (:,:)             :: Residual_Tau_X       => null()         
+         real, pointer, dimension (:,:)             :: Residual_Tau_Y       => null()         
+
+         
     end type T_Shear
 
     type       T_WaveShear
@@ -1135,18 +1146,43 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         JLB = Me%Size2D%JLB
         JUB = Me%Size2D%JUB
 
-        nullify(Me%Shear_Stress%Tension, Me%Shear_Stress%Velocity)
+        Me%Shear_Stress%LastCompute = Me%BeginTime        
         
-        !Shear stress 
+        nullify(Me%Shear_Stress%Tension)
+        
+        !Shear stress - intensity
         allocate(Me%Shear_Stress%Tension(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
-        if(STAT_CALL .ne. SUCCESS_)&
+        if (STAT_CALL /= SUCCESS_) then
             stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR10'
+        endif            
         Me%Shear_Stress%Tension(:,:) = 0.
+        
+        nullify(Me%Shear_Stress%Tension_X)        
+        
+        !Shear stress - X component
+        allocate(Me%Shear_Stress%Tension_X(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR20'
+        endif            
+
+        Me%Shear_Stress%Tension_X(:,:) = 0.
+        
+        nullify(Me%Shear_Stress%Tension_Y)
+
+        !Shear stress - Y component
+        allocate(Me%Shear_Stress%Tension_Y(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR30'
+        endif            
+        Me%Shear_Stress%Tension_Y(:,:) = 0.
+        
+        
+        nullify(Me%Shear_Stress%Velocity)        
         
         !Shear velocity 
         allocate(Me%Shear_Stress%Velocity(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
         if(STAT_CALL .ne. SUCCESS_)&
-            stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR20'
+            stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR40'
         Me%Shear_Stress%Velocity(:,:) = 0.
 
 
@@ -1158,10 +1194,16 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
                      Default      = .false.,                                        &
                      STAT         = STAT_CALL)            
         if(STAT_CALL .ne. SUCCESS_)&
-            stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR30'
+            stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR50'
         
         if(OutputShearStress)then
+            
             Me%Coupled%OutputHDF%Yes = ON
+            
+            if (Me%ExtWater%ResidualON) then
+                call ConstructShearStressResidual                
+            endif    
+            
         end if
         
         call ConstructShearLimitation
@@ -1194,6 +1236,98 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
     end subroutine ConstructShearStress
 
     !--------------------------------------------------------------------------
+
+    subroutine ConstructShearStressResidual
+
+        !External--------------------------------------------------------------
+        integer                             :: STAT_CALL
+
+        !Local-----------------------------------------------------------------
+        integer                             :: ILB, IUB, JLB, JUB
+        integer                             :: HDF5_READ, ObjHDF5
+        logical                             :: FileExist, CheckResidual
+
+        !Begin-----------------------------------------------------------------
+        
+        ILB = Me%Size2D%ILB
+        IUB = Me%Size2D%IUB
+        JLB = Me%Size2D%JLB
+        JUB = Me%Size2D%JUB    
+    
+        call GetResidualVelocityPeriod(HydrodynamicID = Me%ObjHydrodynamic,             &
+                                        ResidualPeriod = Me%Shear_Stress%Residual_Period,&
+                                        STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR10'
+        
+        !Shear stress - intensity                
+        nullify(Me%Shear_Stress%Residual_Tau)
+        
+        allocate(Me%Shear_Stress%Residual_Tau(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR20'
+        endif            
+        Me%Shear_Stress%Residual_Tau(:,:) = 0.
+        
+        !Shear stress - component X
+        nullify(Me%Shear_Stress%Residual_Tau_X)
+        
+        allocate(Me%Shear_Stress%Residual_Tau_X(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR30'
+        endif            
+        Me%Shear_Stress%Residual_Tau_X(:,:) = 0.
+            
+        !Shear stress - component Y
+        nullify(Me%Shear_Stress%Residual_Tau_Y)
+        
+        allocate(Me%Shear_Stress%Residual_Tau_Y(ILB:IUB, JLB:JUB), STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR40'
+        endif            
+        Me%Shear_Stress%Residual_Tau_Y(:,:) = 0.
+        
+        FileExist     = .false. 
+        CheckResidual = .false. 
+        
+        if (Me%Shear_Stress%Residual_Period > 0) then
+            
+            inquire(File = trim(Me%Files%Initial), Exist = FileExist)
+        
+            if (FileExist) then
+                
+                !Gets File Access Code
+                call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
+
+                !Opens HDF5 File
+                call ConstructHDF5 (ObjHDF5, trim(Me%Files%Initial), HDF5_READ, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR50'
+                
+                call GetHDF5GroupExist (ObjHDF5, "Residual", CheckResidual, STAT = STAT_CALL)                
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR60'                
+                
+                call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructShearStressResidual - ModuleInterfaceSedimentWater - ERR70'
+                
+                if (CheckResidual) then
+            
+                    call Read_Old_Properties_2D(Me%Shear_Stress%Residual_Tau_X, "Residual",     &
+                                                GetPropertyName(ShearStressX_))
+                    call Read_Old_Properties_2D(Me%Shear_Stress%Residual_Tau_Y, "Residual",     &
+                                                GetPropertyName(ShearStressY_))            
+                endif
+            endif                
+        endif
+        
+        if (Me%Shear_Stress%Residual_Period <= 0 .or. .not. FileExist .or. .not. CheckResidual) then
+            write(*,*) "Residual bottom shear stress has a cold start in this run"
+            Me%Shear_Stress%Residual_Period = 0.
+        endif
+        
+        
+        
+    end subroutine ConstructShearStressResidual
+
+    !--------------------------------------------------------------------------        
 
     subroutine ConstructWaveShearStress
 
@@ -1774,7 +1908,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             
             if(Me%Rugosity%Old)then
 
-                call Read_Old_Properties_2D(Me%Rugosity%Field, "Rugosity")
+                call Read_Old_Properties_2D(Me%Rugosity%Field, "Rugosity", "Rugosity")
                 
             else
 
@@ -2017,7 +2151,7 @@ cd2 :           if (BlockFound) then
 
             if(NewProperty%Old)then
 
-                call Read_Old_Properties_2D(NewProperty%Mass_Available, NewProperty%ID%Name)
+                call Read_Old_Properties_2D(NewProperty%Mass_Available, "Mass", NewProperty%ID%Name)
                 
                   ! In the module interfacesediment water properties are initialized 
                     if(  (NewProperty%ID%IDNumber == SeagrassesLeaves_ )  .or.  &
@@ -4070,10 +4204,11 @@ do1 :   do while (associated(PropertyX))
     !--------------------------------------------------------------------------
 
 
-    subroutine Read_Old_Properties_2D(Scalar_2D, PropertyName)
+    subroutine Read_Old_Properties_2D(Scalar_2D, GroupName, PropertyName)
 
         !Arguments--------------------------------------------------------------
         real, dimension(:,:), pointer               :: Scalar_2D
+        character (Len=*), Intent(IN)               :: GroupName
         character (Len=*), Intent(IN)               :: PropertyName
 
         !Local-----------------------------------------------------------------
@@ -4146,29 +4281,22 @@ ifMS:   if (MasterOrSlave) then
         
         allocate(Aux2D(ILW:IUW, JLW:JUW))
         
-        if(PropertyName == "Rugosity") then       
         
            call HDF5ReadWindow (HDF5ID         = ObjHDF5,                               &
-                                GroupName      = "/Rugosity/"//"Rugosity",              &
+                            GroupName      = "/"//trim(GroupName)//"/"//                &
+                                             trim(PropertyName),                        &
                                 Name           = trim(PropertyName),                    &
                                 Array2D        = Aux2D,                                 &    
                                 STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR60'
-        else            
-           call HDF5ReadWindow (HDF5ID         = ObjHDF5,                               &
-                                GroupName      = "/Mass/"//trim(PropertyName),          &
-                                Name           = trim(PropertyName),                    &
-                                Array2D        = Aux2D,                                 &
-                                STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR70'
-        endif
+            
         
         Scalar_2D(ILB:IUB, JLB:JUB) = Aux2D(ILW:IUW, JLW:JUW)
         
         deallocate(Aux2D)
         
         call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR80'
+        if (STAT_CALL /= SUCCESS_) stop 'read_Old_Properties_2D - ModuleInterfaceSedimentWater - ERR70'
 
     end subroutine read_Old_Properties_2D
 
@@ -5067,6 +5195,8 @@ do1 :       do while (associated(Property))
 
         if (Me%Shear_Stress%LastCompute .LT. Me%ExternalVar%Now) then
 
+            Me%Shear_Stress%DT = Me%ExternalVar%Now - Me%Shear_Stress%LastCompute
+
             IUB = Me%WaterWorkSize3D%IUB
             JUB = Me%WaterWorkSize3D%JUB
             ILB = Me%WaterWorkSize3D%ILB
@@ -5149,9 +5279,17 @@ do1 :       do while (associated(Property))
                         endif
 
                         UVC2 = UC*UC+VC*VC
-
+                        UVC  = sqrt(UVC2)
 
                         Me%Shear_Stress%Tension (i,j) = Chezy(i,j) * UVC2 * WaterDensity
+
+                        if (UVC > 0) then
+                            Me%Shear_Stress%Tension_X (i,j) = Me%Shear_Stress%Tension(i,j) * UC / UVC 
+                            Me%Shear_Stress%Tension_Y (i,j) = Me%Shear_Stress%Tension(i,j) * VC / UVC 
+                        else
+                            Me%Shear_Stress%Tension_X (i,j) = 0
+                            Me%Shear_Stress%Tension_Y (i,j) = 0
+                        endif                       
 
                         if (Me%RunSedimentModule.or.Me%RunsSandTransport) then
 
@@ -5345,6 +5483,14 @@ do2:            do i = ILB, IUB
  
                     Me%Shear_Stress%Velocity(i,j) = sqrt(Me%Shear_Stress%Tension(i,j)/ WaterDensity) 
                     
+                    if (UVC > 0) then
+                        Me%Shear_Stress%Tension_X (i,j) = Me%Shear_Stress%Tension(i,j) * UC / UVC 
+                        Me%Shear_Stress%Tension_Y (i,j) = Me%Shear_Stress%Tension(i,j) * VC / UVC 
+                    else
+                        Me%Shear_Stress%Tension_X (i,j) = 0
+                        Me%Shear_Stress%Tension_Y (i,j) = 0
+                    endif
+                    
                 endif
 
                 enddo do2
@@ -5362,6 +5508,9 @@ do2:            do i = ILB, IUB
                                         
             endif
 
+            if (Me%Coupled%OutputHDF%Yes .and. Me%ExtWater%ResidualON) then
+                call ComputeShearStressResidual                
+            endif    
      
             Me%Shear_Stress%LastCompute = Me%ExternalVar%Now
 
@@ -5374,6 +5523,71 @@ do2:            do i = ILB, IUB
     end subroutine ModifyShearStress
         
     !--------------------------------------------------------------------------
+    
+    subroutine ComputeShearStressResidual
+
+        !Local-----------------------------------------------------------------
+        real                                    :: DT_Old, DT_New
+        integer                                 :: IUB, JUB, ILB, JLB, KUB
+        integer                                 :: i, j
+        integer                                 :: CHUNK
+
+        !Begin-----------------------------------------------------------------
+    
+    
+        IUB = Me%WaterWorkSize3D%IUB
+        JUB = Me%WaterWorkSize3D%JUB
+        ILB = Me%WaterWorkSize3D%ILB
+        JLB = Me%WaterWorkSize3D%JLB
+        KUB = Me%WaterWorkSize3D%KUB
+            
+        DT_New   = Me%Shear_Stress%DT
+        DT_Old   = Me%Shear_Stress%Residual_Period
+             
+            
+    
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleInterfaceSedimentWater", "ComputeShearStressResidual")
+        endif
+
+        CHUNK = CHUNK_J(JLB, JUB)
+                
+        !$OMP PARALLEL PRIVATE(i,j)
+        !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+        ! Se alisa cantos com terra. Aumenta artificialmente a tensão de corte 
+        ! nos cantos com terra para evitar que estes se tornem em zonas 
+        ! de deposição acentuada
+        do j = JLB, JUB
+        do i = ILB, IUB
+                                            
+            if (Me%ExtWater%OpenPoints3D(i, j, KUB) == OpenPoint) then
+
+                Me%Shear_Stress%Residual_Tau_X(i, j) = (DT_Old * Me%Shear_Stress%Residual_Tau_X(i,j) + &
+                                                        DT_New * Me%Shear_Stress%Tension_X(i,j)) / (DT_Old + DT_New)
+                    
+                Me%Shear_Stress%Residual_Tau_Y(i, j) = (DT_Old * Me%Shear_Stress%Residual_Tau_Y(i,j) + &
+                                                        DT_New * Me%Shear_Stress%Tension_Y(i,j)) / (DT_Old + DT_New)
+                    
+                Me%Shear_Stress%Residual_Tau  (i, j) = sqrt(Me%Shear_Stress%Residual_Tau_X(i, j)**2. +   &
+                                                            Me%Shear_Stress%Residual_Tau_Y(i, j)**2.)
+
+            endif
+
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleInterfaceSedimentWater", "ComputeShearStressResidual")
+        endif
+            
+        Me%Shear_Stress%Residual_Period = DT_Old + DT_New
+            
+    end subroutine ComputeShearStressResidual                
+
+    !--------------------------------------------------------------------------                
+    
     subroutine Compute_DragCoef (DWZ, Z0, UVC, CDMAX, CDM, FW, CWphi, Ubw, Abw) 
      
         !Arguments-----------------------------------------------------------------
@@ -9333,12 +9547,14 @@ subroutine BenthicEcology_Processes
     !--------------------------------------------------------------------------
 
     subroutine OutPut_Results_HDF
+        !Arguments--------------------------------------------------------------    
         
         !External--------------------------------------------------------------
         integer                             :: STAT_CALL
         real                                :: Year, Month, Day, Hour, Minute, Second
          
         !Local-----------------------------------------------------------------
+        character(len=StringLength)         :: PropertyName, GroupName
         type (T_Property), pointer          :: PropertyX
         integer                             :: OutPutNumber
         integer, dimension(6)               :: TimeAux
@@ -9381,36 +9597,71 @@ TOut:   if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
             TimePtr => AuxTime
             call HDF5SetLimits  (Me%ObjHDF5, 1, 6, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR01'
+                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR10'
 
             call HDF5WriteData  (Me%ObjHDF5, "/Time", "Time", "YYYY/MM/DD HH:MM:SS", &
                                  Array1D = TimePtr, OutputNumber = OutPutNumber, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR02'
+                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR20'
 
             call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB,                 &
                                  WorkJLB, WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR03'
+                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR30'
 
             call HDF5WriteData  (Me%ObjHDF5, "/Grid/OpenPoints", "OpenPoints", &
                                  "-", Array3D = Me%ExtWater%OpenPoints3D,      &
                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR04'
+                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR40'
 
-            call HDF5WriteData  (Me%ObjHDF5, "/Results/ShearStress", "ShearStress",  &
-                                 "N/m2", Array2D = Me%Shear_Stress%Tension,          &
-                                 OutputNumber = OutPutNumber, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR05'
+            PropertyName = GetPropertyName(ShearStress_)
+            GroupName    = "/Results/"//trim(PropertyName)            
+
+            call HDF5WriteData (HDF5ID         = Me%ObjHDF5,                            &
+                                GroupName      = trim(GroupName),                       &
+                                Name           = trim(PropertyName),                    &
+                                Units          = "Pa",                                  & 
+                                Array2D        = Me%Shear_Stress%Tension,               &
+                                OutputNumber   = OutPutNumber,                          &
+                                STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR50'
+            endif
             
+            PropertyName = GetPropertyName(ShearStressX_)
+            GroupName    = "/Results/"//trim(PropertyName)            
+
+            call HDF5WriteData (HDF5ID         = Me%ObjHDF5,                            &
+                                GroupName      = trim(GroupName),                       &
+                                Name           = trim(PropertyName),                    &
+                                Units          = "Pa",                                  & 
+                                Array2D        = Me%Shear_Stress%Tension_X,             &
+                                OutputNumber   = OutPutNumber,                          &
+                                STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR60'
+            endif
+            
+            PropertyName = GetPropertyName(ShearStressY_)
+            GroupName    = "/Results/"//trim(PropertyName)            
+
+            call HDF5WriteData (HDF5ID         = Me%ObjHDF5,                            &
+                                GroupName      = trim(GroupName),                       &
+                                Name           = trim(PropertyName),                    &
+                                Units          = "Pa",                                  & 
+                                Array2D        = Me%Shear_Stress%Tension_Y,             &
+                                OutputNumber   = OutPutNumber,                          &
+                                STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR70'
+            endif            
             if(Me%ComputeRugosity)then          
                 call HDF5WriteData  (Me%ObjHDF5, "/Results/Rugosity", "Rugosity",  &
                                      "N/m2", Array2D = Me%Rugosity%Field,          &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) &
-                    stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR010'
+                    stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR080'
             endif
 
             if(Me%Consolidation%Yes)then
@@ -9420,7 +9671,7 @@ TOut:   if (Me%ExternalVar%Now >= Me%OutPut%OutTime(OutPutNumber)) then
                                      "kg/m2s", Array2D = Me%Consolidation%Flux,     &
                                      OutputNumber = OutPutNumber, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) &
-                    stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR50'
+                    stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR90'
 
             end if
 
@@ -9441,7 +9692,7 @@ PropX:      do while (associated(PropertyX))
                                                  Array2D = PropertyX%MassInKg,                              &
                                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) &
-                                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR06a'
+                                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR100'
                         
                         else
                     
@@ -9450,7 +9701,7 @@ PropX:      do while (associated(PropertyX))
                                                  Array2D = PropertyX%Mass_Available,                        &
                                                  OutputNumber = OutPutNumber, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) &
-                                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR06b'
+                                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR110'
                             
                         end if
                             
@@ -9474,7 +9725,7 @@ PropX:      do while (associated(PropertyX))
                                              Array2D = PropertyX%FluxToSediment,                        &
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) &
-                            stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR08'
+                            stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR120'
 
                     end if
                     
@@ -9485,7 +9736,7 @@ PropX:      do while (associated(PropertyX))
                                              Array2D = PropertyX%DepositionFlux,                        &
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) &
-                            stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR09'
+                            stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR130'
 
                     end if
 
@@ -9498,7 +9749,7 @@ PropX:      do while (associated(PropertyX))
             !Writes everything to disk
             call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) &
-                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR10'
+                stop 'OutPut_Results_HDF - ModuleInterfaceSedimentWater - ERR140'
 
             Me%OutPut%NextOutPut = OutPutNumber + 1
 
@@ -9512,6 +9763,84 @@ PropX:      do while (associated(PropertyX))
     end subroutine OutPut_Results_HDF
 
     !--------------------------------------------------------------------------
+
+    subroutine OutPut_Residual_HDF
+        !Arguments--------------------------------------------------------------    
+
+        !External--------------------------------------------------------------
+        integer                             :: STAT_CALL
+         
+        !Local-----------------------------------------------------------------
+        character(len=StringLength)         :: PropertyName, GroupName
+        integer                             :: WorkILB, WorkIUB, WorkJLB, WorkJUB
+        !----------------------------------------------------------------------
+
+
+        if (MonitorPerformance) call StartWatch ("ModuleInterfaceSedimentWater", "OutPut_Residual_HDF")
+
+        WorkILB = Me%WaterWorkSize3D%ILB 
+        WorkIUB = Me%WaterWorkSize3D%IUB 
+        WorkJLB = Me%WaterWorkSize3D%JLB 
+        WorkJUB = Me%WaterWorkSize3D%JUB
+
+        call HDF5SetLimits  (Me%ObjHDF5, WorkILB, WorkIUB,                              &
+                             WorkJLB, WorkJUB, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'OutPut_Residual_HDF - ModuleInterfaceSedimentWater - ERR10'
+        endif
+
+            
+        PropertyName = GetPropertyName(ShearStress_)
+        GroupName    = "/Residual/"//trim(PropertyName)            
+
+        call HDF5WriteData (HDF5ID         = Me%ObjHDF5,                                &
+                            GroupName      = trim(GroupName),                           &
+                            Name           = trim(PropertyName),                        &
+                            Units          = "Pa",                                      & 
+                            Array2D        = Me%Shear_Stress%Residual_Tau,              &
+                            STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'OutPut_Residual_HDF - ModuleInterfaceSedimentWater - ERR20'
+        endif
+            
+        PropertyName = GetPropertyName(ShearStressX_)
+        GroupName    = "/Residual/"//trim(PropertyName)            
+
+        call HDF5WriteData (HDF5ID         = Me%ObjHDF5,                                &
+                            GroupName      = trim(GroupName),                           &
+                            Name           = trim(PropertyName),                        &
+                            Units          = "Pa",                                      & 
+                            Array2D        = Me%Shear_Stress%Residual_Tau_X,            &
+                            STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'OutPut_Residual_HDF - ModuleInterfaceSedimentWater - ERR30'
+        endif
+            
+        PropertyName = GetPropertyName(ShearStressY_)
+        GroupName    = "/Residual/"//trim(PropertyName)            
+
+        call HDF5WriteData (HDF5ID         = Me%ObjHDF5,                                &
+                            GroupName      = trim(GroupName),                           &
+                            Name           = trim(PropertyName),                        &
+                            Units          = "Pa",                                      & 
+                            Array2D        = Me%Shear_Stress%Residual_Tau_Y,            &
+                            STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'OutPut_Residual_HDF - ModuleInterfaceSedimentWater - ERR40'
+        endif
+        
+        !Writes everything to disk
+        call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'OutPut_Residual_HDF - ModuleInterfaceSedimentWater - ERR50'
+        endif
+        
+        if (MonitorPerformance) call StopWatch ("ModuleInterfaceSedimentWater", "OutPut_Residual_HDF")
+
+    end subroutine OutPut_Residual_HDF
+
+    !--------------------------------------------------------------------------
+
 
     subroutine OutputRestartFile
         
@@ -9774,14 +10103,18 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 if (Me%OutPut%Yes) then
 
+                    if (Me%ExtWater%ResidualON) then
+                        call OutPut_Residual_HDF
+                    endif
+
                     call KillHDF5 (Me%ObjHDF5, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR01'
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR10'
                 endif
 
                 if (Me%Shear_Stress%Statistics%ON) then
                     call KillStatistic (Me%Shear_Stress%Statistics%ID, STAT = STAT_CALL)
-                    stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR02'
+                    stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR20'
                 endif
 
                 if (Me%RunsSandTransport) then
@@ -9789,7 +10122,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     call KillSand(Me%ObjSand, STAT = STAT_CALL)
 
                     if(STAT_CALL /= SUCCESS_)                                            &
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR03.'
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR30.'
 
                 endif
 
@@ -9810,73 +10143,73 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
 
                 nUsers = DeassociateInstance(mTIME_,            Me%ObjTime)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR05'
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR40'
                 
                 nUsers = DeassociateInstance(mHORIZONTALGRID_,  Me%ObjHorizontalGrid)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR06'
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR50'
                 
                 nUsers = DeassociateInstance(mGRIDDATA_,        Me%ObjWaterGridData)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR07'
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR60'
 
                 nUsers = DeassociateInstance(mHORIZONTALMAP_,   Me%ObjWaterHorizontalMap)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR08'
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR70'
 
                 nUsers = DeassociateInstance(mGEOMETRY_,        Me%ObjWaterGeometry)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR09'
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR80'
 
                 nUsers = DeassociateInstance(mMAP_,             Me%ObjWaterMap)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR10'
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR90'
 
                 nUsers = DeassociateInstance(mTURBULENCE_,      Me%ObjTurbulence)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR11'
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR110'
 
                 nUsers = DeassociateInstance(mHYDRODYNAMIC_,    Me%ObjHydrodynamic)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR12'
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR120'
 
                 nUsers = DeassociateInstance(mWATERPROPERTIES_, Me%ObjWaterProperties)
-                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR13'
+                if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR130'
 
 #ifndef _LAGRANGIAN_
                 if(Me%ObjLagrangian /= 0)then
                     nUsers = DeassociateInstance(mLAGRANGIAN_, Me%ObjLagrangian)
-                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR14'
+                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR140'
                 end if
 #endif
 
                 if(Me%ObjTurbGOTM /= 0)then
                     nUsers = DeassociateInstance(mTURBGOTM_, Me%ObjTurbGOTM)
-                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR15'
+                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR150'
                 end if
 
 
                 if(Me%ObjFreeVerticalMovement /= 0)then
                     nUsers = DeassociateInstance(mFREEVERTICALMOVEMENT_, Me%ObjFreeVerticalMovement)
-                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR16'
+                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR160'
                 end if
 
                 if(Me%RunsSediments.or.Me%RunSedimentModule)then
                                     
                     nUsers = DeassociateInstance(mGRIDDATA_,        Me%ObjSedimentGridData)
-                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR17'
+                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR170'
 
                     nUsers = DeassociateInstance(mHORIZONTALMAP_,   Me%ObjSedimentHorizontalMap)
-                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR18'
+                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR180'
 
                     nUsers = DeassociateInstance(mGEOMETRY_,        Me%ObjSedimentGeometry)
-                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR19'
+                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR190'
 
                     nUsers = DeassociateInstance(mMAP_,             Me%ObjSedimentMap)
-                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR20'
+                    if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR200'
 #ifndef _SEDIMENT_
                     if(Me%RunSedimentModule)then
                         nUsers = DeassociateInstance(mSEDIMENT_, Me%ObjSediment)
-                        if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR21a'
+                        if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR210'
                     else
                         nUsers = DeassociateInstance(mSEDIMENTPROPERTIES_, Me%ObjSedimentProperties)
-                        if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR21'
+                        if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR220'
 
                         nUsers = DeassociateInstance(mCONSOLIDATION_,   Me%ObjConsolidation)
-                        if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR22'
+                        if (nUsers == 0) stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR230'
                     endif
 #endif
                 end if
@@ -9885,12 +10218,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     
                     call KillBoxDif(Me%ObjBoxDif, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR23'
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR240'
 
 
                     deallocate(Me%Scalar2D, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR24'
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR250'
                     nullify(Me%Scalar2D)
 
                 end if
@@ -9899,23 +10232,34 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (Me%Coupled%TimeSerie%Yes) then
                     call KillTimeSerie(Me%ObjTimeSerie, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) &
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR25'
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR260'
                 endif
 
                 deallocate(Me%Shear_Stress%Tension,    STAT = STAT_CALL) 
                 if(STAT_CALL .ne. SUCCESS_)&
-                    stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR26'
+                    stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR270'
                 nullify(Me%Shear_Stress%Tension)
 
+                deallocate(Me%Shear_Stress%Tension_X,    STAT = STAT_CALL) 
+                if(STAT_CALL .ne. SUCCESS_)&
+                    stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR270'
+                nullify(Me%Shear_Stress%Tension_X)                
+
+                deallocate(Me%Shear_Stress%Tension_Y,    STAT = STAT_CALL) 
+                if(STAT_CALL .ne. SUCCESS_)&
+                    stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR280'
+                nullify(Me%Shear_Stress%Tension_Y)                
+
+                
                 deallocate(Me%Shear_Stress%Velocity,   STAT = STAT_CALL) 
                 if(STAT_CALL .ne. SUCCESS_)&
-                    stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27'
+                    stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR280'
                 nullify(Me%Shear_Stress%Velocity)
 
                 if(Me%UseSOD)then
                     deallocate(Me%SOD%Field,   STAT = STAT_CALL) 
                     if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27a'
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR290'
                     nullify(Me%SOD%Field)
                 endif
 
@@ -9924,41 +10268,41 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                     deallocate(Me%Shear_Stress%CurrentVel,   STAT = STAT_CALL) 
                     if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27a'
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR300'
                     nullify(Me%Shear_Stress%CurrentVel)
 
                     deallocate(Me%Shear_Stress%CurrentU,   STAT = STAT_CALL) 
                     if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27b'
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR310'
                     nullify(Me%Shear_Stress%CurrentU)
 
                     deallocate(Me%Shear_Stress%CurrentV,   STAT = STAT_CALL) 
                     if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27c'
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR320'
                     nullify(Me%Shear_Stress%CurrentV)
 
                     if (associated(Me%Shear_Stress%CurrentResidualU)) then
                         deallocate(Me%Shear_Stress%CurrentResidualU,   STAT = STAT_CALL) 
                         if(STAT_CALL .ne. SUCCESS_)&
-                            stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR290'
+                            stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR330'
                         nullify(Me%Shear_Stress%CurrentResidualU)
                     endif
 
                     if (associated(Me%Shear_Stress%CurrentResidualV)) then
                         deallocate(Me%Shear_Stress%CurrentResidualV,   STAT = STAT_CALL) 
                         if(STAT_CALL .ne. SUCCESS_)&
-                            stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR300'
+                            stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR340'
                         nullify(Me%Shear_Stress%CurrentResidualV)
                     endif
                 
                     deallocate(Me%Shear_Stress%UFace,   STAT = STAT_CALL) 
                     if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27d'
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR350'
                     nullify(Me%Shear_Stress%UFace)
 
                     deallocate(Me%Shear_Stress%VFace,   STAT = STAT_CALL) 
                     if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27e'
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR360'
                     nullify(Me%Shear_Stress%VFace)
 
 
@@ -9968,7 +10312,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 
                     deallocate(Me%Shear_Stress%EfficiencyFactorCurrent,   STAT = STAT_CALL) 
                     if(STAT_CALL .ne. SUCCESS_)&
-                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR27f'
+                        stop 'KillInterfaceSedimentWater - ModuleInterfaceSedimentWater - ERR370'
                     nullify(Me%Shear_Stress%EfficiencyFactorCurrent)
                 
                 endif
@@ -10220,6 +10564,21 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 end do
                 
+                if (associated(Me%Shear_Stress%Residual_Tau_X)) then
+                    deallocate(Me%Shear_Stress%Residual_Tau_X)
+                    nullify   (Me%Shear_Stress%Residual_Tau_X)
+                endif
+                
+                if (associated(Me%Shear_Stress%Residual_Tau_Y)) then
+                    deallocate(Me%Shear_Stress%Residual_Tau_Y)
+                    nullify   (Me%Shear_Stress%Residual_Tau_Y)
+                endif
+                
+                if (associated(Me%Shear_Stress%Residual_Tau)) then                
+                    deallocate(Me%Shear_Stress%Residual_Tau  )
+                    nullify   (Me%Shear_Stress%Residual_Tau  )
+                endif
+                
                 !Deallocates Instance
                 call DeallocateInstance
 
@@ -10281,7 +10640,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         !Local--------------------------------------------------------------
         type(T_Property),           pointer     :: Property
         integer                                 :: ObjHDF5
-        character (Len = StringLength)          :: PropertyName
+        character (Len = StringLength)          :: PropertyName, GroupName
         integer                                 :: WorkILB, WorkIUB
         integer                                 :: WorkJLB, WorkJUB
         integer                                 :: WorkKLB, WorkKUB
@@ -10321,7 +10680,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
         !Opens HDF5 File
         call ConstructHDF5 (ObjHDF5,trim(filename), HDF5_CREATE, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR01'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR10'
         
         !Write the Horizontal Grid
         call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5, STAT = STAT_CALL)
@@ -10330,42 +10689,42 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
         !Sets limits for next write operations
         call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR02'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR20'
 
         !Writes the Grid
         call HDF5WriteData   (ObjHDF5, "/Grid", "Bathymetry", "m",                      &
                               Array2D = Me%ExtWater%Bathymetry,                         &
                               STAT    = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR03'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR30'
 
         call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                                 &
                              WorkJLB, WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR10'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR40'
 
         call HDF5WriteData   (ObjHDF5, "/Grid", "WaterPoints3D", "-",                   &
                               Array3D = Me%ExtWater%WaterPoints3D,                      &
                               STAT    = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR04'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR50'
 
         !Writes SZZ
         call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB, WorkJLB,                        &
                              WorkJUB, WorkKLB-1, WorkKUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR08'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR60'
 
         call HDF5WriteData  (ObjHDF5, "/Grid", "VerticalZ",                             &
                              "m", Array3D = Me%ExtWater%SZZ,                            &
                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR09'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR70'
 
         !Writes OpenPoints
         call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB,                                 &
                              WorkJLB, WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR10'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR80'
 
         call HDF5WriteData  (ObjHDF5, "/Grid", "OpenPoints",                            &
                              "-", Array3D = Me%ExtWater%OpenPoints3D,                   &
                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR11'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR90'
 
 
         Property => Me%FirstProperty
@@ -10375,14 +10734,14 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
             PropertyName = trim(Property%ID%name)
             
             call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR12'
+            if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR100'
 
             !Final concentration
             call HDF5WriteData  (ObjHDF5, "/Mass/"//Property%ID%Name,                   &
                                  Property%ID%Name, Property%ID%Units,                   &
                                  Array2D = Property%Mass_Available,                     &
                                  STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR13'
+            if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR110'
 
             Property => Property%Next
 
@@ -10396,15 +10755,45 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                                  "Rugosity", "m",                                      &
                                  Array2D = Me%Rugosity%Field,                          &
                                  STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR13a'
+            if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR120'
+        endif            
+        
+        
+        if (Me%Coupled%OutputHDF%Yes .and. Me%ExtWater%ResidualON) then
+            
+            PropertyName = GetPropertyName(ShearStressX_)
+            GroupName    = "/Residual/"//trim(PropertyName)
+            
+            call HDF5WriteData  (HDF5ID        = ObjHDF5,                               &
+                                GroupName      = trim(GroupName),                       &
+                                Name           = trim(PropertyName),                    &
+                                Units          = "Pa",                                  & 
+                                Array2D        = Me%Shear_Stress%Residual_Tau_X,        &
+                                STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR130'
+            endif
+                 
+            PropertyName = GetPropertyName(ShearStressY_)
+            GroupName    = "/Residual/"//trim(PropertyName)
+            
+            call HDF5WriteData  (HDF5ID        = ObjHDF5,                               &
+                                GroupName      = trim(GroupName),                       &
+                                Name           = trim(PropertyName),                    &
+                                Units          = "Pa",                                  & 
+                                Array2D        = Me%Shear_Stress%Residual_Tau_Y,        &
+                                STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR140'
+            endif            
         endif            
    
         !Writes everything to disk
         call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR14'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR150'
 
         call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR15'
+        if (STAT_CALL /= SUCCESS_)stop 'Write_Final_HDF - ModuleInterfaceSedimentWater - ERR160'
 
     end subroutine Write_Final_HDF
 

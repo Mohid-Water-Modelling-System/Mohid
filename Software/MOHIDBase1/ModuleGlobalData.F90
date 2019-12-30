@@ -161,6 +161,7 @@ Module ModuleGlobalData
     character(LEN = 1), parameter :: semicolumn = char(59)   !";"
     character(LEN = 1), parameter :: tab        = char(9)    !" "
     character(LEN = 1), parameter :: backslash  = char(92)   !"\"
+    character(LEN = 1), parameter :: exclamation= char(33)   !"!"
 
     logical, parameter :: OFF    = .FALSE.
     logical, parameter :: ON     = .TRUE.
@@ -441,6 +442,8 @@ Module ModuleGlobalData
     integer, parameter :: MeridionalVelocity_               = 930
     !1 - low tide, 2 - flood, 3 - high tide, 4 - ebb 
     integer, parameter :: TideState_                        = 940
+    integer, parameter :: ShearStressX_                     = 950
+    integer, parameter :: ShearStressY_                     = 960    
     
     !Assimilation Properties        guillaume nogueira
     integer, parameter :: AltimLevelAnalyzed_               = 4000
@@ -764,7 +767,17 @@ Module ModuleGlobalData
     integer, parameter ::  WavePower_                      = 3535
     integer, parameter ::  TransportEnergyX_               = 3536
     integer, parameter ::  TransportEnergyY_               = 3537
-
+    integer, parameter ::  DirectionEnergyTransport_       = 3538
+    integer, parameter ::  SmoothedPeakPeriod_             = 3539    
+    integer, parameter ::  MeanAbsoluteWavePeriod_         = 3540
+    
+    integer, parameter ::  Swell01_SignificantWaveHeight_  = 3541
+    integer, parameter ::  Swell01_WavePeriod_             = 3542
+    integer, parameter ::  Swell01_WaveDirection_          = 3543
+    
+    integer, parameter ::  WindSea_SignificantWaveHeight_  = 3544
+    integer, parameter ::  WindSea_WavePeriod_             = 3545
+    integer, parameter ::  WindSea_WaveDirection_          = 3546
 !____________________________________________________________________________________
 !________________________________________________________exclusive use @ modulelife__
 
@@ -1274,6 +1287,8 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_VelocityV_           = 'velocity V'
     character(StringLength), private, parameter :: Char_VelocityW_           = 'velocity W'
     character(StringLength), private, parameter :: Char_ShearStress_         = 'shear stress'
+    character(StringLength), private, parameter :: Char_ShearStressX_        = 'shear stress X'
+    character(StringLength), private, parameter :: Char_ShearStressY_        = 'shear stress Y'    
     character(StringLength), private, parameter :: Char_WaterColumn_         = 'water column'    
     character(StringLength), private, parameter :: Char_MeridionalVelocity_  = 'meridional velocity'
     character(StringLength), private, parameter :: Char_ZonalVelocity_       = 'zonal velocity'
@@ -1620,7 +1635,16 @@ Module ModuleGlobalData
     character(StringLength), private, parameter :: Char_WavePower                = 'wave power'    
     character(StringLength), private, parameter :: Char_TransportEnergyX         = 'transport energy X'
     character(StringLength), private, parameter :: Char_TransportEnergyY         = 'transport energy Y'
+    character(StringLength), private, parameter :: Char_DirectionEnergyTransport = 'direction energy transport'
+    character(StringLength), private, parameter :: Char_SmoothedPeakPeriod       = 'smoothed peak period'
+    character(StringLength), private, parameter :: Char_MeanAbsoluteWavePeriod   = 'mean absolute wave period'
 
+    character(StringLength), private, parameter :: Char_Swell01_SignificantWaveHeight = 'primary swell significant wave height'
+    character(StringLength), private, parameter :: Char_Swell01_WavePeriod            = 'primary swell wave period'
+    character(StringLength), private, parameter :: Char_Swell01_WaveDirection         = 'primary swell wave direction'
+    character(StringLength), private, parameter :: Char_WindSea_SignificantWaveHeight = 'wind sea significant wave height'
+    character(StringLength), private, parameter :: Char_WindSea_WavePeriod            = 'wind sea wave period'
+    character(StringLength), private, parameter :: Char_WindSea_WaveDirection         = 'wind sea wave direction'
     !Consolidation
     character(StringLength), private, parameter :: Char_ConsolidationFlux        = 'consolidation flux'
     character(StringLength), private, parameter :: Char_Porosity                 = 'porosity'
@@ -3135,11 +3159,24 @@ do2:            do i=1, DynamicPropertiesNumber
             call AddPropList (TransportEnergyX_,        Char_TransportEnergyX,           ListNumber)
             call AddPropList (TransportEnergyY_,        Char_TransportEnergyY,           ListNumber)
             call AddPropList (Ubw_,                     Char_Ubw,                        ListNumber)
+            call AddPropList (DirectionEnergyTransport_, Char_DirectionEnergyTransport,  ListNumber)
+            call AddPropList (SmoothedPeakPeriod_,      Char_SmoothedPeakPeriod,         ListNumber)
+            call AddPropList (MeanAbsoluteWavePeriod_,  Char_MeanAbsoluteWavePeriod,     ListNumber)
+            
+            call AddPropList (Swell01_SignificantWaveHeight_, Char_Swell01_SignificantWaveHeight, ListNumber)
+            call AddPropList (Swell01_WavePeriod_,            Char_Swell01_WavePeriod,            ListNumber)
+            call AddPropList (Swell01_WaveDirection_,         Char_Swell01_WaveDirection,         ListNumber)
+            
+            call AddPropList (WindSea_SignificantWaveHeight_, Char_WindSea_SignificantWaveHeight, ListNumber)
+            call AddPropList (WindSea_WavePeriod_,            Char_WindSea_WavePeriod,            ListNumber)
+            call AddPropList (WindSea_WaveDirection_,         Char_WindSea_WaveDirection,         ListNumber)            
             
             call AddPropList (ConsolidationFlux_,       Char_ConsolidationFlux,          ListNumber)
             call AddPropList (Porosity_,                Char_Porosity,                   ListNumber)
             
             call AddPropList (ShearStress_,             Char_ShearStress_,               ListNumber)
+            call AddPropList (ShearStressX_,            Char_ShearStressX_,              ListNumber)            
+            call AddPropList (ShearStressY_,            Char_ShearStressY_,              ListNumber)                        
 
             call AddPropList (RefEvapotrans_,           Char_RefEvapotrans,              ListNumber)
             call AddPropList (TotalPlantBiomass_,       Char_TotalPlantBiomass,          ListNumber)

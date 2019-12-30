@@ -232,6 +232,9 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         logical                                 :: VerticalZ_2D
         character(len=StringLength)             :: Surface
         character(len=StringLength)             :: Bottom        
+        logical                                 :: CheckMinMaxLimits
+        real                                    :: MinLimit
+        real                                    :: MaxLimit
     end type  T_Field
 
     type T_NetCDF_Out                                         
@@ -1189,7 +1192,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
                         
                     elseif  (i == Me%Date%TotalInstOut) then
                         
-                        call ComputeInstFromAvgSinceModelStart(iPt, iP, Me%Date%TotalInstOut, Option = "End")                         
+                        call ComputeInstFromAvgSinceModelStart(iPt, iP,&
+                                                               Me%Date%TotalInstOut, Option = "End")                         
                         
                     else
                         !Compute Power from Energy
@@ -3044,10 +3048,12 @@ BF:         if (BlockFound) then
     subroutine ReadFieldOptions
 
         !Local-----------------------------------------------------------------
+        
         logical                                     :: BlockFound
         integer                                     :: iflag, STAT_CALL, ip
         logical                                     :: check
         integer, dimension(12)                      :: Aux1DInt
+        real,    dimension(2)                       :: Array2
         !begin-----------------------------------------------------------------
 
         do ip = 1, Me%PropNumber 
@@ -3115,6 +3121,23 @@ BF:         if (BlockFound) then
                                  ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+
+                    call GetData(Array2,                                                &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'MIN_MAX_LIMITS',                       &
+                                 default      = FillValueReal,                          &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR55'
+                                        
+                    if (iflag == 2) then
+                        Me%Field(ip)%CheckMinMaxLimits = .true.
+                        Me%Field(ip)%MinLimit          = Array2(1)
+                        Me%Field(ip)%MaxLimit          = Array2(2)
+                    else
+                        Me%Field(ip)%CheckMinMaxLimits = .false.
+                    endif
 
 
                     call GetData(Me%Field(ip)%Dim,                                      &
@@ -4968,6 +4991,35 @@ i5:         if (Me%OutHDF5) then
                         Me%Field(iP)%Value3DOut(i, j, k) = Me%Field(iP)%MinValue
                     endif                                     
 
+                    if (Me%Field(ip)%CheckMinMaxLimits) then
+                
+                        if (Me%Mapping%Value3DOut(i,j,k) == 1) then
+                        
+                            if (Me%Field(iP)%Value3DOut(i, j, k) > Me%Field(iP)%MaxLimit) then
+                            
+                                write(*,*) 'Property=', trim(Me%Field(iP)%NetCDFName)
+                                write(*,*) 'In cell i,j,k=',i,j,k
+                                write(*,*) 'Netcdf value', Me%Field(iP)%Value3DOut(i, j, k)
+                                write(*,*) 'Above Max limit=', Me%Field(iP)%MaxLimit
+                            
+                                stop 'WriteFieldAllInst - ModuleNetCDFCF_2_HDF5MOHID - ERR20' 
+                            
+                            endif
+                        
+                            if (Me%Field(iP)%Value3DOut(i, j, k) < Me%Field(iP)%MinLimit) then
+                            
+                                write(*,*) 'Property=', trim(Me%Field(iP)%NetCDFName)
+                                write(*,*) 'In cell i,j,k=',i,j,k
+                                write(*,*) 'Netcdf value', Me%Field(iP)%Value3DOut(i, j, k)
+                                write(*,*) 'Below min limit=', Me%Field(iP)%MinLimit
+                            
+                                stop 'WriteFieldAllInst - ModuleNetCDFCF_2_HDF5MOHID - ERR30' 
+                            
+                            endif                        
+                        endif
+
+                    endif                                    
+                    
                 else 
                     Me%Field(iP)%Value3DOut(i, j, k) = FillValueReal
                 endif                
@@ -5004,6 +5056,31 @@ i5:         if (Me%OutHDF5) then
                         Me%Field(iP)%Value2DOut(i, j) = Me%Field(iP)%MinValue
                     endif                              
                         
+                    if (Me%Field(ip)%CheckMinMaxLimits) then                      
+                    
+                        if (Me%Field(iP)%Value2DOut(i, j) > Me%Field(iP)%MaxLimit) then
+                            
+                            write(*,*) 'Property=', trim(Me%Field(iP)%NetCDFName)
+                            write(*,*) 'In cell i,j =',i,j,k
+                            write(*,*) 'Netcdf value', Me%Field(iP)%Value2DOut(i, j)
+                            write(*,*) 'Above Max limit=', Me%Field(iP)%MaxLimit
+                            
+                            stop 'WriteFieldAllInst - ModuleNetCDFCF_2_HDF5MOHID - ERR20' 
+                            
+                        endif
+                        
+                        if (Me%Field(iP)%Value2DOut(i, j) < Me%Field(iP)%MinLimit) then
+                            
+                            write(*,*) 'Property=', trim(Me%Field(iP)%NetCDFName)
+                            write(*,*) 'In cell i,j=',i,j
+                            write(*,*) 'Netcdf value', Me%Field(iP)%Value2DOut(i, j)
+                            write(*,*) 'Below min limit=', Me%Field(iP)%MinLimit
+                            
+                            stop 'WriteFieldAllInst - ModuleNetCDFCF_2_HDF5MOHID - ERR30' 
+                            
+                        endif                         
+                    
+                    endif
                                                          
                 else 
                     Me%Field(iP)%Value2DOut(i, j) = FillValueReal
@@ -5011,6 +5088,7 @@ i5:         if (Me%OutHDF5) then
                     
             enddo
             enddo
+                
                 
         endif
 
@@ -6251,7 +6329,10 @@ i4:         if      (Me%Depth%Positive == "up"  ) then
         if (Me%Mapping%ON) then
 
             status=nf90_inq_varid(ncid,trim(Me%Mapping%NetCDFName),mn)
-            if (status /= nf90_noerr) stop 'ReadGrid3DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+            if (status /= nf90_noerr) then
+                write (*,*) 'unknown netcdf field = ', trim(Me%Mapping%NetCDFName)
+                stop 'ReadGrid3DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR40'
+            endif
 
             status = nf90_inquire_variable(ncid, mn, ndims = numDims)
             if (status /= nf90_noerr) stop 'ReadGrid3DNetCDF - ModuleNetCDFCF_2_HDF5MOHID - ERR50'

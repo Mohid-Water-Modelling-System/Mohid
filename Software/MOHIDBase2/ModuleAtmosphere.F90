@@ -1048,6 +1048,9 @@ cd2 :           if (BlockFound) then
                 write(*,*) 'See Documentation on how to implement it'
                 stop 'ConstructPropertyList - ModuleAtmosphere . ERR40'                     
             endif        
+            
+            call ConstructWindFromDirMod
+            
         endif
         
         !Rotates Vectores
@@ -1145,6 +1148,97 @@ cd2 :           if (BlockFound) then
     end subroutine ConstructPropertyList
 
     !--------------------------------------------------------------------------
+    
+    subroutine ConstructWindFromDirMod
+    
+        !Local-----------------------------------------------------------------
+        type(T_Property), pointer                   :: PropWindVelocity
+        type(T_Property), pointer                   :: PropWindModulus
+        type(T_Property), pointer                   :: PropWindDirection
+        integer                                     :: STAT_CALL
+        logical                                     :: WindDir, WindMod
+        integer                                     :: SizeILB, SizeIUB
+        integer                                     :: SizeJLB, SizeJUB 
+        !---------------------------------------------------------------------- 
+    
+        !Search for wind vector
+        call SearchProperty(PropWindVelocity, WindVelocity_, .false., STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            
+            call SearchProperty(PropWindModulus,   WindModulus_  , .false., STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then
+                WindMod = .true.
+            else
+                WindMod = .false. 
+            endif
+            
+            call SearchProperty(PropWindDirection, WindDirection_, .false., STAT = STAT_CALL)
+            if (STAT_CALL == SUCCESS_) then
+                WindDir = .true.
+            else                  
+                WindDir = .false.
+            endif    
+            
+            if (WindMod .and. WindDir) then
+                
+                nullify  (PropWindVelocity)
+                allocate (PropWindVelocity, STAT = STAT_CALL)            
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructWindFromDirMod - ModuleAtmosphere - ERR10'
+
+                SizeILB = Me%Size%ILB
+                SizeIUB = Me%Size%IUB
+                SizeJLB = Me%Size%JLB
+                SizeJUB = Me%Size%JUB                
+
+                PropWindVelocity%ID%IsVectorial = .true. 
+                !converted field to cell referential
+                allocate (PropWindVelocity%FieldU (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructWindFromDirMod - ModuleAtmosphere - ERR20'        
+                PropWindVelocity%FieldU(:,:) = null_real
+            
+                !converted field to cell referential
+                allocate (PropWindVelocity%FieldV (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructWindFromDirMod - ModuleAtmosphere - ERR30'    
+                PropWindVelocity%FieldV(:,:) = null_real
+            
+                !original field (only for output)
+                allocate (PropWindVelocity%FieldX (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructWindFromDirMod - ModuleAtmosphere - ERR40'        
+                PropWindVelocity%FieldX(:,:) = null_real
+            
+                !original field (only for output)
+                allocate (PropWindVelocity%FieldY (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructWindFromDirMod - ModuleAtmosphere - ERR50'    
+                PropWindVelocity%FieldY(:,:) = null_real  
+
+                PropWindVelocity%ID%IDnumber = WindVelocity_
+                PropWindVelocity%ID%Name     = GetPropertyName (WindVelocity_)
+                PropWindVelocity%ID%Units    = "m/s"
+                
+                !Output assumed equal to wind modulus
+                PropWindVelocity%OutputHDF    = PropWindModulus%OutputHDF
+                PropWindVelocity%TimeSerie    = PropWindModulus%TimeSerie
+                PropWindVelocity%BoxTimeSerie = PropWindModulus%BoxTimeSerie
+
+                !To force the wind vector to be compute from dir and modulus
+                PropWindVelocity%Constant            = .false.
+                PropWindVelocity%ID%SolutionFromFile = .false. 
+                
+                call Add_Property(PropWindVelocity)
+                
+                call ComputeWindVelocity (PropWindVelocity)
+
+            endif
+ 
+        endif
+        nullify (PropWindVelocity )
+        nullify (PropWindModulus  )
+        nullify (PropWindDirection)
+    
+    end subroutine ConstructWindFromDirMod
+    
+    
+    !-------------------------------------------------------------------------- 
     
     subroutine OverrideWindVel
 

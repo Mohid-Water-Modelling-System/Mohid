@@ -227,7 +227,6 @@ Module ModuleLitter
 
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
-
             call AllocateInstance
             
             Me%Files%Nomfich        = Nomfich
@@ -1200,36 +1199,37 @@ i1:         if (CurrentPartic%ID == ParticleToDelete%ID) then
         allocate(Point)
         
 d1:     do nP    = 1, nPtotal
+            
+i0:         if (.not. Me%ExtVar%KillPartic(nP)) then
+                Me%ExtVar%Beach     (nP) = .false.
 
-            Me%ExtVar%Beach     (nP) = .false.
-            Me%ExtVar%KillPartic(nP) = .false.
+i1:             if (Me%ExtVar%Age (nP) > Me%AgeToBeach) then
 
-i1:         if (Me%ExtVar%Age (nP) > Me%AgeToBeach) then
+d2:                 do nArea = 1, nAreaTotal
 
-d2:             do nArea = 1, nAreaTotal
+                        Point%X = Me%ExtVar%Longitude(nP)
+                        Point%Y = Me%ExtVar%Latitude (nP)
 
-                    Point%X = Me%ExtVar%Longitude(nP)
-                    Point%Y = Me%ExtVar%Latitude (nP)
+i2:                    if (IsVisible(Me%BeachAreas%Individual(nArea)%Polygons, Point)) then
 
-i2:                 if (IsVisible(Me%BeachAreas%Individual(nArea)%Polygons, Point)) then
-
-                        call RANDOM_NUMBER(Rand1)
+                            call RANDOM_NUMBER(Rand1)
                                 
-i3:                     if (Me%BeachAreas%Individual(nArea)%Probability >= Rand1) then  
+i3:                         if (Me%BeachAreas%Individual(nArea)%Probability >= Rand1) then  
                     
-                            Me%ExtVar%Beach(nP) = .true.
+                                Me%ExtVar%Beach(nP) = .true.
                     
-                            call AllocateNewParticle       (NewPartic, nP, nArea)
-                            call InsertParticleToBeachList (NewPartic)                    
+                                call AllocateNewParticle       (NewPartic, nP, nArea)
+                                call InsertParticleToBeachList (NewPartic)                    
                     
-i4:                         if (Me%KillBeachLitter) then
-                                Me%ExtVar%KillPartic(nP) = .true.
-                            endif i4
-                        endif i3
+i4:                             if (Me%KillBeachLitter) then
+                                    Me%ExtVar%KillPartic(nP) = .true.
+                                endif i4
+                            endif i3
                                                                 
-                    endif i2
-                enddo   d2
-            endif i1                                
+                        endif i2
+                    enddo   d2
+                endif i1
+            endif i0
         enddo   d1
         
         deallocate(Point)
