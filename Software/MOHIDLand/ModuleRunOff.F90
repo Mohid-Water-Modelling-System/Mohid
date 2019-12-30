@@ -192,7 +192,7 @@ Module ModuleRunOff
         type(T_NodeGridPoint), pointer              :: Next                 => null()
         type(T_NodeGridPoint), pointer              :: Prev                 => null()        
     end type
-    type :: NodeGridPointPtr_class                   ! because foooooortraaaaaaan doesn't allow dinamic pointer arrays
+    type :: NodeGridPointPtr_class                   ! because foooooortraaaaaaan doesn't allow dynamic pointer arrays
         class(T_NodeGridPoint), pointer :: ptr => null() ! the actual pointer
     end type NodeGridPointPtr_class
     !GridPoint on top of river right and left banks (will recieve water level from associated NodeGridPoint 
@@ -207,7 +207,7 @@ Module ModuleRunOff
         type(T_BankGridPoint), pointer              :: Next                 => null()
         type(T_BankGridPoint), pointer              :: Prev                 => null()           
     end type
-    type :: BankGridPointPtr_class                   ! because foooooortraaaaaaan doesn't allow dinamic pointer arrays
+    type :: BankGridPointPtr_class                   ! because foooooortraaaaaaan doesn't allow dynamic pointer arrays
         class(T_BankGridPoint), pointer :: ptr => null() ! the actual pointer
     end type BankGridPointPtr_class
     !GridPoint on margins (will recieve water level interpolated from associated BankGridPoint's
@@ -229,7 +229,7 @@ Module ModuleRunOff
         type(T_MarginGridPoint), pointer            :: Next                 => null()
         type(T_MarginGridPoint), pointer            :: Prev                 => null()           
     end type
-    type :: MarginGridPointPtr_class                   ! because foooooortraaaaaaan doesn't allow dinamic pointer arrays
+    type :: MarginGridPointPtr_class                   ! because foooooortraaaaaaan doesn't allow dynamic pointer arrays
         class(T_MarginGridPoint), pointer :: ptr => null() ! the actual pointer
     end type MarginGridPointPtr_class
     
