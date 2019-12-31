@@ -7592,19 +7592,6 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         else
             NewProperty%Evolution%ImposeDryCells = .true.
         endif
-        
-        !Checks if user wants to compute and output mass destroid or gained due to upscaling
-        call GetData(NewProperty%UpscalingSinkSource,                                   &
-                     Me%ObjEnterData, iflag,                                            &
-                     Keyword        = 'UPSCALING_SINK_SOURCE',                          &
-                     Default        = .false.,                                          &
-                     SearchType     = FromBlock,                                        &
-                     ClientModule   = 'ModuleWaterProperties',                          &
-                     STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_PropertyOutPut - ModuleWaterProperties - ERR08')
-
-        if (NewProperty%UpscalingSinkSource) allocate(NewProperty%UpscalingMassLoss(ILB:IUB, JLB:JUB, KLB:KUB))
-        NewProperty%UpscalingMassLoss = 0.0
 
         ! if the property is not 'OLD' the property values in the domain and
         ! in the boundaries are initialized
@@ -8989,6 +8976,19 @@ case1 : select case(PropertyID)
             write(*,*) 'Model not made to run TwoWay if property is constant over time', trim(NewProperty%ID%Name)
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR380')
         endif
+        
+        !Checks if user wants to compute and output mass destroid or gained due to upscaling (set in son domain only)
+        call GetData(NewProperty%UpscalingSinkSource,                                   &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'UPSCALING_SINK_SOURCE',                          &
+                     Default        = .false.,                                          &
+                     SearchType     = FromBlock,                                        &
+                     ClientModule   = 'ModuleWaterProperties',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_PropertyEvolution - ModuleWaterProperties - ERR390')
+
+        if (NewProperty%UpscalingSinkSource .and. .not. NewProperty%SubModel%ON) &
+            call CloseAllAndStop ('UPSCALING_SINK_SOURCE keyword must only be defined in Son domain')
 
         !----------------------------------------------------------------------
 
@@ -9009,7 +9009,6 @@ case1 : select case(PropertyID)
             write(*,*)
             write(*,*)' Property ', trim(NewProperty%ID%Name), ' discharged without advection-diffusion.'
             call CloseAllAndStop ('Subroutine CheckDischarges - ModuleWaterProperties - ERR10')
-
         end if
 
         call GetPointDischargesState(Me%ObjHydrodynamic, HydroDischarge)
@@ -9018,7 +9017,6 @@ case1 : select case(PropertyID)
             if (HydroDischarge .and. NewProperty%evolution%AdvectionDiffusion)  then
                 write(*,*)' Property ', trim(NewProperty%ID%Name), ' must have DISCHARGES active as there is a waterdischarge'
                 call CloseAllAndStop ('Subroutine CheckDischarges - ModuleWaterProperties - ERR020')
-
             endif
         endif
 
@@ -13144,8 +13142,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                    PropIDNumber, InitialField, STAT)
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: WaterPropertiesSonID
-        integer                                     :: WaterPropertiesFatherID
+        integer                                     :: WaterPropertiesSonID, WaterPropertiesFatherID
         integer,            intent(IN )             :: PropIDNumber
         logical,            intent(IN )             :: InitialField
         integer, optional,  intent(OUT)             :: STAT
@@ -13153,13 +13150,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Local-----------------------------------------------------------------
         type(T_WaterProperties), pointer            :: ObjWaterPropertiesFather
         type(T_Property       ), pointer            :: PropertyFather, PropertySon
-        integer                                     :: ready_
-        integer                                     :: STAT_
-        integer                                     :: STAT_CALL
+        integer                                     :: ready_, STAT_, STAT_CALL, ILB, IUB, JLB, JUB, KLB, KUB
         integer, dimension(:,:,:),  pointer         :: Open3DFather
         logical                                     :: PropFatherOld
         real,    pointer, dimension(:,:,:)          :: FatherZCellCenter
-
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -13167,6 +13161,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         call Ready(WaterPropertiesSonID, ready_)
 
         call LocateObjFather (ObjWaterPropertiesFather, WaterPropertiesFatherID)
+        
+        JLB = ObjWaterPropertiesFather%WorkSize%JLB; JUB = ObjWaterPropertiesFather%WorkSize%JUB !Sobrinho
+        ILB = ObjWaterPropertiesFather%WorkSize%ILB; IUB = ObjWaterPropertiesFather%WorkSize%IUB
+        KLB = ObjWaterPropertiesFather%WorkSize%KUB; KUB = ObjWaterPropertiesFather%WorkSize%KUB
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
@@ -13180,9 +13178,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('SetWaterPropFather - ModuleWaterProperties - ERR20')
 
             if (.not.associated(PropertyFather)) then
-
                 call CloseAllAndStop ('SetWaterPropFather - ModuleWaterProperties - ERR30')
-
             endif
 
             if(InitialField)then
@@ -13207,9 +13203,13 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 call ConstructTimeInterpolation(PropertySon         = PropertySon,                           &
                                                 PropFatherVariable  = PropertyFather%Evolution%Variable,     &
                                                 DT_Father           = PropertyFather%Evolution%DTInterval)
-
+                !Sobrinho
+                if (PropertySon%UpscalingSinkSource) allocate(PropertyFather%UpscalingMassLoss(ILB:IUB, JLB:JUB, KLB:KUB))
+                PropertyFather%UpscalingMassLoss = 0.0
+                !Change variable here instead of in construct phase, because user must define everything in son domain.
+                !Doing it here facilitates writing to HDF
+                PropertyFather%UpscalingSinkSource = .true.
             end if
-
 
             if (PropertyFather%Evolution%LastCompute > PropertySon%SubModel%NextTime .or. InitialField) then
 
@@ -13295,21 +13295,13 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         !Local---------------------------------------------------------------------
         real                                :: Aux1, Aux2, DT_Son
-        integer                             :: STAT_CALL
-        integer                             :: FATAL_
-        integer                             :: OUT_OF_MEM_
+        integer                             :: STAT_CALL, FATAL_, OUT_OF_MEM_
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                             :: FatherLayers, SonLayers
-        integer                             :: FatherKLB, FatherKUB
-
+        integer                             :: FatherLayers, SonLayers, FatherKLB, FatherKUB
         !----------------------------------------------------------------------
 
-        IUB    = Me%Size%IUB
-        ILB    = Me%Size%ILB
-        JUB    = Me%Size%JUB
-        JLB    = Me%Size%JLB
-        KUB    = Me%Size%KUB
-        KLB    = Me%Size%KLB
+        IUB = Me%Size%IUB; JUB = Me%Size%JUB; KUB = Me%Size%KUB
+        ILB = Me%Size%ILB; JLB = Me%Size%JLB; KLB = Me%Size%KLB
 
         !Ang: new implementation
         FatherKLB = PropertySon%SubModel%FatherKLB
@@ -19426,7 +19418,7 @@ do1 :   do while (associated(PropertyX))
         !Arguments--------------------------------------------------------------------------------------------
         integer, intent(IN)                     :: SonWaterPropertiesID, FatherWaterPropertiesID
         !Local variables--------------------------------------------------------------------------------------
-        type (T_WaterProperties), pointer       :: ObjWaterPropertiesFather
+        type (T_WaterProperties), pointer       :: ObjFather
         type (T_Property), pointer              :: PropertyX, PropertyFather
         real(8), dimension(:,:,:), pointer      :: FatherFlow
         integer                                 :: STAT_CALL
@@ -19438,12 +19430,12 @@ do1 :   do while (associated(PropertyX))
         !Me% is pointing to Son domain!
         PropertyX => Me%FirstProperty
 
-        call LocateObjFather(ObjWaterPropertiesFather, FatherWaterPropertiesID) !Gets father solution
+        call LocateObjFather(ObjFather, FatherWaterPropertiesID) !Gets father solution
         !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
         call PrepTwoWay (SonID = SonWaterPropertiesID, FatherID = FatherWaterPropertiesID, CallerID = mWATERPROPERTIES_, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - failed PrepTwoWay'
         
-        if (ObjWaterPropertiesFather%Coupled%UpscalingDischarge%Yes) then
+        if (ObjFather%Coupled%UpscalingDischarge%Yes) then
             !Get matrix from hydrodynamic module
             call GetDischargesFluxes(FatherWaterPropertiesID, Discharges = FatherFlow, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - failed getdischargeFluxes matrix'
@@ -19455,7 +19447,7 @@ do1 :   do while (associated(PropertyX))
         !Assimilates all the properties with twoway option ON
         do while (associated(PropertyX))
             
-            call Search_PropertyFather(ObjWaterPropertiesFather, PropertyFather, PropertyX%ID%IDNumber, STAT = STAT_CALL)
+            call Search_PropertyFather(ObjFather, PropertyFather, PropertyX%ID%IDNumber, STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_)then
 
                 if (PropertyX%Submodel%TwoWay)then
@@ -19463,7 +19455,7 @@ do1 :   do while (associated(PropertyX))
                     !Assimilation of son domain into father domain
                         !Account for change in concentration
                         if (PropertyX%UpscalingSinkSource) &
-                            PropertyX%UpscalingMassLoss(:,:,:) = PropertyX%UpscalingMassLoss(:,:,:) + PropertyFather%Concentration(:,:,:)
+                            PropertyFather%UpscalingMassLoss(:,:,:) = PropertyFather%UpscalingMassLoss(:,:,:) + PropertyFather%Concentration(:,:,:)
 
                         call ModifyTwoWay (SonID            = SonWaterPropertiesID,                 &
                                            FatherMatrix     = PropertyFather%Concentration,         &
@@ -19473,19 +19465,17 @@ do1 :   do while (associated(PropertyX))
                                            STAT             = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR02.'
                         
-                        if (ObjWaterPropertiesFather%Coupled%UpscalingDischarge%Yes) then
+                        if (ObjFather%Coupled%UpscalingDischarge%Yes) then
                             call UpscaleDischarge_WP(FatherID = FatherWaterPropertiesID,                 &
                                                      Prop = PropertyFather%Concentration, PropVector = PropertyFather%DischConc,           &
-                                                     Flow = FatherFlow, FlowVector = ObjWaterPropertiesFather%Discharge%Flow,              &
-                                                     dI = ObjWaterPropertiesFather%Discharge%i, dJ = ObjWaterPropertiesFather%Discharge%j, &
-                                                     dK = ObjWaterPropertiesFather%Discharge%k,                                            &
-                                                     Kmin = ObjWaterPropertiesFather%Discharge%kmin, Kmax = ObjWaterPropertiesFather%Discharge%kmin, &
-                                                     FirstTime = FirstTime)
+                                                     Flow = FatherFlow, FlowVector = ObjFather%Discharge%Flow,                             &
+                                                     dI = ObjFather%Discharge%i, dJ = ObjFather%Discharge%j, dK = ObjFather%Discharge%k,   &
+                                                     Kmin = ObjFather%Discharge%kmin, Kmax = ObjFather%Discharge%kmin, FirstTime = FirstTime)
                             FirstTime = .false.
                         endif
                         
                         if (PropertyX%UpscalingSinkSource) &
-                            PropertyX%UpscalingMassLoss(:,:,:) = PropertyX%UpscalingMassLoss(:,:,:) - PropertyFather%Concentration(:,:,:)
+                            PropertyFather%UpscalingMassLoss(:,:,:) = PropertyFather%UpscalingMassLoss(:,:,:) - PropertyFather%Concentration(:,:,:)
                     endif
                 endif
             else
@@ -19504,7 +19494,7 @@ do1 :   do while (associated(PropertyX))
         call UngetTwoWayExternal_Vars(SonID = SonWaterPropertiesID, FatherID = FatherWaterPropertiesID, CallerID = mWATERPROPERTIES_, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR04.'
         
-        if (ObjWaterPropertiesFather%Coupled%UpscalingDischarge%Yes) then
+        if (ObjFather%Coupled%UpscalingDischarge%Yes) then
             call unGetHydrodynamic(FatherWaterPropertiesID, FatherFlow, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Compute_wp_upscaling - ModuleWaterProperties - ERR05.')
         endif
@@ -22610,7 +22600,7 @@ sp:                     if (.not. SimpleOutPut) then
                             call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR150')
                     endif
                     
-                    if (PropertyX%UpscalingSinkSource) then
+                    if (PropertyX%UpscalingSinkSource .and. allocated(PropertyX%UpscalingMassLoss)) then
                         call HDF5WriteData(ObjHDF5,                                     &
                                            "/Results/Upscaling/"//PropertyX%ID%Name,   &
                                            PropertyX%ID%Name,                           &

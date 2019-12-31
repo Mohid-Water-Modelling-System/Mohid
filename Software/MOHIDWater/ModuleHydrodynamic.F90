@@ -16520,6 +16520,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
                     if (Me%OutPut%Upscaling%MassSinkSource) then
                         if (.not. allocated(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated)) &
                         allocate(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated(ILB:IUB, JLB:JUB, KLB:KUB))
+                        ObjHydrodynamicFather%OutPut%Upscaling%MassSinkSource = .true.
                     endif
                     
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
@@ -54219,7 +54220,7 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
 
         endif
         
-        if (Me%OutPut%Upscaling%MassSinkSource) then !Sobrinho
+        if (Me%OutPut%Upscaling%MassSinkSource .and. allocated(Me%Output%Upscaling%VolumeCreated)) then !Sobrinho
             SinksSourcesVolume => Me%Output%Upscaling%VolumeCreated
             call HDF5WriteData  (ObjHDF5,                                            &
                                  "/Results/"//"MassSinkSource",                      &
