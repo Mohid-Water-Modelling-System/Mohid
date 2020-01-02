@@ -8055,7 +8055,7 @@ cd0:    if (Exist) then
             varName = 'Outfalls'
             call Me%ExternalCoupler%GetCellList(modelName, varName, cellIDs) !fetching required cellIDs
             done = GetExternalPondedWaterLevelbyID(Me%ObjRunoff, outfallLevel, cellIDs)
-            if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalPondedWaterColumnbyID - operation failed'
+            if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalPondedWaterLevelbyID - operation failed'
             if (size(outfallLevel)>0) then
                 varName = 'OutletLevel'
                 call Me%ExternalCoupler%setValues(modelName, varName, outfallLevel, cellIDs)
