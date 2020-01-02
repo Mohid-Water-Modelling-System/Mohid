@@ -87,7 +87,8 @@ Module ModuleBasin
                                      SetExternalOutfallFlow,                             &
                                      GetExternalPondedWaterColumn,                       &
                                      GetExternalPondedWaterColumnbyID,                   &
-                                     GetExternalFlowToRiversbyID,                   &
+                                     GetExternalFlowToRiversbyID,                        &
+                                     GetExternalPondedWaterLevelbyID,                    &
                                      GetExternalInletInFlow,                             &
                                      GetExternalFlowToRivers
                                      
@@ -8053,7 +8054,7 @@ cd0:    if (Exist) then
             if (allocated(cellIDs)) deallocate(cellIDs)
             varName = 'Outfalls'
             call Me%ExternalCoupler%GetCellList(modelName, varName, cellIDs) !fetching required cellIDs
-            done = GetExternalPondedWaterColumnbyID(Me%ObjRunoff, outfallLevel, cellIDs)
+            done = GetExternalPondedWaterLevelbyID(Me%ObjRunoff, outfallLevel, cellIDs)
             if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalPondedWaterColumnbyID - operation failed'
             if (size(outfallLevel)>0) then
                 varName = 'OutletLevel'

@@ -136,6 +136,7 @@ Module ModuleRunOff
     public  ::  SetExternalOutfallFlow
     public  ::  GetExternalPondedWaterColumn
     public  ::  GetExternalPondedWaterColumnbyID
+    public  ::  GetExternalPondedWaterLevelbyID
     public  ::  GetExternalInletInFlow
     public  ::  GetExternalFlowToRivers
     public  ::  GetExternalFlowToRiversbyID
@@ -12545,6 +12546,37 @@ cd1:    if (RunOffID > 0) then
         end if
 
     end function GetExternalPondedWaterColumnbyID
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Gets the ponded water columm at appropriate nodes
+    !> @param[in] RunOffID, waterLevel, cellids
+    !---------------------------------------------------------------------------
+    logical function GetExternalPondedWaterLevelbyID(RunOffID, waterLevel, cellids)   
+        !Arguments-------------------------------------------------------------
+        integer                                     :: RunOffID
+        real(8), allocatable, dimension(:)          :: waterLevel
+        integer , dimension(:)                      :: cellids
+        !Local-----------------------------------------------------------------
+        integer                                     :: ready_         
+        integer                                     :: i, ii, jj
+
+        call Ready(RunOffID, ready_)
+        if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
+                 
+            allocate(waterLevel(size(cellids)))
+            do i = 1, size(cellids)
+                call GetCellIJfromID(Me%ObjHorizontalGrid, ii, jj, cellids(i))
+                waterLevel(i) = Me%MyWaterLevel(ii, jj)
+            end do
+            GetExternalPondedWaterLevelbyID = .true.
+        else 
+            call PlaceErrorMessageOnStack("Runoff not ready")
+            GetExternalPondedWaterLevelbyID = .false.
+        end if
+
+    end function GetExternalPondedWaterLevelbyID
     
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
