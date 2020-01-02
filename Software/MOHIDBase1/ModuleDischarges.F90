@@ -211,6 +211,7 @@ Module ModuleDischarges
         real, dimension(:), pointer             :: Level
         real, dimension(:), pointer             :: Flow
         integer                                 :: nValues
+        character(len=StringLength)             :: File                 = null_str
     end  type T_RatingCurve
 
     type       T_Valve
@@ -1218,6 +1219,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
         logical                                     :: BlockLayersFound
         integer                                     :: FirstLine, LastLine
         integer                                     :: iValue, iLine
+        integer                                     :: localFile
 
 
         !----------------------------------------------------------------------
@@ -1483,9 +1485,22 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
             endif
 
         else if (NewDischarge%DischargeType == RatingCurve) then i2
-
+            
+            !get rating curve file name
+            call GetData(NewDischarge%RatingCurve%File,                                &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         FromBlock,                                                     &
+                         keyword      ='RATING_CURVE_FILE',                             &
+                         ClientModule = 'ModuleDischarges',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR138 - no rating curve file specified'
+            
+            call ConstructEnterData(localFile, NewDischarge%RatingCurve%File, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR138.5 - no rating curve file found'
+            
             !Get Block with rating curves values
-            call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                   &
+            call ExtractBlockFromBlock(localFile, ClientNumber,                   &
                             beginratingcurve, endratingcurve,                           &
                             BlockLayersFound,                                           &
                             FirstLine = FirstLine,                                      &
@@ -1494,7 +1509,6 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
 
 cd1 :       if (STAT_CALL .EQ. SUCCESS_  .and. BlockLayersFound) then
 
-
                     allocate(NewDischarge%RatingCurve%Level(LastLine - FirstLine -1))
                     allocate(NewDischarge%RatingCurve%Flow(LastLine - FirstLine -1))
                     NewDischarge%RatingCurve%nValues = LastLine - FirstLine -1
@@ -1502,24 +1516,21 @@ cd1 :       if (STAT_CALL .EQ. SUCCESS_  .and. BlockLayersFound) then
 
                     iValue = 1;
                     do  iLine = FirstLine+1, LastLine-1
-
                         call GetData(BufferLine,                                            &
-                                     Me%ObjEnterData,                                       &
+                                     localFile,                                       &
                                      flag,                                                  &
                                      Buffer_Line = iLine,                                   &
                                      STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_ .or. flag /= 2)             &
                             stop "Read Rating Curve Values - ModuleDischarges - ERR139"
-
                         NewDischarge%RatingCurve%Level(iValue) = BufferLine (1)
                         NewDischarge%RatingCurve%Flow(iValue) = BufferLine (2)
-
                         iValue = iValue + 1
-
-                    enddo
+                    end do
 
                     deallocate (BufferLine)
-
+                    
+                    call KillEnterData(localFile, STAT = STAT_CALL)
             else
 
                 stop "Read Rating Curve Values - ModuleDischarges - ERR140"
