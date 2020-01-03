@@ -6682,7 +6682,7 @@ i2:                 if      (FlowDistribution == DischByCell_ ) then
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
         
-        !$OMP PARALLEL PRIVATE(I,J, V, Vaverage)
+        !$OMP PARALLEL PRIVATE(I,J, V, Uaverage)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNKJ)
         do j = JLB, JUB 
         do i = ILB, IUB
