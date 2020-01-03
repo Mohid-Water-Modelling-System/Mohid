@@ -11273,22 +11273,29 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
     !----------------------------------------------------------------------------
    
     real function AdjustSlope (Slope)
-
+    
         !Arguments--------------------------------------------------------------
-        real, intent(in)                        :: Slope
-        !Local
+        real                                    :: Slope
         real                                    :: sign
 
         !Slope correction given by City of Albuquerque, 1997, p.22-26
         !http://www.hkh-friend.net.np/rhdc/training/lectures/HEGGEN/Tc_3.pdf
 
-        AdjustSlope = abs(Slope)
-        if (AdjustSlope >= 0.04) then
-            if (Me%AdjustSlope) then
-                AdjustSlope = 0.05247 + 0.06363 * Slope - 0.182 * exp (-62.38 * AdjustSlope)
-            end if
+
+        if (Slope.LT.0.0) then
+            sign = -1.0
+        else
+            sign = 1.0
         end if
-        AdjustSlope = sign(AdjustSlope, Slope)
+
+        Slope = abs (Slope)
+        
+        if (Slope.GE.0.04 .and. Me%AdjustSlope) then
+            Slope = 0.05247 + 0.06363 * Slope - 0.182 * exp (-62.38 * Slope)
+        end if
+        
+        AdjustSlope = sign * Slope
+        
 
     end function AdjustSlope
 
