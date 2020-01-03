@@ -10259,7 +10259,10 @@ do2:        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
                     !m3/s = m * m2 / s
                     MaxFlow = - min(dh, WaveHeight) *  Me%ExtVar%GridCellArea(i, j) / Me%ExtVar%DT
                     
-                    Me%iFlowBoundary(i, j)  = max (Me%iFlowBoundary(i, j), MaxFlow)
+                    !Me%iFlowBoundary(i, j)  = max (Me%iFlowBoundary(i, j), MaxFlow)
+                    if (abs(Me%iFlowBoundary(i, j)) > abs(MaxFlow)) then
+                        Me%iFlowBoundary(i, j) = MaxFlow
+                    endif                    
                     
                     !dVol
                     dVol = Me%iFlowBoundary(i, j) * Me%ExtVar%DT
