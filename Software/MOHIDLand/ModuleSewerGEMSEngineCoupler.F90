@@ -303,8 +303,13 @@
     call self%GetNumberOfNodes()
     call self%GetNodeXY()
 
-    print*, 'SewerGEMS Engine number of nodes is ', self%NumberOfNodes
-
+    if (self%NumberOfNodes == 0) then
+        print*, 'SewerGEMS Engine initialized without nodes. Check if model configuration file is correct. Stopping.'
+        stop
+    else
+        print*, 'SewerGEMS Engine number of nodes is ', self%NumberOfNodes
+    end if
+    
     !allocating map arrays to send to Basin Module to get filled/used
     allocate(mapArrayXY(self%NumberOfNodes,2))
     allocate(mapArrayIJ(self%NumberOfNodes,2))
@@ -333,11 +338,6 @@
 
     print*, 'Mapping coupling points, please wait...'
 
-    !do i=1, self%NumberOfNodes
-    !    print*, 'id=',i, 'x=',self%nodeXY(i,1), 'y=',self%nodeXY(i,2)
-    !    !print*, 'cell id=', mapArrayID(i), 'i=',mapArrayIJ(i,1), 'j=',mapArrayIJ(i,2)
-    !end do
-
     allocate(self%n2cMap(self%NumberOfNodes,6))
     self%n2cMap = 0
 
@@ -347,11 +347,7 @@
         self%n2cMap(i,cellI) = mapArrayIJ(i,1)
         self%n2cMap(i,cellJ) = mapArrayIJ(i,2)
         if (mapArrayIJ(i,1) == null_int .or. mapArrayIJ(i,2) == null_int) self%n2cMap(i,2) = null_int !nodes outside of the domain  
-    end do   
-
-    !do i=1, self%NumberOfNodes
-    !    if (self%inDomainNode(i)) print*, self%n2cMap(i,:)
-    !end do
+    end do
 
     !building open section list
     allocate(self%xSectionOpen(self%NumberOfNodes))
