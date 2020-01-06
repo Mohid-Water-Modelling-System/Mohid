@@ -3556,29 +3556,32 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
         enddo
 
         !if changed elevations update slopes will be needed next
-        if (Me%ChangedNodes) then
-            do i = 1,N-1
-                aux = Elevation(i+1) - Elevation(i)
-                if (abs(aux) > AllmostZero) then
-                    Slope(i) = (Station(i+1) - Station(i)) / aux
-                else
-                    Slope(i) = null_real
-                endif
-            enddo            
-        endif
+        !if (Me%ChangedNodes) then
+        !    do i = 1,N-1
+        !        aux = Elevation(i+1) - Elevation(i)
+        !        if (abs(aux) > AllmostZero) then
+        !            Slope(i) = (Station(i+1) - Station(i)) / aux
+        !        else
+        !            Slope(i) = null_real
+        !        endif
+        !    enddo            
+        !endif
         
         !Check that Elevations start and end at the same value
         !Change station value to do this
-        slopeMax = 200.0 !m horiz/ m vert (5 per mil)
+        !slopeMax = 200.0 !m horiz/ m vert (5 per mil)
         if (Elevation(1) /= Elevation(N)) then
 
-            Z = max(Elevation(1), Elevation(N))
+            Z = min(Elevation(1), Elevation(N))
+            !Z = max(Elevation(1), Elevation(N))
             if (Elevation(1) /= Z) then
                 
-                slopeAux = Slope(1)
-                if (slopeAux < null_real / 2.0) slopeAux = -1.0 * slopeMax
+                aux = Station(1) + (Z - Elevation(1)) * Slope(1)
                 
-                aux = Station(1) + (Z - Elevation(1)) * slopeAux
+                !slopeAux = Slope(1)
+                !if (slopeAux < null_real / 2.0) slopeAux = -1.0 * slopeMax
+                !
+                !aux = Station(1) + (Z - Elevation(1)) * slopeAux
 
                 !write(*,*) 'Changed Station 1 in Node ', CurrNode%ID
                 !write(*,*) 'Old : ', Station(1), Elevation(1)
@@ -3593,10 +3596,12 @@ ifXS:   if (NewNode%CrossSection%Form == Trapezoidal .or.                       
             
             else
 
-                slopeAux = Slope(N-1)
-                if (slopeAux < null_real / 2.0) slopeAux = slopeMax
+                aux = Station(N-1) + (Z - Elevation(N-1)) * Slope(N-1)
                 
-                aux = Station(N-1) + (Z - Elevation(N-1)) * slopeAux
+                !slopeAux = Slope(N-1)
+                !if (slopeAux < null_real / 2.0) slopeAux = slopeMax
+                !
+                !aux = Station(N-1) + (Z - Elevation(N-1)) * slopeAux
 
                 !write(*,*) 'Changed Station N in Node ', CurrNode%ID
                 !write(*,*) 'Old : ', Station(N), Elevation(N)

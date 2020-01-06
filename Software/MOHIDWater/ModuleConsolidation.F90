@@ -246,8 +246,8 @@ Module ModuleConsolidation
 
 
     type      T_Consolidation
-        character(PathLength)                   ::  SedGeometryFile     = null_str
         private
+        character(PathLength)                   ::  SedGeometryFile     = null_str
         integer                                 :: InstanceID           = null_int
         type(T_Size3D        )                  :: Size   
         type(T_Size3D        )                  :: WorkSize   
