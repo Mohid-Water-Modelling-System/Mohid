@@ -3562,7 +3562,7 @@ do1:                do
             call me%ExternalCoupler%initialize()
             if (Me%Coupled%SewerGEMSEngineCoupling) then
                 temp = 'SewerGEMSEngine'
-                call me%ExternalCoupler%initializeCouplerToModel(temp, Me%ObjHorizontalGrid)                
+                call me%ExternalCoupler%initializeCouplerToModel(temp, Me%ObjHorizontalGrid, Me%ExtVar%BasinPoints)                
             end if
         endif
         
@@ -8017,7 +8017,6 @@ cd0:    if (Exist) then
             
             varName = 'xLevel'
             call Me%ExternalCoupler%getValues(modelName, Me%ObjHorizontalGrid, varName, xLevel)
-            !print*, size(xLevel), minval(xLevel), maxval(xLevel)
             if (size(xLevel)>0) then !setting the water level at cross section nodes
                 done = SetExternalRiverWaterLevel(Me%ObjRunoff, xLevel) !module runoff function
                 if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::SetExternalRiverWaterLevel - operation failed'

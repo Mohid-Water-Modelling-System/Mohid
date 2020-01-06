@@ -318,10 +318,11 @@
     !> @brief
     !> Maps the SewerGEMSEngine Coupler object elements
     !---------------------------------------------------------------------------
-    subroutine mapElements(self, mapArrayIJ, mapArrayID)
+    subroutine mapElements(self, mapArrayIJ, mapArrayID, basinPoints)
     class(SewerGEMSEngine_coupler_class), intent(inout) :: self
     integer, dimension(:,:), intent(inout) :: mapArrayIJ
     integer, dimension(:), intent(inout) :: mapArrayID
+    integer, dimension(:,:), intent(in) :: basinPoints
     integer :: nJunction = 0
     integer :: nOutfall = 0
     integer :: nInflow = 0
@@ -345,11 +346,8 @@
         self%n2cMap(i,cellID) = mapArrayID(i)
         self%n2cMap(i,cellI) = mapArrayIJ(i,1)
         self%n2cMap(i,cellJ) = mapArrayIJ(i,2)
-        if (mapArrayIJ(i,1) == null_int .or. mapArrayIJ(i,2) == null_int) self%n2cMap(i,2) = null_int !nodes outside of the domain
-    end do
-
-    self%NumberOfInDomainNodes = count(self%n2cMap(:,cellID) /= null_int)
-    print*, 'SewerGEMS Engine number of nodes in domain is ', self%NumberOfInDomainNodes
+        if (mapArrayIJ(i,1) == null_int .or. mapArrayIJ(i,2) == null_int) self%n2cMap(i,2) = null_int !nodes outside of the domain  
+    end do   
 
     !do i=1, self%NumberOfNodes
     !    if (self%inDomainNode(i)) print*, self%n2cMap(i,:)
@@ -365,6 +363,16 @@
             end if
         end if
     end do
+    
+    !need to search for basin points also
+    do i=1, self%NumberOfNodes
+        if (.not.self%xSectionOpen(i)) then
+            if (.not.basinPoints(mapArrayIJ(i,1), mapArrayIJ(i,2))) self%n2cMap(i,2) = null_int
+        end if
+    end do
+    
+    self%NumberOfInDomainNodes = count(self%n2cMap(:,cellID) /= null_int)
+    print*, 'SewerGEMS Engine number of nodes in domain is ', self%NumberOfInDomainNodes
 
     !building id lists for O(1) access
     do i=1, self%NumberOfNodes
@@ -773,6 +781,7 @@
     call SewerGEMSEngine_getInflowByNode(id-1, inflow)
 #endif
     GetInflowByID = inflow
+    !print*, id-1, inflow
 
     end function GetInflowByID
 
@@ -785,13 +794,13 @@
     class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer, intent(in) :: HorizontalGridID
     real, dimension(size(self%inflowIDX), 3) :: inflow
-    integer :: i, ii, jj, cid, nnodes
+    integer :: i, ii, jj, cid!, nnodes
 
     inflow = 0.0
     if (size(self%inflowIDX)>0) then
         do i=1, size(self%inflowIDX)
             cid = self%n2cMap(self%inflowIDX(i), cellID) !cell id from this node
-            nnodes = count(self%n2cMap(:,cellID) == cid)         !number of nodes sharing the same cell
+            !nnodes = count(self%n2cMap(:,cellID) == cid)         !number of nodes sharing the same cell
             call GetCellIJfromID(HorizontalGridID, ii, jj, cid)
             inflow(i,1) = ii
             inflow(i,2) = jj
@@ -828,13 +837,13 @@
     class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer, intent(in) :: HorizontalGridID
     real, dimension(size(self%outfallIDX), 3) :: outflow
-    integer :: i, ii, jj, cid, nnodes
+    integer :: i, ii, jj, cid!, nnodes
 
     outflow = 0.0
     if (size(self%outfallIDX)>0) then
         do i=1, size(self%outfallIDX)
             cid = self%n2cMap(self%outfallIDX(i), cellID) !cell id from this node
-            nnodes = count(self%n2cMap(:,cellID) == cid)         !number of nodes sharing the same cell
+            !nnodes = count(self%n2cMap(:,cellID) == cid)         !number of nodes sharing the same cell
             call GetCellIJfromID(HorizontalGridID, ii, jj, cid)
             outflow(i,1) = ii
             outflow(i,2) = jj
@@ -871,13 +880,13 @@
     class(SewerGEMSEngine_coupler_class), intent(in) :: self
     integer, intent(in) :: HorizontalGridID
     real, dimension(size(self%xsectionLevelsIDX), 3) :: level
-    integer :: i, ii, jj, cid, nnodes
+    integer :: i, ii, jj, cid!, nnodes
 
     level = 0.0
     if (size(self%xsectionLevelsIDX)>0) then
         do i=1, size(self%xsectionLevelsIDX)
             cid = self%n2cMap(self%xsectionLevelsIDX(i), cellID) !cell id from this node
-            nnodes = count(self%n2cMap(:,cellID) == cid)         !number of nodes sharing the same cell
+            !nnodes = count(self%n2cMap(:,cellID) == cid)         !number of nodes sharing the same cell
             call GetCellIJfromID(HorizontalGridID, ii, jj, cid)
             level(i,1) = ii
             level(i,2) = jj

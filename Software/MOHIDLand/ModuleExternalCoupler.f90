@@ -84,13 +84,14 @@
     !> @brief
     !> Initializes an External Coupler object
     !---------------------------------------------------------------------------
-    subroutine initializeCouplerToModel(self, modelName, HorizontalGridID)
+    subroutine initializeCouplerToModel(self, modelName, HorizontalGridID, basinPoints)
     class(external_coupler_class), intent(inout) :: self
     character(len = StringLength), intent(in) :: modelName
     real, allocatable, dimension(:,:) :: mapArrayXY
     integer, allocatable, dimension(:,:) :: mapArrayIJ
     integer, allocatable, dimension(:) :: mapArrayID
     integer, intent(inout) :: HorizontalGridID
+    integer, dimension(:,:), intent(in) :: basinPoints
 
     if (self%initialized) then
         if (modelName == 'SewerGEMSEngine') then
@@ -99,7 +100,7 @@
             call self%SewerGEMSEngineCoupler%initialize(mapArrayXY, mapArrayIJ, mapArrayID)
             call GetXYArrayIJ(HorizontalGridID, mapArrayXY, mapArrayIJ)
             call GetCellIDfromIJArray(HorizontalGridID, mapArrayIJ, mapArrayID)
-            call self%mapElements(modelName, mapArrayIJ, mapArrayID)
+            call self%mapElements(modelName, mapArrayIJ, mapArrayID, basinPoints)
         end if
         !add more models here
     end if
@@ -132,16 +133,17 @@
     !> @brief
     !> maps elements in an External Coupler object
     !---------------------------------------------------------------------------
-    subroutine mapElements(self, modelName, mapArrayIJ, mapArrayID)
+    subroutine mapElements(self, modelName, mapArrayIJ, mapArrayID, basinPoints)
     class(external_coupler_class), intent(inout) :: self
     character(len = StringLength), intent(in) :: modelName
     integer, dimension(:,:), intent(inout) :: mapArrayIJ
     integer, dimension(:), intent(inout) :: mapArrayID
+    integer, dimension(:,:), intent(in) :: basinPoints
 
     if (self%initialized) then
         if (modelName == 'SewerGEMSEngine') then
             !initialize the coupler mapper
-            call self%SewerGEMSEngineCoupler%mapElements(mapArrayIJ, mapArrayID)
+            call self%SewerGEMSEngineCoupler%mapElements(mapArrayIJ, mapArrayID, basinPoints)
         end if
         !add more models here
     end if
