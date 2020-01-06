@@ -1213,8 +1213,8 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
 
         !Local-----------------------------------------------------------------
         integer                                     :: flag, STAT_CALL
-        character(len = StringLength), parameter    :: beginratingcurve = '<<begin_rating_curve>>'
-        character(len = StringLength), parameter    :: endratingcurve   = '<<end_rating_curve>>'
+        character(len = StringLength), parameter    :: beginratingcurve = '<begin_rating_curve>'
+        character(len = StringLength), parameter    :: endratingcurve   = '<end_rating_curve>'
         real, dimension(:), pointer                 :: BufferLine
         logical                                     :: BlockLayersFound
         integer                                     :: FirstLine, LastLine
