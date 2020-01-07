@@ -193,6 +193,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         logical                                 :: From2D_To_3D        
         character(len=StringLength)             :: NetCDFName
         real                                    :: Add, Multiply, MinValue
+        real                                    :: NewMissingValue, OldMissingValue
         real                                    :: UnitsScale
         real                                    :: UnitsAdd        
         type (T_ValueIn)                        :: ValueIn        
@@ -3122,6 +3123,24 @@ BF:         if (BlockFound) then
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
 
+                    call GetData(Me%Field(ip)%OldMissingValue,                          &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'OLD_MISSING_VALUE',                    &
+                                 default      = FillValueReal,                          &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR52'                    
+                    
+                    call GetData(Me%Field(ip)%NewMissingValue,                          &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'NEW_MISSING_VALUE',                    &
+                                 default      = FillValueReal,                          &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR53'
+                    
                     call GetData(Array2,                                                &
                                  Me%ObjEnterData, iflag,                                &
                                  SearchType   = FromBlockInBlock,                       &
@@ -5023,9 +5042,26 @@ i5:         if (Me%OutHDF5) then
                 else 
                     Me%Field(iP)%Value3DOut(i, j, k) = FillValueReal
                 endif                
+                
             enddo
             enddo
             enddo
+                
+            if (Me%Field(iP)%OldMissingValue /= Me%Field(iP)%NewMissingValue) then     
+                
+                do k= Me%WorkSize%KLB, Me%WorkSize%KUB                    
+                do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i= Me%WorkSize%ILB, Me%WorkSize%IUB        
+                    
+                    if (Me%Field(iP)%Value3DOut(i, j, k) == Me%Field(iP)%OldMissingValue) then
+                        Me%Field(iP)%Value3DOut(i, j, k) =  Me%Field(iP)%NewMissingValue
+                    endif
+                    
+                enddo
+                enddo
+                enddo
+                
+            endif
                 
             if (Me%Depth%Interpolate) deallocate(DepthAux, ValueAux)
                 
@@ -5089,6 +5125,20 @@ i5:         if (Me%OutHDF5) then
             enddo
             enddo
                 
+           if (Me%Field(iP)%OldMissingValue /= Me%Field(iP)%NewMissingValue) then     
+                
+                do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i= Me%WorkSize%ILB, Me%WorkSize%IUB        
+                    
+                    if (Me%Field(iP)%Value2DOut(i, j) == Me%Field(iP)%OldMissingValue) then
+                        Me%Field(iP)%Value2DOut(i, j)  = Me%Field(iP)%NewMissingValue
+                    endif
+                    
+                enddo
+                enddo
+                
+            endif
+            
                 
         endif
 
