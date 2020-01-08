@@ -295,7 +295,14 @@
     integer, allocatable, dimension(:,:), intent(inout) :: mapArrayIJ
     integer, allocatable, dimension(:), intent(inout) :: mapArrayID
 
+#ifdef _SewerGEMSEngineCoupler_
     print*, 'Initializing SewerGEMS Engine coupler, please wait...'
+#else    
+    print*, 'Executable not compiled to use SewerGEMS Engine coupler, aborting'
+    stop
+#endif
+    
+    
 
     self%initialized = .true.
     call self%getSewerGEMSEngineFilesPaths()
@@ -539,6 +546,10 @@
     if (iflag /= 0) then
         self%SWMM_dat = dummy
     end if
+    
+    !print*, 'SWMM dat file ',self%SWMM_dat
+    !print*, 'hdf5 file ',self%STORMWATER_HDF
+    !print*, 'timeseries dir file ',self%SWMM_timeSeries_dir
     
     end subroutine getSewerGEMSEngineFilesPaths
 
