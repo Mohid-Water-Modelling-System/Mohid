@@ -346,7 +346,7 @@
         self%n2cMap(i,cellID) = mapArrayID(i)
         self%n2cMap(i,cellI) = mapArrayIJ(i,1)
         self%n2cMap(i,cellJ) = mapArrayIJ(i,2)
-        if (mapArrayIJ(i,1) == null_int .or. mapArrayIJ(i,2) == null_int) self%n2cMap(i,2) = null_int !nodes outside of the domain  
+        if (mapArrayIJ(i,1) == null_int .or. mapArrayIJ(i,2) == null_int) self%n2cMap(i,2) = null_int !nodes outside of the domain
     end do
 
     !building open section list
@@ -362,8 +362,10 @@
     
     !need to search for basin points also
     do i=1, self%NumberOfNodes
-        if (.not.self%xSectionOpen(i)) then
-            if (.not.basinPoints(mapArrayIJ(i,1), mapArrayIJ(i,2))) self%n2cMap(i,2) = null_int
+        if (.not.self%xSectionOpen(i)) then !ignoring open sections
+            if (self%n2cMap(i,2) /= null_int) then !ignoring points outside the domain
+                if (.not.basinPoints(mapArrayIJ(i,1), mapArrayIJ(i,2))) self%n2cMap(i,2) = null_int
+            end if
         end if
     end do
     
