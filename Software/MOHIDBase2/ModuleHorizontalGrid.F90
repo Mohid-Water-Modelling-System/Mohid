@@ -10398,7 +10398,7 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
         real,               intent(IN )             :: PercI, PercJ
         real,               intent(OUT)             :: XPoint, YPoint
         integer, optional,  intent(IN )             :: Referential
-        real,               intent(IN )             :: Xin, Yin
+        real,    optional,  intent(IN )             :: Xin, Yin
         integer, optional,  intent(OUT)             :: STAT
 
         !Local-------------------------------------------------------------------
@@ -10426,7 +10426,7 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
             endif
 
-            if (Me%CoordType == SIMPLE_GEOG_) then 
+            if (Me%CoordType == SIMPLE_GEOG_ .and. present(Xin) .and. present(Yin)) then 
                 
                 if (Referential_ == GridCoord_) then
                     
@@ -10446,8 +10446,7 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
             XX2D        => Me%XX_IE
             YY2D        => Me%YY_IE
 
-                !if (Referential_ == GridCoord_.and. (Me%CoordType == GEOG_ .or. Me%CoordType == SIMPLE_GEOG_)) then
-                if (Referential_ == GridCoord_.and. Me%CoordType == GEOG_) then
+                if (Referential_ == GridCoord_.and. (Me%CoordType == GEOG_ .or. Me%CoordType == SIMPLE_GEOG_)) then
 
                 XX2D        => Me%LongitudeConn
                 YY2D        => Me%LatitudeConn

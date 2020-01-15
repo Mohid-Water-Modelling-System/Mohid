@@ -23871,7 +23871,7 @@ sta:        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) the
                                      Referential = GridCoord_,                          &
                                      Xin = Position%CartX, Yin = Position%CartY,        &
                                      STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'Convert_CellIJ_XY - ModuleLagrangianGlobal - ERR60'
+                    if (STAT_CALL /= SUCCESS_) stop 'Convert_XY_CellIJ - ModuleLagrangianGlobal - ERR60'
 
                 endif
 
@@ -23883,7 +23883,7 @@ sta:        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) the
                                      Xin = Position%CoordX, Yin = Position%CoordY,      &
                                      STAT = STAT_CALL)
 
-                    if (STAT_CALL /= SUCCESS_) stop 'Convert_CellIJ_XY - ModuleLagrangianGlobal - ERR70'
+                    if (STAT_CALL /= SUCCESS_) stop 'Convert_XY_CellIJ - ModuleLagrangianGlobal - ERR70'
 
                     if (.not. EulerModel%Grid%GeoGrid) then
 
@@ -23922,7 +23922,7 @@ sta:        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) the
                                  Xin = Position%CartX, Yin = Position%CartY,            &
                                  STAT = STAT_CALL)
 
-                if (STAT_CALL /= SUCCESS_) stop 'Convert_CellIJ_XY - ModuleLagrangianGlobal - ERR100'
+                if (STAT_CALL /= SUCCESS_) stop 'Convert_XY_CellIJ - ModuleLagrangianGlobal - ERR100'
 
             endif
 
@@ -23935,7 +23935,7 @@ sta:        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) the
                                  Xin = Position%CoordX, Yin = Position%CoordY,          &
                                  STAT = STAT_CALL)
 
-                if (STAT_CALL /= SUCCESS_) stop 'Convert_CellIJ_XY - ModuleLagrangianGlobal - ERR110'
+                if (STAT_CALL /= SUCCESS_) stop 'Convert_XY_CellIJ - ModuleLagrangianGlobal - ERR110'
  
             endif
 
@@ -23979,7 +23979,6 @@ sta:        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) the
                          Position%i, Position%j, PercI, PercJ,                          &
                          Position%CoordX, Position%CoordY,                              &
                          Referential = GridCoord_,                                      & 
-                         Xin = Position%CartX, Yin = Position%CartY,                    &
                          STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_) stop 'Convert_CellIJ_XY - ModuleLagrangianGlobal - ERR10'
@@ -23989,7 +23988,6 @@ sta:        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) the
                          Position%i, Position%j, PercI, PercJ,                          &
                          Position%X, Position%Y,                                        &
                          Referential = AlongGrid_,                                      &
-                         Xin = Position%CoordX, Yin = Position%CoordY,                  &
                          STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_) stop 'Convert_CellIJ_XY - ModuleLagrangianGlobal - ERR20'
@@ -23998,7 +23996,6 @@ sta:        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) the
                          Position%i, Position%j, PercI, PercJ,                          &
                          Position%CartX, Position%CartY,                                &
                          Referential = Cartesian_,                                      &
-                         Xin = Position%CoordX, Yin = Position%CoordY,                  &
                          STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_) stop 'Convert_CellIJ_XY - ModuleLagrangianGlobal - ERR30'
