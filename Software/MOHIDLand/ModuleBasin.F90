@@ -8004,7 +8004,7 @@ cd0:    if (Exist) then
             varName = 'Inflow'
             call Me%ExternalCoupler%getValues(modelName, Me%ObjHorizontalGrid, varName, Inflow)
             if (size(Inflow)>0) then
-                done = SetExternalStormWaterModelFlow(Me%ObjRunoff, Inflow) !module runoff function
+                done = SetExternalStormWaterModelFlow(Me%ObjRunoff, Inflow) !module runoff function - seting stormwater effective flow
                 if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::SetExternalStormWaterModelFlow - operation failed'
             end if
             
@@ -8034,7 +8034,7 @@ cd0:    if (Exist) then
             
             if (allocated(cellIDs)) deallocate(cellIDs)
             varName = 'InletInflow'
-            done = GetExternalInletInFlow(Me%ObjRunoff, inletInflow, cellIDs)
+            done = GetExternalInletInFlow(Me%ObjRunoff, inletInflow, cellIDs) !getting stormwater potential flow
             if (.not.done) stop 'ModuleBasin::ExchangeExternalCoupledData::GetExternalInletInFlow - operation failed'
             if (size(inletInflow)>0) then
                 call Me%ExternalCoupler%setValues(modelName, varName, inletInflow, cellIDs)

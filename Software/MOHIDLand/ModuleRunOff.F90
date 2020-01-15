@@ -12444,13 +12444,13 @@ cd1:    if (RunOffID > 0) then
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Sets storm water flows at appropriate nodes
+    !> Sets storm water effective flows at a list of cells
     !> @param[in] RunOffID, overlandToSewerFlow
     !---------------------------------------------------------------------------
     logical function SetExternalStormWaterModelFlow(RunOffID, overlandToSewerFlow)    
         !Arguments-------------------------------------------------------------
-        integer                                     :: RunOffID
-        real(8), dimension(:,:)                     :: overlandToSewerFlow        
+        integer, intent(in)                         :: RunOffID
+        real(8), dimension(:,:), intent(in)         :: overlandToSewerFlow        
         !Local-----------------------------------------------------------------
         integer                                     :: ready_         
         integer                                     :: i
@@ -12591,14 +12591,14 @@ cd1:    if (RunOffID > 0) then
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems
     !> @brief
-    !> Gets inlet flow at appropriate nodes
+    !> Gets potential inlet flow at mapped cells
     !> @param[in] RunOffID, inletInflow, cellids
     !---------------------------------------------------------------------------
     logical function GetExternalInletInFlow(RunOffID, inletInflow, cellids)   
         !Arguments-------------------------------------------------------------
         integer                                     :: RunOffID
-        real(8), allocatable, dimension(:)          :: inletInflow
-        integer, allocatable, dimension(:)          :: cellids
+        real(8), allocatable, dimension(:), intent(out)          :: inletInflow
+        integer, allocatable, dimension(:), intent(out)          :: cellids
         !Local-----------------------------------------------------------------
         integer                                     :: ready_
         integer                                     :: i
