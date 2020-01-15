@@ -23812,8 +23812,12 @@ d1:     do em =1, Me%EulerModelNumber
 
             if (EulerModel%Grid%GeoGrid) then
 
-                call GetCellZ_XY(EulerModel%ObjHorizontalGrid, Ipos, Jpos, PercI, PercJ,&
-                                 Position%CartX, Position%CartY, Referential = Cartesian_, STAT = STAT_CALL)
+                call GetCellZ_XY(EulerModel%ObjHorizontalGrid,                          &
+                                 Ipos, Jpos, PercI, PercJ,                              &
+                                 Position%CartX, Position%CartY,                        &
+                                 Referential = Cartesian_,                              &
+                                 Xin = Position%CoordX, Yin = Position%CoordY,          &
+                                 STAT = STAT_CALL)
 
                 if (STAT_CALL /= SUCCESS_) stop 'Convert_XY_CellIJ - ModuleLagrangianGlobal - ERR30'
 
@@ -23824,8 +23828,12 @@ d1:     do em =1, Me%EulerModelNumber
 
             if (GridBorderType /= Rectang_) then
 
-                call GetCellZ_XY(EulerModel%ObjHorizontalGrid, Ipos, Jpos, PercI, PercJ,&
-                                 Position%X, Position%Y, Referential = AlongGrid_, STAT = STAT_CALL)
+                call GetCellZ_XY(EulerModel%ObjHorizontalGrid,                          &
+                                 Ipos, Jpos, PercI, PercJ,                              &
+                                 Position%X, Position%Y,                                &
+                                 Referential = AlongGrid_,                              &
+                                 Xin = Position%CoordX, Yin = Position%CoordY,          &
+                                 STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Convert_XY_CellIJ - ModuleLagrangianGlobal - ERR40'
             
             endif
@@ -23857,18 +23865,25 @@ sta:        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) the
 
                 if (EulerModel%Grid%GeoGrid) then
 
-                    call GetCellZ_XY(EulerModel%ObjHorizontalGrid, Ipos, Jpos, PercI, PercJ, Position%CoordX, &
-                                     Position%CoordY, Referential = GridCoord_, STAT = STAT_CALL)
-
-                    if (STAT_CALL /= SUCCESS_) stop 'Convert_CellIJ_XY - ModuleLagrangianGlobal - ERR60'
+                    call GetCellZ_XY(EulerModel%ObjHorizontalGrid,                      &
+                                     Ipos, Jpos, PercI, PercJ,                          &
+                                     Position%CoordX, Position%CoordY,                  &
+                                     Referential = GridCoord_,                          &
+                                     Xin = Position%CartX, Yin = Position%CartY,        &
+                                     STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Convert_XY_CellIJ - ModuleLagrangianGlobal - ERR60'
 
                 endif
 
                 if (GridBorderType /= Rectang_) then
-                    call GetCellZ_XY(EulerModel%ObjHorizontalGrid, Ipos, Jpos, PercI, PercJ, Position%CartX, &
-                                     Position%CartY, Referential = Cartesian_, STAT = STAT_CALL)
+                    call GetCellZ_XY(EulerModel%ObjHorizontalGrid,                      &
+                                     Ipos, Jpos, PercI, PercJ,                          &
+                                     Position%CartX, Position%CartY,                    &
+                                     Referential = Cartesian_,                          &
+                                     Xin = Position%CoordX, Yin = Position%CoordY,      &
+                                     STAT = STAT_CALL)
 
-                    if (STAT_CALL /= SUCCESS_) stop 'Convert_CellIJ_XY - ModuleLagrangianGlobal - ERR70'
+                    if (STAT_CALL /= SUCCESS_) stop 'Convert_XY_CellIJ - ModuleLagrangianGlobal - ERR70'
 
                     if (.not. EulerModel%Grid%GeoGrid) then
 
@@ -23900,19 +23915,27 @@ sta:        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) the
 
             if (EulerModel%Grid%GeoGrid) then
 
-                call GetCellZ_XY(EulerModel%ObjHorizontalGrid, Ipos, Jpos, PercI, PercJ, Position%CoordX, &
-                                 Position%CoordY, Referential = GridCoord_, STAT = STAT_CALL)
+                call GetCellZ_XY(EulerModel%ObjHorizontalGrid,                          &
+                                 Ipos, Jpos, PercI, PercJ,                              &
+                                 Position%CoordX, Position%CoordY,                      &
+                                 Referential = GridCoord_,                              &
+                                 Xin = Position%CartX, Yin = Position%CartY,            &
+                                 STAT = STAT_CALL)
 
-                if (STAT_CALL /= SUCCESS_) stop 'Convert_CellIJ_XY - ModuleLagrangianGlobal - ERR100'
+                if (STAT_CALL /= SUCCESS_) stop 'Convert_XY_CellIJ - ModuleLagrangianGlobal - ERR100'
 
             endif
 
             if (GridBorderType /= Rectang_) then
 
-                call GetCellZ_XY(EulerModel%ObjHorizontalGrid, Ipos, Jpos, PercI, PercJ, Position%X, &
-                                 Position%Y, Referential = AlongGrid_, STAT = STAT_CALL)
+                call GetCellZ_XY(EulerModel%ObjHorizontalGrid,                          &
+                                 Ipos, Jpos, PercI, PercJ,                              &
+                                 Position%X, Position%Y,                                &
+                                 Referential = AlongGrid_,                              &
+                                 Xin = Position%CoordX, Yin = Position%CoordY,          &
+                                 STAT = STAT_CALL)
 
-                if (STAT_CALL /= SUCCESS_) stop 'Convert_CellIJ_XY - ModuleLagrangianGlobal - ERR110'
+                if (STAT_CALL /= SUCCESS_) stop 'Convert_XY_CellIJ - ModuleLagrangianGlobal - ERR110'
  
             endif
 
@@ -23952,19 +23975,28 @@ sta:        if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) the
         PercI       =  Position%CellI - int(Position%CellI)
         PercJ       =  Position%CellJ - int(Position%CellJ)
 
-        call GetCellZ_XY(EulerModel%ObjHorizontalGrid, Position%i, Position%j, PercI, PercJ, Position%CoordX, &
-                         Position%CoordY, Referential = GridCoord_, STAT = STAT_CALL)
+        call GetCellZ_XY(EulerModel%ObjHorizontalGrid,                                  &
+                         Position%i, Position%j, PercI, PercJ,                          &
+                         Position%CoordX, Position%CoordY,                              &
+                         Referential = GridCoord_,                                      & 
+                         STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_) stop 'Convert_CellIJ_XY - ModuleLagrangianGlobal - ERR10'
 
 
-        call GetCellZ_XY(EulerModel%ObjHorizontalGrid, Position%i, Position%j, PercI, PercJ, Position%X,      &
-                         Position%Y, Referential = AlongGrid_, STAT = STAT_CALL)
+        call GetCellZ_XY(EulerModel%ObjHorizontalGrid,                                  &
+                         Position%i, Position%j, PercI, PercJ,                          &
+                         Position%X, Position%Y,                                        &
+                         Referential = AlongGrid_,                                      &
+                         STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_) stop 'Convert_CellIJ_XY - ModuleLagrangianGlobal - ERR20'
 
-        call GetCellZ_XY(EulerModel%ObjHorizontalGrid, Position%i, Position%j, PercI, PercJ, Position%CartX,  &
-                         Position%CartY, Referential = Cartesian_, STAT = STAT_CALL)
+        call GetCellZ_XY(EulerModel%ObjHorizontalGrid,                                  &
+                         Position%i, Position%j, PercI, PercJ,                          &
+                         Position%CartX, Position%CartY,                                &
+                         Referential = Cartesian_,                                      &
+                         STAT = STAT_CALL)
 
         if (STAT_CALL /= SUCCESS_) stop 'Convert_CellIJ_XY - ModuleLagrangianGlobal - ERR30'
 
