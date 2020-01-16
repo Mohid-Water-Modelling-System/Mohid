@@ -2351,7 +2351,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer                                             :: TimeSerieNumber, dn, Id, Jd
         real                                                :: CoordX, CoordY
         logical                                             :: CoordON, IgnoreOK
-        character(len=StringLength)                         :: TimeSerieName
+        character(len=line_length)                          :: TimeSerieName
         type (T_BasinProperty), pointer                     :: PropertyX
         !Begin------------------------------------------------------------------
 

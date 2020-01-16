@@ -230,12 +230,12 @@
         integer, allocatable, dimension(:) :: xsectionLevelsIDX !< ids of open cross section SewerGEMSEngine nodes
         integer, allocatable, dimension(:) :: lateralFlowIDX    !< ids of lateral flow accepting SewerGEMSEngine nodes
         logical, allocatable, dimension(:) :: xSectionOpen      !warning: 1-based index array (c equivalent is 0-based)
-        character(len = StringLength)      :: SWMM_dat
-        character(len = StringLength)      :: SWMM_rpt
-        character(len = StringLength)      :: SWMM_out
-        character(len = StringLength)      :: STORMWATER_HDF
-        character(len = StringLength)      :: SWMM_timeSeries_location
-        character(len = StringLength)      :: SWMM_timeSeries_dir
+        character(len = line_length)      :: SWMM_dat
+        character(len = line_length)      :: SWMM_rpt
+        character(len = line_length)      :: SWMM_out
+        character(len = line_length)      :: STORMWATER_HDF
+        character(len = line_length)      :: SWMM_timeSeries_location
+        character(len = line_length)      :: SWMM_timeSeries_dir
     contains
     procedure :: initialize => initSewerGEMSEngineCoupler
     procedure :: mapElements
@@ -495,7 +495,7 @@
     subroutine getSewerGEMSEngineFilesPaths(self)
     class(SewerGEMSEngine_coupler_class), intent(inout) :: self
     integer :: STAT_CALL, fileID, iflag, dpos
-    character(len=StringLength) :: dummy
+    character(len=line_length) :: dummy
 
     call ReadFileName('STORMWATER_DAT', self%SWMM_dat,                         &
         Message = "SewerGEMSEngine input file", STAT = STAT_CALL)
