@@ -1500,7 +1500,7 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
             if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR138.5 - no rating curve file found'
             
             !Get Block with rating curves values
-            call ExtractBlockFromBlock(localFile, ClientNumber,                   &
+            call ExtractBlockFromBuffer(localFile, ClientNumber,                   &
                             beginratingcurve, endratingcurve,                           &
                             BlockLayersFound,                                           &
                             FirstLine = FirstLine,                                      &
