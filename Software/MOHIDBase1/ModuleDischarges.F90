@@ -1219,7 +1219,7 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
         logical                                     :: BlockLayersFound
         integer                                     :: FirstLine, LastLine
         integer                                     :: iValue, iLine
-        integer                                     :: localFile
+        integer                                     :: localFile, localClientNumber
 
 
         !----------------------------------------------------------------------
@@ -1500,7 +1500,7 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
             if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR138.5 - no rating curve file found'
             
             !Get Block with rating curves values
-            call ExtractBlockFromBuffer(localFile, ClientNumber,                   &
+            call ExtractBlockFromBuffer(localFile, localClientNumber,                   &
                             beginratingcurve, endratingcurve,                           &
                             BlockLayersFound,                                           &
                             FirstLine = FirstLine,                                      &
@@ -1528,6 +1528,7 @@ cd1 :       if (STAT_CALL .EQ. SUCCESS_  .and. BlockLayersFound) then
                         iValue = iValue + 1
                     end do
 
+                    call Block_Unlock(localFile, localClientNumber, STAT = STAT_CALL)
                     deallocate (BufferLine)
                     
                     call KillEnterData(localFile, STAT = STAT_CALL)
