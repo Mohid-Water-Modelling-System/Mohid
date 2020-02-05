@@ -36,7 +36,8 @@ Module ModuleHorizontalGrid
                                   UTMToLatLon, LatLonToUTM, ComputeGridZone,            &
                                   LatLonToLambertSP2, RelativePosition4VertPolygon,     &
                                   CHUNK_J, WGS84toGoogleMaps, AngleFromFieldToGrid,     &
-                                  AngleFromGridToField, THOMAS_2D, THOMAS_3D
+                                  AngleFromGridToField, THOMAS_2D, THOMAS_3D,           &
+                                  SphericalToCart
 #ifdef _USE_PROJ4
     use ModuleFunctions, only   : GeographicToCartesian, CartesianToGeographic
 #endif _USE_PROJ4
@@ -4562,7 +4563,7 @@ ipp:            if (Me%ProjType == PAULO_PROJECTION_) then
                     !    CosenLat    = cos(Rad_Lat)
                     !    XX_IE(i, j) = CosenLat * EarthRadius * (Me%LongitudeConn(i, j) - Me%Longitude) * radians
                     !    YY_IE(i, j) =            EarthRadius * (Me%LatitudeConn (i, j) - Me%Latitude ) * radians
-                        call FromSimpleGeoToCart(Lat = Me%LatitudeConn (i, j),              &
+                        call FromSphericalToCart(Lat = Me%LatitudeConn (i, j),              &
                                                  Lon = Me%LongitudeConn(i, j),              &
                                                  X   = XX_IE(i, j),                         &
                                                  Y   = YY_IE(i, j))    
@@ -4834,11 +4835,9 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
     end subroutine Mercator
 
     !--------------------------------------------------------------------------
-    !This subroutine convert geographic coordinates in to sherical mercator projection
+    !This subroutine convert spherical coordinates in to cartesina coordinates
 
-
-
-    subroutine FromSimpleGeoToCart(Lat, Lon, X, Y)
+    subroutine FromSphericalToCart(Lat, Lon, X, Y)
     
         !Arguments-------------------------------------------------------------
         real(8), intent(IN)             :: Lat, Lon    
@@ -4849,19 +4848,21 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
 
         !Begin-----------------------------------------------------------------
                 
-        radians      = Pi / 180.0
-        EarthRadius  = 6378000.
+        !radians      = Pi / 180.0
+        !EarthRadius  = 6378000.
+        !
+        !Rad_Lat     = Lat * radians
+        !CosenLat    = cos(Rad_Lat)
+        !X           = CosenLat * EarthRadius * (Lon - Me%Longitude) * radians
+        !Y           =            EarthRadius * (Lat - Me%Latitude ) * radians             
 
-        Rad_Lat     = Lat * radians
-        CosenLat    = cos(Rad_Lat)
-        X           = CosenLat * EarthRadius * (Lon - Me%Longitude) * radians
-        Y           =            EarthRadius * (Lat - Me%Latitude ) * radians                
+        call SphericalToCart(Lat, Lon, X, Y, Me%Longitude, Me%Latitude)        
 
-    end subroutine FromSimpleGeoToCart
+    end subroutine FromSphericalToCart
     
     
                 
-    subroutine FromCartToSimpleGeo(X, Y, Lat, Lon)
+    subroutine FromCartToSpherical(X, Y, Lat, Lon)
     
         !Arguments-------------------------------------------------------------
         real(8), intent(IN)             :: X, Y   
@@ -4881,13 +4882,13 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         CosenLat     = cos(Rad_Lat) 
 
         if (CosenLat == 0.) then
-            stop 'FromCartToSimpleGeo - ModuleHorizontalGrid - ERR10'
+            stop 'FromCartToSpherical - ModuleHorizontalGrid - ERR10'
         endif    
         
         Lon          = X / (CosenLat * EarthRadius * radians) + Me%Longitude
         
         
-    end subroutine FromCartToSimpleGeo    
+    end subroutine FromCartToSpherical    
 
 #ifdef _USE_PROJ4
 
@@ -10430,13 +10431,13 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
                 
                 if (Referential_ == GridCoord_) then
                     
-                    call FromCartToSimpleGeo(Lat = YPoint,                              &
+                    call FromCartToSpherical(Lat = YPoint,                              &
                                              Lon = XPoint,                              &
                                              X   = Xin,                                 &
                                              Y   = Yin)    
                 else
             
-                    call FromSimpleGeoToCart(Lat = Yin,                                 &
+                    call FromSphericalToCart(Lat = Yin,                                 &
                                              Lon = Xin,                                 &
                                              X   = XPoint,                              &
                                              Y   = YPoint)    

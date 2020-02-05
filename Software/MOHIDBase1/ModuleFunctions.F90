@@ -162,6 +162,7 @@ Module ModuleFunctions
     !Coordinates of grid cells
     public  :: RODAXY
     public  :: FromCartesianToGrid
+    public  :: SphericalToCart
 
     public  :: FromGridToCartesian
     interface  FromGridToCartesian
@@ -4709,6 +4710,29 @@ end function
     end subroutine FromGridToCartesianR8
 
     !--------------------------------------------------------------------------
+
+    subroutine SphericalToCart(Lat, Lon, X, Y, LonRef, LatRef)
+    
+        !Arguments-------------------------------------------------------------
+        real(8), intent(IN)             :: Lat, Lon, LonRef, LatRef    
+        real(8), intent(Out)            :: X, Y
+
+        !Local-----------------------------------------------------------------
+        real(8)                         :: radians, EarthRadius, Rad_Lat, CosenLat
+
+        !Begin-----------------------------------------------------------------
+                
+        radians      = Pi / 180.0
+        EarthRadius  = 6378000.
+
+        Rad_Lat     = Lat * radians
+        CosenLat    = cos(Rad_Lat)
+        X           = CosenLat * EarthRadius * (Lon - LonRef) * radians
+        Y           =            EarthRadius * (Lat - LatRef) * radians                
+
+    end subroutine SphericalToCart    
+    
+    !--------------------------------------------------------------------------    
 
     !Convert from user referential (Nautical, Currents) to cell trigonometric angle
     subroutine AngleFromFieldToGrid (AngleInReferential, Referential, GridAngle, AngleOutGrid)

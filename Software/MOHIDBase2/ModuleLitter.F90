@@ -527,7 +527,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_  ) then
         call ReadFileName  (KEYWORD     = 'LITTER_INI',                                 &
                             FILE_NAME   = Me%Files%LitterIni,                           &
                             Message     = Message,                                      &
-                            TIME_END    = Me%ExtVar%EndTime,                            &
+                            TIME_END    = Me%ExtVar%StartTime,                          &
                             Extension   = 'hdf5',                                       &
                             FilesInput  = Me%Files%Nomfich,                             &
                             STAT        = STAT_CALL)                           
@@ -1391,9 +1391,11 @@ i1:         if (CurrentPartic%ID == ParticleToDelete%ID) then
 d1:     do nP    = 1, nPtotal
             
 i0:         if (.not. Me%ExtVar%KillPartic(nP)) then
+                if (Me%KillBeachLitter) then
                 Me%ExtVar%Beach     (nP) = .false.
+                endif
 
-i1:             if (Me%ExtVar%Age (nP) > Me%AgeToBeach) then
+i1:             if (Me%ExtVar%Age (nP) > Me%AgeToBeach .and. .not. Me%ExtVar%Beach(nP)) then
 
 d2:                 do nArea = 1, nAreaTotal
 
