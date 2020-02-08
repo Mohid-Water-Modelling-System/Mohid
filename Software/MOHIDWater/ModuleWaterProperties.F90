@@ -1842,6 +1842,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         integer     :: iflag
         integer     :: status
+        
+        call Read_Keyword_Logical_File(Me%PhreeqCOnlyForStart, iflag, 'PHREEQC_ONLY_START',  &
+                     default      = .false.,                    &
+                     ClientModule = 'ModuleWaterProperties',    &
+                     STAT         = status)
+        if (status /= SUCCESS_) &
+            call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR10')
 
         call GetData(Me%PhreeqCOnlyForStart,                    &
                      Me%ObjEnterData, iflag,                    &
@@ -1872,6 +1879,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = status)
         if (status /= SUCCESS_) &
             call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR11')
+        
+        if (.not. Me%Optimize) then
+            call GetData(Me%Optimize,                               &
+                         Me%ObjEnterData, iflag,                    &
+                         SearchType   = FromFile,                   &
+                         keyword      = 'OPTIMIZE',                 &
+                         default      = .false.,                    &
+                         ClientModule = 'ModuleWaterProperties',    &
+                         STAT         = status)
+            if (status /= SUCCESS_) &
+                call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR11a')
+            if (Me%Optimize) write(*,*) 'Keyword OPTIMIZE has been deprecated, please replace with USE_OPTIMIZATIONS'
+        endif
         
         if (Me%Optimize) then
             
@@ -7286,33 +7306,20 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         !Arguments-------------------------------------------------------------
         type(T_property), pointer       :: NewProperty
         integer                         :: ClientNumber
-
         !External--------------------------------------------------------------
         integer                         :: STAT_CALL
-
         !Local-----------------------------------------------------------------
         character(len=8)                :: BoundaryMethod
-        integer                         :: iflag
-        integer                         :: i,j,k
+        integer                         :: iflag, i,j,k
         integer                         :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                         :: WILB, WIUB, WJLB, WJUB
-        integer                         :: WKLB, WKUB
-
+        integer                         :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB
         !----------------------------------------------------------------------
 
-        ILB = Me%Size%ILB
-        IUB = Me%Size%IUB
-        JLB = Me%Size%JLB
-        JUB = Me%Size%JUB
-        KLB = Me%Size%KLB
-        KUB = Me%Size%KUB
+        ILB = Me%Size%ILB; JLB = Me%Size%JLB; KLB = Me%Size%KLB
+        IUB = Me%Size%IUB; JUB = Me%Size%JUB; KUB = Me%Size%KUB
 
-        WILB = Me%WorkSize%ILB
-        WIUB = Me%WorkSize%IUB
-        WJLB = Me%WorkSize%JLB
-        WJUB = Me%WorkSize%JUB
-        WKLB = Me%WorkSize%KLB
-        WKUB = Me%WorkSize%KUB
+        WILB = Me%WorkSize%ILB; WJLB = Me%WorkSize%JLB; WKLB = Me%WorkSize%KLB
+        WIUB = Me%WorkSize%IUB; WJUB = Me%WorkSize%JUB; WKUB = Me%WorkSize%KUB
 
 #ifdef _USE_PAGELOCKED
         ! Allocate pagelocked memory to optimize CUDA transfers
@@ -7346,14 +7353,10 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         endif
 
-        !if (NewProperty%Evolution%DataAssimilation /= NoNudging) then
-
-            allocate (NewProperty%Assimilation%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                     &
-                call CloseAllAndStop ('Construct_PropertyValues - ModuleWaterProperties - ERR30')
-                NewProperty%Assimilation%Field(:,:,:) = FillValueReal
-
-        !endif
+        allocate (NewProperty%Assimilation%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            call CloseAllAndStop ('Construct_PropertyValues - ModuleWaterProperties - ERR30')
+            NewProperty%Assimilation%Field(:,:,:) = FillValueReal
 
         !<BeginKeyword>
             !Keyword          : OLD
@@ -7644,21 +7647,13 @@ cd1 :   if (.not.NewProperty%Old) then
             NewProperty%Concentration( IUB, WJLB:WJUB, WKLB:WKUB) = &
             NewProperty%Concentration(WIUB, WJLB:WJUB, WKLB:WKUB)
 
-
-            !if (NewProperty%Evolution%DataAssimilation /= NoNudging) then
-                !By default the assimilation field is equal to the initial one
-
 do3 :           do K = WKLB, WKUB
 do2 :           do J = JLB, JUB
 do1 :           do I = ILB, IUB
-
                     NewProperty%Assimilation%Field(I, J, K) = NewProperty%Concentration(i,j,k)
-
                 end do do1
                 end do do2
                 end do do3
-
-            !endif
 
             !Only the EXTERIOR and the INTERIOR process were considered
 
@@ -7733,49 +7728,36 @@ do6 :                       do K = WKLB, WKUB
 
         !Arguments-------------------------------------------------------------
         type(T_property),  pointer      :: NewProperty
-
         !Local-----------------------------------------------------------------
         integer                         :: i,j,k
         integer                         :: ILB, IUB, JLB, JUB, KLB, KUB
         real                            :: NewValue
-
         !----------------------------------------------------------------------
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB; KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB; KUB = Me%WorkSize%KUB
 
         if (NewProperty%AddOffSet)then
-
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-
                 if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
-                    NewProperty%Concentration(i,j,k)   = NewProperty%Concentration(i,j,k)      + &
-                                                         NewProperty%OffSet
+                    NewProperty%Concentration(i,j,k)   = NewProperty%Concentration(i,j,k) + NewProperty%OffSet
                 endif
-
             enddo
             enddo
             enddo
-
         endif
 
         !Verification if the values read are lower than zero in water points
 do9 :   do I = ILB, IUB
 do8 :   do J = JLB, JUB
 do7 :   do K = KLB, KUB
-
+            NewProperty%Concentration(i, j, k) = FillValueReal
+            
 cd21:       if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then
-
                 if(NewProperty%Evolution%MinConcentration) then
-
                     if (NewProperty%Concentration(i, j, k) < NewProperty%MinValue) then
-
                         write(*,*)
                         write(*,*)"Property : ", trim(NewProperty%ID%Name)
                         write(*,*)"Initial concentration is below the minimum value in cell", i, j, k
@@ -7785,11 +7767,9 @@ cd21:       if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then
                         write(*,*)"New concentration = ", NewProperty%MinValue
                         write(*,*)"CheckFieldConsistence - ModuleWaterProperties - WRN01"
                         write(*,*)
-
                     endif
 
                 elseif (NewProperty%Concentration(i, j, k) < 0.) then
-
                         write(*,*)
                         write(*,*)"Property : ", trim(NewProperty%ID%Name)
                         write(*,*)"Negative initial concentration in cell", i, j, k
@@ -7801,36 +7781,22 @@ cd21:       if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then
                         write(*,*)
 
                         NewProperty%Concentration(i,j,k) = NewValue
-
                 endif
-
-            else  cd21
-
-                NewProperty%Concentration(i, j, k) = FillValueReal
-
             endif cd21
-
-
         enddo do7
         enddo do8
         enddo do9
 
-
         if (NewProperty%AddOffSet)then
-
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-
                 if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
-                    NewProperty%Concentration(i,j,k)   = NewProperty%Concentration(i,j,k)      - &
-                                                         NewProperty%OffSet
+                    NewProperty%Concentration(i,j,k)   = NewProperty%Concentration(i,j,k) - NewProperty%OffSet
                 endif
-
             enddo
             enddo
             enddo
-
         endif
 
     end subroutine CheckFieldConsistence
@@ -7904,15 +7870,12 @@ cd21:       if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then
             do k = KLB, KUB
             do j = JLB, JUB
             do i = ILB, IUB
-
                 if(Me%ExternalVar%Waterpoints3D(i,j,k) == WaterPoint .and. Concentration(i, j, k) > 0.)then
 
                     Cumulative = Cumulative + Concentration(i, j, k)
                     Count      = Count + 1
 
                 end if
-
-
             enddo
             enddo
             enddo
@@ -7943,29 +7906,19 @@ cd21:       if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then
      ! in the domain and in the boundaries
 
     subroutine Construct_WqRateValues(NewWqRate)
-
         !Arguments-------------------------------------------------------------
         type(T_wqrate), pointer         :: NewWqRate
-
         !External--------------------------------------------------------------
         integer                         :: STAT_CALL
-
         !Local-----------------------------------------------------------------
         integer                         :: ILB, IUB, JLB, JUB, KLB, KUB
-
         !----------------------------------------------------------------------
-
-        ILB = Me%Size%ILB
-        IUB = Me%Size%IUB
-        JLB = Me%Size%JLB
-        JUB = Me%Size%JUB
-        KLB = Me%Size%KLB
-        KUB = Me%Size%KUB
-
+        ILB = Me%Size%ILB; JLB = Me%Size%JLB; KUB = Me%Size%KUB
+        IUB = Me%Size%IUB; JUB = Me%Size%JUB; KLB = Me%Size%KLB
+        
         allocate(NewWqRate%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)call CloseAllAndStop ('Construct_WqRateValues - ModuleWaterProperties - ERR01')
         NewWqRate%Field(:,:,:) = FillValueReal
-
 
     end subroutine Construct_WqRateValues
 
@@ -7974,29 +7927,18 @@ cd21:       if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then
     !This functions gives defaul values to each property if this value are not specified
 
     function DefaultValueProp(PropertyID)
-
     !Arguments-----------------------------------------------------------------
-
     real    :: DefaultValueProp
     integer :: PropertyID
 
-
 case1 : select case(PropertyID)
             case(Temperature_)
-
                 DefaultValueProp = 11.
-
             case(Salinity_)
-
                 DefaultValueProp = 35.
-
             case default
-
                 DefaultValueProp = 0.
-
         end select case1
-
-
 
     end Function DefaultValueProp
 
@@ -8009,11 +7951,9 @@ case1 : select case(PropertyID)
         !Arguments-------------------------------------------------------------
         type(T_property),           pointer     :: NewProperty
         integer                                 :: ClientNumber
-
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
         real                                    :: ModelDT
-
         !Local-----------------------------------------------------------------
         integer                                 :: iflag
         real                                    :: ErrorAux, auxFactor, DTaux
@@ -8038,6 +7978,7 @@ case1 : select case(PropertyID)
             !End Block        : <endproperty>
         !<EndKeyword>
 
+        
         call GetData(NewProperty%Evolution%AdvectionDiffusion,                           &
                      Me%ObjEnterData, iflag,                                             &
                      SearchType   = FromBlock,                                           &
@@ -8048,11 +7989,9 @@ case1 : select case(PropertyID)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR10')
 
-        if (NewProperty%Evolution%AdvectionDiffusion)                                    &
-            NewProperty%Evolution%Variable = .true.
+        if (NewProperty%Evolution%AdvectionDiffusion) NewProperty%Evolution%Variable = .true.
 
-        if (NewProperty%evolution%AdvectionDiffusion)                                    &
-            call Read_Advec_Difus_Parameters(NewProperty)
+        if (NewProperty%evolution%AdvectionDiffusion) call Read_Advec_Difus_Parameters(NewProperty)
 
 
         !<BeginKeyword>
@@ -8082,8 +8021,7 @@ case1 : select case(PropertyID)
         if (NewProperty%Evolution%InstantMixing .and. NewProperty%evolution%AdvectionDiffusion) &
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR30')
 
-        if(NewProperty%Evolution%InstantMixing)                                          &
-           NewProperty%Evolution%Variable = .true.
+        if(NewProperty%Evolution%InstantMixing) NewProperty%Evolution%Variable = .true.
 
         !<BeginKeyword>
             !Keyword          : WATER_QUALITY
@@ -8134,7 +8072,6 @@ case1 : select case(PropertyID)
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR50')
 
         if(NewProperty%Evolution%Macroalgae) NewProperty%evolution%Variable = .true.
-
 
         !<BeginKeyword>
             !Keyword          : SEAGRLEAVES
@@ -8187,7 +8124,6 @@ case1 : select case(PropertyID)
 
         if(NewProperty%evolution%CEQUALW2) NewProperty%evolution%Variable = .true.
 
-
         !<BeginKeyword>
             !Keyword          : LIFE
             !<BeginDescription>
@@ -8224,8 +8160,6 @@ case1 : select case(PropertyID)
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR71')
 
         if(NewProperty%evolution%Bivalve) NewProperty%evolution%Variable = .true.
-
-
 
         !<BeginKeyword>
             !Keyword          : WWTPQ
@@ -8303,9 +8237,7 @@ case1 : select case(PropertyID)
 
         if(NewProperty%evolution%Partitioning) NewProperty%evolution%Variable = .true.
 
-        if(NewProperty%Evolution%Partitioning)                                           &
-            call Read_Partition_Parameters(NewProperty)
-
+        if(NewProperty%Evolution%Partitioning) call Read_Partition_Parameters(NewProperty)
 
         !<BeginKeyword>
             !Keyword          : DISCHARGES
@@ -8330,9 +8262,7 @@ case1 : select case(PropertyID)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR90')
 
-        if (NewProperty%evolution%Discharges)                                            &
-            NewProperty%Evolution%Variable = .true.
-
+        if (NewProperty%evolution%Discharges) NewProperty%Evolution%Variable = .true.
 
         !<BeginKeyword>
             !Keyword          : DISCHARGES_TRACKING
@@ -8356,7 +8286,6 @@ case1 : select case(PropertyID)
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR110')
-
 
         !<BeginKeyword>
             !Keyword          : VERTICAL_MOVEMENT
@@ -8415,17 +8344,13 @@ case1 : select case(PropertyID)
         if (NewProperty%evolution%SurfaceFluxes .and. .not. Me%ExtSurface%PrecipitationON) then
 
             call GetHydrodynamicAirOptions (Me%ObjHydrodynamic,                         &
-                                            SurfaceWaterFluxYes =                       &
-                                            Me%ExtSurface%PrecipitationON,              &
+                                            SurfaceWaterFluxYes = Me%ExtSurface%PrecipitationON,              &
                                             WindYes = Dummy,             &
                                             AtmPressureYes = Dummy,      &
-                                            MslpYes = Dummy,             &
-                                            STAT = STAT_CALL)
-
+                                            MslpYes = Dummy, STAT = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                                &
                 call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR135')
-
         endif
 
         !<BeginKeyword>
@@ -8451,8 +8376,7 @@ case1 : select case(PropertyID)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR140')
 
-        if (NewProperty%Evolution%BottomFluxes)                                          &
-            NewProperty%Evolution%Variable = .true.
+        if (NewProperty%Evolution%BottomFluxes) NewProperty%Evolution%Variable = .true.
 
         !<BeginKeyword>
             !Keyword          : DATA_ASSIMILATION
@@ -8477,9 +8401,7 @@ case1 : select case(PropertyID)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR150')
             
-        if (NewProperty%Evolution%DataAssimilation /= NoNudging)then
-            NewProperty%Evolution%Variable = .true.
-        endif
+        if (NewProperty%Evolution%DataAssimilation /= NoNudging) NewProperty%Evolution%Variable = .true.
 
         if (NewProperty%Evolution%DataAssimilation /= NoNudging      .and.              &
             NewProperty%Evolution%DataAssimilation /= NudgingToRef   .and.              &
@@ -8488,13 +8410,11 @@ case1 : select case(PropertyID)
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR160')
         endif
 
-        if(NewProperty%Evolution%DataAssimilation == Hybrid .and. .not. &
-           NewProperty%SubModel%ON)then
+        if(NewProperty%Evolution%DataAssimilation == Hybrid .and. .not. NewProperty%SubModel%ON)then
             write(*,*)'Data assimilation scheme set to Hybrid but SUBMODEL is not set'
             write(*,*)'Property : ', trim(NewProperty%ID%Name)
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR170')
         endif
-
 
         !<BeginKeyword>
             !Keyword          : LIGHT_EXTINCTION
@@ -8532,7 +8452,6 @@ case1 : select case(PropertyID)
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                &
                 call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR190')
-
         end if
 
         call GetData(NewProperty%Evolution%Filtration%On,                               &
@@ -8574,7 +8493,6 @@ case1 : select case(PropertyID)
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR210')
 
         if(NewProperty%Evolution%LagSinksSources) NewProperty%evolution%Variable = .true.
-
 
         !<BeginKeyword>
             !Keyword          : FIRST_ORDER_DECAY
@@ -8624,8 +8542,6 @@ case1 : select case(PropertyID)
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                &
                 call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR230')
-
-
 
             if (.not.CheckPropertyName(trim(AuxName),NewProperty%evolution%T90PropertyID)) then
                 call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR240')
@@ -8709,11 +8625,9 @@ case1 : select case(PropertyID)
 
         endif
 
-
         if (NewProperty%ID%IDNumber == Oxygen_) then
             call GetData(NewProperty%evolution%OxygenSaturation,                        &
-                             Me%ObjEnterData,                                           &
-                             iflag,                                                     &
+                             Me%ObjEnterData, iflag,                                    &
                              SearchType   = FromBlock,                                  &
                              keyword      ='OXYGEN_SATURATION',                         &
                              ClientModule ='ModuleWaterProperties',                     &
@@ -8723,10 +8637,8 @@ case1 : select case(PropertyID)
                 call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR260')
 
             if (NewProperty%evolution%OxygenSaturation) then
-
                 Me%OxygenSaturation = .true.
                 NewProperty%Evolution%AdvectionDiffusion = .false.
-
             endif
 
         else
@@ -8736,8 +8648,7 @@ case1 : select case(PropertyID)
 
         if (NewProperty%ID%IDNumber == CarbonDioxide_) then
             call GetData(NewProperty%evolution%CO2_PP_Output,                           &
-                             Me%ObjEnterData,                                           &
-                             iflag,                                                     &
+                             Me%ObjEnterData, iflag,                                    &
                              SearchType   = FromBlock,                                  &
                              keyword      ='CO2_PPRESSURE_OUTPUT',                      &
                              ClientModule ='ModuleWaterProperties',                     &
@@ -8748,11 +8659,9 @@ case1 : select case(PropertyID)
 
         endif
 
-
         if (NewProperty%ID%IDNumber == Oxygen_) then
             call GetData(NewProperty%evolution%O2_Sat_Output,                           &
-                             Me%ObjEnterData,                                           &
-                             iflag,                                                     &
+                             Me%ObjEnterData, iflag,                                    &
                              SearchType   = FromBlock,                                  &
                              keyword      ='O2_SATURATION_OUTPUT',                      &
                              ClientModule ='ModuleWaterProperties',                     &
@@ -8765,8 +8674,7 @@ case1 : select case(PropertyID)
 
         if (NewProperty%ID%IDNumber == PHYTOPLANKTON_) then
             call GetData(NewProperty%evolution%CHLA_WQ_Output,                          &
-                             Me%ObjEnterData,                                           &
-                             iflag,                                                     &
+                             Me%ObjEnterData, iflag,                                    &
                              SearchType   = FromBlock,                                  &
                              keyword      ='CHLA_WQ_OUTPUT',                            &
                              ClientModule ='ModuleWaterProperties',                     &
@@ -8777,11 +8685,9 @@ case1 : select case(PropertyID)
 
         endif
 
-
         if (NewProperty%ID%IDNumber == PHYTOPLANKTON_) then
             call GetData(NewProperty%evolution%C_CHLA_Output,                           &
-                             Me%ObjEnterData,                                           &
-                             iflag,                                                     &
+                             Me%ObjEnterData, iflag,                                    &
                              SearchType   = FromBlock,                                  &
                              keyword      ='C_CHLA_OUTPUT',                             &
                              ClientModule ='ModuleWaterProperties',                     &
@@ -8791,9 +8697,6 @@ case1 : select case(PropertyID)
                 call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR300')
 
         endif
-
-
-
 
        !<BeginKeyword>
             !Keyword          : REINITIALIZE
@@ -8834,10 +8737,9 @@ case1 : select case(PropertyID)
             if (VariableDT) then
 
                 NewProperty%Evolution%DTInterval       = ModelDT
-
                 NewProperty%Evolution%HydroIntegration = .false.
 
-        else
+            else
 
             !<BeginKeyword>
                 !Keyword          : DT_INTERVAL
@@ -8900,9 +8802,7 @@ case1 : select case(PropertyID)
                     NewProperty%Evolution%HydroIntegration = .true.
 
                 else
-
                     NewProperty%Evolution%HydroIntegration = .false.
-
                 end if
 
             endif
@@ -27334,11 +27234,9 @@ cd1:    if (WaterPropertiesID > 0) then
 !---------------------------------------------------------------------------------
 
     subroutine LocateObjFather (ObjWaterPropertiesFather, ObjWaterPropertiesID)
-
         !Arguments-------------------------------------------------------------
         type (T_WaterProperties), pointer           :: ObjWaterPropertiesFather
         integer                                     :: ObjWaterPropertiesID
-
         !Local-----------------------------------------------------------------
 
         nullify (ObjWaterPropertiesFather)
@@ -27351,6 +27249,42 @@ cd1:    if (WaterPropertiesID > 0) then
         if (.not. associated(ObjWaterPropertiesFather)) call CloseAllAndStop ('ModuleWaterProperties - LocateObjFather - ERR01')
 
     end subroutine LocateObjFather
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Reads and saves user "real" type keyword. Serves as interface to module enterdata
+    !>@param[in] Variable, iflag, Keyword, Default, STAT_CALL
+    subroutine Read_Keyword_Real(Variable, iflag, Keyword, Default, STAT_CALL)
+        !Arguments----------------------------------------------
+        real, intent(OUT)               :: Variable
+        character(LEN = *), intent(IN ) :: Keyword
+        real, intent(IN)                :: Default
+        logical, intent(INOUT)          :: STAT_CALL
+        integer, intent(INOUT)          :: iflag
+        !Begin-----------------------------------------------------------------------
+        
+        call GetData(Variable, Me%ObjEnterData, iflag, SearchType = FromBlock, keyword = Keyword, &
+                        ClientModule ='ModuleWaterProperties', STAT = STAT_CALL)
+        
+    end subroutine Read_Keyword_Real
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Reads and saves user "logical" type keyword. Serves as interface to module enterdata
+    !>@param[in] Variable, iflag, Keyword, Default, STAT_CALL
+    subroutine Read_Keyword_Logical_File(Variable, iflag, Keyword, Default, STAT_CALL)
+        !Arguments----------------------------------------------
+        logical, intent(OUT)            :: Variable
+        character(LEN = *), intent(IN ) :: Keyword
+        logical, intent(IN)             :: Default
+        logical, intent(INOUT)          :: STAT_CALL
+        integer, intent(INOUT)          :: iflag
+        !Begin-----------------------------------------------------------------------
+        
+        call GetData(Variable, Me%ObjEnterData, iflag, SearchType = FromBlock, keyword = Keyword, &
+                        ClientModule ='ModuleWaterProperties', STAT = STAT_CALL)
+        
+    end subroutine Read_Keyword_Logical_File
 
 #ifdef _OPENMI_
 

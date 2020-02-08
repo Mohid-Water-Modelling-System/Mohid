@@ -8502,6 +8502,22 @@ cd21:   if (Baroclinic) then
                      STAT       = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                      &
             call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221')
+    
+        if (.not. Me%ComputeOptions%GlobalOptimization) then
+    
+            call GetData(Me%ComputeOptions%GlobalOptimization,                              &
+                         Me%ObjEnterData, iflag,                                            &
+                         Keyword    = 'GLOBAL_OPT',                                         &
+                         Default    = .false.,                                              &
+                         SearchType = FromFile,                                             &
+                         ClientModule ='ModuleHydrodynamic',                                &
+                         STAT       = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)                                                      &
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221a')
+            
+            if (Me%ComputeOptions%GlobalOptimization)
+            write(*,*) 'Keyword GLOBAL_OPT has been deprecated, please replace with USE_OPTIMIZATIONS' 
+        endif
         
         if (Me%ComputeOptions%GlobalOptimization) then
            
@@ -8513,7 +8529,7 @@ cd21:   if (Baroclinic) then
                          ClientModule ='ModuleHydrodynamic',                                &
                          STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221')
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221b')
         
             call GetData(Me%ComputeOptions%VelExpForcesOpt,                                         &
                          Me%ObjEnterData, iflag,                                            &
@@ -8523,7 +8539,7 @@ cd21:   if (Baroclinic) then
                          ClientModule ='ModuleHydrodynamic',                                &
                          STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1222')
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221c')
         
             call GetData(Me%ComputeOptions%VerticalWaterFlowOpt,                                         &
                          Me%ObjEnterData, iflag,                                            &
@@ -8533,7 +8549,7 @@ cd21:   if (Baroclinic) then
                          ClientModule ='ModuleHydrodynamic',                                &
                          STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1223')
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221d')
 
             call GetData(Me%ComputeOptions%CartesianVertVelocityOpt,                        &
                          Me%ObjEnterData, iflag,                                            &
@@ -8543,7 +8559,7 @@ cd21:   if (Baroclinic) then
                          ClientModule ='ModuleHydrodynamic',                                &
                          STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1224')
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221e')
             
             call GetData(Me%ComputeOptions%HorizontalAdvectionOpt,                        &
                          Me%ObjEnterData, iflag,                                            &
@@ -8553,7 +8569,7 @@ cd21:   if (Baroclinic) then
                          ClientModule ='ModuleHydrodynamic',                                &
                          STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1225')
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221f')
             
             call GetData(Me%ComputeOptions%VerticalAdvectionOpt,                        &
                          Me%ObjEnterData, iflag,                                            &
@@ -8563,7 +8579,7 @@ cd21:   if (Baroclinic) then
                          ClientModule ='ModuleHydrodynamic',                                &
                          STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1226')
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221g')
             
             call GetData(Me%ComputeOptions%HorizontalDiffusionOpt,                        &
                          Me%ObjEnterData, iflag,                                            &
@@ -8573,7 +8589,7 @@ cd21:   if (Baroclinic) then
                          ClientModule ='ModuleHydrodynamic',                                &
                          STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1227')
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221h')
             
             call GetData(Me%ComputeOptions%VerticalDiffusionOpt,                        &
                          Me%ObjEnterData, iflag,                                            &
@@ -8583,7 +8599,7 @@ cd21:   if (Baroclinic) then
                          ClientModule ='ModuleHydrodynamic',                                &
                          STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1228')
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221i')
             
             call GetData(Me%ComputeOptions%MatrixesOutputOpt,                        &
                          Me%ObjEnterData, iflag,                                            &
@@ -8593,7 +8609,7 @@ cd21:   if (Baroclinic) then
                          ClientModule ='ModuleHydrodynamic',                                &
                          STAT       = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                                      &
-                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1229')
+                call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221j')
             
         endif
 
