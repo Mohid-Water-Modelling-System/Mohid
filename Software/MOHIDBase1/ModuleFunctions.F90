@@ -6315,7 +6315,7 @@ d5:     do k = klast + 1,KUB
             !For each Parent cell, add all son cells located inside (sonProp * sonVol)
             Flag = Open3DSon(i, j, k) + SonComputeFaces3D(i, j, k) + IgnoreOBCells(i, j)
             if (Flag == 3) then
-				ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather	= k + k_difference
+                ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather	= k + k_difference
                 AuxMatrix(ifather, jfather, kfather) = AuxMatrix(ifather, jfather, kfather) +     &
 													   SonMatrix(i, j, k) * VolumeSon(i, j, k)
             endif

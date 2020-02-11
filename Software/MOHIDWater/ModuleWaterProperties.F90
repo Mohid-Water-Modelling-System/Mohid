@@ -1263,10 +1263,6 @@ Module ModuleWaterProperties
 
         logical                                 :: Continuous = .false.
         logical                                 :: Optimize   = .false.
-        logical                                 :: OptimizeHorizontalAdvection = .false.
-        logical                                 :: OptimizeHorizontalDiffusion = .false.
-        logical                                 :: OptimizeVerticalAdvection   = .false.
-        logical                                 :: OptimizeVerticalDiffusion   = .false.
         
         integer                                 :: Docycle_method = 1
 
@@ -1837,7 +1833,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
 
-
     subroutine ReadConfiguration
 
         integer     :: iflag
@@ -1862,78 +1857,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = status)
         if (status /= SUCCESS_) &
             call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR10')
-        
-        call GetData(Me%Optimize,                               &
-                     Me%ObjEnterData, iflag,                    &
-                     SearchType   = FromFile,                   &
-                     keyword      = 'USE_OPTIMIZATIONS',        &
-                     default      = .false.,                    &
-                     ClientModule = 'ModuleWaterProperties',    &
-                     STAT         = status)
-        if (status /= SUCCESS_) &
-            call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR11')
-        
-        if (.not. Me%Optimize) then
-            call GetData(Me%Optimize,                               &
-                         Me%ObjEnterData, iflag,                    &
-                         SearchType   = FromFile,                   &
-                         keyword      = 'OPTIMIZE',                 &
-                         default      = .false.,                    &
-                         ClientModule = 'ModuleWaterProperties',    &
-                         STAT         = status)
-            if (status /= SUCCESS_) &
-                call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR11a')
-            if (Me%Optimize) write(*,*) 'Keyword OPTIMIZE has been deprecated, please replace with USE_OPTIMIZATIONS'
-        endif
-        
-        if (Me%Optimize) then
-            
-            call GetData(Me%OptimizeHorizontalAdvection,                             &
-                         Me%ObjEnterData, iflag,                    &
-                         SearchType   = FromFile,                   &
-                         keyword      = 'OPTIMIZE_ADVECTIONH',      &
-                         default      = .true.,                    &
-                         ClientModule = 'ModuleWaterProperties',    &
-                         STAT         = status)
-            if (status /= SUCCESS_) &
-                call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR11')
-        
-            call GetData(Me%OptimizeHorizontalDiffusion,                      &
-                         Me%ObjEnterData, iflag,                    &
-                         SearchType   = FromFile,                   &
-                         keyword      = 'OPTIMIZE_DIFFUSIONH',      &
-                         default      = .true.,                    &
-                         ClientModule = 'ModuleWaterProperties',    &
-                         STAT         = status)
-            if (status /= SUCCESS_) &
-                call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR12')
-        
-            call GetData(Me%OptimizeVerticalAdvection,                             &
-                         Me%ObjEnterData, iflag,                    &
-                         SearchType   = FromFile,                   &
-                         keyword      = 'OPTIMIZE_ADVECTIONV',      &
-                         default      = .true.,                    &
-                         ClientModule = 'ModuleWaterProperties',    &
-                         STAT         = status)
-            if (status /= SUCCESS_) &
-                call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR13')
-        
-            call GetData(Me%OptimizeVerticalDiffusion,              &
-                         Me%ObjEnterData, iflag,                    &
-                         SearchType   = FromFile,                   &
-                         keyword      = 'OPTIMIZE_DIFFUSIONV',      &
-                         default      = .true.,                    &
-                         ClientModule = 'ModuleWaterProperties',    &
-                         STAT         = status)
-            if (status /= SUCCESS_) &
-                call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR14')
-            
-        endif
 
-        if (Me%Continuous) then
-            Me%MustStartPhreeqC = .false.
-        endif
-
+        if (Me%Continuous) Me%MustStartPhreeqC = .false.
 
     end subroutine ReadConfiguration
 
@@ -14023,39 +13948,27 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
     subroutine Advection_Diffusion_Processes
 
         !External--------------------------------------------------------------
-        real(8), pointer, dimension(:,:,:)      :: AdvFluxX
-        real(8), pointer, dimension(:,:,:)      :: AdvFluxY
-        real(8), pointer, dimension(:,:,:)      :: AdvFluxZ
-        real(8), pointer, dimension(:,:,:)      :: DifFluxX
-        real(8), pointer, dimension(:,:,:)      :: DifFluxY
-        real(8), pointer, dimension(:,:,:)      :: DifFluxZ
+        real(8), pointer, dimension(:,:,:)      :: AdvFluxX, AdvFluxY, AdvFluxZ
+        real(8), pointer, dimension(:,:,:)      :: DifFluxX, DifFluxY, DifFluxZ
         integer                                 :: STAT_CALL
-
         !Local-----------------------------------------------------------------
         type (T_Property), pointer              :: Property
         type (T_Time)                           :: Actual
         real                                    :: ImpExp_AdvXX, ImpExp_AdvYY, firstSchmidt
-        integer                                 :: ILB, IUB
-        integer                                 :: JLB, JUB
-        integer                                 :: KLB, KUB
+        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                 :: I, J, K
         integer, pointer, dimension(:,:,:)      :: OpenPoints3D
         integer                                 :: CHUNK
         logical                                 :: ComputeBoxTimeSerie, PropertyComputeBoxTimeSerie, &
                                                    OptimizeFlag, FirstWaterProperty
-
         !----------------------------------------------------------------------
 
         if (MonitorPerformance)                                         &
               call StartWatch ("ModuleWaterProperties", "Advection_Diffusion_Processes")
 
-        ILB = Me%Size%ILB
-        IUB = Me%Size%IUB
-        JLB = Me%Size%JLB
-        JUB = Me%Size%JUB
-        KLB = Me%Size%KLB
-        KUB = Me%Size%KUB
-
+        ILB = Me%Size%ILB;  JLB = Me%Size%JLB;  KLB = Me%Size%KLB
+        IUB = Me%Size%IUB;  JUB = Me%Size%JUB;  KUB = Me%Size%KUB
+        
         Property => Me%FirstProperty
 
         Actual = Me%ExternalVar%Now
@@ -14070,8 +13983,7 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         if (STAT_CALL /= SUCCESS_) &
            call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR10')
 
-        call GetVerticalDiffusivity(Me%ObjTurbulence,                                  &
-                                    VerticalDiffusivityCenter = Me%ExternalVar%Diff_V, &
+        call GetVerticalDiffusivity(Me%ObjTurbulence, VerticalDiffusivityCenter = Me%ExternalVar%Diff_V, &
                                     STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR20')
@@ -14112,8 +14024,6 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
             Property => Property%Next
         enddo
         if (Me%Coupled%AdvectionDiffusion%NumberOfProperties < 2) OptimizeFlag = .false.
-        
-        if (.not. Me%Optimize) OptimizeFlag = .false.
 
         FirstWaterProperty = .true.
         Property => Me%FirstProperty
@@ -14219,13 +14129,9 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                     endif cd7
 
                     if (Property%SubModel%ON) then
-
                         if (.not. Property%SubModel%Set) then
-
                             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR90')
-
                         endif
-
                     endif
 
                     if  (Me%FreeConvection) call FreeConvection(Property, Me%ExternalVar%VolumeZ, OpenPoints3D)
@@ -14233,9 +14139,7 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                     call SmallDepthsMixing_Processes(Property, Me%ExternalVar%VolumeZ, OpenPoints3D)
 
                     if (Property%WarnOnNegativeValues)then
-
                         call CheckIfConcentrationIsNegative(Property, 'before advection-diffusion')
-
                     endif
 
                     if (Property%AddOffSet)then
@@ -14339,10 +14243,6 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                             NoFluxV           = Me%NoFlux%V,                                &
                             NoFluxW           = Me%NoFlux%W,                                &
                             Optimize          = OptimizeFlag,                               &
-                            Optimize_AdvH     = Me%OptimizeHorizontalAdvection,                &
-                            Optimize_DifH     = Me%OptimizeHorizontalDiffusion,                &
-                            Optimize_AdvV     = Me%OptimizeVerticalAdvection,                  &
-                            Optimize_DifV     = Me%OptimizeVerticalDiffusion,                  &
                             FirstProperty     = FirstWaterProperty,                         &
                             STAT              = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                            &
@@ -14409,18 +14309,15 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                     if (Property%evolution%HydroIntegration) then
 
                         !WaterFluxes
-                        call UnGetHydroIntegration(Me%ObjHydroIntegration,              &
-                                                   Me%ExternalVar%WaterFluxX, STAT = STAT_CALL)
+                        call UnGetHydroIntegration(Me%ObjHydroIntegration, Me%ExternalVar%WaterFluxX, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                                    &
                             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR130')
 
-                        call UnGetHydroIntegration(Me%ObjHydroIntegration,              &
-                                                    Me%ExternalVar%WaterFluxY,  STAT = STAT_CALL)
+                        call UnGetHydroIntegration(Me%ObjHydroIntegration, Me%ExternalVar%WaterFluxY, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                                    &
                             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR140')
 
-                        call UnGetHydroIntegration(Me%ObjHydroIntegration,              &
-                                                    Me%ExternalVar%WaterFluxZ,  STAT = STAT_CALL)
+                        call UnGetHydroIntegration(Me%ObjHydroIntegration, Me%ExternalVar%WaterFluxZ, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                                    &
                             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR150')
 
@@ -14441,13 +14338,11 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                         if (STAT_CALL .NE. SUCCESS_)                                    &
                             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR180')
 
-                        call UnGetHydroIntegration(Me%ObjHydroIntegration,              &
-                                                   OpenPoints3D, STAT = STAT_CALL)
+                        call UnGetHydroIntegration(Me%ObjHydroIntegration, OpenPoints3D, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                                    &
                             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR190')
 
-                        call UnGetHydroIntegration(Me%ObjHydroIntegration,              &
-                                                   Me%ExternalVar%VolumeZOld, STAT = STAT_CALL)
+                        call UnGetHydroIntegration(Me%ObjHydroIntegration, Me%ExternalVar%VolumeZOld, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                                    &
                             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR200')
 
@@ -14486,14 +14381,12 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
 cd6 :               if (PropertyComputeBoxTimeSerie) then
 
                             !Gets Advective Flux
-                            call GetAdvFlux(Me%ObjAdvectionDiffusion,                       &
-                                        AdvFluxX, AdvFluxY, AdvFluxZ, STAT = STAT_CALL)
+                            call GetAdvFlux(Me%ObjAdvectionDiffusion, AdvFluxX, AdvFluxY, AdvFluxZ, STAT = STAT_CALL)
                             if (STAT_CALL .NE. SUCCESS_)                                    &
                                 call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR280')
 
                             !Gets Diffusive Flux
-                            call GetDifFlux (Me%ObjAdvectionDiffusion,                      &
-                                         DifFluxX,  DifFluxY,  DifFluxZ,  STAT = STAT_CALL)
+                            call GetDifFlux (Me%ObjAdvectionDiffusion, DifFluxX, DifFluxY, DifFluxZ, STAT = STAT_CALL)
                             if (STAT_CALL .NE. SUCCESS_)                                    &
                                 call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR290')
 
@@ -14603,8 +14496,7 @@ cd6 :               if (PropertyComputeBoxTimeSerie) then
         call UnGetTurbulence(Me%ObjTurbulence, Me%ExternalVar%Diff_V, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR390')
 
-        if (MonitorPerformance)                                         &
-            call StopWatch ("ModuleWaterProperties", "Advection_Diffusion_Processes")
+        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "Advection_Diffusion_Processes")
 
         !----------------------------------------------------------------------
 
@@ -19836,13 +19728,9 @@ do1 :   do while (associated(PropertyX))
 
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "SetLimitsProperty")
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
-
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
+        
         CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
 
 cd1 :       if (Property%Evolution%MinConcentration) then

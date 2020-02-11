@@ -1141,8 +1141,6 @@ cd1 :   if (ready_ == IDLE_ERR_) then
                                   NoFluxV,                                      &
                                   NoFluxW,                                      &
                                   Optimize, FirstProperty,                      &
-                                  Optimize_AdvH, Optimize_DifH, Optimize_AdvV,  &
-                                  Optimize_DifV,                                &
                                   STAT)
 
         !Arguments-------------------------------------------------------------
@@ -1191,8 +1189,7 @@ cd1 :   if (ready_ == IDLE_ERR_) then
 
         logical, dimension(:, : ), pointer, optional :: SmallDepths
         
-        logical, optional, intent(IN )     :: NoAdvFlux, Optimize, FirstProperty, Optimize_AdvH, &
-                                              Optimize_DifH, Optimize_AdvV, Optimize_DifV
+        logical, optional, intent(IN )     :: NoAdvFlux, Optimize, FirstProperty
         logical, optional, intent(IN )     :: NoDifFlux        
 
         integer, dimension(:,:,:), pointer, optional :: NoFluxU, NoFluxV, NoFluxW
@@ -1225,14 +1222,8 @@ cd1 :   if (ready_ == IDLE_ERR_) then
             if (STAT_CALL /= SUCCESS_)                                        &
                 stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR01'
 
-            ILB = Me%Size%ILB
-            IUB = Me%Size%IUB
-
-            JLB = Me%Size%JLB 
-            JUB = Me%Size%JUB
-
-            KLB = Me%Size%KLB
-            KUB = Me%Size%KUB
+            ILB = Me%Size%ILB;  JLB = Me%Size%JLB;  KLB = Me%Size%KLB
+            IUB = Me%Size%IUB;  JUB = Me%Size%JUB;  KUB = Me%Size%KUB
 
             if ((ImpExp_AdvXX == ImplicitScheme .or. ImpExp_AdvYY == ImplicitScheme) .and.  &
                 (AdvMethodH   == UpwindOrder2   .or. AdvMethodH   == UpwindOrder3  )) then
@@ -1341,10 +1332,6 @@ cd111:      if (present(NoDifFlux)) then
             if (present(NoFluxW)) Me%ExternalVar%NoFluxW => NoFluxW
             
             if (present(Optimize))      Me%ExternalVar%Optimize = Optimize
-            if (present(Optimize_AdvH))      Me%ExternalVar%Optimize_AdvH = Optimize_AdvH
-            if (present(Optimize_DifH))      Me%ExternalVar%Optimize_DifH = Optimize_DifH
-            if (present(Optimize_AdvV))      Me%ExternalVar%Optimize_AdvV = Optimize_AdvV
-            if (present(Optimize_DifV))      Me%ExternalVar%Optimize_DifV = Optimize_DifV
             if (present(FirstProperty)) Me%FirstProperty        = FirstProperty
 
 cd7 :       if (ImpExp_DifH  /= 0.0) then    !0 = Explicit
@@ -1380,40 +1367,27 @@ cd66 :      if (ImpExp_AdvXX == ImplicitScheme .and. ImpExp_AdvYY == ImplicitSch
 
 
             !BoundaryPoints2D
-            call GetBoundaries(Me%ObjHorizontalMap,                                     &
-                               Me%ExternalVar%BoundaryPoints2D,                         &  
-                               STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR05'
+            call GetBoundaries(Me%ObjHorizontalMap, Me%ExternalVar%BoundaryPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR05'
 
             !KFloorZ
-            call GetGeometryKFloor(Me%ObjGeometry,                                      &
-                                   Z = Me%ExternalVar%KFloorZ,                          &
-                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR06a'
+            call GetGeometryKFloor(Me%ObjGeometry, Z = Me%ExternalVar%KFloorZ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR06a'
             
             !KFloorU
-            call GetGeometryKFloor(Me%ObjGeometry,                                      &
-                                   U = Me%ExternalVar%KFloorU,                          &
-                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR06b'
+            call GetGeometryKFloor(Me%ObjGeometry, U = Me%ExternalVar%KFloorU, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR06b'
             
             !KFloorV
-            call GetGeometryKFloor(Me%ObjGeometry,                                      &
-                                   V = Me%ExternalVar%KFloorV,                          &
-                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR06c'
+            call GetGeometryKFloor(Me%ObjGeometry, V = Me%ExternalVar%KFloorV, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR06c'
 
             !AreaU, AreaV
             call GetGeometryAreas(Me%ObjGeometry,                     &
                                   AreaU = Me%ExternalVar%AreaU,       &
                                   AreaV = Me%ExternalVar%AreaV,       &
                                   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR08'
+            if (STAT_CALL /= SUCCESS_) stop 'AdvectionDiffusion - ModuleAdvectionDiffusion - ERR08'
 
             !DZZ, DWZ
             call GetGeometryDistances(Me%ObjGeometry,                 &
@@ -1444,20 +1418,16 @@ cd11 :      if (present(CellFluxes)) then
             if(Me%Vertical1D) Me%ExternalVar%Optimize = .false.
             
             if (Me%State%VertDif) then
-                if (Me%ExternalVar%Optimize .and. Me%ExternalVar%Optimize_DifV) then
-                    if (Me%FirstProperty) then
-                        call Convert_Dif_Vertical()
-                    endif
+                if (Me%ExternalVar%Optimize) then
+                    if (Me%FirstProperty) call Convert_Dif_Vertical()
                 else
                     call Convert_Dif_Vertical()
                 endif
             endif
 
             if (Me%State%HorDif) then
-                if (Me%ExternalVar%Optimize .and. Me%ExternalVar%Optimize_DifH) then
-                    if (Me%FirstProperty) then
-                        call Convert_Visc_Dif_Horizontal_opt() 
-                    endif 
+                if (Me%ExternalVar%Optimize) then
+                    if (Me%FirstProperty) call Convert_Visc_Dif_Horizontal_opt() 
                 else
                     call Convert_Visc_Dif_Horizontal()   
                 endif
@@ -1468,7 +1438,7 @@ cd8 :       if (Me%State%VertAdv) then
                 Me%ExternalVar%AdvMethodV       = AdvMethodV
                 Me%ExternalVar%TVDLimitationV   = TVDLimitationV
                 
-                if (Me%ExternalVar%Optimize .and. Me%ExternalVar%Optimize_AdvV) then
+                if (Me%ExternalVar%Optimize) then
                     if (Me%FirstProperty) then
                         call SetMatrixValue (Me%COEF3_VertAdv%D_flux, Me%Size, 0.0)
                         call SetMatrixValue (Me%COEF3_VertAdv%E_flux, Me%Size, 0.0)
@@ -1498,24 +1468,16 @@ cd5 :       if (Me%State%CellFluxes) then
             
             if (Me%ExternalVar%Optimize) then
                 if (Me%FirstTime) then
-                    if (Me%ExternalVar%Optimize_DifH) then
-                        allocate(Me%Diff_H_Const_U(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
-                        allocate(Me%Diff_H_Const_V(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
-                    endif
+                    allocate(Me%Diff_H_Const_U(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
+                    allocate(Me%Diff_H_Const_V(ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
                     
-                    if (Me%ExternalVar%Optimize_DifV) then
-                        allocate(Me%Diff_V_Const  (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
-                    endif
+                    allocate(Me%Diff_V_Const  (ILB:Pad(ILB, IUB), JLB:JUB, KLB:KUB))
                     Me%FirstTime = .false.
                 endif
                 
                 if (Me%FirstProperty) then
-                    if (Me%ExternalVar%Optimize_DifH) then
-                        call Compute_DifH_Constants
-                    endif
-                    if (Me%ExternalVar%Optimize_DifV) then
-                        call Compute_DifV_Constants
-                    endif
+                    call Compute_DifH_Constants
+                    call Compute_DifV_Constants
                 endif
             endif
 
@@ -1710,7 +1672,7 @@ cd5 :       if (Me%State%CellFluxes) then
      
 cd2 :   if (Me%State%HorAdv) then
             
-            if (Me%ExternalVar%Optimize .and. Me%ExternalVar%Optimize_AdvH) then
+            if (Me%ExternalVar%Optimize) then
                  if (Me%FirstProperty) then
                     call SetMatrixValue (Me%COEF3_HorAdvXX%D_flux, Me%Size, 0.0)
                     call SetMatrixValue (Me%COEF3_HorAdvXX%E_flux, Me%Size, 0.0)
@@ -1750,7 +1712,7 @@ cd2 :   if (Me%State%HorAdv) then
                       
             !else
             
-                call HorizontalAdvection(ImpExp_AdvXX, ImpExp_AdvYY)
+            call HorizontalAdvection(ImpExp_AdvXX, ImpExp_AdvYY)
                 
             !endif                
 
@@ -1758,7 +1720,7 @@ cd2 :   if (Me%State%HorAdv) then
 
 
         if (KUBWS > 1) then
-            if (Me%ExternalVar%Optimize .and. Me%ExternalVar%Optimize_DifV) then
+            if (Me%ExternalVar%Optimize) then
                 call VerticalDiffusion2 ()
             else
                 call VerticalDiffusion ()
@@ -1922,14 +1884,8 @@ cd5 :   if (Me%State%CellFluxes) then
                 if (Me%ExternalVar%ImpExp_AdvV > 0.0 .and. KUBWS > 1)                       &
                     call CalcVerticalAdvFlux_opt(Me%ExternalVar%ImpExp_AdvV)
 
-
                 if (Me%ExternalVar%ImpExp_DifV > 0.0 .and. KUBWS > 1) then
-                    if (Me%ExternalVar%Optimize_DifV) then
-                        call CalcVerticalDifFlux2 (Me%ExternalVar%ImpExp_DifV )
-                    else
-                        call CalcVerticalDifFlux (Me%ExternalVar%ImpExp_DifV )
-                    endif
-                    
+                    call CalcVerticalDifFlux2 (Me%ExternalVar%ImpExp_DifV )
                 endif
 
                 if (Me%ExternalVar%ImpExp_AdvXX == ImplicitScheme)                          &
@@ -1940,7 +1896,6 @@ cd5 :   if (Me%State%CellFluxes) then
             else
                 if (Me%ExternalVar%ImpExp_AdvV > 0.0 .and. KUBWS > 1)                       &
                     call CalcVerticalAdvFlux(Me%ExternalVar%ImpExp_AdvV)
-
 
                 if (Me%ExternalVar%ImpExp_DifV > 0.0 .and. KUBWS > 1)                       &
                     call CalcVerticalDifFlux (Me%ExternalVar%ImpExp_DifV )
@@ -1953,7 +1908,6 @@ cd5 :   if (Me%State%CellFluxes) then
                     call CalcHorizontalAdvFluxYY(Me%ExternalVar%ImpExp_AdvYY)  
             endif
             
-
 
         end if cd5
 
@@ -2998,7 +2952,7 @@ do1 :   do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         !$OMP PARALLEL PRIVATE(i,j,k)
 st:     if (Me%State%VertAdv) then
             
-             if (Me%ExternalVar%Optimize .and. Me%ExternalVar%Optimize_AdvV) then
+             if (Me%ExternalVar%Optimize) then
             
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do j = Me%WorkSize%JLB, Me%WorkSize%JUB
@@ -3067,7 +3021,7 @@ st:     if (Me%State%VertAdv) then
         !$OMP END PARALLEL
 cd6:    if (Me%ExternalVar%ImpExp_AdvV == ExplicitScheme)  then !ExplicitScheme = 0
     
-            if (Me%ExternalVar%Optimize .and. Me%ExternalVar%Optimize_AdvV) then
+            if (Me%ExternalVar%Optimize) then
                 !optimized only for the TVD. also checks which docycle method the user wants to use.
                 !If anyone wants to add an optimized version for other methods, they can just create here another routine.
                 call VerticalAdvection_ExplicitScheme
@@ -3169,7 +3123,7 @@ doi3 :          do i = Me%WorkSize%ILB, Me%WorkSize%IUB
 
         !Fluxes among cells
         if (Me%State%CellFluxes .and. Me%ExternalVar%ImpExp_AdvV < 1.) then
-            if (Me%ExternalVar%Optimize .and. Me%ExternalVar%Optimize_AdvV)then
+            if (Me%ExternalVar%Optimize)then
                 call CalcVerticalAdvFlux_opt(1. - Me%ExternalVar%ImpExp_AdvV)
             else
                 call CalcVerticalAdvFlux(1. - Me%ExternalVar%ImpExp_AdvV)
@@ -4458,7 +4412,7 @@ doi2 :  do i = ILB, IUB
 
 st:     if (Me%State%HorAdv) then
             
-             if (Me%ExternalVar%Optimize .and. Me%ExternalVar%Optimize_AdvH) then
+             if (Me%ExternalVar%Optimize) then
                 
                 do k = KLB, KUB
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -4518,7 +4472,7 @@ st:     if (Me%State%HorAdv) then
 
 cd6:    if (ImpExp_AdvXX == ExplicitScheme)  then !ExplicitScheme = 0
     
-            if (Me%ExternalVar%Optimize .and. Me%ExternalVar%Optimize_AdvH) then
+            if (Me%ExternalVar%Optimize) then
                 
                 call HorizontalAdvectionXX_Explicit
                 
@@ -4594,7 +4548,7 @@ doi5 :  do i = ILB, IUB
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "HorizontalAdvectionXX")
 
         if (Me%State%CellFluxes .and. ImpExp_AdvXX == ExplicitScheme) then
-            if (Me%ExternalVar%Optimize .and. Me%ExternalVar%Optimize_AdvH)then
+            if (Me%ExternalVar%Optimize)then
                 call CalcHorizontalAdvFluxXX_opt(1. - ImpExp_AdvXX)
             else
                 call CalcHorizontalAdvFluxXX(1. - ImpExp_AdvXX)
@@ -4840,7 +4794,7 @@ doi4 :      do i = ILB, IUB
 
 st:     if (Me%State%HorAdv) then
             
-             if (Me%ExternalVar%Optimize .and. Me%ExternalVar%Optimize_AdvH) then
+             if (Me%ExternalVar%Optimize) then
                 
                 do k = KLB, KUB
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -4897,7 +4851,7 @@ st:     if (Me%State%HorAdv) then
         !$OMP END PARALLEL
 cd6:    if (ImpExp_AdvYY == ExplicitScheme)  then !ExplicitScheme = 0
     
-            if (Me%ExternalVar%Optimize .and. Me%ExternalVar%Optimize_AdvH) then
+            if (Me%ExternalVar%Optimize) then
                 call HorizontalAdvectionYY_Explicit
             else
                 !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxY)
@@ -4974,7 +4928,7 @@ doi4 :      do i = ILB, IUB
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "HorizontalAdvectionYY")
 
         if (Me%State%CellFluxes .and. ImpExp_AdvYY == ExplicitScheme) then
-             if (Me%ExternalVar%Optimize .and. Me%ExternalVar%Optimize_AdvH)then
+             if (Me%ExternalVar%Optimize)then
                 call CalcHorizontalAdvFluxYY_opt(1. - ImpExp_AdvYY)
             else
                 call CalcHorizontalAdvFluxYY(1. - ImpExp_AdvYY)
@@ -5203,14 +5157,14 @@ doi4 :      do i = ILB, IUB
         !----------------------------------------------------------------------
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorizontalDiffusion")
         
-        if (Me%ExternalVar%Optimize .and. Me%ExternalVar%Optimize_DifH)then
+        if (Me%ExternalVar%Optimize)then
             call HorizontalDiffusionXX2()
         else
             call HorizontalDiffusionXX()
         endif
         
         if (.not. Me%XZFlow)then
-            if (Me%ExternalVar%Optimize .and. Me%ExternalVar%Optimize_DifH)then
+            if (Me%ExternalVar%Optimize)then
                 call HorizontalDiffusionYY2()
             else
                 call HorizontalDiffusionYY()
