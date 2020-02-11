@@ -6242,11 +6242,8 @@ d5:     do k = klast + 1,KUB
         integer                                             :: Flag
         real                                                :: DecayFactor
         !Begin-------------------------------------------------------------------------------------
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
-        KUBSon = SizeSon%KUB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KUBSon = SizeSon%KUB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB
         KUBFather = SizeFather%KUB
 
         do j = JLBSon, JUBSon
@@ -6298,17 +6295,15 @@ d5:     do k = klast + 1,KUB
         real, dimension(:,:,:), pointer                   :: AuxMatrix, SonVolInFather
         !Local variables -----------------------------------------------------------------------------
         integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
-                                                             KUBSon, KUBFather, KLBFather, CHUNK, Flag
+                                                             KUBSon, KUBFather, KLBFather, ifather, jfather, kfather, &
+                                                             k_difference, CHUNK, Flag
         real                                              :: DecayFactor
-
         !Begin----------------------------------------------------------------------------------------
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
-        KLBSon = SizeSon%KLB
-        KUBSon = SizeSon%KUB
-        KLBFather = SizeFather%KLB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
+		!adjust to number of layers of son domain
+        k_difference = SizeFather%KUB - KUBSon
+        KLBFather = SizeFather%KLB + k_difference !Sobrinho
         KUBFather = SizeFather%KUB
 
         CHUNK = CHUNK_K(KLBSon, KUBSon)
@@ -6320,8 +6315,9 @@ d5:     do k = klast + 1,KUB
             !For each Parent cell, add all son cells located inside (sonProp * sonVol)
             Flag = Open3DSon(i, j, k) + SonComputeFaces3D(i, j, k) + IgnoreOBCells(i, j)
             if (Flag == 3) then
-                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +     &
-                                                        SonMatrix(i, j, k) * VolumeSon(i, j, k)
+				ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather	= k + k_difference
+                AuxMatrix(ifather, jfather, kfather) = AuxMatrix(ifather, jfather, kfather) +     &
+													   SonMatrix(i, j, k) * VolumeSon(i, j, k)
             endif
         enddo
         enddo
@@ -6340,8 +6336,7 @@ d5:     do k = klast + 1,KUB
                     ! m/s                 = m/s + ((m4/s / m3) - m/s) * (m3/m3) * []
                     FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                    &
                                           + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) - FatherMatrix(i, j, k)) &
-                                          * (SonVolInFather(i, j, k) / VolumeFather(i, j, k)) &
-                                          * DecayFactor
+                                          * (SonVolInFather(i, j, k) / VolumeFather(i, j, k)) * DecayFactor
                 endif
             endif
         enddo
@@ -6370,16 +6365,15 @@ d5:     do k = klast + 1,KUB
         real, dimension(:,:,:), pointer                   :: AuxMatrix, SonVolInFather
         !Local variables -----------------------------------------------------------------------------
         integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
-                                                             KUBSon, KUBFather, KLBFather, CHUNK, Flag
+                                                             KUBSon, KUBFather, KLBFather, ifather, jfather, kfather, &
+			                                                 k_difference, CHUNK, Flag
         real                                              :: DecayFactor
         !Begin----------------------------------------------------------------------------------------
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
-        KLBSon = SizeSon%KLB
-        KUBSon = SizeSon%KUB
-        KLBFather = SizeFather%KLB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KUBSon = SizeSon%KUB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KLBSon = SizeSon%KLB
+		!adjust to number of layers of son domain
+		k_difference = SizeFather%KUB - KUBSon
+        KLBFather = SizeFather%KLB + k_difference !Sobrinho
         KUBFather = SizeFather%KUB
 
         CHUNK = CHUNK_K(KLBSon, KUBSon)
@@ -6391,8 +6385,9 @@ d5:     do k = klast + 1,KUB
             !For each Parent cell, add all son cells located inside (sonProp * sonVol)
             Flag = Open3DSon(i, j, k) + IgnoreOBCells(i, j)
             if (Flag == 2) then
-                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +   &
-                                                        SonMatrix(i, j, k) * VolumeSon(i, j, k)
+				ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather	= k + k_difference
+                AuxMatrix(ifather, jfather, kfather) = AuxMatrix(ifather, jfather, kfather) +   &
+                                                       SonMatrix(i, j, k) * VolumeSon(i, j, k)
             endif
         enddo
         enddo
@@ -6444,27 +6439,20 @@ d5:     do k = klast + 1,KUB
 
         !As the son domain can have less layers than the father domain, it is necessary to use the son size to avoid
         ! accessing unallocated memory adresses.
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
-        KLBSon = SizeSon%KLB
-        KUBSon = SizeSon%KUB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
 
         do k = KLBSon, KUBSon
         do index = 1, Nodes
 
-            iFather  = Connections (index, 1)
-            jFather  = Connections (index, 2)
-            iSon     = Connections (index, 3)
-            jSon     = Connections (index, 4)
-
+            iFather = Connections (index, 1); iSon = Connections (index, 3)
+            jFather = Connections (index, 2); jSon = Connections (index, 4)
+		
             Nom(iFather, jFather, k)  = Nom(iFather, jFather, k) + SonMatrix(iSon, jSon, k) / (Dist(index) ** IWDn) * &
                                                                    IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k)
 
             Denom(iFather, jFather, k) = Denom(iFather, jFather, k) + (1.e-5 / (Dist(index) ** IWDn)) * &
                                                                    IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k)
-
         enddo
         enddo
 
@@ -6481,14 +6469,15 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
 
-    end subroutine FeedBack_IWD
+							 end subroutine FeedBack_IWD
 
     !-------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>feeds back info from son to father using the inverse weigthed distance method. routine for Z types
-    !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeSon, Connections, &
-    !>                         Distances, DecayTime, DT, IgnoreOBCells, Nodes, IWDn
+    !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D, &
+    !>                         SonComputeFaces3D, SizeSon, ILink, JLink, Connections, Dist, DecayTime, DT, &
+	!>						   IgnoreOBCells, Nodes, IWDn, Nom, Denom
     subroutine FeedBack_IWD_UV (FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D, &
                                 SonComputeFaces3D, SizeSon, ILink, JLink, Connections, Dist, DecayTime, DT, &
                                 IgnoreOBCells, Nodes, IWDn, Nom, Denom)
@@ -6510,21 +6499,15 @@ d5:     do k = klast + 1,KUB
 
         !As the son domain can have less layers than the father domain, it is necessary to use the son size to avoid
         ! accessing unallocated memory adresses.
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
-        KLBSon = SizeSon%KLB
-        KUBSon = SizeSon%KUB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
 
         do k = KLBSon, KUBSon
         do index = 1, Nodes
 
-            iFather  = Connections (index, 1)
-            jFather  = Connections (index, 2)
-            iSon     = Connections (index, 3)
-            jSon     = Connections (index, 4)
-
+            iFather  = Connections (index, 1); iSon	= Connections (index, 3)
+            jFather  = Connections (index, 2); jSon	= Connections (index, 4)
+            
             Nom(iFather, jFather, k) = Nom(iFather, jFather, k) +                             &
                                        SonMatrix(iSon, jSon, k) / (Dist(index) ** IWDn) *     &
                                        IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k) * &
@@ -6556,8 +6539,8 @@ d5:     do k = klast + 1,KUB
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>feeds back info from son to father using the inverse weigthed distance method. routine for Z types
-    !>@param[in] FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeSon, Connections, &
-    !>                         Distances, DecayTime, DT, IgnoreOBCells, Nodes
+    !>@param[in] FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeSon, ILink, JLink, &
+    !>                         Connections, Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom
     subroutine FeedBack_IWD_WL (FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeSon, ILink, JLink, &
                                 Connections, Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom)
         !Arguments---------------------------------------------------------------------------------
@@ -6575,24 +6558,19 @@ d5:     do k = klast + 1,KUB
                                                              JUBSon, iSon, jSon, iFather, jFather
         !Begin----------------------------------------------------------------------------------------
 
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB
 
         do index = 1, Nodes ! ir buscar isto ao horizontal grid
 
-            iFather  = Connections (index, 1)
-            jFather  = Connections (index, 2)
-            iSon     = Connections (index, 3)
-            jSon     = Connections (index, 4)
+            iFather	= Connections (index, 1); iSon = Connections (index, 3)
+            jFather	= Connections (index, 2); jSon = Connections (index, 4)
 
             Nom(iFather, jFather, 1) = Nom(iFather, jFather, 1) + SonMatrix2D(iSon, jSon) / (Dist(index) ** IWDn) * &
                                                                   IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, 1)
 
             Denom(iFather, jFather, 1) = Denom(iFather, jFather, 1) + 1.e-5 / (Dist(index) ** IWDn) * &
                                                                   IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, 1)
-
         enddo
 
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
@@ -13374,8 +13352,7 @@ D2:     do I=imax-1,2,-1
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Computes volume to be added or removed due to upscaling discharge
-    !>@param[in] FatherU_old, FatherU, FatherV_old, FatherV, Volume, KUB, KFloorU, KFloorV, &
-    !>                                 AreaU, AreaV, CellsZ                                                          
+    !>@param[in] FatherU_old, FatherU, AreaU, UpscaleFlow, DischargeConnection                                                         
     subroutine ComputeDischargeVolumeU(FatherU_old, FatherU, AreaU, UpscaleFlow, DischargeConnection)
         !Arguments--------------------------------------------------------------------------
         real,    dimension(:, :, :), pointer, intent(IN)     :: FatherU, AreaU
@@ -13397,8 +13374,12 @@ D2:     do I=imax-1,2,-1
                 
             UpscaleFlow(line) = F_East + F_West
         enddo
-    end subroutine ComputeDischargeVolumeU
-        
+	end subroutine ComputeDischargeVolumeU
+	
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Computes volume to be added or removed due to upscaling discharge
+    !>@param[in] FatherU_old, FatherU, AreaU, UpscaleFlow, DischargeConnection 
     subroutine ComputeDischargeVolumeV(FatherV_old, FatherV, AreaV, UpscaleFlow, DischargeConnection)
         !Arguments--------------------------------------------------------------------------
         real,    dimension(:, :, :), pointer, intent(IN)     :: FatherV, AreaV

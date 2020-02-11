@@ -227,7 +227,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetGeometrySize (GeometryID = Me%ObjGeometry, Size = Me%Size, WorkSize = Me%WorkSize, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ConstructTwoWay - ERR01'
             
-           call GetHorizontalGridSize (HorizontalGridID = Me%ObjHorizontalGrid, Size = Me%Size2D, WorkSize = Me%WorkSize2D, STAT = STAT_CALL)
+           call GetHorizontalGridSize(HorizontalGridID=Me%ObjHorizontalGrid, Size=Me%Size2D, WorkSize=Me%WorkSize2D,&
+                STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ConstructTwoWay - ERR02'
 
             STAT_ = SUCCESS_
@@ -278,8 +279,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     subroutine ConstructTwoWayHydrodynamic (TwoWayID, TimeDecay, IntMethod, VelDT, DT, IgnoreOBNumCells, IWDn, DoCycleMethod, STAT)
         !Arguments------------------------------------------------------------
         integer                                     :: TwoWayID, & ! ID
-                                                       IntMethod !Method for grid interpolation from child to father grid 1-Volume Averaged; 2-Inverse Weighted Distance
-        integer                                     :: IgnoreOBNumCells ! number of Lines and columns ignored counting from an open boundary
+                                                       IntMethod 
+        integer                                     :: IgnoreOBNumCells ! number of cells ignored counting from an open boundary
         real                                        :: TimeDecay ! Decay factor in seconds, in the nudging equation
         real                                        :: VelDT, DT
         integer, optional, intent(OUT)              :: STAT 
@@ -292,7 +293,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            Me%Hydro%InterpolationMethod = IntMethod
+            Me%Hydro%InterpolationMethod = IntMethod 
+            !grid interpolation method from child to father grid 1-Volume Averaged; 2-Inverse Weighted Distance
             Me%Hydro%TimeDecay           = TimeDecay
             Me%Hydro%VelDT               = VelDT
             Me%Hydro%DT                  = DT
@@ -404,11 +406,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetGeometrySize (FatherTwoWayID, Size = Me%Father%Size, WorkSize = Me%Father%WorkSize, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - AllocateTwoWayAux - ERR10'
             
-           call GetHorizontalGridSize (HorizontalGridID = FatherTwoWayID,  Size = Me%Father%Size2D, WorkSize = Me%Father%WorkSize2D, STAT = STAT_CALL)
+           call GetHorizontalGridSize (HorizontalGridID = FatherTwoWayID,  Size = Me%Father%Size2D, &
+                                       WorkSize = Me%Father%WorkSize2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - AllocateTwoWayAux - ERR20'            
             
             ILB = Me%Father%WorkSize%ILB; JLB = Me%Father%WorkSize%JLB; KUB = Me%Father%WorkSize%KUB
-            IUB = Me%Father%WorkSize%IUB; JUB = Me%Father%WorkSize%JUB; KLB = Me%Father%WorkSize%KLB 
+            IUB = Me%Father%WorkSize%IUB; JUB = Me%Father%WorkSize%JUB
+            !adjust to number of layers in son domain
+            KLB = Me%Father%WorkSize%KLB + (Me%Father%WorkSize%KUB - Me%WorkSize%KUB) !Sobrinho
             
             if (Me%Hydro%InterpolationMethod == 1)then
                 allocate(Me%Father%TotSonIn   (ILB:IUB, JLB:JUB, KLB:KUB))
@@ -446,7 +451,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, intent(IN)                           :: SonID, dI, dJ !dI & dJ = Cell discharge location
         integer, intent(IN)                           :: Task
         integer,  dimension(:,:), pointer, intent(IN) :: Connections, SonWaterPoints, FatherWaterPoints
-        integer, dimension(:,:), pointer, intent(IN)  :: IZ, JZ !Connection between a Z son cell(i, j) and its father Z cell I/J component
+        integer, dimension(:,:), pointer, intent(IN)  :: IZ, JZ !Connection between a Z son cell and its father Z cell
         !Local-----------------------------------------------------------------
         integer                                       :: ready_, STAT_CALL !, VelID
         !----------------------------------------------------------------------
@@ -460,8 +465,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructUpscalingDischarges - Failed to get Father KfloorZ'
             
             if (Task == 1) then !find number of lines to allocate
-                call SearchDischargeFace(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ,  IZ, JZ, Me%Father%DischargeCells%n_U, &
-                                         Me%Father%DischargeCells%n_V, Me%Father%DischargeCells%n_Z, Me%Father%External_Var%KFloor_Z, Me%Father%WorkSize%KUB)
+                call SearchDischargeFace(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ,  IZ, JZ, &
+                                         Me%Father%DischargeCells%n_U, Me%Father%DischargeCells%n_V, &
+                                         Me%Father%DischargeCells%n_Z, Me%Father%External_Var%KFloor_Z, &
+                                         Me%Father%WorkSize%KUB)
                 !Me%Father%DischargeCells%n_U/V - son cells to be included in the calculation
             elseif (Task == 2) then ! allocate
                 
@@ -586,22 +593,23 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     if (VelocityID == VelocityU_) then
                         !if 3D matrixes were sent. Even 2D domains allocate a 3D matrix (only one vertical layer)
                         !Type_U
-                        call ComputeAuxMatrixes (Volume_3D = Me%External_Var%VolumeU, InterpolMethod = InterpolMethod, Ilink = Me%External_Var%IU, &
-                                                 Jlink = Me%External_Var%JU, VelocityID       = VelocityID)
+                        call ComputeAuxMatrixes (Volume_3D = Me%External_Var%VolumeU, InterpolMethod = InterpolMethod,&
+                                                 Ilink = Me%External_Var%IU, Jlink = Me%External_Var%JU, &
+                                                 VelocityID = VelocityID)
                     else
                         !Type_V
-                        call ComputeAuxMatrixes (Volume_3D = Me%External_Var%VolumeV, InterpolMethod = InterpolMethod, Ilink = Me%External_Var%IV, &
-                                                 Jlink = Me%External_Var%JV, VelocityID = VelocityID)
+                        call ComputeAuxMatrixes (Volume_3D = Me%External_Var%VolumeV, InterpolMethod = InterpolMethod,&
+                                                 Ilink = Me%External_Var%IV, Jlink = Me%External_Var%JV, VelocityID = VelocityID)
                     endif
                 else
                     !Type Z
-                    call ComputeAuxMatrixes     (Volume_3D = Me%External_Var%VolumeZ, InterpolMethod = InterpolMethod, Ilink = Me%External_Var%IZ, &
-                                                 Jlink = Me%External_Var%JZ)
+                    call ComputeAuxMatrixes     (Volume_3D = Me%External_Var%VolumeZ, InterpolMethod = InterpolMethod,&
+                                                 Ilink = Me%External_Var%IZ, Jlink = Me%External_Var%JZ)
                 endif
             else
                 !if a 2D matrix was sent (specific for waterLevel - at least for MohidWater).
-                call ComputeAuxMatrixes (Volume_2D = Me%External_Var%VolumeZ_2D, InterpolMethod = InterpolMethod, Ilink = Me%External_Var%IZ, &
-                                         Jlink = Me%External_Var%JZ)
+                call ComputeAuxMatrixes (Volume_2D = Me%External_Var%VolumeZ_2D, InterpolMethod = InterpolMethod, &
+                                         Ilink = Me%External_Var%IZ, Jlink = Me%External_Var%JZ)
             endif
 
             if (InterpolMethod == 1) then
@@ -643,8 +651,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 !For future developments (when other modules call for twoway)
             endif
             
-            call GetHorizontalGrid(HorizontalGridID = SonID, ILinkV = Me%External_Var%IV, JLinkV = Me%External_Var%JV, ILinkU = Me%External_Var%IU, &
-                                   JLinkU = Me%External_Var%JU, ILinkZ = Me%External_Var%IZ, JLinkZ = Me%External_Var%JZ, STAT   = STAT_CALL)
+            call GetHorizontalGrid(HorizontalGridID = SonID, ILinkV = Me%External_Var%IV, JLinkV = Me%External_Var%JV,&
+                                   ILinkU = Me%External_Var%IU, JLinkU = Me%External_Var%JU, &
+                                   ILinkZ = Me%External_Var%IZ, JLinkZ = Me%External_Var%JZ, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Son-Father link matrixes'
             
             Call GetGeometryAreas(SonID, AreaU = Me%External_Var%AreaU, AreaV = Me%External_Var%AreaV, STAT = STAT_CALL)
@@ -664,15 +673,20 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%Hydro%InterpolationMethod == 2) then
                 
                 call GetConnections (HorizontalGridID = SonID, Connections_U = Me%External_Var%IWD_Connections_U, &
-                                     IWD_Distances_U = Me%External_Var%IWD_Distances_U, Connections_V = Me%External_Var%IWD_Connections_V, &
-                                     IWD_Distances_V = Me%External_Var%IWD_Distances_V, Connections_Z = Me%External_Var%IWD_Connections_Z, &
-                                     IWD_Distances_Z = Me%External_Var%IWD_Distances_Z, IWD_Nodes_Z  = Me%External_Var%IWD_Nodes_Z,        &
-                                     IWD_Nodes_U = Me%External_Var%IWD_Nodes_U, IWD_Nodes_V = Me%External_Var%IWD_Nodes_V, STAT = STAT_CALL)
+                                     IWD_Distances_U = Me%External_Var%IWD_Distances_U, &
+                                     Connections_V = Me%External_Var%IWD_Connections_V, &
+                                     IWD_Distances_V = Me%External_Var%IWD_Distances_V, &
+                                     Connections_Z = Me%External_Var%IWD_Connections_Z, &
+                                     IWD_Distances_Z = Me%External_Var%IWD_Distances_Z, &
+                                     IWD_Nodes_Z  = Me%External_Var%IWD_Nodes_Z,        &
+                                     IWD_Nodes_U = Me%External_Var%IWD_Nodes_U,         &
+                                     IWD_Nodes_V = Me%External_Var%IWD_Nodes_V, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get IWD connections'
 
             endif                           
 
-            call GetGeometryAreas(FatherID, AreaU = Me%Father%External_Var%AreaU, AreaV = Me%Father%External_Var%AreaV, STAT = STAT_CALL)
+            call GetGeometryAreas(FatherID, AreaU = Me%Father%External_Var%AreaU, &
+                                  AreaV = Me%Father%External_Var%AreaV, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get father AreaU or AreaV matrix'
             
             call GetGridCellArea(HorizontalGridID = FatherID, GridCellArea = Me%Father%External_Var%AreaZ, STAT = STAT_CALL)
@@ -681,8 +695,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetOpenPoints3D   (Map_ID = FatherID, OpenPoints3D = Me%Father%External_Var%Open3D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father OpenPoints3D'
         
-            call GetGeometryVolumes(GeometryID = FatherID, VolumeU = Me%Father%External_Var%VolumeU, VolumeV = Me%Father%External_Var%VolumeV, &
-                                    VolumeZ    = Me%Father%External_Var%VolumeZ, VolumeZ_2D = Me%Father%External_Var%VolumeZ_2D, STAT = STAT_CALL)
+            call GetGeometryVolumes(GeometryID = FatherID, VolumeU = Me%Father%External_Var%VolumeU, &
+                                    VolumeV = Me%Father%External_Var%VolumeV, VolumeZ = Me%Father%External_Var%VolumeZ,&
+                                    VolumeZ_2D = Me%Father%External_Var%VolumeZ_2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father Volume U/V/2D matrixes'
             
             call GetComputeFaces3D(Map_ID          = FatherID, ComputeFacesU3D = Me%Father%External_Var%ComputeFaces3D_U, &
@@ -705,7 +720,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !---------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
-    !>Computes water volume variation from velocities at the Z cell faces.
+    !>Computes water volume variation from velocities at the Z cell faces (applied to the father domain).
     !>@param[in] MatrixNew, MatrixOld, DT, VelocityID
     subroutine UpscalingVolumeVariation (MatrixNew, MatrixOld, DT, VelocityID)
     !Arguments-------------------------------------------------------------
@@ -801,9 +816,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 ! Volume Weighted average
                 if (present(VelocityID))then
                     if (VelocityID == VelocityU_)then
-                        call ComputeSonVolInFather(Volume_3D = Volume_3D, Ilink = Ilink, Jlink = Jlink, SonComputeFaces = Me%External_Var%ComputeFaces3D_U)
+                        call ComputeSonVolInFather(Volume_3D = Volume_3D, Ilink = Ilink, Jlink = Jlink, &
+                                                   SonComputeFaces = Me%External_Var%ComputeFaces3D_U)
                     else
-                        call ComputeSonVolInFather(Volume_3D = Volume_3D, Ilink = Ilink, Jlink = Jlink, SonComputeFaces = Me%External_Var%ComputeFaces3D_V)
+                        call ComputeSonVolInFather(Volume_3D = Volume_3D, Ilink = Ilink, Jlink = Jlink, &
+                                                   SonComputeFaces = Me%External_Var%ComputeFaces3D_V)
                     endif
                 else
                     call ComputeSonVolInFather    (Volume_3D = Volume_3D, Ilink = Ilink, Jlink = Jlink)
@@ -840,10 +857,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, dimension(:, :), pointer              :: Ilink, Jlink
         integer, dimension(:, :, :), pointer, optional :: SonComputeFaces
         !Local variables--------------------------------------------------------------------------
-        integer                                 :: i, j, k, CHUNK, Flag
+        integer                                 :: i, j, k, ifather, jfather, kfather, k_difference, CHUNK, Flag
         !Begin------------------------------------------------------------------------------------
 
         if (present(Volume_3D)) then
+            !account for different amount of vertical layers between domains.
+            k_difference = Me%Father%WorkSize%KUB-Me%WorkSize%KUB
             CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
             !$OMP PARALLEL PRIVATE(i,j,k,Flag)
             if (present(SonComputeFaces))then
@@ -853,7 +872,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     Flag = Me%External_Var%Open3D(i, j, k) + Me%IgnoreOBCells(i, j) + SonComputeFaces(i, j, k)
                     if (Flag == 3) then
-                        Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) = Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k)
+                        ifather = ILink(i, j); jfather = JLink(i, j); kfather = k + k_difference
+                        Me%Father%TotSonIn(ifather, jfather, kfather) = Me%Father%TotSonIn(ifather, jfather, kfather) &
+                                                                        + Volume_3D(i, j, k)
                     endif
                 enddo
                 enddo
@@ -866,7 +887,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                     Flag = Me%External_Var%Open3D(i, j, k) + Me%IgnoreOBCells(i, j)
                     if (Flag == 2) then
-                        Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) = Me%Father%TotSonIn(ILink(i, j), JLink(i, j), k) + Volume_3D(i, j, k)
+                        ifather = ILink(i, j); jfather = JLink(i, j); kfather = k + k_difference
+                        Me%Father%TotSonIn(ifather, jfather, kfather) = Me%Father%TotSonIn(ifather, jfather, kfather) &
+                                                                       + Volume_3D(i, j, k)
                     endif
                 enddo        
                 enddo
@@ -879,7 +902,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             do i = Me%WorkSize%ILB, Me%WorkSize%IUB
                 Flag = Me%External_Var%Open3D(i, j, Me%WorkSize%KUB) + Me%IgnoreOBCells(i, j)
                 if (Flag == 2) then
-                    Me%Father%TotSonIn_2D(ILink(i, j), JLink(i, j)) = Me%Father%TotSonIn_2D(ILink(i, j), JLink(i, j)) + Volume_2D(i, j)
+                    Me%Father%TotSonIn_2D(ILink(i, j), JLink(i, j)) = Me%Father%TotSonIn_2D(ILink(i, j), JLink(i, j)) &
+                                                                      + Volume_2D(i, j)
                 endif
             enddo
             enddo            
@@ -1176,10 +1200,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_))then
             if (VelocityID == VelocityU_) then
                 call ComputeDischargeVolumeU(FatherU_old = Father_old, FatherU = Father, AreaU = Me%Father%External_Var%AreaU, &
-                                            UpscaleFlow = Me%Father%DischargeCells%Flow, DischargeConnection = Me%Father%DischargeCells%Z)
+                                            UpscaleFlow = Me%Father%DischargeCells%Flow, &
+                                            DischargeConnection = Me%Father%DischargeCells%Z)
             elseif (VelocityID == VelocityV_) then
                 call ComputeDischargeVolumeV(FatherV_old = Father_old, FatherV = Father, AreaV = Me%Father%External_Var%AreaV, &
-                                            UpscaleFlow = Me%Father%DischargeCells%Flow, DischargeConnection = Me%Father%DischargeCells%Z)
+                                            UpscaleFlow = Me%Father%DischargeCells%Flow, &
+                                            DischargeConnection = Me%Father%DischargeCells%Z)
             else
                 Write(*,*) 'Variable ID does not exist', VelocityID
                 stop 'UpscaleDischarge - ModuleTwoWay'
@@ -1218,8 +1244,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         AuxCell = 0
         do dis = 1 , DischargeNumber
             
-            call GetDischargeFlowDistribuiton(FatherID, DischargeIDNumber = dis, nCells = nCells, VectorI = VectorI, VectorJ = VectorJ, &
-                                              VectorK = VectorK, kmin = AuxKmin, kmax = AuxKmax, STAT = STAT_CALL)                
+            call GetDischargeFlowDistribuiton(FatherID, DischargeIDNumber = dis, nCells = nCells, VectorI = VectorI, &
+                                              VectorJ = VectorJ, VectorK = VectorK, kmin = AuxKmin, kmax = AuxKmax, &
+                                              STAT = STAT_CALL)                
             if (STAT_CALL/=SUCCESS_) stop 'UpscaleDischarge_WP - failed to get dischargeflowdistribution'
         
             if (IsUpscaling(FatherID, dis)) then

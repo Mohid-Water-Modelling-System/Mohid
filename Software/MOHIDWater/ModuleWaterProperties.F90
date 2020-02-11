@@ -1843,13 +1843,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer     :: iflag
         integer     :: status
         
-        call Read_Keyword_Logical_File(Me%PhreeqCOnlyForStart, iflag, 'PHREEQC_ONLY_START',  &
-                     default      = .false.,                    &
-                     ClientModule = 'ModuleWaterProperties',    &
-                     STAT         = status)
-        if (status /= SUCCESS_) &
-            call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR10')
-
         call GetData(Me%PhreeqCOnlyForStart,                    &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromFile,                   &
@@ -19332,7 +19325,8 @@ do1 :   do while (associated(PropertyX))
 
         call LocateObjFather(ObjFather, FatherWaterPropertiesID) !Gets father solution
         !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
-        call PrepTwoWay (SonID = SonWaterPropertiesID, FatherID = FatherWaterPropertiesID, CallerID = mWATERPROPERTIES_, STAT = STAT_CALL)
+        call PrepTwoWay (SonID = SonWaterPropertiesID, FatherID = FatherWaterPropertiesID, &
+                         CallerID = mWATERPROPERTIES_, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - failed PrepTwoWay'
         
         if (ObjFather%Coupled%UpscalingDischarge%Yes) then
@@ -19355,7 +19349,8 @@ do1 :   do while (associated(PropertyX))
                     !Assimilation of son domain into father domain
                         !Account for change in concentration
                         if (PropertyX%UpscalingSinkSource) &
-                            PropertyFather%UpscalingMassLoss(:,:,:) = PropertyFather%UpscalingMassLoss(:,:,:) + PropertyFather%Concentration(:,:,:)
+                            PropertyFather%UpscalingMassLoss(:,:,:) = PropertyFather%UpscalingMassLoss(:,:,:) &
+                                                                    + PropertyFather%Concentration(:,:,:)
 
                         call ModifyTwoWay (SonID            = SonWaterPropertiesID,                 &
                                            FatherMatrix     = PropertyFather%Concentration,         &
@@ -19367,15 +19362,17 @@ do1 :   do while (associated(PropertyX))
                         
                         if (ObjFather%Coupled%UpscalingDischarge%Yes) then
                             call UpscaleDischarge_WP(FatherID = FatherWaterPropertiesID,                 &
-                                                     Prop = PropertyFather%Concentration, PropVector = PropertyFather%DischConc,           &
-                                                     Flow = FatherFlow, FlowVector = ObjFather%Discharge%Flow,                             &
-                                                     dI = ObjFather%Discharge%i, dJ = ObjFather%Discharge%j, dK = ObjFather%Discharge%k,   &
-                                                     Kmin = ObjFather%Discharge%kmin, Kmax = ObjFather%Discharge%kmin, FirstTime = FirstTime)
+                                                     Prop = PropertyFather%Concentration, PropVector = PropertyFather%DischConc, &
+                                                     Flow = FatherFlow, FlowVector = ObjFather%Discharge%Flow, &
+                                                     dI = ObjFather%Discharge%i, dJ = ObjFather%Discharge%j, &
+                                                     dK = ObjFather%Discharge%k, Kmin = ObjFather%Discharge%kmin, &
+                                                     Kmax = ObjFather%Discharge%kmin, FirstTime = FirstTime)
                             FirstTime = .false.
                         endif
                         
                         if (PropertyX%UpscalingSinkSource) &
-                            PropertyFather%UpscalingMassLoss(:,:,:) = PropertyFather%UpscalingMassLoss(:,:,:) - PropertyFather%Concentration(:,:,:)
+                            PropertyFather%UpscalingMassLoss(:,:,:) = PropertyFather%UpscalingMassLoss(:,:,:) &
+                                                                    - PropertyFather%Concentration(:,:,:)
                     endif
                 endif
             else
@@ -19391,7 +19388,8 @@ do1 :   do while (associated(PropertyX))
 
         nullify (PropertyX)
 
-        call UngetTwoWayExternal_Vars(SonID = SonWaterPropertiesID, FatherID = FatherWaterPropertiesID, CallerID = mWATERPROPERTIES_, STAT = STAT_CALL)
+        call UngetTwoWayExternal_Vars(SonID = SonWaterPropertiesID, FatherID = FatherWaterPropertiesID, &
+                                      CallerID = mWATERPROPERTIES_, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR04.'
         
         if (ObjFather%Coupled%UpscalingDischarge%Yes) then
@@ -27040,22 +27038,11 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
     !--------------------------------------------------------------------------
 
     subroutine KillNoFluxInterior
-
         !Local-----------------------------------------------------------------
-
         !----------------------------------------------------------------------
-
-
         if (Me%NoFlux%ON) then
-
-            deallocate(Me%NoFlux%U)
-            deallocate(Me%NoFlux%V)
-            deallocate(Me%NoFlux%W)
-
+            deallocate(Me%NoFlux%U, Me%NoFlux%V, Me%NoFlux%W)
         endif
-
-
-
     end subroutine KillNoFluxInterior
 
     !--------------------------------------------------------------------------
@@ -27160,7 +27147,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
     subroutine Ready (WaterPropertiesID, ready_)
 
-
         !Arguments-------------------------------------------------------------
         integer                                     :: WaterPropertiesID
         integer                                     :: ready_
@@ -27249,42 +27235,6 @@ cd1:    if (WaterPropertiesID > 0) then
         if (.not. associated(ObjWaterPropertiesFather)) call CloseAllAndStop ('ModuleWaterProperties - LocateObjFather - ERR01')
 
     end subroutine LocateObjFather
-    
-    !>@author Joao Sobrinho Maretec
-    !>@Brief
-    !>Reads and saves user "real" type keyword. Serves as interface to module enterdata
-    !>@param[in] Variable, iflag, Keyword, Default, STAT_CALL
-    subroutine Read_Keyword_Real(Variable, iflag, Keyword, Default, STAT_CALL)
-        !Arguments----------------------------------------------
-        real, intent(OUT)               :: Variable
-        character(LEN = *), intent(IN ) :: Keyword
-        real, intent(IN)                :: Default
-        logical, intent(INOUT)          :: STAT_CALL
-        integer, intent(INOUT)          :: iflag
-        !Begin-----------------------------------------------------------------------
-        
-        call GetData(Variable, Me%ObjEnterData, iflag, SearchType = FromBlock, keyword = Keyword, &
-                        ClientModule ='ModuleWaterProperties', STAT = STAT_CALL)
-        
-    end subroutine Read_Keyword_Real
-    
-    !>@author Joao Sobrinho Maretec
-    !>@Brief
-    !>Reads and saves user "logical" type keyword. Serves as interface to module enterdata
-    !>@param[in] Variable, iflag, Keyword, Default, STAT_CALL
-    subroutine Read_Keyword_Logical_File(Variable, iflag, Keyword, Default, STAT_CALL)
-        !Arguments----------------------------------------------
-        logical, intent(OUT)            :: Variable
-        character(LEN = *), intent(IN ) :: Keyword
-        logical, intent(IN)             :: Default
-        logical, intent(INOUT)          :: STAT_CALL
-        integer, intent(INOUT)          :: iflag
-        !Begin-----------------------------------------------------------------------
-        
-        call GetData(Variable, Me%ObjEnterData, iflag, SearchType = FromBlock, keyword = Keyword, &
-                        ClientModule ='ModuleWaterProperties', STAT = STAT_CALL)
-        
-    end subroutine Read_Keyword_Logical_File
 
 #ifdef _OPENMI_
 

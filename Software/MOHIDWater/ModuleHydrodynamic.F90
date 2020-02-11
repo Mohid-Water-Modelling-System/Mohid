@@ -8515,7 +8515,7 @@ cd21:   if (Baroclinic) then
             if (STAT_CALL /= SUCCESS_)                                                      &
                 call SetError(FATAL_, INTERNAL_, 'Construct_Numerical_Options - Hydrodynamic - ERR1221a')
             
-            if (Me%ComputeOptions%GlobalOptimization)
+            if (Me%ComputeOptions%GlobalOptimization) &
             write(*,*) 'Keyword GLOBAL_OPT has been deprecated, please replace with USE_OPTIMIZATIONS' 
         endif
         
@@ -10439,24 +10439,17 @@ i3:                 if (SpatialEmission == DischPoint_) then
                                     !Set in Modules Discharges InterceptionRatio
                                     call SetDischargeInterceptionRatio(Me%ObjDischarges, dn, InterceptionRatio,     &
                                                                        STAT = STAT_CALL)
-                                    if (STAT_CALL /= SUCCESS_)  then
-                                        stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR300'
-                                    endif
+                                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR300'
 
                                     write(*,*) 'InterceptionRatio =',Me%DDecomp%MPI_ID, InterceptionRatio
 
                                     call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,           &
                                                              Polygon          = ModelDomainLimit,               &
                                                              STAT             = STAT_CALL)
-                                    if (STAT_CALL /= SUCCESS_)  then
-                                        stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR310'
-                                    endif
+                                    if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR310'
 
                                 endif
-
-
                             endif
-
                         endif
 
                     endif i3
@@ -10476,9 +10469,7 @@ c1:                 select case (DischVertical)
                         case (DischBottom_)
 
 n1:                         do nC =1, nCells
-
                                 VectorK(nC) = Me%External_Var%Kfloor_Z(VectorI(nC), VectorJ(nC))
-
                             enddo n1
 
                         case (DischSurf_)
@@ -10700,10 +10691,8 @@ i7:             if (.not. ContinuousGOTM)  then
 #ifdef OVERLAP
     subroutine ConstructHydroOverlap
 
-
         !Local-----------------------------------------------------------------
         integer                            :: STAT_CALL, iflag
-
         !----------------------------------------------------------------------
 
         call GetData(Me%ComputeOptions%Overlap,                                         &
@@ -10716,10 +10705,8 @@ i7:             if (.not. ContinuousGOTM)  then
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'ConstructHydroOverlap - ModuleHydrodynamic - ERR01'
 
-
     end subroutine ConstructHydroOverlap
 #endif OVERLAP
-
 
 
     !End----------------------------------------------------------------------
@@ -10917,9 +10904,6 @@ i7:             if (.not. ContinuousGOTM)  then
 
     !--------------------------------------------------------------------------
 
-
-
-
     !--------------------------------------------------------------------------
 
     subroutine StartOutputBoxFluxes
@@ -10942,14 +10926,8 @@ i7:             if (.not. ContinuousGOTM)  then
 
         !----------------------------------------------------------------------
 
-        ILB = Me%Size%ILB
-        IUB = Me%Size%IUB
-
-        JLB = Me%Size%JLB
-        JUB = Me%Size%JUB
-
-        KLB = Me%Size%KLB
-        KUB = Me%Size%KUB
+        ILB = Me%Size%ILB; JLB = Me%Size%JLB; KLB = Me%Size%KLB
+        IUB = Me%Size%IUB; JUB = Me%Size%JUB; KUB = Me%Size%KUB
 
         call GetWaterPoints3D(Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'StartOutputBoxFluxes - ModuleHydrodynamic - ERR01'
@@ -11099,7 +11077,6 @@ cd5 :           if (opened) then
         endif
 
 
-
         call GetOutPutTime(Me%ObjEnterData,                                             &
                            CurrentTime  = Me%CurrentTime,                               &
                            EndTime      = Me%EndTime,                                   &
@@ -11187,25 +11164,17 @@ cd5 :           if (opened) then
             allocate(Me%OutW%OriginalCorners(Me%OutW%WindowsNumber))
 
 
-            KLB = Me%WorkSize%KLB
-            KUB = Me%WorkSize%KUB
+            KLB = Me%WorkSize%KLB; KUB = Me%WorkSize%KUB
+            
 
             do iW = 1, Me%OutW%WindowsNumber
 
                 if (Me%DDecomp%MasterOrSlave) then
-
-                    ILB = Me%DDecomp%Global%ILB
-                    IUB = Me%DDecomp%Global%IUB
-                    JLB = Me%DDecomp%Global%JLB
-                    JUB = Me%DDecomp%Global%JUB
-
+                    ILB = Me%DDecomp%Global%ILB; JLB = Me%DDecomp%Global%JLB
+                    IUB = Me%DDecomp%Global%IUB; JUB = Me%DDecomp%Global%JUB
                 else
-
-                    ILB = Me%WorkSize%ILB
-                    IUB = Me%WorkSize%IUB
-                    JLB = Me%WorkSize%JLB
-                    JUB = Me%WorkSize%JUB
-
+                    ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB
+                    IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB
                 endif
 
                 if (Me%OutW%OutPutWindows(iW)%KLB < KLB .or.                            &
@@ -11330,15 +11299,8 @@ cd5 :           if (opened) then
 
         !Begin----------------------------------------------------------------
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
-
+        ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB; KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB; KUB = Me%WorkSize%KUB
 
         !The open boundary module must be initialised here because the OpenBoundary is
         !used in this subroutine to estimate the initial water level.
@@ -11353,8 +11315,7 @@ cd5 :           if (opened) then
                                    Me%ComputeOptions%InvertBaromSomeBound,              &
                                    Me%ComputeOptions%InvertBarometerCells,              &
                                    STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ConstructHydrodynamicProperties; ModuleHydrodynamic. ERR10.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ConstructHydrodynamicProperties; ModuleHydrodynamic. ERR10.'
 
 do1:    do  j=JLB, JUB
 do2:    do  i=ILB, IUB
@@ -11397,51 +11358,33 @@ cd1:    if (Me%ComputeOptions%Continuous) then
 
 
 cd2:        if (Me%ComputeOptions%Num_Discretization == Leendertse) then
-
                 !By default the previous direction is X to alow the model start
                 !the calculations in X direction when using the Leendertse Scheme
                 Me%Direction%XY = DirectionX_
                 Me%Direction%YX = DirectionY_
 
             else if (Me%ComputeOptions%Num_Discretization == Abbott) then cd2
-
-
                 !By default the previous direction is Y to alow the model start
                 !the calculations in X direction when using the Abbott Scheme
                 Me%Direction%XY = DirectionY_
                 Me%Direction%YX = DirectionX_
 
-
             endif cd2
-
-
+            
             if      (Me%ComputeOptions%Vertical_AxiSymmetric_Model == DirectionX_) then
-
                 Me%Direction%XY = DirectionX_
                 Me%Direction%YX = DirectionY_
-
             else if (Me%ComputeOptions%Vertical_AxiSymmetric_Model == DirectionY_) then
-
                 Me%Direction%XY = DirectionY_
                 Me%Direction%YX = DirectionX_
-
             endif
 
             !Gets Bathymetry
-            call GetGridData(Me%ObjGridData, &
-                               Bathymetry, STAT = STAT_CALL)
+            call GetGridData(Me%ObjGridData,  Bathymetry, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ConstructHydrodynamicProperties - ModuleHydrodynamic - ERR20'
 
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'ConstructHydrodynamicProperties - ModuleHydrodynamic - ERR20'
-
-
-            call GetGeometryMinWaterColumn(Me%ObjGeometry, &
-                                           MinWaterColumn, STAT = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'ConstructHydrodynamicProperties - ModuleHydrodynamic - ERR30'
-
-
+            call GetGeometryMinWaterColumn(Me%ObjGeometry,  MinWaterColumn, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ConstructHydrodynamicProperties - ModuleHydrodynamic - ERR30'
 
             !Water elevation initialization
             call Modify_OpenBoundary(Me%ObjOpenBoundary,                                &
@@ -11451,78 +11394,52 @@ cd2:        if (Me%ComputeOptions%Num_Discretization == Leendertse) then
                                      Me%ComputeOptions%InvertBaroCoef,                  &
                                      Me%ComputeOptions%AtmSeaLevelReference,            &
                                      STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)  stop 'ConstructHydrodynamicProperties - ModuleHydrodynamic - ERR40'
 
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'ConstructHydrodynamicProperties - ModuleHydrodynamic - ERR40'
+            call GetAverageImposedElevation (Me%ObjOpenBoundary,  AverageBoundaryElevation, STAT =STAT_CALL )
 
-            call GetAverageImposedElevation (Me%ObjOpenBoundary, &
-                                             AverageBoundaryElevation, STAT =STAT_CALL )
-
-            if (STAT_CALL /= SUCCESS_)                                        &
-                stop 'ConstructHydrodynamicProperties - ModuleHydrodynamic - ERR50'
-
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHydrodynamicProperties - ModuleHydrodynamic - ERR50'
 
 cd3:        if (Me%ComputeOptions%InitialElevation) then
-
                 InteriorElevation = Me%WaterLevel%Default
-
             else  cd3
-
                 InteriorElevation = AverageBoundaryElevation
-
             endif cd3
 
             !Gets WaterPoints2D
-            call GetWaterPoints2D(Me%ObjHorizontalMap, &
-                                  Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'ConstructHydrodynamicProperties - ModuleHydrodynamic - ERR60'
-
+            call GetWaterPoints2D(Me%ObjHorizontalMap,  Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHydrodynamicProperties - ModuleHydrodynamic - ERR60'
 
 do4:        do  j=JLB, JUB
 do5:        do  i=ILB, IUB
-
 cd4:            if (Me%External_Var%WaterPoints2D(i, j) == WaterPoint) then
-
 cd5:                if (InteriorElevation > (- Bathymetry(i, j) + MinWaterColumn)) then
 
                         Me%WaterLevel%New(i, j) =  InteriorElevation
 
                     else  cd5
-
                         !The next line is changed to avoid rounding erros.
                         !Frank Jan 2001
 !                        Me%WaterLevel%New(i, j) =  - Bathymetry(i, j) + MinWaterColumn
                         Me%WaterLevel%New(i, j) =  - Bathymetry(i, j) + 0.999 * MinWaterColumn
 
                     endif cd5
-
                     Me%WaterLevel%Old(i, j) = Me%WaterLevel%New(i, j)
-
                 endif cd4
-
             enddo do5
             enddo do4
 
             !UnGets WaterPoints2D
-            call UnGetHorizontalMap(Me%ObjHorizontalMap, &
-                                  Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'ConstructHydrodynamicProperties - ModuleHydrodynamic - ERR70'
-
+            call UnGetHorizontalMap(Me%ObjHorizontalMap,  Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHydrodynamicProperties - ModuleHydrodynamic - ERR70'
 
 cd6:        if (Me%ComputeOptions%Residual) then
-
 do8:            do  j=JLB, JUB
 do9:            do  i=ILB, IUB
-
                     Me%Residual%WaterLevel(i, j) = Me%WaterLevel%New(i, j)
-
                 enddo do9
                 enddo do8
-
             endif cd6
-
 
             ! Z direction
 do10:       do  k=KLB, KUB+1
@@ -11530,20 +11447,13 @@ do11:       do  j=JLB, JUB
 do12:       do  i=ILB, IUB
 
                 Me%WaterFluxes%Z(i, j, k) =    0.
-
                 if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_)  then
-
                     Me%VelBaroclinic%W_New   (i, j, k) =   0.
                     Me%VelBaroclinic%W_Old   (i, j, k) =   0.
-
                 endif
-
-
 cd7:            if (Me%ComputeOptions%Residual) then
-
                     !Vertical velocity
                     Me%Residual%Vertical_Velocity (i, j, k) = 0.
-
                 endif cd7
 
             enddo do12
@@ -11558,43 +11468,32 @@ cd7:            if (Me%ComputeOptions%Residual) then
 
             endif
 
-
             !X direction
 do13:       do  k=KLB, KUB
 do14:       do  j=JLB, JUB + 1
 do15:       do  i=ILB, IUB
 
                 !Horizontal Velocity
-                Me%Velocity%Horizontal%U%New(i, j, k) =                     &
-                    Me%Velocity%Horizontal%U%Default
+                Me%Velocity%Horizontal%U%New(i, j, k) = Me%Velocity%Horizontal%U%Default
 
                 !Water fluxes D3
-                Me%WaterFluxes%X(i, j, k)             =   0.
+                Me%WaterFluxes%X(i, j, k) =   0.
 
                 if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_)  then
-
                     Me%VelBaroclinic%U%New(i, j, k) =   0.
                     Me%VelBaroclinic%U%Old(i, j, k) =   0.
-
                 endif
 
-
-
 cd8:            if (Me%ComputeOptions%Residual) then
-
-
                     !Horizontal velocity
                     Me%Residual%Velocity_U(i, j, k)   =   0.
-
                     !Residual specific water fluxes
                     Me%Residual%WaterFlux_X(i, j, k)  =   0.
-
                 endif cd8
 
             enddo do15
             enddo do14
             enddo do13
-
 
             ! Y direction
 do16:       do  k=KLB, KUB
@@ -11604,49 +11503,33 @@ do18:       do  i=ILB, IUB + 1
                 !Horizontal Velocity
                 Me%Velocity%Horizontal%V%New(i, j, k) = Me%Velocity%Horizontal%V%Default
 
-
-
                 !Water fluxes D3
-                Me%WaterFluxes%Y(i, j, k)                =   0.
+                Me%WaterFluxes%Y(i, j, k) =   0.
 
                 if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_)  then
-
                     Me%VelBaroclinic%V%New(i, j, k) =   0.
                     Me%VelBaroclinic%V%Old(i, j, k) =   0.
-
                 endif
-
-
+                
 cd9:            if (Me%ComputeOptions%Residual) then
-
                     !Horizontal velocity
                     Me%Residual%Velocity_V (i, j, k)  =   0.
-
                     !Residual water fluxes
                     Me%Residual%WaterFlux_Y(i, j, k)  =   0.
-
                 endif cd9
 
             enddo do18
             enddo do17
             enddo do16
 
-
             !Disposes pointer to the Bathymetry
             call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'ConstructHydrodynamicProperties - ModuleHydrodynamic - ERR80'
-
-
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHydrodynamicProperties - ModuleHydrodynamic - ERR80'
 
         endif cd1
 
-
-
-
         !If the hydrodynamic is read from a file
         Evolution = Me%ComputeOptions%Evolution
-
 
 cd10:   if (Evolution == Read_File_) then
             call GetHydrodynamicFileIOState(InputStateEx = InputStateEx)
@@ -11672,39 +11555,25 @@ cd10:   if (Evolution == Read_File_) then
                                         InitialComputeFacesV3D,                         &
                                         STAT = STAT_CALL)
 
-             if (STAT_CALL /= SUCCESS_)                                                 &
-                stop 'Subroutine ConstructHydrodynamicProperties - ModuleHydrodynamic. ERR90.'
+             if (STAT_CALL /= SUCCESS_) stop 'Subroutine ConstructHydrodynamicProperties - ModuleHydrodynamic. ERR90.'
 
              call SetComputesFaces3D(Me%ObjMap,                                         &
                                 InitialComputeFacesU3D,                                 &
                                 InitialComputeFacesV3D,                                 &
-                                Me%CurrentTime,                                         &
-                                STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine ConstructHydrodynamicProperties - ModuleHydrodynamic. ERR100.'
+                                Me%CurrentTime, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ConstructHydrodynamicProperties - ModuleHydrodynamic. ERR100.'
 
             nullify(InitialComputeFacesU3D, InitialComputeFacesV3D)
-
         endif cd10
 
-        if(Me%ComputeOptions%Obstacle)then
-
-            call ConstructDragCoefficients
-
-        end if
-
-        if (Me%ComputeOptions%Scraper) then
-
-            call ConstructScraper
-
-        endif
+        if (Me%ComputeOptions%Obstacle) call ConstructDragCoefficients
+        if (Me%ComputeOptions%Scraper) call ConstructScraper
 
         !------------------------------------------------------------------------
 
     end subroutine ConstructHydrodynamicProperties
 
     !----------------------------------------------------------------------------
-
 
     !----------------------------------------------------------------------------
 
@@ -11719,35 +11588,24 @@ cd10:   if (Evolution == Read_File_) then
 
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_U, ComputeFaces3D_V
         integer, dimension(:,:),   pointer :: KFloor_U, KFloor_V
-
         integer                            :: I, J, K, Kbottom
-
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB, Grid, Evolution
-
         !--------------------------------------------------------------------------
 
         !If the hydrodynamic is read from a file
         Evolution = Me%ComputeOptions%Evolution
 
-
         !PCL
 cd1:    if (.not. Me%ComputeOptions%Continuous .and.                        &
             .not. Evolution == Read_File_ .and. Me%Relaxation%Velocity )  then
 
-
             !To let the model take access to the Mapping and geometry variables
             call ReadLock_External_Modules
 
-
             !Begin - Shorten variables name
-            IUB = Me%WorkSize%IUB
-            ILB = Me%WorkSize%ILB
-            JUB = Me%WorkSize%JUB
-            JLB = Me%WorkSize%JLB
-            KUB = Me%WorkSize%KUB
-            KLB = Me%WorkSize%KLB
-
-
+            IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB; KUB = Me%WorkSize%KUB
+            ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB; KLB = Me%WorkSize%KLB
+            
             WaterFlux_X      => Me%WaterFluxes%X
             WaterFlux_Y      => Me%WaterFluxes%Y
 
@@ -11763,27 +11621,21 @@ cd1:    if (.not. Me%ComputeOptions%Continuous .and.                        &
             Area_U           => Me%External_Var%Area_U
             Area_V           => Me%External_Var%Area_V
 
-
             !End - Shorten variables name
 
             call SetMatrixValue(WaterFlux_X, Me%WorkSize, dble(0.0))
 
         doj: do j = JLB, JUB
         doi: do i = ILB, IUB
-
         Cov1:   if (ComputeFaces3D_U(I, J, KUB) == Covered) then
-
+            
                     Kbottom = KFloor_U(i, j)
-
+                    
         dok:        do  k = Kbottom, KUB
-
                         ![m^3/s]              = [ ] * [m/s] * [m^2]
-                        WaterFlux_X(i, j, k) = Velocity_U(i, j, k) * &
-                                                dble(Area_U(i, j, k))
+                        WaterFlux_X(i, j, k) = Velocity_U(i, j, k) * dble(Area_U(i, j, k))
                     enddo dok
-
                 endif Cov1
-
             enddo doi
             enddo doj
 
@@ -11791,37 +11643,24 @@ cd1:    if (.not. Me%ComputeOptions%Continuous .and.                        &
 
         doj1: do j = JLB, JUB
         doi1: do i = ILB, IUB
-
         Cov2:   if (ComputeFaces3D_V(I, J, KUB) == Covered) then
 
                     Kbottom = KFloor_V(i, j)
 
         dok1:        do  k = Kbottom, KUB
-
                         ![m^3/s]              = [ ] * [m/s] * [m^2]
-                        WaterFlux_Y(i, j, k) = Velocity_V(i, j, k) * &
-                                                dble(Area_V(i, j, k))
+                        WaterFlux_Y(i, j, k) = Velocity_V(i, j, k) *  dble(Area_V(i, j, k))
                     enddo dok1
-
                 endif Cov2
-
             enddo doi1
             enddo doj1
 
             !Nullify auxiliar variables
-            nullify (WaterFlux_X)
-            nullify (WaterFlux_Y)
-            nullify (Velocity_U)
-            nullify (Velocity_V)
-
-            nullify (ComputeFaces3D_U)
-            nullify (ComputeFaces3D_V)
-
-            nullify (KFloor_U)
-            nullify (KFloor_V)
-
-            nullify (Area_U)
-            nullify (Area_V)
+            nullify (WaterFlux_X, WaterFlux_Y)
+            nullify (Velocity_U, Velocity_V)
+            nullify (ComputeFaces3D_U, ComputeFaces3D_V)
+            nullify (KFloor_U, KFloor_V)
+            nullify (Area_U, Area_V)
 
             call ModifyWaterDischarges
 
@@ -11833,7 +11672,6 @@ cd1:    if (.not. Me%ComputeOptions%Continuous .and.                        &
             call ReadUnLock_External_Modules
 
         endif cd1
-
 
         !This is necessary because the Residual Vertical flux is not been compute
 cd2:    if (Me%ComputeOptions%Evolution == Residual_hydrodynamic_ .or.      &
@@ -11850,7 +11688,6 @@ cd2:    if (Me%ComputeOptions%Evolution == Residual_hydrodynamic_ .or.      &
             call ReadUnLock_External_Modules
 
         endif cd2
-
 
     end subroutine InitialReferenceWaterFluxes
 
@@ -11869,9 +11706,7 @@ cd2:    if (Me%ComputeOptions%Evolution == Residual_hydrodynamic_ .or.      &
         integer, dimension(:,:),   pointer :: KFloor_U, KFloor_V
 
         integer                            :: I, J, K, Kbottom
-
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB, Evolution, Grid
-
         !--------------------------------------------------------------------------
 
         !If the hydrodynamic is read from a file
@@ -11882,16 +11717,10 @@ cd1:    if (Evolution == Read_File_) then
             !To let the model take access to the Mapping and geometry variables
             call ReadLock_External_Modules
 
-
             !Begin - Shorten variables name
-            IUB = Me%WorkSize%IUB
-            ILB = Me%WorkSize%ILB
-            JUB = Me%WorkSize%JUB
-            JLB = Me%WorkSize%JLB
-            KUB = Me%WorkSize%KUB
-            KLB = Me%WorkSize%KLB
-
-
+            IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB; KUB = Me%WorkSize%KUB
+            ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB; KLB = Me%WorkSize%KLB
+            
             WaterFlux_X      => Me%WaterFluxes%X
             WaterFlux_Y      => Me%WaterFluxes%Y
 
@@ -11906,69 +11735,45 @@ cd1:    if (Evolution == Read_File_) then
 
             Area_U           => Me%External_Var%Area_U
             Area_V           => Me%External_Var%Area_V
-
-
             !End - Shorten variables name
-
-
 
             Velocity_U(:,:,:) = 0.
 
         doj: do j = JLB, JUB
         doi: do i = ILB, IUB
-
         Cov1:   if (ComputeFaces3D_U(I, J, KUB) == Covered) then
 
                     Kbottom = KFloor_U(i, j)
 
         dok:        do  k = Kbottom, KUB
-
                         ! [m/s]               = [m^3/s] / [m^2]
-                        Velocity_U(i, j, k)   = real(WaterFlux_X(i, j, k) /              &
-                                                dble(Area_U(i, j, k)))
+                        Velocity_U(i, j, k)   = real(WaterFlux_X(i, j, k) / dble(Area_U(i, j, k)))
                     enddo dok
-
                 endif Cov1
-
             enddo doi
             enddo doj
-
 
             Velocity_V(:,:,:) = 0.
 
         doj1: do j = JLB, JUB
         doi1: do i = ILB, IUB
-
         Cov2:   if (ComputeFaces3D_V(I, J, KUB) == Covered) then
-
                     Kbottom = KFloor_V(i, j)
 
         dok1:        do  k = Kbottom, KUB
-
                         ! [m/s]               = [m^3/s] / [m^2]
-                        Velocity_V(i, j, k)   = real(WaterFlux_Y(i, j, k) /              &
-                                                dble(Area_V(i, j, k)))
+                        Velocity_V(i, j, k)   = real(WaterFlux_Y(i, j, k) / dble(Area_V(i, j, k)))
                     enddo dok1
-
                 endif Cov2
-
             enddo doi1
             enddo doj1
 
             !Nullify auxiliar variables
-            nullify (WaterFlux_X)
-            nullify (WaterFlux_Y)
-            nullify (Velocity_U)
-            nullify (Velocity_V)
-
-            nullify (ComputeFaces3D_U)
-            nullify (ComputeFaces3D_V)
-
-            nullify (KFloor_U)
-            nullify (KFloor_V)
-
-            nullify (Area_U)
-            nullify (Area_V)
+            nullify (WaterFlux_X, WaterFlux_Y)
+            nullify (Velocity_U, Velocity_V)
+            nullify (ComputeFaces3D_U, ComputeFaces3D_V)
+            nullify (KFloor_U, KFloor_V)
+            nullify (Area_U, Area_V)
 
             call ModifyWaterDischarges
 
@@ -11981,24 +11786,17 @@ cd1:    if (Evolution == Read_File_) then
 
         endif cd1
 
-
     end subroutine InitialHydrodynamicFileVel
 
 
     !----------------------------------------------------------------------------
 
     subroutine NewEqualsOld
-
         !Arguments------------------------------------------------------------
-
-
         !Local---------------------------------------------------------------------
-
-            Me%Velocity%Horizontal%U%Old(:,:,:) = Me%Velocity%Horizontal%U%New(:,:,:)
-            Me%Velocity%Horizontal%V%Old(:,:,:) = Me%Velocity%Horizontal%V%New(:,:,:)
-
-            Me%WaterLevel%Old(:,:)              = Me%WaterLevel%New(:,:)
-
+        Me%Velocity%Horizontal%U%Old(:,:,:) = Me%Velocity%Horizontal%U%New(:,:,:)
+        Me%Velocity%Horizontal%V%Old(:,:,:) = Me%Velocity%Horizontal%V%New(:,:,:)
+        Me%WaterLevel%Old(:,:)              = Me%WaterLevel%New(:,:)
     end subroutine NewEqualsOld
 
 !-----------------------------------------------------------------------------
@@ -12007,7 +11805,6 @@ cd1:    if (Evolution == Read_File_) then
 
         !Arguments------------------------------------------------------------
         real, dimension(:,:), pointer, optional  :: ExternalWaterLevel
-
         !Local----------------------------------------------------------------
         integer, dimension(:,:,:), pointer  :: WaterPoints3D
         real,    dimension(:,:  ), pointer  :: SurfaceElevation, Bathymetry
@@ -12015,23 +11812,18 @@ cd1:    if (Evolution == Read_File_) then
         type(T_Time)                        :: CurrentTime
         logical                             :: Continuous_Compute
         integer                             :: STAT_CALL, i, j
-
         !Begin----------------------------------------------------------------
 
         CurrentTime = Me%CurrentTime
 
-        call GetWaterPoints3D(Me%ObjMap, WaterPoints3D,                                 &
-                              STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            Stop 'Sub. Initial_Geometry - ModuleHydrodynamic - ERR10.'
+        call GetWaterPoints3D(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) Stop 'Sub. Initial_Geometry - ModuleHydrodynamic - ERR10.'
 
         if (present(ExternalWaterLevel) .and. Me%WaterLevel%InitalizedByFile) then
-
             write(*,*) 'Sub. Initial_Geometry - ModuleHydrodynamic - WARN10.'
             write(*,*) 'When a water level field is define using a file it is assume that'
             write(*,*) 'the field define via file is more consistent from the one interpolated directly'
             write(*,*) 'from the father model'
-
         endif
 
         if (present(ExternalWaterLevel) .and. .not. Me%WaterLevel%InitalizedByFile) then
@@ -12043,18 +11835,14 @@ cd1:    if (Evolution == Read_File_) then
 
             !Gets Bathymetry
             call GetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                Stop 'Sub. Initial_Geometry - ModuleHydrodynamic - ERR20.'
+            if (STAT_CALL /= SUCCESS_) Stop 'Sub. Initial_Geometry - ModuleHydrodynamic - ERR20.'
 
             call GetGeometryMinWaterColumn(Me%ObjGeometry, MinWaterColumn, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                Stop 'Sub. Initial_Geometry - ModuleHydrodynamic - ERR30.'
+            if (STAT_CALL /= SUCCESS_) Stop 'Sub. Initial_Geometry - ModuleHydrodynamic - ERR30.'
 
 do4:        do  j=Me%WorkSize%JLB, Me%WorkSize%JUB
 do5:        do  i=Me%WorkSize%ILB, Me%WorkSize%IUB
-
 cd4:            if (WaterPoints3D(i, j, Me%WorkSize%KUB) == WaterPoint) then
-
 cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * MinWaterColumn)) then
                         SurfaceElevation(i,j) =  - Bathymetry(i, j) + 0.999 * MinWaterColumn
                     endif cd5
@@ -12064,13 +11852,10 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
 
             !UnGets Bathymetry
             call UnGetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                Stop 'Sub. Initial_Geometry - ModuleHydrodynamic - ERR40.'
+            if (STAT_CALL /= SUCCESS_) Stop 'Sub. Initial_Geometry - ModuleHydrodynamic - ERR40.'
 
         else
-
             SurfaceElevation   => Me%WaterLevel%New
-
         endif
 
         Continuous_Compute =  Me%ComputeOptions%Continuous
@@ -12082,21 +11867,14 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
                                     ContinuesCompute = Continuous_Compute,              &
                                     NonHydrostatic   = Me%NonHydrostatic%ON,            &
                                     STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            Stop 'Sub. Initial_Geometry - ModuleHydrodynamic - ERR50.'
-
+        if (STAT_CALL /= SUCCESS_) Stop 'Sub. Initial_Geometry - ModuleHydrodynamic - ERR50.'
 
         call UnGetMap(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            Stop 'Sub. Initial_Geometry - ModuleHydrodynamic - ERR60.'
-
+        if (STAT_CALL /= SUCCESS_) Stop 'Sub. Initial_Geometry - ModuleHydrodynamic - ERR60.'
 
         !Update the moving boundary (boundary of the tidal areas covered)
-        call UpdateComputeFaces3D(Me%ObjMap, SurfaceElevation,                          &
-                                  CurrentTime, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) then
-            stop 'Subroutine Initial_Geometry - ModuleHydrodynamic. ERR70.'
-        endif
+        call UpdateComputeFaces3D(Me%ObjMap, SurfaceElevation, CurrentTime, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'Subroutine Initial_Geometry - ModuleHydrodynamic. ERR70.'
 
         nullify(SurfaceElevation)
 
@@ -12116,9 +11894,7 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
         character (Len = PathLength)                :: FileName
         character (Len = StringLength)              :: AuxChar
         integer                                     :: STAT_CALL
-        integer                                     :: WorkILB, WorkIUB
-        integer                                     :: WorkJLB, WorkJUB
-        integer                                     :: WorkKLB, WorkKUB
+        integer                                     :: WorkILB, WorkIUB, WorkJLB, WorkJUB, WorkKLB, WorkKUB
         integer                                     :: HDF5_CREATE, ObjHDF5, i, n, j
         logical                                     :: SimpleOutPut, OutputOk
 
@@ -12133,20 +11909,12 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
 
         if (present(iW)) then
 
-            WorkILB = Me%OutW%OutPutWindows(iW)%ILB
-            WorkIUB = Me%OutW%OutPutWindows(iW)%IUB
+            WorkILB = Me%OutW%OutPutWindows(iW)%ILB; WorkJLB = Me%OutW%OutPutWindows(iW)%JLB
+            WorkIUB = Me%OutW%OutPutWindows(iW)%IUB; WorkJUB = Me%OutW%OutPutWindows(iW)%JUB
+            WorkKLB = Me%OutW%OutPutWindows(iW)%KLB; WorkKUB = Me%OutW%OutPutWindows(iW)%KUB
 
-            WorkJLB = Me%OutW%OutPutWindows(iW)%JLB
-            WorkJUB = Me%OutW%OutPutWindows(iW)%JUB
-
-            WorkKLB = Me%OutW%OutPutWindows(iW)%KLB
-            WorkKUB = Me%OutW%OutPutWindows(iW)%KUB
-
-            WorkSize2D%ILB = WorkILB
-            WorkSize2D%IUB = WorkIUB
-
-            WorkSize2D%JLB = WorkJLB
-            WorkSize2D%JUB = WorkJUB
+            WorkSize2D%ILB = WorkILB; WorkSize2D%JLB = WorkJLB
+            WorkSize2D%IUB = WorkIUB; WorkSize2D%JUB = WorkJUB
 
             GlobalWorkSizeWindow         = WorkSize2D
             Me%OutW%OutPutWindows(iW)%ON = .true.
@@ -12155,29 +11923,20 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
 
                 if (WindowIntersectDomain(Me%ObjHorizontalGrid, WorkSize2D)) then
 
-                    WorkSize2DAux%ILB = WorkSize2D%ILB
-                    WorkSize2DAux%IUB = WorkSize2D%IUB
-
-                    WorkSize2DAux%JLB = WorkSize2D%JLB
-                    WorkSize2DAux%JUB = WorkSize2D%JUB
+                    WorkSize2DAux%ILB = WorkSize2D%ILB; WorkSize2DAux%JLB = WorkSize2D%JLB
+                    WorkSize2DAux%IUB = WorkSize2D%IUB; WorkSize2DAux%JUB = WorkSize2D%JUB
 
                     WorkSize2D        = ReturnsIntersectionCorners(Me%ObjHorizontalGrid, WorkSize2DAux)
 
-                    WorkILB           = WorkSize2D%ILB
-                    WorkIUB           = WorkSize2D%IUB
-
-                    WorkJLB           = WorkSize2D%JLB
-                    WorkJUB           = WorkSize2D%JUB
+                    WorkILB = WorkSize2D%ILB; WorkJLB = WorkSize2D%JLB
+                    WorkIUB = WorkSize2D%IUB; WorkJUB = WorkSize2D%JUB
 
                     Me%OutW%OutPutWindows(iW)%ILB = WorkSize2D%ILB
                     Me%OutW%OutPutWindows(iW)%IUB = WorkSize2D%IUB
 
-                    Me%OutW%OutPutWindows(iW)%JLB = WorkSize2D%JLB
-                    Me%OutW%OutPutWindows(iW)%JUB = WorkSize2D%JUB
-
+                    Me%OutW%OutPutWindows(iW)%JLB = WorkSize2D%JLB; Me%OutW%OutPutWindows(iW)%JUB = WorkSize2D%JUB
 
                 else
-
                     Me%OutW%OutPutWindows(iW)%ON = .false.
                     OutputOk                     = .false.
                 endif
@@ -12198,19 +11957,12 @@ cd5:                if (SurfaceElevation(i,j) < (- Bathymetry(i, j) + 0.999 * Mi
 
         else
 
-            WorkILB = Me%WorkSize%ILB
-            WorkIUB = Me%WorkSize%IUB
-
-            WorkJLB = Me%WorkSize%JLB
-            WorkJUB = Me%WorkSize%JUB
-
-            WorkKLB = Me%WorkSize%KLB
-            WorkKUB = Me%WorkSize%KUB
+            WorkILB = Me%WorkSize%ILB; WorkJLB = Me%WorkSize%JLB; WorkKLB = Me%WorkSize%KLB
+            WorkIUB = Me%WorkSize%IUB; WorkJUB = Me%WorkSize%JUB; WorkKUB = Me%WorkSize%KUB
 
             WorkSize2D = Me%WorkSize2D
 
             if (Me%OutPut%Simple) SimpleOutPut = .true.
-
 
         endif
 
@@ -12224,18 +11976,14 @@ iStart: if (OutputOk) then
             call GetWaterPoints3D   (Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR20'
 
-
             !Gets File Access Code
             call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
 
             ObjHDF5 = 0
 
             !Opens HDF File
-            call ConstructHDF5      (ObjHDF5,                                               &
-                                     trim(FileName),                                        &
-                                     HDF5_CREATE, STAT = STAT_CALL)
+            call ConstructHDF5      (ObjHDF5, trim(FileName), HDF5_CREATE, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR30'
-
 
             if (present(iW)) then
 
@@ -12254,36 +12002,25 @@ iStart: if (OutputOk) then
                 Me%ObjHDF5          = ObjHDF5
 
                 !Write the Horizontal Grid
-                call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5,                 &
-                                         WorkSize = WorkSize2D, STAT = STAT_CALL)
+                call WriteHorizontalGrid(Me%ObjHorizontalGrid, ObjHDF5, WorkSize = WorkSize2D, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR410'
 
             endif
 
-
-
             !Sets limits for next write operations
-            call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB, WorkJLB,                       &
-                                  WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
+            call HDF5SetLimits   (ObjHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB, WorkKLB, WorkKUB, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR420'
 
-
             !Writes the Grid
-            call HDF5WriteData   (ObjHDF5, "/Grid", "Bathymetry", "m",                      &
-                                  Array2D = Bathymetry,                                     &
-                                  STAT = STAT_CALL)
+            call HDF5WriteData   (ObjHDF5, "/Grid", "Bathymetry", "m", Array2D = Bathymetry, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR430'
 
-            call HDF5WriteData   (ObjHDF5, "/Grid", "WaterPoints3D", "-",                   &
-                                  Array3D = WaterPoints3D,                                  &
-                                  STAT = STAT_CALL)
+            call HDF5WriteData   (ObjHDF5, "/Grid", "WaterPoints3D", "-", Array3D = WaterPoints3D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR440'
-
 
             !Writes everything to disk
             call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Open_HDF5_OutPut_File - ModuleHydrodynamic - ERR460'
-
 
             !Ungets the Bathymetry
             call UngetGridData (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
@@ -12301,12 +12038,9 @@ iStart: if (OutputOk) then
 
     !--------------------------------------------------------------------------
 
-
     subroutine Open_Surface_HDF5_OutPut_File
 
         !Arguments-------------------------------------------------------------
-
-
         !Local-----------------------------------------------------------------
         real, pointer, dimension(:, :)              :: Bathymetry
         integer, pointer, dimension(:, :, :)        :: WaterPoints3D
@@ -12322,14 +12056,8 @@ iStart: if (OutputOk) then
         !----------------------------------------------------------------------
 
         !Bounds
-        WorkILB = Me%WorkSize%ILB
-        WorkIUB = Me%WorkSize%IUB
-
-        WorkJLB = Me%WorkSize%JLB
-        WorkJUB = Me%WorkSize%JUB
-
-        WorkKLB = Me%WorkSize%KLB
-        WorkKUB = Me%WorkSize%KUB
+        WorkILB = Me%WorkSize%ILB; WorkJLB = Me%WorkSize%JLB; WorkKLB = Me%WorkSize%KLB
+        WorkIUB = Me%WorkSize%IUB; WorkJUB = Me%WorkSize%JUB; WorkKUB = Me%WorkSize%KUB
 
         !Gets a pointer to Bathymetry
         call GetGridData      (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
@@ -12349,30 +12077,22 @@ iStart: if (OutputOk) then
         call GetHDF5FileAccess  (HDF5_CREATE = HDF5_CREATE)
 
         !Opens HDF File
-        call ConstructHDF5      (Me%ObjSurfaceHDF5,                                     &
-                                 trim(SurfaceHDF5FileName),                             &
-                                 HDF5_CREATE, STAT = STAT_CALL)
+        call ConstructHDF5      (Me%ObjSurfaceHDF5, trim(SurfaceHDF5FileName), HDF5_CREATE, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_Surface_HDF5_OutPut_File - ModuleHydrodynamic - ERR20'
 
         !Write the Horizontal Grid
-        call WriteHorizontalGrid(Me%ObjHorizontalGrid, Me%ObjSurfaceHDF5,               &
-                                 STAT = STAT_CALL)
+        call WriteHorizontalGrid(Me%ObjHorizontalGrid, Me%ObjSurfaceHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_Surface_HDF5_OutPut_File - ModuleHydrodynamic - ERR30'
 
         !Sets limits for next write operations
-        call HDF5SetLimits   (Me%ObjSurfaceHDF5, WorkILB, WorkIUB, WorkJLB,             &
-                              WorkJUB, WorkKUB, WorkKUB, STAT = STAT_CALL)
+        call HDF5SetLimits  (Me%ObjSurfaceHDF5, WorkILB, WorkIUB, WorkJLB, WorkJUB, WorkKUB, WorkKUB, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_Surface_HDF5_OutPut_File - ModuleHydrodynamic - ERR40'
 
         !Writes the Bathymetry
-        call HDF5WriteData   (Me%ObjSurfaceHDF5, "/Grid", "Bathymetry", "m",            &
-                              Array2D = Bathymetry,                                     &
-                              STAT = STAT_CALL)
+        call HDF5WriteData   (Me%ObjSurfaceHDF5, "/Grid", "Bathymetry", "m", Array2D = Bathymetry, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_Surface_HDF5_OutPut_File - ModuleHydrodynamic - ERR50'
 
-        call HDF5WriteData   (Me%ObjSurfaceHDF5, "/Grid", "WaterPoints3D", "-",         &
-                              Array3D = WaterPoints3D,                                  &
-                              STAT = STAT_CALL)
+        call HDF5WriteData (Me%ObjSurfaceHDF5, "/Grid", "WaterPoints3D", "-", Array3D = WaterPoints3D, STAT= STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Open_Surface_HDF5_OutPut_File - ModuleHydrodynamic - ERR60'
 
         !Writes everything to disk
@@ -12396,7 +12116,6 @@ iStart: if (OutputOk) then
     subroutine Construct_Time_Serie
 
         !Arguments-------------------------------------------------------------
-
         !External--------------------------------------------------------------
         character(len=StringLength), dimension(:), pointer  :: PropertyList
 
@@ -12412,21 +12131,15 @@ iStart: if (OutputOk) then
 
         !Begin-----------------------------------------------------------------
 
-
-        call GetWaterPoints3D(Me%ObjMap,                                                &
-                              Me%External_Var%WaterPoints3D,                            &
-                              STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR10")
+        call GetWaterPoints3D(Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR10")
 
         nProperties = 7 !3 velocity components  (West-East, North-South, vertical), intensity, direction, elevation and open points
 
         !Allocates PropertyList
         allocate(PropertyList(nProperties), STAT = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR20")
+        if (STAT_CALL /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR20")
 
         !Fills up PropertyList
         PropertyList(1) = trim(GetPropertyName (VelocityU_      ))
@@ -12450,14 +12163,11 @@ iStart: if (OutputOk) then
                      ClientModule = 'ModuleHydrodynamic',                               &
                      Default      = Me%Files%ConstructData,                             &
                      STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_Time_Serie - Hydrodynamic - ERR30'
+        if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Time_Serie - Hydrodynamic - ERR30'
 
         call GetGridOutBorderPolygon(HorizontalGridID = Me%ObjHorizontalGrid,           &
-                                     Polygon          = ModelDomainLimit,               &
-                                     STAT             = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_Time_Serie - Hydrodynamic - ERR35'
+                                     Polygon          = ModelDomainLimit, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Time_Serie - Hydrodynamic - ERR35'
 
         !Constructs TimeSerie
         call StartTimeSerie(Me%ObjTimeSerie, Me%ObjTime,                                &
@@ -12465,26 +12175,15 @@ iStart: if (OutputOk) then
                             PropertyList, "srh",                                        &
                             WaterPoints3D = Me%External_Var%WaterPoints3D,              &
                             ModelName     = Me%ModelName,                               &
-                            ModelDomain   = ModelDomainLimit,                           &
-                            STAT = STAT_CALL)
+                            ModelDomain   = ModelDomainLimit, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR40")
 
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR40")
-
-
-        call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid,               &
-                                 Polygon          = ModelDomainLimit,                   &
-                                 STAT             = STAT_CALL)
-
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_Time_Serie - Hydrodynamic - ERR45'
-
+        call UngetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid, Polygon= ModelDomainLimit, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Time_Serie - Hydrodynamic - ERR45'
 
         !Deallocates PropertyList
         deallocate(PropertyList, STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR50")
+        if (STAT_CALL /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR50")
 
         !Corrects if necessary the cell of the time serie based in the time serie coordinates
         call GetNumberOfTimeSeries(Me%ObjTimeSerie, TimeSerieNumber, STAT  = STAT_CALL)
@@ -12498,11 +12197,7 @@ iStart: if (OutputOk) then
             if (IgnoreOK) cycle
 
             call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &
-                                      CoordX   = CoordX,                                &
-                                      CoordY   = CoordY,                                &
-                                      CoordON  = CoordON,                               &
-                                      STAT     = STAT_CALL)
-
+                                      CoordX = CoordX, CoordY = CoordY, CoordON = CoordON, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR70'
 
             call GetTimeSerieName(Me%ObjTimeSerie, dn, TimeSerieName, STAT  = STAT_CALL)
@@ -12511,56 +12206,25 @@ iStart: if (OutputOk) then
 i1:         if (CoordON) then
                 call GetXYCellZ(Me%ObjHorizontalGrid, CoordX, CoordY, Id, Jd, STAT = STAT_CALL)
 
-                if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) then
+                if (STAT_CALL /= SUCCESS_ .and. STAT_CALL /= OUT_OF_BOUNDS_ERR_) &
                     stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR90'
-                endif
-
-              !  if (STAT_CALL == OUT_OF_BOUNDS_ERR_ .or. Id < 0 .or. Jd < 0) then
-
-              !      call TryIgnoreTimeSerie(Me%ObjTimeSerie, dn, IgnoreOK, STAT = STAT_CALL)
-              !      if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR100'
-
-              !      if (IgnoreOK) then
-              !          write(*,*) 'Time Serie outside the domain - ',trim(TimeSerieName),' - ',trim(Me%ModelName)
-              !          cycle
-             !       else
-             !           stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR110'
-             !       endif
-
-             !   endif
-
 
                 call CorrectsCellsTimeSerie(Me%ObjTimeSerie, dn, Id, Jd, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR120'
 
             endif i1
 
-
-            call GetTimeSerieLocation(Me%ObjTimeSerie, dn,                              &
-                                      LocalizationI   = Id,                             &
-                                      LocalizationJ   = Jd,                             &
-                                      STAT     = STAT_CALL)
-
+            call GetTimeSerieLocation(Me%ObjTimeSerie, dn, LocalizationI  = Id, LocalizationJ = Jd, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie - ModuleHydrodynamic - ERR130'
 
-            if (Me%External_Var%WaterPoints3D(Id, Jd, Me%WorkSize%KUB) /= WaterPoint) then
-
+            if (Me%External_Var%WaterPoints3D(Id, Jd, Me%WorkSize%KUB) /= WaterPoint) &
                  write(*,*) 'Time Serie in a land cell - ',trim(TimeSerieName),' - ',trim(Me%ModelName)
-
-            endif
-
 
         enddo
 
+        call UnGetMap(Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
 
-
-        call UnGetMap(Me%ObjMap,                                                        &
-                      Me%External_Var%WaterPoints3D,                                    &
-                      STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR140")
-
+        if (STAT_CALL /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "Construct_Time_Serie - Hydrodynamic - ERR140")
 
     end subroutine Construct_Time_Serie
 
@@ -12577,13 +12241,10 @@ i1:         if (CoordON) then
 
         !Local-----------------------------------------------------------------
         integer                                             :: nProperties
-        integer                                             :: STAT_CALL
-        integer                                             :: iflag, dis, i, j
+        integer                                             :: STAT_CALL, iflag, dis, i, j
         character(len=PathLength)                           :: TimeSerieLocationFile
         character(len=StringLength)                         :: Extension, DischargeName
-
         !Begin-----------------------------------------------------------------
-
 
         call GetDischargesNumber(Me%ObjDischarges, Me%OutPut%DischargesNumber, STAT = STAT_CALL)
         if (STAT_CALL/=SUCCESS_)stop 'Construct_Time_Serie_Discharge - ModuleHydrodynamic - ERR10'
@@ -12623,10 +12284,8 @@ i1:         if (CoordON) then
                      SearchType   = FromFile,                                           &
                      keyword      = 'TIME_SERIE_LOCATION',                              &
                      ClientModule = 'ModuleHydrodynamic',                               &
-                     Default      = Me%Files%ConstructData,                             &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_Time_Serie_Discharge - Hydrodynamic - ERR30'
+                     Default      = Me%Files%ConstructData, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Time_Serie_Discharge - Hydrodynamic - ERR30'
 
         do dis = 1, Me%OutPut%DischargesNumber
 
@@ -12640,10 +12299,8 @@ i1:         if (CoordON) then
                                 ResultFileName      = "hydro_"//trim(DischargeName),    &
                                 STAT                = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Construct_Time_Serie_Discharge - Hydrodynamic - ERR40'
-
         enddo
         !----------------------------------------------------------------------
-
 
     end subroutine Construct_Time_Serie_Discharge
 
@@ -12669,10 +12326,8 @@ i1:         if (CoordON) then
                      SearchType   = FromFile,                                           &
                      keyword      = 'TIME_SERIE_LOCATION',                              &
                      ClientModule = 'ModuleHydrodynamic',                               &
-                     Default      = Me%Files%ConstructData,                             &
-                     STAT         = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_)                                                    &
-            stop 'Construct_Output_Profile - ModuleWaterProperties - ERR01'
+                     Default      = Me%Files%ConstructData, STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_) stop 'Construct_Output_Profile - ModuleWaterProperties - ERR01'
 
         nProperties = 5
 
@@ -12698,10 +12353,8 @@ i1:         if (CoordON) then
                             KUB             = Me%WorkSize%KUB,                          &
                             nProperties     = nProperties,                              &
                             PropertyList    = PropertyList,                             &
-                            ClientName      = "Hydrodynamic",                           &
-                            STAT            = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Construct_Output_Profile - ModuleWaterProperties - ERR02'
+                            ClientName      = "Hydrodynamic", STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Construct_Output_Profile - ModuleWaterProperties - ERR02'
 
         deallocate(PropertyList)
 
@@ -12714,64 +12367,32 @@ i1:         if (CoordON) then
     subroutine ConstructMatrixesOutput
 
         !Arguments-------------------------------------------------------------
-
-
         !Local-----------------------------------------------------------------
-        integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                             :: STAT_CALL
-
+        integer                             :: ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL
         !----------------------------------------------------------------------
 
         !Bounds
-        ILB = Me%Size%ILB
-        IUB = Me%Size%IUB
-
-        JLB = Me%Size%JLB
-        JUB = Me%Size%JUB
-
-        KLB = Me%Size%KLB
-        KUB = Me%Size%KUB
+        ILB = Me%Size%ILB; JLB = Me%Size%JLB; KLB = Me%Size%KLB
+        IUB = Me%Size%IUB; JUB = Me%Size%JUB; KUB = Me%Size%KUB
 
         !Horizontal Velocity
         if (Me%Output%Real4)then
-            nullify  (Me%OutPut%AuxReal4)
-            nullify  (Me%OutPut%Aux2DReal4)
-        nullify  (Me%OutPut%CenterU   )
-        nullify  (Me%OutPut%CenterV   )
-        nullify  (Me%OutPut%ModulusH  )
-        nullify  (Me%OutPut%CenterW   )
+            nullify  (Me%OutPut%AuxReal4, Me%OutPut%Aux2DReal4)
+            nullify  (Me%OutPut%CenterU, Me%OutPut%CenterV, Me%OutPut%ModulusH, Me%OutPut%CenterW)
             nullify  (Me%OutPut%Aux2D)
         else
-            nullify  (Me%OutPut%CenterU   )
-            nullify  (Me%OutPut%CenterV   )
-            nullify  (Me%OutPut%ModulusH  )
-            nullify  (Me%OutPut%CenterW   )
+            nullify  (Me%OutPut%CenterU, Me%OutPut%CenterV, Me%OutPut%ModulusH, Me%OutPut%CenterW)
             nullify  (Me%OutPut%Aux2D)
         endif
         nullify  (Me%OutPut%DirectionH)
         nullify  (Me%OutPut%Vorticity3D )
-        nullify  (Me%OutPut%CenterUaux  )
-        nullify  (Me%OutPut%CenterVaux  )
-        nullify  (Me%OutPut%ModulusUVaux)
-        nullify  (Me%OutPut%CenterWaux)
-        nullify  (Me%OutPut%CenterUglm)
-        nullify  (Me%OutPut%CenterVglm)
-        nullify  (Me%OutPut%ModulusHglm)
-        nullify  (Me%OutPut%CenterWglm)
+        nullify  (Me%OutPut%CenterUaux, Me%OutPut%CenterVaux, Me%OutPut%ModulusUVaux, Me%OutPut%CenterWaux)
+        nullify  (Me%OutPut%CenterUglm, Me%OutPut%CenterVglm, Me%OutPut%ModulusHglm, Me%OutPut%CenterWglm)
 
-        nullify  (Me%OutPut%CenterUstokes)
-        nullify  (Me%OutPut%CenterVstokes)
-        nullify  (Me%OutPut%ModulusHstokes)
-        nullify  (Me%OutPut%CenterWstokes)
-
-        nullify  (Me%OutPut%Wave3D_FBreakingAccelU)
-        nullify  (Me%OutPut%Wave3D_FBreakingAccelV)
-
-        nullify  (Me%OutPut%Wave3D_FVortexAccelU)
-        nullify  (Me%OutPut%Wave3D_FVortexAccelV)
-
-        nullify  (Me%OutPut%Wave3D_FPressureAccelU)
-        nullify  (Me%OutPut%Wave3D_FPressureAccelV)
+        nullify  (Me%OutPut%CenterUstokes, Me%OutPut%CenterVstokes, Me%OutPut%ModulusHstokes, Me%OutPut%CenterWstokes)
+        nullify  (Me%OutPut%Wave3D_FBreakingAccelU, Me%OutPut%Wave3D_FBreakingAccelV)
+        nullify  (Me%OutPut%Wave3D_FVortexAccelU, Me%OutPut%Wave3D_FVortexAccelV)
+        nullify  (Me%OutPut%Wave3D_FPressureAccelU, Me%OutPut%Wave3D_FPressureAccelV)
 
         if (Me%Output%Real4)then
 
@@ -12951,16 +12572,11 @@ i1:         if (CoordON) then
         integer, dimension(:), pointer      :: aux
         integer                             :: iflag
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
-
         !----------------------------------------------------------------------
 
         !Bounds
-        ILB = Me%Size%ILB
-        IUB = Me%Size%IUB
-        JLB = Me%Size%JLB
-        JUB = Me%Size%JUB
-        KLB = Me%Size%KLB
-        KUB = Me%Size%KUB
+        ILB = Me%Size%ILB; JLB = Me%Size%JLB; KLB = Me%Size%KLB
+        IUB = Me%Size%IUB; JUB = Me%Size%JUB; KUB = Me%Size%KUB
 
         allocate (aux(6))
 
@@ -12969,53 +12585,30 @@ i1:         if (CoordON) then
                      SearchType = FromFile,                                             &
                      keyword    = 'ENERGY_WINDOW',                                      &
                      Default    = FillValueInt,                                         &
-                     ClientModule ='ModuleHydrodynamic',                                &
-                     STAT       = status)
-        if (status /= SUCCESS_)                                                         &
-            call SetError(FATAL_, KEYWORD_, 'ConstructEnergy - Hydrodynamic - ERR02')
+                     ClientModule ='ModuleHydrodynamic', STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, KEYWORD_, 'ConstructEnergy - Hydrodynamic - ERR02')
 
         if   (iflag == 0) then
-
-            Me%Energy%Window%ILB = Me%WorkSize%ILB
-            Me%Energy%Window%IUB = Me%WorkSize%IUB
-
-            Me%Energy%Window%JLB = Me%WorkSize%JLB
-            Me%Energy%Window%JUB = Me%WorkSize%JUB
-
-            Me%Energy%Window%KLB = Me%WorkSize%KLB
-            Me%Energy%Window%KUB = Me%WorkSize%KUB
-
-
+            Me%Energy%Window%ILB = Me%WorkSize%ILB; Me%Energy%Window%IUB = Me%WorkSize%IUB
+            Me%Energy%Window%JLB = Me%WorkSize%JLB; Me%Energy%Window%JUB = Me%WorkSize%JUB
+            Me%Energy%Window%KLB = Me%WorkSize%KLB; Me%Energy%Window%KUB = Me%WorkSize%KUB
         else if (iflag == 6) then
-
-            Me%Energy%Window%ILB = aux(1)
-            Me%Energy%Window%IUB = aux(2)
-
-            Me%Energy%Window%JLB = aux(3)
-            Me%Energy%Window%JUB = aux(4)
-
-            Me%Energy%Window%KLB = aux(5)
-            Me%Energy%Window%KUB = aux(6)
-
+            Me%Energy%Window%ILB = aux(1); Me%Energy%Window%IUB = aux(2)
+            Me%Energy%Window%JLB = aux(3); Me%Energy%Window%JUB = aux(4)
+            Me%Energy%Window%KLB = aux(5); Me%Energy%Window%KUB = aux(6)
         else
-
             call SetError(FATAL_, KEYWORD_, 'ConstructEnergy - Hydrodynamic - ERR03')
-
         endif
 
         deallocate (aux)
 
-
         call UnitsManager(Me%Energy%FileID, FileOpen, STAT = status)
-        if (status /= SUCCESS_)     &
-            call SetError(FATAL_, INTERNAL_, 'ConstructEnergy - Hydrodynamic - ERR05')
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, 'ConstructEnergy - Hydrodynamic - ERR05')
 
-        open(unit = Me%Energy%FileID, file = Me%Files%Energy, &
-             form = 'FORMATTED', status = 'UNKNOWN')
+        open(unit = Me%Energy%FileID, file = Me%Files%Energy, form = 'FORMATTED', status = 'UNKNOWN')
 
         !Inits the buffer count
         Me%Energy%BufferCount = 0
-
 
         !Allocates the buffer
         allocate(Me%Energy%SecondsBuffer         (1:EnergyBufferSize))
@@ -13033,10 +12626,6 @@ i1:         if (CoordON) then
         allocate(Me%Energy%VelMaxBuffer          (1:EnergyBufferSize))
         allocate(Me%Energy%VelMaxBaroclinicBuffer(1:EnergyBufferSize))
 
-
-        !allocate(Me%Energy%CenterU      (ILB:IUB,JLB:JUB,KLB:KUB))
-        !allocate(Me%Energy%CenterV      (ILB:IUB,JLB:JUB,KLB:KUB))
-        !allocate(Me%Energy%CenterW      (ILB:IUB,JLB:JUB,KLB:KUB))
         allocate(Me%Energy%BarotropicU  (ILB:IUB,JLB:JUB        ))
         allocate(Me%Energy%BarotropicV  (ILB:IUB,JLB:JUB        ))
 
@@ -13045,35 +12634,25 @@ i1:         if (CoordON) then
                      SearchType = FromFile,                                              &
                      keyword    = 'ENERGY_DT',                                           &
                      Default    = 600.,                                                  &
-                     ClientModule ='ModuleHydrodynamic',                                 &
-                     STAT       = status)
-        if (status /= SUCCESS_)                                                          &
-            call SetError(FATAL_, KEYWORD_, 'ConstructEnergy - Hydrodynamic - ERR21')
+                     ClientModule ='ModuleHydrodynamic', STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, KEYWORD_, 'ConstructEnergy - Hydrodynamic - ERR21')
 
         Me%Energy%NextOutPut = Me%BeginTime
 
     end subroutine ConstructEnergy
-
 
     !--------------------------------------------------------------------------
 
     Subroutine ConstructTidePotential
 
         !Arguments-------------------------------------------------------------
-
-
-
         !Local-----------------------------------------------------------------
         integer               :: ILB, IUB, JLB, JUB, NComp
 
-
         NComp = Me%TidePotential%ComponentsNumber
 
-
-        IUB = Me%Size%IUB
-        ILB = Me%Size%ILB
-        JUB = Me%Size%JUB
-        JLB = Me%Size%JLB
+        IUB = Me%Size%IUB; ILB = Me%Size%ILB
+        JUB = Me%Size%JUB; JLB = Me%Size%JLB
 
         allocate (Me%TidePotential%Frequency(NComp))
         allocate (Me%TidePotential%Amplitude(NComp))
@@ -13161,34 +12740,22 @@ i1:         if (CoordON) then
 
         call SetDate(Me%TidePotential%TimeRef, 1900, 1, 1, 0, 0, 0)
 
-
     end subroutine ConstructTidePotential
-
 
     !--------------------------------------------------------------------------
 
     Subroutine ConstructSubModel
 
         !Arguments-------------------------------------------------------------
-
-
-
         !Local-----------------------------------------------------------------
         integer, dimension(:,:,:), pointer :: IC3D
         integer               :: ILB, IUB, JLB, JUB, KLB, KUB
         integer               :: STATUS
         integer               :: i, j, k
-
         !Begin-----------------------------------------------------------------
 
-
-
-        IUB = Me%Size%IUB
-        ILB = Me%Size%ILB
-        JUB = Me%Size%JUB
-        JLB = Me%Size%JLB
-        KUB = Me%Size%KUB
-        KLB = Me%Size%KLB
+        IUB = Me%Size%IUB; JUB = Me%Size%JUB; KUB = Me%Size%KUB
+        ILB = Me%Size%ILB; JLB = Me%Size%JLB; KLB = Me%Size%KLB
 
 cd1:    if (Me%SubModel%DeadZone) then
 
@@ -13198,14 +12765,13 @@ cd1:    if (Me%SubModel%DeadZone) then
             allocate (Me%SubModel%DeadZonePoint(ILB:IUB, JLB:JUB, KLB:KUB))
             Me%SubModel%DeadZonePoint(:,:,:) = .false.
 
-            call StartBoxDif(BoxDifID         = Me%SubModel%ObjBoxDif,           &
-                             TimeID           = Me%ObjTime,                      &
-                             HorizontalGridID = Me%ObjHorizontalGrid,            &
-                             BoxesFilePath = Me%SubModel%DeadZoneFile,                   &
-                             WaterPoints3D = Me%External_Var%WaterPoints3D,              &
-                             Size3D        = Me%Size,                                    &
-                             WorkSize3D    = Me%WorkSize,                                &
-                             STAT          = STATUS)
+            call StartBoxDif(BoxDifID         = Me%SubModel%ObjBoxDif,             &
+                             TimeID           = Me%ObjTime,                        &
+                             HorizontalGridID = Me%ObjHorizontalGrid,              &
+                             BoxesFilePath    = Me%SubModel%DeadZoneFile,          &
+                             WaterPoints3D    = Me%External_Var%WaterPoints3D,     &
+                             Size3D           = Me%Size, WorkSize3D = Me%WorkSize, &
+                             STAT             = STATUS)
             if (STATUS /= SUCCESS_) stop 'ConstructSubModel - Hydrodynamic - ERR02'
 
             call GetBoxes(Me%SubModel%ObjBoxDif, IC3D, STAT = STATUS)
@@ -13214,21 +12780,15 @@ cd1:    if (Me%SubModel%DeadZone) then
             do j = JLB, JUB
             do i = ILB, IUB
             do k = KLB, KUB
-
 cd2 :           if (IC3D(i,j,k)>0) then
-
                     Me%SubModel%DeadZonePoint(i,j,k) = .true.
-
                 end if cd2
-
             end do
             end do
             end do
-
 
             call UngetBoxDif(Me%SubModel%ObjBoxDif, IC3D, STAT = STATUS)
             if (STATUS /= SUCCESS_) stop 'ConstructSubModel - Hydrodynamic - ERR04'
-
 
             call KillBoxDif(Me%SubModel%ObjBoxDif, STAT = STATUS)
             if (STATUS /= SUCCESS_) stop 'ConstructSubModel - Hydrodynamic - ERR05'
@@ -13237,7 +12797,6 @@ cd2 :           if (IC3D(i,j,k)>0) then
             if (STATUS /= SUCCESS_) stop 'ConstructSubModel - Hydrodynamic - ERR06'
 
         endif cd1
-
 
         Me%SubModel%Set = .false.
 
@@ -13248,35 +12807,18 @@ cd2 :           if (IC3D(i,j,k)>0) then
     Subroutine ConstructRelaxation
 
         !Arguments-------------------------------------------------------------
-
-
-
         !Local-----------------------------------------------------------------
-
         integer                          :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                          :: ILBWork, IUBWork, JLBWork, JUBWork, KLBWork, KUBWork
-        integer                          :: STATUS
+        integer                          :: STATUS, iflag,fromfile
+        !Begin -------------------------------------------------------------------- 
 
-        integer                          :: iflag,fromfile
+        IUB = Me%Size%IUB; JUB = Me%Size%JUB; KUB = Me%Size%KUB
+        ILB = Me%Size%ILB; JLB = Me%Size%JLB; KLB = Me%Size%KLB
 
-
-        IUB = Me%Size%IUB
-        ILB = Me%Size%ILB
-        JUB = Me%Size%JUB
-        JLB = Me%Size%JLB
-        KUB = Me%Size%KUB
-        KLB = Me%Size%KLB
-
-
-        IUBWork = Me%WorkSize%IUB
-        ILBWork = Me%WorkSize%ILB
-        JUBWork = Me%WorkSize%JUB
-        JLBWork = Me%WorkSize%JLB
-        KUBWork = Me%WorkSize%KUB
-        KLBWork = Me%WorkSize%KLB
-
-
-
+        IUBWork = Me%WorkSize%IUB; JUBWork = Me%WorkSize%JUB; KUBWork = Me%WorkSize%KUB
+        ILBWork = Me%WorkSize%ILB; JLBWork = Me%WorkSize%JLB; KLBWork = Me%WorkSize%KLB
+        
         call GetExtractType(FromFile = FromFile)
 
 ! ---> Compute
@@ -13296,8 +12838,6 @@ cd2 :           if (IC3D(i,j,k)>0) then
             !Multiple Options : Do not
             !Search Type      : From File
         !<EndKeyword>
-
-
 
 !        call GetData(FileName, Me%ObjEnterData, iflag,                      &
 !                     Keyword    = 'BOUNDARYFILE',                                        &
@@ -13339,7 +12879,6 @@ cd2 :           if (IC3D(i,j,k)>0) then
         if (status /= SUCCESS_)                                                          &
            call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR04")
 
-
         !<BeginKeyword>
             !Keyword          : BRROX3
             !<BeginDescription>
@@ -13355,7 +12894,6 @@ cd2 :           if (IC3D(i,j,k)>0) then
             !Search Type      : From File
         !<EndKeyword>
 
-
          call GetData(Me%Relaxation%rox3,                                               &
                       Me%ObjEnterData, iflag,                                           &
                       Keyword    = 'BRROX3',                                            &
@@ -13363,10 +12901,7 @@ cd2 :           if (IC3D(i,j,k)>0) then
                       SearchType = FromFile,                                            &
                       ClientModule ='ModuleHydrodynamic',                               &
                       STAT       = status)
-
-        if (status /= SUCCESS_)                                                         &
-           call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR05")
-
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR05")
 
         !<BeginKeyword>
             !Keyword          : BRTRANSPORT
@@ -13383,8 +12918,6 @@ cd2 :           if (IC3D(i,j,k)>0) then
             !Search Type      : From File
         !<EndKeyword>
 
-
-
         call GetData(Me%Relaxation%HorizAdv,                                &
                      Me%ObjEnterData, iflag,                                &
                      Keyword    = 'BRHORIZ_ADV',                                         &
@@ -13392,11 +12925,7 @@ cd2 :           if (IC3D(i,j,k)>0) then
                      SearchType = FromFile,                                              &
                      ClientModule ='ModuleHydrodynamic',                                 &
                      STAT       = status)
-
-        if (status /= SUCCESS_)                                                          &
-           call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR06")
-
-
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR06")
 
 ! ---> Velocity field relaxation
 !
@@ -13454,11 +12983,7 @@ cd2 :           if (IC3D(i,j,k)>0) then
                       SearchType = FromFile,                                             &
                       ClientModule ='ModuleHydrodynamic',                                &
                       STAT       = status)
-
-        if (status /= SUCCESS_)                                                          &
-           call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR15")
-
-
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR15")
 
          call GetData(Me%Relaxation%RefBoundWaterLevel,                     &
                       Me%ObjEnterData, iflag,                               &
@@ -13467,9 +12992,7 @@ cd2 :           if (IC3D(i,j,k)>0) then
                       SearchType = FromFile,                                             &
                       ClientModule ='ModuleHydrodynamic',                                &
                       STAT       = status)
-
-        if (status /= SUCCESS_)                                                          &
-           call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR16")
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR16")
 
         call GetData(Me%Relaxation%ReferenceVelocity,                       &
                       Me%ObjEnterData, iflag,                               &
@@ -13478,16 +13001,12 @@ cd2 :           if (IC3D(i,j,k)>0) then
                       SearchType = FromFile,                                             &
                       ClientModule ='ModuleHydrodynamic',                                &
                       STAT       = status)
-
-        if (status /= SUCCESS_)                                                          &
-           call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR16a")
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR16a")
 
         if (Me%Relaxation%ReferenceVelocity /= TotalVel_          .and.     &
             Me%Relaxation%ReferenceVelocity /= BarotrVel_         .and.     &
             Me%Relaxation%ReferenceVelocity /= BaroclVel_)                  &
             call SetError(FATAL_, KEYWORD_, 'ConstructRelaxation - Hydrodynamic - ERR31.')
-
-
 
          call GetData(Me%Relaxation%Force,                                  &
                       Me%ObjEnterData, iflag,                               &
@@ -13497,15 +13016,10 @@ cd2 :           if (IC3D(i,j,k)>0) then
                       ClientModule ='ModuleHydrodynamic',                                &
                       STAT       = status)
 
-        if (status /= SUCCESS_)                                                          &
-           call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR17")
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR17")
 
-        if (Me%Relaxation%Force .and. Me%Relaxation%Velocity) then
-
+        if (Me%Relaxation%Force .and. Me%Relaxation%Velocity) &
             call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR18")
-
-        endif
-
 
         if (Me%Relaxation%Force) then
 
@@ -13516,21 +13030,13 @@ cd2 :           if (IC3D(i,j,k)>0) then
                           SearchType = FromFile,                                        &
                           ClientModule ='ModuleHydrodynamic',                           &
                           STAT       = status)
-
-            if (status /= SUCCESS_)                                                     &
-               call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR1800")
-
+            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR1800")
             !Forces
             allocate (Me%Forces%Relax_Aceleration(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
-
-            if (status /= SUCCESS_)                                                     &
-               call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR19")
+            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR19")
 
             Me%Forces%Relax_Aceleration(:,:,:) = FillValueReal
-
-
         endif
-
 
          call GetData(Me%Relaxation%Geometry,                                           &
                       Me%ObjEnterData, iflag,                                           &
@@ -13539,23 +13045,14 @@ cd2 :           if (IC3D(i,j,k)>0) then
                       SearchType = FromFile,                                            &
                       ClientModule ='ModuleHydrodynamic',                               &
                       STAT       = status)
-
-        if (status /= SUCCESS_)                                                          &
-           call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR200")
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR200")
 
         if (Me%Relaxation%Geometry) then
-
             !Forces
             allocate (Me%Relaxation%DecayTimeGeo(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
-
-            if (status /= SUCCESS_)                                                          &
-               call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR210")
-
+            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR210")
             Me%Relaxation%DecayTimeGeo(:,:,:) = FillValueReal
-
-
         endif
-
 
     end subroutine ConstructRelaxation
 
@@ -13568,45 +13065,26 @@ cd2 :           if (IC3D(i,j,k)>0) then
     subroutine CourantGH
 
         !Arguments---------------------------------------------------------------
-
-
-
         !External----------------------------------------------------------------
 
         integer :: STAT_CALL
         integer :: I_Courant, J_Courant
-
-        real    :: DT
-        real    :: Velocity
-
+        real    :: DT, Velocity
         !Local-------------------------------------------------------------------
-
-        integer :: I, J
-        integer :: IUB, ILB
-        integer :: JUB, JLB
-
-        real    :: Courant, Courant_temp
-        real    :: DX
-
+        integer :: I, J, IUB, ILB, JUB, JLB
+        real    :: Courant, Courant_temp, DX
         real,    dimension(:,:), pointer :: WaterColumn
-
         !------------------------------------------------------------------------
 
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-
-
+        IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB
+        ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB
+        
         call ReadLock_External_Modules
 
         call GetComputeTimeStep(Me%ObjTime, DT = DT, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'CourantGH - ModuleHydrodynamic - ERR01'
 
-
         WaterColumn => Me%External_Var%WaterColumn
-
-
 
         Courant = FillValueReal
 
@@ -13621,9 +13099,7 @@ cd1 :   if (Me%External_Var%WaterPoints2D(I,J) .EQ. 1) then
             Velocity     = SQRT(WaterColumn(I,J) * Gravity)
             DX           = MIN(Me%External_Var%DXX(I,J), Me%External_Var%DYY(I,J))
 
-            Courant_temp = F_Courant(Velocity = Velocity,                       &
-                                     DT       = 2. * DT,                        &
-                                     DX       = DX)
+            Courant_temp = F_Courant(Velocity = Velocity, DT = 2. * DT, DX = DX)
 
 cd2 :       if (Courant .LT. Courant_temp) then
                 I_Courant = I
@@ -13635,16 +13111,11 @@ cd2 :       if (Courant .LT. Courant_temp) then
         end do do3
         end do do2
 
-
-
         call OutputCourant(Courant, I_Courant, J_Courant)
-
 
         call ReadUnLock_External_Modules
 
-
         nullify(WaterColumn)
-
         !------------------------------------------------------------------------
 
     end subroutine CourantGH
@@ -13652,22 +13123,15 @@ cd2 :       if (Courant .LT. Courant_temp) then
     !----------------------------------------------------------------------------
 
 
-
     !----------------------------------------------------------------------------
 
     function F_Courant(Velocity, DT, DX)
     real ::  F_Courant
-
-        !Arguments---------------------------------------------------------------
-
-        real, intent(IN) :: Velocity, DT, DX
-
-        !------------------------------------------------------------------------
-
-        F_Courant = Velocity * DT / DX
-
-        !------------------------------------------------------------------------
-
+    !Arguments---------------------------------------------------------------
+    real, intent(IN) :: Velocity, DT, DX
+    !------------------------------------------------------------------------
+    F_Courant = Velocity * DT / DX
+    !------------------------------------------------------------------------
     end function F_Courant
 
     !----------------------------------------------------------------------------
@@ -13675,12 +13139,9 @@ cd2 :       if (Courant .LT. Courant_temp) then
     subroutine OutputCourant(Courant, I, J)
 
         !Arguments---------------------------------------------------------------
-
         integer, intent(IN) :: I, J
         real,    intent(IN) :: Courant
-
         !------------------------------------------------------------------------
-
 #ifndef _OUTPUT_OFF_
         write(*, *)"---------------------- HYDRODYNAMICS ---------------------"
         write(*, *)
@@ -13688,7 +13149,6 @@ cd2 :       if (Courant .LT. Courant_temp) then
         write(*, *)"In Grid Cell[i,j] : ", i, j
         write(*, *)
 #endif
-
         !------------------------------------------------------------------------
 
     end subroutine OutputCourant
@@ -13702,11 +13162,9 @@ cd2 :       if (Courant .LT. Courant_temp) then
         !Arguments---------------------------------------------------------------
         integer                                      :: HydrodynamicID
         integer,            optional, intent(OUT)    :: STAT
-
         !Local-------------------------------------------------------------------
         integer                                      :: ready_
         integer                                      :: STAT_
-
         !------------------------------------------------------------------------
 
         !This is a compilation of points (one for each variable) for internal memory spaces
@@ -13718,35 +13176,23 @@ cd2 :       if (Courant .LT. Courant_temp) then
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             Me%AuxPointer%WaterLevelNew => Me%WaterLevel%New
-
             Me%AuxPointer%VelocityUNew => Me%Velocity%Horizontal%U%New
-
             Me%AuxPointer%VelocityVNew => Me%Velocity%Horizontal%V%New
-
             Me%AuxPointer%VelocityUOld => Me%Velocity%Horizontal%U%Old
-
             Me%AuxPointer%VelocityVOld => Me%Velocity%Horizontal%V%Old
-
             Me%AuxPointer%VelVerticalCartesian => Me%Velocity%Vertical%Cartesian
-
             Me%AuxPointer%VelVerticalAcross => Me%Velocity%Vertical%Across
-
             Me%AuxPointer%WaterFluxX => Me%WaterFluxes%X
-
             Me%AuxPointer%WaterFluxY => Me%WaterFluxes%Y
-
             Me%AuxPointer%WaterFluxZ => Me%WaterFluxes%Z
 
             if (Me%SubModel%ON) then
                 Me%AuxPointer%SubModelqX => Me%SubModel%qX
-
                 Me%AuxPointer%SubModelqY => Me%SubModel%qY
             endif
-
             Me%AuxPointer%ChezyVelUV => Me%External_Var%ChezyVelUV
-
+            
             STAT_ = SUCCESS_
-
         else
             STAT_ = ready_
         end if cd1
@@ -13765,15 +13211,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         real, dimension(:,:), pointer                   :: WaterLevel
         !integer, dimension(:, :), pointer               :: MapMatrix
         integer, optional, intent(OUT)                  :: STAT
-
         !External--------------------------------------------------------------
         integer :: ready_
-
         !Local-----------------------------------------------------------------
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -13781,11 +13223,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            !call Read_Lock(mHydrodynamic_, Me%InstanceID)
-
-            call SetMatrixValue(Me%WaterLevel%New, Size2D, WaterLevel) !, MapMatrix)
-
-            !call Read_UnLock?
+            call SetMatrixValue(Me%WaterLevel%New, Size2D, WaterLevel) 
 
             STAT_ = SUCCESS_
         else
@@ -13801,23 +13239,18 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
     !--------------------------------------------------------------------------
 
     subroutine CopyHorizontalVelocity(HydrodynamicID, Size3D, Velocity_U,       &
-                                      Velocity_V, OldVelocity_U, OldVelocity_V, &
-                                      STAT)
+                                      Velocity_V, OldVelocity_U, OldVelocity_V, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,              intent(IN )           :: HydrodynamicID
         type (T_Size3D)                             :: Size3D
         real, dimension(:,:,:), pointer, optional   :: Velocity_U, Velocity_V
         real, dimension(:,:,:), pointer, optional   :: OldVelocity_U, OldVelocity_V
-        !integer, dimension(:, :,:), pointer         :: MapMatrix
         integer, optional,    intent(OUT)           :: STAT
-
         !External--------------------------------------------------------------
         integer :: ready_
-
         !Local-----------------------------------------------------------------
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -13827,40 +13260,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-cd2 :       if (present(Velocity_U)) then
-                !call Read_Lock(mHydrodynamic_, Me%InstanceID)
-
-                call SetMatrixValue(Me%Velocity%Horizontal%U%New, Size3D,       &
-                                    Velocity_U) !, MapMatrix)
-
-                !call Read_UnLock?
-            end if cd2
-
-cd3 :       if (present(Velocity_V)) then
-                !call Read_Lock(mHydrodynamic_, Me%InstanceID)
-
-                call SetMatrixValue(Me%Velocity%Horizontal%V%New, Size3D,       &
-                                    Velocity_V) !, MapMatrix)
-
-                !call Read_UnLock?
-            end if cd3
-
-cd4 :       if (present(OldVelocity_U)) then
-                !call Read_Lock(mHydrodynamic_, Me%InstanceID)
-
-                call SetMatrixValue(Me%Velocity%Horizontal%U%Old, Size3D,       &
-                                    OldVelocity_U) !, MapMatrix)
-
-                !call Read_UnLock?
-            end if cd4
-
-cd5 :       if (present(OldVelocity_V)) then
-                !call Read_Lock(mHydrodynamic_, Me%InstanceID)
-
-                call SetMatrixValue(Me%Velocity%Horizontal%V%Old, Size3D,       &
-                                    OldVelocity_V) !, MapMatrix)
-
-                !call Read_UnLock?
+            if (present(Velocity_U)) call SetMatrixValue(Me%Velocity%Horizontal%U%New, Size3D, Velocity_U)
+            if (present(Velocity_V)) call SetMatrixValue(Me%Velocity%Horizontal%V%New, Size3D, Velocity_V)
+            if (present(OldVelocity_U)) call SetMatrixValue(Me%Velocity%Horizontal%U%Old, Size3D, OldVelocity_U)
+            if (present(OldVelocity_V)) call SetMatrixValue(Me%Velocity%Horizontal%V%Old, Size3D, OldVelocity_V)
             end if cd5
 
             STAT_ = SUCCESS_
@@ -13876,23 +13279,18 @@ cd5 :       if (present(OldVelocity_V)) then
 
     !--------------------------------------------------------------------------
 
-    subroutine CopyVerticalVelocity(HydrodynamicID, Size3D, Velocity_W,         &
-                                    Velocity_Across, STAT)
+    subroutine CopyVerticalVelocity(HydrodynamicID, Size3D, Velocity_W, Velocity_Across, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,           intent(IN )              :: HydrodynamicID
         type (T_Size3D)                             :: Size3D
         real, dimension(:,:,:), optional, pointer   :: Velocity_W
         real, dimension(:,:,:), optional, pointer   :: Velocity_Across
-        !integer, dimension(:, :,:), pointer         :: MapMatrix
         integer, optional, intent(OUT)              :: STAT
-
         !External--------------------------------------------------------------
         integer :: ready_
-
         !Local-----------------------------------------------------------------
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -13902,23 +13300,8 @@ cd5 :       if (present(OldVelocity_V)) then
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            if (present(Velocity_W     )) then
-                !call Read_Lock(mHydrodynamic_, Me%InstanceID)
-
-                call SetMatrixValue(Me%Velocity%Vertical%Cartesian, Size3D,     &
-                Velocity_W) !, MapMatrix)
-
-                !call Read_UnLock?
-            endif
-
-            if (present(Velocity_Across)) then
-                !call Read_Lock(mHydrodynamic_, Me%InstanceID)
-
-                call SetMatrixValue(Me%Velocity%Vertical%Across, Size3D,        &
-                Velocity_Across) !, MapMatrix)
-
-                !call Read_UnLock?
-            endif
+            if (present(Velocity_W)) call SetMatrixValue(Me%Velocity%Vertical%Cartesian, Size3D, Velocity_W)
+            if (present(Velocity_Across)) call SetMatrixValue(Me%Velocity%Vertical%Across, Size3D, Velocity_Across)
 
             STAT_ = SUCCESS_
         else
@@ -13933,8 +13316,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
     !--------------------------------------------------------------------------
 
-    subroutine CopyWaterFluxes(HydrodynamicID, Size3D, WaterFluxX, WaterFluxY,  &
-                               WaterFluxZ, STAT)
+    subroutine CopyWaterFluxes(HydrodynamicID, Size3D, WaterFluxX, WaterFluxY, WaterFluxZ, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,                         intent(IN )    :: HydrodynamicID
@@ -13942,15 +13324,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         real(8), dimension(:,:,:), pointer, optional    :: WaterFluxX
         real(8), dimension(:,:,:), pointer, optional    :: WaterFluxY
         real(8), dimension(:,:,:), pointer, optional    :: WaterFluxZ
-        !integer, dimension(:, :,:), pointer             :: MapMatrix
         integer, optional, intent(OUT)                  :: STAT
-
         !External--------------------------------------------------------------
         integer :: ready_
-
         !Local-----------------------------------------------------------------
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -13960,31 +13338,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-cd2 :       if (present(WaterFluxX)) then
-                !call Read_Lock(mHydrodynamic_, Me%InstanceID)
-
-                call SetMatrixValue(Me%WaterFluxes%X, Size3D, WaterFluxX) !, MapMatrix)
-
-                !call Read_UnLock?
-            end if cd2
-
-
-cd3 :       if (present(WaterFluxY)) then
-                !call Read_Lock(mHydrodynamic_, Me%InstanceID)
-
-                call SetMatrixValue(Me%WaterFluxes%Y, Size3D, WaterFluxY) !, MapMatrix)
-
-                !call Read_UnLock?
-            end if cd3
-
-
-cd4 :       if (present(WaterFluxZ)) then
-                !call Read_Lock(mHydrodynamic_, Me%InstanceID)
-
-                call SetMatrixValue(Me%WaterFluxes%Z, Size3D, WaterFluxZ) !, MapMatrix)
-
-                !call Read_UnLock?
-            end if cd4
+            if (present(WaterFluxX)) call SetMatrixValue(Me%WaterFluxes%X, Size3D, WaterFluxX)
+            if (present(WaterFluxY)) call SetMatrixValue(Me%WaterFluxes%Y, Size3D, WaterFluxY)
+            if (present(WaterFluxZ)) call SetMatrixValue(Me%WaterFluxes%Z, Size3D, WaterFluxZ)
 
             STAT_ = SUCCESS_
         else
@@ -13992,15 +13348,13 @@ cd4 :       if (present(WaterFluxZ)) then
         end if cd1
 
         if (present(STAT)) STAT = STAT_
-
         !----------------------------------------------------------------------
 
     end subroutine CopyWaterFluxes
 
     !--------------------------------------------------------------------------
 
-    subroutine CopySubModelFluxes(HydrodynamicID, Size3D, SubModelqX,           &
-                                  SubModelqY, STAT)
+    subroutine CopySubModelFluxes(HydrodynamicID, Size3D, SubModelqX, SubModelqY, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,                         intent(IN )    :: HydrodynamicID
@@ -14008,15 +13362,11 @@ cd4 :       if (present(WaterFluxZ)) then
         real(8), dimension(:,:,:), pointer, optional    :: SubModelqX
         real(8), dimension(:,:,:), pointer, optional    :: SubModelqY
         integer, optional, intent(OUT)                  :: STAT
-
         !External--------------------------------------------------------------
         integer :: ready_
-
         !Local-----------------------------------------------------------------
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -14024,22 +13374,8 @@ cd4 :       if (present(WaterFluxZ)) then
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-cd2 :       if (present(SubModelqX)) then
-                !call Read_Lock(mHydrodynamic_, Me%InstanceID)
-
-                call SetMatrixValue(Me%SubModel%qX, Size3D, SubModelqX)
-
-                !call Read_UnLock?
-            end if cd2
-
-
-cd3 :       if (present(SubModelqY)) then
-                !call Read_Lock(mHydrodynamic_, Me%InstanceID)
-
-                call SetMatrixValue(Me%SubModel%qY, Size3D, SubModelqY)
-
-                !call Read_UnLock?
-            end if cd3
+            if (present(SubModelqX)) call SetMatrixValue(Me%SubModel%qX, Size3D, SubModelqX)
+            if (present(SubModelqY)) call SetMatrixValue(Me%SubModel%qY, Size3D, SubModelqY)
 
             STAT_ = SUCCESS_
         else
@@ -14047,9 +13383,7 @@ cd3 :       if (present(SubModelqY)) then
         end if cd1
 
         if (present(STAT)) STAT = STAT_
-
         !----------------------------------------------------------------------
-
     end subroutine CopySubModelFluxes
 
     !--------------------------------------------------------------------------
@@ -14061,15 +13395,11 @@ cd3 :       if (present(SubModelqY)) then
         type (T_Size2D)                                 :: Size2D
         real,    dimension(:,:),   pointer              :: ChezyVelUV
         integer, optional, intent(OUT)                  :: STAT
-
         !External--------------------------------------------------------------
         integer :: ready_
-
         !Local-----------------------------------------------------------------
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -14077,11 +13407,7 @@ cd3 :       if (present(SubModelqY)) then
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-            !call Read_Lock(mHydrodynamic_, Me%InstanceID)
-
             call SetMatrixValue(Me%External_Var%ChezyVelUV, Size2D, ChezyVelUV)
-
-            !call Read_UnLock?
 
             STAT_ = SUCCESS_
         else
@@ -14118,19 +13444,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         integer, optional, intent(OUT) :: ImplicitDirection
         integer, optional, intent(OUT) :: DirectionX, DirectionY
         integer, optional, intent(OUT) :: STAT
-
-
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -14139,12 +13457,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             (ready_ .EQ. READ_LOCK_ERR_)) then
             call Read_Lock(mHydrodynamic_, Me%InstanceID)
 
-
             if (present(DirectionX)) DirectionX = DirectionX_
             if (present(DirectionY)) DirectionY = DirectionY_
 
-            if (present(ImplicitDirection))                                              &
-                ImplicitDirection = Me%Direction%XY
+            if (present(ImplicitDirection)) ImplicitDirection = Me%Direction%XY
 
             call Read_UnLock(mHydrodynamic_, Me%InstanceID, "GetDirection")
 
@@ -14153,15 +13469,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             STAT_ = ready_
         end if cd1
 
-
-        if (present(STAT))                                                               &
-            STAT = STAT_
+        if (present(STAT)) STAT = STAT_
 
         !----------------------------------------------------------------------
 
     end subroutine GetDirection
-
-
+    
     !--------------------------------------------------------------------------
 
     subroutine GetHydrodynamicSource(HydrodynamicID,                            &
@@ -14174,7 +13487,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
                                      ImposedSolution,                           &
                                      Vertical1D,                                &
                                      STAT)
-
         !Arguments-------------------------------------------------------------
         integer,           intent(IN ) :: HydrodynamicID
         integer,           intent(OUT) :: HydrodynamicSource
@@ -14182,19 +13494,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
                                           Residual_hydrodynamic, Run_Off,               &
                                           ImposedSolution, Vertical1D
         integer, optional, intent(OUT) :: STAT
-
-
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -14203,7 +13507,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             (ready_ .EQ. READ_LOCK_ERR_)) then
             call Read_Lock(mHydrodynamic_, Me%InstanceID)
 
-
             if (present(Solve_Equations       )) Solve_Equations       = Solve_Equations_
             if (present(Read_File             )) Read_File             = Read_File_
             if (present(No_hydrodynamic       )) No_hydrodynamic       = No_hydrodynamic_
@@ -14211,7 +13514,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             if (present(ImposedSolution       )) ImposedSolution       = ImposedSolution_
             if (present(Vertical1D            )) Vertical1D            = Vertical1D_
             if (present(Run_Off               )) Run_Off               = Run_Off_
-
 
             HydrodynamicSource = Me%ComputeOptions%Evolution
 
@@ -14222,10 +13524,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT))                                                               &
             STAT = STAT_
-
         !----------------------------------------------------------------------
 
     end subroutine GetHydrodynamicSource
@@ -14233,27 +13533,17 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
     !--------------------------------------------------------------------------
 
-    subroutine GetWaterFluxes(HydrodynamicID, WaterFluxX, WaterFluxY, WaterFluxZ,        &
-                              STAT)
-
+    subroutine GetWaterFluxes(HydrodynamicID, WaterFluxX, WaterFluxY, WaterFluxZ, STAT)
         !Arguments-------------------------------------------------------------
         integer,                         intent(IN ) :: HydrodynamicID
         real(8), dimension(:,:,:), pointer, optional :: WaterFluxX
         real(8), dimension(:,:,:), pointer, optional :: WaterFluxY
         real(8), dimension(:,:,:), pointer, optional :: WaterFluxZ
-
-        integer, optional, intent(OUT) :: STAT
-
-
-
+        integer, optional, intent(OUT)               :: STAT
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -14263,34 +13553,28 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-
 cd2 :       if (present(WaterFluxX)) then
                 call Read_Lock(mHydrodynamic_, Me%InstanceID)
                 WaterFluxX => Me%WaterFluxes%X
             end if cd2
-
 
 cd3 :       if (present(WaterFluxY)) then
                 call Read_Lock(mHydrodynamic_, Me%InstanceID)
                 WaterFluxY => Me%WaterFluxes%Y
             end if cd3
 
-
 cd4 :       if (present(WaterFluxZ)) then
                 call Read_Lock(mHydrodynamic_, Me%InstanceID)
                 WaterFluxZ => Me%WaterFluxes%Z
             end if cd4
-
 
             STAT_ = SUCCESS_
         else
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT))                                                    &
             STAT = STAT_
-
         !----------------------------------------------------------------------
 
     end subroutine GetWaterFluxes
@@ -14304,19 +13588,12 @@ cd4 :       if (present(WaterFluxZ)) then
         !Arguments-------------------------------------------------------------
         integer,                         intent(IN ) :: HydrodynamicID
         real(8), dimension(:,:,:), pointer, optional :: Discharges
-
         integer, optional, intent(OUT)               :: STAT
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -14336,7 +13613,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
         if (present(STAT))                                                    &
             STAT = STAT_
-
         !----------------------------------------------------------------------
 
     end subroutine GetDischargesFluxes
@@ -14349,21 +13625,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
     subroutine GetWavesStressON(HydrodynamicID, WavesStressON, STAT)
 
         !Arguments-------------------------------------------------------------
-
         integer,           intent(IN ) :: HydrodynamicID
         logical                        :: WavesStressON
         integer, optional, intent(OUT) :: STAT
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -14371,8 +13640,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                           &
             (ready_ .EQ. READ_LOCK_ERR_)) then
 
-! Modified by Matthias DELPEY - 01/07/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Modified by Matthias DELPEY - 27/07/2011
+! Modified by Matthias DELPEY - 27/07/2011!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! WaveStressON is also set at .true. when using WAVE_STRESS : 0 and WAVE_FORCING_3D : 1 or 2
             ! WavesStressON = Me%WaveStress%ON
             WavesStressON =  (Me%WaveStress%ON                                      .or.&
@@ -14384,10 +13652,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT))                                                              &
             STAT = STAT_
-
         !----------------------------------------------------------------------
 
     end subroutine GetWavesStressON
@@ -14399,21 +13665,14 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
     subroutine GetPointDischargesState(HydrodynamicID, DischargesON, STAT)
 
         !Arguments-------------------------------------------------------------
-
         integer,           intent(IN ) :: HydrodynamicID
         logical                        :: DischargesON
         integer, optional, intent(OUT) :: STAT
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -14428,17 +13687,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT))                                                               &
             STAT = STAT_
-
         !----------------------------------------------------------------------
 
     end subroutine GetPointDischargesState
 
     !--------------------------------------------------------------------------
-
-
 
 
     !--------------------------------------------------------------------------
@@ -14449,18 +13704,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         integer,              intent(IN )           :: HydrodynamicID
         real, dimension(:,:,:), pointer, optional   :: Velocity_U, Velocity_V
         integer, optional,    intent(OUT) :: STAT
-
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -14483,10 +13731,8 @@ cd3 :       if (present(Velocity_V)) then
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT))                                                    &
             STAT = STAT_
-
         !----------------------------------------------------------------------
 
     end subroutine GetHorizontalVelocity
@@ -14498,21 +13744,14 @@ cd3 :       if (present(Velocity_V)) then
     subroutine GetResidualVelocityON(HydrodynamicID, ResidualON, STAT)
 
         !Arguments-------------------------------------------------------------
-
         integer,           intent(IN ) :: HydrodynamicID
         logical                        :: ResidualON
         integer, optional, intent(OUT) :: STAT
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -14526,7 +13765,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         else
             STAT_ = ready_
         end if cd1
-
 
         if (present(STAT))                                                               &
             STAT = STAT_
@@ -14546,18 +13784,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         integer,                        intent(IN ) :: HydrodynamicID
         real, dimension(:,:,:), pointer, optional   :: VelocityResidual_U, VelocityResidual_V
         integer, optional,              intent(OUT) :: STAT
-
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -14580,7 +13811,6 @@ cd3 :       if (present(VelocityResidual_V)) then
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT))                                                    &
             STAT = STAT_
 
@@ -14598,18 +13828,11 @@ cd3 :       if (present(VelocityResidual_V)) then
         integer,           intent(IN )              :: HydrodynamicID
         real, dimension(:,:,:), pointer, optional   :: OldVelocity_U, OldVelocity_V
         integer, optional, intent(OUT)              :: STAT
-
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
@@ -14632,10 +13855,8 @@ cd3 :       if (present(OldVelocity_V)) then
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT))                                                    &
             STAT = STAT_
-
         !----------------------------------------------------------------------
 
     end subroutine GetOldHorizontalVelocity
@@ -14898,7 +14119,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             STAT_ = ready_
         end if cd1
 
-
         if (present(STAT))                                                    &
             STAT = STAT_
         !----------------------------------------------------------------------
@@ -14952,15 +14172,9 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
 if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
             (ready_ .EQ. READ_LOCK_ERR_)) then
-
-            if (Me%ComputeOptions%Evolution == Vertical1D_) then
-
-                Vertical1D = .true.
-
-            else
-                Vertical1D = .false.
-            endif
-
+    
+            Vertical1D = .false.
+            if (Me%ComputeOptions%Evolution == Vertical1D_) Vertical1D = .true.
             STAT_ = SUCCESS_
         else
             STAT_ = ready_
@@ -15010,10 +14224,8 @@ if1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         integer                                     :: HydrodynamicID
         logical                                     :: RunSeqAssimilation
         integer, intent(OUT), optional              :: STAT
-
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_, ready_
-
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -15632,21 +14844,10 @@ cd1 :   if (ready_ == IDLE_ERR_)then
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
-cd2 :       if (present(Velocity_U)) then
-                Me%Velocity%Horizontal%U%New => Velocity_U
-            end if cd2
-
-cd3 :       if (present(Velocity_V)) then
-                Me%Velocity%Horizontal%V%New => Velocity_V
-            end if cd3
-
-cd4 :       if (present(OldVelocity_U)) then
-                Me%Velocity%Horizontal%U%Old => OldVelocity_U
-            end if cd4
-
-cd5 :       if (present(OldVelocity_V)) then
-                Me%Velocity%Horizontal%V%Old => OldVelocity_V
-            end if cd5
+            if (present(Velocity_U)) Me%Velocity%Horizontal%U%New => Velocity_U
+            if (present(Velocity_V)) Me%Velocity%Horizontal%V%New => Velocity_V
+            if (present(OldVelocity_U)) Me%Velocity%Horizontal%U%Old => OldVelocity_U
+            if (present(OldVelocity_V)) Me%Velocity%Horizontal%V%Old => OldVelocity_V
             !CAUTION: Velocity_U/Velocity_V is an external variable/memory space!
 
             STAT_ = SUCCESS_
@@ -15678,17 +14879,11 @@ cd5 :       if (present(OldVelocity_V)) then
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
-cd2 :       if (present(Velocity_W)) then
-                Me%Velocity%Vertical%Cartesian => Velocity_W
-            end if cd2
-
-cd3 :       if (present(Velocity_Across)) then
-                Me%Velocity%Vertical%Across => Velocity_Across
-            end if cd3
+            if (present(Velocity_W)) Me%Velocity%Vertical%Cartesian => Velocity_W
+            if (present(Velocity_Across)) Me%Velocity%Vertical%Across => Velocity_Across
             !CAUTION: Velocity_W/Velocity_Across is an external variable/memory space!
 
             STAT_ = SUCCESS_
-
         else
             STAT_ = ready_
         end if cd1
@@ -15710,32 +14905,21 @@ cd3 :       if (present(Velocity_Across)) then
         integer                                      :: ready_
         integer                                      :: STAT_
         !------------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
-cd2 :       if (present(WaterFluxX)) then
-                Me%WaterFluxes%X => WaterFluxX
-            end if cd2
-
-cd3 :       if (present(WaterFluxY)) then
-                Me%WaterFluxes%Y => WaterFluxY
-            end if cd3
-
-cd4 :       if (present(WaterFluxZ)) then
-                Me%WaterFluxes%Z => WaterFluxZ
-            end if cd4
+            if (present(WaterFluxX)) Me%WaterFluxes%X => WaterFluxX
+            if (present(WaterFluxY)) Me%WaterFluxes%Y => WaterFluxY
+            if (present(WaterFluxZ)) Me%WaterFluxes%Z => WaterFluxZ
             !CAUTION: WaterFluxX/WaterFluxY/WaterFluxZ is an external variable/memory space!
 
             STAT_ = SUCCESS_
-
         else
             STAT_ = ready_
         end if cd1
-
 
         if (present(STAT))STAT = STAT_
 
@@ -15760,17 +14944,11 @@ cd4 :       if (present(WaterFluxZ)) then
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
-cd2 :       if (present(SubModelqX)) then
-                Me%SubModel%qX => SubModelqX
-            end if cd2
-
-cd3 :       if (present(SubModelqY)) then
-                Me%SubModel%qY => SubModelqY
-            end if cd3
+            if (present(SubModelqX)) Me%SubModel%qX => SubModelqX
+            if (present(SubModelqY)) Me%SubModel%qY => SubModelqY
             !CAUTION: SubModelqX/SubModelqY is an external variable/memory space!
 
             STAT_ = SUCCESS_
-
         else
             STAT_ = ready_
         end if cd1
@@ -15831,9 +15009,7 @@ cd1 :   if (ready_ == IDLE_ERR_)then
             STAT_ = SUCCESS_
 
         else cd1
-
             STAT_ = ready_
-
         end if cd1
 
         if (present(STAT)) STAT = STAT_
@@ -15859,35 +15035,24 @@ cd1 :   if (ready_ == IDLE_ERR_)then
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             Me%WaterLevel%New => Me%AuxPointer%WaterLevelNew
-
             Me%Velocity%Horizontal%U%New => Me%AuxPointer%VelocityUNew
-
             Me%Velocity%Horizontal%V%New => Me%AuxPointer%VelocityVNew
-
             Me%Velocity%Horizontal%U%Old => Me%AuxPointer%VelocityUOld
-
             Me%Velocity%Horizontal%V%Old => Me%AuxPointer%VelocityVOld
-
             Me%Velocity%Vertical%Cartesian => Me%AuxPointer%VelVerticalCartesian
-
             Me%Velocity%Vertical%Across => Me%AuxPointer%VelVerticalAcross
-
             Me%WaterFluxes%X => Me%AuxPointer%WaterFluxX
-
             Me%WaterFluxes%Y => Me%AuxPointer%WaterFluxY
-
             Me%WaterFluxes%Z => Me%AuxPointer%WaterFluxZ
 
             if (Me%SubModel%ON) then
                 Me%SubModel%qX => Me%AuxPointer%SubModelqX
-
                 Me%SubModel%qY => Me%AuxPointer%SubModelqY
             endif
 
             Me%External_Var%ChezyVelUV => Me%AuxPointer%ChezyVelUV
 
             STAT_ = SUCCESS_
-
         else
             STAT_ = ready_
         end if cd1
@@ -15918,7 +15083,6 @@ cd1 :   if (ready_ == IDLE_ERR_)then
             Me%External_Var%ShearStressMethod     = ShearStressMethod
 
             STAT_ = SUCCESS_
-
         else cd1
 
             STAT_ = ready_
@@ -16022,10 +15186,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_Hydrodynamic")
 
-
             !This hydrodynamic model do not has variable time step
             !NewDT    = FillValueReal
-
 
             !Time Properties - Actualises CurrentTime
             call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)
@@ -16038,26 +15200,21 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             call Actualises_Hydrodynamic
 
-
             !Read Lock variables external variables
             !The modules responsible for this variables were
             !built outside the hydrodynamic module. This modules are
             !call External Modules
             call ReadLock_External_Modules
 
-
             call ReadLock_ModuleTurbulence
 #ifndef _WAVES_
 
-            if (Me%ObjWaves /=0) then
-                call ReadLock_ModuleWaves
-            endif
+            if (Me%ObjWaves /=0) call ReadLock_ModuleWaves
 #endif
             call One_Iteration
 
             !Computes the energy extracted by the turbines
-            if (Me%ComputeOptions%Turbine)                              &
-            call ComputeTurbineEnergy(Me%ObjTurbine, Me%Velocity%DT)
+            if (Me%ComputeOptions%Turbine) call ComputeTurbineEnergy(Me%ObjTurbine, Me%Velocity%DT)
 
 #ifdef _USE_SEQASSIMILATION
             if (.not. Me%VirtualRun) then
@@ -16069,33 +15226,22 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             call ComputeBoxesWaterFluxes
 
             !Compute Residual Flow Properties
-            if (Me%ComputeOptions%Residual)                                 &
-                call ComputeResidualFlowProperties
+            if (Me%ComputeOptions%Residual) call ComputeResidualFlowProperties
 
             !Calculates emersion and immersion times
-            if (Me%ComputeOptions%EmersionTime)                             &
-                call ComputeEmersionTime
+            if (Me%ComputeOptions%EmersionTime) call ComputeEmersionTime
 
             !Calculates the energy of the system - Frank Out 99
-            if (Me%ComputeOptions%Energy)                                   &
-                call ComputeSystemEnergy
-
+            if (Me%ComputeOptions%Energy) call ComputeSystemEnergy
 
             if (.not. associated(Me%Next))then
-
-                    if (Me%ComputeOptions%TwoWay) then
-
-                        call ComputeTwoWay(HydrodynamicID)
-
-                    endif
-
+                if (Me%ComputeOptions%TwoWay) call ComputeTwoWay(HydrodynamicID)
             endif
 
             call Hydrodynamic_OutPut
 
             !Records results to binary file
             if (Me%ComputeOptions%Recording) then
-
                 call ModifyHydrodynamicFile(Me%ObjHydrodynamicFileOut,                           &
                                             WaterLevel       = Me%WaterLevel%New,                &
                                             WaterFluxX       = Me%WaterFluxes%X,                 &
@@ -16105,17 +15251,13 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                             ComputeFacesV3D  = Me%External_Var%ComputeFaces3D_V, &
                                             HydrodynamicTime = Me%CurrentTime,                   &
                                             STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) &
-                    stop 'Subroutine Modify_Hydrodynamic - ModuleHydrodynamic. ERR02.'
-
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine Modify_Hydrodynamic - ModuleHydrodynamic. ERR02.'
             endif
 
             call GetVariableDT (Me%ObjTime, VariableDT, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Modify_Hydrodynamic - ModuleHydrodynamic - ERR02a'
 
-            if (VariableDT) then
-                call CalcNewDT (NewDT)
-            endif
+            if (VariableDT) call CalcNewDT (NewDT)
 
 #ifdef _USE_SEQASSIMILATION
             endif
@@ -16155,11 +15297,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             STAT_ = SUCCESS_
         else
-
             STAT_ = ready_
-
         end if cd1
-
 
         if (present(STAT))                                                               &
             STAT = STAT_
@@ -16278,8 +15417,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         call GetComputeTimeStep(Me%ObjTime, DT_Model, STAT = status)
 
-        if (status /= SUCCESS_)                                                         &
-            call SetError (FATAL_, INTERNAL_, 'CalcNewDT - ModuleHydrodynamic - ERR10')
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, 'CalcNewDT - ModuleHydrodynamic - ERR10')
 
         Courant = CourantDT / dble(DT_Model)
 
@@ -16312,7 +15450,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             NewDT%DT = 0.5 * CourantDT
         endif
 
-
     end subroutine CalcNewDT
 
     !End--------------------------------------------------------------------------
@@ -16320,86 +15457,56 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
     subroutine Statistics_OutPut ( CenterU, CenterV, CenterW, ModulusH, WaterLevel)
 
         !Arguments-------------------------------------------------------------
-
         real,    dimension(:,:,:), pointer                :: CenterU, CenterV, CenterW, ModulusH
         real,    dimension(:,:  ), pointer                :: WaterLevel
-
         !Local-----------------------------------------------------------------
         real,    dimension(:,:,:), pointer                :: Value3D
         real,    dimension(:,:  ), pointer                :: Value2D
         real,    dimension(:,:  ), pointer                :: Bathymetry
         integer                                           :: MethodStatistic, LayerDefinition
         integer                                           :: Depth, Layer, Value3DStatLayers,      &
-                                                   LayersNumber, np, ln
+                                                             LayersNumber, np, ln
         integer                                           :: ILB, IUB, JLB, JUB, STAT_CALL
         integer                                           :: status
         !Begin-----------------------------------------------------------------
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-
+        ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB
+        IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB
 
         if (Me%Statistics%ON) then
             do np = 1, Me%Statistics%NProp
 
-                if (Me%Statistics%PropList(np) == VelocityU_)then
-                    Value3D => CenterU
-                endif
-
-                if (Me%Statistics%PropList(np) == VelocityV_)then
-                    Value3D => CenterV
-                endif
-
-                if (Me%Statistics%PropList(np) == VelocityW_)then
-                    Value3D => CenterW
-                endif
-
-                if (Me%Statistics%PropList(np) == VelocityModulus_)then
-                    Value3D => ModulusH
-                endif
-
-                call GetStatisticMethod (Me%Statistics%ID(np), MethodStatistic, &
-                                        STAT = status)
-
-                if (status /= SUCCESS_)                                                  &
-                    call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR01')
+                if (Me%Statistics%PropList(np) == VelocityU_) Value3D => CenterU
+                if (Me%Statistics%PropList(np) == VelocityV_) Value3D => CenterV
+                if (Me%Statistics%PropList(np) == VelocityW_) Value3D => CenterW
+                if (Me%Statistics%PropList(np) == VelocityModulus_) Value3D => ModulusH
+                
+                call GetStatisticMethod (Me%Statistics%ID(np), MethodStatistic, STAT = status)
+                if (status /= SUCCESS_)call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut-ModuleHydrodynamic-ERR01')
 
                 call GetStatisticParameters (Me%Statistics%ID(np),          &
                                              Value3DStatLayers = Value3DStatLayers,      &
                                              Depth             = Depth,                  &
-                                             Layer             = Layer,                  &
-                                             STAT = status)
-
-                if (status /= SUCCESS_)                                                  &
-                    call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR02')
+                                             Layer             = Layer, STAT = status)
+                if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut-ModuleHydrodynamic-ERR02')
 
 
 cd1:            if (MethodStatistic == Value3DStatLayers) then
 
-!                    nullify(MLD_Surf)
-
                     !Gets Bathymetry
-                    call GetGridData(Me%ObjGridData,                    &
-                                       Bathymetry, STAT = status)
-
-                    if (status /= SUCCESS_)                                              &
+                    call GetGridData(Me%ObjGridData, Bathymetry, STAT = status)
+                    if (status /= SUCCESS_) &
                         call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR03')
-
 
                     call GetStatisticLayersNumber(Me%Statistics%ID(np), LayersNumber, STAT = status)
 
-                    if (status /= SUCCESS_)                                              &
-                            call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR04')
+                    if (status /= SUCCESS_) &
+                        call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR04')
 
                     do ln = 1, LayersNumber
 
-                        call GetStatisticLayerDef(Me%Statistics%ID(np),     &
-                                                  ln, LayerDefinition, STAT = status)
-
-                        if (status /= SUCCESS_)                                          &
+                        call GetStatisticLayerDef(Me%Statistics%ID(np), ln, LayerDefinition, STAT = status)
+                        if (status /= SUCCESS_) &
                             call SetError (FATAL_, INTERNAL_, 'OutPut_Statistics - ModuleHydrodynamic - ERR05')
                        !Statistic of properties values along the bottom
                         if (LayerDefinition == Layer) then
@@ -16408,9 +15515,7 @@ cd1:            if (MethodStatistic == Value3DStatLayers) then
                                                      Value3D        = Value3D,                      &
                                                      WaterPoints3D  = Me%External_Var%WaterPoints3D,&
                                                      DZ3D           = Me%External_Var%DWZ,          &
-                                                     LayerNumber    = ln,                           &
-                                                     STAT= STAT_CALL)
-
+                                                     LayerNumber    = ln, STAT= STAT_CALL)
                             if (STAT_CALL /= SUCCESS_)                                              &
                                 call SetError (FATAL_, KEYWORD_, 'OutPut_Statistics - ModuleWaterProperties - ERR06')
 
@@ -16422,15 +15527,13 @@ cd1:            if (MethodStatistic == Value3DStatLayers) then
                                                      Value3D       = Value3D,                       &
                                                      WaterPoints3D = Me%External_Var%WaterPoints3D, &
                                                      DZ3D          = Me%External_Var%DWZ,           &
-                                                        LayerNumber   = ln,                            &
+                                                     LayerNumber   = ln,                            &
 !                                                     LowerDepth    = MLD_Surf,                     &
                                                      STAT= status)
-
-                            if (status /= SUCCESS_)                                              &
-                                call SetError (FATAL_, INTERNAL_, 'OutPut_Statistics - ModuleWaterProperties - ERR07')
+                            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, &
+                                                                   'OutPut_Statistics - ModuleWaterProperties - ERR07')
 
                         endif
-
                     enddo
 
                 endif  cd1
@@ -16439,25 +15542,19 @@ cd1:            if (MethodStatistic == Value3DStatLayers) then
                                       Value3D       = Value3D,                           &
                                       WaterPoints3D = Me%External_Var%WaterPoints3D,     &
                                       STAT          = status)
-                if (status /= SUCCESS_)                                                  &
-                    call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR08')
+                if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, &
+                                                      'Statistics_OutPut - ModuleHydrodynamic - ERR08')
 
             enddo
 
         endif
 
         if (Me%Statistics2D%ON) then
-
             do np = 1, Me%Statistics2D%NProp
+                if (Me%Statistics2D%PropList(np) == WaterLevel_) Value2D => WaterLevel
+                if (Me%Statistics2D%PropList(np) == WaterColumn_) Value2D => Me%External_Var%WaterColumn
 
-                if (Me%Statistics2D%PropList(np) == WaterLevel_)           &
-                    Value2D => WaterLevel
-
-                if (Me%Statistics2D%PropList(np) == WaterColumn_)          &
-                    Value2D => Me%External_Var%WaterColumn
-
-                call GetStatisticMethod (Me%Statistics2D%ID(np), MethodStatistic, &
-                                        STAT = status)
+                call GetStatisticMethod (Me%Statistics2D%ID(np), MethodStatistic, STAT = status)
 
                 if (status /= SUCCESS_)                                                  &
                     call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR09')
@@ -16466,11 +15563,9 @@ cd1:            if (MethodStatistic == Value3DStatLayers) then
                                       Value2D       = Value2D,                           &
                                       WaterPoints2D = Me%External_Var%WaterPoints2D,     &
                                       STAT          = status)
-                if (status /= SUCCESS_)                                                  &
-                    call SetError (FATAL_, INTERNAL_, 'Statistics_OutPut - ModuleHydrodynamic - ERR10')
-
+                if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, &
+                                                      'Statistics_OutPut - ModuleHydrodynamic - ERR10')
             enddo
-
         endif
 
     end subroutine Statistics_OutPut
@@ -16486,8 +15581,6 @@ cd1:            if (MethodStatistic == Value3DStatLayers) then
         integer,           intent(IN )              :: HydrodynamicID, HydrodynamicFatherID
         logical,           intent(IN )              :: InitialField
         integer, optional, intent(OUT)              :: STAT
-
-
         !Local-----------------------------------------------------------------
         type (T_Hydrodynamic), pointer              :: ObjHydrodynamicFather
         integer                                     :: ready_, readyFather_
@@ -16503,7 +15596,6 @@ cd1:            if (MethodStatistic == Value3DStatLayers) then
         integer, dimension(:,:,:), pointer          :: Faces3D_VFather
         real                                        :: DT_Son
         integer                                     :: status, ILB, JLB, KLB, IUB, JUB, KUB
-
         !----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "SetHydroFather")
@@ -16528,7 +15620,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
 
                 if (Me%ComputeOptions%TwoWay)then
                     call AllocateTwoWayAux(HydrodynamicFatherID, HydrodynamicID)
-                    if (Me%OutPut%Upscaling%MassSinkSource .or. ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then !Sobrinho
+                    if (Me%OutPut%Upscaling%MassSinkSource .or. ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
                         !Next if is here to prevent more than one allocation (when one parent domain has two or more son domains)
                         if (.not. allocated(ObjHydrodynamicFather%OutPut%Upscaling%CopyVel)) &
                         allocate(ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(ILB:IUB, JLB:JUB, KLB:KUB))
@@ -16666,11 +15758,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
         !Arguments-------------------------------------------------------------
         logical                                     :: FatherContinuous
-
         !Local-----------------------------------------------------------------
         logical                                     :: ModelGOTM, ContinuousGOTM
         integer                                     :: STAT_CALL
-
         !----------------------------------------------------------------------
 
         !Begin - Shorten variables name
@@ -16691,7 +15781,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             write (*,*) 'In areas of strong velocities numerical instabilities mabe hObjen.'
             write (*,*) 'In this case the user is advised to use the option BOTTOMVISC_LIM.'
             write (*,*) 'See the user manual for more information about this option http://www.mohid.com.'
-
         endif
 
     end subroutine TestSubModelOptionsConsistence
@@ -16702,7 +15791,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
         !Arguments-------------------------------------------------------------
         logical,           intent(IN )     :: InitialField
-
         !Local-----------------------------------------------------------------
         real,    dimension(:,:,:), pointer :: DUZ_Son, DVZ_Son
         real,    dimension(:,:  ), pointer :: DXX_Son, DYY_Son, Bathymetry
@@ -16718,54 +15806,30 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         integer                            :: i, j, k
         logical                            :: ErrorOccured, DeadZoneSon
         integer                            :: CHUNK
-
         !Begin-----------------------------------------------------------------
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
-
+        ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB; KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB; KUB = Me%WorkSize%KUB
 
         if (Me%SubModel%InterPolTime .and. .not. InitialField) then
-
             !Time Properties - Actualises CurrentTime
-            call GetComputeCurrentTime(Me%ObjTime,                       &
-                                       Me%CurrentTime, STAT = status)
-            if (status /= SUCCESS_)                                                      &
-                    call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR01")
+            call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = status)
+            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR01")
 
             TimeCoef = (Me%CurrentTime       - Me%SubModel%PreviousTime) / &
                        (Me%SubModel%NextTime - Me%SubModel%PreviousTime)
 
             call null_Time(Me%CurrentTime)
-
-
         else
-
             TimeCoef = 1
-
         endif
-
-
-
 
         !Gets Bathymetry
         call GetGridData(Me%ObjGridData, Bathymetry, STAT = status)
-        if (status /= SUCCESS_)                                                          &
-                call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR02")
-
-
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR02")
 
         call GetGeometryMinWaterColumn(Me%ObjGeometry, MinWaterColumn, STAT = status)
-        if (status /= SUCCESS_)                                                          &
-            call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR03")
-
-
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR03")
 
         call ReadLockSon(ImposedTangFacesUSon, ImposedTangFacesVSon,                     &
                          ImposedNormFacesUSon, ImposedNormFacesVSon,                     &
@@ -16788,19 +15852,10 @@ cd3:    if (InitialField) then
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB + 1
             do i = ILB, IUB
+                
+                DeadZoneSon = .false.
 
-                if (Me%SubModel%DeadZone) then
-
-                    DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-                else
-
-                    DeadZoneSon = .false.
-
-                endif
-
-!cd4:            if (((Faces3D_USon        (i, j, k) == Covered              .and.        &
-!                      .not. Me%ComputeOptions%Continuous)   .or.         &
+                if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
 cd4:            if (( Faces3D_USon        (i, j, k) == Covered              .or.         &
                       ImposedTangFacesUSon(i, j, k) == Imposed              .or.         &
@@ -16814,16 +15869,12 @@ cd4:            if (( Faces3D_USon        (i, j, k) == Covered              .or.
                         ErrorOccured = .true.
                         !!!! $OMP END CRITICAL (ASMV1_OUT01)
 #endif
-                        if (Me%SubModel%MissingNull)                                    &
-                            Me%SubModel%qX(i, j, k) = 0.
+                        if (Me%SubModel%MissingNull) Me%SubModel%qX(i, j, k) = 0.
                     endif
 
                     if (.not. Me%ComputeOptions%Continuous)                             &
-                        Me%WaterFluxes%X(i, j, k)               =                       &
-                        Me%SubModel%qX (i, j, k) * DYY_Son(i, j)
-
+                        Me%WaterFluxes%X(i, j, k) = Me%SubModel%qX (i, j, k) * DYY_Son(i, j)
                 endif cd4
-
             enddo
             enddo
             !$OMP END DO NOWAIT
@@ -16838,30 +15889,14 @@ cd4:            if (( Faces3D_USon        (i, j, k) == Covered              .or.
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB + 1
-
-
-                if (Me%SubModel%DeadZone) then
-
-                    DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-                else
-
-                    DeadZoneSon = .false.
-
-                endif
-
-!cd5:            if (((Faces3D_VSon        (i, j, k) == Covered              .and.        &
-!                      .not. Me%ComputeOptions%Continuous)   .or.         &
-!                      ImposedTangFacesVSon(i, j, k) == Imposed              .or.         &
-!                      ImposedNormFacesVSon(i, j, k) == Imposed)             .and.        &
-!                      .not. DeadZoneSon) then
+                
+                DeadZoneSon = .false.
+                if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
 cd5:            if (( Faces3D_VSon        (i, j, k) == Covered              .or.         &
                       ImposedTangFacesVSon(i, j, k) == Imposed              .or.         &
                       ImposedNormFacesVSon(i, j, k) == Imposed)             .and.        &
                       .not. DeadZoneSon .and. .not. Me%SubModel%HotStartData) then
-
-
 
                     if (Me%SubModel%qY  (i, j, k) < FillValueReal / 2.) then
 #ifndef _USE_MPI
@@ -16870,14 +15905,11 @@ cd5:            if (( Faces3D_VSon        (i, j, k) == Covered              .or.
                         ErrorOccured = .true.
                         !!!! $OMP END CRITICAL (ASMV2_OUT02)
 #endif
-                        if (Me%SubModel%MissingNull)                     &
-                            Me%SubModel%qY(i, j, k) = 0.
+                        if (Me%SubModel%MissingNull) Me%SubModel%qY(i, j, k) = 0.
                     endif
 
                     if (.not. Me%ComputeOptions%Continuous)                             &
-                        Me%WaterFluxes%Y(i, j, k)               =                       &
-                        Me%SubModel%qY  (i, j, k) * DXX_Son(i, j)
-
+                        Me%WaterFluxes%Y(i, j, k) =  Me%SubModel%qY  (i, j, k) * DXX_Son(i, j)
                 endif cd5
 
             enddo
@@ -16888,7 +15920,6 @@ cd5:            if (( Faces3D_VSon        (i, j, k) == Covered              .or.
 
             if (ErrorOccured .and. .not. Me%SubModel%MissingNull)        &
                 call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR04")
-
 
         endif cd3
 
@@ -16903,23 +15934,14 @@ cd66:   if ((InitialField .and. .not. Me%ComputeOptions%Continuous) .or. &
             do j = JLB, JUB
             do i = ILB, IUB
 
-                if (Me%SubModel%DeadZone) then
-
-                    DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
-
-                else
-
-                    DeadZoneSon = .false.
-
-                endif
+                DeadZoneSon = .false.
+                if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
 
                 !The test must be done for the water points because the water levels in the corner (no open points)
                 !are used to compute face areas where momentum fluxes are computed.
 cd6:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon) then
-
-                    Me%SubModel%Z(i, j)  =                                   &
-                            Me%SubModel%Z_Next    (i, j) * TimeCoef  +       &
-                            Me%SubModel%Z_Previous(i, j) * (1 - TimeCoef)
+                    Me%SubModel%Z(i, j) = Me%SubModel%Z_Next(i, j)     * TimeCoef &
+                                        + Me%SubModel%Z_Previous(i, j) * (1 - TimeCoef)
 
                     if (Me%SubModel%Z(i, j) < (- Bathymetry(i, j) + 0.75 * MinWaterColumn)) then
                         Me%SubModel%Z(i, j) =  - Bathymetry(i, j) + 0.75 * MinWaterColumn
@@ -16927,21 +15949,15 @@ cd6:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon)
 
                     if (Me%SubModel%Z_Next    (i, j) < FillValueReal / 2. .or.   &
                         Me%SubModel%Z_Previous(i, j) < FillValueReal / 2.) then
-
-
                         if (.not.Me%SubModel%MissingNull) then
                             !!!! $OMP CRITICAL (ASMV3_ERR05)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR05")
                             !!!! $OMP END CRITICAL (ASMV3_ERR05)
                         endif
-
                     endif
 
-                    if (InitialField .and. .not. Me%ComputeOptions%Continuous  &
-                       .and. Me%SubModel%FatherHotStart)                       &
+                    if (InitialField .and. .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart) &
                         Me%WaterLevel%New(i, j) = Me%SubModel%Z(i, j)
-
-
                 endif cd6
 
             enddo
@@ -16949,37 +15965,27 @@ cd6:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon)
             !$OMP END DO
             !$OMP END PARALLEL
 
-            if (Me%SubModel%MissingNull)                                                &
-                call RemoveLowerSpikes (Me%WaterLevel%New, Water3DSon,                  &
-                                        Bathymetry, MinWaterColumn,                     &
-                                        Me%SubModel%DeadZonePoint, Me%SubModel%DeadZone,&
+            if (Me%SubModel%MissingNull)                                                            &
+                call RemoveLowerSpikes (Me%WaterLevel%New, Water3DSon, Bathymetry, MinWaterColumn,  &
+                                        Me%SubModel%DeadZonePoint, Me%SubModel%DeadZone,            &
                                         ILB, IUB, JLB, JUB, KUB)
-
         else cd66
 
             !$OMP PARALLEL PRIVATE(i,j,DeadZoneSon)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
-
-                if (Me%SubModel%DeadZone) then
-
-                    DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
-
-                else
-
-                    DeadZoneSon = .false.
-
-                endif
+                
+                DeadZoneSon = .false.
+                if  (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
 
                 !The test must be done for the water points because the water levels in the corner (no open points)
                 !are used to compute face areas where momentum fluxes are computed.
 cd67:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) == WaterPoint  &
                    .and. .not. DeadZoneSon) then
 
-                    Me%SubModel%Z(i, j)  =                                   &
-                            Me%SubModel%Z_Next    (i, j) * TimeCoef  +       &
-                            Me%SubModel%Z_Previous(i, j) * (1 - TimeCoef)
+                    Me%SubModel%Z(i, j) = Me%SubModel%Z_Next    (i, j) * TimeCoef      &
+                                        + Me%SubModel%Z_Previous(i, j) * (1 - TimeCoef)
 
                     if (Me%SubModel%Z_Next    (i, j) < FillValueReal / 2. .or.   &
                         Me%SubModel%Z_Previous(i, j) < FillValueReal / 2.)   then
@@ -16989,30 +15995,22 @@ cd67:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) 
                             !if WaterColumn < MinWaterColumn / 2 the model put WaterColumn = MinWaterColumn / 2 (creates water)
                             ! Using WaterColumn = 3/4MinWaterColumn garantees that the cell is uncovered but mass is not created
                             Me%SubModel%Z(i, j)  = - Bathymetry(i, j) + 0.75 * MinWaterColumn
-
                         else
                             !!!! $OMP CRITICAL (ASMV4_ERR06)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR06")
                             !!!! $OMP END CRITICAL (ASMV4_ERR06)
                         endif
                     endif
-
-
                 endif cd67
-
             enddo
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
 
-            if (Me%SubModel%MissingNull)                                                &
-                call RemoveLowerSpikes (Me%SubModel%Z, Water3DSon,                      &
-                                        Bathymetry, MinWaterColumn,                     &
-                                        Me%SubModel%DeadZonePoint, Me%SubModel%DeadZone,&
+            if (Me%SubModel%MissingNull)                                                        &
+                call RemoveLowerSpikes (Me%SubModel%Z, Water3DSon, Bathymetry, MinWaterColumn,  &
+                                        Me%SubModel%DeadZonePoint, Me%SubModel%DeadZone,        &
                                         ILB, IUB, JLB, JUB, KUB, Boundary2DSon)
-
-
-
         endif cd66
 
         CHUNK = CHUNK_J(JLB, JUB + 1)
@@ -17026,28 +16024,17 @@ cd8:    if ((InitialField .and. .not. Me%ComputeOptions%Continuous)          .or
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB + 1
             do i = ILB, IUB
-
-                if (Me%SubModel%DeadZone) then
-
-                    DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-                else
-
-                    DeadZoneSon = .false.
-
-                endif
-
+                
+                DeadZoneSon = .false.
+                if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
 cd7:            if (Faces3D_USon(i, j, k) == Covered .and. .not. DeadZoneSon) then
 
-                    Me%SubModel%U_New(i, j, k)  =                            &
-                            Me%SubModel%U_Next    (i, j, k) * TimeCoef  +    &
-                            Me%SubModel%U_Previous(i, j, k) * (1 - TimeCoef)
-
+                    Me%SubModel%U_New(i, j, k) = Me%SubModel%U_Next    (i, j, k) * TimeCoef  &
+                                               + Me%SubModel%U_Previous(i, j, k) * (1 - TimeCoef)
 
                     if (Me%SubModel%U_Next    (i, j, k) < FillValueReal / 2. .or.&
                         Me%SubModel%U_Previous(i, j, k) < FillValueReal / 2.)   then
-
                         if (Me%SubModel%MissingNull) then
                             Me%SubModel%U_New(i, j, k)  = 0.
                         else
@@ -17055,22 +16042,16 @@ cd7:            if (Faces3D_USon(i, j, k) == Covered .and. .not. DeadZoneSon) th
                             call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR07")
                             !!!! $OMP END CRITICAL (ASMV5_ERR07)
                         endif
-
                     endif
 
-                    if (InitialField .and. .not. Me%ComputeOptions%Continuous  &
-                        .and. Me%SubModel%FatherHotStart)                      &
-                        Me%Velocity%Horizontal%U%New(i, j, k) =                &
-                                   Me%SubModel%U_New(i, j, k)
+                    if (InitialField .and. .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart)  &
+                        Me%Velocity%Horizontal%U%New(i, j, k) =  Me%SubModel%U_New(i, j, k)
 
+                    Me%SubModel%DUZ_New(i, j, k) = Me%SubModel%DUZ_Next (i, j, k)    * TimeCoef  &
+                                                 + Me%SubModel%DUZ_Previous(i, j, k) * (1 - TimeCoef)
 
-                    Me%SubModel%DUZ_New(i, j, k)  =                          &
-                            Me%SubModel%DUZ_Next    (i, j, k) * TimeCoef  +  &
-                            Me%SubModel%DUZ_Previous(i, j, k) * (1 - TimeCoef)
-
-                    if (Me%SubModel%DUZ_Next    (i, j, k) < FillValueReal / 2. .or.&
+                    if (Me%SubModel%DUZ_Next    (i, j, k) < FillValueReal / 2. .or. &
                         Me%SubModel%DUZ_Previous(i, j, k) < FillValueReal / 2.)    then
-
                         if (Me%SubModel%MissingNull) then
                             Me%SubModel%DUZ_New(i, j, k)  = 0.
                         else
@@ -17081,11 +16062,8 @@ cd7:            if (Faces3D_USon(i, j, k) == Covered .and. .not. DeadZoneSon) th
                             call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR08")
                             !!!! $OMP END CRITICAL (ASMV6_ERR08)
                         endif
-
                     endif
-
                 endif cd7
-
             enddo
             enddo
             !$OMP END DO
@@ -17093,29 +16071,19 @@ cd7:            if (Faces3D_USon(i, j, k) == Covered .and. .not. DeadZoneSon) th
 
         endif cd8
 
-
         do k = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB + 1
         do i = ILB, IUB
-
-            if (Me%SubModel%DeadZone) then
-
-                DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-            else
-
-                DeadZoneSon = .false.
-
-            endif
-
+            
+            DeadZoneSon = .false.
+            if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
 cd77:       if ((ImposedTangFacesUSon(i, j, k) == Imposed  .or.                          &
                  ImposedNormFacesUSon(i, j, k) == Imposed) .and. .not. DeadZoneSon) then
 
-                Me%SubModel%U_New(i, j, k)  =                            &
-                        Me%SubModel%U_Next    (i, j, k) * TimeCoef  +    &
-                        Me%SubModel%U_Previous(i, j, k) * (1 - TimeCoef)
+                Me%SubModel%U_New(i, j, k) = Me%SubModel%U_Next    (i, j, k) * TimeCoef  &
+                                           + Me%SubModel%U_Previous(i, j, k) * (1 - TimeCoef)
 
                 if (Me%SubModel%U_Next    (i, j, k) < FillValueReal / 2. .or.&
                     Me%SubModel%U_Previous(i, j, k) < FillValueReal / 2.)  then
@@ -17132,19 +16100,14 @@ cd77:       if ((ImposedTangFacesUSon(i, j, k) == Imposed  .or.                 
                     endif
                 endif
 
+                if (InitialField .and. .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart)  &
+                    Me%Velocity%Horizontal%U%New(i, j, k) = Me%SubModel%U_New(i, j, k)
 
-                if (InitialField .and. .not. Me%ComputeOptions%Continuous  &
-                    .and. Me%SubModel%FatherHotStart)                      &
-                    Me%Velocity%Horizontal%U%New(i, j, k) =                &
-                               Me%SubModel%U_New(i, j, k)
-
-                Me%SubModel%DUZ_New(i, j, k)  =                          &
-                        Me%SubModel%DUZ_Next    (i, j, k) * TimeCoef  +  &
-                        Me%SubModel%DUZ_Previous(i, j, k) * (1 - TimeCoef)
+                Me%SubModel%DUZ_New(i, j, k)  = Me%SubModel%DUZ_Next (i, j, k)    * TimeCoef  &
+                                              + Me%SubModel%DUZ_Previous(i, j, k) * (1 - TimeCoef)
 
                 if (Me%SubModel%DUZ_Next    (i, j, k) < FillValueReal / 2. .or.&
                     Me%SubModel%DUZ_Previous(i, j, k) < FillValueReal / 2.)  then
-
                     if (Me%SubModel%MissingNull) then
                         Me%SubModel%DUZ_New(i, j, k)  = 0.
                     else
@@ -17152,13 +16115,8 @@ cd77:       if ((ImposedTangFacesUSon(i, j, k) == Imposed  .or.                 
                         call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR10")
                         !!!! $OMP END CRITICAL (ASMV8_ERR10)
                     endif
-
                 endif
-
-
-
             endif cd77
-
         enddo
         enddo
         !$OMP END DO
@@ -17178,27 +16136,15 @@ cd10:   if ((InitialField .and. .not. Me%ComputeOptions%Continuous)          .or
             do j = JLB, JUB
             do i = ILB, IUB + 1
 
-                if (Me%SubModel%DeadZone) then
-
-                    DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-                else
-
-                    DeadZoneSon = .false.
-
-                endif
-
+                DeadZoneSon = .false.
+                if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
 cd9:            if (Faces3D_VSon(i, j, k) == Covered .and. .not. DeadZoneSon) then
-
-
-                    Me%SubModel%V_New(i, j, k)      =                        &
-                            Me%SubModel%V_Next    (i, j, k) * TimeCoef  +    &
-                            Me%SubModel%V_Previous(i, j, k) * (1 - TimeCoef)
+                    Me%SubModel%V_New(i, j, k) = Me%SubModel%V_Next (i, j, k)    * TimeCoef  &
+                                               + Me%SubModel%V_Previous(i, j, k) * (1 - TimeCoef)
 
                     if (Me%SubModel%V_Next    (i, j, k) < FillValueReal / 2. .or.&
                         Me%SubModel%V_Previous(i, j, k) < FillValueReal / 2.) then
-
                         if (Me%SubModel%MissingNull) then
                             Me%SubModel%V_New(i, j, k)  = 0.
                         else
@@ -17208,21 +16154,14 @@ cd9:            if (Faces3D_VSon(i, j, k) == Covered .and. .not. DeadZoneSon) th
                         endif
                     endif
 
+                    if (InitialField .and. .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart)  &
+                        Me%Velocity%Horizontal%V%New(i, j, k) = Me%SubModel%V_New(i, j, k)
 
-                    if (InitialField .and. .not. Me%ComputeOptions%Continuous  &
-                       .and. Me%SubModel%FatherHotStart)                       &
-                        Me%Velocity%Horizontal%V%New(i, j, k) =                &
-                                   Me%SubModel%V_New(i, j, k)
-
-
-                    Me%SubModel%DVZ_New(i, j, k)  =                          &
-                            Me%SubModel%DVZ_Next    (i, j, k) * TimeCoef  +  &
-                            Me%SubModel%DVZ_Previous(i, j, k) * (1 - TimeCoef)
-
+                    Me%SubModel%DVZ_New(i, j, k)  = Me%SubModel%DVZ_Next (i, j, k)    * TimeCoef  &
+                                                  + Me%SubModel%DVZ_Previous(i, j, k) * (1 - TimeCoef)
 
                     if (Me%SubModel%DVZ_Next    (i, j, k) < FillValueReal / 2. .or.&
                         Me%SubModel%DVZ_Previous(i, j, k) < FillValueReal / 2.)    then
-
                         if (Me%SubModel%MissingNull) then
                             Me%SubModel%DVZ_New(i, j, k)  = 0.
                         else
@@ -17230,13 +16169,8 @@ cd9:            if (Faces3D_VSon(i, j, k) == Covered .and. .not. DeadZoneSon) th
                             call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR12")
                             !!!! $OMP END CRITICAL (ASMV10_ERR12)
                         endif
-
                     endif
-
-
                 endif cd9
-
-
             enddo
             enddo
             !$OMP END DO
@@ -17244,35 +16178,22 @@ cd9:            if (Faces3D_VSon(i, j, k) == Covered .and. .not. DeadZoneSon) th
 
         endif cd10
 
-
         do k = KLB, KUB
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB + 1
 
-            if (Me%SubModel%DeadZone) then
-
-                DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-            else
-
-                DeadZoneSon = .false.
-
-            endif
-
+            DeadZoneSon = .false.
+            if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
 cd99:       if ((ImposedTangFacesVSon(i, j, k) == Imposed  .or.                          &
                  ImposedNormFacesVSon(i, j, k) == Imposed) .and. .not. DeadZoneSon) then
 
-
-                Me%SubModel%V_New(i, j, k)      =                        &
-                        Me%SubModel%V_Next    (i, j, k) * TimeCoef  +    &
-                        Me%SubModel%V_Previous(i, j, k) * (1 - TimeCoef)
-
+                Me%SubModel%V_New(i, j, k) = Me%SubModel%V_Next    (i, j, k) * TimeCoef  &
+                                           + Me%SubModel%V_Previous(i, j, k) * (1 - TimeCoef)
 
                 if (Me%SubModel%V_Next    (i, j, k) < FillValueReal / 2. .or.&
                     Me%SubModel%V_Previous(i, j, k) < FillValueReal / 2.)  then
-
                     if (Me%SubModel%MissingNull) then
                         Me%SubModel%V_New(i, j, k)  = 0.
                     else
@@ -17280,22 +16201,16 @@ cd99:       if ((ImposedTangFacesVSon(i, j, k) == Imposed  .or.                 
                         call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR13")
                         !!!! $OMP END CRITICAL (ASMV11_ERR13)
                     endif
-
                 endif
 
-                if (InitialField .and. .not. Me%ComputeOptions%Continuous  &
-                    .and. Me%SubModel%FatherHotStart)                      &
-                    Me%Velocity%Horizontal%V%New(i, j, k) =                &
-                               Me%SubModel%V_New(i, j, k)
+                if (InitialField .and. .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart) &
+                    Me%Velocity%Horizontal%V%New(i, j, k) = Me%SubModel%V_New(i, j, k)
 
-                Me%SubModel%DVZ_New(i, j, k)  =                          &
-                        Me%SubModel%DVZ_Next    (i, j, k) * TimeCoef  +  &
-                        Me%SubModel%DVZ_Previous(i, j, k) * (1 - TimeCoef)
-
+                Me%SubModel%DVZ_New(i, j, k) = Me%SubModel%DVZ_Next (i, j, k) * TimeCoef  &
+                                             +  Me%SubModel%DVZ_Previous(i, j, k) * (1 - TimeCoef)
 
                 if (Me%SubModel%DVZ_Next    (i, j, k) < FillValueReal / 2. .or.&
                     Me%SubModel%DVZ_Previous(i, j, k) < FillValueReal / 2.)   then
-
                     if (Me%SubModel%MissingNull) then
                         Me%SubModel%DVZ_New(i, j, k)  = 0.
                     else
@@ -17303,11 +16218,8 @@ cd99:       if ((ImposedTangFacesVSon(i, j, k) == Imposed  .or.                 
                         call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR14")
                         !!!! $OMP END CRITICAL (ASMV12_ERR14)
                     endif
-
                 endif
-
             endif cd99
-
         enddo
         enddo
         !$OMP END DO
@@ -17319,39 +16231,20 @@ cd99:       if ((ImposedTangFacesVSon(i, j, k) == Imposed  .or.                 
 
         !This is only done for graphical reasons
         if (InitialField .and. .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart) then
-
             !U corners
-            Me%Velocity%Horizontal%U%New(ILB,JLB    , KLB:KUB)   =       &
-            Me%SubModel%U_New           (ILB,JLB    , KLB:KUB)
-
-            Me%Velocity%Horizontal%U%New(ILB,JUB + 1, KLB:KUB)   =       &
-            Me%SubModel%U_New           (ILB,JUB + 1, KLB:KUB)
-
-            Me%Velocity%Horizontal%U%New(IUB,JLB    , KLB:KUB)   =       &
-            Me%SubModel%U_New           (IUB,JLB    , KLB:KUB)
-
-            Me%Velocity%Horizontal%U%New(IUB,JUB + 1, KLB:KUB)   =       &
-            Me%SubModel%U_New           (IUB,JUB + 1, KLB:KUB)
-
+            Me%Velocity%Horizontal%U%New(ILB,JLB    , KLB:KUB) = Me%SubModel%U_New(ILB,JLB    , KLB:KUB)
+            Me%Velocity%Horizontal%U%New(ILB,JUB + 1, KLB:KUB) = Me%SubModel%U_New(ILB,JUB + 1, KLB:KUB)
+            Me%Velocity%Horizontal%U%New(IUB,JLB    , KLB:KUB) = Me%SubModel%U_New(IUB,JLB    , KLB:KUB)
+            Me%Velocity%Horizontal%U%New(IUB,JUB + 1, KLB:KUB) = Me%SubModel%U_New(IUB,JUB + 1, KLB:KUB)
 
             !V corners
-            Me%Velocity%Horizontal%V%New(ILB,JLB    , KLB:KUB)   =       &
-            Me%SubModel%V_New           (ILB,JLB    , KLB:KUB)
-
-            Me%Velocity%Horizontal%V%New(ILB,JUB    , KLB:KUB)   =       &
-            Me%SubModel%V_New           (ILB,JUB    , KLB:KUB)
-
-            Me%Velocity%Horizontal%V%New(IUB + 1,JLB, KLB:KUB)   =       &
-            Me%SubModel%V_New           (IUB + 1,JLB, KLB:KUB)
-
-            Me%Velocity%Horizontal%V%New(IUB + 1,JUB, KLB:KUB)   =       &
-            Me%SubModel%V_New           (IUB + 1,JUB, KLB:KUB)
-
-
+            Me%Velocity%Horizontal%V%New(ILB    ,JLB, KLB:KUB) = Me%SubModel%V_New(ILB    ,JLB, KLB:KUB)
+            Me%Velocity%Horizontal%V%New(ILB    ,JUB, KLB:KUB) = Me%SubModel%V_New(ILB    ,JUB, KLB:KUB)
+            Me%Velocity%Horizontal%V%New(IUB + 1,JLB, KLB:KUB) = Me%SubModel%V_New(IUB + 1,JLB, KLB:KUB)
+            Me%Velocity%Horizontal%V%New(IUB + 1,JUB, KLB:KUB) = Me%SubModel%V_New(IUB + 1,JUB, KLB:KUB)
         endif
 
         Me%SubModel%Set      = .true.
-
 
         !UnGet son information
         call ReadUnLockSon(ImposedTangFacesUSon, ImposedTangFacesVSon,                   &
@@ -17361,31 +16254,18 @@ cd99:       if ((ImposedTangFacesVSon(i, j, k) == Imposed  .or.                 
                            DUZ_Son, DVZ_Son,                                             &
                            DXX_Son, DYY_Son)
 
-
 cd11:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
-
-            Me%WaterLevel%Old               (:,:  ) =                    &
-                Me%WaterLevel%New           (:,:  )
-
-            Me%Velocity%Horizontal%V%Old    (:,:,:) =                    &
-                Me%Velocity%Horizontal%V%New(:,:,:)
-
-            Me%Velocity%Horizontal%U%Old    (:,:,:) =                    &
-                Me%Velocity%Horizontal%U%New(:,:,:)
-
-            Me%SubModel%DUZ_Old(:,:,:)              =                    &
-                Me%SubModel%DUZ_Next(:,:,:)
-
-            Me%SubModel%DVZ_Old(:,:,:)              =                    &
-                Me%SubModel%DVZ_Next(:,:,:)
-
+            Me%WaterLevel%Old(:,:) = Me%WaterLevel%New(:,:)
+            Me%Velocity%Horizontal%V%Old(:,:,:) = Me%Velocity%Horizontal%V%New(:,:,:)
+            Me%Velocity%Horizontal%U%Old(:,:,:) = Me%Velocity%Horizontal%U%New(:,:,:)
+            Me%SubModel%DUZ_Old(:,:,:) = Me%SubModel%DUZ_Next(:,:,:)
+            Me%SubModel%DVZ_Old(:,:,:) = Me%SubModel%DVZ_Next(:,:,:)
         endif cd11
 
        !UnGets Bathymetry
         call UnGetGridData(Me%ObjGridData, Bathymetry, STAT = status)
 
-        if (status /= SUCCESS_)                                                          &
-                call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR15")
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSubModelValues; Hydrodynamic. ERR15")
 
     end subroutine ActualizeSubModelValues
 
@@ -17394,7 +16274,6 @@ cd11:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
 
         !Arguments-------------------------------------------------------------
         logical,           intent(IN )  :: InitialField
-
         !Local-----------------------------------------------------------------
         real,    dimension(:,:,:), pointer :: DUZ_Son, DVZ_Son
         real,    dimension(:,:  ), pointer :: DXX_Son, DYY_Son, WaterColumnU, WaterColumnV, Bathymetry
@@ -17409,66 +16288,37 @@ cd11:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
         integer                            :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                            :: i, j, k, Kbottom, i_Thick, j_Thick
         logical                            :: ErrorOccured, DeadZoneSon, NullValue
-
         integer                            :: CHUNK
 
         !Begin-----------------------------------------------------------------
 
         call GetGeometryWaterColumn(Me%ObjGeometry,                          &
-                                    WaterColumnU= WaterColumnU, WaterColumnV= WaterColumnV,  &
-                                    STAT = status)
+                                    WaterColumnU= WaterColumnU, WaterColumnV= WaterColumnV, STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR01")
 
-        if (status /= SUCCESS_)                                                          &
-                call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR01")
-
-
-        call GetGeometryKFloor(Me%ObjGeometry,                           &
-                               U = KFloor_U, V = KFloor_V, STAT = status)
-
-        if (status /= SUCCESS_)                                                          &
-                call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR02")
-
+        call GetGeometryKFloor(Me%ObjGeometry, U = KFloor_U, V = KFloor_V, STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR02")
 
        !Gets Bathymetry
         call GetGridData(Me%ObjGridData, Bathymetry, STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR03")
 
-        if (status /= SUCCESS_)                                                          &
-                call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR03")
+        call GetGeometryMinWaterColumn(Me%ObjGeometry, MinWaterColumn, STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR04")
 
-
-        call GetGeometryMinWaterColumn(Me%ObjGeometry,                   &
-                                       MinWaterColumn, STAT = status)
-
-        if (status /= SUCCESS_)                                                          &
-            call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR04")
-
-
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
-
+        ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB; KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB; KUB = Me%WorkSize%KUB
+        
+        TimeCoef = 1
         if (Me%SubModel%InterPolTime .and. .not. InitialField) then
-
             !Time Properties - Actualises CurrentTime
-            call GetComputeCurrentTime(Me%ObjTime,                       &
-                                       Me%CurrentTime, STAT = status)
-            if (status /= SUCCESS_)                                                      &
-                    call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR05")
+            call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = status)
+            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR05")
 
             TimeCoef = (Me%CurrentTime       - Me%SubModel%PreviousTime) / &
                        (Me%SubModel%NextTime - Me%SubModel%PreviousTime)
 
             call null_Time(Me%CurrentTime)
-
-        else
-
-            TimeCoef = 1
-
         endif
 
 
@@ -17492,17 +16342,9 @@ cd3:    if (InitialField) then
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB + 1
             do i = ILB, IUB
-
-                if (Me%SubModel%DeadZone) then
-
-                    DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
-
-                else
-
-                    DeadZoneSon = .false.
-
-                endif
-
+                
+                DeadZoneSon = .false.
+                if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
 
 cd4:            if ((Faces3D_USon        (i, j, KUB) == Covered   .or.                   &
                      ImposedTangFacesUSon(i, j, KUB) == Imposed   .or.                   &
@@ -17520,59 +16362,36 @@ cd4:            if ((Faces3D_USon        (i, j, KUB) == Covered   .or.          
                         ErrorOccured = .true.
                         if (Me%SubModel%MissingNull)                     &
                             NullValue = .true.
-
                     endif
-
 
                     if      (ImposedTangFacesUSon(i, j, KUB) == Imposed .or.             &
                              Faces3D_USon        (i, j, KUB) == Covered) then
-
                         i_thick = i
                         j_thick = j
-
                     else if (ImposedNormFacesUSon(i, j, KUB) == Imposed) then
-
                         i_thick = i
-
                         if      (j == JUB + 1) then
-
                             j_thick = j - 1
-
                         else if (j == JLB) then
-
                             j_thick = j + 1
-
                         else
-
                             j_thick = j + Faces3D_USon(i, j + 1, KUB) - Faces3D_USon(i, j - 1, KUB)
-
                         endif
-
                     endif
 
                     Kbottom = KFloor_U(i_thick, j_thick)
 
                     do k = Kbottom, KUB
-
                         if (NullValue) then
-
                             Me%SubModel%qX  (i, j, k) = 0.
-
                         else
-
                             RelativeThickness = DUZ_Son(i_thick, j_thick, k) / WaterColumnU(i_thick, j_thick)
-
-                            Me%SubModel%qX (i, j, k) =                       &
-                                Me%SubModel%qX (i, j, KUB) * RelativeThickness
-
+                            Me%SubModel%qX (i, j, k) = Me%SubModel%qX (i, j, KUB) * RelativeThickness
                         endif
 
                         if (.not. Me%ComputeOptions%Continuous)                         &
-                            Me%WaterFluxes%X(i, j, k)               =                   &
-                                Me%SubModel%qX (i, j, k  ) * DYY_Son(i, j)
-
+                            Me%WaterFluxes%X(i, j, k) = Me%SubModel%qX (i, j, k  ) * DYY_Son(i, j)
                     enddo
-
 
                 endif cd4
 
@@ -17588,18 +16407,9 @@ cd4:            if ((Faces3D_USon        (i, j, KUB) == Covered   .or.          
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB + 1
-
-
-                if (Me%SubModel%DeadZone) then
-
-                    DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
-
-                else
-
-                    DeadZoneSon = .false.
-
-                endif
-
+                
+                DeadZoneSon = .false.
+                if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
 
 cd5:            if ((Faces3D_VSon        (i, j, KUB) == Covered   .or.                   &
                      ImposedTangFacesVSon(i, j, KUB) == Imposed   .or.                   &
@@ -17615,10 +16425,8 @@ cd5:            if ((Faces3D_VSon        (i, j, KUB) == Covered   .or.          
                         !!!! $OMP END CRITICAL (AS3DWF2D2_OUT02)
 #endif
                         ErrorOccured = .true.
-                        if (Me%SubModel%MissingNull)                     &
-                            NullValue = .true.
+                        if (Me%SubModel%MissingNull) NullValue = .true.
                     endif
-
 
                     if (ImposedTangFacesVSon(i, j, KUB) == Imposed .or.                  &
                         Faces3D_VSon        (i, j, KUB) == Covered ) then
@@ -17627,47 +16435,26 @@ cd5:            if ((Faces3D_VSon        (i, j, KUB) == Covered   .or.          
                         j_thick = j
 
                     else if (ImposedNormFacesVSon(i, j, KUB) == Imposed) then
-
                         if      (i == IUB + 1) then
-
                             i_thick = i - 1
-
                         else if (i == ILB) then
-
                             i_thick = i + 1
-
                         else
-
                             i_thick = i + Faces3D_VSon(i + 1, j, KUB) - Faces3D_VSon(i - 1, j, KUB)
-
                         endif
-
                         j_thick = j
-
                     endif
 
                     Kbottom = KFloor_V(i_thick, j_thick)
 
-
                     do k = Kbottom, KUB
-
                         if (NullValue) then
-
                             Me%SubModel%qY  (i, j, k) = 0.
-
                         else
-
                             RelativeThickness = DVZ_Son(i_thick, j_thick, k) / WaterColumnV(i_thick, j_thick)
-
-                            Me%SubModel%qY  (i, j, k) =                      &
-                                Me%SubModel%qY  (i, j, KUB) * RelativeThickness
-
+                            Me%SubModel%qY  (i, j, k) = Me%SubModel%qY (i, j, KUB) * RelativeThickness
                         endif
-
                     enddo
-
-
-
                 endif cd5
 
             enddo
@@ -17677,7 +16464,6 @@ cd5:            if ((Faces3D_VSon        (i, j, KUB) == Covered   .or.          
 
             if (ErrorOccured .and. .not. Me%SubModel%MissingNull)        &
                 call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR06")
-
         endif cd3
 
 
@@ -17690,49 +16476,29 @@ cd66:   if ((InitialField .and. .not. Me%ComputeOptions%Continuous) .or. &
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
-
-
-                if (Me%SubModel%DeadZone) then
-
-                    DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
-
-                else
-
-                    DeadZoneSon = .false.
-
-                endif
-
+                
+                DeadZoneSon = .false.
+                if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
                 !The test must be done for the water points because the water levels in the corner (no open points)
                 !are used to compute face areas where momentum fluxes are computed.
 cd6:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon) then
 
-                    Me%SubModel%Z(i, j)  =                                   &
-                            Me%SubModel%Z_Next    (i, j) * TimeCoef  +       &
-                            Me%SubModel%Z_Previous(i, j) * (1 - TimeCoef)
-
+                    Me%SubModel%Z(i, j) = Me%SubModel%Z_Next(i, j)     * TimeCoef     &
+                                        + Me%SubModel%Z_Previous(i, j) * (1 - TimeCoef)
 
                     if (Me%SubModel%Z_Next    (i, j) < FillValueReal / 2. .or.   &
                         Me%SubModel%Z_Previous(i, j) < FillValueReal / 2.) then
-
                         if (Me%SubModel%MissingNull) then
                             !The cell is considered uncovered if WaterColumn < MinWaterColumn
                             !if WaterColumn < MinWaterColumn / 2 the model put WaterColumn = MinWaterColumn / 2 (creates water)
                             ! Using WaterColumn = 3/4MinWaterColumn garantes that the cell is uncovered but mass is not created
                             Me%SubModel%Z(i, j)  = - Bathymetry(i, j) + 0.75 * MinWaterColumn
-
                         else
                             !!!! $OMP CRITICAL (AS3DWF2D3_ERR07)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR07")
                             !!!! $OMP END CRITICAL (AS3DWF2D3_ERR07)
                         endif
-
                     endif
-
-!                    if (InitialField .and. .not. Me%ComputeOptions%Continuous) &
-!                        Me%WaterLevel%New(i, j) =                              &
-!                            Me%SubModel%Z(i, j)
-
-
                 endif cd6
 
             enddo
@@ -17740,20 +16506,14 @@ cd6:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon)
             !$OMP END DO
             !$OMP END PARALLEL
             if (Me%SubModel%MissingNull) then
-
                  call RemoveLowerSpikes (Me%SubModel%Z, Water3DSon,                     &
                                         Bathymetry, MinWaterColumn,                     &
                                         Me%SubModel%DeadZonePoint, Me%SubModel%DeadZone,&
                                         ILB, IUB, JLB, JUB, KUB)
             endif
 
-            if (InitialField .and. .not. Me%ComputeOptions%Continuous  &
-                .and. Me%SubModel%FatherHotStart)                      &
-                Me%WaterLevel%New(:, :) =                              &
-                    Me%SubModel%Z(:, :)
-
-
-
+            if (InitialField .and. .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart)  &
+                Me%WaterLevel%New(:, :) = Me%SubModel%Z(:, :)
         else cd66
 
             CHUNK = CHUNK_J(JLB, JUB)
@@ -17761,27 +16521,17 @@ cd6:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
-
-
-                if (Me%SubModel%DeadZone) then
-
-                    DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
-
-                else
-
-                    DeadZoneSon = .false.
-
-                endif
+                
+                DeadZoneSon = .false.
+                if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
 
                 !The test must be done for the water points because the water levels in the corner (no open points)
                 !are used to compute face areas where momentum fluxes are computed.
 cd67:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) == WaterPoint  &
                     .and. .not. DeadZoneSon) then
 
-                    Me%SubModel%Z(i, j)  =                                   &
-                            Me%SubModel%Z_Next    (i, j) * TimeCoef  +       &
-                            Me%SubModel%Z_Previous(i, j) * (1 - TimeCoef)
-
+                    Me%SubModel%Z(i, j) = Me%SubModel%Z_Next(i, j)     * TimeCoef  &
+                                        + Me%SubModel%Z_Previous(i, j) * (1 - TimeCoef)
 
                     if (Me%SubModel%Z_Next    (i, j) < FillValueReal / 2. .or.   &
                         Me%SubModel%Z_Previous(i, j) < FillValueReal / 2.) then
@@ -17791,17 +16541,13 @@ cd67:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) 
                             !if WaterColumn < MinWaterColumn / 2 the model put WaterColumn = MinWaterColumn / 2 (creates water)
                             ! Using WaterColumn = 3/4MinWaterColumn garantes that the cell is uncovered but mass is not created
                             Me%SubModel%Z(i, j)  = - Bathymetry(i, j) + 0.75 * MinWaterColumn
-
                         else
                             !!!! $OMP CRITICAL (AS3DWF2D4_ERR08)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR08")
                             !!!! $OMP END CRITICAL (AS3DWF2D4_ERR08)
                         endif
-
                     endif
-
                 endif cd67
-
             enddo
             enddo
             !$OMP END DO
@@ -17811,8 +16557,6 @@ cd67:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) 
                                         Bathymetry, MinWaterColumn,                     &
                                         Me%SubModel%DeadZonePoint, Me%SubModel%DeadZone,&
                                         ILB, IUB, JLB, JUB, KUB, Boundary2DSon)
-
-
         endif cd66
 
         CHUNK = CHUNK_J(JLB, JUB + 1)
@@ -17826,28 +16570,16 @@ cd8:    if ((InitialField .and. .not. Me%ComputeOptions%Continuous)          .or
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB + 1
             do i = ILB, IUB
-
-
-                if (Me%SubModel%DeadZone) then
-
-                    DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
-
-                else
-
-                    DeadZoneSon = .false.
-
-                endif
-
-
-
-
+                
+                DeadZoneSon = .false.
+            if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
+            
 cd7:            if (Faces3D_USon(i, j, KUB) == Covered  .and. .not. DeadZoneSon) then
 
                     NullValue = .false.
 
                     if (Me%SubModel%U_Next    (i, j, KUB) < FillValueReal / 2. .or.&
                         Me%SubModel%U_Previous(i, j, KUB) < FillValueReal / 2.)  then
-
 
                         if (Me%SubModel%MissingNull) then
                             NullValue = .true.
@@ -17856,170 +16588,103 @@ cd7:            if (Faces3D_USon(i, j, KUB) == Covered  .and. .not. DeadZoneSon)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR09")
                             !!!! $OMP END CRITICAL (AS3DWF2D5_ERR09)
                         endif
-
                     endif
 
                     Kbottom = KFloor_U(i, j)
 
                     do k = Kbottom, KUB
-
                         if (NullValue) then
-
                             Me%SubModel%U_New(i, j, k)  =  0.
-
-
                         else
-
-
-                            Me%SubModel%U_New(i, j, k)  =                                  &
-                                     Me%SubModel%U_Next    (i, j, KUB) * TimeCoef  +       &
-                                     Me%SubModel%U_Previous(i, j, KUB) * (1 - TimeCoef)
-
-
+                            Me%SubModel%U_New(i, j, k) = Me%SubModel%U_Next(i, j, KUB)     * TimeCoef  &
+                                                       + Me%SubModel%U_Previous(i, j, KUB) * (1 - TimeCoef)
                         endif
 
-                        if (InitialField .and. .not. Me%ComputeOptions%Continuous  &
-                           .and. Me%SubModel%FatherHotStart) &
-                            Me%Velocity%Horizontal%U%New(i, j, k) = &
-                                       Me%SubModel%U_New(i, j, k)
-
-
+                        if (InitialField .and. .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart) &
+                            Me%Velocity%Horizontal%U%New(i, j, k) = Me%SubModel%U_New(i, j, k)
                     enddo
 
                     NullValue = .false.
-
 
                     if (Me%SubModel%DUZ_Next    (i, j, KUB) < FillValueReal / 2. .or.&
                         Me%SubModel%DUZ_Previous(i, j, KUB) < FillValueReal / 2.)    then
 
                         if (Me%SubModel%MissingNull) then
-
                             NullValue = .true.
-
                         else
                             !!!! $OMP CRITICAL (AS3DWF2D6_ERR10)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR10")
                             !!!! $OMP END CRITICAL (AS3DWF2D6_ERR10)
                         endif
-
                     endif
-
 
                     Kbottom = KFloor_U(i, j)
 
                     do k = Kbottom, KUB
-
                         if (NullValue) then
-
                             Me%SubModel%DUZ_New(i, j, k)  =  0.
-
-
                         else
-
                             RelativeThickness = DUZ_Son(i, j, k) / WaterColumnU(i, j)
 
-
-                            Me%SubModel%DUZ_New(i, j, k)  =                                  &
-                                    (Me%SubModel%DUZ_Next    (i, j, KUB) * TimeCoef        + &
-                                     Me%SubModel%DUZ_Previous(i, j, KUB) * (1 - TimeCoef)) * &
-                                     RelativeThickness
-
+                            Me%SubModel%DUZ_New(i, j, k) = (Me%SubModel%DUZ_Next(i, j, KUB)    * TimeCoef        &
+                                                         + Me%SubModel%DUZ_Previous(i, j, KUB) * (1 - TimeCoef)) &
+                                                         * RelativeThickness
                         endif
-
                     enddo
-
-
                 endif cd7
-
             enddo
             enddo
             !$OMP END DO
-
         endif cd8
 
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB + 1
         do i = ILB, IUB
-
-            if (Me%SubModel%DeadZone) then
-
-                DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
-
-            else
-
-                DeadZoneSon = .false.
-
-            endif
-
+            
+            DeadZoneSon = .false.
+            if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
 
 cd77:       if ((ImposedTangFacesUSon(i, j, KUB) == Imposed  .or.                         &
                  ImposedNormFacesUSon(i, j, KUB) == Imposed)  .and. .not. DeadZoneSon) then
 
-
                 if (ImposedTangFacesUSon(i, j, KUB) == Imposed) then
-
                     i_thick = i
                     j_thick = j
-
                 else if (ImposedNormFacesUSon(i, j, KUB) == Imposed) then
-
                     i_thick = i
-
                     if      (j == JUB + 1) then
-
                         j_thick = j - 1
-
                     else if (j == JLB) then
-
                         j_thick = j + 1
-
                     else
-
                         j_thick = j + Faces3D_USon(i, j + 1, KUB) - Faces3D_USon(i, j - 1, KUB)
-
                     endif
-
                 endif
 
                 NullValue = .false.
 
                 if (Me%SubModel%U_Next    (i, j, KUB) < FillValueReal / 2. .or.&
                     Me%SubModel%U_Previous(i, j, KUB) < FillValueReal / 2.)    then
-
                     if (Me%SubModel%MissingNull) then
-
                         NullValue = .true.
-
                     else
                         !!!! $OMP CRITICAL (AS3DWF2D7_ERR11)
                         call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR11")
                         !!!! $OMP END CRITICAL (AS3DWF2D7_ERR11)
                     endif
-
                 endif
 
                 Kbottom = KFloor_U(i_thick, j_thick)
 
                 do k = Kbottom, KUB
-
                     if (NullValue) then
-
                         Me%SubModel%U_New(i, j, k)  = 0.
-
                     else
-
-                        Me%SubModel%U_New(i, j, k)  =                              &
-                                 Me%SubModel%U_Next    (i, j, KUB) * TimeCoef  +   &
-                                 Me%SubModel%U_Previous(i, j, KUB) * (1 - TimeCoef)
-
+                        Me%SubModel%U_New(i, j, k) = Me%SubModel%U_Next(i, j, KUB)     * TimeCoef    &
+                                                   + Me%SubModel%U_Previous(i, j, KUB) * (1 - TimeCoef)
                     endif
-
-                    if (InitialField .and. .not. Me%ComputeOptions%Continuous  &
-                       .and. Me%SubModel%FatherHotStart)                       &
-                        Me%Velocity%Horizontal%U%New(i, j, k) =                &
-                                   Me%SubModel%U_New(i, j, k)
-
-
+                    if (InitialField .and. .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart) &
+                        Me%Velocity%Horizontal%U%New(i, j, k) = Me%SubModel%U_New(i, j, k)
                 enddo
 
                 NullValue = .false.
@@ -18028,43 +16693,28 @@ cd77:       if ((ImposedTangFacesUSon(i, j, KUB) == Imposed  .or.               
                     Me%SubModel%DUZ_Previous(i, j, KUB) < FillValueReal / 2.)    then
 
                     if (Me%SubModel%MissingNull) then
-
                         NullValue = .true.
-
                     else
                         !!!! $OMP CRITICAL (AS3DWF2D8_ERR12)
                         call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR12")
                         !!!! $OMP END CRITICAL (AS3DWF2D8_ERR12)
                     endif
-
                 endif
 
                 Kbottom = KFloor_U(i_thick, j_thick)
 
                 do k = Kbottom, KUB
-
                     if (NullValue) then
-
                         Me%SubModel%DUZ_New(i, j, k) = 0.
-
                     else
-
                         RelativeThickness = DUZ_Son(i_thick, j_thick, k) / WaterColumnU(i_thick, j_thick)
 
-                        Me%SubModel%DUZ_New(i, j, k)  =                                  &
-                                (Me%SubModel%DUZ_Next    (i, j, KUB) * TimeCoef        + &
-                                 Me%SubModel%DUZ_Previous(i, j, KUB) * (1 - TimeCoef)) * &
-                                 RelativeThickness
-
+                        Me%SubModel%DUZ_New(i, j, k) = (Me%SubModel%DUZ_Next(i, j, KUB)    * TimeCoef        &
+                                                     + Me%SubModel%DUZ_Previous(i, j, KUB) * (1 - TimeCoef)) &
+                                                     * RelativeThickness
                     endif
-
-
                 enddo
-
-
-
             endif cd77
-
         enddo
         enddo
         !$OMP END DO
@@ -18081,63 +16731,39 @@ cd10:   if ((InitialField .and. .not. Me%ComputeOptions%Continuous)          .or
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB + 1
-
-                if (Me%SubModel%DeadZone) then
-
-                    DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
-
-                else
-
-                    DeadZoneSon = .false.
-
-                endif
-
+                
+                DeadZoneSon = .false.
+                if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
 
 cd9:            if (Faces3D_VSon(i, j, KUB) == Covered  .and. .not. DeadZoneSon) then
-
                     NullValue = .false.
 
                     if (Me%SubModel%V_Next    (i, j, KUB) < FillValueReal / 2. .or.&
                         Me%SubModel%V_Previous(i, j, KUB) < FillValueReal / 2.)  then
-
                         if (Me%SubModel%MissingNull) then
-
                             NullValue = .true.
-
                         else
                             !!!! $OMP CRITICAL (AS3DWF2D9_ERR13)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR13")
                             !!!! $OMP END CRITICAL (AS3DWF2D9_ERR13)
                         endif
-
                     endif
-
 
                     Kbottom = KFloor_V(i, j)
 
                     do k = Kbottom, KUB
-
                         if (NullValue) then
-
                             Me%SubModel%V_New(i, j, k)      = 0.
-
                         else
-
-                            Me%SubModel%V_New(i, j, k)      =                              &
-                                     Me%SubModel%V_Next    (i, j, KUB) * TimeCoef        + &
-                                     Me%SubModel%V_Previous(i, j, KUB) * (1 - TimeCoef)
-
+                            Me%SubModel%V_New(i, j, k) = Me%SubModel%V_Next(i, j, KUB)     * TimeCoef &
+                                                       + Me%SubModel%V_Previous(i, j, KUB) * (1 - TimeCoef)
                         endif
 
-                        if (InitialField .and. .not. Me%ComputeOptions%Continuous  &
-                           .and. Me%SubModel%FatherHotStart)                       &
-                            Me%Velocity%Horizontal%V%New(i, j, k) =                &
-                                       Me%SubModel%V_New(i, j, k)
-
+                        if (InitialField .and. .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart)  &
+                            Me%Velocity%Horizontal%V%New(i, j, k) = Me%SubModel%V_New(i, j, k)
                     enddo
 
                     NullValue = .false.
-
 
                     if (Me%SubModel%DVZ_Next    (i, j, KUB) < FillValueReal / 2. .or.&
                         Me%SubModel%DVZ_Previous(i, j, KUB) < FillValueReal / 2.)    then
@@ -18149,7 +16775,6 @@ cd9:            if (Faces3D_VSon(i, j, KUB) == Covered  .and. .not. DeadZoneSon)
                             call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR14")
                             !!!! $OMP END CRITICAL (AS3DWF2D10_ERR14)
                         endif
-
                     endif
 
                     Kbottom = KFloor_V(i, j)
@@ -18157,28 +16782,16 @@ cd9:            if (Faces3D_VSon(i, j, KUB) == Covered  .and. .not. DeadZoneSon)
                     do k = Kbottom, KUB
 
                         if (NullValue) then
-
                             Me%SubModel%DVZ_New(i, j, k) = 0.
-
                         else
-
                             RelativeThickness = DVZ_Son(i, j, k) / WaterColumnV(i, j)
 
-
-                            Me%SubModel%DVZ_New(i, j, k)  =                                 &
-                                    (Me%SubModel%DVZ_Next    (i, j, KUB) * TimeCoef       + &
-                                     Me%SubModel%DVZ_Previous(i, j, KUB) * (1 - TimeCoef))* &
-                                     RelativeThickness
-
+                            Me%SubModel%DVZ_New(i, j, k) = (Me%SubModel%DVZ_Next(i, j, KUB)    * TimeCoef        &
+                                                         + Me%SubModel%DVZ_Previous(i, j, KUB) * (1 - TimeCoef)) &
+                                                         * RelativeThickness
                         endif
-
-
                     enddo
-
-
                 endif cd9
-
-
             enddo
             enddo
             !$OMP END DO
@@ -18188,45 +16801,25 @@ cd9:            if (Faces3D_VSon(i, j, KUB) == Covered  .and. .not. DeadZoneSon)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do j = JLB, JUB
         do i = ILB, IUB + 1
-
-            if (Me%SubModel%DeadZone) then
-
-                DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
-
-            else
-
-                DeadZoneSon = .false.
-
-            endif
-
-
+            
+            DeadZoneSon = .false.
+            if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
 
 cd99:       if ((ImposedTangFacesVSon(i, j, KUB) == Imposed  .or.                           &
                  ImposedNormFacesVSon(i, j, KUB) == Imposed) .and. .not. DeadZoneSon) then
 
                 if (ImposedTangFacesVSon(i, j, KUB) == Imposed) then
-
                     i_thick = i
                     j_thick = j
-
                 else if (ImposedNormFacesVSon(i, j, KUB) == Imposed) then
-
                     if      (i == IUB + 1) then
-
                         i_thick = i - 1
-
                     else if (i == ILB) then
-
                         i_thick = i + 1
-
                     else
-
                         i_thick = i + Faces3D_VSon(i + 1, j, KUB) - Faces3D_VSon(i - 1, j, KUB)
-
                     endif
-
                     j_thick = j
-
                 endif
 
                 NullValue = .false.
@@ -18241,35 +16834,23 @@ cd99:       if ((ImposedTangFacesVSon(i, j, KUB) == Imposed  .or.               
                         call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR15")
                         !!!! $OMP END CRITICAL (AS3DWF2D11_ERR15)
                     endif
-
                 endif
 
                 Kbottom = KFloor_V(i_thick, j_thick)
 
                 do k = Kbottom, KUB
-
                     if (NullValue) then
-
                         Me%SubModel%V_New(i, j, k)      = 0.
-
                     else
-
-                        Me%SubModel%V_New(i, j, k)      =                              &
-                                 Me%SubModel%V_Next    (i, j, KUB) * TimeCoef        + &
-                                 Me%SubModel%V_Previous(i, j, KUB) * (1 - TimeCoef)
-
+                        Me%SubModel%V_New(i, j, k) = Me%SubModel%V_Next(i, j, KUB)     * TimeCoef &
+                                                   + Me%SubModel%V_Previous(i, j, KUB) * (1 - TimeCoef)
                     endif
 
-                    if (InitialField .and. .not. Me%ComputeOptions%Continuous  &
-                       .and. Me%SubModel%FatherHotStart)                       &
-                        Me%Velocity%Horizontal%V%New(i, j, k) =                &
-                                   Me%SubModel%V_New(i, j, k)
-
-
+                    if (InitialField .and. .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart) &
+                        Me%Velocity%Horizontal%V%New(i, j, k) = Me%SubModel%V_New(i, j, k)
                 enddo
 
                 NullValue = .false.
-
 
                 if (Me%SubModel%DVZ_Next    (i, j, KUB) < FillValueReal / 2. .or.&
                     Me%SubModel%DVZ_Previous(i, j, KUB) < FillValueReal / 2.) then
@@ -18281,35 +16862,22 @@ cd99:       if ((ImposedTangFacesVSon(i, j, KUB) == Imposed  .or.               
                         call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR16")
                         !!!! $OMP END CRITICAL (AS3DWF2D12_ERR16)
                     endif
-
                 endif
-
 
                 Kbottom = KFloor_V(i_thick, j_thick)
 
                 do k = Kbottom, KUB
-
                     if (NullValue) then
-
                         Me%SubModel%DVZ_New(i, j, k)  = 0.
-
                     else
-
-
                         RelativeThickness = DVZ_Son(i_thick, j_thick, k) / WaterColumnV(i_thick, j_thick)
 
-
-                        Me%SubModel%DVZ_New(i, j, k)  =                                  &
-                                (Me%SubModel%DVZ_Next    (i, j, KUB) * TimeCoef        + &
-                                 Me%SubModel%DVZ_Previous(i, j, KUB) * (1 - TimeCoef)) * &
-                                RelativeThickness
-
+                        Me%SubModel%DVZ_New(i, j, k) = (Me%SubModel%DVZ_Next(i, j, KUB)    * TimeCoef          &
+                                                     + Me%SubModel%DVZ_Previous(i, j, KUB) * (1 - TimeCoef))   &
+                                                     * RelativeThickness
                     endif
-
                 enddo
-
             endif cd99
-
         enddo
         enddo
         !$OMP END DO
@@ -18318,37 +16886,18 @@ cd99:       if ((ImposedTangFacesVSon(i, j, KUB) == Imposed  .or.               
 
         !Tihs is only done for graphical reasons
         if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
-
             !U corners
-            Me%Velocity%Horizontal%U%New(ILB,JLB    , KLB:KUB)   =       &
-            Me%SubModel%U_New           (ILB,JLB    ,     KUB)
-
-            Me%Velocity%Horizontal%U%New(ILB,JUB + 1, KLB:KUB)   =       &
-            Me%SubModel%U_New           (ILB,JUB + 1,     KUB)
-
-            Me%Velocity%Horizontal%U%New(IUB,JLB    , KLB:KUB)   =       &
-            Me%SubModel%U_New           (IUB,JLB    ,     KUB)
-
-            Me%Velocity%Horizontal%U%New(IUB,JUB + 1, KLB:KUB)   =       &
-            Me%SubModel%U_New           (IUB,JUB + 1,     KUB)
-
+            Me%Velocity%Horizontal%U%New(ILB,JLB    , KLB:KUB) = Me%SubModel%U_New(ILB,JLB    , KUB)
+            Me%Velocity%Horizontal%U%New(ILB,JUB + 1, KLB:KUB) = Me%SubModel%U_New(ILB,JUB + 1, KUB)
+            Me%Velocity%Horizontal%U%New(IUB,JLB    , KLB:KUB) = Me%SubModel%U_New(IUB,JLB    , KUB)
+            Me%Velocity%Horizontal%U%New(IUB,JUB + 1, KLB:KUB) = Me%SubModel%U_New(IUB,JUB + 1, KUB)
 
             !V corners
-            Me%Velocity%Horizontal%V%New(ILB,JLB    , KLB:KUB)   =       &
-            Me%SubModel%V_New           (ILB,JLB    ,     KUB)
-
-            Me%Velocity%Horizontal%V%New(ILB,JUB    , KLB:KUB)   =       &
-            Me%SubModel%V_New           (ILB,JUB    ,     KUB)
-
-            Me%Velocity%Horizontal%V%New(IUB + 1,JLB, KLB:KUB)   =       &
-            Me%SubModel%V_New           (IUB + 1,JLB,     KUB)
-
-            Me%Velocity%Horizontal%V%New(IUB + 1,JUB, KLB:KUB)   =       &
-            Me%SubModel%V_New           (IUB + 1,JUB,     KUB)
-
+            Me%Velocity%Horizontal%V%New(ILB    ,JLB, KLB:KUB) = Me%SubModel%V_New(ILB    ,JLB, KUB)
+            Me%Velocity%Horizontal%V%New(ILB    ,JUB, KLB:KUB) = Me%SubModel%V_New(ILB    ,JUB, KUB)
+            Me%Velocity%Horizontal%V%New(IUB + 1,JLB, KLB:KUB) = Me%SubModel%V_New(IUB + 1,JLB, KUB)
+            Me%Velocity%Horizontal%V%New(IUB + 1,JUB, KLB:KUB) = Me%SubModel%V_New(IUB + 1,JUB, KUB)
         endif
-
-
 
         Me%SubModel%Set      = .true.
 
@@ -18361,59 +16910,28 @@ cd99:       if ((ImposedTangFacesVSon(i, j, KUB) == Imposed  .or.               
                            DXX_Son, DYY_Son)
 
 cd11:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
-
-            Me%WaterLevel%Old               (:,:  ) =                &
-                Me%WaterLevel%New           (:,:  )
-
-            Me%Velocity%Horizontal%V%Old    (:,:,:) =                &
-                Me%Velocity%Horizontal%V%New(:,:,:)
-
-            Me%Velocity%Horizontal%U%Old    (:,:,:) =                &
-                Me%Velocity%Horizontal%U%New(:,:,:)
-
-            Me%SubModel%DUZ_Old(:,:,:)              =                &
-                Me%SubModel%DUZ_Next(:,:,:)
-
-
-            Me%SubModel%DVZ_Old(:,:,:)              =                &
-                Me%SubModel%DVZ_Next(:,:,:)
-
+            Me%WaterLevel%Old(:,:  ) = Me%WaterLevel%New(:,:  )
+            Me%Velocity%Horizontal%V%Old(:,:,:) = Me%Velocity%Horizontal%V%New(:,:,:)
+            Me%Velocity%Horizontal%U%Old(:,:,:) = Me%Velocity%Horizontal%U%New(:,:,:)
+            Me%SubModel%DUZ_Old(:,:,:) = Me%SubModel%DUZ_Next(:,:,:)
+            Me%SubModel%DVZ_Old(:,:,:) = Me%SubModel%DVZ_Next(:,:,:)
         endif cd11
 
-        call UnGetGeometry(Me%ObjGeometry,                               &
-                           WaterColumnU, STAT = status)
+        call UnGetGeometry(Me%ObjGeometry,WaterColumnU, STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR17")
 
-        if (status /= SUCCESS_)                                                          &
-                call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR17")
+        call UnGetGeometry(Me%ObjGeometry, WaterColumnV, STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR18")
 
+        call UnGetGeometry(Me%ObjGeometry, KFloor_U, STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR19")
 
-        call UnGetGeometry(Me%ObjGeometry,                               &
-                           WaterColumnV, STAT = status)
-
-        if (status /= SUCCESS_)                                                          &
-                call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR18")
-
-
-        call UnGetGeometry(Me%ObjGeometry,                               &
-                           KFloor_U, STAT = status)
-
-        if (status /= SUCCESS_)                                                          &
-                call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR19")
-
-
-        call UnGetGeometry(Me%ObjGeometry,                               &
-                           KFloor_V, STAT = status)
-
-        if (status /= SUCCESS_)                                                          &
-                call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR20")
-
+        call UnGetGeometry(Me%ObjGeometry, KFloor_V, STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR20")
 
        !UnGets Bathymetry
         call UnGetGridData(Me%ObjGridData, Bathymetry, STAT = status)
-
-        if (status /= SUCCESS_)                                                          &
-                call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR21")
-
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather2D; Hydrodynamic. ERR21")
 
     end subroutine ActualizeSon3DWithFather2D
 
@@ -18449,73 +16967,38 @@ cd11:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
         real(8)                            :: SonDepth
         real(8), dimension (:), pointer    :: Depths, Values
         integer                            :: CHUNK
-
         !Begin-----------------------------------------------------------------
-
 
         call GetGeometryWaterColumn(Me%ObjGeometry,                                 &
                                     WaterColumnU= WaterColumnU,                     &
-                                    WaterColumnV= WaterColumnV,                     &
-                                    STAT = status)
+                                    WaterColumnV= WaterColumnV, STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR01")
 
-        if (status /= SUCCESS_)                                                     &
-                call SetError(FATAL_, INTERNAL_,                                    &
-                              "ActualizeSon3DWithFather3D; Hydrodynamic. ERR01")
-
-        call GetGeometryKFloor(Me%ObjGeometry,                                      &
-                               U = KFloor_U, V = KFloor_V, STAT = status)
-
-        if (status /= SUCCESS_)                                                     &
-                call SetError(FATAL_, INTERNAL_,                                    &
-                              "ActualizeSon3DWithFather3D; Hydrodynamic. ERR02")
-
+        call GetGeometryKFloor(Me%ObjGeometry, U = KFloor_U, V = KFloor_V, STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR02")
 
        !Gets Bathymetry
         call GetGridData(Me%ObjGridData, Bathymetry, STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR03")
 
-        if (status /= SUCCESS_)                                                     &
-                call SetError(FATAL_, INTERNAL_,                                    &
-                              "ActualizeSon3DWithFather3D; Hydrodynamic. ERR03")
+        call GetGeometryMinWaterColumn(Me%ObjGeometry, MinWaterColumn, STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR04")
 
+        ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB; KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB; KUB = Me%WorkSize%KUB
 
-        call GetGeometryMinWaterColumn(Me%ObjGeometry,                              &
-                                       MinWaterColumn, STAT = status)
-
-        if (status /= SUCCESS_)                                                     &
-                call SetError(FATAL_, INTERNAL_,                                    &
-                          "ActualizeSon3DWithFather3D; Hydrodynamic. ERR04")
-
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
-
+        TimeCoef = 1
         if (Me%SubModel%InterPolTime .and. .not. InitialField) then
-
             !Time Properties - Actualises CurrentTime
-            call GetComputeCurrentTime(Me%ObjTime,                                  &
-                                       Me%CurrentTime, STAT = status)
-            if (status /= SUCCESS_)                                                 &
-                call SetError(FATAL_, INTERNAL_,                                    &
-                        "ActualizeSon3DWithFather3D; Hydrodynamic. ERR05")
+            call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = status)
+            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR05")
 
             TimeCoef = (Me%CurrentTime       - Me%SubModel%PreviousTime) /          &
                        (Me%SubModel%NextTime - Me%SubModel%PreviousTime)
-
-        else
-
-            TimeCoef = 1
-
         endif
-
         !Ang: new father-son implementation
         !Get father layers
-        KLBFather = Me%SubModel%FatherKLB
-        KUBFather = Me%SubModel%FatherKUB
+        KLBFather = Me%SubModel%FatherKLB; KUBFather = Me%SubModel%FatherKUB
 
         !Get data for vertical interpolation father-son layers
         if (((Me%CurrentTime == Me%SubModel%GetFatherTime) .and.                    &
@@ -18524,15 +17007,10 @@ cd11:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
 
             !allocate father depth values arrays
             allocate(Depths(KLBFather: KUBFather),STAT = status)
-            if (status /= SUCCESS_)                                                 &
-                call SetError(FATAL_, INTERNAL_,                                    &
-                              "ActualizeSon3DWithFather3D; Hydrodynamic. ERR06")
+            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR06")
 
             allocate(Values(KLBFather: KUBFather),STAT = status)
-            if (status /= SUCCESS_)                                                 &
-                call SetError(FATAL_, INTERNAL_,                                    &
-                              "ActualizeSon3DWithFather3D; Hydrodynamic. ERR07")
-
+            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR07")
         endif
 
         call ReadLockSon(ImposedTangFacesUSon, ImposedTangFacesVSon,                &
@@ -18545,7 +17023,6 @@ cd11:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "ActualizeSon3DWithFather3D")
 
 cd1:    if (InitialField) then
-
             ErrorOccured = .false.
 
             CHUNK = CHUNK_J(JLB, JUB + 1)
@@ -18555,31 +17032,19 @@ cd1:    if (InitialField) then
             !$OMP                   i_thick,j_thick,Kbottom,AuxDUVZ_Son,kfather, &
             !$OMP                   AuxDUVZ_Father,k2,k2father, &
             !$OMP                   SumDUVZ_Son,DeficitValue_Father,AuxDeficit)
-
+            
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB + 1
             do i = ILB, IUB
 
                 !look father layer beginning at the topest layer
                 kfatherinic = KUBFather
-                RelativeThickness = 1.0
-
-                TotalDUVZ_Son = 0.0
-                ExcessDUVZ_Son = 0.0
-                ExcessValue_Father = 0.0
-
+                RelativeThickness = 1.0;  TotalDUVZ_Son = 0.0;   ExcessDUVZ_Son = 0.0;   ExcessValue_Father = 0.0
+                
 do1:            do k = KUB, KLB, -1
                     !(in practice cycle goes only to local Kbottom)
-
-                    if (Me%SubModel%DeadZone) then
-
-                        DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-                    else
-
-                        DeadZoneSon = .false.
-
-                    endif
+                    DeadZoneSon = .false.
+                    if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
 cd2:                if ((Faces3D_USon        (i, j, k) == Covered   .or.            &
                          ImposedTangFacesUSon(i, j, k) == Imposed   .or.            &
@@ -18588,42 +17053,27 @@ cd2:                if ((Faces3D_USon        (i, j, k) == Covered   .or.        
 
                         NullValue = .false.
 
-                        if (Me%SubModel%Aux_qX(i, j, KUBFather)                     &
-                        < FillValueReal / 2.) then
+                        if (Me%SubModel%Aux_qX(i, j, KUBFather) < FillValueReal / 2.) then
 #ifndef _USE_MPI
                             write(*,*)'Point [i,j,k] not covered',i, j,k
 #endif
                             ErrorOccured = .true.
-                            if (Me%SubModel%MissingNull)                            &
-                                NullValue = .true.
-
+                            if (Me%SubModel%MissingNull) NullValue = .true.
                         endif
 
                         if      (ImposedTangFacesUSon(i, j, k) == Imposed .or.      &
                                  Faces3D_USon        (i, j, k) == Covered) then
-
                             i_thick = i
                             j_thick = j
-
                         else if (ImposedNormFacesUSon(i, j, k) == Imposed) then
-
                             i_thick = i
-
                             if      (j == JUB + 1) then
-
                                 j_thick = j - 1
-
                             else if (j == JLB) then
-
                                 j_thick = j + 1
-
                             else
-
-                                j_thick = j + Faces3D_USon(i, j + 1, k) -           &
-                                          Faces3D_USon(i, j - 1, k)
-
+                                j_thick = j + Faces3D_USon(i, j + 1, k) - Faces3D_USon(i, j - 1, k)
                             endif
-
                         endif
 
                         Kbottom = KFloor_U(i_thick, j_thick)
@@ -18633,357 +17083,216 @@ cd2:                if ((Faces3D_USon        (i, j, k) == Covered   .or.        
 
                         if (.not. NullValue) then
                             !(father values exist for at least one (father) layer)
-
                             !DUZ is need for weighting
                             AuxDUVZ_Son = DUZ_Son(i_thick, j_thick, k)
 
 do2:                        do kfather = kfatherinic, KLBFather, -1
-
                                 !layers from surface to bottom
-
-                                if ((Me%SubModel%Aux_qX(i, j, kfather)               &
-                                    < FillValueReal / 2.) .or.                       &
-                                    (Me%SubModel%Aux_DUZ(i, j, kfather)              &
-                                    < FillValueReal / 2.)) then
+                                if ((Me%SubModel%Aux_qX(i, j, kfather) < FillValueReal / 2.) .or.   &
+                                    (Me%SubModel%Aux_DUZ(i, j, kfather)< FillValueReal / 2.)) then 
                                     !if father values do not exist
 
                                     ErrorOccured = .true.
-                                    if (Me%SubModel%MissingNull)                    &
-                                        !son layers assumed null values
-                                        exit do2
-                                        !(should all layers be null if first is null?)
-
+                                    if (Me%SubModel%MissingNull) exit do2
+                                        !son layers assumed null values (should all layers be null if first is null?)
                                 endif
 
                                 AuxDUVZ_Father = Me%SubModel%Aux_DUZ(i, j, kfather)
                                 !(since it is father and not exited loop (i,j) value
                                 ! exists!)
 
-                                if (AuxDUVZ_Son .le.                            &
-                                    RelativeThickness*AuxDUVZ_Father) then
-
+                                if (AuxDUVZ_Son .le. RelativeThickness*AuxDUVZ_Father) then
                                     !son layer inside father layer part
-                                    RelativeThickness = AuxDUVZ_Son*            &
-                                        RelativeThickness / AuxDUVZ_Father
+                                    RelativeThickness = AuxDUVZ_Son * RelativeThickness / AuxDUVZ_Father
 
-                                    Me%SubModel%qX(i, j, k) =                   &
-                                        Me%SubModel%qX(i, j, k) +               &
-                                        Me%SubModel%Aux_qX(i, j, kfather)       &
-                                        * RelativeThickness
+                                    Me%SubModel%qX(i, j, k) = Me%SubModel%qX(i, j, k) &
+                                                            + Me%SubModel%Aux_qX(i, j, kfather) * RelativeThickness
 
-                                    TotalDUVZ_Son  = TotalDUVZ_Son +            &
-                                        AuxDUVZ_Son
+                                    TotalDUVZ_Son  = TotalDUVZ_Son + AuxDUVZ_Son
 
-                                    if (Abs(AuxDUVZ_Son - AuxDUVZ_Father) .lt.  &
-                                        AllmostZero) then
+                                    if (Abs(AuxDUVZ_Son - AuxDUVZ_Father) .lt. AllmostZero) then
                                         !(AuxDUVZ_Son == AuxDUVZ_Father)
-
                                         !this father layer is already solved, solve next
                                         kfatherinic = kfatherinic - 1
                                         RelativeThickness = 1
-
                                     else
-
                                         RelativeThickness = 1 - RelativeThickness
-
                                     endif
 
                                     AuxDUVZ_Son = 0.0
 
                                     exit do2
-
                                 else
-
                                     !son layer includes father layer part
-                                    Me%SubModel%qX(i, j, k) =                   &
-                                        Me%SubModel%qX(i, j, k) +               &
-                                        Me%SubModel%Aux_qX(i, j, kfather)       &
-                                        * RelativeThickness
+                                    Me%SubModel%qX(i, j, k) = Me%SubModel%qX(i, j, k) &
+                                                            + Me%SubModel%Aux_qX(i, j, kfather) * RelativeThickness
 
-                                    TotalDUVZ_Son  = TotalDUVZ_Son +            &
-                                        RelativeThickness*AuxDUVZ_Father
-
+                                    TotalDUVZ_Son  = TotalDUVZ_Son + RelativeThickness*AuxDUVZ_Father
                                     !get the remaing part of DUZ_Son
-                                    AuxDUVZ_Son = AuxDUVZ_Son -                 &
-                                        RelativeThickness*AuxDUVZ_Father
-
+                                    AuxDUVZ_Son = AuxDUVZ_Son - RelativeThickness*AuxDUVZ_Father
                                     !seek in the next father layer
                                     kfatherinic = kfatherinic - 1
                                     RelativeThickness = 1
-
                                 endif
-
                             enddo do2
 
                             !check if excess or deficit flux variable exists
-                            if ((AuxDUVZ_Son /= 0.0) .and.                          &
-                                (kfather == KLBFather)) then
+                            if ((AuxDUVZ_Son /= 0.0) .and. (kfather == KLBFather)) then
                                 !last son layer was not fulfilled by father values
                                 !(all the next son layers are not fulfilled also)
-
                                 if (Me%SubModel%MomentConserv) then
-
                                     ExcessDUVZ_Son = AuxDUVZ_Son
-
                                     if (k-1 .ge. KBottom) then
                                         !add DUZ of next son layers
-
                                         do k2 = k-1, KBottom, - 1
                                             !layers from surface to bottom
-
-                                            ExcessDUVZ_Son = ExcessDUVZ_Son +       &
-                                                DUZ_Son(i_thick, j_thick, k2)
-
+                                            ExcessDUVZ_Son = ExcessDUVZ_Son + DUZ_Son(i_thick, j_thick, k2)
                                         enddo
-
                                     endif
-
                                 else
-
                                     if (k-1 .ge. KBottom) then
                                         !add DUZ of next son layers
-
                                         do k2 = k-1, KBottom, - 1
                                             !layers from surface to bottom
-
                                             Me%SubModel%qX(i, j, k) = 0
-
                                         enddo
-
                                     endif
-
                                 endif
 
                                 exit do1
 
-                            else if ((k == Kbottom) .and.                           &
-                                ((RelativeThickness /= 1) .or.                      &
-                                (kfather /= KLBFather)) .and.                       &
+                            else if ((k == Kbottom) .and.                                    &
+                                ((RelativeThickness /= 1) .or. (kfather /= KLBFather)) .and. &
                                 Me%SubModel%MomentConserv) then
-                                !all son layers are fulfilled with father values
-                                !but excedent father layer part exist
-
-                                if (RelativeThickness /= 1)                         &
-                                    ExcessValue_Father =                            &
-                                    Me%SubModel%Aux_qX(i, j, kfather)*              &
-                                    RelativeThickness
-
+                                !all son layers are fulfilled with father values but excedent father layer part exist
+                                if (RelativeThickness /= 1) ExcessValue_Father = Me%SubModel%Aux_qX(i, j, kfather) &
+                                                                               * RelativeThickness
                                 if (kfather - 1 .ge. KLBFather) then
                                     !add values of next father layers
-
 do3:                                do k2father = kfather - 1, KLBFather, - 1
                                         !layers from surface to bottom
-
                                         if (Me%SubModel%Aux_qX(i, j, k2father)      &
                                             < FillValueReal / 2.) then
-
                                             exit do3
-
                                         else
-
-                                            ExcessValue_Father = ExcessValue_Father &
-                                                + Me%SubModel%Aux_qX(i, j, k2father)
-
+                                            ExcessValue_Father = ExcessValue_Father + Me%SubModel%Aux_qX(i, j, k2father)
                                         endif
-
                                     enddo do3
-
                                 endif
-
                             endif
-
                         endif
 
-                        if (.not. Me%ComputeOptions%Continuous)                         &
-                            Me%WaterFluxes%X(i, j, k)               =                   &
-                                Me%SubModel%qX (i, j, k) * DYY_Son(i, j)
-
+                        if (.not. Me%ComputeOptions%Continuous) Me%WaterFluxes%X(i, j, k) = Me%SubModel%qX (i, j, k) &
+                                                                                          * DYY_Son(i, j)
                         if (k == KBottom) then
-
                             exit do1
                         endif
-
                     endif cd2
-
                 enddo do1
 
                 if (Me%SubModel%MomentConserv) then
 
                     if (ExcessDUVZ_Son /= 0.0) then
                         !Correct son layer values for the deficit of father values
-
-                        SumDUVZ_Son = 0.0
-                        DeficitValue_Father = 0.0
+                        SumDUVZ_Son = 0.0   ;  DeficitValue_Father = 0.0
 
                         do k = KUB, KLB, -1
                         !(in practice cycle goes only to local Kbottom)
-
-                            if (Me%SubModel%DeadZone) then
-
-                                DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-                            else
-
-                                DeadZoneSon = .false.
-
-                            endif
+                            DeadZoneSon = .false.
+                            if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
 cd3:                        if ((Faces3D_USon        (i, j, k) == Covered   .or.    &
                              ImposedTangFacesUSon(i, j, k) == Imposed   .or.        &
                              ImposedNormFacesUSon(i, j, k) == Imposed)  .and.       &
                              .not. DeadZoneSon .and. .not. Me%SubModel%HotStartData) then
 
-                                if      (ImposedTangFacesUSon(i, j, k) == Imposed .or. &
-                                         Faces3D_USon        (i, j, k) == Covered) then
-
+                                if (ImposedTangFacesUSon(i, j, k) == Imposed .or. Faces3D_USon(i, j, k) == Covered)then
                                     i_thick = i
                                     j_thick = j
-
                                 else if (ImposedNormFacesUSon(i, j, k) == Imposed) then
-
                                     i_thick = i
-
                                     if      (j == JUB + 1) then
-
                                         j_thick = j - 1
-
                                     else if (j == JLB) then
-
                                         j_thick = j + 1
-
                                     else
-
-                                        j_thick = j + Faces3D_USon(i, j + 1, k) -   &
-                                                  Faces3D_USon(i, j - 1, k)
-
+                                        j_thick = j + Faces3D_USon(i, j + 1, k) - Faces3D_USon(i, j - 1, k)
                                     endif
-
                                 endif
 
                                 Kbottom = KFloor_U(i_thick, j_thick)
-
                                 SumDUVZ_Son = SumDUVZ_Son + DUZ_Son(i_thick, j_thick, k)
 
                                 if (SumDUVZ_Son .le. TotalDUVZ_Son) then
                                     !layers having father value
-
-                                    AuxDeficit = Me%SubModel%qX(i,j,k)*             &
-                                        ExcessDUVZ_Son*DUZ_Son(i_thick, j_thick, k) &
-                                        /TotalDUVZ_Son
-
+                                    AuxDeficit = Me%SubModel%qX(i,j,k) * ExcessDUVZ_Son*DUZ_Son(i_thick, j_thick, k) &
+                                               /TotalDUVZ_Son
                                     !actualize the value of the father deficit
-                                    DeficitValue_Father = DeficitValue_Father +     &
-                                        AuxDeficit
-
+                                    DeficitValue_Father = DeficitValue_Father + AuxDeficit
                                     !remove flux variable from layer
-                                    Me%SubModel%qX(i,j,k) = Me%SubModel%qX(i,j,k)   &
-                                       - AuxDeficit
-
+                                    Me%SubModel%qX(i,j,k) = Me%SubModel%qX(i,j,k) - AuxDeficit
+                                    
                                 elseif (AuxDUVZ_Son /= 0.0) then
                                     !son layer partially with father value
-                                    AuxDeficit = Me%SubModel%qX(i,j,k)*             &
-                                        ExcessDUVZ_Son*(DUZ_Son(i_thick, j_thick, k) &
-                                        - AuxDUVZ_Son)/TotalDUVZ_Son
-
+                                    AuxDeficit = Me%SubModel%qX(i,j,k) &
+                                                * ExcessDUVZ_Son*(DUZ_Son(i_thick, j_thick, k) - AuxDUVZ_Son) &
+                                                /TotalDUVZ_Son
                                     !actualize the value of the father deficit
-                                    DeficitValue_Father = DeficitValue_Father +     &
-                                        AuxDeficit
-
+                                    DeficitValue_Father = DeficitValue_Father + AuxDeficit
                                     !remove and add
-                                    Me%SubModel%qX(i,j,k) =                         &
-                                        Me%SubModel%qX(i,j,k) - AuxDeficit +        &
-                                        DeficitValue_Father*AuxDUVZ_Son/            &
-                                        (WaterColumnU(i_thick, j_thick) - TotalDUVZ_Son)
+                                    Me%SubModel%qX(i,j,k) = Me%SubModel%qX(i,j,k) - AuxDeficit &
+                                                          + DeficitValue_Father * AuxDUVZ_Son &
+                                                          / (WaterColumnU(i_thick, j_thick) - TotalDUVZ_Son)
 
-                                    AuxDUVZ_Son = 0.0
-                                    !(layer completed)
-
+                                    AuxDUVZ_Son = 0.0 !(layer completed)
                                 else
                                     !fill son layer without father value
-
                                     !add collected value
-                                    Me%SubModel%qX(i,j,k) = DeficitValue_Father*    &
-                                        DUZ_Son(i_thick,j_thick,k)                  &
-                                        /(WaterColumnU(i_thick, j_thick) - TotalDUVZ_Son)
-
+                                    Me%SubModel%qX(i,j,k) = DeficitValue_Father * DUZ_Son(i_thick,j_thick,k) &
+                                                          / (WaterColumnU(i_thick, j_thick) - TotalDUVZ_Son)
                                 endif
-
-                                if (.not. Me%ComputeOptions%Continuous)                 &
-                                    !recalculate the water fluxes
-                                    Me%WaterFluxes%X(i, j, k)               =           &
-                                        Me%SubModel%qX (i, j, k) * DYY_Son(i, j)
-
+                                !recalculate the water fluxes
+                                if (.not. Me%ComputeOptions%Continuous) Me%WaterFluxes%X(i, j, k) =           &
+                                                                        Me%SubModel%qX (i, j, k) * DYY_Son(i, j)
                             endif cd3
-
                         enddo
-
                     elseif (ExcessValue_Father /= 0.0) then
                         !Correct son layer values for the excess of father values
-
                         do k = KUB, KLB, - 1
                             !layers from surface to bottom
-
-                            if (Me%SubModel%DeadZone) then
-
-                                DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-                            else
-
-                                DeadZoneSon = .false.
-
-                            endif
+                            DeadZoneSon = .false.
+                            if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
 cd4:                        if ((Faces3D_USon        (i, j, k) == Covered   .or.    &
                              ImposedTangFacesUSon(i, j, k) == Imposed   .or.        &
                              ImposedNormFacesUSon(i, j, k) == Imposed)  .and.       &
                              .not. DeadZoneSon  .and. .not. Me%SubModel%HotStartData) then
 
-                                if (ImposedTangFacesUSon(i, j, k) == Imposed .or.   &
-                                         Faces3D_USon        (i, j, k) == Covered) then
-
+                                if (ImposedTangFacesUSon(i, j, k) == Imposed .or. Faces3D_USon(i, j, k) == Covered)then
                                     i_thick = i
                                     j_thick = j
-
                                 else if (ImposedNormFacesUSon(i, j, k) == Imposed) then
-
                                     i_thick = i
-
-                                    if      (j == JUB + 1) then
-
+                                    if (j == JUB + 1) then
                                         j_thick = j - 1
-
                                     else if (j == JLB) then
-
                                         j_thick = j + 1
-
                                     else
-
-                                        j_thick = j + Faces3D_USon(i, j + 1, k) -   &
-                                                  Faces3D_USon(i, j - 1, k)
-
+                                        j_thick = j + Faces3D_USon(i, j + 1, k) - Faces3D_USon(i, j - 1, k)
                                     endif
-
                                 endif
 
                                 Kbottom = KFloor_U(i_thick, j_thick)
 
-                                Me%SubModel%qX(i,j,k) = Me%SubModel%qX(i,j,k) +     &
-                                    ExcessValue_Father*DUZ_Son(i_thick, j_thick, k) &
-                                    / WaterColumnU(i_thick, j_thick)
-
-                                if (.not. Me%ComputeOptions%Continuous)                 &
-                                    !recalculate the water fluxes
-                                    Me%WaterFluxes%X(i, j, k)               =           &
-                                        Me%SubModel%qX (i, j, k) * DYY_Son(i, j)
-
+                                Me%SubModel%qX(i,j,k) = Me%SubModel%qX(i,j,k) + ExcessValue_Father &
+                                                      * DUZ_Son(i_thick, j_thick, k) / WaterColumnU(i_thick, j_thick)
+                                !recalculate the water fluxes
+                                if (.not. Me%ComputeOptions%Continuous) &
+                                    Me%WaterFluxes%X(i, j, k) = Me%SubModel%qX (i, j, k) * DYY_Son(i, j)
                             endif cd4
-
                         enddo
-
                     endif
-
                 endif
-
             enddo
             enddo
             !$OMP END DO
@@ -18996,27 +17305,14 @@ cd4:                        if ((Faces3D_USon        (i, j, k) == Covered   .or.
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB + 1
-
                 !look father layer beginning at the topest layer
                 kfatherinic = KUBFather
-                RelativeThickness = 1.0
-
-                TotalDUVZ_Son = 0.0
-                ExcessDUVZ_Son = 0.0
-                ExcessValue_Father = 0.0
+                RelativeThickness = 1.0 ;  TotalDUVZ_Son = 0.0;   ExcessDUVZ_Son = 0.0;   ExcessValue_Father = 0.0
 
 do4:            do k = KUB, KLB, -1
                     !(in practice cycle goes only to local Kbottom)
-
-                    if (Me%SubModel%DeadZone) then
-
-                        DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-                    else
-
-                        DeadZoneSon = .false.
-
-                    endif
+                    DeadZoneSon = .false.
+                    if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
 cd5:                if ((Faces3D_VSon        (i, j, k) == Covered   .or.            &
                          ImposedTangFacesVSon(i, j, k) == Imposed   .or.            &
@@ -19025,278 +17321,166 @@ cd5:                if ((Faces3D_VSon        (i, j, k) == Covered   .or.        
 
                         NullValue = .false.
 
-                        if (Me%SubModel%Aux_qY(i, j, KUBFather)                     &
-                        < FillValueReal / 2.) then
+                        if (Me%SubModel%Aux_qY(i, j, KUBFather) < FillValueReal / 2.) then
 #ifndef _USE_MPI
                             !!!! $OMP CRITICAL (AS3DWF3D1_OUT01)
                            write(*,*)'Point [i,j,k] not covered',i, j,k
                             !!!! $OMP END CRITICAL (AS3DWF3D1_OUT01)
 #endif
                             ErrorOccured = .true.
-                            if (Me%SubModel%MissingNull)                            &
-                                NullValue = .true.
-
+                            if (Me%SubModel%MissingNull) NullValue = .true.
                         endif
-
-                        if      (ImposedTangFacesVSon(i, j, k) == Imposed .or.      &
-                                 Faces3D_VSon        (i, j, k) == Covered) then
-
+                        if (ImposedTangFacesVSon(i, j, k) == Imposed .or. Faces3D_VSon(i, j, k) == Covered) then
                             i_thick = i
                             j_thick = j
-
                         else if (ImposedNormFacesVSon(i, j, k) == Imposed) then
-
-                            if      (i == IUB + 1) then
-
+                            if (i == IUB + 1) then
                                 i_thick = i - 1
-
                             else if (i == ILB) then
-
                                 i_thick = i + 1
-
                             else
-
-                                i_thick = i + Faces3D_VSon(i + 1, j, k) -           &
-                                        Faces3D_VSon(i - 1, j, k)
-
+                                i_thick = i + Faces3D_VSon(i + 1, j, k) - Faces3D_VSon(i - 1, j, k)
                             endif
-
                             j_thick = j
-
                         endif
 
                         Kbottom = KFloor_V(i_thick, j_thick)
-
                         !initialize variable
                         Me%SubModel%qY(i, j, k) = 0
 
                         if (.not. NullValue) then
                             !(father values exist for at least one (father) layer)
-
                             !DVZ is needed for weighting
                             AuxDUVZ_Son = DVZ_Son(i_thick, j_thick, k)
 
 do5:                        do kfather = kfatherinic, KLBFather, -1
-
                                 !layers from surface to bottom
-
-                                if ((Me%SubModel%Aux_qY(i, j, kfather)              &
-                                    < FillValueReal / 2.) .or.                      &
-                                    (Me%SubModel%Aux_DVZ(i, j, kfather)             &
-                                    < FillValueReal / 2.)) then
+                                if ((Me%SubModel%Aux_qY(i, j, kfather)  < FillValueReal / 2.) .or.     &
+                                    (Me%SubModel%Aux_DVZ(i, j, kfather) < FillValueReal / 2.)) then
                                     !if father values do not exist
-
                                     ErrorOccured = .true.
-                                    if (Me%SubModel%MissingNull)                    &
-                                        !son layers assumed null values
-                                        exit do5
-                                        !(should all layers be null if first is null?)
-
+                                    if (Me%SubModel%MissingNull) exit do5 
+                                        !son layers assumed null values (should all layers be null if first is null?)
                                 endif
 
                                 AuxDUVZ_Father = Me%SubModel%Aux_DVZ(i, j, kfather)
-                                !(since it is father and not exited loop (i,j) value
-                                ! exists!)
-
-                                if (AuxDUVZ_Son .le.                            &
-                                    RelativeThickness*AuxDUVZ_Father) then
-
+                                !(since it is father and not exited loop (i,j) value exists!)
+                                if (AuxDUVZ_Son .le. RelativeThickness*AuxDUVZ_Father) then
                                     !son layer inside father layer part
-                                    RelativeThickness = AuxDUVZ_Son*            &
-                                        RelativeThickness / AuxDUVZ_Father
+                                    RelativeThickness = AuxDUVZ_Son * RelativeThickness / AuxDUVZ_Father
 
-                                    Me%SubModel%qY(i, j, k) =                   &
-                                        Me%SubModel%qY(i, j, k) +               &
-                                        Me%SubModel%Aux_qY(i, j, kfather)       &
-                                        * RelativeThickness
+                                    Me%SubModel%qY(i, j, k) = Me%SubModel%qY(i, j, k) &
+                                                            + Me%SubModel%Aux_qY(i, j, kfather) * RelativeThickness
 
-                                    TotalDUVZ_Son  = TotalDUVZ_Son +            &
-                                        AuxDUVZ_Son
+                                    TotalDUVZ_Son  = TotalDUVZ_Son + AuxDUVZ_Son
 
-                                    if (Abs(AuxDUVZ_Son - AuxDUVZ_Father) .lt.  &
-                                        AllmostZero) then
+                                    if (Abs(AuxDUVZ_Son - AuxDUVZ_Father) .lt. AllmostZero) then
                                         !(AuxDUVZ_Son == AuxDUVZ_Father)
-
                                         !this father layer is already solved, solve next
                                         kfatherinic = kfatherinic - 1
                                         RelativeThickness = 1
-
                                     else
-
                                         RelativeThickness = 1 - RelativeThickness
-
                                     endif
 
                                     AuxDUVZ_Son = 0.0
 
                                     exit do5
-
                                 else
-
                                     !son layer includes father layer part
-                                    Me%SubModel%qY(i, j, k) =                   &
-                                        Me%SubModel%qY(i, j, k) +               &
-                                        Me%SubModel%Aux_qY(i, j, kfather)       &
-                                        * RelativeThickness
+                                    Me%SubModel%qY(i, j, k) = Me%SubModel%qY(i, j, k) &
+                                                            + Me%SubModel%Aux_qY(i, j, kfather) * RelativeThickness
 
-                                    TotalDUVZ_Son  = TotalDUVZ_Son +            &
-                                        RelativeThickness*AuxDUVZ_Father
-
+                                    TotalDUVZ_Son  = TotalDUVZ_Son + RelativeThickness*AuxDUVZ_Father
                                     !get the remaing part of DVZ_Son
-                                    AuxDUVZ_Son = AuxDUVZ_Son -                 &
-                                        RelativeThickness*AuxDUVZ_Father
-
+                                    AuxDUVZ_Son = AuxDUVZ_Son - RelativeThickness*AuxDUVZ_Father
                                     !seek in the next father layer
                                     kfatherinic = kfatherinic - 1
                                     RelativeThickness = 1
-
                                 endif
-
                             enddo do5
 
                             !check if excess or deficit flux variable exists
-                            if ((AuxDUVZ_Son /= 0.0) .and.                          &
-                                (kfather == KLBFather)) then
+                            if ((AuxDUVZ_Son /= 0.0) .and. (kfather == KLBFather)) then
                                 !last son layer was not fulfilled by father values
                                 !(all the next son layers are not fulfilled also)
-
                                 if (Me%SubModel%MomentConserv) then
-
                                     ExcessDUVZ_Son = AuxDUVZ_Son
 
                                     if (k-1 .ge. KBottom) then
                                         !add DVZ of next son layers
-
                                         do k2 = k-1, KBottom, - 1
                                             !layers from surface to bottom
-
-                                            ExcessDUVZ_Son = ExcessDUVZ_Son +       &
-                                                DVZ_Son(i_thick, j_thick, k2)
-
+                                            ExcessDUVZ_Son = ExcessDUVZ_Son + DVZ_Son(i_thick, j_thick, k2)
                                         enddo
-
                                     endif
-
                                 else
-
                                     if (k-1 .ge. KBottom) then
                                         !add DUZ of next son layers
-
                                         do k2 = k-1, KBottom, - 1
                                             !layers from surface to bottom
-
                                             Me%SubModel%qY(i, j, k) = 0
-
                                         enddo
-
                                     endif
-
                                 endif
 
                                 exit do4
 
-                            else if ((k == Kbottom) .and.                           &
-                                ((RelativeThickness /= 1) .or.                      &
-                                (kfather /= KLBFather)) .and.                       &
+                            else if ((k == Kbottom) .and.                                     &
+                                ((RelativeThickness /= 1) .or. (kfather /= KLBFather)) .and.  &
                                 Me%SubModel%MomentConserv) then
                                 !all son layers are fulfilled with father values
                                 !but excedent father layer part exist
-
-                                if (RelativeThickness /= 1)                         &
-                                ExcessValue_Father =                                &
-                                    Me%SubModel%Aux_qY(i, j, kfather)*              &
-                                    RelativeThickness
-
+                                if (RelativeThickness /= 1) ExcessValue_Father = Me%SubModel%Aux_qY(i, j, kfather) &
+                                                                               * RelativeThickness
                                 if (kfather - 1 .ge. KLBFather) then
                                     !add values of next father layers
-
 do6:                                do k2father = kfather - 1, KLBFather, - 1
                                         !layers from surface to bottom
-
-                                        if (Me%SubModel%Aux_qY(i, j, k2father)      &
-                                            < FillValueReal / 2.) then
-
+                                        if (Me%SubModel%Aux_qY(i, j, k2father) < FillValueReal / 2.) then
                                             exit do6
-
                                         else
-
-                                            ExcessValue_Father = ExcessValue_Father &
-                                                + Me%SubModel%Aux_qY(i, j, k2father)
-
+                                            ExcessValue_Father = ExcessValue_Father + Me%SubModel%Aux_qY(i, j,k2father)
                                         endif
-
                                     enddo do6
-
                                 endif
-
                             endif
-
                         endif
 
                         if (.not. Me%ComputeOptions%Continuous)                         &
-                            Me%WaterFluxes%Y(i, j, k)               =                   &
-                                Me%SubModel%qY (i, j, k) * DXX_Son(i, j)
+                            Me%WaterFluxes%Y(i, j, k) = Me%SubModel%qY (i, j, k) * DXX_Son(i, j)
 
-                        if (k == KBottom) then
-
-                            exit do4
-                        endif
-
+                        if (k == KBottom) exit do4
                     endif cd5
-
                 enddo do4
 
                 if (Me%SubModel%MomentConserv) then
-
                     if (ExcessDUVZ_Son /= 0.0) then
                         !Correct son layer values for the deficit of father values
-
-                        SumDUVZ_Son = 0.0
-                        DeficitValue_Father = 0.0
+                        SumDUVZ_Son = 0.0;   DeficitValue_Father = 0.0
 
                         do k = KUB, KLB, -1
                         !(in practice cycle goes only to local Kbottom)
-
-                            if (Me%SubModel%DeadZone) then
-
-                                DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-                            else
-
-                                DeadZoneSon = .false.
-
-                            endif
+                            DeadZoneSon = .false.
+                            if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
 cd6:                        if ((Faces3D_VSon (i, j, k) == Covered   .or.           &
                              ImposedTangFacesVSon(i, j, k) == Imposed   .or.        &
                              ImposedNormFacesVSon(i, j, k) == Imposed)  .and.       &
                              .not. DeadZoneSon  .and. .not. Me%SubModel%HotStartData) then
 
-                                if      (ImposedTangFacesVSon(i, j, k) == Imposed .or. &
-                                         Faces3D_VSon        (i, j, k) == Covered) then
-
+                                if (ImposedTangFacesVSon(i, j,k) == Imposed .or. Faces3D_VSon (i, j,k) == Covered) then
                                     i_thick = i
                                     j_thick = j
-
                                 else if (ImposedNormFacesVSon(i, j, k) == Imposed) then
-
-                                    if      (i == IUB + 1) then
-
+                                    if (i == IUB + 1) then
                                         i_thick = i - 1
-
                                     else if (i == ILB) then
-
                                         i_thick = i + 1
-
                                     else
-
-                                        i_thick = i + Faces3D_VSon(i + 1, j, k) -   &
-                                                  Faces3D_VSon(i - 1, j, k)
-
+                                        i_thick = i + Faces3D_VSon(i + 1, j, k) - Faces3D_VSon(i - 1, j, k)
                                     endif
-
                                     j_thick = j
-
                                 endif
 
                                 Kbottom = KFloor_V(i_thick, j_thick)
@@ -19305,55 +17489,40 @@ cd6:                        if ((Faces3D_VSon (i, j, k) == Covered   .or.       
 
                                 if (SumDUVZ_Son .le. TotalDUVZ_Son) then
                                     !layers having father value
-
-                                    AuxDeficit = Me%SubModel%qX(i,j,k)*             &
-                                        ExcessDUVZ_Son*DVZ_Son(i_thick, j_thick, k) &
-                                        /TotalDUVZ_Son
+                                    AuxDeficit = Me%SubModel%qX(i,j,k) * ExcessDUVZ_Son*DVZ_Son(i_thick, j_thick, k) &
+                                               /TotalDUVZ_Son
 
                                     !actualize the value of the father deficit
-                                    DeficitValue_Father = DeficitValue_Father +     &
-                                        AuxDeficit
-
+                                    DeficitValue_Father = DeficitValue_Father + AuxDeficit
                                     !remove flux variable from layer
-                                    Me%SubModel%qY(i,j,k) = Me%SubModel%qY(i,j,k)   &
-                                       - AuxDeficit
+                                    Me%SubModel%qY(i,j,k) = Me%SubModel%qY(i,j,k) - AuxDeficit
 
                                 elseif (AuxDUVZ_Son /= 0.0) then
                                     !son layer partially with father value
-                                    AuxDeficit = Me%SubModel%qY(i,j,k)*             &
-                                        ExcessDUVZ_Son*(DVZ_Son(i_thick, j_thick, k) &
-                                        - AuxDUVZ_Son)/TotalDUVZ_Son
+                                    AuxDeficit = Me%SubModel%qY(i,j,k) &
+                                               * ExcessDUVZ_Son * (DVZ_Son(i_thick, j_thick, k)- AuxDUVZ_Son) &
+                                               / TotalDUVZ_Son
 
                                     !actualize the value of the father deficit
-                                    DeficitValue_Father = DeficitValue_Father +     &
-                                        AuxDeficit
-
+                                    DeficitValue_Father = DeficitValue_Father + AuxDeficit
                                     !remove and add
-                                    Me%SubModel%qY(i,j,k) =                         &
-                                        Me%SubModel%qY(i,j,k) - AuxDeficit +        &
-                                        DeficitValue_Father*AuxDUVZ_Son/            &
-                                        (WaterColumnV(i_thick, j_thick) - TotalDUVZ_Son)
+                                    Me%SubModel%qY(i,j,k) = Me%SubModel%qY(i,j,k) - AuxDeficit &
+                                                          + DeficitValue_Father * AuxDUVZ_Son  &
+                                                          / (WaterColumnV(i_thick, j_thick) - TotalDUVZ_Son)
 
                                     AuxDUVZ_Son = 0.0
                                     !(layer completed)
-
                                 else
                                     !fill son layer without father value
-
                                     !add collected value
-                                    Me%SubModel%qY(i,j,k) = DeficitValue_Father*    &
-                                        DVZ_Son(i_thick,j_thick,k)                  &
-                                        /(WaterColumnV(i_thick, j_thick) - TotalDUVZ_Son)
-
+                                    Me%SubModel%qY(i,j,k) = DeficitValue_Father * DVZ_Son(i_thick,j_thick,k) &
+                                                          /(WaterColumnV(i_thick, j_thick) - TotalDUVZ_Son)
                                 endif
 
                                 if (.not. Me%ComputeOptions%Continuous)                 &
                                     !recalculate the water fluxes
-                                    Me%WaterFluxes%Y(i, j, k)               =           &
-                                        Me%SubModel%qY (i, j, k) * DXX_Son(i, j)
-
+                                    Me%WaterFluxes%Y(i, j, k) = Me%SubModel%qY (i, j, k) * DXX_Son(i, j)
                             endif cd6
-
                         enddo
 
                     elseif (ExcessValue_Father /= 0.0) then
@@ -19361,79 +17530,48 @@ cd6:                        if ((Faces3D_VSon (i, j, k) == Covered   .or.       
 
                         do k = KUB, KLB, - 1
                             !layers from surface to bottom
-
-                            if (Me%SubModel%DeadZone) then
-
-                                DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-                            else
-
-                                DeadZoneSon = .false.
-
-                            endif
+                            DeadZoneSon = .false.
+                            if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
 cd7:                        if ((Faces3D_VSon        (i, j, k) == Covered   .or.    &
                              ImposedTangFacesVSon(i, j, k) == Imposed   .or.        &
                              ImposedNormFacesVSon(i, j, k) == Imposed)  .and.       &
                              .not. DeadZoneSon  .and. .not. Me%SubModel%HotStartData) then
 
-                                if      (ImposedTangFacesVSon(i, j, k) == Imposed .or. &
-                                         Faces3D_VSon        (i, j, k) == Covered) then
-
+                                if (ImposedTangFacesVSon(i, j, k) == Imposed .or. Faces3D_VSon(i, j, k) == Covered)then
                                     i_thick = i
                                     j_thick = j
-
                                 else if (ImposedNormFacesVSon(i, j, k) == Imposed) then
-
-                                    if      (i == IUB + 1) then
-
+                                    if (i == IUB + 1) then
                                         i_thick = i - 1
-
                                     else if (i == ILB) then
-
                                         i_thick = i + 1
-
                                     else
-
-                                        i_thick = i + Faces3D_VSon(i + 1, j, k) -   &
-                                                  Faces3D_VSon(i - 1, j, k)
-
+                                        i_thick = i + Faces3D_VSon(i + 1, j, k) - Faces3D_VSon(i - 1, j, k)
                                     endif
-
                                     j_thick = j
-
                                 endif
 
                                 Kbottom = KFloor_V(i_thick, j_thick)
 
-                                Me%SubModel%qY(i,j,k) = Me%SubModel%qY(i,j,k) +     &
-                                    ExcessValue_Father*DVZ_Son(i_thick, j_thick, k) &
-                                    / WaterColumnV(i_thick, j_thick)
+                                Me%SubModel%qY(i,j,k) = Me%SubModel%qY(i,j,k) + ExcessValue_Father &
+                                                      * DVZ_Son(i_thick, j_thick, k) / WaterColumnV(i_thick, j_thick)
 
                                 if (.not. Me%ComputeOptions%Continuous)                 &
                                     !recalculate the water fluxes
-                                    Me%WaterFluxes%Y(i, j, k)               =           &
-                                        Me%SubModel%qY (i, j, k) * DXX_Son(i, j)
-
+                                    Me%WaterFluxes%Y(i, j, k) = Me%SubModel%qY (i, j, k) * DXX_Son(i, j)
                             endif cd7
-
                         enddo
-
                     endif
-
                 endif
-
             enddo
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
 
             if (ErrorOccured .and. .not. Me%SubModel%MissingNull)                   &
-                call SetError(FATAL_, INTERNAL_,                                    &
-                    "ActualizeSon3DWithFather3D; Hydrodynamic. ERR08")
-
+                call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR08")
         endif cd1
-
 
 cd8:   if ((InitialField .and. .not. Me%ComputeOptions%Continuous) .or.             &
              Me%Relaxation%WaterLevel                               .or.            &
@@ -19445,26 +17583,16 @@ cd8:   if ((InitialField .and. .not. Me%ComputeOptions%Continuous) .or.         
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
-
-
-                if (Me%SubModel%DeadZone) then
-
-                    DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
-
-                else
-
-                    DeadZoneSon = .false.
-
-                endif
+                
+                DeadZoneSon = .false.
+                if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
 
                 !The test must be done for the water points because the water levels in the corner (no open points)
                 !are used to compute face areas where momentum fluxes are computed.
 cd9:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon) then
 
-                    Me%SubModel%Z(i, j)  =                                          &
-                            Me%SubModel%Z_Next    (i, j) * TimeCoef  +              &
-                            Me%SubModel%Z_Previous(i, j) * (1 - TimeCoef)
-
+                    Me%SubModel%Z(i, j)  = Me%SubModel%Z_Next(i, j)     * TimeCoef  &
+                                         + Me%SubModel%Z_Previous(i, j) * (1 - TimeCoef)
 
                     if (Me%SubModel%Z_Next    (i, j) < FillValueReal / 2. .or.      &
                         Me%SubModel%Z_Previous(i, j) < FillValueReal / 2.) then
@@ -19473,27 +17601,21 @@ cd9:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon)
                             !The cell is considered uncovered if WaterColumn < MinWaterColumn
                             !if WaterColumn < MinWaterColumn / 2 the model put WaterColumn = MinWaterColumn / 2 (creates water)
                             !Using WaterColumn = 3/4MinWaterColumn garantes that the cell is uncovered but mass is not created
-                            Me%SubModel%Z(i, j)  = - Bathymetry(i, j) + 0.75 *      &
-                                                   MinWaterColumn
-
+                            Me%SubModel%Z(i, j)  = - Bathymetry(i, j) + 0.75 * MinWaterColumn
                         else
                             !!!! $OMP CRITICAL (AS3DWF3D2_ERR09)
                             call SetError(FATAL_, INTERNAL_,                        &
                                 "ActualizeSon3DWithFather3D; Hydrodynamic. ERR09")
                             !!!! $OMP END CRITICAL (AS3DWF3D2_ERR09)
                         endif
-
                     endif
-
                 endif cd9
-
             enddo
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
 
             if (Me%SubModel%MissingNull) then
-
                  call RemoveLowerSpikes (Me%SubModel%Z, Water3DSon,                 &
                                         Bathymetry, MinWaterColumn,                 &
                                         Me%SubModel%DeadZonePoint,                  &
@@ -19501,12 +17623,8 @@ cd9:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon)
                                         ILB, IUB, JLB, JUB, KUB)
             endif
 
-            if (InitialField .and. .not. Me%ComputeOptions%Continuous               &
-                .and. Me%SubModel%FatherHotStart)                                   &
-                Me%WaterLevel%New(:, :) =                                           &
-                    Me%SubModel%Z(:, :)
-
-
+            if (InitialField .and. .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart)   &
+                Me%WaterLevel%New(:, :) = Me%SubModel%Z(:, :)
         else cd8
 
             CHUNK = CHUNK_J(JLB, JUB)
@@ -19515,27 +17633,17 @@ cd9:            if (Water3DSon(i, j, KUB) == WaterPoint .and. .not. DeadZoneSon)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
-
-
-                if (Me%SubModel%DeadZone) then
-
-                    DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
-
-                else
-
-                    DeadZoneSon = .false.
-
-                endif
+                
+                DeadZoneSon = .false.
+                if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, KUB)
 
                 !The test must be done for the water points because the water levels in the corner (no open points)
                 !are used to compute face areas where momentum fluxes are computed.
-cd10:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB)     &
-                    == WaterPoint .and. .not. DeadZoneSon) then
+cd10:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) == WaterPoint &
+                    .and. .not. DeadZoneSon) then
 
-                    Me%SubModel%Z(i, j)  =                                          &
-                            Me%SubModel%Z_Next    (i, j) * TimeCoef  +              &
-                            Me%SubModel%Z_Previous(i, j) * (1 - TimeCoef)
-
+                    Me%SubModel%Z(i, j)  = Me%SubModel%Z_Next(i, j)     * TimeCoef  &
+                                         + Me%SubModel%Z_Previous(i, j) * (1 - TimeCoef)
 
                     if (Me%SubModel%Z_Next    (i, j) < FillValueReal / 2. .or.      &
                         Me%SubModel%Z_Previous(i, j) < FillValueReal / 2.) then
@@ -19544,20 +17652,15 @@ cd10:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) 
                             !The cell is considered uncovered if WaterColumn < MinWaterColumn
                             !if WaterColumn < MinWaterColumn / 2 the model put WaterColumn = MinWaterColumn / 2 (creates water)
                             ! Using WaterColumn = 3/4MinWaterColumn garantes that the cell is uncovered but mass is not created
-                            Me%SubModel%Z(i, j)  = - Bathymetry(i, j) + 0.75 *      &
-                                                   MinWaterColumn
-
+                            Me%SubModel%Z(i, j)  = - Bathymetry(i, j) + 0.75 * MinWaterColumn
                         else
                             !!!! $OMP CRITICAL (AS3DWF3D3_ERR10)
                             call SetError(FATAL_, INTERNAL_,                        &
                                 "ActualizeSon3DWithFather3D; Hydrodynamic. ERR10")
                             !!!! $OMP END CRITICAL (AS3DWF3D3_ERR10)
                         endif
-
                     endif
-
                 endif cd10
-
             enddo
             enddo
             !$OMP END DO
@@ -19569,8 +17672,6 @@ cd10:           if (Boundary2DSon(i, j) == Boundary .and. Water3DSon(i, j, KUB) 
                                         Me%SubModel%DeadZonePoint,                  &
                                         Me%SubModel%DeadZone,                       &
                                         ILB, IUB, JLB, JUB, KUB, Boundary2DSon)
-
-
         endif cd8
 
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "ActualizeSon3DWithFather3D")
@@ -19579,261 +17680,164 @@ cd11:   if ((InitialField .and. .not. Me%ComputeOptions%Continuous)        .or. 
              Me%Relaxation%Force .or. Me%Relaxation%Velocity .or.                   &
              Me%ComputeOptions%BarotropicRadia == FlatherLocalSolution_) then
 
-             !ACanas: This subroutine following cycles were not parallelized
-             !ACanas: because of function calls in cycle iterations
-             !ACanas: which causes errors in results.
+             !ACanas: This subroutine following cycles were not parallelized because of function calls in 
+             !ACanas: cycle iterations which causes errors in results.
 
             do j = JLB, JUB + 1
             do i = ILB, IUB
 
-                if (((Me%CurrentTime == Me%SubModel%GetFatherTime) .and.             &
-                     Me%SubModel%InterPolTime) .or. (.not. Me%SubModel%InterPolTime) &
-                    .or. InitialField) then
+                if (((Me%CurrentTime == Me%SubModel%GetFatherTime) .and. Me%SubModel%InterPolTime) &
+                      .or. (.not. Me%SubModel%InterPolTime) .or. InitialField) then
                     !Time to interpolate vertical layers father to son!
-
                     NullValue = .false.
-
                     !find the first father layer for interpolation
-                    Aux = KLBFather
-                    AuxDepth = 0.0
+                    Aux = KLBFather;   AuxDepth = 0.0
 
                     do kfather=KUBFather, KLBFather, -1
-                        if ((Me%SubModel%Aux_U(i, j, kfather)                       &
-                            < FillValueReal / 2.) .or.                              &
-                            (Me%SubModel%Aux_DUZ(i, j, kfather)                     &
-                            < FillValueReal / 2.)) then
+                        if ((Me%SubModel%Aux_U(i, j, kfather)   < FillValueReal / 2.) .or.      &
+                            (Me%SubModel%Aux_DUZ(i, j, kfather) < FillValueReal / 2.)) then
                             Aux = kfather + 1
                            exit
                         else
                             Values(kfather) = Me%SubModel%Aux_U(i,j,kfather)
-                            Depths(kfather) = AuxDepth +                            &
-                                Me%SubModel%Aux_DUZ(i,j,kfather)/2
+                            Depths(kfather) = AuxDepth + Me%SubModel%Aux_DUZ(i,j,kfather) / 2
                             AuxDepth = AuxDepth + Me%SubModel%Aux_DUZ(i,j,kfather)
                         endif
                     enddo
 
                     if (Aux == KUBFather + 1) then
-
                         if (Me%SubModel%MissingNull) then
                             NullValue = .true.
                         else
-                            call SetError(FATAL_, INTERNAL_,                        &
-                                "ActualizeSon3DWithFather3D; Hydrodynamic. ERR11")
+                            call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR11")
                         endif
                     endif
 
                     !get number of father depths
-                    NDepths = KUBFather - Aux + 1
-                    AuxSonDepth = 0.0
-
+                    NDepths = KUBFather - Aux + 1;   AuxSonDepth = 0.0
                     !DUZ_Next calculation variables
                     !look father layer beginning at the topest layer
-                    kfatherinic = KUBFather
-                    RelativeThickness = 1.0
-
-                    TotalDUVZ_Son = 0.0
-                    ExcessDUVZ_Son = 0.0
-
-                    SumDUVZ_Son = 0.0
-                    DeficitValue_Father = 0.0
+                    kfatherinic    = KUBFather;   RelativeThickness = 1.0;   TotalDUVZ_Son       = 0.0
+                    ExcessDUVZ_Son = 0.0      ;   SumDUVZ_Son       = 0.0;   DeficitValue_Father = 0.0
 
                 endif
 
                 Kbottom = KFloor_U(i, j)
 
 do7:            do k = KUB, KLB, -1
-
-                    if (Me%SubModel%DeadZone) then
-
-                        DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-                    else
-
-                        DeadZoneSon = .false.
-
-                    endif
+    
+                    DeadZoneSon = .false.
+                    if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
 cd12:               if (Faces3D_USon(i, j, k) == Covered  .and. .not. DeadZoneSon) then
 
-                        if ((((Me%CurrentTime == Me%SubModel%GetFatherTime) .and.   &
-                            Me%SubModel%InterPolTime) .or.                          &
-                            (.not. Me%SubModel%InterPolTime)                        &
-                            .or. InitialField) .and. (.not. NullValue)) then
+                        if ((((Me%CurrentTime == Me%SubModel%GetFatherTime) .and. Me%SubModel%InterPolTime) .or.  &
+                            (.not. Me%SubModel%InterPolTime) .or. InitialField) .and. (.not. NullValue)) then
                             !Time to interpolate vertical layers father to son!
-
                             !(get U_Next from father)
-
                             !get son cell depth
-                            SonDepth = AuxSonDepth + DUZ_Son(i, j, k)/2
+                            SonDepth = AuxSonDepth + DUZ_Son(i, j, k) / 2
                             AuxSonDepth = AuxSonDepth + DUZ_Son(i, j, k)
 
                             !interpolate father values as a profile
-                            Me%SubModel%U_Next(i,j,k) =                             &
-                                            InterpolateProfileR8(SonDepth,          &
-                                            NDepths, Depths(Aux:KUBFather),         &
-                                            Values(Aux:KUBFather),                  &
-                                            FoundBottom, FoundSurface)
-
-                            if (InitialField)                                       &
-                                Me%SubModel%U_Previous(i,j,k) =                     &
-                                    Me%SubModel%U_Next(i,j,k)
+                            Me%SubModel%U_Next(i,j,k) = InterpolateProfileR8(SonDepth, NDepths, Depths(Aux:KUBFather),&
+                                                                      Values(Aux:KUBFather), FoundBottom, FoundSurface)
+                            
+                            if (InitialField) Me%SubModel%U_Previous(i,j,k) = Me%SubModel%U_Next(i,j,k)
 
                             if (.not. Me%SubModel%MomentConserv) then
-
                                 !layer thicknesses are completely determined by son's
                                 Me%SubModel%DUZ_Next(i, j, k) = DUZ_Son(i, j, k)
-
                             else
-
-                                !initialize variable
                                 Me%SubModel%DUZ_Next(i, j, k) = 0
-
-                                !(father values exist for at least one layer)
-
-                                !DUZ is need for weighting
+                                !(father values exist for at least one layer) DUZ is need for weighting
                                 AuxDUVZ_Son = DUZ_Son(i, j, k)
 
 do8:                            do kfather = kfatherinic, KLBFather, -1
                                     !(layers from surface to bottom)
-
-                                    if (Me%SubModel%Aux_DUZ(i, j, kfather)          &
-                                        < FillValueReal / 2.) then
+                                    if (Me%SubModel%Aux_DUZ(i, j, kfather) < FillValueReal / 2.) then
                                         !if father values do not exist
-
                                         if (Me%SubModel%MissingNull) then
                                             !son layers assumed null values
                                             exit do8
-
                                         else
                                             call SetError(FATAL_, INTERNAL_,        &
-                                    "ActualizeSon3DWithFather3D; Hydrodynamic. ERR12")
+                                                         "ActualizeSon3DWithFather3D; Hydrodynamic. ERR12")
                                         endif
-
                                     endif
 
                                     AuxDUVZ_Father = Me%SubModel%Aux_DUZ(i,j,kfather)
 
-                                    if (AuxDUVZ_Son .le.                            &
-                                        RelativeThickness*AuxDUVZ_Father) then
+                                    if (AuxDUVZ_Son .le. RelativeThickness*AuxDUVZ_Father) then
 
                                         !son layer inside father layer part
-                                        RelativeThickness = AuxDUVZ_Son*            &
-                                            RelativeThickness / AuxDUVZ_Father
+                                        RelativeThickness = AuxDUVZ_Son * RelativeThickness / AuxDUVZ_Father
 
-                                        Me%SubModel%DUZ_Next(i, j, k) =             &
-                                            Me%SubModel%DUZ_Next(i, j, k) +         &
-                                            Me%SubModel%Aux_DUZ(i, j, kfather)      &
-                                            * RelativeThickness
+                                        Me%SubModel%DUZ_Next(i, j, k) = Me%SubModel%DUZ_Next(i, j, k) &
+                                                                      + Me%SubModel%Aux_DUZ(i, j, kfather) &
+                                                                      * RelativeThickness
+                                        TotalDUVZ_Son  = TotalDUVZ_Son + AuxDUVZ_Son
 
-                                        TotalDUVZ_Son  = TotalDUVZ_Son +            &
-                                            AuxDUVZ_Son
-
-                                        if (Abs(AuxDUVZ_Son - AuxDUVZ_Father) .lt.  &
-                                            AllmostZero) then
-                                            !(AuxDUVZ_Son == AuxDUVZ_Father)
-
-                                            !this father layer is already solved, solve next
+                                        if (Abs(AuxDUVZ_Son - AuxDUVZ_Father) .lt. AllmostZero) then
+                                            !(AuxDUVZ_Son == AuxDUVZ_Father)  this father layer is already solved, solve next
                                             kfatherinic = kfatherinic -1
                                             RelativeThickness = 1
-
                                         else
-
                                             RelativeThickness = 1 - RelativeThickness
-
                                         endif
-
+                                        
                                         AuxDUVZ_Son = 0.0
-
                                         exit do8
-
                                     else
-
                                         !son layer includes father layer part
-                                        Me%SubModel%DUZ_Next(i, j, k) =             &
-                                            Me%SubModel%DUZ_Next(i, j, k) +         &
-                                            Me%SubModel%Aux_DUZ(i, j, kfather)      &
-                                            * RelativeThickness
+                                        Me%SubModel%DUZ_Next(i, j, k) = Me%SubModel%DUZ_Next(i, j, k) &
+                                                                      + Me%SubModel%Aux_DUZ(i, j, kfather) &
+                                                                      * RelativeThickness
 
-                                        TotalDUVZ_Son  = TotalDUVZ_Son +            &
-                                            RelativeThickness*AuxDUVZ_Father
-
+                                        TotalDUVZ_Son  = TotalDUVZ_Son + RelativeThickness * AuxDUVZ_Father
                                         !get the remaining part of DUZ_Son
-                                        AuxDUVZ_Son = AuxDUVZ_Son -                 &
-                                            RelativeThickness*AuxDUVZ_Father
-
+                                        AuxDUVZ_Son = AuxDUVZ_Son - RelativeThickness*AuxDUVZ_Father
                                         !seek in the next father layer
                                         kfatherinic = kfatherinic - 1
                                         RelativeThickness = 1
-
                                     endif
-
                                 enddo do8
 
                                 !check if excess or deficit flux variable exists
-                                if ((AuxDUVZ_Son /= 0.0) .and.                      &
-                                    (kfather == KLBFather)) then
+                                if ((AuxDUVZ_Son /= 0.0) .and. (kfather == KLBFather)) then
                                     !last son layer was not fulfilled by father values
                                     !(all the next son layers are not fulfilled also)
-
                                     ExcessDUVZ_Son = AuxDUVZ_Son
-
                                     if (k-1 .ge. KLB) then
                                         !add DUZ of next son layers
-
                                         do k2 = k-1, KLB, -1
                                             !layers from surface to bottom
-
-                                            ExcessDUVZ_Son = ExcessDUVZ_Son +       &
-                                                DUZ_Son(i, j, k2)
-
+                                            ExcessDUVZ_Son = ExcessDUVZ_Son + DUZ_Son(i, j, k2)
                                         enddo
-
                                     endif
 
-                                else if ((k == Kbottom) .and.                       &
-                                    ((RelativeThickness /= 1) .or.                  &
-                                    (kfather /= KLBFather))) then
-                                    !all son layers are fulfilled with father values
-                                    !but excedent father layer part exist
-
+                                else if ((k == Kbottom) .and. ((RelativeThickness /= 1) &
+                                         .or. (kfather /= KLBFather))) then
+                                    !all son layers are fulfilled with father values but excedent father layer part exist
                                     if (RelativeThickness /= 1)                     &
-                                        ExcessValue_Father =                        &
-                                                Me%SubModel%Aux_DUZ(i, j, kfather)* &
-                                                RelativeThickness
+                                        ExcessValue_Father = Me%SubModel%Aux_DUZ(i, j, kfather) * RelativeThickness
 
                                     if (kfather - 1 .ge. KLBFather) then
                                         !add values of next father layers
-
 do9:                                    do k2father = kfather - 1, KLBFather, - 1
                                             !layers from surface to bottom
-
-                                            if (Me%SubModel%Aux_DUZ(i, j,k2father)  &
-                                                < FillValueReal / 2.) then
-
+                                            if (Me%SubModel%Aux_DUZ(i, j,k2father) < FillValueReal / 2.) then
                                                 exit do9
-
                                             else
-
-                                                ExcessValue_Father =                &
-                                                ExcessValue_Father                  &
-                                                + Me%SubModel%Aux_DUZ(i, j, k2father)
-
+                                                ExcessValue_Father = ExcessValue_Father               &
+                                                                   + Me%SubModel%Aux_DUZ(i, j, k2father)
                                             endif
-
                                         enddo do9
-
                                     endif
-
                                 endif
-
                             endif
 
-                            if (InitialField) then
-
-                                Me%SubModel%DUZ_Previous(i,j,k) =                   &
-                                    Me%SubModel%DUZ_Next(i,j,k)
-
-                            endif
+                            if (InitialField) Me%SubModel%DUZ_Previous(i,j,k) = Me%SubModel%DUZ_Next(i,j,k)
 
                         endif
 
@@ -19843,55 +17847,36 @@ do9:                                    do k2father = kfather - 1, KLBFather, - 
                             Me%SubModel%U_Previous(i, j, k) < FillValueReal / 2.)  then
 
                             if (Me%SubModel%MissingNull) then
-
                                 Me%SubModel%U_New(i, j, k)  =  0.
-
                             else
-                                call SetError(FATAL_, INTERNAL_,                    &
-                                     "ActualizeSon3DWithFather3D; Hydrodynamic. ERR13")
+                                call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR13")
                             endif
-
                         else
 
-                            Me%SubModel%U_New(i, j, k)  =                           &
-                                Me%SubModel%U_Next    (i, j, k) * TimeCoef  +       &
-                                Me%SubModel%U_Previous(i, j, k) * (1 - TimeCoef)
-
+                            Me%SubModel%U_New(i, j, k)  = Me%SubModel%U_Next    (i, j, k) * TimeCoef  &
+                                                        + Me%SubModel%U_Previous(i, j, k) * (1 - TimeCoef)
                         endif
 
-                        if (InitialField .and. .not. Me%ComputeOptions%Continuous   &
-                           .and. Me%SubModel%FatherHotStart)                        &
-                            Me%Velocity%Horizontal%U%New(i, j, k) =                 &
-                                       Me%SubModel%U_New(i, j, k)
+                        if (InitialField .and. .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart) &
+                            Me%Velocity%Horizontal%U%New(i, j, k) = Me%SubModel%U_New(i, j, k)
 
                         !(for DUZ it may be provisory)
-                        if (Me%SubModel%DUZ_Next    (i, j, k) < FillValueReal / 2.  &
-                            .or. Me%SubModel%DUZ_Previous(i, j, k) < FillValueReal  &
-                            / 2.) then
+                        if (Me%SubModel%DUZ_Next(i, j, k)     < FillValueReal / 2.  .or. &
+                            Me%SubModel%DUZ_Previous(i, j, k) < FillValueReal / 2.) then
 
                             if (Me%SubModel%MissingNull) then
-
                                 Me%SubModel%DUZ_New(i, j, k)  =  0.
-
                             else
-                                call SetError(FATAL_, INTERNAL_,                    &
-                                     "ActualizeSon3DWithFather3D; Hydrodynamic. ERR14")
+                                call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR14")
                             endif
-
                         else
 
-                            Me%SubModel%DUZ_New(i, j, k)  =                         &
-                                     Me%SubModel%DUZ_Next    (i, j, k) *            &
-                                     TimeCoef +                                     &
-                                     Me%SubModel%DUZ_Previous(i, j, k) *            &
-                                     (1 - TimeCoef)
-
+                            Me%SubModel%DUZ_New(i, j, k) = Me%SubModel%DUZ_Next(i, j, k)     * TimeCoef       &
+                                                         + Me%SubModel%DUZ_Previous(i, j, k) * (1 - TimeCoef)
                         endif
-
                     endif cd12
 
                     if (k == Kbottom) exit do7
-
                 enddo do7
 
                 if (Me%SubModel%MomentConserv) then
@@ -19900,118 +17885,72 @@ do9:                                    do k2father = kfather - 1, KLBFather, - 
                     if ((ExcessDUVZ_Son /= 0.0) .or. (ExcessValue_Father /= 0.0)) then
 
 do21:                   do k = KUB, KLB, -1
-
-                            if (Me%SubModel%DeadZone) then
-
-                                DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-                            else
-
-                                DeadZoneSon = .false.
-
-                            endif
+    
+                            DeadZoneSon = .false.
+                            if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
 cd13:                       if (Faces3D_USon(i, j, k) == Covered  .and. .not. DeadZoneSon) then
 
-                                if ((((Me%CurrentTime == Me%SubModel%GetFatherTime) &
-                                    .and. Me%SubModel%InterPolTime) .or.            &
-                                    (.not. Me%SubModel%InterPolTime)                &
-                                    .or. InitialField) .and. (.not. NullValue)) then
+                                if ((((Me%CurrentTime == Me%SubModel%GetFatherTime) .and. Me%SubModel%InterPolTime) &
+                                    .or. (.not. Me%SubModel%InterPolTime) .or. InitialField) &
+                                    .and. (.not. NullValue)) then
                                     !Check if layer values from father need to be corrected
                                     !(capitalizing on the DO cycle)
 
                                     if (ExcessDUVZ_Son /= 0.0) then
                                         !Correct son layer values for the deficit of father values
-
                                         SumDUVZ_Son = SumDUVZ_Son + DUZ_Son(i, j, k)
 
                                         if (SumDUVZ_Son .le. TotalDUVZ_Son) then
                                             !layers having father value
-
-                                            AuxDeficit = Me%SubModel%DUZ_Next(i,j,k)* &
-                                                ExcessDUVZ_Son*DUZ_Son(i, j, k)     &
-                                                /TotalDUVZ_Son
-
+                                            AuxDeficit = Me%SubModel%DUZ_Next(i,j,k) * ExcessDUVZ_Son*DUZ_Son(i, j, k) &
+                                                                                     / TotalDUVZ_Son
                                             !actualize the value of the father deficit
-                                            DeficitValue_Father = DeficitValue_Father + &
-                                                AuxDeficit
-
+                                            DeficitValue_Father = DeficitValue_Father + AuxDeficit
                                             !remove flux variable from layer
-                                            Me%SubModel%DUZ_Next(i,j,k) =           &
-                                                            Me%SubModel%DUZ_Next(i,j,k) &
-                                                            - AuxDeficit
+                                            Me%SubModel%DUZ_Next(i,j,k) = Me%SubModel%DUZ_Next(i,j,k)- AuxDeficit
 
                                         elseif (AuxDUVZ_Son /= 0.0) then
                                             !son layer partially with father value
-                                            AuxDeficit = Me%SubModel%DUZ_next(i,j,k)* &
-                                                ExcessDUVZ_Son*(DUZ_Son(i, j, k)    &
-                                                - AuxDUVZ_Son)/TotalDUVZ_Son
+                                            AuxDeficit = Me%SubModel%DUZ_next(i,j,k) * ExcessDUVZ_Son &
+                                                       * (DUZ_Son(i, j, k) - AuxDUVZ_Son) / TotalDUVZ_Son
 
                                             !actualize the value of the father deficit
-                                            DeficitValue_Father = DeficitValue_Father + &
-                                                AuxDeficit
-
+                                            DeficitValue_Father = DeficitValue_Father + AuxDeficit
                                             !remove and add
-                                            Me%SubModel%DUZ_Next(i,j,k) =           &
-                                                Me%SubModel%DUZ_Next(i,j,k) - AuxDeficit + &
-                                                DeficitValue_Father*AuxDUVZ_Son/    &
-                                                (WaterColumnU(i, j) - TotalDUVZ_Son)
-
+                                            Me%SubModel%DUZ_Next(i,j,k) = Me%SubModel%DUZ_Next(i,j,k) - AuxDeficit &
+                                                                        + DeficitValue_Father * AuxDUVZ_Son        &
+                                                                        / (WaterColumnU(i, j) - TotalDUVZ_Son)
                                             AuxDUVZ_Son = 0.0
                                             !(layer completed)
-
                                         else
-                                            !fill son layer without father value
-
-                                            !add collected value
-                                            Me%SubModel%DUZ_Next(i,j,k) =           &
-                                                DeficitValue_Father*                &
-                                                DUZ_Son(i,j,k)                      &
-                                                /(WaterColumnU(i, j) - TotalDUVZ_Son)
-
+                                            !fill son layer without father value , add collected value
+                                            Me%SubModel%DUZ_Next(i,j,k) = DeficitValue_Father * DUZ_Son(i,j,k) &
+                                                                        / (WaterColumnU(i, j) - TotalDUVZ_Son)
                                         endif
 
                                     elseif (ExcessValue_Father /= 0.0) then
                                         !Correct son layer values for the excess of father values
-
-                                        Me%SubModel%DUZ_Next(i,j,k) =               &
-                                            Me%SubModel%DUZ_Next(i,j,k) +           &
-                                            ExcessValue_Father*DUZ_Son(i, j, k)/    &
-                                            WaterColumnU(i, j)
-
+                                        Me%SubModel%DUZ_Next(i,j,k) = Me%SubModel%DUZ_Next(i,j,k) + ExcessValue_Father&
+                                                                    * DUZ_Son(i, j, k) / WaterColumnU(i, j)
                                     endif
 
-                                    if (InitialField) then
-
-                                        Me%SubModel%DUZ_Previous(i,j,k) =           &
-                                                              Me%SubModel%DUZ_Next(i,j,k)
-
-                                    endif
-
+                                    if (InitialField) Me%SubModel%DUZ_Previous(i,j,k) = Me%SubModel%DUZ_Next(i,j,k)
 
                                 endif
 
-                                if (Me%SubModel%DUZ_Next    (i, j, k) < FillValueReal / 2. &
-                                    .or. Me%SubModel%DUZ_Previous(i, j, k) < FillValueReal &
-                                    / 2.) then
+                                if (Me%SubModel%DUZ_Next    (i, j, k) < FillValueReal / 2. .or. &
+                                    Me%SubModel%DUZ_Previous(i, j, k) < FillValueReal / 2.) then
 
                                     if (Me%SubModel%MissingNull) then
-
                                         Me%SubModel%DUZ_New(i, j, k)  =  0.
-
                                     else
-                                        call SetError(FATAL_, INTERNAL_,            &
-                                        "ActualizeSon3DWithFather3D; Hydrodynamic. ERR15")
+                                        call SetError(FATAL_, INTERNAL_, &
+                                                      "ActualizeSon3DWithFather3D; Hydrodynamic. ERR15")
                                     endif
-
                                 else
-
-                                    Me%SubModel%DUZ_New(i, j, k)  =                 &
-                                             Me%SubModel%DUZ_Next    (i, j, k) *    &
-                                             TimeCoef +                             &
-                                             Me%SubModel%DUZ_Previous(i, j, k) *    &
-                                             (1 - TimeCoef)
-
+                                    Me%SubModel%DUZ_New(i, j, k) = Me%SubModel%DUZ_Next(i, j, k)     * TimeCoef &
+                                                                 + Me%SubModel%DUZ_Previous(i, j, k) * (1 - TimeCoef)
                                 endif
 
                             endif cd13
@@ -20019,11 +17958,8 @@ cd13:                       if (Faces3D_USon(i, j, k) == Covered  .and. .not. De
                             if (k == Kbottom) exit do21
 
                         enddo do21
-
                     endif
-
                 endif
-
             enddo
             enddo
 
@@ -20032,212 +17968,136 @@ cd13:                       if (Faces3D_USon(i, j, k) == Covered  .and. .not. De
         do j = JLB, JUB + 1
         do i = ILB, IUB
 
-            if (((Me%CurrentTime == Me%SubModel%GetFatherTime) .and.                &
-                Me%SubModel%InterPolTime) .or.                                      &
-                (.not. Me%SubModel%InterPolTime)   .or. InitialField) then
+            if (((Me%CurrentTime == Me%SubModel%GetFatherTime) .and. Me%SubModel%InterPolTime) &
+                .or. (.not. Me%SubModel%InterPolTime) .or. InitialField) then
                 !Time to interpolate vertical layers father to son!
-
                 !U_Next calculation variables
                 AuxSonDepth = 0.0
 
                 !DUZ_Next calculation variables
                 !look father layer beginning at the topest layer
-                kfatherinic = KUBFather
-                RelativeThickness = 1.0
-
-                TotalDUVZ_Son = 0.0
-                ExcessDUVZ_Son = 0.0
-
-                SumDUVZ_Son = 0.0
-                DeficitValue_Father = 0.0
-
+                kfatherinic = KUBFather  ;  RelativeThickness   = 1.0  ;  TotalDUVZ_Son = 0.0  ;  ExcessDUVZ_Son = 0.0
+                SumDUVZ_Son = 0.0        ;  DeficitValue_Father = 0.0
             endif
 
 do10:       do k = KUB, KLB, -1
+    
+                DeadZoneSon = .false.
+                if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
-                if (Me%SubModel%DeadZone) then
-
-                    DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-                else
-
-                    DeadZoneSon = .false.
-
-                endif
-
-cd14:           if ((ImposedTangFacesUSon(i, j, k) == Imposed  .or.                 &
-                 ImposedNormFacesUSon(i, j, k) == Imposed)  .and.                   &
-                 .not. DeadZoneSon) then
+cd14:           if ((ImposedTangFacesUSon(i, j, k) == Imposed .or. ImposedNormFacesUSon(i, j, k) == Imposed)  &
+                   .and. .not. DeadZoneSon) then
 
                     if (ImposedTangFacesUSon(i, j, k) == Imposed) then
-
                         i_thick = i
                         j_thick = j
-
                     else if (ImposedNormFacesUSon(i, j, k) == Imposed) then
-
                         i_thick = i
-
-                        if      (j == JUB + 1) then
-
+                        if (j == JUB + 1) then
                             j_thick = j - 1
-
                         else if (j == JLB) then
-
                             j_thick = j + 1
-
                         else
-
-                            j_thick = j + Faces3D_USon(i, j + 1, k) -               &
-                                      Faces3D_USon(i, j - 1, k)
-
+                            j_thick = j + Faces3D_USon(i, j + 1, k) - Faces3D_USon(i, j - 1, k)
                         endif
-
                     endif
 
-                    if (((Me%CurrentTime == Me%SubModel%GetFatherTime) .and.        &
-                        Me%SubModel%InterPolTime) .or.                              &
-                        (.not. Me%SubModel%InterPolTime) .or. InitialField) then
+                    if (((Me%CurrentTime == Me%SubModel%GetFatherTime) .and. Me%SubModel%InterPolTime) &
+                        .or. (.not. Me%SubModel%InterPolTime) .or. InitialField) then
                         !Time to interpolate vertical layers father to son!
 
                         NullValue = .false.
-
                         !find the first father layer for interpolation
-                        Aux = KLBFather
-                        AuxDepth = 0.0
-
+                        Aux = KLBFather  ;  AuxDepth = 0.0
+                        
                         do kfather=KUBFather, KLBFather, -1
-                            if ((Me%SubModel%Aux_U(i, j, kfather)                   &
-                                < FillValueReal / 2.) .or.                          &
-                                (Me%SubModel%Aux_DUZ(i, j, kfather)                 &
-                                < FillValueReal / 2.)) then
+                            if ((Me%SubModel%Aux_U(i, j, kfather)   < FillValueReal / 2.) .or.                          &
+                                (Me%SubModel%Aux_DUZ(i, j, kfather) < FillValueReal / 2.)) then
                                 Aux = kfather + 1
                                exit
                             else
                                 Values(kfather) = Me%SubModel%Aux_U(i,j,kfather)
-                                Depths(kfather) = AuxDepth +                        &
-                                    Me%SubModel%Aux_DUZ(i, j,kfather)/2
-                                AuxDepth = AuxDepth +                               &
-                                    Me%SubModel%Aux_DUZ(i, j,kfather)
+                                Depths(kfather) = AuxDepth + Me%SubModel%Aux_DUZ(i, j,kfather) / 2
+                                AuxDepth = AuxDepth + Me%SubModel%Aux_DUZ(i, j,kfather)
                                 !(since it is father (i,j) value exists!)
                             endif
                         enddo
 
                         if (Aux == KUBFather + 1) then
-
                             if (Me%SubModel%MissingNull) then
                                 NullValue = .true.
                             else
-                                call SetError(FATAL_, INTERNAL_,                    &
-                                    "ActualizeSon3DWithFather3D; Hydrodynamic. ERR16")
+                                call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR16")
                             endif
                         endif
 
                         if (.not. NullValue) then
                         !(father values exist for at least one layer)
-
                             !get number of father depths
                             NDepths = KUBFather - Aux + 1
-
                             !Time to interpolate vertical layers father to son!
                             !(get U_Next from father)
-
                             !get son cell depth
                             SonDepth = AuxSonDepth + DUZ_Son(i_thick, j_thick, k)/2
                             AuxSonDepth = AuxSonDepth + DUZ_Son(i_thick, j_thick, k)
 
                             !interpolate father values as a profile
-                            Me%SubModel%U_Next(i,j,k) =                             &
-                                            InterpolateProfileR8(SonDepth,          &
-                                            NDepths, Depths(Aux:KUBFather),         &
-                                            Values(Aux:KUBFather),                  &
-                                            FoundBottom, FoundSurface)
+                            Me%SubModel%U_Next(i,j,k) = InterpolateProfileR8(SonDepth, NDepths, Depths(Aux:KUBFather),&
+                                                                      Values(Aux:KUBFather), FoundBottom, FoundSurface)
 
-                            if (InitialField)                                       &
-                                Me%SubModel%U_Previous(i,j,k) =                     &
-                                    Me%SubModel%U_Next(i,j,k)
+                            if (InitialField) Me%SubModel%U_Previous(i,j,k) = Me%SubModel%U_Next(i,j,k)
 
                             if (.not. Me%SubModel%MomentConserv) then
-
-                                Me%SubModel%DUZ_Next(i, j, k) = DUZ_Son(i_thick,    &
-                                                                j_thick, k)
+                                Me%SubModel%DUZ_Next(i, j, k) = DUZ_Son(i_thick, j_thick, k)
                                 !(has to be used i_thick, j_thick because i,j dont exist)
-
                             else
-
                                 !Time to interpolate vertical layers father to son!
                                 !(get DUZ/DVZ from father)
                                 !initialize variable
                                 Me%SubModel%DUZ_Next(i, j, k) = 0
-
                                 !DUZ is need for weighting
                                 AuxDUVZ_Son = DUZ_Son(i_thick, j_thick, k)
 
 do11:                           do kfather = kfatherinic, KLBFather, -1
                                     !(layers from surface to bottom)
-
-                                    if (Me%SubModel%Aux_DUZ(i, j,kfather)           &
-                                        < FillValueReal / 2.) then
+                                    if (Me%SubModel%Aux_DUZ(i, j,kfather) < FillValueReal / 2.) then
                                         !if father values do not exist
-
-                                        if (Me%SubModel%MissingNull)                &
-                                            !son layers assumed null values
-                                            exit do11
-
+                                        if (Me%SubModel%MissingNull) exit do11  !son layers assumed null values
                                     endif
 
-                                    AuxDUVZ_Father =                                &
-                                        Me%SubModel%Aux_DUZ(i, j, kfather)
+                                    AuxDUVZ_Father = Me%SubModel%Aux_DUZ(i, j, kfather)
                                     !(since not exited from loop (i,j) value exists!)
 
-                                    if (AuxDUVZ_Son .le.                            &
-                                        RelativeThickness*AuxDUVZ_Father) then
-
+                                    if (AuxDUVZ_Son .le. RelativeThickness*AuxDUVZ_Father) then
                                         !son layer inside father layer part
-                                        RelativeThickness = AuxDUVZ_Son*            &
-                                            RelativeThickness / AuxDUVZ_Father
+                                        RelativeThickness = AuxDUVZ_Son * RelativeThickness / AuxDUVZ_Father
 
-                                        Me%SubModel%DUZ_Next(i, j, k) =             &
-                                            Me%SubModel%DUZ_Next(i, j, k) +         &
-                                            Me%SubModel%Aux_DUZ(i, j, kfather)      &
-                                            * RelativeThickness
+                                        Me%SubModel%DUZ_Next(i, j, k) = Me%SubModel%DUZ_Next(i, j, k) &
+                                                                      + Me%SubModel%Aux_DUZ(i, j, kfather) &
+                                                                      * RelativeThickness
+                                        
+                                        TotalDUVZ_Son  = TotalDUVZ_Son + AuxDUVZ_Son
 
-                                        TotalDUVZ_Son  = TotalDUVZ_Son +            &
-                                            AuxDUVZ_Son
-
-                                        if (Abs(AuxDUVZ_Son - AuxDUVZ_Father) .lt.  &
-                                            AllmostZero) then
+                                        if (Abs(AuxDUVZ_Son - AuxDUVZ_Father) .lt. AllmostZero) then 
                                             !(AuxDUVZ_Son == AuxDUVZ_Father)
-
                                             !this father layer is already solved, solve next
                                             kfatherinic = kfatherinic -1
                                             RelativeThickness = 1
-
                                         else
-
                                             RelativeThickness = 1 - RelativeThickness
-
                                         endif
 
                                         AuxDUVZ_Son = 0.0
-
                                         exit do11
-
                                     else
-
                                         !son layer includes father layer part
-                                        Me%SubModel%DUZ_Next(i, j, k) =             &
-                                            Me%SubModel%DUZ_Next(i, j, k) +         &
-                                            Me%SubModel%Aux_DUZ(i, j, kfather)      &
-                                            * RelativeThickness
+                                        Me%SubModel%DUZ_Next(i, j, k) = Me%SubModel%DUZ_Next(i, j, k) &
+                                                                      + Me%SubModel%Aux_DUZ(i, j, kfather)  &
+                                                                      * RelativeThickness
 
-                                        TotalDUVZ_Son  = TotalDUVZ_Son +            &
-                                            RelativeThickness*AuxDUVZ_Father
-
+                                        TotalDUVZ_Son  = TotalDUVZ_Son + RelativeThickness*AuxDUVZ_Father
                                         !get the remaing part of DUZ_Son
-                                        AuxDUVZ_Son = AuxDUVZ_Son -                 &
-                                            RelativeThickness*AuxDUVZ_Father
-
+                                        AuxDUVZ_Son = AuxDUVZ_Son - RelativeThickness*AuxDUVZ_Father
                                         !seek in the next father layer
                                         kfatherinic = kfatherinic - 1
                                         RelativeThickness = 1
@@ -20245,61 +18105,41 @@ do11:                           do kfather = kfatherinic, KLBFather, -1
                                 enddo do11
 
                                 !check if excess or deficit flux variable exists
-                                if ((AuxDUVZ_Son /= 0.0) .and.                      &
-                                    (kfather == KLBFather)) then
+                                if ((AuxDUVZ_Son /= 0.0) .and. (kfather == KLBFather)) then
                                     !last son layer was not fulfilled by father values
                                     !(all the next son layers are not fulfilled also)
-
                                     ExcessDUVZ_Son = AuxDUVZ_Son
 
                                     if (k-1 .ge. KLB) then
                                         !add DUZ of next son layers
-
                                         do k2 = k-1, KLB, -1
                                             !layers from surface to bottom
-
-                                            ExcessDUVZ_Son = ExcessDUVZ_Son +       &
-                                                DUZ_Son(i_thick, j_thick, k2)
+                                            ExcessDUVZ_Son = ExcessDUVZ_Son + DUZ_Son(i_thick, j_thick, k2)
                                         enddo
                                     endif
-                                else if ((k == Kbottom) .and.                       &
-                                    ((RelativeThickness /= 1) .or.                  &
-                                    (kfather /= KLBFather))) then
+                                else if ((k == Kbottom) .and. ((RelativeThickness /= 1) &
+                                        .or. (kfather /= KLBFather))) then
                                     !all son layers are fulfilled with father values
                                     !but excedent father layer part exist
-
                                     if (RelativeThickness /= 1)                     &
-                                        ExcessValue_Father =                        &
-                                                Me%SubModel%Aux_DUZ(i, j, kfather)* &
-                                                RelativeThickness
+                                        ExcessValue_Father = Me%SubModel%Aux_DUZ(i, j, kfather) * RelativeThickness
 
                                     if (kfather - 1 .ge. KLBFather) then
                                         !add values of next father layers
-
 do12:                                   do k2father = kfather - 1, KLBFather, - 1
                                             !layers from surface to bottom
-
-                                            if (Me%SubModel%Aux_DUZ(i, j,k2father)  &
-                                                < FillValueReal / 2.) then
-
+                                            if (Me%SubModel%Aux_DUZ(i, j,k2father) < FillValueReal / 2.) then
                                                 exit do12
                                             else
-
-                                                ExcessValue_Father =                &
-                                                ExcessValue_Father                  &
-                                                + Me%SubModel%Aux_DUZ(i, j, k2father)
+                                                ExcessValue_Father = ExcessValue_Father &
+                                                                   + Me%SubModel%Aux_DUZ(i, j, k2father)
                                             endif
-
                                         enddo do12
                                     endif
                                 endif
                             endif
 
-                            if (InitialField) then
-
-                                Me%SubModel%DUZ_Previous(i,j,k) =                   &
-                                                    Me%SubModel%DUZ_Next(i,j,k)
-                            endif
+                            if (InitialField) Me%SubModel%DUZ_Previous(i,j,k) = Me%SubModel%DUZ_Next(i,j,k)
                         endif
                     endif
 
@@ -20311,210 +18151,137 @@ do12:                                   do k2father = kfather - 1, KLBFather, - 
                         Me%SubModel%U_Previous(i, j, k) < FillValueReal / 2.)  then
 
                         if (Me%SubModel%MissingNull) then
-
                             Me%SubModel%U_New(i, j, k)  =  0.
-
                         else
-                            call SetError(FATAL_, INTERNAL_,                        &
-                                 "ActualizeSon3DWithFather3D; Hydrodynamic. ERR17")
+                            call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR17")
                         endif
                     else
 
-                        Me%SubModel%U_New(i, j, k)  =                               &
-                            Me%SubModel%U_Next    (i, j, k) * TimeCoef  +           &
-                            Me%SubModel%U_Previous(i, j, k) * (1 - TimeCoef)
+                        Me%SubModel%U_New(i, j, k)  = Me%SubModel%U_Next    (i, j, k) * TimeCoef  &
+                                                    + Me%SubModel%U_Previous(i, j, k) * (1 - TimeCoef)
                     endif
 
-                    if (InitialField .and. .not. Me%ComputeOptions%Continuous       &
-                        .and. Me%SubModel%FatherHotStart)                           &
-                        Me%Velocity%Horizontal%U%New(i, j, k) =                     &
-                                   Me%SubModel%U_New(i, j, k)
+                    if (InitialField .and. .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart)   &
+                        Me%Velocity%Horizontal%U%New(i, j, k) = Me%SubModel%U_New(i, j, k)
 
                     !(for DUZ)
-                    if (Me%SubModel%DUZ_Next    (i, j, k) < FillValueReal / 2.      &
-                        .or. Me%SubModel%DUZ_Previous(i, j, k) < FillValueReal      &
-                        / 2.) then
+                    if (Me%SubModel%DUZ_Next(i, j, k)      < FillValueReal / 2. .or. &
+                         Me%SubModel%DUZ_Previous(i, j, k) < FillValueReal / 2.) then
 
                         if (Me%SubModel%MissingNull) then
-
                             Me%SubModel%DUZ_New(i, j, k)  =  0.
-
                         else
-                            call SetError(FATAL_, INTERNAL_,                        &
-                                 "ActualizeSon3DWithFather3D; Hydrodynamic. ERR18")
+                            call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR18")
                         endif
                     else
 
-                        Me%SubModel%DUZ_New(i, j, k)  =                             &
-                                 Me%SubModel%DUZ_Next    (i, j, k) *                &
-                                 TimeCoef +                                         &
-                                 Me%SubModel%DUZ_Previous(i, j, k) *                &
-                                 (1 - TimeCoef)
+                        Me%SubModel%DUZ_New(i, j, k) = Me%SubModel%DUZ_Next(i, j, k)     * TimeCoef &
+                                                     + Me%SubModel%DUZ_Previous(i, j, k) * (1 - TimeCoef)
                     endif
                 endif cd14
 
                 if (k == Kbottom) exit do10
             enddo do10
 
-
             if (Me%SubModel%MomentConserv) then
 
                 if ((ExcessDUVZ_Son /= 0.0) .or. (ExcessValue_Father /= 0.0)) then
 
 do22:               do k = KUB, KLB, -1
+    
+                        DeadZoneSon = .false.
+                        if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
-                        if (Me%SubModel%DeadZone) then
-
-                            DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-                        else
-
-                            DeadZoneSon = .false.
-                        endif
-
-cd15:                   if ((ImposedTangFacesUSon(i, j, k) == Imposed  .or.         &
-                         ImposedNormFacesUSon(i, j, k) == Imposed)  .and.           &
-                         .not. DeadZoneSon) then
+cd15:                   if ((ImposedTangFacesUSon(i, j, k) == Imposed .or. ImposedNormFacesUSon(i, j, k) == Imposed) &
+                            .and. .not. DeadZoneSon) then
 
                             if (ImposedTangFacesUSon(i, j, k) == Imposed) then
-
                                 i_thick = i
                                 j_thick = j
-
                             else if (ImposedNormFacesUSon(i, j, k) == Imposed) then
-
                                 i_thick = i
-
-                                if      (j == JUB + 1) then
-
+                                if (j == JUB + 1) then
                                     j_thick = j - 1
-
                                 else if (j == JLB) then
-
                                     j_thick = j + 1
-
                                 else
-
-                                    j_thick = j + Faces3D_USon(i, j + 1, k) -       &
-                                              Faces3D_USon(i, j - 1, k)
-
+                                    j_thick = j + Faces3D_USon(i, j + 1, k) - Faces3D_USon(i, j - 1, k)
                                 endif
                             endif
 
                             Kbottom = KFloor_U(i_thick, j_thick)
 
-                            if ((((Me%CurrentTime == Me%SubModel%GetFatherTime) .and. &
-                                Me%SubModel%InterPolTime) .or.                       &
-                                (.not. Me%SubModel%InterPolTime) .or. InitialField)  &
-                                .and. (.not. NullValue)) then
+                            if ((((Me%CurrentTime == Me%SubModel%GetFatherTime) .and. Me%SubModel%InterPolTime) .or.  &
+                                (.not. Me%SubModel%InterPolTime) .or. InitialField) .and. (.not. NullValue)) then
                                 !Check if layer values from father need to be corrected
                                 !(capitalizing on the DO cycle)
 
                                 if (ExcessDUVZ_Son /= 0.0) then
                                     !Correct son layer values for the deficit of father values
-
                                     SumDUVZ_Son = SumDUVZ_Son + DUZ_Son(i_thick, j_thick, k)
 
                                     if (SumDUVZ_Son .le. TotalDUVZ_Son) then
                                         !layers having father value
-
-                                        AuxDeficit = Me%SubModel%DUZ_Next(i,j,k)*   &
-                                            ExcessDUVZ_Son*DUZ_Son(i_thick, j_thick, k) &
-                                            /TotalDUVZ_Son
-
+                                        AuxDeficit = Me%SubModel%DUZ_Next(i,j,k) * ExcessDUVZ_Son &
+                                                   * DUZ_Son(i_thick, j_thick, k) / TotalDUVZ_Son
                                         !actualize the value of the father deficit
-                                        DeficitValue_Father = DeficitValue_Father + &
-                                            AuxDeficit
-
+                                        DeficitValue_Father = DeficitValue_Father + AuxDeficit
                                         !remove flux variable from layer
-                                        Me%SubModel%DUZ_Next(i,j,k) =               &
-                                                        Me%SubModel%DUZ_Next(i,j,k) &
-                                                        - AuxDeficit
+                                        Me%SubModel%DUZ_Next(i,j,k) = Me%SubModel%DUZ_Next(i,j,k) - AuxDeficit
 
                                     elseif (AuxDUVZ_Son /= 0.0) then
                                         !son layer partially with father value
-                                        AuxDeficit = Me%SubModel%DUZ_Next(i,j,k)*   &
-                                            ExcessDUVZ_Son*(DUZ_Son(i_thick, j_thick, k) &
-                                            - AuxDUVZ_Son)/TotalDUVZ_Son
+                                        AuxDeficit = Me%SubModel%DUZ_Next(i,j,k) * ExcessDUVZ_Son &
+                                                   * (DUZ_Son(i_thick, j_thick, k) - AuxDUVZ_Son) / TotalDUVZ_Son
 
                                         !actualize the value of the father deficit
-                                        DeficitValue_Father = DeficitValue_Father + &
-                                            AuxDeficit
-
+                                        DeficitValue_Father = DeficitValue_Father + AuxDeficit
                                         !remove and add
-                                        Me%SubModel%DUZ_Next(i,j,k) =               &
-                                            Me%SubModel%DUZ_Next(i,j,k) - AuxDeficit + &
-                                            DeficitValue_Father*AuxDUVZ_Son/        &
-                                            (WaterColumnU(i_thick, j_thick) - TotalDUVZ_Son)
-
+                                        Me%SubModel%DUZ_Next(i,j,k) = Me%SubModel%DUZ_Next(i,j,k) - AuxDeficit &
+                                                                    + DeficitValue_Father * AuxDUVZ_Son        &
+                                                                    / (WaterColumnU(i_thick, j_thick) - TotalDUVZ_Son)
                                         AuxDUVZ_Son = 0.0
                                         !(layer completed)
-
                                     else
                                         !fill son layer without father value
-
                                         !add collected value
-                                        Me%SubModel%DUZ_Next(i,j,k) =               &
-                                            DeficitValue_Father*                    &
-                                            DUZ_Son(i_thick, j_thick,k)             &
-                                            /(WaterColumnU(i_thick, j_thick) - TotalDUVZ_Son)
-
+                                        Me%SubModel%DUZ_Next(i,j,k) = DeficitValue_Father         &
+                                                                    * DUZ_Son(i_thick, j_thick,k) &
+                                                                    / (WaterColumnU(i_thick, j_thick) - TotalDUVZ_Son)
                                     endif
 
                                 elseif (ExcessValue_Father /= 0.0) then
                                     !Correct son layer values for the excess of father values
-
-                                    Me%SubModel%DUZ_Next(i,j,k) =                   &
-                                        Me%SubModel%DUZ_Next(i,j,k) +               &
-                                        ExcessValue_Father*DUZ_Son(i_thick, j_thick,k)/ &
-                                        WaterColumnU(i_thick, j_thick)
-
+                                    Me%SubModel%DUZ_Next(i,j,k) = Me%SubModel%DUZ_Next(i,j,k) + ExcessValue_Father &
+                                                                * DUZ_Son(i_thick, j_thick,k)                      &
+                                                                / WaterColumnU(i_thick, j_thick)
                                 endif
 
-                                if (InitialField) then
-
-                                    Me%SubModel%DUZ_Previous(i,j,k) =               &
-                                                            Me%SubModel%DUZ_Next(i,j,k)
-
-                                endif
+                                if (InitialField) Me%SubModel%DUZ_Previous(i,j,k) = Me%SubModel%DUZ_Next(i,j,k)
 
                             endif
 
                             !Time interpolation of variables (performed always!)
                             !(here just for DUZ/DVZ)
-
-                            if (Me%SubModel%DUZ_Next    (i, j, k) < FillValueReal / 2. &
-                                .or. Me%SubModel%DUZ_Previous(i, j, k) < FillValueReal &
-                                / 2.) then
+                            if (Me%SubModel%DUZ_Next (i, j, k)    < FillValueReal / 2. .or. &
+                                Me%SubModel%DUZ_Previous(i, j, k) < FillValueReal / 2.) then
 
                                 if (Me%SubModel%MissingNull) then
-
                                     Me%SubModel%DUZ_New(i, j, k)  =  0.
-
                                 else
-                                    call SetError(FATAL_, INTERNAL_,                &
-                                         "ActualizeSon3DWithFather3D; Hydrodynamic. ERR19")
+                                    call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR19")
                                 endif
-
                             else
-
-                                Me%SubModel%DUZ_New(i, j, k)  =                     &
-                                         Me%SubModel%DUZ_Next    (i, j, k) *        &
-                                         TimeCoef +                                 &
-                                         Me%SubModel%DUZ_Previous(i, j, k) *        &
-                                         (1 - TimeCoef)
-
+                                Me%SubModel%DUZ_New(i, j, k) = Me%SubModel%DUZ_Next (i, j, k)    * TimeCoef &
+                                                             + Me%SubModel%DUZ_Previous(i, j, k) * (1 - TimeCoef)
                             endif
-
                         endif cd15
 
                         if (k == Kbottom) exit do22
 
                     enddo do22
-
                 endif
-
             endif
-
         enddo
         enddo
 
@@ -20525,251 +18292,167 @@ cd16:   if ((InitialField .and. .not. Me%ComputeOptions%Continuous)        .or. 
             do j = JLB, JUB
             do i = ILB, IUB + 1
 
-                if (((Me%CurrentTime == Me%SubModel%GetFatherTime) .and.            &
-                    Me%SubModel%InterPolTime) .or. (.not. Me%SubModel%InterPolTime) &
-                    .or. InitialField) then
+                if (((Me%CurrentTime == Me%SubModel%GetFatherTime) .and. Me%SubModel%InterPolTime) &
+                     .or. (.not. Me%SubModel%InterPolTime) .or. InitialField) then
                     !Time to interpolate vertical layers father to son!
-
                     NullValue = .false.
-
                     !find the first father layer for interpolation
                     Aux = KLBFather
                     AuxDepth = 0.0
 
                     do kfather=KUBFather, KLBFather, -1
-                        if ((Me%SubModel%Aux_V(i, j, kfather)                       &
-                            < FillValueReal / 2.) .or.                              &
-                            (Me%SubModel%Aux_DVZ(i, j, kfather)                     &
-                            < FillValueReal / 2.)) then
+                        if ((Me%SubModel%Aux_V(i, j, kfather)   < FillValueReal / 2.) .or.   &
+                            (Me%SubModel%Aux_DVZ(i, j, kfather) < FillValueReal / 2.)) then
                             Aux = kfather + 1
                            exit
                         else
                             Values(kfather) = Me%SubModel%Aux_V(i,j,kfather)
-                            Depths(kfather) = AuxDepth +                            &
-                                Me%SubModel%Aux_DVZ(i,j,kfather)/2
+                            Depths(kfather) = AuxDepth + Me%SubModel%Aux_DVZ(i,j,kfather) / 2
                             AuxDepth = AuxDepth + Me%SubModel%Aux_DVZ(i,j,kfather)
                         endif
                     enddo
 
                     if (Aux == KUBFather + 1) then
-
                         if (Me%SubModel%MissingNull) then
                             NullValue = .true.
                         else
-                            call SetError(FATAL_, INTERNAL_,                        &
-                                "ActualizeSon3DWithFather3D; Hydrodynamic. ERR20")
+                            call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR20")
                         endif
                     endif
 
                     !get number of father depths
-                    NDepths = KUBFather - Aux + 1
-                    AuxSonDepth = 0.0
-
+                    NDepths = KUBFather - Aux + 1  ;  AuxSonDepth = 0.0
                     !DUZ_Next calculation variables
                     !look father layer beginning at the topest layer
-                    kfatherinic = KUBFather
-                    RelativeThickness = 1.0
-
-                    TotalDUVZ_Son = 0.0
-                    ExcessDUVZ_Son = 0.0
-
-                    SumDUVZ_Son = 0.0
-                    DeficitValue_Father = 0.0
+                    kfatherinic = KUBFather  ;  RelativeThickness   = 1.0  ;  TotalDUVZ_Son = 0.0  ;  ExcessDUVZ_Son = 0.0
+                    SumDUVZ_Son = 0.0        ;  DeficitValue_Father = 0.0
 
                 endif
 
                 Kbottom = KFloor_V(i, j)
 
 do13:           do k = KUB, KLB, -1
-
-                    if (Me%SubModel%DeadZone) then
-
-                        DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-                    else
-
-                        DeadZoneSon = .false.
-
-                    endif
+    
+                    DeadZoneSon = .false.
+                    if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
 cd17:               if (Faces3D_VSon(i, j, k) == Covered  .and. .not. DeadZoneSon) then
 
-                        if ((((Me%CurrentTime == Me%SubModel%GetFatherTime) .and.   &
-                            Me%SubModel%InterPolTime) .or.                          &
-                            (.not. Me%SubModel%InterPolTime)                        &
-                            .or. InitialField) .and. (.not. NullValue)) then
+                        if ((((Me%CurrentTime == Me%SubModel%GetFatherTime) .and. Me%SubModel%InterPolTime) .or. &
+                            (.not. Me%SubModel%InterPolTime) .or. InitialField) .and. (.not. NullValue)) then
                             !Time to interpolate vertical layers father to son!
                             !(get V_Next from father)
-
                             !get son cell depth
-                            SonDepth = AuxSonDepth + DVZ_Son(i, j, k)/2
+                            SonDepth    = AuxSonDepth + DVZ_Son(i, j, k) / 2
                             AuxSonDepth = AuxSonDepth + DVZ_Son(i, j, k)
 
                             !interpolate father values as a profile
                             Me%SubModel%V_Next(i,j,k) =                             &
-                                            InterpolateProfileR8(SonDepth,          &
-                                            NDepths, Depths(Aux:KUBFather),         &
-                                            Values(Aux:KUBFather),                  &
-                                            FoundBottom, FoundSurface)
+                                            InterpolateProfileR8(SonDepth, NDepths, Depths(Aux:KUBFather), &
+                                            Values(Aux:KUBFather), FoundBottom, FoundSurface)
 
-                            if (InitialField)                                       &
-                                Me%SubModel%V_Previous(i,j,k) =                     &
-                                    Me%SubModel%V_Next(i,j,k)
+                            if (InitialField) Me%SubModel%V_Previous(i,j,k) = Me%SubModel%V_Next(i,j,k)
 
                             if (.not. Me%SubModel%MomentConserv) then
-
                                 Me%SubModel%DVZ_Next(i, j, k) = DVZ_Son(i, j, k)
-
                             else
-
                                 !initialize variable
                                 Me%SubModel%DVZ_Next(i, j, k) = 0
-
                                 !(father values exist for at least one layer)
-
                                 !DVZ is need for weighting
                                 AuxDUVZ_Son = DVZ_Son(i, j, k)
 
 do14:                           do kfather = kfatherinic, KLBFather, -1
                                     !(layers from surface to bottom)
 
-                                    if (Me%SubModel%Aux_DVZ(i, j, kfather)          &
-                                        < FillValueReal / 2.) then
+                                    if (Me%SubModel%Aux_DVZ(i, j, kfather) < FillValueReal / 2.) then
                                         !if father values do not exist
-
-                                        if (Me%SubModel%MissingNull) then
-                                            !son layers assumed null values
+                                        if (Me%SubModel%MissingNull) then !son layers assumed null values
                                             exit do14
-
                                         else
                                             call SetError(FATAL_, INTERNAL_,        &
-                                    "ActualizeSon3DWithFather3D; Hydrodynamic. ERR21")
+                                                          "ActualizeSon3DWithFather3D; Hydrodynamic. ERR21")
                                         endif
-
                                     endif
 
                                     AuxDUVZ_Father = Me%SubModel%Aux_DVZ(i,j,kfather)
 
-                                    if (AuxDUVZ_Son .le.                            &
-                                        RelativeThickness*AuxDUVZ_Father) then
+                                    if (AuxDUVZ_Son .le. RelativeThickness*AuxDUVZ_Father) then
 
                                         !son layer inside father layer part
-                                        RelativeThickness = AuxDUVZ_Son*            &
-                                            RelativeThickness / AuxDUVZ_Father
+                                        RelativeThickness = AuxDUVZ_Son * RelativeThickness / AuxDUVZ_Father
 
-                                        Me%SubModel%DVZ_Next(i, j, k) =             &
-                                            Me%SubModel%DVZ_Next(i, j, k) +         &
-                                            Me%SubModel%Aux_DVZ(i, j, kfather)      &
-                                            * RelativeThickness
+                                        Me%SubModel%DVZ_Next(i, j, k) = Me%SubModel%DVZ_Next(i, j, k) &
+                                                                      + Me%SubModel%Aux_DVZ(i, j, kfather) &
+                                                                      * RelativeThickness
 
-                                        TotalDUVZ_Son  = TotalDUVZ_Son +            &
-                                            AuxDUVZ_Son
+                                        TotalDUVZ_Son  = TotalDUVZ_Son + AuxDUVZ_Son
 
-                                        if (Abs(AuxDUVZ_Son - AuxDUVZ_Father) .lt.  &
-                                            AllmostZero) then
+                                        if (Abs(AuxDUVZ_Son - AuxDUVZ_Father) .lt. AllmostZero) then
                                             !(AuxDUVZ_Son == AuxDUVZ_Father)
-
                                             !this father layer is already solved, solve next
                                             kfatherinic = kfatherinic -1
                                             RelativeThickness = 1
-
                                         else
-
                                             RelativeThickness = 1 - RelativeThickness
-
                                         endif
 
                                         AuxDUVZ_Son = 0.0
-
                                         exit do14
-
                                     else
 
                                         !son layer includes father layer part
-                                        Me%SubModel%DVZ_Next(i, j, k) =             &
-                                            Me%SubModel%DVZ_Next(i, j, k) +         &
-                                            Me%SubModel%Aux_DVZ(i, j, kfather)      &
-                                            * RelativeThickness
+                                        Me%SubModel%DVZ_Next(i, j, k) = Me%SubModel%DVZ_Next(i, j, k)           &
+                                                                      + Me%SubModel%Aux_DVZ(i, j, kfather)      &
+                                                                      * RelativeThickness
 
-                                        TotalDUVZ_Son  = TotalDUVZ_Son +            &
-                                            RelativeThickness*AuxDUVZ_Father
-
+                                        TotalDUVZ_Son  = TotalDUVZ_Son + RelativeThickness*AuxDUVZ_Father
                                         !get the remaing part of DUZ_Son
-                                        AuxDUVZ_Son = AuxDUVZ_Son -                 &
-                                            RelativeThickness*AuxDUVZ_Father
-
+                                        AuxDUVZ_Son = AuxDUVZ_Son - RelativeThickness * AuxDUVZ_Father
                                         !seek in the next father layer
                                         kfatherinic = kfatherinic - 1
                                         RelativeThickness = 1
-
                                     endif
 
                                 enddo do14
 
                                 !check if excess or deficit flux variable exists
-                                if ((AuxDUVZ_Son /= 0.0) .and.                      &
-                                    (kfather == KLBFather)) then
+                                if ((AuxDUVZ_Son /= 0.0) .and. (kfather == KLBFather)) then
                                     !last son layer was not fulfilled by father values
                                     !(all the next son layers are not fulfilled also)
-
                                     ExcessDUVZ_Son = AuxDUVZ_Son
 
                                     if (k-1 .ge. KLB) then
                                         !add DVZ of next son layers
-
                                         do k2 = k-1, KLB, -1
                                             !layers from surface to bottom
-
-                                            ExcessDUVZ_Son = ExcessDUVZ_Son +       &
-                                                DVZ_Son(i, j, k2)
-
+                                            ExcessDUVZ_Son = ExcessDUVZ_Son + DVZ_Son(i, j, k2)
                                         enddo
-
                                     endif
 
-                                else if ((k == Kbottom) .and.                       &
-                                    ((RelativeThickness /= 1) .or.                  &
-                                    (kfather /= KLBFather))) then
+                                else if ((k == Kbottom) .and. &
+                                        ((RelativeThickness /= 1) .or. (kfather /= KLBFather))) then
                                     !all son layers are fulfilled with father values
                                     !but excedent father layer part exist
-
                                     if (RelativeThickness /= 1)                     &
-                                        ExcessValue_Father =                        &
-                                                Me%SubModel%Aux_DVZ(i, j, kfather)* &
-                                                RelativeThickness
+                                        ExcessValue_Father = Me%SubModel%Aux_DVZ(i, j, kfather) * RelativeThickness
 
                                     if (kfather - 1 .ge. KLBFather) then
                                         !add values of next father layers
-
 do15:                                   do k2father = kfather - 1, KLBFather, - 1
                                             !layers from surface to bottom
-
-                                            if (Me%SubModel%Aux_DVZ(i, j,k2father)  &
-                                                < FillValueReal / 2.) then
-
+                                            if (Me%SubModel%Aux_DVZ(i, j,k2father) < FillValueReal / 2.) then
                                                 exit do15
-
                                             else
-
-                                                ExcessValue_Father =                &
-                                                ExcessValue_Father                  &
-                                                + Me%SubModel%Aux_DVZ(i, j, k2father)
-
+                                                ExcessValue_Father = ExcessValue_Father &
+                                                                   + Me%SubModel%Aux_DVZ(i, j, k2father)
                                             endif
-
                                         enddo do15
-
                                     endif
-
                                 endif
-
                             endif
 
-                            if (InitialField) then
-
-                                Me%SubModel%DVZ_Previous(i,j,k) =                   &
-                                                        Me%SubModel%DVZ_Next(i,j,k)
-                            endif
+                            if (InitialField) Me%SubModel%DVZ_Previous(i,j,k) = Me%SubModel%DVZ_Next(i,j,k)
                         endif
 
                         !Time interpolation of variables (performed always!)
@@ -20778,185 +18461,117 @@ do15:                                   do k2father = kfather - 1, KLBFather, - 
                             Me%SubModel%V_Previous(i, j, k) < FillValueReal / 2.)  then
 
                             if (Me%SubModel%MissingNull) then
-
                                 Me%SubModel%V_New(i, j, k)  =  0.
-
                             else
-                                call SetError(FATAL_, INTERNAL_,                    &
-                                     "ActualizeSon3DWithFather3D; Hydrodynamic. ERR22")
+                                call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR22")
                             endif
-
                         else
-
-                            Me%SubModel%V_New(i, j, k)  =                           &
-                                Me%SubModel%V_Next    (i, j, k) * TimeCoef  +       &
-                                Me%SubModel%V_Previous(i, j, k) * (1 - TimeCoef)
-
+                            Me%SubModel%V_New(i, j, k) = Me%SubModel%V_Next(i, j, k)     * TimeCoef  &
+                                                       + Me%SubModel%V_Previous(i, j, k) * (1 - TimeCoef)
                         endif
 
-                        if (InitialField .and. .not. Me%ComputeOptions%Continuous   &
-                            .and. Me%SubModel%FatherHotStart)                       &
-                            Me%Velocity%Horizontal%V%New(i, j, k) =                 &
-                                       Me%SubModel%V_New(i, j, k)
+                        if (InitialField .and. .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart) &
+                            Me%Velocity%Horizontal%V%New(i, j, k) = Me%SubModel%V_New(i, j, k)
 
                         !(for DVZ)
-                        if (Me%SubModel%DVZ_Next    (i, j, k) < FillValueReal / 2.  &
-                            .or. Me%SubModel%DVZ_Previous(i, j, k) < FillValueReal  &
-                            / 2.) then
+                        if (Me%SubModel%DVZ_Next(i, j, k)      < FillValueReal / 2.  .or. &
+                             Me%SubModel%DVZ_Previous(i, j, k) < FillValueReal / 2.) then
 
                             if (Me%SubModel%MissingNull) then
-
                                 Me%SubModel%DVZ_New(i, j, k)  =  0.
-
                             else
-                                call SetError(FATAL_, INTERNAL_,                    &
-                                     "ActualizeSon3DWithFather3D; Hydrodynamic. ERR23")
+                                call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR23")
                             endif
                         else
-
-                            Me%SubModel%DVZ_New(i, j, k)  =                         &
-                                     Me%SubModel%DVZ_Next    (i, j, k) *            &
-                                     TimeCoef +                                     &
-                                     Me%SubModel%DVZ_Previous(i, j, k) *            &
-                                     (1 - TimeCoef)
-
+                            Me%SubModel%DVZ_New(i, j, k) = Me%SubModel%DVZ_Next(i, j, k)     * TimeCoef &
+                                                         + Me%SubModel%DVZ_Previous(i, j, k) * (1 - TimeCoef)
                         endif
                     endif cd17
 
                     if (k == Kbottom) exit do13
-
                 enddo do13
 
                 if (Me%SubModel%MomentConserv) then
                 !Time interpolation of variables (performed always!)
                 !(this place for DUZ/DVZ)
-
                     if ((ExcessDUVZ_Son /= 0.0) .or. (ExcessValue_Father /= 0.0)) then
 
 do23:                   do k = KUB, KLB, -1 !!!!do16?
-
-                            if (Me%SubModel%DeadZone) then
-
-                                DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-                            else
-
-                                DeadZoneSon = .false.
-
-                            endif
+    
+                            DeadZoneSon = .false.
+                            if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
 cd18:                       if (Faces3D_VSon(i, j, k) == Covered  .and. .not. DeadZoneSon) then
 
-                                if ((((Me%CurrentTime == Me%SubModel%GetFatherTime) &
-                                    .and. Me%SubModel%InterPolTime) .or.            &
-                                    (.not. Me%SubModel%InterPolTime)                &
-                                    .or. InitialField) .and. (.not. NullValue)) then
+                                if ((((Me%CurrentTime == Me%SubModel%GetFatherTime) .and. Me%SubModel%InterPolTime) &
+                                    .or. (.not. Me%SubModel%InterPolTime) .or. InitialField) &
+                                    .and. (.not. NullValue)) then
                                     !Check if layer values from father need to be corrected
                                     !(capitalizing on the DO cycle)
-
                                     if (ExcessDUVZ_Son /= 0.0) then
                                         !Correct son layer values for the deficit of father values
-
                                         SumDUVZ_Son = SumDUVZ_Son + DVZ_Son(i, j, k)
 
                                         if (SumDUVZ_Son .le. TotalDUVZ_Son) then
                                             !layers having father value
-
-                                            AuxDeficit = Me%SubModel%DVZ_Next(i,j,k)* &
-                                                ExcessDUVZ_Son*DVZ_Son(i, j, k)     &
-                                                /TotalDUVZ_Son
-
+                                            AuxDeficit = Me%SubModel%DVZ_Next(i,j,k) * ExcessDUVZ_Son*DVZ_Son(i, j, k)     &
+                                                                                     / TotalDUVZ_Son
                                             !actualize the value of the father deficit
-                                            DeficitValue_Father = DeficitValue_Father + &
-                                                AuxDeficit
-
+                                            DeficitValue_Father = DeficitValue_Father + AuxDeficit
                                             !remove flux variable from layer
-                                            Me%SubModel%DVZ_Next(i,j,k) =           &
-                                                            Me%SubModel%DVZ_Next(i,j,k) &
-                                                            - AuxDeficit
+                                            Me%SubModel%DVZ_Next(i,j,k) = Me%SubModel%DVZ_Next(i,j,k) - AuxDeficit      
 
                                         elseif (AuxDUVZ_Son /= 0.0) then
                                             !son layer partially with father value
-                                            AuxDeficit = Me%SubModel%DVZ_Next(i,j,k)* &
-                                                ExcessDUVZ_Son*(DVZ_Son(i, j, k)    &
-                                                - AuxDUVZ_Son)/TotalDUVZ_Son
+                                            AuxDeficit = Me%SubModel%DVZ_Next(i,j,k) * ExcessDUVZ_Son * (DVZ_Son(i, j, k) &
+                                                       - AuxDUVZ_Son) / TotalDUVZ_Son
 
                                             !actualize the value of the father deficit
-                                            DeficitValue_Father = DeficitValue_Father + &
-                                                AuxDeficit
+                                            DeficitValue_Father = DeficitValue_Father + AuxDeficit
 
                                             !remove and add
-                                            Me%SubModel%DVZ_Next(i,j,k) =           &
-                                                Me%SubModel%DVZ_Next(i,j,k) - AuxDeficit + &
-                                                DeficitValue_Father*AuxDUVZ_Son/    &
-                                                (WaterColumnV(i, j) - TotalDUVZ_Son)
-
+                                            Me%SubModel%DVZ_Next(i,j,k) = Me%SubModel%DVZ_Next(i,j,k) - AuxDeficit &
+                                                                        + DeficitValue_Father*AuxDUVZ_Son &
+                                                                        / (WaterColumnV(i, j) - TotalDUVZ_Son)
                                             AuxDUVZ_Son = 0.0
                                             !(layer completed)
-
                                         else
                                             !fill son layer without father value
-
                                             !add collected value
-                                            Me%SubModel%DVZ_Next(i,j,k) =           &
-                                                DeficitValue_Father*                &
-                                                DVZ_Son(i,j,k)                      &
-                                                /(WaterColumnV(i, j) - TotalDUVZ_Son)
-
+                                            Me%SubModel%DVZ_Next(i,j,k) = DeficitValue_Father * DVZ_Son(i,j,k) &
+                                                                        / (WaterColumnV(i, j) - TotalDUVZ_Son)
                                         endif
 
                                     elseif (ExcessValue_Father /= 0.0) then
                                         !Correct son layer values for the excess of father values
 
-                                        Me%SubModel%DVZ_Next(i,j,k) =               &
-                                            Me%SubModel%DVZ_Next(i,j,k) +           &
-                                            ExcessValue_Father*DVZ_Son(i, j, k)/    &
-                                            WaterColumnV(i, j)
-
+                                        Me%SubModel%DVZ_Next(i,j,k) = Me%SubModel%DVZ_Next(i,j,k) + ExcessValue_Father &
+                                                                    * DVZ_Son(i, j, k) / WaterColumnV(i, j)
                                     endif
 
-                                    if (InitialField) then
-
-                                        Me%SubModel%DVZ_Previous(i,j,k) =           &
-                                            Me%SubModel%DVZ_Next(i,j,k)
-
-                                    endif
+                                    if (InitialField) Me%SubModel%DVZ_Previous(i,j,k) = Me%SubModel%DVZ_Next(i,j,k)
 
                                 endif
 
-                                if (Me%SubModel%DVZ_Next    (i, j, k) < FillValueReal / 2. &
-                                    .or. Me%SubModel%DVZ_Previous(i, j, k) < FillValueReal &
-                                    / 2.) then
+                                if (Me%SubModel%DVZ_Next    (i, j, k) < FillValueReal / 2. .or. &
+                                    Me%SubModel%DVZ_Previous(i, j, k) < FillValueReal / 2.) then
 
                                     if (Me%SubModel%MissingNull) then
-
                                         Me%SubModel%DVZ_New(i, j, k)  =  0.
-
                                     else
                                         call SetError(FATAL_, INTERNAL_,            &
                                              "ActualizeSon3DWithFather3D; Hydrodynamic. ERR24")
                                     endif
-
                                 else
-
-                                    Me%SubModel%DVZ_New(i, j, k)  =                 &
-                                             Me%SubModel%DVZ_Next    (i, j, k) *    &
-                                             TimeCoef +                             &
-                                             Me%SubModel%DVZ_Previous(i, j, k) *    &
-                                             (1 - TimeCoef)
-
+                                    Me%SubModel%DVZ_New(i, j, k) = Me%SubModel%DVZ_Next(i, j, k)     * TimeCoef     &
+                                                                 + Me%SubModel%DVZ_Previous(i, j, k) * (1 - TimeCoef)
                                 endif
-
                             endif cd18
 
                             if (k == Kbottom) exit do23
-
                         enddo do23
-
                     endif
-
                 endif
-
             enddo
             enddo
 
@@ -20965,209 +18580,139 @@ cd18:                       if (Faces3D_VSon(i, j, k) == Covered  .and. .not. De
         do j = JLB, JUB
         do i = ILB, IUB + 1
 
-            if (((Me%CurrentTime == Me%SubModel%GetFatherTime) .and.                &
-                Me%SubModel%InterPolTime) .or. (.not. Me%SubModel%InterPolTime)     &
-                .or. InitialField) then
+            if (((Me%CurrentTime == Me%SubModel%GetFatherTime) .and. Me%SubModel%InterPolTime) &
+                 .or. (.not. Me%SubModel%InterPolTime) .or. InitialField) then
                 !Time to interpolate vertical layers father to son!
-
                 !V_Next calculation variables
                 AuxSonDepth = 0.0
-
                 !DVZ_Next calculation variables
                 !look father layer beginning at the topest layer
-                kfatherinic = KUBFather
-                RelativeThickness = 1.0
-
-                TotalDUVZ_Son = 0.0
-                ExcessDUVZ_Son = 0.0
-
-                SumDUVZ_Son = 0.0
-                DeficitValue_Father = 0.0
-
+                kfatherinic = KUBFather  ;  RelativeThickness   = 1.0  ;  TotalDUVZ_Son = 0.0  ;  ExcessDUVZ_Son = 0.0
+                SumDUVZ_Son = 0.0        ;  DeficitValue_Father = 0.0
             endif
 
 do16:       do k = KUB, KLB, -1 !!!!do17?
+    
+                DeadZoneSon = .false.
+                if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
-                if (Me%SubModel%DeadZone) then
-
-                    DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-                else
-
-                    DeadZoneSon = .false.
-
-                endif
-
-cd19:           if ((ImposedTangFacesVSon(i, j, k) == Imposed  .or.                 &
-                 ImposedNormFacesVSon(i, j, k) == Imposed)  .and.                   &
-                 .not. DeadZoneSon) then
+cd19:           if ((ImposedTangFacesVSon(i, j, k) == Imposed .or. ImposedNormFacesVSon(i, j, k) == Imposed)  &
+                     .and. .not. DeadZoneSon) then
 
                     if (ImposedTangFacesVSon(i, j, k) == Imposed) then
-
                         i_thick = i
                         j_thick = j
-
                     else if (ImposedNormFacesVSon(i, j, k) == Imposed) then
-
-                        if      (i == IUB + 1) then
-
+                        if (i == IUB + 1) then
                             i_thick = i - 1
-
                         else if (i == ILB) then
-
                             i_thick = i + 1
-
                         else
-
-                            i_thick = i + Faces3D_VSon(i + 1, j, k) -               &
-                                        Faces3D_VSon(i - 1, j, k)
-
+                            i_thick = i + Faces3D_VSon(i + 1, j, k) - Faces3D_VSon(i - 1, j, k)
                         endif
-
                         j_thick = j
-
                     endif
 
-                    if (((Me%CurrentTime == Me%SubModel%GetFatherTime) .and.        &
-                        Me%SubModel%InterPolTime) .or.                              &
+                    if (((Me%CurrentTime == Me%SubModel%GetFatherTime) .and. Me%SubModel%InterPolTime) .or.  &
                         (.not. Me%SubModel%InterPolTime) .or. InitialField) then
                         !Time to interpolate vertical layers father to son!
-
                         NullValue = .false.
-
                         !find the first father layer for interpolation
                         Aux = KLBFather
                         AuxDepth = 0.0
 
                         do kfather=KUBFather, KLBFather, -1
-                            if ((Me%SubModel%Aux_V(i, j, kfather)                   &
-                                < FillValueReal / 2.) .or.                          &
-                                (Me%SubModel%Aux_DVZ(i, j, kfather)                 &
-                                < FillValueReal / 2.)) then
+                            if ((Me%SubModel%Aux_V(i, j, kfather)   < FillValueReal / 2.) .or. &
+                                (Me%SubModel%Aux_DVZ(i, j, kfather) < FillValueReal / 2.)) then
                                 Aux = kfather + 1
                                exit
                             else
                                 Values(kfather) = Me%SubModel%Aux_V(i,j,kfather)
-                                Depths(kfather) = AuxDepth +                        &
-                                    Me%SubModel%Aux_DVZ(i, j, kfather)/2
-                                AuxDepth = AuxDepth +                               &
-                                    Me%SubModel%Aux_DVZ(i, j, kfather)
+                                Depths(kfather) = AuxDepth + Me%SubModel%Aux_DVZ(i, j, kfather)/2
+                                AuxDepth = AuxDepth + Me%SubModel%Aux_DVZ(i, j, kfather)
                                 !(value (i,j) from father exists!)
                             endif
                         enddo
 
                         if (Aux == KUBFather + 1) then
-
                             if (Me%SubModel%MissingNull) then
                                 NullValue = .true.
                             else
-                                call SetError(FATAL_, INTERNAL_,                    &
-                                    "ActualizeSon3DWithFather3D; Hydrodynamic. ERR25")
+                                call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR25")
                             endif
                         endif
 
                         if (.not. NullValue) then
                         !(father values exist for at least one layer)
-
                             !get number of father depths
                             NDepths = KUBFather - Aux + 1
 
                             !Time to interpolate vertical layers father to son!
                             !(get U_Next from father)
-
                             !get son cell depth
                             SonDepth = AuxSonDepth + DVZ_Son(i_thick, j_thick, k)/2
                             AuxSonDepth = AuxSonDepth + DVZ_Son(i_thick, j_thick, k)
 
                             !interpolate father values as a profile
-                            Me%SubModel%V_Next(i,j,k) =                             &
-                                            InterpolateProfileR8(SonDepth,          &
-                                            NDepths, Depths(Aux:KUBFather),         &
-                                            Values(Aux:KUBFather),                  &
-                                            FoundBottom, FoundSurface)
+                            Me%SubModel%V_Next(i,j,k) = InterpolateProfileR8(SonDepth, NDepths, Depths(Aux:KUBFather),  &
+                                                        Values(Aux:KUBFather), FoundBottom, FoundSurface)
 
-                            if (InitialField)                                       &
-                                Me%SubModel%V_Previous(i,j,k) =                     &
-                                    Me%SubModel%V_Next(i,j,k)
+                            if (InitialField) Me%SubModel%V_Previous(i,j,k) = Me%SubModel%V_Next(i,j,k)
 
                             if (.not. Me%SubModel%MomentConserv) then
 
-                                Me%SubModel%DVZ_Next(i, j, k) = DVZ_Son(i_thick,    &
-                                                                j_thick, k)
+                                Me%SubModel%DVZ_Next(i, j, k) = DVZ_Son(i_thick, j_thick, k)
                                 !(has to be i_thick and j_thick because i, j dont exist)
-
                             else
-
                                 !Time to interpolate vertical layers father to son!
                                 !(get DUZ/DVZ from father)
                                 !initialize variable
                                 Me%SubModel%DVZ_Next(i, j, k) = 0
-
                                 !DVZ is need for weighting
                                 AuxDUVZ_Son = DVZ_Son(i_thick, j_thick, k)
 
     do17:                       do kfather = kfatherinic, KLBFather, -1 !!!! do18?
                                     !(layers from surface to bottom)
 
-                                    if (Me%SubModel%Aux_DVZ(i, j, kfather)          &
-                                        < FillValueReal / 2.) then
+                                    if (Me%SubModel%Aux_DVZ(i, j, kfather) < FillValueReal / 2.) then
                                         !if father values do not exist
-
-                                        if (Me%SubModel%MissingNull)                &
-                                            !son layers assumed null values
-                                            exit do17
-
+                                        if (Me%SubModel%MissingNull) exit do17 !son layers assumed null values
                                     endif
 
-                                    AuxDUVZ_Father =                                &
-                                        Me%SubModel%Aux_DVZ(i, j, kfather)
+                                    AuxDUVZ_Father = Me%SubModel%Aux_DVZ(i, j, kfather)
                                     !(since not exited from loop (i,j) value exists!)
 
-                                    if (AuxDUVZ_Son .le.                            &
-                                        RelativeThickness*AuxDUVZ_Father) then
+                                    if (AuxDUVZ_Son .le. RelativeThickness*AuxDUVZ_Father) then
 
                                         !son layer inside father layer part
-                                        RelativeThickness = AuxDUVZ_Son*            &
-                                            RelativeThickness / AuxDUVZ_Father
+                                        RelativeThickness = AuxDUVZ_Son * RelativeThickness / AuxDUVZ_Father
 
-                                        Me%SubModel%DVZ_Next(i, j, k) =             &
-                                            Me%SubModel%DVZ_Next(i, j, k) +         &
-                                            Me%SubModel%Aux_DVZ(i, j, kfather)      &
-                                            * RelativeThickness
+                                        Me%SubModel%DVZ_Next(i, j, k) = Me%SubModel%DVZ_Next(i, j, k)      &
+                                                                      + Me%SubModel%Aux_DVZ(i, j, kfather) &
+                                                                      * RelativeThickness
 
-                                        TotalDUVZ_Son  = TotalDUVZ_Son +            &
-                                            AuxDUVZ_Son
+                                        TotalDUVZ_Son  = TotalDUVZ_Son + AuxDUVZ_Son
 
-                                        if (Abs(AuxDUVZ_Son - AuxDUVZ_Father) .lt.  &
-                                            AllmostZero) then
+                                        if (Abs(AuxDUVZ_Son - AuxDUVZ_Father) .lt. AllmostZero) then
                                             !(AuxDUVZ_Son == AuxDUVZ_Father)
-
                                             !this father layer is already solved, solve next
                                             kfatherinic = kfatherinic -1
                                             RelativeThickness = 1
                                         else
-
                                             RelativeThickness = 1 - RelativeThickness
                                         endif
 
                                         AuxDUVZ_Son = 0.0
-
                                         exit do17
                                     else
-
                                         !son layer includes father layer part
-                                        Me%SubModel%DVZ_Next(i, j, k) =             &
-                                            Me%SubModel%DVZ_Next(i, j, k) +         &
-                                            Me%SubModel%Aux_DVZ(i, j, kfather)      &
-                                            * RelativeThickness
+                                        Me%SubModel%DVZ_Next(i, j, k) = Me%SubModel%DVZ_Next(i, j, k) &
+                                                                      + Me%SubModel%Aux_DVZ(i, j, kfather)      &
+                                                                      * RelativeThickness
 
-                                        TotalDUVZ_Son  = TotalDUVZ_Son +            &
-                                            RelativeThickness*AuxDUVZ_Father
-
+                                        TotalDUVZ_Son  = TotalDUVZ_Son + RelativeThickness*AuxDUVZ_Father
                                         !get the remaing part of DVZ_Son
-                                        AuxDUVZ_Son = AuxDUVZ_Son -                 &
-                                            RelativeThickness*AuxDUVZ_Father
-
+                                        AuxDUVZ_Son = AuxDUVZ_Son - RelativeThickness*AuxDUVZ_Father
                                         !seek in the next father layer
                                         kfatherinic = kfatherinic - 1
                                         RelativeThickness = 1
@@ -21175,21 +18720,16 @@ cd19:           if ((ImposedTangFacesVSon(i, j, k) == Imposed  .or.             
                                 enddo do17
 
                                 !check if excess or deficit flux variable exists
-                                if ((AuxDUVZ_Son /= 0.0) .and.                      &
-                                    (kfather == KLBFather)) then
+                                if ((AuxDUVZ_Son /= 0.0) .and. (kfather == KLBFather)) then
                                     !last son layer was not fulfilled by father values
                                     !(all the next son layers are not fulfilled also)
-
                                     ExcessDUVZ_Son = AuxDUVZ_Son
 
                                     if (k-1 .ge. KLB) then
                                         !add DVZ of next son layers
-
                                         do k2 = k-1, KLB, -1
                                             !layers from surface to bottom
-
-                                            ExcessDUVZ_Son = ExcessDUVZ_Son +       &
-                                                DVZ_Son(i_thick, j_thick, k2)
+                                            ExcessDUVZ_Son = ExcessDUVZ_Son + DVZ_Son(i_thick, j_thick, k2)
                                         enddo
                                     endif
                                 else if ((k == Kbottom) .and.                       &
@@ -21199,36 +18739,24 @@ cd19:           if ((ImposedTangFacesVSon(i, j, k) == Imposed  .or.             
                                     !but excedent father layer part exist
 
                                     if (RelativeThickness /= 1)                     &
-                                        ExcessValue_Father =                        &
-                                                Me%SubModel%Aux_DVZ(i, j, kfather)* &
-                                                RelativeThickness
+                                        ExcessValue_Father = Me%SubModel%Aux_DVZ(i, j, kfather) * RelativeThickness
 
                                     if (kfather - 1 .ge. KLBFather) then
                                         !add values of next father layers
-
     do18:                               do k2father = kfather - 1, KLBFather, - 1 !do19
                                             !layers from surface to bottom
-
-                                            if (Me%SubModel%Aux_DVZ(i, j,k2father)  &
-                                                < FillValueReal / 2.) then
-
+                                            if (Me%SubModel%Aux_DVZ(i, j,k2father) < FillValueReal / 2.) then
                                                 exit do18
                                             else
-
-                                                ExcessValue_Father =                &
-                                                ExcessValue_Father                  &
-                                                + Me%SubModel%Aux_DVZ(i, j, k2father)
+                                                ExcessValue_Father = ExcessValue_Father &
+                                                                   + Me%SubModel%Aux_DVZ(i, j, k2father)
                                             endif
                                         enddo do18
                                     endif
                                 endif
                             endif
 
-                            if (InitialField) then
-
-                                Me%SubModel%DVZ_Previous(i,j,k) =                   &
-                                    Me%SubModel%DVZ_Next(i,j,k)
-                            endif
+                            if (InitialField) Me%SubModel%DVZ_Previous(i,j,k) = Me%SubModel%DVZ_Next(i,j,k)
                         endif
                     endif
 
@@ -21240,44 +18768,30 @@ cd19:           if ((ImposedTangFacesVSon(i, j, k) == Imposed  .or.             
                         Me%SubModel%V_Previous(i, j, k) < FillValueReal / 2.)  then
 
                         if (Me%SubModel%MissingNull) then
-
                             Me%SubModel%V_New(i, j, k)  =  0.
-
                         else
-                            call SetError(FATAL_, INTERNAL_,                        &
-                                 "ActualizeSon3DWithFather3D; Hydrodynamic. ERR26")
+                            call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR26")
                         endif
                     else
-
-                        Me%SubModel%V_New(i, j, k)  =                               &
-                            Me%SubModel%V_Next    (i, j, k) * TimeCoef  +           &
-                            Me%SubModel%V_Previous(i, j, k) * (1 - TimeCoef)
+                        Me%SubModel%V_New(i, j, k) = Me%SubModel%V_Next(i, j, k)     * TimeCoef      &
+                                                   + Me%SubModel%V_Previous(i, j, k) * (1 - TimeCoef)
                     endif
 
-                    if (InitialField .and. .not. Me%ComputeOptions%Continuous       &
-                        .and. Me%SubModel%FatherHotStart)                           &
-                        Me%Velocity%Horizontal%V%New(i, j, k) =                     &
-                                   Me%SubModel%V_New(i, j, k)
+                    if (InitialField .and. .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart) &
+                        Me%Velocity%Horizontal%V%New(i, j, k) = Me%SubModel%V_New(i, j, k)
 
                     !(for DVZ)
-                    if (Me%SubModel%DVZ_Next    (i, j, k) < FillValueReal / 2.      &
-                        .or. Me%SubModel%DVZ_Previous(i, j, k) < FillValueReal      &
-                        / 2.) then
+                    if (Me%SubModel%DVZ_Next(i, j, k)          < FillValueReal / 2.      &
+                        .or. Me%SubModel%DVZ_Previous(i, j, k) < FillValueReal / 2.) then
 
                         if (Me%SubModel%MissingNull) then
-
                             Me%SubModel%DVZ_New(i, j, k)  =  0.
                         else
-                            call SetError(FATAL_, INTERNAL_,                        &
-                                 "ActualizeSon3DWithFather3D; Hydrodynamic. ERR27")
+                            call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR27")
                         endif
                     else
-
-                        Me%SubModel%DVZ_New(i, j, k)  =                             &
-                                 Me%SubModel%DVZ_Next    (i, j, k) *                &
-                                 TimeCoef +                                         &
-                                 Me%SubModel%DVZ_Previous(i, j, k) *                &
-                                 (1 - TimeCoef)
+                        Me%SubModel%DVZ_New(i, j, k) = Me%SubModel%DVZ_Next(i, j, k)     * TimeCoef      &
+                                                     + Me%SubModel%DVZ_Previous(i, j, k) * (1 - TimeCoef)
                     endif
                 endif cd19
 
@@ -21289,195 +18803,118 @@ cd19:           if ((ImposedTangFacesVSon(i, j, k) == Imposed  .or.             
                 if ((ExcessDUVZ_Son /= 0.0) .or. (ExcessValue_Father /= 0.0)) then
 
 do24:               do k = KUB, KLB, -1
+    
+                        DeadZoneSon = .false.
+                        if (Me%SubModel%DeadZone) DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
 
-                        if (Me%SubModel%DeadZone) then
-
-                            DeadZoneSon = Me%SubModel%DeadZonePoint(i, j, k)
-
-                        else
-
-                            DeadZoneSon = .false.
-
-                        endif
-
-cd20:                   if ((ImposedTangFacesVSon(i, j, k) == Imposed  .or.         &
-                         ImposedNormFacesVSon(i, j, k) == Imposed)  .and.           &
-                         .not. DeadZoneSon) then
+cd20:                   if ((ImposedTangFacesVSon(i, j, k) == Imposed  .or. ImposedNormFacesVSon(i, j, k) == Imposed) &
+                            .and. .not. DeadZoneSon) then
 
                             if (ImposedTangFacesVSon(i, j, k) == Imposed) then
-
                                 i_thick = i
                                 j_thick = j
-
                             else if (ImposedNormFacesVSon(i, j, k) == Imposed) then
-
-                                if      (i == IUB + 1) then
-
+                                if (i == IUB + 1) then
                                     i_thick = i - 1
-
                                 else if (i == ILB) then
-
                                     i_thick = i + 1
-
                                 else
-
-                                    i_thick = i + Faces3D_VSon(i + 1, j, k) -       &
-                                              Faces3D_VSon(i - 1, j, k)
-
+                                    i_thick = i + Faces3D_VSon(i + 1, j, k) - Faces3D_VSon(i - 1, j, k)
                                 endif
-
                                 j_thick = j
-
                             endif
 
                             Kbottom = KFloor_V(i_thick, j_thick)
 
-                            if ((((Me%CurrentTime == Me%SubModel%GetFatherTime)     &
-                                .and. Me%SubModel%InterPolTime) .or.                &
-                                (.not. Me%SubModel%InterPolTime) .or. InitialField) &
-                                .and. (.not. NullValue)) then
+                            if ((((Me%CurrentTime == Me%SubModel%GetFatherTime) .and. Me%SubModel%InterPolTime) .or.                &
+                                (.not. Me%SubModel%InterPolTime) .or. InitialField) .and. (.not. NullValue)) then
                                 !Check if layer values from father need to be corrected
                                 !(capitalizing on the DO cycle)
 
                                 if (ExcessDUVZ_Son /= 0.0) then
                                     !Correct son layer values for the deficit of father values
-
                                     SumDUVZ_Son = SumDUVZ_Son + DVZ_Son(i_thick, j_thick, k)
 
                                     if (SumDUVZ_Son .le. TotalDUVZ_Son) then
                                         !layers having father value
-
-                                        AuxDeficit = Me%SubModel%DVZ_Next(i,j,k)*   &
-                                            ExcessDUVZ_Son*DVZ_Son(i_thick, j_thick, k) &
-                                            /TotalDUVZ_Son
+                                        AuxDeficit = Me%SubModel%DVZ_Next(i,j,k) * ExcessDUVZ_Son &
+                                                   * DVZ_Son(i_thick, j_thick, k) / TotalDUVZ_Son
 
                                         !actualize the value of the father deficit
-                                        DeficitValue_Father = DeficitValue_Father + &
-                                            AuxDeficit
+                                        DeficitValue_Father = DeficitValue_Father + AuxDeficit
 
                                         !remove flux variable from layer
-                                        Me%SubModel%DVZ_Next(i,j,k) =               &
-                                                        Me%SubModel%DVZ_Next(i,j,k) &
-                                                        - AuxDeficit
+                                        Me%SubModel%DVZ_Next(i,j,k) = Me%SubModel%DVZ_Next(i,j,k) - AuxDeficit
 
                                     elseif (AuxDUVZ_Son /= 0.0) then
                                         !son layer partially with father value
-                                        AuxDeficit = Me%SubModel%DVZ_Next(i,j,k)*   &
-                                            ExcessDUVZ_Son*(DVZ_Son(i_thick, j_thick, k) &
-                                            - AuxDUVZ_Son)/TotalDUVZ_Son
+                                        AuxDeficit = Me%SubModel%DVZ_Next(i,j,k) * ExcessDUVZ_Son &
+                                                   * (DVZ_Son(i_thick, j_thick, k) - AuxDUVZ_Son)/TotalDUVZ_Son
 
                                         !actualize the value of the father deficit
-                                        DeficitValue_Father = DeficitValue_Father + &
-                                            AuxDeficit
+                                        DeficitValue_Father = DeficitValue_Father + AuxDeficit
 
                                         !remove and add
-                                        Me%SubModel%DVZ_Next(i,j,k) =               &
-                                            Me%SubModel%DVZ_Next(i,j,k) - AuxDeficit + &
-                                            DeficitValue_Father*AuxDUVZ_Son/        &
-                                            (WaterColumnV(i_thick, j_thick) - TotalDUVZ_Son)
-
+                                        Me%SubModel%DVZ_Next(i,j,k) = Me%SubModel%DVZ_Next(i,j,k) - AuxDeficit &
+                                                                    + DeficitValue_Father*AuxDUVZ_Son          &
+                                                                    / (WaterColumnV(i_thick, j_thick) - TotalDUVZ_Son)
                                         AuxDUVZ_Son = 0.0
                                         !(layer completed)
-
                                     else
                                         !fill son layer without father value
-
                                         !add collected value
-                                        Me%SubModel%DVZ_Next(i,j,k) =               &
-                                            DeficitValue_Father*                    &
-                                            DVZ_Son(i_thick, j_thick,k)             &
-                                            /(WaterColumnV(i_thick, j_thick) - TotalDUVZ_Son)
+                                        Me%SubModel%DVZ_Next(i,j,k) = DeficitValue_Father*DVZ_Son(i_thick, j_thick,k) &
+                                                                    /(WaterColumnV(i_thick, j_thick) - TotalDUVZ_Son)
 
                                     endif
 
                                 elseif (ExcessValue_Father /= 0.0) then
                                     !Correct son layer values for the excess of father values
 
-                                    Me%SubModel%DVZ_Next(i,j,k) =                   &
-                                        Me%SubModel%DVZ_Next(i,j,k) +               &
-                                        ExcessValue_Father*DVZ_Son(i_thick, j_thick,k)/ &
-                                        WaterColumnV(i_thick, j_thick)
-
+                                    Me%SubModel%DVZ_Next(i,j,k) = Me%SubModel%DVZ_Next(i,j,k) &
+                                                                + ExcessValue_Father * DVZ_Son(i_thick, j_thick,k) &
+                                                                / WaterColumnV(i_thick, j_thick)
                                 endif
 
-                                if (InitialField) then
-
-                                    Me%SubModel%DVZ_Previous(i,j,k) =               &
-                                        Me%SubModel%DVZ_Next(i,j,k)
-
-                                endif
-
+                                if (InitialField) Me%SubModel%DVZ_Previous(i,j,k) = Me%SubModel%DVZ_Next(i,j,k)
                             endif
 
                             !Time interpolation of variables (performed always!)
                             !(here just for DUZ/DVZ)
 
-                            if (Me%SubModel%DVZ_Next    (i, j, k) < FillValueReal / 2. &
-                                .or. Me%SubModel%DVZ_Previous(i, j, k) < FillValueReal &
-                                / 2.) then
+                            if (Me%SubModel%DVZ_Next(i, j, k)          < FillValueReal / 2. &
+                                .or. Me%SubModel%DVZ_Previous(i, j, k) < FillValueReal / 2.) then
 
                                 if (Me%SubModel%MissingNull) then
-
                                     Me%SubModel%DVZ_New(i, j, k)  =  0.
-
                                 else
-                                    call SetError(FATAL_, INTERNAL_,                &
-                                         "ActualizeSon3DWithFather3D; Hydrodynamic. ERR28")
+                                    call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR28")
                                 endif
-
                             else
-
-                                Me%SubModel%DVZ_New(i, j, k)  =                     &
-                                         Me%SubModel%DVZ_Next    (i, j, k) *        &
-                                         TimeCoef +                                 &
-                                         Me%SubModel%DVZ_Previous(i, j, k) *        &
-                                         (1 - TimeCoef)
-
+                                Me%SubModel%DVZ_New(i, j, k) = Me%SubModel%DVZ_Next(i, j, k)     * TimeCoef    &
+                                                             + Me%SubModel%DVZ_Previous(i, j, k) * (1 - TimeCoef)
                             endif
-
                         endif cd20
-
                         if (k == Kbottom) exit do24
-
                     enddo do24
-
                 endif
-
             endif
-
         enddo
         enddo
 
         !This is only done for graphical reasons
         if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
-
             !U corners
-            Me%Velocity%Horizontal%U%New(ILB,JLB    , KLB:KUB)   =                  &
-            Me%SubModel%U_New           (ILB,JLB    , KLB:KUB)
-
-            Me%Velocity%Horizontal%U%New(ILB,JUB + 1, KLB:KUB)   =                  &
-            Me%SubModel%U_New           (ILB,JUB + 1, KLB:KUB)
-
-            Me%Velocity%Horizontal%U%New(IUB,JLB    , KLB:KUB)   =                  &
-            Me%SubModel%U_New           (IUB,JLB    , KLB:KUB)
-
-            Me%Velocity%Horizontal%U%New(IUB,JUB + 1, KLB:KUB)   =                  &
-            Me%SubModel%U_New           (IUB,JUB + 1, KLB:KUB)
-
+            Me%Velocity%Horizontal%U%New(ILB,JLB    , KLB:KUB)   = Me%SubModel%U_New (ILB,JLB    , KLB:KUB)
+            Me%Velocity%Horizontal%U%New(ILB,JUB + 1, KLB:KUB)   = Me%SubModel%U_New (ILB,JUB + 1, KLB:KUB)
+            Me%Velocity%Horizontal%U%New(IUB,JLB    , KLB:KUB)   = Me%SubModel%U_New (IUB,JLB    , KLB:KUB)
+            Me%Velocity%Horizontal%U%New(IUB,JUB + 1, KLB:KUB)   = Me%SubModel%U_New (IUB,JUB + 1, KLB:KUB)
 
             !V corners
-            Me%Velocity%Horizontal%V%New(ILB,JLB    , KLB:KUB)   =                  &
-            Me%SubModel%V_New           (ILB,JLB    , KLB:KUB)
-
-            Me%Velocity%Horizontal%V%New(ILB,JUB    , KLB:KUB)   =                  &
-            Me%SubModel%V_New           (ILB,JUB    , KLB:KUB)
-
-            Me%Velocity%Horizontal%V%New(IUB + 1,JLB, KLB:KUB)   =                  &
-            Me%SubModel%V_New           (IUB + 1,JLB, KLB:KUB)
-
-            Me%Velocity%Horizontal%V%New(IUB + 1,JUB, KLB:KUB)   =                  &
-            Me%SubModel%V_New           (IUB + 1,JUB, KLB:KUB)
-
+            Me%Velocity%Horizontal%V%New(ILB    ,JLB, KLB:KUB)   = Me%SubModel%V_New (ILB    ,JLB, KLB:KUB)
+            Me%Velocity%Horizontal%V%New(ILB    ,JUB, KLB:KUB)   = Me%SubModel%V_New (ILB    ,JUB, KLB:KUB)
+            Me%Velocity%Horizontal%V%New(IUB + 1,JLB, KLB:KUB)   = Me%SubModel%V_New (IUB + 1,JLB, KLB:KUB)
+            Me%Velocity%Horizontal%V%New(IUB + 1,JUB, KLB:KUB)   = Me%SubModel%V_New (IUB + 1,JUB, KLB:KUB)
         endif
 
         Me%SubModel%Set      = .true.
@@ -21491,80 +18928,30 @@ cd20:                   if ((ImposedTangFacesVSon(i, j, k) == Imposed  .or.     
                            DXX_Son, DYY_Son)
 
 cd21:   if (InitialField .and. .not. Me%ComputeOptions%Continuous) then
-
             call SetMatrixValue(Me%WaterLevel%Old, Me%Size2D, Me%WaterLevel%New)
-            call SetMatrixValue(Me%Velocity%Horizontal%V%Old, Me%Size,              &
-                                 Me%Velocity%Horizontal%V%New)
-            call SetMatrixValue(Me%Velocity%Horizontal%U%Old, Me%Size,              &
-                                 Me%Velocity%Horizontal%U%New)
+            call SetMatrixValue(Me%Velocity%Horizontal%V%Old, Me%Size, Me%Velocity%Horizontal%V%New)
+            call SetMatrixValue(Me%Velocity%Horizontal%U%Old, Me%Size, Me%Velocity%Horizontal%U%New)
             call SetMatrixValue(Me%SubModel%DUZ_Old, Me%Size, Me%SubModel%DUZ_Next)
             call SetMatrixValue(Me%SubModel%DVZ_Old, Me%Size, Me%SubModel%DVZ_Next)
-
-            !Me%WaterLevel%Old               (:,:  ) =                               &
-                !Me%WaterLevel%New           (:,:  )
-
-            !Me%Velocity%Horizontal%V%Old    (:,:,:) =                               &
-                !Me%Velocity%Horizontal%V%New(:,:,:)
-
-            !Me%Velocity%Horizontal%U%Old    (:,:,:) =                               &
-                !Me%Velocity%Horizontal%U%New(:,:,:)
-
-            !Me%SubModel%DUZ_Old(:,:,:)              =                               &
-                !Me%SubModel%DUZ_Next(:,:,:)
-
-            !Me%SubModel%DVZ_Old(:,:,:)              =                               &
-                !Me%SubModel%DVZ_Next(:,:,:)
-
         endif cd21
 
 
-        call UnGetGeometry(Me%ObjGeometry,                                          &
-                           WaterColumnU, STAT = status)
-
-        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_,                    &
-                                    "ActualizeSon3DWithFather3D; Hydrodynamic. ERR29")
-
-
-        call UnGetGeometry(Me%ObjGeometry,                                          &
-                           WaterColumnV, STAT = status)
-
-        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_,                    &
-                                     "ActualizeSon3DWithFather3D; Hydrodynamic. ERR30")
-
-
-        call UnGetGeometry(Me%ObjGeometry,                                          &
-                           KFloor_U, STAT = status)
-
-        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_,                    &
-                                     "ActualizeSon3DWithFather3D; Hydrodynamic. ERR31")
-
-
-        call UnGetGeometry(Me%ObjGeometry,                                          &
-                           KFloor_V, STAT = status)
-
-        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_,                    &
-                                     "ActualizeSon3DWithFather3D; Hydrodynamic. ERR32")
-
+        call UnGetGeometry(Me%ObjGeometry, WaterColumnU, STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR29")
+        call UnGetGeometry(Me%ObjGeometry, WaterColumnV, STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_,"ActualizeSon3DWithFather3D; Hydrodynamic. ERR30")
+        call UnGetGeometry(Me%ObjGeometry, KFloor_U, STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR31")
+        call UnGetGeometry(Me%ObjGeometry, KFloor_V, STAT = status)
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR32")
         !UnGets Bathymetry
         call UnGetGridData(Me%ObjGridData, Bathymetry, STAT = status)
-
-        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_,                    &
-                                     "ActualizeSon3DWithFather3D; Hydrodynamic. ERR33")
-
+        if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ActualizeSon3DWithFather3D; Hydrodynamic. ERR33")
         !Deallocates values and depths used to interpolate velocities
-        if (((Me%CurrentTime == Me%SubModel%GetFatherTime) .and.                    &
-            Me%SubModel%InterPolTime) .or. (.not. Me%SubModel%InterPolTime)         &
-            .or. InitialField) then
-
-            deallocate(Depths)
-            deallocate(Values)
-
-            if (Me%SubModel%InterPolTime .and. .not. InitialField) then
-
-                call null_Time(Me%CurrentTime)
-
-            endif
-
+        if (((Me%CurrentTime == Me%SubModel%GetFatherTime) .and. Me%SubModel%InterPolTime) &
+            .or. (.not. Me%SubModel%InterPolTime) .or. InitialField) then
+            deallocate(Depths, Values)
+            if (Me%SubModel%InterPolTime .and. .not. InitialField) call null_Time(Me%CurrentTime)
         endif
 
     end subroutine ActualizeSon3DWithFather3D
@@ -43675,12 +41062,9 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
             call StartWatch ("ModuleHydrodynamic", "ModifyTidePotential")
         endif
 
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-
+        IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB; KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB
+        
         TidePotentialLevel => Me%Forces%TidePotentialLevel
 
         Beta           => Me%TidePotential%Beta
@@ -43869,31 +41253,16 @@ it1:            if (Me%TidePotential%Algorithm == Kantha) then
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
-        call UngetHorizontalGrid(Me%ObjHorizontalGrid,  &
-                                 Array = GridLatitude, STAT = STATUS)
+        call UngetHorizontalGrid(Me%ObjHorizontalGrid, Array = GridLatitude, STAT = STATUS)
+        if (STATUS /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyTidePotential - Hydrodynamic - ERR03")
 
-        if (STATUS /= SUCCESS_)                                          &
-            call SetError (FATAL_, INTERNAL_, "ModifyTidePotential - Hydrodynamic - ERR03")
-
-        call UngetHorizontalGrid(Me%ObjHorizontalGrid,  &
-                                 Array = GridLongitude, STAT = STATUS)
-
-        if (STATUS /= SUCCESS_)                                                          &
-            call SetError (FATAL_, INTERNAL_, "ModifyTidePotential - Hydrodynamic - ERR04")
+        call UngetHorizontalGrid(Me%ObjHorizontalGrid, Array = GridLongitude, STAT = STATUS)
+        if (STATUS /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyTidePotential - Hydrodynamic - ERR04")
 
         !nullify auxiliar pointers
-        nullify(TidePotentialLevel)
-        nullify(Beta     )
-        nullify(EqAmp    )
-        nullify(Freq     )
-        nullify(AstroArg )
-        nullify(m        )
-        nullify(L        )
-        nullify(WaterPoints3D)
+        nullify(TidePotentialLevel, Beta, EqAmp, Freq, AstroArg, m, L, WaterPoints3D)
 
-        if (MonitorPerformance) then
-            call StopWatch ("ModuleHydrodynamic", "ModifyTidePotential")
-        endif
+        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "ModifyTidePotential")
 
     end Subroutine ModifyTidePotential
 
@@ -53087,10 +50456,12 @@ do5:            do i = ILB, IUB
                     
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge .or. Me%OutPut%Upscaling%MassSinkSource)then
                         MakeCopy = .true.
-                        ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = ObjHydrodynamicFather%Velocity%Horizontal%U%New(:,:,:)
+                        ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = &
+                            ObjHydrodynamicFather%Velocity%Horizontal%U%New(:,:,:)
                     endif
                     !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
-                    call PrepTwoWay (SonID = AuxHydrodynamicID, FatherID = Me%FatherInstanceID, CallerID = mHydrodynamic_, STAT = STAT_CALL)
+                    call PrepTwoWay (SonID = AuxHydrodynamicID, FatherID = Me%FatherInstanceID, CallerID = mHydrodynamic_,&
+                                     STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR01.'
 
     !-------------------------------------------Updates father U matrix with son information-------------------------------------
@@ -53104,14 +50475,18 @@ do5:            do i = ILB, IUB
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR02.'
                     
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge) &
-                        call UpscaleDischarge(SonID = AuxHydrodynamicID, Father_old  = ObjHydrodynamicFather%OutPut%Upscaling%CopyVel, &
-                                              Father = ObjHydrodynamicFather%Velocity%Horizontal%U%New, VelocityID  = VelocityU_, STAT = STAT_CALL)
+                        call UpscaleDischarge(SonID = AuxHydrodynamicID, &
+                                              Father_old  = ObjHydrodynamicFather%OutPut%Upscaling%CopyVel, &
+                                              Father = ObjHydrodynamicFather%Velocity%Horizontal%U%New, &
+                                              VelocityID  = VelocityU_, STAT = STAT_CALL)
                     !Account for sinks and sources of Volume due to upscaling.
                     if (Me%OutPut%Upscaling%MassSinkSource) &
                         call UpscalingVolumeVariation(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated,   &
-                                                  ObjHydrodynamicFather%Velocity%Horizontal%U%New, ObjHydrodynamicFather%Velocity%DT, VelocityU_)
+                                                      ObjHydrodynamicFather%Velocity%Horizontal%U%New, &
+                                                      ObjHydrodynamicFather%Velocity%DT, VelocityU_)
                     
-                    if (MakeCopy) ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = ObjHydrodynamicFather%Velocity%Horizontal%V%New(:,:,:)
+                    if (MakeCopy) ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = &
+                        ObjHydrodynamicFather%Velocity%Horizontal%V%New(:,:,:)
                     
     !-------------------------------------------Updates father V matrix with son information-------------------------------------
                     
@@ -53124,14 +50499,18 @@ do5:            do i = ILB, IUB
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR03.'
                     
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge) &
-                        call UpscaleDischarge(SonID = AuxHydrodynamicID, Father_old  = ObjHydrodynamicFather%OutPut%Upscaling%CopyVel, &
-                                              Father = ObjHydrodynamicFather%Velocity%Horizontal%V%New, VelocityID  = VelocityV_, STAT = STAT_CALL)
+                        call UpscaleDischarge(SonID = AuxHydrodynamicID, &
+                                              Father_old  = ObjHydrodynamicFather%OutPut%Upscaling%CopyVel, &
+                                              Father = ObjHydrodynamicFather%Velocity%Horizontal%V%New, &
+                                              VelocityID  = VelocityV_, STAT = STAT_CALL)
                     !Account for sinks and sources of Volume due to upscaling.
                     if (Me%OutPut%Upscaling%MassSinkSource) &
                         call UpscalingVolumeVariation(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated,   &
-                                                  ObjHydrodynamicFather%Velocity%Horizontal%V%New, ObjHydrodynamicFather%Velocity%DT, VelocityV_)
+                                                      ObjHydrodynamicFather%Velocity%Horizontal%V%New, &
+                                                      ObjHydrodynamicFather%Velocity%DT, VelocityV_)
                     
-                    if (MakeCopy) ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = ObjHydrodynamicFather%Velocity%Vertical%Cartesian(:,:,:)
+                    if (MakeCopy) ObjHydrodynamicFather%OutPut%Upscaling%CopyVel(:,:,:) = &
+                        ObjHydrodynamicFather%Velocity%Vertical%Cartesian(:,:,:)
                     
     !-------------------------------------------Updates father W matrix with son information-------------------------------------
                     
@@ -53145,7 +50524,8 @@ do5:            do i = ILB, IUB
                     !Account for sinks and sources of Volume due to upscaling.
                     if (Me%OutPut%Upscaling%MassSinkSource) &
                         call UpscalingVolumeVariation(ObjHydrodynamicFather%OutPut%Upscaling%VolumeCreated,   &
-                                                  ObjHydrodynamicFather%Velocity%Vertical%Cartesian, ObjHydrodynamicFather%Velocity%DT, VelocityW_)
+                                                      ObjHydrodynamicFather%Velocity%Vertical%Cartesian, &
+                                                      ObjHydrodynamicFather%Velocity%DT, VelocityW_)
                         
                     if (Me%ComputeOptions%TwoWayWaterLevel) then
                         call ModifyTwoWay (SonID            = AuxHydrodynamicID,                                 &
@@ -53156,7 +50536,8 @@ do5:            do i = ILB, IUB
                         if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR05.'
                     endif
 
-                    call UngetTwoWayExternal_Vars(SonID = AuxHydrodynamicID, FatherID = Me%FatherInstanceID, CallerID = mHydrodynamic_, STAT = STAT_CALL)
+                    call UngetTwoWayExternal_Vars(SonID = AuxHydrodynamicID, FatherID = Me%FatherInstanceID, &
+                                                  CallerID = mHydrodynamic_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR06.'
                 endif
             enddo
@@ -53242,7 +50623,6 @@ do5:            do i = ILB, IUB
         real,    dimension(:,:,:), pointer :: Density
         !Local-----------------------------------------------------------------
         integer                            :: i, j, k, KUB, IUB, JUB, ILB, JLB, KLB
-
         integer                            :: CHUNK
         !Begin-------------------------------------------------------------------------
 
@@ -53260,7 +50640,8 @@ do5:            do i = ILB, IUB
                 do j=JLB, JUB
                 do i=ILB, IUB
                     if (Me%External_Var%ComputeFaces3D_UV(i, j, k)==1) then
-                            Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k), Density(i-1, j, k), DUX_VY(i, j), DUX_VY(i-1, j))
+                            Me%FaceDensity(i, j, k)  = &
+                                Face_Interpolation(Density(i, j, k), Density(i-1, j, k), DUX_VY(i, j), DUX_VY(i-1, j))
                     endif
                 enddo
                 enddo
@@ -53272,7 +50653,8 @@ do5:            do i = ILB, IUB
                 do j=JLB, JUB
                 do i=ILB, IUB
                     if (Me%External_Var%ComputeFaces3D_UV(i, j, k)==1) then
-                            Me%FaceDensity(i, j, k)  = Face_Interpolation(Density(i, j, k), Density(i, j-1, k), DUX_VY(i, j), DUX_VY(i, j-1))
+                            Me%FaceDensity(i, j, k)  = &
+                                Face_Interpolation(Density(i, j, k), Density(i, j-1, k), DUX_VY(i, j), DUX_VY(i, j-1))
                     endif
                 enddo
                 enddo
@@ -53290,18 +50672,10 @@ do5:            do i = ILB, IUB
     subroutine ComputeBoxesWaterFluxes
 
         !Arguments-------------------------------------------------------------
-
-
-
         !External--------------------------------------------------------------
-
         integer :: STAT_CALL
-
         !Local-----------------------------------------------------------------
-
-
         !----------------------------------------------------------------------
-
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "ComputeBoxesWaterFluxes")
 
 cd1:    if (Me%State%BOXFLUXES) then
@@ -53345,20 +50719,14 @@ cd1:    if (Me%State%BOXFLUXES) then
         integer                            :: ILB, JLB, KLB, IUB, JUB, KUB
         integer                            :: CHUNK
         real                               :: ResidualTime_Plus_DT
-
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "ComputeResidualFlowProperties")
 
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB; KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB; KLB = Me%WorkSize%KLB
 
         CHUNK = CHUNK_J(JLB, JUB)
-
         ResidualTime_Plus_DT = Me%Residual%ResidualTime + Me%WaterLevel%DT
 
         !$OMP PARALLEL PRIVATE(I,J,K,kbottom)
@@ -53442,14 +50810,10 @@ do3:            do  k = kbottom, KUB
         integer, dimension(:, :, :), pointer        :: WaterPoints3D
         integer, dimension(:, :, :), pointer        :: OpenPoints3D
         real                                        :: DT
-
         !Begin --------------------------------------------------------------------------
 
-        WorkILB = Me%WorkSize%ILB
-        WorkIUB = Me%WorkSize%IUB
-        WorkJLB = Me%WorkSize%JLB
-        WorkJUB = Me%WorkSize%JUB
-        WorkKUB = Me%WorkSize%KUB
+        WorkILB = Me%WorkSize%ILB; WorkJLB = Me%WorkSize%JLB
+        WorkIUB = Me%WorkSize%IUB; WorkJUB = Me%WorkSize%JUB; WorkKUB = Me%WorkSize%KUB
 
         WaterPoints3D => Me%External_Var%WaterPoints3D
         OpenPoints3D  => Me%External_Var%OpenPoints3D
@@ -53522,27 +50886,12 @@ do3:            do  k = kbottom, KUB
         if (Me%CurrentTime >= Me%Energy%NextOutPut) then
 
             Me%Energy%NextOutPut = Me%Energy%NextOutPut + Me%Energy%DtOut
-
-
             !Size
-            IUB     = Me%Size%IUB
-            ILB     = Me%Size%ILB
-            JUB     = Me%Size%JUB
-            JLB     = Me%Size%JLB
-            KUB     = Me%Size%KUB
-            KLB     = Me%Size%KLB
-
+            IUB = Me%Size%IUB; JUB  = Me%Size%JUB; KUB  = Me%Size%KUB
+            ILB = Me%Size%ILB; JLB  = Me%Size%JLB; KLB  = Me%Size%KLB
             !WorkSize
-            WorkILB = Me%Energy%Window%ILB
-            WorkIUB = Me%Energy%Window%IUB
-            WorkJLB = Me%Energy%Window%JLB
-            WorkJUB = Me%Energy%Window%JUB
-            WorkKLB = Me%Energy%Window%KLB
-            WorkKUB = Me%Energy%Window%KUB
-
-            !Gets a pointer to the bathymetry
-            !call GetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-            !if (STAT_CALL /= SUCCESS_) stop 'ComputeSystemEnergy - ModuleHydrodynamic - ERR00'
+            WorkILB = Me%Energy%Window%ILB; WorkJLB = Me%Energy%Window%JLB; WorkKLB = Me%Energy%Window%KLB
+            WorkIUB = Me%Energy%Window%IUB; WorkJUB = Me%Energy%Window%JUB; WorkKUB = Me%Energy%Window%KUB
 
             !Shorten variable names
             WaterPoints3D  => Me%External_Var%WaterPoints3D
@@ -53917,15 +51266,10 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
                 call WriteEnergyDataFile
             endif
 
-            !Disposes pointer to the Bathymetry
-            !call UngetGridData(Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
-            !if (STAT_CALL /= SUCCESS_) stop 'ComputeSystemEnergy - ModuleHydrodynamic - ERR03'
-
             !Nullifies pointers
             nullify(WaterPoints3D, Density, VolumeZ, SZZ, DWZ, Energy_CenterU, Energy_CenterV, Energy_CenterW)
             nullify(OpenPoints3D, BoundaryPoints)
             nullify(DUX, DVY)
-
 
         endif
 
@@ -53940,8 +51284,6 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
     subroutine WriteEnergyDataFile !Frank Out99
 
         !Arguments-------------------------------------------------------------
-
-
         !Local
         integer                             :: iBuffer
 
@@ -54000,14 +51342,9 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
         !Bounds
         if (present(iW)) then
 
-            WorkILB = Me%OutW%OutPutWindows(iW)%ILB
-            WorkIUB = Me%OutW%OutPutWindows(iW)%IUB
-
-            WorkJLB = Me%OutW%OutPutWindows(iW)%JLB
-            WorkJUB = Me%OutW%OutPutWindows(iW)%JUB
-
-            WorkKLB = Me%OutW%OutPutWindows(iW)%KLB
-            WorkKUB = Me%OutW%OutPutWindows(iW)%KUB
+            WorkILB = Me%OutW%OutPutWindows(iW)%ILB; WorkIUB = Me%OutW%OutPutWindows(iW)%IUB
+            WorkJLB = Me%OutW%OutPutWindows(iW)%JLB; WorkJUB = Me%OutW%OutPutWindows(iW)%JUB
+            WorkKLB = Me%OutW%OutPutWindows(iW)%KLB; WorkKUB = Me%OutW%OutPutWindows(iW)%KUB
 
             ObjHDF5 = Me%OutW%ObjHDF5(iW)
 
@@ -54022,14 +51359,8 @@ cd2:            if (WaterPoints3D(i  , j  ,k)== WaterPoint .and.                
 
         else
 
-            WorkILB = Me%WorkSize%ILB
-            WorkIUB = Me%WorkSize%IUB
-
-            WorkJLB = Me%WorkSize%JLB
-            WorkJUB = Me%WorkSize%JUB
-
-            WorkKLB = Me%WorkSize%KLB
-            WorkKUB = Me%WorkSize%KUB
+            WorkILB = Me%WorkSize%ILB; WorkJLB = Me%WorkSize%JLB; WorkKLB = Me%WorkSize%KLB
+            WorkIUB = Me%WorkSize%IUB; WorkJUB = Me%WorkSize%JUB; WorkKUB = Me%WorkSize%KUB
 
             ObjHDF5 = Me%ObjHDF5
 
@@ -54956,17 +52287,10 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
         if (OutputNumber == 1) then
 
-            WorkILB = Me%WorkSize%ILB
-            WorkIUB = Me%WorkSize%IUB
-            WorkJLB = Me%WorkSize%JLB
-            WorkJUB = Me%WorkSize%JUB
-            WorkKLB = Me%WorkSize%KLB
-            WorkKUB = Me%WorkSize%KUB
-
-
+            WorkILB = Me%WorkSize%ILB; WorkJLB = Me%WorkSize%JLB; WorkKLB = Me%WorkSize%KLB
+            WorkIUB = Me%WorkSize%IUB; WorkJUB = Me%WorkSize%JUB; WorkKUB = Me%WorkSize%KUB
 
             allocate(Aux3D(WorkILB:WorkIUB+1, WorkJLB:WorkJUB+1, WorkKLB-1:WorkKUB))
-
 
             !Writes SZZ
             call HDF5SetLimits  (ObjHDF5, WorkILB, WorkIUB+1, WorkJLB,                  &
@@ -55066,11 +52390,9 @@ cd3:        if (Me%ComputeOptions%Residual) then
             enddo
             enddo
 
-            ILB = WorkILB
-            IUB = WorkIUB + 1
-            JLB = WorkJLB
-            JUB = WorkJUB + 1
-
+            ILB = WorkILB;     JLB = WorkJLB
+            IUB = WorkIUB + 1; JUB = WorkJUB + 1
+            
             allocate(Value2D(ILB-1:IUB+1, JLB-1:JUB+1))
             allocate(Map2D  (ILB-1:IUB+1, JLB-1:JUB+1))
 
@@ -55131,7 +52453,6 @@ cd3:        if (Me%ComputeOptions%Residual) then
     !--------------------------------------------------------------------------
 
 
-
     subroutine Write_Surface_HDF5_Format
 
         !Local-----------------------------------------------------------------
@@ -55150,13 +52471,9 @@ cd3:        if (Me%ComputeOptions%Residual) then
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Write_Surface_HDF5_Format")
 
 
-        WorkILB = Me%WorkSize%ILB
-        WorkIUB = Me%WorkSize%IUB
-        WorkJLB = Me%WorkSize%JLB
-        WorkJUB = Me%WorkSize%JUB
-        WorkKLB = Me%WorkSize%KLB
-        WorkKUB = Me%WorkSize%KUB
-
+        WorkILB = Me%WorkSize%ILB; WorkJLB = Me%WorkSize%JLB; WorkKLB = Me%WorkSize%KLB
+        WorkIUB = Me%WorkSize%IUB; WorkJUB = Me%WorkSize%JUB; WorkKUB = Me%WorkSize%KUB
+       
         OpenPoints3D      => Me%External_Var%OpenPoints3D
         NextSurfaceOutPut =  Me%OutPut%NextSurfaceOutPut
 
@@ -55316,24 +52633,16 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
     subroutine ModifyMatrixesOutput
 
-
         !Arguments-------------------------------------------------------------
-
 
         !Local-----------------------------------------------------------------
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                             :: i, j, k, kbottom
-        integer                             :: CHUNK
-
+        integer                             :: i, j, k, kbottom, CHUNK
         !----------------------------------------------------------------------
 
         !Bounds
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB; KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB; KUB = Me%WorkSize%KUB
 
         !Horizontal Velocity
         call CenterVelocity( CenterU = Me%OutPut%CenterU, CenterV = Me%OutPut%CenterV,    &
@@ -55578,14 +52887,8 @@ cd3:        if (Me%ComputeOptions%Residual) then
         integer                                           :: CHUNK
 
         !Bounds
-        ILB = Me%Size%ILB
-        IUB = Me%Size%IUB
-
-        JLB = Me%Size%JLB
-        JUB = Me%Size%JUB
-
-        KLB = Me%Size%KLB
-        KUB = Me%Size%KUB
+        ILB = Me%Size%ILB; JLB = Me%Size%JLB; KLB = Me%Size%KLB
+        IUB = Me%Size%IUB; JUB = Me%Size%JUB; KUB = Me%Size%KUB
 
         AngleX = 0.
         AngleY = 0.
@@ -55601,8 +52904,7 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
             Simple = .true.
 
-! Modified by Matthias DELPEY - 25/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! Modified by Matthias DELPEY - 25/11/2011
+! Modified by Matthias DELPEY - 25/11/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         elseif (VectorType == StokesDriftVelocity) then
 
             FaceVelocityU => Me%StokesVel%Horizontal%U%New
@@ -55696,30 +52998,24 @@ cd3:        if (Me%ComputeOptions%Residual) then
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
-
                 if (Me%External_Var%WaterPoints3D(i, j, k) == 1) then
 
                     AngleX = Me%External_Var%RotationX(i, j)
                     AngleY = Me%External_Var%RotationY(i, j)
 
                     VelU = (FaceVelocityU(i, j, k)  +   FaceVelocityU(i, j+1, k)) / 2.
-
                     VelV = (FaceVelocityV(i, j, k)  +   FaceVelocityV(i+1, j, k)) / 2.
                 else
-
                     VelU = 0.
                     VelV = 0.
-
                 endif
 
                 CenterU(i, j, k) = VelU * cos(AngleX) + VelV * cos(AngleY)
                 CenterV(i, j, k) = VelU * sin(AngleX) + VelV * sin(AngleY)
-
             enddo
             enddo
             !$OMP END DO
             enddo
-
 
         elseif(Me%External_Var%Distortion .and. Double)then
 
@@ -55727,32 +53023,25 @@ cd3:        if (Me%ComputeOptions%Residual) then
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
-
-
                 if (Me%External_Var%WaterPoints3D(i, j, k) == 1) then
 
                     AngleX = Me%External_Var%RotationX(i, j)
                     AngleY = Me%External_Var%RotationY(i, j)
 
                     VelU = (FaceUDouble(i, j, k)  +  FaceUDouble(i, j+1, k)) / 2.
-
                     VelV = (FaceVDouble(i, j, k)  +  FaceVDouble(i+1, j, k)) / 2.
 
                 else
-
                     VelU = 0.
                     VelV = 0.
-
                 endif
 
                 CenterU(i, j, k) = VelU * cos(AngleX) + VelV * cos(AngleY)
                 CenterV(i, j, k) = VelU * sin(AngleX) + VelV * sin(AngleY)
-
             enddo
             enddo
             !$OMP END DO
             enddo
-
 
         elseif((.not. Me%External_Var%Distortion) .and. Simple)then
 
@@ -55760,7 +53049,6 @@ cd3:        if (Me%ComputeOptions%Residual) then
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
-
                 if (Me%External_Var%WaterPoints3D(i, j, k) == 1) then
 
                     AngleX = 0.
@@ -55770,19 +53058,14 @@ cd3:        if (Me%ComputeOptions%Residual) then
                     AngleY = AngleY + Me%External_Var%GridRotation
 
                     VelU = (FaceVelocityU(i, j, k)  +   FaceVelocityU(i, j+1, k)) / 2.
-
                     VelV = (FaceVelocityV(i, j, k)  +   FaceVelocityV(i+1, j, k)) / 2.
 
                 else
-
                     VelU = 0.
                     VelV = 0.
-
                 endif
-
                 CenterU(i, j, k) = VelU * cos(AngleX) + VelV * cos(AngleY)
                 CenterV(i, j, k) = VelU * sin(AngleX) + VelV * sin(AngleY)
-
             enddo
             enddo
             !$OMP END DO
@@ -55794,12 +53077,10 @@ cd3:        if (Me%ComputeOptions%Residual) then
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do j = JLB, JUB
             do i = ILB, IUB
-
                 if (Me%External_Var%WaterPoints3D(i, j, k) == 1) then
 
                     AngleX = 0.
                     AngleY = Pi/2.
-
 
                     AngleX = AngleX + Me%External_Var%GridRotation
                     AngleY = AngleY + Me%External_Var%GridRotation
@@ -55809,15 +53090,12 @@ cd3:        if (Me%ComputeOptions%Residual) then
                     VelV = (FaceVDouble(i, j, k)  +  FaceVDouble(i+1, j, k)) / 2.
 
                 else
-
                     VelU = 0.
                     VelV = 0.
-
                 endif
 
                 CenterU(i, j, k) = VelU * cos(AngleX) + VelV * cos(AngleY)
                 CenterV(i, j, k) = VelU * sin(AngleX) + VelV * sin(AngleY)
-
             enddo
             enddo
             !$OMP END DO
@@ -55842,26 +53120,17 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
     subroutine OutPut_TimeSeries
 
-        !Arguments-------------------------------------------------------------
-
-
+        !Arguments------------------------------------------------------------
         !External--------------------------------------------------------------
-
         !Local-----------------------------------------------------------------
         real                                    :: DepthLevel
         integer                                 :: STAT_CALL, TimeSerieNumber, dn, id, jd, kd
         logical                                 :: DepthON, IgnoreOK
         integer                                 :: IUB,ILB,JUB,JLB,KUB,KLB
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
-
-
-
+        !Begin-------------------------------------------------------------------
+        IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB; KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB; KLB = Me%WorkSize%KLB
+        
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "OutPut_TimeSeries")
 
         !Corrects if necessary the cell of the time serie based in the time serie depth
@@ -55910,27 +53179,21 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
                 endif
             endif
-
         enddo
-
 
         !West-East Velocity
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                            Data3D = Me%OutPut%CenterU,                                 &
-                            STAT = STAT_CALL)
+                            Data3D = Me%OutPut%CenterU, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR60'
 
         !South-North Velocity
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                            Data3D = Me%OutPut%CenterV,                                 &
-                            STAT = STAT_CALL)
+                            Data3D = Me%OutPut%CenterV, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR65'
-
 
         !Vertical Velocity
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                            Data3D = Me%OutPut%CenterW,                                 &
-                            STAT = STAT_CALL)
+                            Data3D = Me%OutPut%CenterW, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR66'
 
         !Horizontal Velocity intensity
@@ -55941,28 +53204,21 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
         !Horizontal Velocity Direction
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                            Data3D = Me%OutPut%DirectionH,                              &
-                            STAT = STAT_CALL)
+                            Data3D = Me%OutPut%DirectionH, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR100'
-
 
         !Elevation
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
                             Data2D = Me%WaterLevel%New,                                 &
-                            factor = Me%OutPut%WaterLevelUnits,                         &
-                            STAT   = STAT_CALL)
+                            factor = Me%OutPut%WaterLevelUnits, STAT   = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR110'
-
 
        !Open Points
         call WriteTimeSerie(Me%ObjTimeSerie,                                            &
-                            Data3D_Int = Me%External_Var%OpenPoints3D,                  &
-                            STAT = STAT_CALL)
+                            Data3D_Int = Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPut_TimeSeries - ModuleHydrodynamic - ERR120'
 
-
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "OutPut_TimeSeries")
-
 
     end subroutine OutPut_TimeSeries
 
@@ -56006,29 +53262,24 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
         !Local-----------------------------------------------------------------
         integer                                 :: STAT_CALL
-
         !Begin-----------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "OutPut_Profile")
 
         call WriteProfile(Me%ObjProfile,                                        &
                           Me%OutPut%CenterU,                                    &
-                          SZZ    = Me%External_Var%SZZ,                         &
-                          STAT   = STAT_CALL)
+                          SZZ    = Me%External_Var%SZZ, STAT   = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR01'
 
         call WriteProfile(Me%ObjProfile,                                        &
                           Me%OutPut%CenterV,                                    &
-                          SZZ    = Me%External_Var%SZZ,                         &
-                          STAT   = STAT_CALL)
+                          SZZ    = Me%External_Var%SZZ, STAT   = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR02'
 
         call WriteProfile(Me%ObjProfile,                                        &
                           Me%OutPut%CenterW,                                    &
-                          SZZ    = Me%External_Var%SZZ,                         &
-                          STAT   = STAT_CALL)
+                          SZZ    = Me%External_Var%SZZ, STAT   = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR03'
-
 
         call WriteProfile(Me%ObjProfile,                                        &
                           Me%OutPut%ModulusH,                                   &
@@ -56038,17 +53289,14 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
         call WriteProfile(Me%ObjProfile,                                        &
                           Me%OutPut%DirectionH,                                 &
-                          SZZ    = Me%External_Var%SZZ,                         &
-                          STAT   = STAT_CALL)
+                          SZZ    = Me%External_Var%SZZ, STAT   = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'OutPut_Profile - ModuleHydrodynamic - ERR05'
 
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "OutPut_Profile")
 
-
     end subroutine OutPut_Profile
 
     !--------------------------------------------------------------------------------------
-
 
     Real Function TangentialVelInterpolation(Velocity_VU_New, ComputeFaces3D_VU, &
                                              DXX_YY, di, dj, I, J, K)
@@ -56064,7 +53312,6 @@ cd3:        if (Me%ComputeOptions%Residual) then
                         Face34, VUvar1, VUvar2, VUAverage
         integer      :: I1, I2, I3, J1, J2, J3
 
-
             I1    = I+dj-di
             J1    = J-dj+di
             I2    = I+dj
@@ -56072,17 +53319,12 @@ cd3:        if (Me%ComputeOptions%Residual) then
             I3    = I-di
             J3    = J-dj
 
-
-
             !This aux variables are needed to the velocity_UV_New interpolation
             !be valid near the open boundary faces and near land faces
 
             Face1      = ComputeFaces3D_VU(I1, J1, K)
-
             Face2      = ComputeFaces3D_VU(I2, J2, K)
-
             Face3      = ComputeFaces3D_VU(I3, J3, K)
-
             Face4      = ComputeFaces3D_VU(I , J , K)
 
             ! Average velocity in the North or East face
@@ -56108,7 +53350,6 @@ cd3:        if (Me%ComputeOptions%Residual) then
             else
 
                 VUvar1 = 0.
-
                 Face12 = Not_Covered
 
             endif
@@ -56121,7 +53362,6 @@ cd3:        if (Me%ComputeOptions%Residual) then
 
             if (Face3 == Covered .and. Face4 == Covered) then
 
-
                 VUvar2 = (Velocity_VU_New(I3, J3, K) * DXX_YY(I, J)   + &
                           Velocity_VU_New(I,   J, K) * DXX_YY(I3, J3))/ &
                          (DXX_YY(I3, J3) +  DXX_YY(I, J))
@@ -56131,35 +53371,21 @@ cd3:        if (Me%ComputeOptions%Residual) then
                 VUvar2 = Velocity_VU_New(I3, J3, K)
 
             else if (Face4 == Covered) then
-
                 VUvar2 = Velocity_VU_New(I , J , K)
-
             else
-
                 VUvar2 = 0.
-
                 Face34 = Not_Covered
-
             endif
-
 
             ! Velocity V in the U point or Velocity U in the V point
             if (Face12 == Covered .and. Face34 == Covered) then
-
                 VUAverage  = (VUvar1 + VUvar2)/2.
-
             else if (Face12 == Covered) then
-
                 VUAverage  = VUvar1
-
             else if (Face34 == Covered) then
-
                 VUAverage  = VUvar2
-
             else
-
                 VUAverage  = 0.
-
             endif
 
             TangentialVelInterpolation = VUAverage
@@ -56174,21 +53400,15 @@ cd3:        if (Me%ComputeOptions%Residual) then
         integer                                     :: HydrodynamicID
         logical                                     :: Overlap
         integer, optional                           :: STAT
-
         !Local-------------------------------------------------------------------
-        integer                                     :: STAT_
-        integer                                     :: ready_
-
+        integer                                     :: STAT_, ready_
         !------------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(HydrodynamicID, ready_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
-
             Overlap = Me%ComputeOptions%Overlap
-
             STAT_ = SUCCESS_
         else
             STAT_ = ready_
@@ -56208,19 +53428,14 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         integer                                     :: OverlapHydrodynamicID
         integer, dimension(:,:),pointer             :: OverlapCells
         integer, optional                           :: STAT
-
         !Local-------------------------------------------------------------------
         integer                                     :: STAT_
         integer                                     :: ready_, readyOverlap_
         type(T_Hydrodynamic),    pointer            :: ObjOverlapHydrodynamic
         integer                                     :: n, nOverlapCells, i, j, io, jo, k
         real                                        :: AuxWaterLevel, AuxU, AuxV
-
         !------------------------------------------------------------------------
-
-
         call Ready          (HydrodynamicID, ready_)
-
         call ReadyFather    (OverlapHydrodynamicID, ObjOverlapHydrodynamic, readyOverlap_)
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyOverlap_ .EQ. IDLE_ERR_) then
@@ -56236,26 +53451,21 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyOverlap_ .EQ. IDLE_ERR_) then
                 jo  = OverlapCells(n, 4)
 
                 AuxWaterLevel                                    = Me%WaterLevel%New(i,j)
-
                 !Me%Velocity%Horizontal%U%New(i,j,k)             = ObjOverlapHydrodynamic%Velocity%Horizontal%U%New(io,jo,k)
                 Me%Velocity%Horizontal%V%New(i,j,k)              = ObjOverlapHydrodynamic%Velocity%Horizontal%V%New(io,jo,k)
 
                 ObjOverlapHydrodynamic%WaterLevel%New(io,jo  )   = AuxWaterLevel
             enddo
 
-
             STAT_ = SUCCESS_
         else cd1
 
             STAT_ = ready_
-
-
         end if cd1
 
         if(present(STAT)) STAT = STAT_
 
     end subroutine SetModelOverlapHydro
-
 
 #endif OVERLAP
 
@@ -56269,20 +53479,14 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyOverlap_ .EQ. IDLE_ERR_) then
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-
     subroutine KillHydrodynamic(HydrodynamicID, STAT)
 
         !Arguments-------------------------------------------------------------
         integer,           intent(INOUT) :: HydrodynamicID
         integer, optional, intent(OUT)   :: STAT
-
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_, nUsers
-        integer :: STAT_CALL
-        integer :: ready_
-
+        integer :: STAT_CALL, ready_
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -56322,26 +53526,18 @@ cd3:            if (Me%OutPut%hdf5ON) then
                 endif cd3
 
                 if (Me%OutPut%HDF5_Surface_ON) then
-
                     call KillHDF5 (Me%ObjSurfaceHDF5, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'KillHydrodynamic - ModuleHydrodynamic - ERR20'
-
                 endif
 
                 if (Me%OutPut%ProfileON) then
-
                     call ReadLock_External_Modules
-
                     call OutPut_Profile
-
                     call ReadUnLock_External_Modules
-
                 endif
 
                 if (Me%ComputeOptions%Evolution == Solve_Equations_) then
-
                     call Write_Final_Hydrodynamic_File
-
                 endif
 
                 call Deassociate_External_Modules
@@ -56359,9 +53555,7 @@ cd3:            if (Me%OutPut%hdf5ON) then
 #endif _ENABLE_CUDA
 
                 call KillDDecomp
-
                 call DeallocateVariables
-
                 call DeallocateInstance()
 
                 HydrodynamicID = 0
@@ -56370,15 +53564,11 @@ cd3:            if (Me%OutPut%hdf5ON) then
             end if cd2
 
         else
-
             STAT_ = UNKNOWN_
-
         end if cd1
-
 
         if (present(STAT))                                                    &
             STAT = STAT_
-
         !----------------------------------------------------------------------
 
     end subroutine KillHydrodynamic
@@ -56433,7 +53623,6 @@ cd3:            if (Me%OutPut%hdf5ON) then
             if (STAT_CALL /= SUCCESS_) stop 'Kill_Imposed_Solution - ModuleHydrodynamic - ERR70'
         end if
 
-
     end subroutine Kill_Imposed_Solution
 
     !--------------------------------------------------------------------------
@@ -56457,33 +53646,18 @@ cd3:            if (Me%OutPut%hdf5ON) then
     subroutine Write_Final_Bin
 
         !Arguments-------------------------------------------------------------
-
-
         !External--------------------------------------------------------------
-
         integer :: STAT_CALL
-
         !Local-----------------------------------------------------------------
-
-
         real               :: Year_File, Month_File, Day_File, &
                               Hour_File, Minute_File, Second_File
 
         integer            :: IUB, JUB, KUB, ILB, JLB, KLB
         integer            :: FinalFile, i, j, k
         character (Len = Pathlength)          :: filename
-
         !----------------------------------------------------------------------
-
-        ILB = Me%Size%ILB
-        IUB = Me%Size%IUB
-
-        JLB = Me%Size%JLB
-        JUB = Me%Size%JUB
-
-        KLB = Me%Size%KLB
-        KUB = Me%Size%KUB
-
+        ILB = Me%Size%ILB; JLB = Me%Size%JLB; KLB = Me%Size%KLB
+        IUB = Me%Size%IUB; JUB = Me%Size%JUB; KUB = Me%Size%KUB
 
         call UnitsManager(FinalFile, FileOpen, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                       &
@@ -56492,14 +53666,10 @@ cd3:            if (Me%OutPut%hdf5ON) then
         !Checks if it's at the end of the run
         !or !if it's supposed to overwrite the final HDF file
         if (Me%Output%Run_End .or. Me%Output%RestartOverwrite) then
-
             filename = trim(Me%Files%FinalHydrodynamic)
-
         else
-
             filename =  ChangeSuffix(Me%Files%FinalHydrodynamic,                         &
                             "_"//trim(TimeToString(Me%CurrentTime))//".fin")
-
         endif
 
         open(Unit = FinalFile, File = trim(filename),           &
@@ -56513,8 +53683,6 @@ cd3:            if (Me%OutPut%hdf5ON) then
         if (STAT_CALL /= SUCCESS_)                                                       &
             call SetError (FATAL_, INTERNAL_,'Write_Final_Bin; ModuleHydrodynamic. ERR30.')
 
-
-
         !Start writting the final hydrodynamic conditions file
 
         call ExtractDate(Me%CurrentTime, Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File)
@@ -56523,27 +53691,20 @@ cd3:            if (Me%OutPut%hdf5ON) then
 
         !Write the discretization Method used
         write(FinalFile) Me%ComputeOptions%Num_Discretization
-
-
         write(FinalFile) Me%ComputeOptions%Residual
-
         !Write the last direction computed implicit by the model
         write(FinalFile) Me%Direction%XY
-
 
         !Water level
         write(FinalFile) ((Me%WaterLevel%New(i, j),                         &
                            i = ILB, IUB), j = JLB, JUB)
 
-
         !Horizontal velocity Old
         write(FinalFile) (((Me%Velocity%Horizontal%U%Old(i, j, k),          &
                            i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
 
-
         write(FinalFile) (((Me%Velocity%Horizontal%V%Old(i, j, k),          &
                            i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
 
         !Horizontal velocity New
         write(FinalFile) (((Me%Velocity%Horizontal%U%New(i, j, k),          &
@@ -56564,9 +53725,7 @@ cd3:            if (Me%OutPut%hdf5ON) then
 
 cd1:    if (Me%ComputeOptions%Residual) then
 
-
             write(FinalFile) Me%Residual%ResidualTime
-
             !Average water level
             write(FinalFile) ((Me%Residual%WaterLevel(i, j),                &
                                i = ILB, IUB), j = JLB, JUB)
@@ -56588,7 +53747,6 @@ cd1:    if (Me%ComputeOptions%Residual) then
             write(FinalFile) (((Me%Residual%WaterFlux_Y(i, j, k) ,          &
                                i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
 
-
         endif cd1
 
         call WriteGeometryBin(Me%ObjGeometry, FinalFile, STAT = STAT_CALL)
@@ -56597,22 +53755,18 @@ cd1:    if (Me%ComputeOptions%Residual) then
             call SetError (FATAL_, INTERNAL_,'Write_Final_Bin; ModuleHydrodynamic. ERR40.')
 
 cd2:    if (Me%ComputeOptions%Residual) then
-
             !Residual layer thickness
             write(FinalFile) (((Me%Residual%DWZ(i, j, k),                   &
                                i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
         endif cd2
 
         write(FinalFile) Me%ComputeOptions%BaroclinicRadia
 
 cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
 
-
             !Horizontal baroclinic velocity Old
             write(FinalFile) (((Me%VelBaroclinic%U%Old(i, j, k),            &
                                            i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
 
             write(FinalFile) (((Me%VelBaroclinic%V%Old(i, j, k),            &
                                            i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
@@ -56630,9 +53784,7 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
 
             write(FinalFile) (((Me%VelBaroclinic%W_Old(i, j, k),            &
                                            i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
         endif cd4
-
 
         if (Me%NonHydrostatic%ON) then
 
@@ -56661,29 +53813,21 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
 
         endif
 
-
         call UnitsManager(FinalFile, FileClose, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_)                                                        &
             call SetError (FATAL_, INTERNAL_,'Write_Final_Bin; ModuleHydrodynamic. ERR70.')
 
-
     end subroutine Write_Final_Bin
 
     !End--------------------------------------------------------------------------
-
 
     !--------------------------------------------------------------------------
     ! The model writes the final hydrodynamic properties in a HDF5
     subroutine Write_Final_HDF5
 
         !Arguments-------------------------------------------------------------
-
-
-
         !External--------------------------------------------------------------
-
         integer :: STAT_CALL
-
         !Local-----------------------------------------------------------------
         real,       dimension(:,:),     pointer     :: Bathymetry
         integer,    dimension(:,:,:),   pointer     :: WaterPoints3D
@@ -56694,35 +53838,21 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
         integer,    dimension(:),       pointer     :: AuxInt
         real,       dimension(:),       pointer     :: AuxReal
         character (Len = Pathlength)                :: filename
-
-
         !----------------------------------------------------------------------
 
         allocate(AuxReal(1), AuxInt(1))
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB + 1
-
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB + 1
-
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB + 1
-
+        ILB = Me%WorkSize%ILB;     JLB = Me%WorkSize%JLB;     KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB + 1; JUB = Me%WorkSize%JUB + 1; KUB = Me%WorkSize%KUB + 1
 
         !Checks if it's at the end of the run
         !or !if it's supposed to overwrite the final HDF file
         if (Me%Output%Run_End .or. Me%Output%RestartOverwrite) then
-
             filename = trim(Me%Files%FinalHydrodynamic)
-
         else
-
             filename =  ChangeSuffix(Me%Files%FinalHydrodynamic,                         &
                             "_"//trim(TimeToString(Me%CurrentTime))//".fin")
-
         endif
-
 
         !Gets a pointer to Bathymetry
         call GetGridData      (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
@@ -56744,7 +53874,6 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
                                  HDF5_CREATE, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR40'
 
-
         !Write the Horizontal Grid
         call WriteHorizontalGrid_UV(Me%ObjHorizontalGrid, ObjHDF5,                         &
                                     WorkSize = Me%WorkSize2D, STAT = STAT_CALL)
@@ -56756,20 +53885,16 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
 
         !Writes the Grid
         call HDF5WriteData   (ObjHDF5, "/Grid", "Bathymetry", "m",                      &
-                              Array2D = Bathymetry,                                     &
-                              STAT = STAT_CALL)
+                              Array2D = Bathymetry, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR70'
 
         call HDF5WriteData   (ObjHDF5, "/Grid", "WaterPoints3D", "-",                   &
-                              Array3D = WaterPoints3D,                                  &
-                              STAT    = STAT_CALL)
+                              Array3D = WaterPoints3D, STAT    = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR80'
-
 
         !Writes everything to disk
         call HDF5FlushMemory (ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR90'
-
 
         !Ungets the Bathymetry
         call UngetGridData (Me%ObjGridData, Bathymetry, STAT = STAT_CALL)
@@ -56778,7 +53903,6 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
         !Ungets the WaterPoints
         call UnGetMap        (Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR120'
-
 
         !Time Properties - Actualizes CurrentTime
         call GetComputeCurrentTime(Me%ObjTime, Me%CurrentTime, STAT = STAT_CALL)
@@ -56798,7 +53922,6 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
         if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR150'
 
         !!!!!!!!!!!!!!!!!start hydrodynamic options!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
 
         !Sets limits for next write operations
         call HDF5SetLimits   (ObjHDF5, 1, 1, STAT = STAT_CALL)
@@ -56892,8 +54015,6 @@ cd2:    if (Me%ComputeOptions%Residual) then
                              STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR190'
 
-
-
         !Horizontal velocity Old
         !write(FinalFile) (((Me%Velocity%Horizontal%U%Old(i, j, k),          &
         !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
@@ -56905,7 +54026,6 @@ cd2:    if (Me%ComputeOptions%Residual) then
                              STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR200'
 
-
         !write(FinalFile) (((Me%Velocity%Horizontal%V%Old(i, j, k),          &
         !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
         call HDF5WriteData  (HDF5ID         = ObjHDF5,                                  &
@@ -56915,8 +54035,6 @@ cd2:    if (Me%ComputeOptions%Residual) then
                              Array3D        = Me%Velocity%Horizontal%V%Old,             &
                              STAT           = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR210'
-
-
 
         !Horizontal velocity New
         !write(FinalFile) (((Me%Velocity%Horizontal%U%New(i, j, k),          &
@@ -57006,7 +54124,6 @@ cd1:    if (Me%ComputeOptions%Residual) then
                                  STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR300'
 
-
             !Residual vertical velocity
             !write(FinalFile) (((Me%Residual%Vertical_Velocity(i, j, k),     &
             !                   i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
@@ -57065,10 +54182,7 @@ cd23:   if (Me%ComputeOptions%Residual) then
 
         endif cd23
 
-
-
 cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
-
 
             !Horizontal baroclinic velocity Old
             !write(FinalFile) (((Me%VelBaroclinic%U%Old(i, j, k),            &
@@ -57121,7 +54235,6 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
             !write(FinalFile) (((Me%VelBaroclinic%W_Old(i, j, k),            &
             !                               i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
 
-
             call HDF5WriteData  (HDF5ID         = ObjHDF5,                              &
                                  GroupName      = "/Results",                           &
                                  Name           = "Velocity Baroclinic W New",          &
@@ -57138,9 +54251,7 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
                                  STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR410'
 
-
         endif cd4
-
 
         if (Me%NonHydrostatic%ON) then
 
@@ -57175,7 +54286,6 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
                                  STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR420'
 
-
             !write(FinalFile, IOSTAT = STAT_CALL)                                        &
             !    (((Me%SubModel%qY(i, j, k),                                             &
             !       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
@@ -57191,9 +54301,7 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
                                  STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR430'
 
-
         endif
-
 
         call KillHDF5 (ObjHDF5, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Write_Final_HDF5 - ModuleHydrodynamic - ERR440'
@@ -57210,7 +54318,6 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
     subroutine Read_Final_Hydrodynamic_File
 
         !Arguments-------------------------------------------------------------
-
         !Local-----------------------------------------------------------------
         logical                             :: BinaryFormatOK, HDF5FormatOK
         !Begin-----------------------------------------------------------------
@@ -57218,13 +54325,11 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
         call Read_Final_HDF5(HDF5FormatOK)
 
         if (.not. HDF5FormatOK) then
-
             call Read_Final_Bin(BinaryFormatOK)
 
             if (.not. BinaryFormatOK) then
                 stop 'Read_Final_Hydrodynamic_File - ModuleHydrodynamic - ERR10'
             endif
-
         endif
 
     end subroutine Read_Final_Hydrodynamic_File
@@ -57235,13 +54340,9 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
     subroutine Read_Final_Bin(BinaryFormatOK)
 
         !Arguments-------------------------------------------------------------
-
         logical                             :: BinaryFormatOK
-
         !External--------------------------------------------------------------
-
         integer :: STAT_CALL
-
         !Local-----------------------------------------------------------------
         real   , dimension(:,:  ), pointer :: Aux2D
         real   , dimension(:,:,:), pointer :: Aux3D
@@ -57260,15 +54361,8 @@ cd4:    if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
         logical                            :: EXT, Residual
         !----------------------------------------------------------------------
 
-        ILB = Me%Size%ILB
-        IUB = Me%Size%IUB
-
-        JLB = Me%Size%JLB
-        JUB = Me%Size%JUB
-
-        KLB = Me%Size%KLB
-        KUB = Me%Size%KUB
-
+        ILB = Me%Size%ILB; JLB = Me%Size%JLB; KLB = Me%Size%KLB
+        IUB = Me%Size%IUB; JUB = Me%Size%JUB; KUB = Me%Size%KUB
 
         inquire (FILE=Me%Files%InitialHydrodynamic, EXIST=EXT)
 
@@ -57305,7 +54399,6 @@ i1:     if (STAT_CALL /= SUCCESS_) then
 
             call SetDate(EndTimeFile, Year_File, Month_File, Day_File, Hour_File, Minute_File, Second_File)
 
-
             call GetComputeTimeLimits(Me%ObjTime, BeginTime = BeginTime, &
                                       EndTime = EndTime, STAT = STAT_CALL)
 
@@ -57323,34 +54416,25 @@ i1:     if (STAT_CALL /= SUCCESS_) then
                 write(*,*) 'DT_error', DT_error
                 call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR05.')
 
-
             endif
 
             read(InitialFile) Previous_Discretization
 
             if (Previous_Discretization /= Me%ComputeOptions%Num_Discretization) then
-
                 write(*,*) 'previous run time discretization is different from this one'
-
                 call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR06.')
-
-
             endif
-
 
             read(InitialFile) Residual
 
             !Read the last direction computed implicit by the model
             read(InitialFile) Me%Direction%XY
 
-
             !Water level
 
-            read(InitialFile) ((Me%WaterLevel%New(i, j), &
-                               i = ILB, IUB), j = JLB, JUB)
+            read(InitialFile) ((Me%WaterLevel%New(i, j), i = ILB, IUB), j = JLB, JUB)
 
             Me%WaterLevel%Old (:,:) = Me%WaterLevel%New(:,:)
-
 
             !Horizontal velocity Old
             read(InitialFile) (((Me%Velocity%Horizontal%U%Old(i, j, k), &
@@ -57367,7 +54451,6 @@ i1:     if (STAT_CALL /= SUCCESS_) then
             read(InitialFile) (((Me%Velocity%Horizontal%V%New(i, j, k), &
                                i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
 
-
             !Water fluxes
             read(InitialFile) (((Me%WaterFluxes%X(i, j, k), &
                                i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
@@ -57378,19 +54461,12 @@ i1:     if (STAT_CALL /= SUCCESS_) then
             read(InitialFile) (((Me%WaterFluxes%Z(i, j, k), &
                                i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
 
-
             Evolution = Me%ComputeOptions%Evolution
 
-
             if (Evolution == Residual_hydrodynamic_ .and. .not. Residual) then
-
                 write(*,*) 'Can not have a residual evolution with out a initial file with residual values'
-
                 call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR07.')
-
-
             endif
-
 
     cd1:    if (Residual .and. .not. Me%ComputeOptions%Residual) then
 
@@ -57426,7 +54502,6 @@ i1:     if (STAT_CALL /= SUCCESS_) then
                 read(InitialFile) (((Aux3DDouble(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
 
                 read(InitialFile) (((Aux3DDouble(i, j, k), i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
 
                 deallocate (Aux2D)
                 deallocate (Aux3D)
@@ -57466,7 +54541,6 @@ i1:     if (STAT_CALL /= SUCCESS_) then
                     enddo
                     enddo
 
-
                 else
 
                     read(InitialFile) Me%Residual%ResidualTime
@@ -57500,14 +54574,9 @@ i1:     if (STAT_CALL /= SUCCESS_) then
 
                     Me%WaterLevel%New(:,:) = Me%Residual%WaterLevel(:,:)
 
-
                     Me%Velocity%Horizontal%U%Old(:,:,:) = Me%Residual%Velocity_U(:,:,:)
-
                     Me%Velocity%Horizontal%U%New(:,:,:) = Me%Residual%Velocity_U(:,:,:)
-
-
                     Me%Velocity%Horizontal%V%Old(:,:,:) = Me%Residual%Velocity_V(:,:,:)
-
                     Me%Velocity%Horizontal%V%New(:,:,:) = Me%Residual%Velocity_V(:,:,:)
 
                     !Module - ModuleHorizontalGrid
@@ -57516,14 +54585,12 @@ i1:     if (STAT_CALL /= SUCCESS_) then
                                             DXX  = Me%External_Var%DXX,                     &
                                             DYY  = Me%External_Var%DYY,                     &
                                             STAT = STAT_CALL)
-
                     if (STAT_CALL /= SUCCESS_)                                              &
                          call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR40.')
 
                     do k = KLB, KUB
                     do j = JLB, JUB
                     do i = ILB, IUB
-
                         ![m3/s]                 = [m2/s] * [m]
                         Me%WaterFluxes%X(i,j,k) = Me%Residual%WaterFlux_X(i,j,k) * Me%External_Var%DYY(i, J)
                         Me%WaterFluxes%Y(i,j,k) = Me%Residual%WaterFlux_Y(i,j,k) * Me%External_Var%DXX(i, J)
@@ -57537,16 +54604,10 @@ i1:     if (STAT_CALL /= SUCCESS_) then
                     if (STAT_CALL /= SUCCESS_)                                              &
                          call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR50.')
 
-
-
                     call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DYY,     &
                                              STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)                                              &
                          call SetError (FATAL_, INTERNAL_,'Read_Final_Bin; ModuleHydrodynamic. ERR60.')
-
-
-
-
                 endif cd2
 
 
@@ -57554,14 +54615,12 @@ i1:     if (STAT_CALL /= SUCCESS_) then
 
                     Me%Residual%ResidualTime    =  0
 
-
                     do  j = JLB, JUB
                     do  i = ILB, IUB
 
                         Me%Residual%WaterLevel(i, j)    =  0.
 
                         do  k = KLB, KUB
-
                             !Residual horizontal velocity
                             Me%Residual%Velocity_U(i, j, k) =  0.
                             Me%Residual%Velocity_V(i, j, k) =  0.
@@ -57577,7 +54636,6 @@ i1:     if (STAT_CALL /= SUCCESS_) then
                             Me%Residual%DWZ(i, j, k) = 0
 
                         enddo
-
                     enddo
                     enddo
 
@@ -57592,17 +54650,14 @@ i1:     if (STAT_CALL /= SUCCESS_) then
                 !Read residual layer thickness
                 read(InitialFile, END = 10) (((Me%Residual%DWZ(i, j, k),        &
                                     i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
     10          continue
 
             endif cd3
-
 
             read(InitialFile, END = 20) BaroclinicRadia
 
     cd4:    if (.not. BaroclinicRadia                                == NoRadiation_ .and.   &
                 .not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
-
 
                 !Horizontal baroclinic velocity Old
                 read(InitialFile, END = 20) (((Me%VelBaroclinic%U%Old(i, j, k), &
@@ -57625,7 +54680,6 @@ i1:     if (STAT_CALL /= SUCCESS_) then
 
                 read(InitialFile, END = 20) (((Me%VelBaroclinic%W_Old(i, j, k), &
                                                i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
             endif cd4
 
     20      continue
@@ -57695,14 +54749,9 @@ i1:     if (STAT_CALL /= SUCCESS_) then
     subroutine Read_Final_HDF5(HDF5FormatOK)
 
         !Arguments-------------------------------------------------------------
-
         logical                             :: HDF5FormatOK
-
-
         !External--------------------------------------------------------------
-
         integer :: STAT_CALL
-
         !Local-----------------------------------------------------------------
         real,    dimension(:), pointer     :: TimeVector
         type (T_Time)                      :: BeginTime, EndTimeFile, EndTime
@@ -57750,9 +54799,7 @@ i1:     if (STAT_CALL /= SUCCESS_) then
 
         if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR20'
 
-
         if (HDF5Stop) then
-
             HDF5FormatOK = .false.
 
             call KillHDF5      (HDF5ID      = ObjHDF5,                                  &
@@ -57761,52 +54808,33 @@ i1:     if (STAT_CALL /= SUCCESS_) then
             if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR25'
 
         else
-
             HDF5FormatOK = .true.
-
         endif
 
 i1:     if (HDF5FormatOK) then
-
 
             call GetHDF5ArrayDimensions (HDF5ID = ObjHDF5, GroupName = "/Grid",     &
                                         ItemName = "WaterPoints3D",                    &
                                         Imax = Imax, Jmax = Jmax, Kmax = Kmax, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR30'
 
-            ILB = Me%WorkSize%ILB
-            IUB = Me%WorkSize%IUB + 1
-
-            JLB = Me%WorkSize%JLB
-            JUB = Me%WorkSize%JUB + 1
-
-            KLB = Me%WorkSize%KLB
-            KUB = Me%WorkSize%KUB + 1
-
+            ILB = Me%WorkSize%ILB;     JLB = Me%WorkSize%JLB;     KLB = Me%WorkSize%KLB 
+            IUB = Me%WorkSize%IUB + 1; JUB = Me%WorkSize%JUB + 1; KUB = Me%WorkSize%KUB + 1
 
     ifMS:   if (Me%DDecomp%MasterOrSlave) then
-
+        
                 call GetDDecompWorkSize2D(HorizontalGridID = Me%ObjHorizontalGrid, &
                                           WorkSize         = WindowLimitsJI,       &
                                           STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR40'
 
-                ILW = WindowLimitsJI%ILB
-                IUW = WindowLimitsJI%IUB + 1
-
-                JLW = WindowLimitsJI%JLB
-                JUW = WindowLimitsJI%JUB + 1
+                ILW = WindowLimitsJI%ILB; IUW = WindowLimitsJI%IUB + 1
+                JLW = WindowLimitsJI%JLB; JUW = WindowLimitsJI%JUB + 1
 
             else ifMS
-
-                ILW = ILB
-                IUW = IUB
-
-                JLW = JLB
-                JUW = JUB
-
+                ILW = ILB; JLW = JLB
+                IUW = IUB; JUW = JUB
             endif ifMS
-
 
             if (ILW < 1   ) then
                 write(*,*) 'ILW < 1 = ', ILW
@@ -57901,7 +54929,6 @@ i1:     if (HDF5FormatOK) then
 
             endif
 
-
             !read(InitialFile) Residual
 
             !Convert logical in int
@@ -57930,8 +54957,6 @@ i1:     if (HDF5FormatOK) then
             Me%Direction%XY = AuxInt(1)
 
             if (Residual .and. Me%ComputeOptions%Residual) then
-
-
                 !read(InitialFile) Me%Residual%ResidualTime
                 call HDF5ReadData (HDF5ID        = ObjHDF5,                                 &
                                    GroupName     = "/Time",                                 &
@@ -57941,7 +54966,6 @@ i1:     if (HDF5FormatOK) then
                 if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR290'
 
                 Me%Residual%ResidualTime = AuxReal(1)
-
             endif
 
             !read(InitialFile, END = 20) BaroclinicRadia
@@ -58053,19 +55077,12 @@ i1:     if (HDF5FormatOK) then
 
             Me%WaterFluxes%Z(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
 
-
             Evolution = Me%ComputeOptions%Evolution
 
-
             if (Evolution == Residual_hydrodynamic_ .and. .not. Residual) then
-
                 write(*,*) 'Can not have a residual evolution with out a initial file with residual values'
-
                 stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR280'
-
-
             endif
-
 
     cd1:    if (Residual .and. .not. Me%ComputeOptions%Residual) then
 
@@ -58080,7 +55097,6 @@ i1:     if (HDF5FormatOK) then
                 write(*,*)
                 write(*,*)
                 write(*,*)
-
 
             else if (Residual .and. Me%ComputeOptions%Residual) then cd1
 
@@ -58157,17 +55173,11 @@ i1:     if (HDF5FormatOK) then
     cd2:        if (Evolution == Residual_hydrodynamic_) then
 
                     Me%WaterLevel%Old(:,:) = Me%Residual%WaterLevel(:,:)
-
                     Me%WaterLevel%New(:,:) = Me%Residual%WaterLevel(:,:)
 
-
                     Me%Velocity%Horizontal%U%Old(:,:,:) = Me%Residual%Velocity_U(:,:,:)
-
                     Me%Velocity%Horizontal%U%New(:,:,:) = Me%Residual%Velocity_U(:,:,:)
-
-
                     Me%Velocity%Horizontal%V%Old(:,:,:) = Me%Residual%Velocity_V(:,:,:)
-
                     Me%Velocity%Horizontal%V%New(:,:,:) = Me%Residual%Velocity_V(:,:,:)
 
                     !Module - ModuleHorizontalGrid
@@ -58176,47 +55186,36 @@ i1:     if (HDF5FormatOK) then
                                            DXX  = Me%External_Var%DXX,                      &
                                            DYY  = Me%External_Var%DYY,                      &
                                            STAT = STAT_CALL)
-
                     if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR360'
 
                     do k = KLB, KUB
                     do j = JLB, JUB
                     do i = ILB, IUB
-
                         ![m3/s]                 = [m2/s] * [m]
                         Me%WaterFluxes%X(i,j,k) = Me%Residual%WaterFlux_X(i,j,k) * Me%External_Var%DYY(i, J)
                         Me%WaterFluxes%Y(i,j,k) = Me%Residual%WaterFlux_Y(i,j,k) * Me%External_Var%DXX(i, J)
-
                     enddo
                     enddo
                     enddo
 
                     call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DXX,     &
                                              STAT = STAT_CALL)
-
                     if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR370'
-
-
 
                     call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DYY,     &
                                              STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR380'
 
-
-
                 endif cd2
-
 
             else if (.not. Residual .and. Me%ComputeOptions%Residual) then cd1
 
                     Me%Residual%ResidualTime    =  0
 
-
                     do  j = JLB, JUB
                     do  i = ILB, IUB
 
                         Me%Residual%WaterLevel(i, j)    =  0.
-
                         do  k = KLB, KUB
 
                             !Residual horizontal velocity
@@ -58232,12 +55231,9 @@ i1:     if (HDF5FormatOK) then
 
                             !Read residual layer thickness
                             Me%Residual%DWZ(i, j, k) = 0
-
                         enddo
-
                     enddo
                     enddo
-
             endif cd1
 
             call ReadGeometryHDF(GeometryID     = Me%ObjGeometry,                           &
@@ -58250,7 +55246,6 @@ i1:     if (HDF5FormatOK) then
             !Sets limits for next ead operations (3D matrixes)
             call HDF5SetLimits   (ObjHDF5, ILW, IUW, JLW, JUW, KLB, KUB, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR150'
-
 
     cd3:    if (Residual .and. Me%ComputeOptions%Residual) then
 
@@ -58267,7 +55262,6 @@ i1:     if (HDF5FormatOK) then
                 Me%Residual%DWZ(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DReal(ILW:IUW,JLW:JUW,KLB:KUB)
 
             endif cd3
-
 
     cd4:    if (.not. BaroclinicRadia                                == NoRadiation_ .and.   &
                 .not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
@@ -58381,15 +55375,6 @@ i1:     if (HDF5FormatOK) then
             if (Me%SubModel%ON) then
 
                 Me%SubModel%HotStartData = .false.
-
-                !read(InitialFile, END = 30, IOSTAT = STAT_CALL)                             &
-                !    (((Me%SubModel%qX(i, j, k),                                             &
-                !       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-                !if (STAT_CALL /= SUCCESS_) then
-                !    call SetError (FATAL_, INTERNAL_,'Read_Final_HDF5; ModuleHydrodynamic. ERR90.')
-                !endif
-
                 call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
                                      GroupName      = "/Results",                           &
                                      Name           = "Submodel qX",                        &
@@ -58398,14 +55383,6 @@ i1:     if (HDF5FormatOK) then
                 if (STAT_CALL /= SUCCESS_) stop 'Read_Final_HDF5 - ModuleHydrodynamic - ERR500'
 
                 Me%SubModel%qX(ILB:IUB,JLB:JUB,KLB:KUB) = Aux3DR8(ILW:IUW,JLW:JUW,KLB:KUB)
-
-                !read(InitialFile, END = 30, IOSTAT = STAT_CALL)                                       &
-                !    (((Me%SubModel%qY(i, j, k),                                             &
-                !       i = ILB, IUB), j = JLB, JUB), k = KLB, KUB )
-
-                !if (STAT_CALL /= SUCCESS_) then
-                !    call SetError (FATAL_, INTERNAL_,'Read_Final_HDF5; ModuleHydrodynamic. ERR100.')
-                !endif
 
                 call HDF5ReadWindow (HDF5ID         = ObjHDF5,                              &
                                      GroupName      = "/Results",                           &
@@ -58447,7 +55424,6 @@ i1:     if (HDF5FormatOK) then
 
     subroutine OutputFloodRisk
 
-
         !Local-----------------------------------------------------------------
         character(len = PathLength)     :: MaxWaterColumnFile
         character(len = PathLength)     :: VelocityAtMaxWaterColumnFile
@@ -58459,7 +55435,6 @@ i1:     if (HDF5FormatOK) then
         character(len = PathLength)     :: MapMinFile
 
         integer                         :: STAT_CALL
-
         !----------------------------------------------------------------------
         MaxWaterColumnFile           = trim(adjustl(Me%Output%FloodRiskRootPath))//"MaxWaterColumn.dat"
         VelocityAtMaxWaterColumnFile = trim(adjustl(Me%Output%FloodRiskRootPath))//"VelocityAtMaxWaterColumn.dat"
@@ -58610,14 +55585,10 @@ i1:     if (HDF5FormatOK) then
 
     subroutine Kill_Sub_Modules
 
-
         !Arguments------------------------------------------------------------
-
         !Local----------------------------------------------------------------
         integer :: STAT_CALL, nUsers, dis
-
         !Begin----------------------------------------------------------------
-
 
         if (Me%ComputeOptions%WaterDischarges) then
 
@@ -58626,9 +55597,7 @@ i1:     if (HDF5FormatOK) then
 
                 call Kill_Discharges(Me%ObjDischarges, STAT = STAT_CALL)
 
-                if (STAT_CALL /= SUCCESS_)                                               &
-                    stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR01.'
-
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR01.'
 
                 if (Me%OutPut%TimeSerieDischON) then
                     do dis = 1, Me%OutPut%DischargesNumber
@@ -58650,24 +55619,19 @@ i1:     if (HDF5FormatOK) then
                 if (nUsers == 0) stop 'Kill_Sub_Modules - ModuleHydrodynamic - ERR02'
 
             else
-
                 stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR03.'
-
             endif
-
         endif
 
 
         !Kill the assimilation object
         if (Me%ComputeOptions%Relaxation .or. Me%ComputeOptions%AltimetryAssimilation%Yes)  then
-
             nUsers = GetUsersNumber(mASSIMILATION_, Me%ObjAssimilation)
             if (nUsers == 1) then
 
                 call KillAssimilation(Me%ObjAssimilation, STAT = STAT_CALL)
 
-                if (STAT_CALL /= SUCCESS_)                                               &
-                    stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR04.'
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR04.'
 
             else if (nUsers > 1) then
 
@@ -58675,38 +55639,27 @@ i1:     if (HDF5FormatOK) then
                 if (nUsers == 0) stop 'Kill_Sub_Modules - ModuleHydrodynamic - ERR05'
 
             else
-
                 stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR06.'
-
             endif
-
-
         endif
 
         call KillOpenBoundary(Me%ObjOpenBoundary, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR07.'
-
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR07.'
 
         if (Me%ComputeOptions%Evolution == Read_File_) then
             call KillHydrodynamicFile(Me%ObjHydrodynamicFileIn, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR08.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR08.'
         endif
 
         if (Me%ComputeOptions%Recording) then
             call KillHydrodynamicFile(Me%ObjHydrodynamicFileOut, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                            &
-                stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR09.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR09.'
         endif
 
         !Kill boxes
 cd1:    if (Me%State%BOXFLUXES) then
-
             call KillBoxDif(Me%ObjBoxDif, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR10.'
-
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR10.'
         endif cd1
 
         !Disposes the rest of the energy buffer
@@ -58719,28 +55672,22 @@ cd1:    if (Me%State%BOXFLUXES) then
         if (Me%SubModel%ON) call KillSubModel
 
         if (Me%Generic4D%ON) call KillTimeSerie(Me%Generic4D%ObjTimeSerie, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR11.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR11.'
 
         if (Me%ComputeOptions%Turbine) then
             nUsers = GetUsersNumber(mTURBINE_, Me%ObjTurbine)
             if (nUsers == 1) then
                 call KillTurbine(Me%ObjTurbine, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                   &
-                    stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR12.'
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR12.'
             else if (nUsers > 1) then
 
                 nUsers = DeassociateInstance (mTURBINE_, Me%ObjTurbine)
                 if (nUsers == 0) stop 'Kill_Sub_Modules - ModuleHydrodynamic - ERR13'
 
             else
-
                 stop 'Subroutine Kill_Sub_Modules - ModuleHydrodynamic. ERR14'
-
             endif
-
         endif
-
 
     end subroutine Kill_Sub_Modules
 
@@ -58749,8 +55696,6 @@ cd1:    if (Me%State%BOXFLUXES) then
     subroutine KillEnergy
 
         !Arguments------------------------------------------------------------
-
-
         !Local----------------------------------------------------------------
         integer                         :: STAT_CALL
 
@@ -58760,85 +55705,41 @@ cd1:    if (Me%State%BOXFLUXES) then
         write (Me%Energy%FileID,*)  '<EndTimeSerie>'
 
         call UnitsManager(Me%Energy%FileID, FileClose, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR01'
+        if (STAT_CALL /= SUCCESS_) stop 'KillEnergy - ModuleHydrodynamic - ERR01'
 
         !Deallocates buffer
         deallocate(Me%Energy%SecondsBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR07'
-
+        if (STAT_CALL /= SUCCESS_) stop 'KillEnergy - ModuleHydrodynamic - ERR07'
         deallocate(Me%Energy%KineticBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR08'
-
+        if (STAT_CALL /= SUCCESS_) stop 'KillEnergy - ModuleHydrodynamic - ERR08'
         deallocate(Me%Energy%PotentialBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR09'
-
+        if (STAT_CALL /= SUCCESS_) stop 'KillEnergy - ModuleHydrodynamic - ERR09'
         deallocate(Me%Energy%VorticityBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR09a'
-
+        if (STAT_CALL /= SUCCESS_) stop 'KillEnergy - ModuleHydrodynamic - ERR09a'
         deallocate(Me%Energy%MassBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR10'
-
+        if (STAT_CALL /= SUCCESS_) stop 'KillEnergy - ModuleHydrodynamic - ERR10'
         deallocate(Me%Energy%VolumeBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR11'
-
+        if (STAT_CALL /= SUCCESS_) stop 'KillEnergy - ModuleHydrodynamic - ERR11'
         deallocate(Me%Energy%OpenVolumeBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR11a'
-
+        if (STAT_CALL /= SUCCESS_) stop 'KillEnergy - ModuleHydrodynamic - ERR11a'
         deallocate(Me%Energy%WaterLevelBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR12'
-
+        if (STAT_CALL /= SUCCESS_) stop 'KillEnergy - ModuleHydrodynamic - ERR12'
         deallocate(Me%Energy%BarotropicKEBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR13'
-
+        if (STAT_CALL /= SUCCESS_) stop 'KillEnergy - ModuleHydrodynamic - ERR13'
         deallocate(Me%Energy%RelativeKEBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR14'
-
+        if (STAT_CALL /= SUCCESS_) stop 'KillEnergy - ModuleHydrodynamic - ERR14'
         deallocate(Me%Energy%RelativePEBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR15'
-
+        if (STAT_CALL /= SUCCESS_) stop 'KillEnergy - ModuleHydrodynamic - ERR15'
         deallocate(Me%Energy%BaroclinicKEBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR16'
-
+        if (STAT_CALL /= SUCCESS_) stop 'KillEnergy - ModuleHydrodynamic - ERR16'
         deallocate(Me%Energy%VelMaxBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR17'
-
+        if (STAT_CALL /= SUCCESS_) stop 'KillEnergy - ModuleHydrodynamic - ERR17'
         deallocate(Me%Energy%VelMaxBaroclinicBuffer, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR18'
-
-        !deallocate(Me%Energy%CenterU, STAT = STAT_CALL)
-        !if (STAT_CALL /= SUCCESS_)                        &
-        !    stop 'KillEnergy - ModuleHydrodynamic - ERR19'
-
-        !deallocate(Me%Energy%CenterV, STAT = STAT_CALL)
-        !if (STAT_CALL /= SUCCESS_)                        &
-            !stop 'KillEnergy - ModuleHydrodynamic - ERR20'
-
-        !deallocate(Me%Energy%CenterW, STAT = STAT_CALL)
-        !if (STAT_CALL /= SUCCESS_)                        &
-        !    stop 'KillEnergy - ModuleHydrodynamic - ERR21'
-
+        if (STAT_CALL /= SUCCESS_) stop 'KillEnergy - ModuleHydrodynamic - ERR18'
         deallocate(Me%Energy%BarotropicU, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR22'
-
+        if (STAT_CALL /= SUCCESS_) stop 'KillEnergy - ModuleHydrodynamic - ERR22'
         deallocate(Me%Energy%BarotropicV, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                        &
-            stop 'KillEnergy - ModuleHydrodynamic - ERR23'
+        if (STAT_CALL /= SUCCESS_) stop 'KillEnergy - ModuleHydrodynamic - ERR23'
 
     end subroutine KillEnergy
 
@@ -58847,41 +55748,23 @@ cd1:    if (Me%State%BOXFLUXES) then
     Subroutine KillTidePotential
 
         !Arguments-------------------------------------------------------------
-
-
-
         !Local-----------------------------------------------------------------
         integer   :: STATUS
-
-
-
+        !Begin----------------------------------------------------------------
         deallocate (Me%TidePotential%Frequency, STAT = STATUS)
-        if (STATUS /= SUCCESS_)                                              &
-            call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR01")
-
+        if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR01")
         deallocate (Me%TidePotential%Amplitude, STAT = STATUS)
-        if (STATUS /= SUCCESS_)                                              &
-            call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR02")
-
+        if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR02")
         deallocate (Me%TidePotential%Arguments        , STAT = STATUS)
-        if (STATUS /= SUCCESS_)                                              &
-            call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR03")
-
+        if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR03")
         deallocate (Me%TidePotential%Beta            , STAT = STATUS)
-        if (STATUS /= SUCCESS_)                                              &
-            call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR04")
-
+        if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR04")
         deallocate (Me%TidePotential%m               , STAT = STATUS)
-        if (STATUS /= SUCCESS_)                                              &
-            call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR05")
-
+        if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR05")
         deallocate (Me%TidePotential%L               , STAT = STATUS)
-        if (STATUS /= SUCCESS_)                                              &
-            call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR06")
-
+        if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillTidePotential - Hydrodynamic - ERR06")
 
     end subroutine KillTidePotential
-
 
     !-----------------------------------------------------------------
 
@@ -58890,41 +55773,25 @@ cd1:    if (Me%State%BOXFLUXES) then
     Subroutine KillHydroStatistics
 
         !Arguments-------------------------------------------------------------
-
-
-
         !Local-----------------------------------------------------------------
         integer   :: STATUS, i
-
-
+        !Begin ----------------------------------------------------------------
         if (Me%Statistics%ON) then
-
-
             do i = 1, Me%Statistics%Nprop
-
                 call KillStatistic (Me%Statistics%ID(i), STAT = STATUS)
-                if (STATUS /= SUCCESS_)                                                  &
-                    call SetError (FATAL_, OUT_OF_MEM_, "KillHydroStatistics - Hydrodynamic - ERR10")
-
+                if (STATUS /= SUCCESS_) call SetError(FATAL_, OUT_OF_MEM_, "KillHydroStatistics- Hydrodynamic - ERR10")
             enddo
 
             deallocate(Me%Statistics%PropList, Me%Statistics%ID)
-
         endif
 
         if (Me%Statistics2D%ON) then
-
-
             do i = 1, Me%Statistics2D%Nprop
-
                 call KillStatistic (Me%Statistics2D%ID(i), STAT = STATUS)
-                if (STATUS /= SUCCESS_)                                                  &
-                    call SetError (FATAL_, OUT_OF_MEM_, "KillHydroStatistics - Hydrodynamic - ERR20")
-
+                if (STATUS /= SUCCESS_) call SetError(FATAL_, OUT_OF_MEM_, "KillHydroStatistics- Hydrodynamic - ERR20")
             enddo
 
             deallocate(Me%Statistics2D%PropList, Me%Statistics2D%ID)
-
         endif
 
     end subroutine KillHydroStatistics
@@ -58936,158 +55803,117 @@ cd1:    if (Me%State%BOXFLUXES) then
     Subroutine KillSubModel
 
         !Arguments-------------------------------------------------------------
-
-
-
         !Local-----------------------------------------------------------------
         integer   :: STATUS
-
-
+        !Begin------------------------------------------------------------------
 
         deallocate (Me%SubModel%Z, STAT = STATUS)
-        if (STATUS /= SUCCESS_)                                                          &
-            call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR01")
+        if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR01")
 
         nullify(Me%SubModel%Z)
 
         deallocate (Me%SubModel%U_New, STAT = STATUS)
-        if (STATUS /= SUCCESS_)                                                          &
-            call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR02")
+        if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR02")
 
         nullify(Me%SubModel%U_New)
 
         deallocate (Me%SubModel%V_New, STAT = STATUS)
-        if (STATUS /= SUCCESS_)                                                          &
-            call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR03")
+        if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR03")
 
-        nullify(Me%SubModel%V_New)
-
-        nullify(Me%SubModel%UV_New)
-
+        nullify(Me%SubModel%V_New, Me%SubModel%UV_New)
 
         deallocate (Me%SubModel%DUZ_New, STAT = STATUS)
-        if (STATUS /= SUCCESS_)                                                          &
-            call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR04")
+        if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR04")
 
         nullify(Me%SubModel%DUZ_New)
 
         deallocate (Me%SubModel%DVZ_New, STAT = STATUS)
-        if (STATUS /= SUCCESS_)                                                          &
-            call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR05")
+        if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR05")
 
         nullify(Me%SubModel%DVZ_New)
 
-
-
         deallocate (Me%SubModel%qX, STAT = STATUS)
 
-        if (STATUS /= SUCCESS_)                                                          &
-            call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR06")
+        if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR06")
 
         nullify(Me%SubModel%qX)
 
         deallocate (Me%SubModel%qY, STAT = STATUS)
 
-        if (STATUS /= SUCCESS_)                                                          &
-            call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR07")
+        if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR07")
 
-        nullify(Me%SubModel%qY )
-
-        nullify(Me%SubModel%qXY)
-
-        nullify(Me%SubModel%qYX)
-
+        nullify(Me%SubModel%qY, Me%SubModel%qXY, Me%SubModel%qYX)
 
         deallocate (Me%SubModel%DUZ_Old, STAT = STATUS)
-        if (STATUS /= SUCCESS_)                                                          &
-            call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR08")
+        if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR08")
 
         nullify(Me%SubModel%DUZ_Old)
 
         deallocate (Me%SubModel%DVZ_Old, STAT = STATUS)
-        if (STATUS /= SUCCESS_)                                                          &
-            call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR09")
+        if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR09")
 
-        nullify(Me%SubModel%DVZ_Old)
-
-        nullify(Me%SubModel%DUVZ_Old)
+        nullify(Me%SubModel%DVZ_Old, Me%SubModel%DUVZ_Old)
 
         deallocate (Me%SubModel%U_Old, STAT = STATUS)
-        if (STATUS /= SUCCESS_)                                                          &
-            call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR10")
+        if (STATUS /= SUCCESS_)call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR10")
 
         nullify(Me%SubModel%U_Old)
 
         deallocate (Me%SubModel%V_Old, STAT = STATUS)
-        if (STATUS /= SUCCESS_)                                                          &
-            call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR11")
+        if (STATUS /= SUCCESS_)call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR11")
 
-        nullify(Me%SubModel%V_Old)
-
-        nullify(Me%SubModel%UV_Old)
+        nullify(Me%SubModel%V_Old, Me%SubModel%UV_Old)
 
 cd1:    if (Me%SubModel%InterpolTime) then
 
             deallocate (Me%SubModel%Z_Previous, STAT = STATUS)
-            if (STATUS /= SUCCESS_)                                                      &
-                call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR12")
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR12")
 
             nullify(Me%SubModel%Z_Previous)
 
             deallocate (Me%SubModel%Z_Next, STAT = STATUS)
-            if (STATUS /= SUCCESS_)                                                      &
-                call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR13")
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR13")
 
             nullify(Me%SubModel%Z_Next)
 
             deallocate (Me%SubModel%U_Previous, STAT = STATUS)
-            if (STATUS /= SUCCESS_)                                                      &
-                call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR14")
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR14")
 
             nullify(Me%SubModel%U_Previous)
 
             deallocate (Me%SubModel%U_Next, STAT = STATUS)
-            if (STATUS /= SUCCESS_)                                                      &
-                call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR15")
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR15")
 
             nullify(Me%SubModel%U_Next)
 
-
             deallocate (Me%SubModel%V_Previous, STAT = STATUS)
-            if (STATUS /= SUCCESS_)                                                      &
-                call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR16")
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR16")
 
             nullify(Me%SubModel%V_Previous)
 
             deallocate (Me%SubModel%V_Next, STAT = STATUS)
-            if (STATUS /= SUCCESS_)                                                      &
-                call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR17")
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR17")
 
             nullify(Me%SubModel%V_Next)
 
-
             deallocate (Me%SubModel%DUZ_Previous, STAT = STATUS)
-            if (STATUS /= SUCCESS_)                                                      &
-                call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR18")
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR18")
 
             nullify(Me%SubModel%DUZ_Previous)
 
             deallocate (Me%SubModel%DUZ_Next, STAT = STATUS)
-            if (STATUS /= SUCCESS_)                                                      &
-                call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR19")
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR19")
 
             nullify(Me%SubModel%DUZ_Next)
 
 
             deallocate (Me%SubModel%DVZ_Previous, STAT = STATUS)
-            if (STATUS /= SUCCESS_)                                                      &
-                call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR20")
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR20")
 
             nullify(Me%SubModel%DVZ_Previous)
 
             deallocate (Me%SubModel%DVZ_Next, STAT = STATUS)
-            if (STATUS /= SUCCESS_)                                                      &
-                call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR21")
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR21")
 
             nullify(Me%SubModel%DVZ_Next)
 
@@ -59097,38 +55923,32 @@ cd1:    if (Me%SubModel%InterpolTime) then
             (Me%SubModel%VertComunic == Father3DSon2D)) then
 
             deallocate (Me%SubModel%Aux_qX, STAT = STATUS)
-            if (STATUS /= SUCCESS_)                                                      &
-                call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR22")
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR22")
 
             nullify(Me%SubModel%Aux_qX)
 
             deallocate (Me%SubModel%Aux_qY, STAT = STATUS)
-            if (STATUS /= SUCCESS_)                                                      &
-                call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR23")
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR23")
 
             nullify(Me%SubModel%Aux_qY)
 
             deallocate (Me%SubModel%Aux_DUZ, STAT = STATUS)
-            if (STATUS /= SUCCESS_)                                                      &
-                call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR24")
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR24")
 
             nullify(Me%SubModel%Aux_DUZ)
 
             deallocate (Me%SubModel%Aux_DVZ, STAT = STATUS)
-            if (STATUS /= SUCCESS_)                                                      &
-                call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR25")
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR25")
 
             nullify(Me%SubModel%Aux_DVZ)
 
             deallocate (Me%SubModel%Aux_U, STAT = STATUS)
-            if (STATUS /= SUCCESS_)                                                      &
-                call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR26")
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR26")
 
             nullify(Me%SubModel%Aux_U)
 
             deallocate (Me%SubModel%Aux_V, STAT = STATUS)
-            if (STATUS /= SUCCESS_)                                                      &
-                call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR27")
+            if (STATUS /= SUCCESS_) call SetError (FATAL_, OUT_OF_MEM_, "KillSubModel - Hydrodynamic - ERR27")
 
             nullify(Me%SubModel%Aux_V)
 
@@ -59142,8 +55962,6 @@ cd2:    if (Me%SubModel%DeadZone) then
 
         endif cd2
 
-
-
     End Subroutine KillSubModel
 
     !--------------------------------------------------------------------------
@@ -59151,50 +55969,39 @@ cd2:    if (Me%SubModel%DeadZone) then
     Subroutine DeallocateVariables
 
         !Arguments-------------------------------------------------------------
-
         !griflet
         type(T_Coef_Baroc), pointer :: LocalBaroc
         type(T_VECGW), pointer      :: VECGW
         integer                     :: p
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_CALL
-
         !Begin------------------------------------------------------------------
 
         !Water level variables allocation
         deallocate (Me%WaterLevel%New, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR10.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR10.'
 
         nullify (Me%WaterLevel%New)
 
-
-
         deallocate (Me%WaterLevel%Old, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR20.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR20.'
 
         nullify (Me%WaterLevel%Old)
 
         deallocate (Me%WaterLevel%VolumeCreated, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR30.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR30.'
 
         nullify (Me%WaterLevel%VolumeCreated)
 
         if (Me%ComputeOptions%WaterLevelMaxMin) then
 
             deallocate (Me%WaterLevel%Maxi, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR40.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR40.'
 
             nullify (Me%WaterLevel%Maxi)
 
             deallocate (Me%WaterLevel%Mini, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR50.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR50.'
 
             nullify (Me%WaterLevel%Mini)
 
@@ -59209,32 +56016,22 @@ cd2:    if (Me%SubModel%DeadZone) then
 #else
         !Horizontal velocity
         deallocate (Me%Velocity%Horizontal%U%New, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR60.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR60.'
 
         nullify (Me%Velocity%Horizontal%U%New)
 
-
-
         deallocate (Me%Velocity%Horizontal%U%Old, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR70.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR70.'
 
         nullify (Me%Velocity%Horizontal%U%Old)
 
-
-
         deallocate (Me%Velocity%Horizontal%V%New, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR80.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR80.'
 
         nullify (Me%Velocity%Horizontal%V%New)
 
-
-
         deallocate (Me%Velocity%Horizontal%V%Old, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR90.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR90.'
 
         nullify (Me%Velocity%Horizontal%V%Old)
 #endif _USE_PAGELOCKED
@@ -59245,7 +56042,6 @@ cd2:    if (Me%SubModel%DeadZone) then
 
         nullify (Me%Velocity%Horizontal%VU%New)
         nullify (Me%Velocity%Horizontal%VU%Old)
-
 
         ! guillaume
         if (Me%Geostroph%ON) then
@@ -59271,124 +56067,100 @@ cd2:    if (Me%SubModel%DeadZone) then
         call FreePageLocked(Me%ObjCuda, Me%Velocity%Vertical%CartesianPtr, Me%Velocity%Vertical%Cartesian)
 #else
         deallocate (Me%Velocity%Vertical%Cartesian, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR100.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR100.'
 
         nullify (Me%Velocity%Vertical%Cartesian)
 #endif _USE_PAGELOCKED
 
         deallocate (Me%Velocity%Vertical%Across, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR110.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR110.'
 
         nullify (Me%Velocity%Vertical%Across)
 
         deallocate (Me%Velocity%BarotropicUc, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR120.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR120.'
 
         nullify (Me%Velocity%BarotropicUc)
 
         deallocate (Me%Velocity%BarotropicVc, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR120.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR120.'
 
         nullify (Me%Velocity%BarotropicVc)
 
         if (Me%NonHydrostatic%ON) then
 
             deallocate (Me%Velocity%Vertical%CartesianOld, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR130.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR130.'
 
             nullify (Me%Velocity%Vertical%CartesianOld)
 
             deallocate (Me%NonHydrostatic%PressureCorrect, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR140.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR140.'
 
             nullify (Me%NonHydrostatic%PressureCorrect)
 
             deallocate (Me%NonHydrostatic%PrevisionalQ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR150.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR150.'
 
             nullify (Me%NonHydrostatic%PrevisionalQ)
 
             deallocate (Me%NonHydrostatic%CCoef, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR160.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR160.'
 
             nullify (Me%NonHydrostatic%CCoef)
 
             deallocate (Me%NonHydrostatic%GCoef, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR170.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR170.'
 
             nullify (Me%NonHydrostatic%GCoef)
 
             deallocate (Me%NonHydrostatic%VerticalSurfLayerOld, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR180.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR180.'
 
             nullify (Me%NonHydrostatic%VerticalSurfLayerOld)
-
-
         endif
 
         if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_) then
 
             deallocate (Me%VelBaroclinic%W_New, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR190.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR190.'
 
             nullify (Me%VelBaroclinic%W_New)
 
             deallocate (Me%VelBaroclinic%W_Old, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR200.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR200.'
 
             nullify (Me%VelBaroclinic%W_Old)
 
             deallocate (Me%VelBaroclinic%U%New, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR210.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR210.'
 
             nullify(Me%VelBaroclinic%U%New)
 
             deallocate (Me%VelBaroclinic%U%Old, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR220.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR220.'
 
             nullify(Me%VelBaroclinic%U%Old)
 
-
-
             deallocate (Me%VelBaroclinic%V%New, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR230.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR230.'
 
             nullify(Me%VelBaroclinic%V%New)
 
             deallocate (Me%VelBaroclinic%V%Old, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR240.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR240.'
 
             nullify(Me%VelBaroclinic%V%Old)
 
             deallocate (Me%VelBaroclinic%U2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR250.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR250.'
 
             nullify(Me%VelBaroclinic%U2D)
 
-
             deallocate (Me%VelBaroclinic%V2D, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR260.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR260.'
 
             nullify(Me%VelBaroclinic%V2D)
-
 
             !Auxiliar horizontal baroclinic velocity pointers
             nullify (Me%VelBaroclinic%UV%New)
@@ -59401,32 +56173,25 @@ cd2:    if (Me%SubModel%DeadZone) then
 
         endif
 
-
-
         !Water fluxes
         deallocate (Me%WaterFluxes%X, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DellocateVariables - ModuleHydrodynamic. ERR270.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DellocateVariables - ModuleHydrodynamic. ERR270.'
 
         nullify (Me%WaterFluxes%X)
 
         deallocate (Me%WaterFluxes%Y, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR280.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR280.'
 
         nullify (Me%WaterFluxes%Y)
 
-
         deallocate (Me%WaterFluxes%Z, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR290.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR290.'
 
         nullify (Me%WaterFluxes%Z)
 
         deallocate (Me%WaterFluxes%Discharges, STAT = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                                   &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR300.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR300.'
 
         nullify (Me%WaterFluxes%Discharges)
 
@@ -59442,202 +56207,147 @@ cd2:    if (Me%SubModel%DeadZone) then
             nullify    (Me%WaterFluxes%DischargesVelUV)
         endif
 
-
         !If compute Residual properties then must allocate residual variables
 
 cd1:    if (Me%ComputeOptions%Residual) then
 
-
             Me%Residual%ResidualTime = FillValueReal
-
 
             !Can be interesting to compute the average water level
             deallocate (Me%Residual%WaterLevel, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR310.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR310.'
 
             nullify (Me%Residual%WaterLevel)
 
-
             deallocate (Me%Residual%Velocity_U, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR320.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR320.'
 
             nullify (Me%Residual%Velocity_U)
 
-
-
             deallocate (Me%Residual%Velocity_V, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR330.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR330.'
 
             nullify (Me%Residual%Velocity_V)
 
-
             deallocate (Me%Residual%Vertical_Velocity, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR340.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR340.'
 
             nullify (Me%Residual%Vertical_Velocity)
 
-
             deallocate (Me%Residual%WaterFlux_X, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR350.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR350.'
 
             nullify (Me%Residual%WaterFlux_X)
 
-
-
             deallocate (Me%Residual%WaterFlux_Y, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR360.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR360.'
 
             nullify (Me%Residual%WaterFlux_Y)
 
             deallocate (Me%Residual%DWZ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR380.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR380.'
 
             nullify (Me%Residual%DWZ)
 
-
         endif cd1
-
 
         !Forces
         deallocate (Me%Forces%Rox3X, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR390.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR390.'
 
         nullify (Me%Forces%Rox3X)
 
         deallocate (Me%Forces%Rox3Y, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR400.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR400.'
 
         nullify (Me%Forces%Rox3Y)
 
-
         deallocate (Me%Forces%Horizontal_Transport, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR410.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR410.'
 
         nullify (Me%Forces%Horizontal_Transport)
 
         deallocate (Me%Forces%Inertial_Aceleration, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR420.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR420.'
 
         nullify (Me%Forces%Inertial_Aceleration)
 
-
         deallocate (Me%Forces%TidePotentialLevel,   STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR430.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR430.'
 
         nullify (Me%Forces%TidePotentialLevel)
 
-
         if(Me%ComputeOptions%AltimetryAssimilation%Yes) then
-
             deallocate (Me%Forces%Altim_Relax_Aceleration,   STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-               stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR440.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR440.'
 
             nullify (Me%Forces%Altim_Relax_Aceleration)
-
         endif
 
         if (Me%Relaxation%Force) then
             deallocate (Me%Forces%Relax_Aceleration, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR450.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR450.'
 
             nullify (Me%Forces%Relax_Aceleration)
-
         endif
-
 
         if (Me%Relaxation%Geometry) then
             deallocate (Me%Relaxation%DecayTimeGeo, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR460.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR460.'
 
             nullify (Me%Relaxation%DecayTimeGeo)
-
         endif
 
         if (Me%WaveStress%Dumping) then
-
             deallocate (Me%WaveStress%DumpCoef, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR470.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR470.'
 
             nullify (Me%WaveStress%DumpCoef)
-
         endif
 
         !Coefficients
         deallocate (Me%Coef%D2%D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR480.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR480.'
 
         nullify (Me%Coef%D2%D)
 
-
-
         deallocate (Me%Coef%D2%E, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR490.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR490.'
 
         nullify (Me%Coef%D2%E)
 
         deallocate (Me%Coef%D2%EAux, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR500.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR500.'
 
         nullify (Me%Coef%D2%EAux)
 
-
         deallocate (Me%Coef%D2%F, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR510.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR510.'
 
         nullify (Me%Coef%D2%F)
 
-
-
         deallocate (Me%Coef%D2%Ti, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR520.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR520.'
 
         nullify (Me%Coef%D2%Ti)
 
-
         deallocate (Me%Coef%D2%TiAux, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR530.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR530.'
 
         nullify (Me%Coef%D2%TiAux)
-
 
 cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
             Me%ComputeOptions%BarotropicRadia == FlatherLocalSolution_) then
 
             deallocate (Me%Coef%D2%Rad, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR540.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR540.'
 
             nullify(Me%Coef%D2%Rad)
 
-
             deallocate (Me%Coef%D2%TiRad, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR550.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR550.'
 
             nullify(Me%Coef%D2%TiRad)
-
         endif cd2
 
 #ifdef _USE_PAGELOCKED
@@ -59648,74 +56358,52 @@ cd2:    if (Me%ComputeOptions%BarotropicRadia == FlatherWindWave_ .or.      &
         call FreePageLocked(Me%ObjCuda, Me%Coef%D3%TiPtr, Me%Coef%D3%Ti)
 #else
         deallocate (Me%Coef%D3%D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR560.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR560.'
 
         deallocate (Me%Coef%D3%E, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR570.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR570.'
 
         deallocate (Me%Coef%D3%F, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR580.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR580.'
 
         deallocate (Me%Coef%D3%Ti, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR590.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR590.'
 
-        nullify (Me%Coef%D3%D)
-        nullify (Me%Coef%D3%E)
-        nullify (Me%Coef%D3%F)
-        nullify (Me%Coef%D3%Ti)
+        nullify (Me%Coef%D3%D, Me%Coef%D3%E, Me%Coef%D3%F, Me%Coef%D3%Ti)
+
 #endif _USE_PAGELOCKED
 
         !External Variables
 
         !Bottom boundary: this variable in the future must migrate to the module ModuleBottom
         deallocate (Me%External_Var%ChezyZ, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR600.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR600.'
 
         nullify (Me%External_Var%ChezyZ)
 
         deallocate (Me%External_Var%ChezyVelUV, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR610.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR610.'
 
         nullify (Me%External_Var%ChezyVelUV)
-
-
-
         !OutPut Time variables
 
 cd3:    if (Me%OutPut%hdf5ON) then
-
-
             Deallocate (Me%OutPut%OutTime, STAT = STAT_CALL)
-
             if (STAT_CALL /= SUCCESS_) stop 'Sub. DeallocateVariables - ModuleHydrodynamic - ERR620'
 
             nullify (Me%OutPut%OutTime)
-
-
         endif cd3
 
-
         if(Me%OutPut%ProfileON)then
-
             call KillProfile(Me%ObjProfile, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                 &
-                stop 'DeallocateVariables - ModuleHydrodynamic - ERR630'
-
+            if (STAT_CALL .NE. SUCCESS_) stop 'DeallocateVariables - ModuleHydrodynamic - ERR630'
         end if
 
         !Kills the TimeSerie
         if (Me%ObjTimeSerie /= 0) then
             call KillTimeSerie(Me%ObjTimeSerie, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                 &
-                stop 'DeallocateVariables - ModuleHydrodynamic - ERR640'
+            if (STAT_CALL .NE. SUCCESS_) stop 'DeallocateVariables - ModuleHydrodynamic - ERR640'
         endif
-
 
 cd4:    if (Me%ComputeOptions%Baroclinic) then
 
@@ -59725,55 +56413,44 @@ cd4:    if (Me%ComputeOptions%Baroclinic) then
                 LocalBaroc => Me%Coef%Baroc(p)
 
                 deallocate (LocalBaroc%Kleft,       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                   &
-                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR650.'
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR650.'
                 nullify (LocalBaroc%Kleft)
 
                 deallocate (LocalBaroc%Kright,      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                   &
-                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR660'
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR660'
                 nullify (LocalBaroc%Kright)
 
                 deallocate (LocalBaroc%Depth_integ, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                   &
-                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR670'
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR670'
                 nullify (LocalBaroc%Depth_integ)
 
                 deallocate (LocalBaroc%Hcenter,     STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                   &
-                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR680'
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR680'
                 nullify (LocalBaroc%Hcenter)
 
                 deallocate (LocalBaroc%Hleft,       STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                   &
-                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR690'
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR690'
                 nullify (LocalBaroc%Hleft)
 
                 deallocate (LocalBaroc%Hright,      STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                   &
-                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR700'
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR700'
                 nullify (LocalBaroc%Hright)
 
                 deallocate (LocalBaroc%HroLeft,     STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                   &
-                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR710'
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR710'
                 nullify (LocalBaroc%HroLeft)
 
                 deallocate (LocalBaroc%HroRight,    STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                   &
-                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR720'
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR720'
                 nullify (LocalBaroc%HroRight)
 
                 deallocate (LocalBaroc%DensRight,    STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                   &
-                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR710'
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR710'
                 nullify (LocalBaroc%DensRight)
 
                 deallocate (LocalBaroc%DensLeft,    STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                                   &
-                    stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR720'
+                if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR720'
                 nullify (LocalBaroc%DensLeft)
-
             enddo
 
         endif cd4
@@ -59784,96 +56461,67 @@ cd4:    if (Me%ComputeOptions%Baroclinic) then
             deallocate(VECGW%G)
             deallocate(VECGW%W)
         enddo
-        deallocate(Me%THOMAS2D%VEC)
-        deallocate(Me%THOMAS2D%COEF2)
-        deallocate(Me%THOMAS2D)
+        deallocate(Me%THOMAS2D%VEC, Me%THOMAS2D%COEF2, Me%THOMAS2D)
 
         do p = 1, Me%MaxThreads
             VECGW => Me%THOMAS%VEC(p)
-            deallocate(VECGW%G)
-            deallocate(VECGW%W)
+            deallocate(VECGW%G, VECGW%W)
         enddo
-        deallocate(Me%THOMAS%VEC)
-        deallocate(Me%THOMAS%COEF3)
-        deallocate(Me%THOMAS)
+        deallocate(Me%THOMAS%VEC, Me%THOMAS%COEF3, Me%THOMAS)
 
         deallocate (Me%VECG_3D,    STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR730'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR730'
         nullify (Me%VECG_3D)
 
-
         deallocate (Me%VECW_3D,    STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR740'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR740'
         nullify (Me%VECW_3D)
 
-
         deallocate (Me%VECG_2D,    STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR750'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR750'
         nullify (Me%VECG_2D)
 
-
         deallocate (Me%VECW_2D,    STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR760'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR760'
         nullify (Me%VECW_2D)
 
         if (Me%ComputeOptions%BarotropicRadia == BlumbergKantha_)  then
-
             deallocate (Me%ComputeOptions%Tlag, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR770'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR770'
             nullify (Me%ComputeOptions%Tlag)
-
         endif
 
         if (Me%ComputeOptions%BiHarmonic) then
-
             deallocate (Me%ComputeOptions%BiHarmonicUX_VY,    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR780'
-
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR780'
             deallocate (Me%ComputeOptions%BiHarmonicUY_VX,    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) &
-                stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR790'
-
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine DeallocateVariables - ModuleHydrodynamic. ERR790'
         endif
 
 ic1:    if (Me%CyclicBoundary%ON) then
 
             deallocate (Me%Coef%D1%a,   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR800.'
-
             deallocate (Me%Coef%D1%b,   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR810.'
-
             deallocate (Me%Coef%D1%bb,  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR820.'
-
             deallocate (Me%Coef%D1%c,   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR830.'
-
             deallocate (Me%Coef%D1%r,   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR840.'
-
             deallocate (Me%Coef%D1%u,   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR850.'
-
             deallocate (Me%Coef%D1%x,   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR860.'
-
             deallocate (Me%Coef%D1%z,   STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR870.'
-
             deallocate (Me%Coef%D1%gam, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR880.'
 
         endif ic1
 
         if(Me%ComputeOptions%Obstacle)then
-
             deallocate (Me%Drag%Coef, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR890.'
 
@@ -59882,23 +56530,18 @@ ic1:    if (Me%CyclicBoundary%ON) then
                 if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR900.'
             endif
 
-
             deallocate (Me%Forces%ObstacleDrag_Aceleration, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR910.'
-
-
         end if
 
         if(Me%ComputeOptions%Scraper)then
 
             deallocate (Me%Forces%Scraper_Aceleration, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR920.'
-
             deallocate (Me%Scraper%Position, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR930.'
 
             if (Me%Scraper%UOn) deallocate(Me%Scraper%VelU)
-
             if (Me%Scraper%VOn) deallocate(Me%Scraper%VelV)
 
             if(Me%Scraper%ID_U%SolutionFromFile)then
@@ -59906,17 +56549,10 @@ ic1:    if (Me%CyclicBoundary%ON) then
                 if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR940.'
             endif
 
-
             if(Me%Scraper%ID_V%SolutionFromFile)then
                 call KillFillMatrix(Me%Scraper%ID_V%ObjFillMatrix, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR950.'
             endif
-
-!            if(Me%Scraper%ID_W%SolutionFromFile)then
-!                call KillFillMatrix(Me%Scraper%ID_W%ObjFillMatrix, STAT = STAT_CALL)
-!                if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables; ModuleHydrodynamic. ERR960.'
-!            endif
-
 
         end if
 
@@ -59929,44 +56565,29 @@ ic1:    if (Me%CyclicBoundary%ON) then
         if (Me%ComputeOptions%InvertBaromSomeBound)                                     &
             deallocate(Me%ComputeOptions%InvertBarometerCells)
 
-
         deallocate(Me%Aux3DFlux)
 
         if (Me%ThinWalls%ON) then
             call KillThinWalls
         endif
 
-        if(Me%ComputeOptions%EmersionTime)then
-
-            deallocate (Me%Emersion%EmersionTime )
-            deallocate (Me%Emersion%ImmersionTime)
-
-        endif
-
+        if(Me%ComputeOptions%EmersionTime) deallocate (Me%Emersion%EmersionTime, Me%Emersion%ImmersionTime)
 
         if(Me%Output%FloodRisk)then
-
             deallocate(Me%Output%MaxWaterColumn, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables - ModuleHydrodynamic - ERR970'
-
             deallocate(Me%Output%VelocityAtMaxWaterColumn, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables - ModuleHydrodynamic - ERR980'
-
             deallocate(Me%Output%MaxFloodRisk, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables - ModuleHydrodynamic - ERR990'
-
             deallocate(Me%Output%MaxVelocity, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables - ModuleHydrodynamic - ERR1000'
-
             deallocate(Me%Output%MaxWaterLevel, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables - ModuleHydrodynamic - ERR1010'
-
             deallocate(Me%Output%MapMax, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables - ModuleHydrodynamic - ERR1020'
-
             deallocate(Me%Output%MapMin, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'DeallocateVariables - ModuleHydrodynamic - ERR1030'
-
         endif
 
 ! Modified by Matthias DELPEY - 21/07/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -59976,20 +56597,14 @@ ic1:    if (Me%CyclicBoundary%ON) then
         if (Me%ComputeOptions%WaveForcing3D == GLM) then
 
             ! Horizontal velocities
-            deallocate(Me%StokesVel%Horizontal%U%New)
-            deallocate(Me%StokesVel%Horizontal%U%Old)
-            deallocate(Me%StokesVel%Horizontal%V%New)
-            deallocate(Me%StokesVel%Horizontal%V%Old)
+            deallocate(Me%StokesVel%Horizontal%U%New, Me%StokesVel%Horizontal%U%Old)
+            deallocate(Me%StokesVel%Horizontal%V%New, Me%StokesVel%Horizontal%V%Old)
 
-            nullify(Me%StokesVel%Horizontal%U%New)
-            nullify(Me%StokesVel%Horizontal%U%Old)
-            nullify(Me%StokesVel%Horizontal%V%New)
-            nullify(Me%StokesVel%Horizontal%V%Old)
+            nullify(Me%StokesVel%Horizontal%U%New, Me%StokesVel%Horizontal%U%Old)
+            nullify(Me%StokesVel%Horizontal%V%New, Me%StokesVel%Horizontal%V%Old)
 
-            nullify(Me%StokesVel%Horizontal%UV%New)
-            nullify(Me%StokesVel%Horizontal%UV%Old)
-            nullify(Me%StokesVel%Horizontal%VU%New)
-            nullify(Me%StokesVel%Horizontal%VU%Old)
+            nullify(Me%StokesVel%Horizontal%UV%New, Me%StokesVel%Horizontal%UV%Old)
+            nullify(Me%StokesVel%Horizontal%VU%New, Me%StokesVel%Horizontal%VU%Old)
 
             ! Vertical velocities
             deallocate(Me%StokesVel%Vertical%Across)
@@ -60021,16 +56636,12 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
             deallocate (Me%Forces%Wave3DExplicit_FPressureAccelU)
             deallocate (Me%Forces%Wave3DExplicit_FPressureAccelV)
-            ! deallocate (Me%Forces%Wave3DExplicit_FPressureAccelUV)
 
             deallocate (Me%Forces%Wave3DExplicit_FVortexAccelU)
             deallocate (Me%Forces%Wave3DExplicit_FVortexAccelV)
-            ! deallocate (Me%Forces%Wave3DExplicit_FVortexAccelUV)
-            ! deallocate (Me%Forces%AdvectVelocity)
 
             deallocate (Me%Forces%Wave3DExplicit_FBreakingAccelU)
             deallocate (Me%Forces%Wave3DExplicit_FBreakingAccelV)
-            ! deallocate (Me%Forces%Wave3DExplicit_FBreakingAccelUV)
 
             nullify (Me%Forces%Wave3DExplicit_Acceleration)
 
@@ -60041,7 +56652,6 @@ ic1:    if (Me%CyclicBoundary%ON) then
             nullify (Me%Forces%Wave3DExplicit_FVortexAccelU)
             nullify (Me%Forces%Wave3DExplicit_FVortexAccelV)
             nullify (Me%Forces%Wave3DExplicit_FVortexAccelUV)
-            ! nullify (Me%Forces%AdvectVelocity)
 
             nullify (Me%Forces%Wave3DExplicit_FBreakingAccelU)
             nullify (Me%Forces%Wave3DExplicit_FBreakingAccelV)
@@ -60057,7 +56667,6 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
             nullify(Me%WaveRad3D%WaveExpRadU)
             nullify(Me%WaveRad3D%WaveExpRadV)
-
             nullify(Me%WaveRad3D%WaveExpRadUV)
 
             ! Accelerations
@@ -60074,7 +56683,6 @@ ic1:    if (Me%CyclicBoundary%ON) then
         
         if (allocated(Me%Output%Upscaling%CopyVel)) deallocate (Me%Output%Upscaling%CopyVel)
         if (allocated(Me%Output%Upscaling%VolumeCreated)) deallocate (Me%Output%Upscaling%VolumeCreated)
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -60094,35 +56702,27 @@ ic1:    if (Me%CyclicBoundary%ON) then
         !----------------------------------------------------------------------
 
         if (Me%ThinWalls%UOn) then
-
             deallocate(Me%ThinWalls%FaceU_I)
             deallocate(Me%ThinWalls%FaceU_J)
             deallocate(Me%ThinWalls%FaceU_K)
-
         endif
 
         if (Me%ThinWalls%VOn) then
-
             deallocate(Me%ThinWalls%FaceV_I)
             deallocate(Me%ThinWalls%FaceV_J)
             deallocate(Me%ThinWalls%FaceV_K)
-
         endif
 
         if (Me%ThinWalls%WOn) then
-
             deallocate(Me%ThinWalls%FaceW_I)
             deallocate(Me%ThinWalls%FaceW_J)
             deallocate(Me%ThinWalls%FaceW_K)
-
         endif
 
         if (Me%ThinWalls%VariableInTime) then
             deallocate(Me%Forces%ThinWalls_Dissipation)
-            call KillTimeSerie(TimeSerieID         = Me%ThinWalls%ObjTimeSerie,         &
-                                 STAT              = STAT_CALL)
+            call KillTimeSerie(TimeSerieID = Me%ThinWalls%ObjTimeSerie, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'KillThinWalls - Hydrodynamic - ERR10'
-
         endif
 
     end subroutine KillThinWalls
@@ -60132,13 +56732,9 @@ ic1:    if (Me%CyclicBoundary%ON) then
     subroutine KillMatrixesOutput
 
         !Arguments-------------------------------------------------------------
-
-
         !Local-----------------------------------------------------------------
         integer                             :: STAT_CALL
-
         !----------------------------------------------------------------------
-
 
         !Horizontal Velocity
         if (Me%Output%Real4)then
@@ -60355,18 +56951,12 @@ ic1:    if (Me%CyclicBoundary%ON) then
     subroutine NullifyHydroStatePointer(HydrodynamicID, STAT)
 
         !Arguments-------------------------------------------------------------
-
         integer,               intent(IN ) :: HydrodynamicID
         integer, optional,     intent(OUT) :: STAT
-
         !External--------------------------------------------------------------
-
         integer :: ready_
-
         !Local-----------------------------------------------------------------
-
         integer :: STAT_              !Auxiliar local variable
-
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -60375,30 +56965,19 @@ ic1:    if (Me%CyclicBoundary%ON) then
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
-            nullify(Me%AuxPointer%WaterLevelNew)
-
-            nullify(Me%AuxPointer%VelocityUNew)
-
-            nullify(Me%AuxPointer%VelocityVNew)
-
-            nullify(Me%AuxPointer%VelocityUOld)
-
-            nullify(Me%AuxPointer%VelocityVOld)
-
-            nullify(Me%AuxPointer%VelVerticalCartesian)
-
-            nullify(Me%AuxPointer%VelVerticalAcross)
-
-            nullify(Me%AuxPointer%WaterFluxX)
-
-            nullify(Me%AuxPointer%WaterFluxY)
-
-            nullify(Me%AuxPointer%WaterFluxZ)
+            nullify(Me%AuxPointer%WaterLevelNew,        &
+                    Me%AuxPointer%VelocityUNew,         &
+                    Me%AuxPointer%VelocityVNew,         &
+                    Me%AuxPointer%VelocityUOld,         &
+                    Me%AuxPointer%VelocityVOld,         &
+                    Me%AuxPointer%VelVerticalCartesian, &
+                    Me%AuxPointer%VelVerticalAcross,    &
+                    Me%AuxPointer%WaterFluxX,           &
+                    Me%AuxPointer%WaterFluxY,           &
+                    Me%AuxPointer%WaterFluxZ)
 
             if (Me%SubModel%ON) then
-                nullify(Me%AuxPointer%SubModelqX)
-
-                nullify(Me%AuxPointer%SubModelqY)
+                nullify(Me%AuxPointer%SubModelqX, Me%AuxPointer%SubModelqY)
             endif
 
             nullify(Me%AuxPointer%ChezyVelUV)
@@ -60443,8 +57022,7 @@ cd1:    if (HydrodynamicID > 0) then
                 Me => Me%Next
             enddo
 
-            if (.not. associated(Me))                                                    &
-                stop 'ModuleHydrodynamic - Ready - ERR01'
+            if (.not. associated(Me)) stop 'ModuleHydrodynamic - Ready - ERR01'
 
             ready_ = VerifyReadLock (mHYDRODYNAMIC_, Me%InstanceID)
         else
@@ -60457,14 +57035,12 @@ cd1:    if (HydrodynamicID > 0) then
 
     !--------------------------------------------------------------------------
 
-
     subroutine ReadyFather (HydrodynamicID, HydroFather, ready_)
 
         !Arguments-------------------------------------------------------------
         integer                                     :: HydrodynamicID
         type (T_Hydrodynamic), pointer              :: HydroFather
         integer                                     :: ready_
-
         !----------------------------------------------------------------------
 
         nullify (HydroFather)
@@ -60476,22 +57052,16 @@ cd1:    if (HydrodynamicID > 0) then
                 HydroFather => HydroFather%Next
             enddo
 
-            if (.not. associated(HydroFather))                                                    &
-                stop 'ModuleHydrodynamic - Ready - ERR01'
+            if (.not. associated(HydroFather)) stop 'ModuleHydrodynamic - Ready - ERR01'
 
             ready_ = VerifyReadLock (mHYDRODYNAMIC_, HydroFather%InstanceID)
-
         else
             ready_ = OFF_ERR_
         end if cd1
 
-
         !----------------------------------------------------------------------
 
     end subroutine ReadyFather
-
-
-
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -60504,10 +57074,7 @@ cd1:    if (HydrodynamicID > 0) then
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     Subroutine ReadLock_ModuleTurbulence
 
-
         !Arguments-------------------------------------------------------------------
-
-
 
         !Local----------------------------------------------------------------------
         integer                          :: STAT_CALL
@@ -60519,40 +57086,26 @@ cd1:    if (HydrodynamicID > 0) then
                                     Me%External_Var%Visc_H_Corner,          &
                                     STAT = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadLock_ModuleTurbulence - ModuleHydrodynamic. ERR01.'
-
-
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleTurbulence - ModuleHydrodynamic. ERR01.'
 
 !Manuel
         call GetVerticalViscosity(Me%ObjTurbulence,                         &
                                   VerticalViscosity =                              &
                                   Me%External_Var%Vertical_Viscosity,       &
                                   STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadLock_ModuleTurbulence - ModuleHydrodynamic. ERR02.'
-
-
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleTurbulence - ModuleHydrodynamic. ERR02.'
 
     End Subroutine ReadLock_ModuleTurbulence
 
     !--------------------------------------------------------------------------
 
-
     !--------------------------------------------------------------------------
 
     Subroutine ReadUnLock_ModuleTurbulence
 
-
         !Arguments-------------------------------------------------------------
-
-
-
-
         !Local-----------------------------------------------------------------
-
         integer        :: STAT_CALL
-
         !----------------------------------------------------------------------
 
         !Module - ModuleTurbulence
@@ -60560,24 +57113,17 @@ cd1:    if (HydrodynamicID > 0) then
         !Horizontal Turbulent Viscosity in the cell Center
         call UnGetTurbulence(Me%ObjTurbulence,                   &
                              Me%External_Var%Visc_H_Center, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleTurbulence - ModuleHydrodynamic. ERR01.'
-
-
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleTurbulence - ModuleHydrodynamic. ERR01.'
 
         !Horizontal Turbulent Viscosity in the cell corner
         call UnGetTurbulence(Me%ObjTurbulence,                   &
                              Me%External_Var%Visc_H_Corner, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleTurbulence - ModuleHydrodynamic. ERR02.'
-
-
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleTurbulence - ModuleHydrodynamic. ERR02.'
 
         !Vertical Turbulent Viscosity
         call UnGetTurbulence(Me%ObjTurbulence,                   &
                              Me%External_Var%Vertical_Viscosity, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleTurbulence - ModuleHydrodynamic. ERR03.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleTurbulence - ModuleHydrodynamic. ERR03.'
 
         !----------------------------------------------------------------------
 
@@ -60590,27 +57136,20 @@ cd1:    if (HydrodynamicID > 0) then
 
         !Local------------------------------------------------------------------
         integer                          :: STAT_CALL
-
         !Begin------------------------------------------------------------------
 
         if (Me%Generic4D%ON) then
-
             call SetGeneric4DValues(Me%ObjWaves, Me%Generic4D%CurrentValue, STAT = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'ReadLock_ModuleWaves - ModuleHydrodynamic - ERR10'
-
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLock_ModuleWaves - ModuleHydrodynamic - ERR10'
         endif
 
         if (Me%WaveStress%ON)then
-
             call GetWavesStress    (Me%ObjWaves,                                        &
                                     Me%External_Var%TauWavesU,                          &
                                     Me%External_Var%TauWavesV,                          &
                                     STAT = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine ReadLock_ModuleWaves - ModuleHydrodynamic. ERR20.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleWaves - ModuleHydrodynamic. ERR20.'
         endif
 
         if (Me%ComputeOptions%WaveShearStress)then
@@ -60619,8 +57158,7 @@ cd1:    if (HydrodynamicID > 0) then
                            Abw           = Me%External_Var%Abw,                         &
                            Ubw           = Me%External_Var%Ubw,                         &
                            STAT          = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine ReadLock_ModuleWaves - ModuleHydrodynamic. ERR30.'
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleWaves - ModuleHydrodynamic. ERR30.'
         endif
 
 ! Modified by Matthias DELPEY - 29/06/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -60640,43 +57178,29 @@ cd1:    if (HydrodynamicID > 0) then
                                     Me%External_Var%WaveToOceanMomentumV,               &
                                     STAT = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR40.'
-
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR40.'
 
             call GetWaves (WavesID     = Me%ObjWaves,                                   &
                           WaveHeight   = Me%External_Var%WaveHeight,                    &
                           STAT         = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR50.'
-
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR50.'
 
         endif
 
-
         if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress) then
-
            call GetWaves (WavesID      = Me%ObjWaves,                                   &
-                          WaveLength   = Me%External_Var%WaveLength,                    &
-                          STAT         = STAT_CALL)
-           if (STAT_CALL /= SUCCESS_)                                                   &
-                stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR60.'
-
+                          WaveLength   = Me%External_Var%WaveLength, STAT = STAT_CALL)
+           if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR60.'
 
            call GetWavesStress    (Me%ObjWaves,                                         &
                                     Me%External_Var%TauWavesU,                          &
-                                    Me%External_Var%TauWavesV,                          &
-                                    STAT = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR70.'
-
+                                    Me%External_Var%TauWavesV, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleWaves; module ModuleHydrodynamic. ERR70.'
         endif
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     End Subroutine ReadLock_ModuleWaves
-
 
     !--------------------------------------------------------------------------
 
@@ -60692,8 +57216,6 @@ cd1:    if (HydrodynamicID > 0) then
 
         !Begin------------------------------------------------------------------
 
-
-
         !Gets Value for current Time
         call GetTimeSerieValue (ObjTimeSerie, Now, TimeSerieColumn,                     &
                                 Time1, Value1, Time2, Value2, TimeCycle,                &
@@ -60702,12 +57224,9 @@ cd1:    if (HydrodynamicID > 0) then
 
         if (TimeCycle) then
             TimeSerieValue = Value1
-
         else
-
             !Interpolates Value for current instant
             call InterpolateValueInTime(Now, Time1, Value1, Time2, Value2, TimeSerieValue)
-
         endif
 
     end function TimeSerieValue
@@ -60723,60 +57242,41 @@ cd1:    if (HydrodynamicID > 0) then
         !----------------------------------------------------------------------
 
         if (Me%WaveStress%ON) then
-            call UnGetWaves(Me%ObjWaves,                                                     &
-                                 Me%External_Var%TauWavesU, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR01.'
+            call UnGetWaves(Me%ObjWaves, Me%External_Var%TauWavesU, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR01.'
 
-            call UnGetWaves(Me%ObjWaves,                                                     &
-                                 Me%External_Var%TauWavesV, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR02.'
+            call UnGetWaves(Me%ObjWaves, Me%External_Var%TauWavesV, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR02.'
         endif
 
         if (Me%ComputeOptions%WaveShearStress) then
 
-            call UnGetWaves(Me%ObjWaves,                                                     &
-                                 Me%External_Var%Abw, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR03.'
+            call UnGetWaves(Me%ObjWaves, Me%External_Var%Abw, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR03.'
 
-            call UnGetWaves(Me%ObjWaves,                                                     &
-                                 Me%External_Var%Ubw, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR04.'
+            call UnGetWaves(Me%ObjWaves, Me%External_Var%Ubw, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleWaves - ModuleHydrodynamic. ERR04.'
 
         endif
 
         if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress) then
-            call UnGetWaves(Me%ObjWaves,                                                     &
-                             Me%External_Var%TauWavesU, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR01a.'
+            call UnGetWaves(Me%ObjWaves, Me%External_Var%TauWavesU, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR01a.'
 
-            call UnGetWaves(Me%ObjWaves,                                                     &
-                             Me%External_Var%TauWavesV, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR02b.'
+            call UnGetWaves(Me%ObjWaves, Me%External_Var%TauWavesV, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR02b.'
 
-            call UnGetWaves(Me%ObjWaves,                                                     &
-                            Me%External_Var%WaveLength, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR02c.'
+            call UnGetWaves(Me%ObjWaves, Me%External_Var%WaveLength, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR02c.'
          endif
-
 
          if (Me%ComputeOptions%WaveForcing3D == GLM) then
 
-            call UnGetWaves(Me%ObjWaves,                                                     &
-                             Me%External_Var%WaveInducedPressureJ, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR02d.'
+            call UnGetWaves(Me%ObjWaves, Me%External_Var%WaveInducedPressureJ, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR02d.'
 
-            call UnGetWaves(Me%ObjWaves,                                                     &
-                             Me%External_Var%WaveHeight, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR02e.'
+            call UnGetWaves(Me%ObjWaves, Me%External_Var%WaveHeight, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR02e.'
 
             call UnGetWaves3D(Me%ObjWaves,                                                   &
                              Me%External_Var%StokesDriftSpectrumX,                           &
@@ -60788,18 +57288,8 @@ cd1:    if (HydrodynamicID > 0) then
                              Me%External_Var%WaveToOceanMomentumU,                           &
                              Me%External_Var%WaveToOceanMomentumV,                           &
                              STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                       &
-                stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR02c.'
-
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR02c.'
          endif
-
-!         call SetWavesSeaLevelVel2DSwan(WavesID     = Me%ObjWaves,                      &
-!                                        SeaLevel    = Me%WaterLevel%New,                &
-!                                        VelU        = Me%Velocity%BarotropicUc,         &
-!                                        VelV        = Me%Velocity%BarotropicVc,         &
-!                                        STAT        = STAT_CALL)
-
-!        stop 'Subroutine ReadUnLock_ModuleWaves; module ModuleHydrodynamic. ERR200.'
 
     End Subroutine ReadUnLock_ModuleWaves
 
@@ -60811,15 +57301,9 @@ cd1:    if (HydrodynamicID > 0) then
 
     Subroutine ReadLock_ModuleHorizontalGrid
 
-
         !Arguments-------------------------------------------------------------
-
-
-
-
         !Local----------------------------------------------------------------------
         integer                          :: STAT_CALL
-
 
         !Module - ModuleHorizontalGrid
         !Horizontal Grid properties
@@ -60836,60 +57320,39 @@ cd1:    if (HydrodynamicID > 0) then
         if (STAT_CALL /= SUCCESS_)                                                      &
             stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR01.'
 
-
-
         call GetCoriolisFrequency(Me%ObjHorizontalGrid,                                 &
-                                  Me%External_Var%Coriolis_Freq,                        &
-                                  STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR02.'
+                                  Me%External_Var%Coriolis_Freq, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_)  stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR02.'
 
         call GetCheckDistortion (Me%ObjHorizontalGrid,                                  &
-                                 Me%External_Var%Distortion,                            &
-                                 STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR03.'
+                                 Me%External_Var%Distortion, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR03.'
 
         if (Me%External_Var%Distortion) then
-
             call GetGridRotation(Me%ObjHorizontalGrid,                                  &
                                  Me%External_Var%RotationX,                             &
-                                 Me%External_Var%RotationY,                             &
-                                 STAT = STAT_CALL)
+                                 Me%External_Var%RotationY, STAT = STAT_CALL)
 
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR04.'
-
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR04.'
         else
-
             call GetGridAngle(Me%ObjHorizontalGrid,                                     &
-                              Me%External_Var%GridRotation,                             &
-                              STAT = STAT_CALL)
-
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR40.'
+                              Me%External_Var%GridRotation, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR40.'
 
             !Convert from degrees in to radians
             Me%External_Var%GridRotation = Me%External_Var%GridRotation * Pi / 180.
-
-
         endif
-
 
         call GetGridLatitudeLongitude(Me%ObjHorizontalGrid,                             &
                                       GridLatitude  = Me%External_Var%LatitudeZ,        &
                                       GridLongitude = Me%External_Var%LongitudeZ,       &
                                       STAT          = STAT_CALL)
 
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR50.'
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR50.'
 
     End Subroutine ReadLock_ModuleHorizontalGrid
 
     !End----------------------------------------------------------------------
-
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -60901,12 +57364,7 @@ cd1:    if (HydrodynamicID > 0) then
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     Subroutine ReadUnLock_ModuleHorizontalGrid
 
-
         !Arguments-------------------------------------------------------------
-
-
-
-
         !Local-----------------------------------------------------------------
         integer        :: STAT_CALL
 
@@ -60914,80 +57372,48 @@ cd1:    if (HydrodynamicID > 0) then
         !Horizontal Grid properties
 
         !DXX
-        call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
-                                 Me%External_Var%DXX, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR01.'
-
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DXX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR01.'
 
         !DYY
-        call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
-                                 Me%External_Var%DYY, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR02.'
-
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DYY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR02.'
 
         !DZX
-        call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
-                                 Me%External_Var%DZX, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR03.'
-
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DZX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR03.'
 
         !DZY
-        call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
-                                 Me%External_Var%DZY, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR04.'
-
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DZY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR04.'
 
         !DUX
-        call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
-                                 Me%External_Var%DUX, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR05.'
-
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DUX, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR05.'
 
         !DVY
-        call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
-                                 Me%External_Var%DVY, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR06.'
-
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%DVY, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR06.'
 
         !Coriolis frequency
-        call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
-                                 Me%External_Var%Coriolis_Freq, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR07.'
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%Coriolis_Freq, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR07.'
 
         if (Me%External_Var%Distortion) then
+            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%RotationX, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR08.'
 
-            call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
-                                     Me%External_Var%RotationX, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                            &
-                stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR08.'
-
-
-            call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
-                                     Me%External_Var%RotationY, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                            &
-                stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR09.'
-
+            call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%RotationY, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR09.'
         endif
 
         !Longitude Z
-        call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
-                                 Me%External_Var%LongitudeZ, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR100.'
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%LongitudeZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR100.'
 
         !Latitude Z
-        call UnGetHorizontalGrid(Me%ObjHorizontalGrid,           &
-                                 Me%External_Var%LatitudeZ, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR110.'
-
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%LatitudeZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleHorizontalGrid - ModuleHydrodynamic. ERR110.'
 
         !---------------------------------------------------------------------
 
@@ -60995,16 +57421,11 @@ cd1:    if (HydrodynamicID > 0) then
 
     !--------------------------------------------------------------------------
 
-
     !--------------------------------------------------------------------------
 
     Subroutine ReadLock_ModuleHorizontalMap
 
-
         !Arguments-------------------------------------------------------------------
-
-
-
         !Local----------------------------------------------------------------------
         integer                          :: STAT_CALL
 
@@ -61012,32 +57433,20 @@ cd1:    if (HydrodynamicID > 0) then
         !Horizontal Mapping Properties
         call GetBoundaryFaces(Me%ObjHorizontalMap,                                      &
                               Me%External_Var%BoundaryFacesU,                           &
-                              Me%External_Var%BoundaryFacesV,                           &
-                              STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR10.'
+                              Me%External_Var%BoundaryFacesV, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR10.'
 
 
-        call GetBoundaries(Me%ObjHorizontalMap,                                         &
-                           Me%External_Var%BoundaryPoints,                              &
-                              STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR20.'
+        call GetBoundaries(Me%ObjHorizontalMap, Me%External_Var%BoundaryPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR20.'
 
         !Gets WaterPoints2D
-        call GetWaterPoints2D(Me%ObjHorizontalMap, &
-                              Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR30.'
+        call GetWaterPoints2D(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR30.'
 
         !Gets LandPoints2D
-        call GetLandPoints2D(Me%ObjHorizontalMap, &
-                              Me%External_Var%LandPoints2D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR40.'
-
+        call GetLandPoints2D(Me%ObjHorizontalMap,  Me%External_Var%LandPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR40.'
 
     End Subroutine ReadLock_ModuleHorizontalMap
 
@@ -61053,59 +57462,36 @@ cd1:    if (HydrodynamicID > 0) then
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     Subroutine ReadUnLock_ModuleHorizontalMap
 
-
         !Arguments-------------------------------------------------------------------
-
-
-
         !Local----------------------------------------------------------------------
         integer        :: STAT_CALL
-
 
         !Module - ModuleHorizontalMap
         !Horizontal Mapping Properties
 
         !Boundary faces along the X direction
-        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryFacesU,    &
-                                STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR10.'
-
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryFacesU, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR10.'
 
         !Boundary faces along the Y direction
-        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryFacesV,    &
-                                STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR20.'
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryFacesV, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR20.'
 
        !Boundary points
-        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryPoints,    &
-                                STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR30.'
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryPoints, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR30.'
 
         !UnGets WaterPoints2D
-        call UnGetHorizontalMap(Me%ObjHorizontalMap,                                    &
-                                Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR40.'
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR40.'
 
         !UnGets LandPoints2D
-        call UnGetHorizontalMap(Me%ObjHorizontalMap,                                    &
-                                Me%External_Var%LandPoints2D, STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                      &
-            stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR50.'
-
+        call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%LandPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleHorizontalMap - ModuleHydrodynamic. ERR50.'
 
     End Subroutine ReadUnLock_ModuleHorizontalMap
 
     !End----------------------------------------------------------------------
-
 
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -61118,11 +57504,7 @@ cd1:    if (HydrodynamicID > 0) then
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     Subroutine ReadLock_ModuleGeometry
 
-
         !Arguments-------------------------------------------------------------------
-
-
-
         !Local----------------------------------------------------------------------
         integer                          :: STAT_CALL
 
@@ -61130,67 +57512,37 @@ cd1:    if (HydrodynamicID > 0) then
         !3D Geometry properties
 
         call GetGeometryKFloor(Me%ObjGeometry,               &
-                               Z = Me%External_Var%KFloor_Z, &
-                               U = Me%External_Var%KFloor_U, &
-                               V = Me%External_Var%KFloor_V, &
+                               Z = Me%External_Var%KFloor_Z,  U = Me%External_Var%KFloor_U, V = Me%External_Var%KFloor_V, &
                                STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR**.'
-
-
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR**.'
 
         call GetGeometryVolumes(Me%ObjGeometry,                            &
                                 VolumeZ = Me%External_Var%Volume_Z_New,    &
                                 VolumeU = Me%External_Var%Volume_U,        &
                                 VolumeV = Me%External_Var%Volume_V,        &
                                 VolumeW = Me%External_Var%Volume_W,        &
-                                VolumeZOld = Me%External_Var%Volume_Z_Old, &
-                                STAT = STAT_CALL)
+                                VolumeZOld = Me%External_Var%Volume_Z_Old,  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR**.'
 
-        if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR**.'
-
-
-
-        call GetGeometryAreas(Me%ObjGeometry,                 &
-                              AreaU = Me%External_Var%Area_U, &
-                              AreaV = Me%External_Var%Area_V, &
+        call GetGeometryAreas(Me%ObjGeometry, AreaU = Me%External_Var%Area_U, AreaV = Me%External_Var%Area_V, &
                               STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR**.'
-
-
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR**.'
 
         call GetGeometryDistances(Me%ObjGeometry,             &
-                                  DWZ = Me%External_Var%DWZ,  &
-                                  SZZ = Me%External_Var%SZZ,  &
-                                  DUZ = Me%External_Var%DUZ,  &
-                                  DVZ = Me%External_Var%DVZ,  &
-                                  DZZ = Me%External_Var%DZZ,  &
-                                  STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR**.'
-
-
+                                  DWZ = Me%External_Var%DWZ, SZZ = Me%External_Var%SZZ,  &
+                                  DUZ = Me%External_Var%DUZ, DVZ = Me%External_Var%DVZ,  &
+                                  DZZ = Me%External_Var%DZZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR**.'
 
         call GetGeometryWaterColumn(Me%ObjGeometry,                             &
                                     WaterColumn = Me%External_Var%WaterColumn,  &
                                     WaterColumnU= Me%External_Var%WaterColumnU, &
-                                    WaterColumnV= Me%External_Var%WaterColumnV, &
-                                    STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR**.'
-
-
+                                    WaterColumnV= Me%External_Var%WaterColumnV,  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleGeometry - ModuleHydrodynamic. ERR**.'
 
     End Subroutine ReadLock_ModuleGeometry
 
     !End----------------------------------------------------------------------
-
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -61202,144 +57554,87 @@ cd1:    if (HydrodynamicID > 0) then
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     Subroutine ReadUnLock_ModuleGeometry
 
-
         !Arguments-------------------------------------------------------------
-
-
-
         !Local-----------------------------------------------------------------
         integer        :: STAT_CALL
 
         !Module - ModuleGeometry
         !3D Geometry properties
 
-
         !First non land layer of the Z cell (water level compute point)
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%KFloor_Z, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR01.'
-
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%KFloor_Z, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR01.'
 
         !First non land layer of the U cell (velocity U compute point)
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%KFloor_U, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR02.'
-
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%KFloor_U, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR02.'
 
         !First non land layer of the V cell (velocity V compute point)
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%KFloor_V, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR03.'
-
-
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%KFloor_V, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR03.'
 
         !New volume of the Z cell (water level compute point)
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%Volume_Z_New, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR04.'
-
-
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%Volume_Z_New, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR04.'
 
         !Old volume of the Z cell (water level compute point)
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%Volume_Z_Old, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR05.'
-
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%Volume_Z_Old, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR05.'
 
         !New volume of the U cell (Velocity U compute point)
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%Volume_U, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR06.'
-
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%Volume_U, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR06.'
 
         !New volume of the V cell (Velocity V compute point)
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%Volume_V, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR07.'
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%Volume_V, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR07.'
 
         !New volume of the V cell (Velocity W compute point)
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%Volume_W, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR07a.'
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%Volume_W, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR07a.'
 
         !New Area of the U cell (Velocity U compute point)
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%Area_U, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR08.'
-
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%Area_U, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR08.'
 
         !New Area of the V cell (Velocity V compute point)
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%Area_V, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR09.'
-
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%Area_V, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR09.'
 
         !Tickness of the Z cell
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%DWZ, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR10.'
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%DWZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR10.'
 
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%DZZ, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR10a.'
-
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%DZZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR10a.'
 
         !Top face position
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%SZZ, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR11.'
-
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%SZZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR11.'
 
         !Tickness of the total water column in the Z cell center
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%WaterColumn, STAT = STAT_CALL)
-       if (STAT_CALL /= SUCCESS_)                                             &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR12.'
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%WaterColumn, STAT = STAT_CALL)
+       if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR12.'
 
         !Tickness of the total water column in the U cell center
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%WaterColumnU, STAT = STAT_CALL)
-       if (STAT_CALL /= SUCCESS_)                                             &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR13.'
-
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%WaterColumnU, STAT = STAT_CALL)
+       if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR13.'
 
         !Tickness of the total water column in the V cell center
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%WaterColumnV, STAT = STAT_CALL)
-       if (STAT_CALL /= SUCCESS_)                                             &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR14.'
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%WaterColumnV, STAT = STAT_CALL)
+       if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR14.'
 
         !Tickness of the U cell center
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%DUZ, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR15.'
-
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%DUZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR15.'
 
         !Tickness of the V cell center
-        call UnGetGeometry(Me%ObjGeometry,                       &
-                           Me%External_Var%DVZ, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR16.'
-
+        call UnGetGeometry(Me%ObjGeometry, Me%External_Var%DVZ, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleGeometry - ModuleHydrodynamic. ERR16.'
 
     End Subroutine ReadUnLock_ModuleGeometry
 
     !End----------------------------------------------------------------------
-
 
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !                                                                                      !
@@ -61352,88 +57647,39 @@ cd1:    if (HydrodynamicID > 0) then
 
     Subroutine ReadLock_ModuleMap
 
-
         !Arguments-------------------------------------------------------------------
-
-
-
         !Local----------------------------------------------------------------------
         integer                          :: STAT_CALL
-
-
 
         !Module - ModuleMap
         !3D Mapping Properties
 
         call GetComputeFaces3D(Me%ObjMap,                        &
-                               ComputeFacesU3D =                              &
-                               Me%External_Var%ComputeFaces3D_U, &
-                               ComputeFacesV3D =                              &
-                               Me%External_Var%ComputeFaces3D_V, &
-                               ComputeFacesW3D =                              &
-                               Me%External_Var%ComputeFaces3D_W, &
-                               STAT= STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadLock_ModuleMap - ModuleHydrodynamic. ERR**.'
-
-
-!        call GetUnCoveredFaces3D(Me%ObjMap,                        &
-!                               UnCoveredFacesU3D =                              &
-!                               Me%External_Var%UnCoveredFaces3D_U, &
-!                               UnCoveredFacesV3D =                              &
-!                               Me%External_Var%UnCoveredFaces3D_V, &
-!                               STAT= STAT_CALL)
-
-!        if (STAT_CALL /= SUCCESS_)                                          &
-!            stop 'Subroutine ReadLock_ModuleMap - ModuleHydrodynamic. ERR**.'
-
+                               ComputeFacesU3D = Me%External_Var%ComputeFaces3D_U, &
+                               ComputeFacesV3D = Me%External_Var%ComputeFaces3D_V, &
+                               ComputeFacesW3D =  Me%External_Var%ComputeFaces3D_W,  STAT= STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleMap - ModuleHydrodynamic. ERR**.'
 
         call GetLandBoundaryFaces3D(Me%ObjMap,                     &
-                               LandBoundaryFaces3DU =                           &
-                               Me%External_Var%LandBoundaryFacesU, &
-                               LandBoundaryFaces3DV =                           &
-                               Me%External_Var%LandBoundaryFacesV, &
-                               STAT = STAT_CALL)
+                               LandBoundaryFaces3DU = Me%External_Var%LandBoundaryFacesU, &
+                               LandBoundaryFaces3DV = Me%External_Var%LandBoundaryFacesV,  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleMap - ModuleHydrodynamic. ERR**.'
 
-        if (STAT_CALL /= SUCCESS_)                                          &
-            stop 'Subroutine ReadLock_ModuleMap - ModuleHydrodynamic. ERR**.'
+        call GetWaterPoints3D(Me%ObjMap, Me%External_Var%WaterPoints3D,  STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) Stop 'Sub. ReadLock_ModuleMap - ModuleHydrodynamic - ERR**.'
 
-
-        call GetWaterPoints3D(Me%ObjMap,                     &
-                              Me%External_Var%WaterPoints3D, &
-                              STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_) &
-            Stop 'Sub. ReadLock_ModuleMap - ModuleHydrodynamic - ERR**.'
-
-        call GetOpenPoints3D(Me%ObjMap,                      &
-                             Me%External_Var%OpenPoints3D,   &
-                             STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_) &
-            Stop 'Sub. ReadLock_ModuleMap - ModuleHydrodynamic - ERR**.'
-
+        call GetOpenPoints3D(Me%ObjMap, Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) Stop 'Sub. ReadLock_ModuleMap - ModuleHydrodynamic - ERR**.'
 
         call GetImposedTangentialFaces(Me%ObjMap,                           &
                               Me%External_Var%ImposedTangentialFacesU,      &
-                              Me%External_Var%ImposedTangentialFacesV,      &
-                              STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadLock_ModuleMap - ModuleHydrodynamic. ERR**.'
-
+                              Me%External_Var%ImposedTangentialFacesV, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleMap - ModuleHydrodynamic. ERR**.'
 
         call GetImposedNormalFaces(Me%ObjMap,                               &
                               Me%External_Var%ImposedNormalFacesU,          &
-                              Me%External_Var%ImposedNormalFacesV,          &
-                              STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                                       &
-            stop 'Subroutine ReadLock_ModuleMap - ModuleHydrodynamic. ERR**.'
-
-
-
+                              Me%External_Var%ImposedNormalFacesV, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadLock_ModuleMap - ModuleHydrodynamic. ERR**.'
 
     End Subroutine ReadLock_ModuleMap
 
@@ -61448,111 +57694,56 @@ cd1:    if (HydrodynamicID > 0) then
 
     Subroutine ReadUnLock_ModuleMap
 
-
         !Arguments-------------------------------------------------------------
-
-
-
         !Local-----------------------------------------------------------------
         integer        :: STAT_CALL
-
-
 
         !Module - ModuleMap
         !3D Mapping Properties
 
         !3D Boundary land faces along the X direction
-        call UnGetMap(Me%ObjMap,                                 &
-                      Me%External_Var%LandBoundaryFacesU, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR01.'
-
+        call UnGetMap(Me%ObjMap, Me%External_Var%LandBoundaryFacesU, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR01.'
 
         !3D Boundary land faces along the Y direction
-        call UnGetMap(Me%ObjMap,                                 &
-                      Me%External_Var%LandBoundaryFacesV, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR02.'
-
+        call UnGetMap(Me%ObjMap, Me%External_Var%LandBoundaryFacesV, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR02.'
 
         !3D water points
-        call UnGetMap(Me%ObjMap,                                 &
-                      Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR03.'
-
+        call UnGetMap(Me%ObjMap, Me%External_Var%WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR03.'
 
         !3D Compute faces along the X direction
-        call UnGetMap(Me%ObjMap,                                 &
-                      Me%External_Var%ComputeFaces3D_U, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR04.'
-
+        call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_U, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR04.'
 
         !3D Compute faces along the Y direction
-        call UnGetMap(Me%ObjMap,                                 &
-                      Me%External_Var%ComputeFaces3D_V, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR05.'
+        call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_V, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR05.'
 
         !3D Compute faces along the Z direction  !flavio
-        call UnGetMap(Me%ObjMap,                                 &
-                      Me%External_Var%ComputeFaces3D_W, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR05a.'
-
-        !3D UnCovered faces along the X direction
-!        call UnGetMap(Me%ObjMap,                                 &
-!                      Me%External_Var%UnCoveredFaces3D_U, STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_)                                            &
-!            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR06.'
-
-
-        !3D UnCovered faces along the Y direction
-!        call UnGetMap(Me%ObjMap,                                 &
-!                      Me%External_Var%UnCoveredFaces3D_V, STAT = STAT_CALL)
-!        if (STAT_CALL /= SUCCESS_)                                            &
-!            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR07.'
+        call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_W, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR05a.'
 
         !3D OpenPoints
-        call UnGetMap(Me%ObjMap,                                 &
-                      Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)                                            &
-            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR07.'
-
-
+        call UnGetMap(Me%ObjMap, Me%External_Var%OpenPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR07.'
 
         !Imposed Tangential faces along the X direction
-        call UnGetMap(Me%ObjMap, Me%External_Var%ImposedTangentialFacesU,  &
-                                STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR**.'
-
+        call UnGetMap(Me%ObjMap, Me%External_Var%ImposedTangentialFacesU, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR**.'
 
         !Imposed Tangential  faces along the Y direction
-        call UnGetMap(Me%ObjMap, Me%External_Var%ImposedTangentialFacesV,  &
-                                STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR**.'
-
+        call UnGetMap(Me%ObjMap, Me%External_Var%ImposedTangentialFacesV, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR**.'
 
         !Imposed Normal faces along the X direction
-        call UnGetMap(Me%ObjMap, Me%External_Var%ImposedNormalFacesU,  &
-                                STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR**.'
-
+        call UnGetMap(Me%ObjMap, Me%External_Var%ImposedNormalFacesU, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR**.'
 
         !Imposed Normal  faces along the Y direction
-        call UnGetMap(Me%ObjMap, Me%External_Var%ImposedNormalFacesV,  &
-                                STAT = STAT_CALL)
-
-        if (STAT_CALL /= SUCCESS_)                                           &
-            stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR**.'
-
+        call UnGetMap(Me%ObjMap, Me%External_Var%ImposedNormalFacesV, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Subroutine ReadUnLock_ModuleMap - ModuleHydrodynamic. ERR**.'
 
         !----------------------------------------------------------------------
 
@@ -61564,72 +57755,46 @@ cd1:    if (HydrodynamicID > 0) then
 
     Subroutine ReadLock_ModuleAssimilation
 
-
         !Local----------------------------------------------------------------------
         integer                          :: STAT_CALL
 
 cd1:    if(Me%ComputeOptions%AltimetryAssimilation%Yes) then
-
             !Fetch the analyzed sigma density field
-            call GetAltimSigmaDensAnalyzed( Me%ObjAssimilation,                         &
-                                            Me%External_Var%AltimSigmaDensAnalyzed,     &
-                                            STAT            = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'ReadLock_ModuleAssimilation - ModuleHydrodynamic - ERR01'
+            call GetAltimSigmaDensAnalyzed( Me%ObjAssimilation, Me%External_Var%AltimSigmaDensAnalyzed, STAT=STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLock_ModuleAssimilation - ModuleHydrodynamic - ERR01'
 
             !Fetch the analyzed Water Level field
-            call GetAssimilationField(Me%ObjAssimilation,                               &
-                                     ID      = AltimLevelAnalyzed_,                     &
-                                     Field2D = Me%External_Var%AltimWaterLevelAnalyzed, &
-                                     STAT    = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'ReadLock_ModuleAssimilation - ModuleHydrodynamic - ERR02'
+            call GetAssimilationField(Me%ObjAssimilation, ID = AltimLevelAnalyzed_,   &
+                                      Field2D = Me%External_Var%AltimWaterLevelAnalyzed, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLock_ModuleAssimilation - ModuleHydrodynamic - ERR02'
 
             !Fetch the DecayTime
-            call GetAltimetryDecayTime(Me%ObjAssimilation,                              &
-                                       Me%External_Var%AltimDecayTime,                  &
-                                       STAT            = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'ReadLock_ModuleAssimilation - ModuleHydrodynamic - ERR03'
+            call GetAltimetryDecayTime(Me%ObjAssimilation, Me%External_Var%AltimDecayTime, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLock_ModuleAssimilation - ModuleHydrodynamic - ERR03'
 
             !Here we fetch the altimetry DT and initialize the nextcompute time
             call GetAssimilationAltimetryDT(Me%ObjAssimilation,                         &
-                                    Me%ComputeOptions%AltimetryAssimilation%DT_Compute, &
-                                    STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'ReadLock_ModuleAssimilation - ModuleHydrodynamic - ERR04'
-
+                                    Me%ComputeOptions%AltimetryAssimilation%DT_Compute, STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadLock_ModuleAssimilation - ModuleHydrodynamic - ERR04'
         endif cd1
 
     End Subroutine ReadLock_ModuleAssimilation
 
     !End----------------------------------------------------------------------
 
-
     Subroutine ReadUnLock_ModuleAssimilation
-
 
         !Local-----------------------------------------------------------------
         integer        :: STAT_CALL
 
 cd1:    if(Me%ComputeOptions%AltimetryAssimilation%Yes) then
-
-
             !Unfetch the analyzed Water Level field
-            call UnGetAssimilation( Me%ObjAssimilation,                                 &
-                                    Me%External_Var%AltimWaterLevelAnalyzed,            &
-                                    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'ReadUnLock_ModuleAssimilation - ModuleHydrodynamic - ERR01'
+            call UnGetAssimilation( Me%ObjAssimilation, Me%External_Var%AltimWaterLevelAnalyzed, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLock_ModuleAssimilation - ModuleHydrodynamic - ERR01'
 
             !Unfetch the analyzed Sigma Density field
-            call UnGetAssimilation( Me%ObjAssimilation,                                 &
-                                    Me%External_Var%AltimSigmaDensAnalyzed,             &
-                                    STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_)                                                  &
-                stop 'ReadUnLock_ModuleAssimilation - ModuleHydrodynamic - ERR02'
-
-
+            call UnGetAssimilation( Me%ObjAssimilation, Me%External_Var%AltimSigmaDensAnalyzed, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ReadUnLock_ModuleAssimilation - ModuleHydrodynamic - ERR02'
         endif cd1
 
         !---------------------------------------------------------------------
@@ -61643,21 +57808,12 @@ cd1:    if(Me%ComputeOptions%AltimetryAssimilation%Yes) then
     Subroutine ReadLock_External_Modules
 
         !Arguments-------------------------------------------------------------
-
-
-
         !----------------------------------------------------------------------
-
             call ReadLock_ModuleHorizontalGrid
-
             call ReadLock_ModuleHorizontalMap
-
             call ReadLock_ModuleGeometry
-
             call ReadLock_ModuleMap
-
             call ReadLock_ModuleAssimilation
-
         !----------------------------------------------------------------------
 
     End Subroutine ReadLock_External_Modules
@@ -61669,22 +57825,13 @@ cd1:    if(Me%ComputeOptions%AltimetryAssimilation%Yes) then
     Subroutine ReadUnLock_External_Modules
 
         !Arguments-------------------------------------------------------------
-
-
-
         !----------------------------------------------------------------------
 
             call ReadUnLock_ModuleHorizontalGrid
-
             call ReadUnLock_ModuleHorizontalMap
-
             call ReadUnLock_ModuleGeometry
-
             call ReadUnLock_ModuleMap
-
             call ReadUnLock_ModuleAssimilation
-
-
         !----------------------------------------------------------------------
 
     End Subroutine ReadUnLock_External_Modules
@@ -61725,12 +57872,8 @@ cd1:    if(Me%ComputeOptions%AltimetryAssimilation%Yes) then
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             !Window to send
-            ILB = Window%ILB
-            IUB = Window%IUB
-            JLB = Window%JLB
-            JUB = Window%JUB
-            KLB = Me%WorkSize%KLB
-            KUB = Me%WorkSize%KUB
+            ILB = Window%ILB; JLB = Window%JLB; KLB = Me%WorkSize%KLB
+            IUB = Window%IUB; JUB = Window%JUB; KUB = Me%WorkSize%KUB
 
             if (InitialField) then
 
@@ -61743,18 +57886,13 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                1000, MPI_COMM_WORLD, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR02'
 
-
                 !Sends KLB
-                call MPI_Send (Me%WorkSize%KLB, 1, MPI_INTEGER, Destination, 1001,       &
-                               MPI_COMM_WORLD, STAT_CALL)
+                call MPI_Send (Me%WorkSize%KLB, 1, MPI_INTEGER, Destination, 1001, MPI_COMM_WORLD, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR03'
 
-
                 !Sends KUB
-                call MPI_Send (Me%WorkSize%KUB, 1, MPI_INTEGER, Destination, 1002,       &
-                               MPI_COMM_WORLD, STAT_CALL)
+                call MPI_Send (Me%WorkSize%KUB, 1, MPI_INTEGER, Destination, 1002, MPI_COMM_WORLD, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR04'
-
 
                 Precision = MPIKind(DT)
 
@@ -61762,12 +57900,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 call MPI_Send (DT, 1, Precision, Destination, 1003, MPI_COMM_WORLD, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR05'
 
-
             endif
 
             !Sends last iteration
-            call ExtractDate (Me%LastIteration, AuxTime(1), AuxTime(2), AuxTime(3),      &
-                              AuxTime(4), AuxTime(5), AuxTime(6))
+            call ExtractDate (Me%LastIteration, AuxTime(1), AuxTime(2), AuxTime(3), AuxTime(4), AuxTime(5), AuxTime(6))
 
             !Assuming that all other variables have the same kind
             Precision = MPIKind(Me%Velocity%Horizontal%U%New)
@@ -61775,21 +57911,18 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             call MPI_Send (AuxTime, 6, Precision, Destination, 1004, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR06'
 
-
             !Gets OpenPoints
             call GetOpenPoints3D      (Me%ObjMap, Open3DFather, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR07'
 
             !Gets ComputeFaces
             call GetComputeFaces3D    (Me%ObjMap, ComputeFacesU3D = Faces3D_UFather,     &
-                                       ComputeFacesV3D = Faces3D_VFather,                &
-                                       STAT= STAT_CALL)
+                                       ComputeFacesV3D = Faces3D_VFather, STAT= STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR08'
 
             !Gets WetFaces
             call GetWetFaces          (Me%ObjMap, WetFaceU = WetFaces_UFather,           &
-                                       WetFaceV = WetFaces_VFather,                      &
-                                       STAT= STAT_CALL)
+                                       WetFaceV = WetFaces_VFather, STAT= STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR09'
 
             !Gets DUZ, DVZ
@@ -61804,13 +57937,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                            iSize, Precision, Destination, 1005, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR11'
 
-
             !VFather
             iSize = (IUB+1-ILB+1) * (JUB-JLB+1) * (KUB-KLB+1)
             call MPI_Send (Me%Velocity%Horizontal%V%New(ILB:IUB+1, JLB:JUB, KLB:KUB),    &
                            iSize, Precision, Destination, 1006, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR12'
-
 
             !FluxXFather
             iSize = (IUB-ILB+1) * (JUB+1-JLB+1) * (KUB-KLB+1)
@@ -61824,14 +57955,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                            iSize, MPI_DOUBLE_PRECISION, Destination, 1008, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR14'
 
-
             !ZFather
             iSize = (IUB-ILB+1) * (JUB-JLB+1)
             call MPI_Send (Me%WaterLevel%New(ILB:IUB, JLB:JUB),                          &
                            iSize, Precision, Destination, 1009, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR15'
-
-
 
             !Open3DFather
             iSize = (IUB-ILB+1) * (JUB-JLB+1) * (KUB-KLB+1)
@@ -61839,13 +57967,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                            iSize, MPI_INTEGER, Destination, 1010, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR16'
 
-
             !Faces3D_UFather
             iSize = (IUB-ILB+1) * (JUB+1-JLB+1) * (KUB-KLB+1)
             call MPI_Send (Faces3D_UFather(ILB:IUB, JLB:JUB+1, KLB:KUB),                 &
                            iSize, MPI_INTEGER, Destination, 1011, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR17'
-
 
             !Faces3D_VFather
             iSize = (IUB+1-ILB+1) * (JUB-JLB+1) * (KUB-KLB+1)
@@ -61853,13 +57979,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                            iSize, MPI_INTEGER, Destination, 1012, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR18'
 
-
             !WetFaces_UFather
             iSize = (IUB-ILB+1) * (JUB+1-JLB+1) * (KUB-KLB+1)
             call MPI_Send (WetFaces_UFather(ILB:IUB, JLB:JUB+1, KLB:KUB),                &
                            iSize, MPI_INTEGER, Destination, 1013, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR19'
-
 
             !WetFaces_VFather
             iSize = (IUB+1-ILB+1) * (JUB-JLB+1) * (KUB-KLB+1)
@@ -61867,22 +57991,17 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                            iSize, MPI_INTEGER, Destination, 1014, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR20'
 
-
             !DUZFather
             iSize = (IUB-ILB+1) * (JUB+1-JLB+1) * (KUB-KLB+1)
             call MPI_Send (DUZFather(ILB:IUB, JLB:JUB+1, KLB:KUB),                       &
                            iSize, Precision , Destination, 1015, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR21'
 
-
-
             !DVZFather
             iSize = (IUB+1-ILB+1) * (JUB-JLB+1) * (KUB-KLB+1)
             call MPI_Send (DVZFather(ILB:IUB+1, JLB:JUB, KLB:KUB),                       &
                            iSize, Precision, Destination, 1016, MPI_COMM_WORLD, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'SendHydrodynamicMPI - MohidWater - ERR22'
-
-
 
             !Ungets information
             call UnGetMap       (Me%ObjMap,      Open3DFather,    STAT = STAT_CALL)
@@ -61895,15 +58014,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             call UnGetGeometry  (Me%ObjGeometry, DUZFather,  STAT = STAT_CALL)
             call UnGetGeometry  (Me%ObjGeometry, DVZFather,  STAT = STAT_CALL)
 
-
             STAT_ = SUCCESS_
 
         else
-
             STAT_ = ready_
-
         end if cd1
-
 
         if (present(STAT)) STAT = STAT_
 
@@ -61942,7 +58057,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         integer, dimension(:,:,:), pointer, save    :: Faces3D_UFather
         integer, dimension(:,:,:), pointer, save    :: Faces3D_VFather
 
-
         integer                                     :: iSize
         integer, save                               :: Precision
 
@@ -61954,18 +58068,13 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
-            call GetHorizontalGridSize (FatherGridID, Size = Size,                       &
-                                        WorkSize = WorkSize, STAT = STAT_CALL)
-
+            call GetHorizontalGridSize (FatherGridID, Size = Size, WorkSize = WorkSize, STAT = STAT_CALL)
 
             !Window Size
-            ILB = Window%ILB
-            IUB = Window%IUB
-            JLB = Window%JLB
-            JUB = Window%JUB
-
+            ILB = Window%ILB; JLB = Window%JLB
+            IUB = Window%IUB; JUB = Window%JUB
+            
             if (InitialField) then
-
                 !Recieves Continous Compute
                 call MPI_Recv (FatherContinous, 1, MPI_LOGICAL, Source, 1000, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RecvHydrodynamicMPI - MohidWater - ERR01'
@@ -61978,13 +58087,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 call MPI_Recv (KUB, 1, MPI_INTEGER, Source, 1002,  MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RecvHydrodynamicMPI - MohidWater - ERR03'
 
-
                 Precision = MPIKind(DT)
 
                 !Recieves DT
                 call MPI_Recv (DT, 1, Precision, Source, 1003,  MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RecvHydrodynamicMPI - MohidWater - ERR04'
-
 
                 call TestSubModelOptionsConsistence (FatherContinous)
 
@@ -62031,7 +58138,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             call MPI_Recv (AuxTime, 6, Precision, Source, 1004, MPI_COMM_WORLD, status, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'RecvHydrodynamicMPI - MohidWater - ERR05'
 
-
             call SetDate  (LastIteration, AuxTime(1), AuxTime(2), AuxTime(3), AuxTime(4), AuxTime(5), AuxTime(6))
 
             if (LastIteration > Me%SubModel%NextTime .or. InitialField) then
@@ -62042,13 +58148,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                Source, 1005, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RecvHydrodynamicMPI - MohidWater - ERR06'
 
-
                 !VFather
                 iSize = (IUB+1-ILB+1) * (JUB-JLB+1) * (KUB-KLB+1)
                 call MPI_Recv (VFather(ILB:IUB+1, JLB:JUB, KLB:KUB), iSize, Precision,   &
                                Source, 1006, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RecvHydrodynamicMPI - MohidWater - ERR07'
-
 
                 !FluxXFather
                 iSize = (IUB-ILB+1) * (JUB+1-JLB+1) * (KUB-KLB+1)
@@ -62056,13 +58160,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                Source, 1007, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RecvHydrodynamicMPI - MohidWater - ERR08'
 
-
                 !FluxYFather
                 iSize = (IUB+1-ILB+1) * (JUB-JLB+1) * (KUB-KLB+1)
                 call MPI_Recv (FluxYFather(ILB:IUB+1, JLB:JUB, KLB:KUB), iSize, MPI_DOUBLE_PRECISION,&
                                Source, 1008, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RecvHydrodynamicMPI - MohidWater - ERR09'
-
 
                 !ZFather
                 iSize = (IUB-ILB+1) * (JUB-JLB+1)
@@ -62070,13 +58172,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                Source, 1009, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RecvHydrodynamicMPI - MohidWater - ERR10'
 
-
-                !Open3DFather
+                !Opn3DFather
                 iSize = (IUB-ILB+1) * (JUB-JLB+1) * (KUB-KLB+1)
                 call MPI_Recv (Open3DFather(ILB:IUB, JLB:JUB, KLB:KUB), iSize, MPI_INTEGER, &
                                Source, 1010, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RecvHydrodynamicMPI - MohidWater - ERR11'
-
 
                 !Faces3D_UFather
                 iSize = (IUB-ILB+1) * (JUB+1-JLB+1) * (KUB-KLB+1)
@@ -62084,13 +58184,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                Source, 1011, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RecvHydrodynamicMPI - MohidWater - ERR12'
 
-
                 !Faces3D_VFather
                 iSize = (IUB+1-ILB+1) * (JUB-JLB+1) * (KUB-KLB+1)
                 call MPI_Recv (Faces3D_VFather(ILB:IUB+1, JLB:JUB, KLB:KUB), iSize, MPI_INTEGER,&
                                Source, 1012, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RecvHydrodynamicMPI - MohidWater - ERR13'
-
 
                 !WetFaces_UFather
                 iSize = (IUB-ILB+1) * (JUB+1-JLB+1) * (KUB-KLB+1)
@@ -62098,13 +58196,11 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                Source, 1013, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RecvHydrodynamicMPI - MohidWater - ERR14'
 
-
                 !WetFaces_VFather
                 iSize = (IUB+1-ILB+1) * (JUB-JLB+1) * (KUB-KLB+1)
                 call MPI_Recv (WetFaces_VFather(ILB:IUB+1, JLB:JUB, KLB:KUB), iSize, MPI_INTEGER,&
                                Source, 1014, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RecvHydrodynamicMPI - MohidWater - ERR15'
-
 
                 !DUZFather
                 iSize = (IUB-ILB+1) * (JUB+1-JLB+1) * (KUB-KLB+1)
@@ -62112,22 +58208,17 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                Source, 1015, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RecvHydrodynamicMPI - MohidWater - ERR16'
 
-
                 !DVZFather
                 iSize = (IUB+1-ILB+1) * (JUB-JLB+1) * (KUB-KLB+1)
                 call MPI_Recv (DVZFather(ILB:IUB+1, JLB:JUB, KLB:KUB), iSize, Precision, &
                                Source, 1016, MPI_COMM_WORLD, status, STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'RecvHydrodynamicMPI - MohidWater - ERR17'
 
-
-
-
                 call ReadNextOrInitialField (UFather, VFather, DUZFather, DVZFather,     &
                                        FluxXFather, FluxYFather, ZFather, Open3DFather,  &
                                        Faces3D_UFather, Faces3D_VFather,                 &
                                        WetFaces_UFather, WetFaces_VFather, InitialField, &
                                        FatherGridID)
-
 
                 if (.not. InitialField) then
 
@@ -62142,44 +58233,31 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
                         !Get time for interpolation from aux variables
                         Me%SubModel%GetFatherTime = Me%SubModel%NextTime + DT_Son
-
                     endif
 
                     Me%SubModel%PreviousTime = Me%SubModel%NextTime
                     Me%SubModel%NextTime     = LastIteration
                 endif
-
             endif
 
             if      (Me%SubModel%VertComunic == FatherSonEqualDim) then
-
                 call ActualizeSubModelValues    (InitialField)
-
             else if (Me%SubModel%VertComunic == Father2DSon3D) then
-
                 call ActualizeSon3DWithFather2D (InitialField)
-
             else if ((Me%SubModel%VertComunic == FatherSonDifDim) .or.                   &
                       (Me%SubModel%VertComunic == Father3DSon2D)) then
-
                 !Ang: new implementation
                 call ActualizeSon3DWithFather3D (InitialField)
-
             endif
 
-!            if (Me%SubModel%DeadZone .and. InitialField  .and. .not. Me%ComputeOptions%Continuous)  then
             if (InitialField  .and. .not. Me%ComputeOptions%Continuous .and. Me%SubModel%FatherHotStart)  then
                 call Initial_Geometry(Me%WaterLevel%New)
             endif
 
             STAT_ = SUCCESS_
-
         else
-
             STAT_ = ready_
-
         end if cd1
-
 
         if (present(STAT)) STAT = STAT_
 
@@ -62210,32 +58288,21 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             call SetMatrixValue(Me%SubModel%DVZ_Old, Me%Size, Me%SubModel%DVZ_New)
 
             if      (Me%SubModel%VertComunic == FatherSonEqualDim) then
-
                 call ActualizeSubModelValues    (InitialField)
-
             else if (Me%SubModel%VertComunic == Father2DSon3D) then
-
                 call ActualizeSon3DWithFather2D (InitialField)
-
             else if ((Me%SubModel%VertComunic == FatherSonDifDim) .or.           &
                       (Me%SubModel%VertComunic == Father3DSon2D)) then
-
                 !Ang: new implementation
                 call ActualizeSon3DWithFather3D (InitialField)
-
             endif
 
             STAT_ = SUCCESS_
-
         else
-
             STAT_ = ready_
-
         end if cd1
 
-
         if (present(STAT)) STAT = STAT_
-
 
     end subroutine UpdateHydroMPI
 
@@ -62297,8 +58364,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
             !Gets WaterPoints2D
-            call GetWaterPoints2D(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D,    &
-                                  STAT = STAT_CALL)
+            call GetWaterPoints2D(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'GetWaterLevel1D - ModuleHydrodynamic - ERR01'
 
             idx = 1
@@ -62312,10 +58378,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             enddo
 
             !UnGets WaterPoints2D
-            call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D, &
-                                    STAT = STAT_CALL)
+            call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'GetWaterLevel1D - ModuleHydrodynamic - ERR02'
-
 
             GetWaterLevel1D = .true.
         else
@@ -62323,7 +58387,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         end if
 
         return
-
 
     end function GetWaterLevel1D
 
@@ -62349,8 +58412,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         if ((ready_ .EQ. IDLE_ERR_) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
 
             !Gets WaterPoints2D
-            call GetWaterPoints2D(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D,    &
-                                  STAT = STAT_CALL)
+            call GetWaterPoints2D(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'GetSurfaceVelocityU - ModuleHydrodynamic - ERR01'
 
             idx = 1
@@ -62416,10 +58478,8 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             enddo
 
             !UnGets WaterPoints2D
-            call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D, &
-                                    STAT = STAT_CALL)
+            call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%WaterPoints2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'GetSurfaceVelocityV - ModuleHydrodynamic - ERR02'
-
 
             GetSurfaceVelocityV = .true.
         else
