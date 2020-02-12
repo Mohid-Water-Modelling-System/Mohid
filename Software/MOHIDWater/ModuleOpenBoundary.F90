@@ -419,8 +419,18 @@ cd1:        if (Me%Compute_Tide) then
         real,    dimension(:), pointer  :: XT, YT, ZT
         integer, dimension(:), pointer  :: V1, V2, V3
         character(len=PathLength)       :: TrianglesFileName = "TideTriangulationNetwork.xy"
+        logical                         :: DDecompON, DDecompMaster
 
         !Begin-----------------------------------------------------------------
+
+        call GetDDecompParameters                                                       &
+                             (HorizontalGridID = Me%ObjHorizontalGrid,                  &
+                              ON               = DDecompON,                             &
+                              Master           = DDecompMaster,                         &
+                              STAT             = STAT_CALL)    
+        if (STAT_CALL /= SUCCESS_) stop 'WriteTriangles - ModuleOpenBoundary - ERR10'        
+        
+        if (.not. DDecompON .or. (DDecompON .and. DDecompMaster)) then
 
         !Get the number of triangles
         call GetNumberOfTriangles   (Me%ObjTriangulation, nTriangles)
@@ -431,19 +441,19 @@ cd1:        if (Me%Compute_Tide) then
         allocate(V3(nTriangles))
 
         call GetTriangleList (Me%ObjTriangulation, v1, v2, v3, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteTriangles - ModuleOpenBoundary - ERR10'
+            if (STAT_CALL /= SUCCESS_) stop 'WriteTriangles - ModuleOpenBoundary - ERR20'
 
 
         !Gets nodes effictive used and the reordered nodes 
         call GetNumberOfNodes (Me%ObjTriangulation, nNodes, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteTriangles - ModuleOpenBoundary - ERR20'
+            if (STAT_CALL /= SUCCESS_) stop 'WriteTriangles - ModuleOpenBoundary - ERR30'
 
         allocate(XT(nNodes))
         allocate(YT(nNodes))
         allocate(ZT(nNodes))
 
         call GetNodesList   (Me%ObjTriangulation, XT, YT, ZT, STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'WriteTriangles - ModuleOpenBoundary - ERR30'
+            if (STAT_CALL /= SUCCESS_) stop 'WriteTriangles - ModuleOpenBoundary - ERR40'
 
 
         call UnitsManager (UnitNumber, OPEN_FILE, STAT = STAT_CALL)
@@ -460,6 +470,7 @@ cd1:        if (Me%Compute_Tide) then
 
         deallocate(XT, YT, ZT, v1, v2, v3)
 
+        endif
 
     end subroutine WriteTriangles
 

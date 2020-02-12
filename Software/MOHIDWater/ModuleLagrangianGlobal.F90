@@ -35,10 +35,10 @@ Module ModuleLagrangianGlobal
 ! !MODULE: ModuleLagrangianGlobal
 
 !    !DESCRIPTION: 
-!     This model is responsible Create, Move and Destroy Lagrangian Tracers
+!     This model is responsible Create, Move and Destroy Lagrangian Tracers using a multi-nesting approach
  
 ! !REVISION HISTORY: 
-!    Jul2001   Frank Braunschweig  New Implementation
+!    2008   Paulo Leitao  New Lagrangian module (multi-nesting) - Implementation
 !
 ! !FILES USED:   
 !  'nomfich.dat' file is where the name files are given .
@@ -74,6 +74,13 @@ Module ModuleLagrangianGlobal
 !                                                                               !and contamination probability in each box
 !   MONITOR_BOX_CONT_DEPTH  : real                      []                      !Depth considered to contamination probability
 !   EULERIAN_MONITOR_BOX    : char                      []                      !Eulerian results monitoring box
+!   MONITOR_POLY            : int                       [0]                     !Number of polygons to be use in pure lagrangiam monitorization (no grid)
+!   MONITOR_POLY_DT         : real                      [DT_PARTIC]             !Time step use to monitor the particles
+!   <BeginMonitorPoly>
+!   poly1.xy
+!   poly2.xy
+!   ........
+!   <EndMonitorPoly>
 !   ASSOCIATE_BEACH_PROB    : 0/1                       [0]                     !Associates Beaching Probabilities
 !   DEFAULT_BEACHING_PROB   : real                      [0.5]                   !Outbox Beaching Probability
 !   BEACHING_LIMIT          : real                      [5.0]                   !Maximum distance between particles and coast
@@ -530,6 +537,12 @@ Module ModuleLagrangianGlobal
     private ::      MergeOldWithNewOrigins
     private ::      ConstructEmission
     private ::          ConstructEmissionTime
+    private ::      ActualizeMeteoOcean        
+    private ::      ReadMeteoOceanBathym           
+    private ::      ConstructOverlay         
+    private ::      ConstructMonitoring
+    private ::      ConstructMonitoringLag            
+    private ::      ConstructLag2Euler      
     private ::      ConstructTimeSeries
     private ::      ConstructHDF5Output
     private ::      ConstructLog
@@ -596,6 +609,7 @@ Module ModuleLagrangianGlobal
     private ::      NewParticleMass
     private ::      NewParticleAge
     private ::      MonitorParticle
+    private ::      MonitorParticleLag    
     private ::      ModifyParticStatistic
     private ::          ComputeStatisticsLag
     private ::          ActualizesTauErosionGrid
@@ -1095,6 +1109,7 @@ Module ModuleLagrangianGlobal
         type(T_EulerianMonitor)                 :: EulerianMonitor
 
         type(T_Monitorization )                 :: Monitor
+        
                           !i, j, k  
         real,    dimension(:, :, :   ), pointer :: RelativeMassFilter   => null() 
         real,    dimension(:, :, :   ), pointer :: MassFiltered         => null()
@@ -1134,6 +1149,7 @@ Module ModuleLagrangianGlobal
         logical                                 :: Monitor              = OFF
         logical                                 :: MonitorPropMass      = OFF
         logical                                 :: EulerianMonitor      = OFF
+        logical                                 :: MonitorLag           = OFF
         logical                                 :: Partition            = OFF
         logical                                 :: AssociateBeachProb   = OFF
         logical                                 :: CalcPartDistToCoast  = OFF
@@ -1237,6 +1253,8 @@ Module ModuleLagrangianGlobal
          integer                                :: NetCDF_DimID         = null_int
          
     end type T_OutPut
+
+  
 
   
     !Defines a generic Position
@@ -1577,6 +1595,7 @@ Module ModuleLagrangianGlobal
         real, dimension(:), pointer             :: y                        => null()
         real, dimension(:), pointer             :: z                        => null()
         integer                                 :: nParticle                = null_int
+        integer                                 :: nParticleEmit            = null_int        
         integer                                 :: NbrSubmerged             = 0
         integer                                 :: nProperties              = null_int
         integer                                 :: nPropT90                 = null_int
@@ -1746,6 +1765,15 @@ Module ModuleLagrangianGlobal
 
     end type T_ExternalVar
 
+    type T_MonitorLag
+        integer                                 :: NumberOfPoly                = null_int
+        type (T_Polygon), dimension(:), pointer :: Poly                        => null()        
+        integer, dimension(:,:), pointer        :: NumTracersOrigin            => null() 
+        integer, dimension(:  ), pointer        :: ObjTimeSerie                => null()
+        real                                    :: DT                          = null_real 
+        type (T_Time)                           :: NextOutPut
+    end type T_MonitorLag
+
 
     type T_Lagrangian
         integer                                 :: InstanceID
@@ -1765,6 +1793,8 @@ Module ModuleLagrangianGlobal
         integer                                 :: MonitorMassFractionType     = Arithmetic
         real                                    :: MonitorBox_TracerMinConc    = null_real
         real                                    :: MonitorContaminationDepth   = null_real
+
+        type(T_MonitorLag     )                 :: MonitorLag                
 
         real                                    :: DT_Partic                   = null_real
         integer                                 :: Vert_Steps                  = null_int
@@ -2156,6 +2186,12 @@ em2:            do em =1, Me%EulerModelNumber
 
             !Constructs the Monitoring 
             call ConstructMonitoring
+            
+            !Constructs the MonitoringLag 
+            if (Me%State%MonitorLag) then
+                call ConstructMonitoringLag () 
+                call MonitorParticleLag     ()
+            endif
             
             !Allocates all the necessary matrix for integrate lag data in eulerian grids
             call ConstructLag2Euler      
@@ -4214,6 +4250,8 @@ d2:     do em =1, Me%EulerModelNumber
         if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR235'
 
         call BoxTypeVariablesDefiniton
+        
+        call PolyMonitorLag
         
         !OVERLAY_VELOCITY
         call GetData(Me%Overlay,                                                        &
@@ -8113,6 +8151,116 @@ d1:     do em = 1, Me%EulerModelNumber
 
     !--------------------------------------------------------------------------
 
+    subroutine PolyMonitorLag
+
+        !Local---------------------------------------------------------------------
+        integer                     :: flag, STAT_CALL, ClientNumber
+        integer                     :: Naux, LastLine, FirstLine, nP, line
+        logical                     :: BlockFound
+        character(len=PathLength)   :: AuxChar
+        type (T_Polygon), pointer   :: AuxPoly
+        !Begin---------------------------------------------------------------------
+
+        !If user want to monitor using polygons instead of boxes
+        call GetData(Me%State%MonitorLag,                                               &
+                     Me%ObjEnterData,                                                   &
+                     flag,                                                              &
+                     SearchType   = FromFile,                                           &
+                     keyword      ='MONITOR_POLY',                                      &
+                     ClientModule ='ModuleLagrangianGlobal',                            &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'PolyMonitorLag - ModuleLagrangianGlobal - ERR10'
+        endif
+
+        if (Me%State%MonitorLag) then
+            
+            call GetData(Me%MonitorLag%DT,                                              &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         SearchType   = FromFile,                                       &
+                         keyword      ='MONITOR_POLY_DT',                               &
+                         default      = Me%DT_Partic,                                   & 
+                         ClientModule ='ModuleLagrangianGlobal',                        &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'PolyMonitorLag - ModuleLagrangianGlobal - ERR20'
+            endif          
+            
+            Me%MonitorLag%NextOutPut = Me%ExternalVar%BeginTime
+            
+            call ExtractBlockFromBuffer(EnterDataID     = Me%ObjEnterData,              &
+                                        ClientNumber    = ClientNumber,                 &
+                                        block_begin     = '<BeginMonitorPoly>',         &
+                                        block_end       = '<EndMonitorPoly>',           &
+                                        BlockFound      = BlockFound,                   &
+                                        FirstLine       = FirstLine,                    &
+                                        LastLine        = LastLine,                     &
+                                        STAT            = STAT_CALL)
+    
+            if (STAT_CALL /= SUCCESS_) stop 'PolyMonitorLag - ModuleLagrangianGlobal - ERR30'
+
+    BF:     if (BlockFound) then
+
+                Naux = LastLine - FirstLine - 1
+
+                Me%MonitorLag%NumberOfPoly = Naux
+                
+                allocate(Me%MonitorLag%ObjTimeSerie    (Naux))
+                allocate(Me%MonitorLag%Poly            (Naux))
+                
+
+  
+                nP = 0
+                do line = FirstLine + 1, LastLine - 1
+
+                    call GetData(value          = AuxChar,                              &
+                                 EnterDataID    = Me%ObjEnterData,                      &
+                                 flag           = flag,                                 &
+                                 SearchType     = FromBlock,                            &
+                                 Buffer_Line    = line,                                 &
+                                 STAT           = STAT_CALL)
+
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'PolyMonitorLag - ModuleLagrangianGlobal - ERR40'
+                    endif
+                    
+                    nP = nP + 1
+                    
+                    nullify(AuxPoly)
+                    
+                    call New(AuxPoly, trim(AuxChar), Me%GridsBounds)
+                    
+                    Me%MonitorLag%Poly(nP) = AuxPoly
+
+                enddo
+
+            else BF
+        
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'PolyMonitorLag - ModuleLagrangianGlobal - ERR50'
+                endif
+
+            endif BF
+
+            call Block_Unlock(Me%ObjEnterData, ClientNumber, STAT = STAT_CALL) 
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'PolyMonitorLag - ModuleLagrangianGlobal - ERR60'
+            endif
+
+            !Prepares file for a new block search throughout the entire file
+            call RewindBuffer(Me%ObjEnterData, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'PolyMonitorLag - ModuleLagrangianGlobal - ERR70'
+            endif
+
+        endif            
+
+    end subroutine PolyMonitorLag
+
+    !--------------------------------------------------------------------------
+        
+
 
     subroutine CheckForOriginClones(OriginName, ClientNumber, ClientNumberClone,        &
                                     FoundCloneOrigin, ClonesExist)
@@ -9019,6 +9167,66 @@ d1:     do em =1, Me%EulerModelNumber
     end subroutine ConstructMonitoring
 
     !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    subroutine ConstructMonitoringLag 
+
+        !Arguments-------------------------------------------------------------
+
+
+        !Local-----------------------------------------------------------------
+        integer                                         :: nP, iO
+        integer                                         :: NumberOfOrigins
+        integer                                         :: NumberOfPoly        
+        integer                                         :: STAT_CALL
+        character(StringLength), dimension(:), pointer  :: PropertyList
+        character(StringLength)                         :: AuxChar
+        
+        !Begin-----------------------------------------------------------------
+
+        NumberOfOrigins = Me%nOrigins
+        NumberOfPoly    = Me%MonitorLag%NumberOfPoly
+        
+        allocate(PropertyList                  (               1:NumberOfOrigins*2))
+        allocate(Me%MonitorLag%ObjTimeSerie    (1:NumberOfPoly                    ))
+        allocate(Me%MonitorLag%NumTracersOrigin(1:NumberOfPoly,1:NumberOfOrigins  ))
+
+        do nP = 1, NumberOfPoly
+
+            do iO = 1, NumberOfOrigins
+                write(AuxChar, fmt=*)iO
+                PropertyList (iO) = "NumberOfParcelsOrigin_"//trim(adjustl(AuxChar))
+            enddo
+            
+            do iO = NumberOfOrigins +1, 2*NumberOfOrigins
+                write(AuxChar, fmt=*) iO
+                PropertyList (iO) = "TotalEmitted_ParcelsOrigin_"//trim(adjustl(AuxChar))
+            enddo            
+            
+            
+            write(AuxChar, fmt=*) nP
+            
+            Me%MonitorLag%ObjTimeSerie(nP) = 0
+            
+            call StartTimeSerie (TimeSerieID        = Me%MonitorLag%ObjTimeSerie(nP),   &
+                                 ObjTime            = Me%ExternalVar%ObjTime,           &
+                                 TimeSerieDataFile  = Me%Files%ConstructData,           &
+                                 PropertyList       = PropertyList,                     &
+                                 Extension          = "LMP",                            &
+                                 ResultFileName     = "MonitorPoly_"//                  &
+                                 trim(adjustl(AuxChar)),                                &
+                                 STAT               = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'ConstructMonitoringLag - ModuleLagrangianGlobal - ERR10'
+            endif        
+        enddo
+        
+        deallocate (PropertyList)
+
+    end subroutine ConstructMonitoringLag
+
+    !--------------------------------------------------------------------------    
 
     subroutine ConstructHNSTimeSerie 
 
@@ -12147,6 +12355,7 @@ CurrOr: do while (associated(CurrentOrigin))
         NewOrigin%nProperties  = 0
         NewOrigin%nPropT90     = 0
         NewOrigin%nParticle    = 0
+        NewOrigin%nParticleEmit = 0
         NewOrigin%NextParticID = 1
 
     end subroutine AllocateNewOrigin
@@ -12712,6 +12921,7 @@ CurrOr: do while (associated(CurrentOrigin))
         
 
         Origin%nParticle = Origin%nParticle + 1
+        Origin%nParticleEmit = Origin%nParticleEmit + 1
 
 
     end subroutine InsertParticleToList
@@ -13233,6 +13443,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                  
                 !Eliminates Particles
                 call PurgeParticles         ()                    
+
+                !Monitorization Lag
+                if (Me%State%MonitorLag) then
+                    call MonitorParticleLag ()
+                endif                
 
                 !Monitorization
                 if (Me%State%Monitor) then
@@ -18297,8 +18512,15 @@ MD:     if (CurrentOrigin%Position%MaintainDepth) then
 
                     else
 
+                        if (CurrentPartic%CurrentZ < HalfFillValueReal) then
+
                         W = Me%EulerModel(emp)%Velocity_W(i, j, k  ) * (1.0 - BALZ) + &
                             Me%EulerModel(emp)%Velocity_W(i, j, k+1) * BALZ 
+                        else
+                            W = CurrentPartic%CurrentZ
+                        endif
+                        
+                        CurrentPartic%CurrentZ = W
 
                     endif
 
@@ -22916,6 +23138,98 @@ CurrOr: do while (associated(CurrentOrigin))
     end function TurbulentSeaState
     
     !--------------------------------------------------------------------------
+    
+    subroutine MonitorParticleLag ()
+
+
+
+        !Local-----------------------------------------------------------------
+        type (T_Origin),  pointer                       :: CurrentOrigin
+        type (T_Partic),  pointer                       :: CurrentPartic
+        type (T_PointF),  pointer                       :: Point        
+        type (T_Polygon), pointer                       :: AuxPoly        
+        integer                                         :: nP, nO
+        integer                                         :: NumberOfOrigins
+        integer                                         :: NumberOfPoly        
+        integer                                         :: STAT_CALL
+        real, dimension (:), pointer                    :: DataLine, TotalEmitted
+        
+        !Begin-----------------------------------------------------------------
+        
+        if (Me%Now >= Me%MonitorLag%NextOutPut) then
+
+            NumberOfOrigins = Me%nOrigins
+            NumberOfPoly    = Me%MonitorLag%NumberOfPoly
+        
+            allocate(DataLine       (1:2*NumberOfOrigins))
+            allocate(TotalEmitted   (1:  NumberOfOrigins))            
+            allocate(Point)
+        
+            Me%MonitorLag%NumTracersOrigin(1:NumberOfPoly,1:NumberOfOrigins) = 0
+        
+            nO = 0
+        
+            CurrentOrigin => Me%FirstOrigin
+        
+    d1:     do while (associated(CurrentOrigin))
+    
+                nO = nO + 1
+                TotalEmitted(nO) = CurrentOrigin%nParticleEmit
+            
+                CurrentPartic => CurrentOrigin%FirstPartic
+            
+    d2:         do while (associated(CurrentPartic))
+    
+                    Point%X = CurrentPartic%Position%CoordX
+                    Point%Y = CurrentPartic%Position%CoordY
+                
+    dP:             do nP = 1, NumberOfPoly    
+    
+                        AuxPoly => Me%MonitorLag%Poly(nP)
+    
+                        if (IsVisible(AuxPoly, Point)) then
+                        
+                            Me%MonitorLag%NumTracersOrigin(nP,nO) = &
+                                Me%MonitorLag%NumTracersOrigin(nP,nO) + 1
+                        
+                        endif    
+    
+                    enddo dP
+
+                    CurrentPartic => CurrentPartic%Next
+                enddo d2
+
+                CurrentOrigin => CurrentOrigin%Next
+            enddo d1
+        
+    dP1:    do nP = 1, NumberOfPoly
+            
+                DataLine(1                 :   NumberOfOrigins) = Me%MonitorLag%NumTracersOrigin(nP,1:NumberOfOrigins)
+                DataLine(NumberOfOrigins+1 : 2*NumberOfOrigins) = TotalEmitted                     (1:NumberOfOrigins)
+            
+                call WriteTimeSerieLine(TimeSerieID         = Me%MonitorLag%ObjTimeSerie(nP),&
+                                        ExternalCurrentTime = Me%Now,                       &
+                                        DataLine            = DataLine,                     &
+                                        STAT                = STAT_CALL)            
+
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'MonitorParticleLag - ModuleLagrangianGlobal - ERR10'
+                endif           
+
+            enddo dP1
+
+            deallocate (DataLine    )
+            deallocate (TotalEmitted)
+            deallocate (Point       )
+            nullify    (AuxPoly     ) 
+            
+            Me%MonitorLag%NextOutPut = Me%MonitorLag%NextOutPut + Me%MonitorLag%DT
+
+        endif
+    end subroutine MonitorParticleLag
+    
+    !--------------------------------------------------------------------------
+    
     !--------------------------------------------------------------------------    
 
 
@@ -26692,6 +27006,42 @@ DoCatch: do while (associated(CurrentOrigin))
             if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR40'            
         endif
 
+        
+        CurrentPartic => CurrentOrigin%FirstPartic
+        nP = 0
+        do while (associated(CurrentPartic))
+            nP = nP + 1
+            Matrix1D(nP)   =  CurrentPartic%CurrentZ
+            Solution1D(nP) =  CurrentPartic%SolutionCZ
+            CurrentPartic  => CurrentPartic%Next
+        enddo            
+        if (nP > 0) then
+            !HDF 5
+            Name = "velocity W"
+            Units ="m/s"
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Matrix1D,                                    &
+                                 OutputNumber = OutPutNumber,                           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR50'
+            
+            Name = "velocity W Solution"
+            Units ="m/s"
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Solution1D,                                  &
+                                 OutputNumber = OutPutNumber,                           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR60'            
+        endif
+
         CurrentPartic => CurrentOrigin%FirstPartic
         nP = 0
         do while (associated(CurrentPartic))
@@ -26712,7 +27062,7 @@ DoCatch: do while (associated(CurrentOrigin))
                                  Array1D = Matrix1D,                                    &
                                  OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR50'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR70'
             
             Name = "wind velocity X Solution"
             Units ="m/s"
@@ -26724,7 +27074,7 @@ DoCatch: do while (associated(CurrentOrigin))
                                  Array1D = Solution1D,                                  &
                                  OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR60'      
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR80'      
                         
         endif
 
@@ -26748,7 +27098,7 @@ DoCatch: do while (associated(CurrentOrigin))
                                  Array1D = Matrix1D,                                    &
                                  OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR70'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR90'
             
             Name = "wind velocity Y Solution"
             Units ="m/s"
@@ -26760,7 +27110,7 @@ DoCatch: do while (associated(CurrentOrigin))
                                  Array1D = Solution1D,                                  &
                                  OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR80'             
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR100'             
         endif
 
         CurrentPartic => CurrentOrigin%FirstPartic
@@ -26783,7 +27133,7 @@ DoCatch: do while (associated(CurrentOrigin))
                                  Array1D = Matrix1D,                                    &
                                  OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR90'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR110'
 
             Name = "wave height Solution"
             Units ="m"
@@ -26795,7 +27145,7 @@ DoCatch: do while (associated(CurrentOrigin))
                                  Array1D = Solution1D,                                  &
                                  OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR100'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR120'
         endif
 
         CurrentPartic => CurrentOrigin%FirstPartic
@@ -26818,7 +27168,7 @@ DoCatch: do while (associated(CurrentOrigin))
                                  Array1D = Matrix1D,                                    &
                                  OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR110'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR130'
             
 
             Name = "wave period Solution"
@@ -26831,7 +27181,7 @@ DoCatch: do while (associated(CurrentOrigin))
                                  Array1D = Solution1D,                                  &
                                  OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR120'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR140'
             
         endif
         
@@ -26855,7 +27205,7 @@ DoCatch: do while (associated(CurrentOrigin))
                                  Array1D = Matrix1D,                                    &
                                  OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR130'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR150'
             
             Name = "wave direction Solution"
             Units ="degree"
@@ -26867,7 +27217,7 @@ DoCatch: do while (associated(CurrentOrigin))
                                  Array1D = Solution1D,                                  &
                                  OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR140'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR160'
             
         endif
         
@@ -26891,7 +27241,7 @@ DoCatch: do while (associated(CurrentOrigin))
                                  Array1D = Matrix1D,                                    &
                                  OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR150'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR170'
 
             Name = "wave length Solution"
             Units ="m"
@@ -26903,7 +27253,7 @@ DoCatch: do while (associated(CurrentOrigin))
                                  Array1D = Solution1D,                                  &
                                  OutputNumber = OutPutNumber,                           &
                                  STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR160'
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR180'
         endif
 
         deallocate(Matrix1D  )
@@ -30441,6 +30791,10 @@ d2:         do em = 1, Me%EulerModelNumber
             endif                
 #endif  
 
+            if (Me%State%MonitorLag) then
+                call KillMonitorLag
+            endif
+
             STAT_         = SUCCESS_
 
         else 
@@ -30455,6 +30809,35 @@ d2:         do em = 1, Me%EulerModelNumber
 
     !--------------------------------------------------------------------------
     
+    subroutine KillMonitorLag
+
+        !Arguments-------------------------------------------------------------
+        
+        !Local-----------------------------------------------------------------        
+        integer                                     :: nP, STAT_CALL
+        
+        !Begin-----------------------------------------------------------------    
+        
+        do nP = 1, Me%MonitorLag%NumberOfPoly
+            call KillTimeSerie(TimeSerieID = Me%MonitorLag%ObjTimeSerie(nP),            &
+                               STAT        = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) then
+                stop 'KillMonitorLag - ModuleLagrangianGlobal - ERR10'        
+            endif            
+        enddo
+        
+        deallocate(Me%MonitorLag%ObjTimeSerie    )
+        deallocate(Me%MonitorLag%Poly            )
+        deallocate(Me%MonitorLag%NumTracersOrigin)
+
+                    
+    end subroutine KillMonitorLag    
+
+    !-------------------------------------------------------------------------- 
+    
+
+    !--------------------------------------------------------------------------
+        
     subroutine KillMeteoOcean    
 
         !Arguments-------------------------------------------------------------
@@ -30602,6 +30985,7 @@ CurrOr: do while (associated(CurrentOrigin))
             write (UnitID) CurrentOrigin%State%PlumeShear
             write (UnitID) CurrentOrigin%State%FarFieldBuoyancy
             write (UnitID) CurrentOrigin%nParticle
+            write (UnitID) CurrentOrigin%nParticleEmit            
             write (UnitID) CurrentOrigin%nProperties
             write (UnitID) CurrentOrigin%NextParticID            
 
@@ -30762,6 +31146,7 @@ d1:     do nO = 1, OldOrigins
             read (UnitID) NewOrigin%State%PlumeShear
             read (UnitID) NewOrigin%State%FarFieldBuoyancy
             read (UnitID) nParticle
+            read (UnitID) NewOrigin%nParticleEmit
             read (UnitID) nProperties
             read (UnitID) NewOrigin%NextParticID                                    
             
