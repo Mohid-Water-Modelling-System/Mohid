@@ -38045,13 +38045,10 @@ do3:            do K=kbottom, KUB
 
     Subroutine ModifyRelaxAcelerationVert
 
-
         !Arguments------------------------------------------------------------
-
-
         !Local---------------------------------------------------------------------
         real,    dimension(:,:,:), pointer :: Velocity_W, DecayTime,                    &
-                                              VelAssimilation
+                                          VelAssimilation
         integer, dimension(:,:,:), pointer :: OpenPoints3D
         integer, dimension(:,:),   pointer :: KFloor_Z
         type (T_Time)                      :: CurrentTime, BeginTime, EndTime
@@ -38059,22 +38056,15 @@ do3:            do K=kbottom, KUB
         integer                            :: status
         integer                            :: ILB, IUB, JLB, JUB, KUB, kbottom, i, j, k
         integer                            :: CHUNK
-
     !------------initialization----
 
         !Begin - Shorten variables name
-
         OpenPoints3D         => Me%External_Var%OpenPoints3D
         KFloor_Z             => Me%External_Var%KFloor_Z
         Velocity_W           => Me%Velocity%Vertical%CartesianOld
 
-
-        IUB = Me%WorkSize%IUB
-        JUB = Me%WorkSize%JUB
-        KUB = Me%WorkSize%KUB
-
-        ILB = Me%WorkSize%ILB
-        JLB = Me%WorkSize%JLB
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB
 
         EndTime     = Me%EndTime
         BeginTime   = Me%BeginTime
@@ -38087,8 +38077,7 @@ do3:            do K=kbottom, KUB
                                   Field3D         = VelAssimilation,                    &
                                   STAT            = status)
 
-        if (status /= SUCCESS_)                                                         &
-            call SetError (FATAL_, INTERNAL_, "ModifyRelaxAcelerationVert - Hydrodynamic - ERR10")
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAcelerationVert - Hydrodynamic - ERR10")
 
 
         call GetAssimilationCoef (Me%ObjAssimilation,                                   &
@@ -38098,9 +38087,7 @@ do3:            do K=kbottom, KUB
                                   ColdOrder       = ColdOrder,                          &
                                   STAT            = status)
 
-        if (status /= SUCCESS_)                                                         &
-            call SetError (FATAL_, INTERNAL_, "ModifyRelaxAcelerationVert - Hydrodynamic - ERR20")
-
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAcelerationVert - Hydrodynamic - ERR20")
 
         DT_RunPeriod = CurrentTime - BeginTime
 
@@ -38118,16 +38105,13 @@ cd4:    if (ColdPeriod <= DT_RunPeriod) then
 
         CHUNK = CHUNK_J(JLB, JUB)
 
-        if (MonitorPerformance) then
-            call StartWatch ("ModuleHydrodynamic", "ModifyRelaxAcelerationVert")
-        endif
+        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "ModifyRelaxAcelerationVert")
 
         !$OMP PARALLEL PRIVATE(I,J,K,kbottom)
 
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do1:    do  J = JLB, JUB
 do2:    do  I = ILB, IUB
-
 cd5:        if (OpenPoints3D(I, J, KUB) == Covered .or. Me%External_Var%BoundaryPoints(i, j) == Boundary) then
 
                 kbottom = KFloor_Z(I, J)
@@ -38135,40 +38119,26 @@ cd5:        if (OpenPoints3D(I, J, KUB) == Covered .or. Me%External_Var%Boundary
                 VelModel  = 0.
 
 do4:            do K=kbottom+1, KUB
-
                     ![m/s]                 = []* [s] * ([m/s] - [m/s]) / [s]
                     Me%THOMAS%Ti (i, j, k) = Me%THOMAS%Ti (i, j, k) + CoefCold  * Me%WaterLevel%DT *         &
                                              (VelAssimilation(i,j,k) - Velocity_W(i,j,k))/ DecayTime(i, j, k)
-
                 enddo do4
             endif cd5
-
         enddo do2
         enddo do1
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
-        if (MonitorPerformance) then
-            call StopWatch ("ModuleHydrodynamic", "ModifyRelaxAcelerationVert")
-        endif
+        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "ModifyRelaxAcelerationVert")
 
         call UnGetAssimilation(Me%ObjAssimilation, DecayTime, STAT = status)
-
-        if (status /= SUCCESS_)                                                         &
-            call SetError (FATAL_, INTERNAL_, "ModifyRelaxAcelerationVert - Hydrodynamic - ERR50")
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAcelerationVert - Hydrodynamic - ERR50")
 
         call UnGetAssimilation(Me%ObjAssimilation, VelAssimilation, STAT = status)
-
-        if (status /= SUCCESS_)                                                         &
-            call SetError (FATAL_, INTERNAL_, "ModifyRelaxAcelerationVert - Hydrodynamic - ERR60")
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAcelerationVert - Hydrodynamic - ERR60")
 
 
-        nullify(OpenPoints3D     )
-        nullify(KFloor_Z         )
-        nullify(Velocity_W       )
-
-
-
+        nullify(OpenPoints3D, KFloor_Z, Velocity_W)
 
     End Subroutine ModifyRelaxAcelerationVert
 
@@ -38176,26 +38146,20 @@ do4:            do K=kbottom+1, KUB
 
     Subroutine DumpingWaveStress(AuxTauWaves_UV)
 
-
         !Arguments------------------------------------------------------------
         real,    dimension(:,:), pointer   :: AuxTauWaves_UV
-
-
         !Local---------------------------------------------------------------------
         integer                            :: i, j
         !$ integer                         :: CHUNK
-
         !Begin---------------------------------------------------------------------
 
         !$OMP PARALLEL PRIVATE(I,J)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do1:    do  j = Me%WorkSize%JLB, Me%WorkSize%JUB
 do2:    do  i = Me%WorkSize%ILB, Me%WorkSize%IUB
-
 cd1:        if (Me%External_Var%OpenPoints3D(i, j, Me%WorkSize%KUB) == Covered ) then
                 AuxTauWaves_UV(i,j) = AuxTauWaves_UV(i, j) * Me%WaveStress%DumpCoef(i,j)
             endif cd1
-
         enddo do2
         enddo do1
         !$OMP END DO NOWAIT
@@ -38219,40 +38183,25 @@ cd1:        if (Me%External_Var%OpenPoints3D(i, j, Me%WorkSize%KUB) == Covered )
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     Subroutine ModifyAltimAceleration
 
-
         !Arguments------------------------------------------------------------
-
-
-
         !Local---------------------------------------------------------------------
         real,    dimension(:,:,:), pointer :: Velocity_UV_Old, Altim_Relax_Aceleration
         real,    dimension(:,:,:), pointer :: GeostrophicVelocity_UV
-
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:),   pointer :: KFloor_UV
-
         integer                            :: kbottom
         integer                            :: I, J, K
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
-
         real                               :: AltimDecayTime
         !$ integer                         :: CHUNK
-
         !------------initialization----
 
         !Begin shorten variables---------------------------------------------------
+        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "ModifyAltimAceleration")
 
-        if (MonitorPerformance) then
-            call StartWatch ("ModuleHydrodynamic", "ModifyAltimAceleration")
-        endif
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
-
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
+        
         Velocity_UV_Old             => Me%Velocity%Horizontal%UV%Old
         GeostrophicVelocity_UV      => Me%Geostroph%UV
         Altim_Relax_Aceleration     => Me%Forces%Altim_Relax_Aceleration
@@ -38261,22 +38210,15 @@ cd1:        if (Me%External_Var%OpenPoints3D(i, j, Me%WorkSize%KUB) == Covered )
         KFloor_UV                   => Me%External_Var%KFloor_UV
 
         AltimDecayTime              = Me%External_Var%AltimDecayTime
-
-
         !End - Shorten variables name
-
 
         if (Me%CurrentTime .le.( Me%BeginTime +                                         &
             (10.* Me%ComputeOptions%AltimetryAssimilation%DT_Compute))) then
 
             !Compute GeostrophicVelocity_VU
-
-
             call ComputeGeostrophicVelocity(Me%External_Var%AltimWaterLevelAnalyzed,    &
                                             Me%External_Var%AltimSigmaDensAnalyzed)
         endif
-
-
 
         !$ CHUNK = CHUNK_J(JLB, JUB)
 
@@ -38285,44 +38227,32 @@ cd1:        if (Me%External_Var%OpenPoints3D(i, j, Me%WorkSize%KUB) == Covered )
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do1:    do  J = JLB, JUB
 do2:    do  I = ILB, IUB
-
 cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
 
                 kbottom = KFloor_UV(I, J)
 
     do3:        do K=kbottom, KUB
 
-
                     Altim_Relax_Aceleration(I, J, K) = 0.
 
-
                     ! Compute aceleration force  [m/s^2]  =  [m/s]/[s]
-
                     Altim_Relax_Aceleration(I, J, K) = (GeostrophicVelocity_UV(I, J, K) &
                                                         - Velocity_UV_Old(I, J, K))/    &
                                                         AltimDecayTime
-
                 enddo do3
 
             end if cd1
-
-
         enddo do2
         enddo do1
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
         !Nullify auxiliar pointers
-        nullify (Velocity_UV_Old)
-        nullify (GeostrophicVelocity_UV)
-        nullify (Altim_Relax_Aceleration)
-
+        nullify (Velocity_UV_Old, GeostrophicVelocity_UV, Altim_Relax_Aceleration)
         nullify (ComputeFaces3D_UV)
         nullify (KFloor_UV)
 
-        if (MonitorPerformance) then
-            call StopWatch ("ModuleHydrodynamic", "ModifyAltimAceleration")
-        endif
+        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "ModifyAltimAceleration")
 
     End Subroutine ModifyAltimAceleration
 
@@ -38330,58 +38260,38 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
     !End------------------------------------------------------------------------------
 
 
-
     Subroutine ComputeGeostrophicVelocity (WaterLevel, SigmaDens)
-
         !
         !   This routine computes the geostrophic velocity with thermal wind equations.
         !
-
         !Arguments------------------------------------------------------------
-
         real,    dimension(:,:,:), pointer :: SigmaDens
         real,    dimension(:,:)  , pointer :: WaterLevel
-
-
         !Local---------------------------------------------------------------------
         real,    dimension(:,:),   pointer :: DUX_VY, Coriolis_Freq
-
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:),   pointer :: KFloor_UV
-
         real                               :: F_UV
         integer                            :: di, dj, k, kbottom
         integer                            :: I, IAux
         integer                            :: J, JAux
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB, dir
-
-
         !------------initialization----
 
         !Begin - Shorten variables name
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
 
         Coriolis_Freq                   => Me%External_Var%Coriolis_Freq
-
         ComputeFaces3D_UV               => Me%External_Var%ComputeFaces3D_UV
         KFloor_UV                       => Me%External_Var%KFloor_UV
-
         DUX_VY                          => Me%External_Var%DUX_VY
-
-
         !End - Shorten variables name
 
 ddir:   do dir = 1, 2
 
         di  = Me%Direction%di
         dj  = Me%Direction%dj
-
 
         Me%Geostroph%PressGrad   (:,:,:) = 0.
 
@@ -38396,19 +38306,14 @@ ddir:   do dir = 1, 2
 do1:    do  J = JLB, JUB-1
 do2:    do  I = ILB, IUB-1
 
-
 cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
 
                 kbottom = KFloor_UV(I, J)
 
                 IAux    = I-di
                 JAux    = J-dj
-
-
     do3:        do K=kbottom, KUB
-
                     if (Me%ComputeOptions%Coriolis) then
-
                         ! Interpolates Coriolis_Freq for the face
                         F_UV = (DUX_VY(IAux, JAux) * Coriolis_Freq(I, J) + DUX_VY(I, J) &
                                * Coriolis_Freq(IAux, JAux))                             &
@@ -38417,22 +38322,13 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
                         Me%Geostroph%AuxDesCentre(I, J, K)= (di - dj) *                 &
                                                      Me%Geostroph%PressGrad (I, J, K)   &
                                                      /(F_UV * SigmaDensityReference)
-
                     else
-
                         Write(*,*) 'You cannot compute Geostrophic Velocity without Coriolis aceleration'
-
                         Stop 'ComputeGeostrophicVelocity - ModuleHydrodynamic - ERR01'
-
                     endif
 
-
-
                 enddo do3
-
             end if cd1
-
-
         enddo do2
         enddo do1
 
@@ -38443,16 +38339,8 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
 
        enddo ddir
 
-
         !Nullify auxiliar pointers
-
-
-        nullify (Coriolis_Freq)
-
-        nullify (ComputeFaces3D_UV)
-        nullify (KFloor_UV)
-
-        nullify (DUX_VY)
+        nullify (Coriolis_Freq, ComputeFaces3D_UV, KFloor_UV, DUX_VY)
 
 
     End Subroutine ComputeGeostrophicVelocity
@@ -38461,29 +38349,19 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
     !End------------------------------------------------------------------------------
 
 
-    Subroutine ComputeGeostPressGrad (SigmaDens, WaterLevel,                            &
-                                      GeostrophicPressureGradient_UV)
-
-
+    Subroutine ComputeGeostPressGrad (SigmaDens, WaterLevel, GeostrophicPressureGradient_UV)
 
         !Arguments------------------------------------------------------------
-
         real,    dimension(:,:,:), pointer :: GeostrophicPressureGradient_UV
         real,    dimension(:,:,:), pointer :: SigmaDens
         real,    dimension(:,:)  , pointer :: WaterLevel
-
-
         !Local---------------------------------------------------------------------
 
-
         ! Compute baroclinic part of pressure gradient using the same model integration
-
         call Modify_ROX3(SigmaDens, GeostrophicPressureGradient_UV)
 
         ! Compute barotropic part of pressure gradient using level gradient
-
         call Compute_SurfaceAceleration(WaterLevel, GeostrophicPressureGradient_UV)
-
 
     End Subroutine ComputeGeostPressGrad
 
@@ -38493,36 +38371,21 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
 
     Subroutine Compute_SurfaceAceleration (WaterLevel, GeostrophicPressureGradient_UV)
 
-
         !Arguments------------------------------------------------------------
-
         real,    dimension(:,:,:), pointer :: GeostrophicPressureGradient_UV
         real,    dimension(:,:)  , pointer :: WaterLevel
-
-
         !Local---------------------------------------------------------------------
-
-
         real,    dimension(:,:  ), pointer :: DUX_VY
-
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:),   pointer :: KFloor_UV, BoundaryFacesUV
         Integer                            :: i, j, di, dj, k, kbottom, ileft, jleft
-
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
-
         real                               :: GradLevel
-
     !------------initialization----
 
         !Begin - Shorten variables name
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
 
         di  = Me%Direction%di
         dj  = Me%Direction%dj
@@ -38532,56 +38395,37 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
         KFloor_UV         => Me%External_Var%KFloor_UV
 
         DUX_VY            => Me%External_Var%DUX_VY
-
-
-
         !End - Shorten variables name
-
-
 
     !------------Main cicle--------
 
 do1:     do J = JLB, JUB
 do2:     do I = ILB, IUB
-
 cd1:        if (ComputeFaces3D_UV(i, j, KUB)== Covered) then
 
                 kbottom = KFloor_UV(i, j)
 
                 ileft = i - di
                 jleft = j - dj
-
                 ! Calcular o gradiente de nivel
 
                 GradLevel = 2 * (WaterLevel(i,j) - WaterLevel(ileft,jleft))             &
                             /(DUX_VY(ileft,jleft)+DUX_VY(i,j))* SigmaDensityReference
 
 do3:            do  k=KUB, kbottom,-1
-
                 ! Somar o gradiente de nivel ao que ja tinha
-
                     GeostrophicPressureGradient_UV(i,j,k) =                             &
                                             (GeostrophicPressureGradient_UV(i,j,k)      &
                                             - GradLevel) * Gravity
-
                 enddo do3
-
-
             end if cd1
 
         enddo do2
         enddo do1
 
-
-
-
         !Nullify auxiliar pointers
-
-
-        nullify (ComputeFaces3D_UV)
-        nullify (BoundaryFacesUV)
+        nullify (ComputeFaces3D_UV, BoundaryFacesUV)
         nullify (KFloor_UV)
-
         nullify (DUX_VY)
 
 
@@ -38594,37 +38438,23 @@ do3:            do  k=KUB, kbottom,-1
     Subroutine CoriolisInterpolation(Geostrophic_UV, Geostrophic_UV_New)
 
         !Arguments------------------------------------------------------------
-
         real,    dimension(:,:,:), pointer :: Geostrophic_UV
         real,    dimension(:,:,:), pointer :: Geostrophic_UV_New
-
-
         !Local---------------------------------------------------------------------
-
         real,    dimension(:,:),   pointer :: DXX_YY
-
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV, LandBoundaryFacesVU
         integer, dimension(:,:),   pointer :: KFloor_UV
-
-
         integer                            :: di, dj, k, kbottom, NoLand1, NoLand2
         integer                            :: I, I1, I2, I3
         integer                            :: J, J1, J2, J3
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
         integer                            :: Iaux
         real                               :: VUvar1, VUvar2, VUAverage
-
-
         !------------initialization----
 
         !Begin - Shorten variables name
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
 
         di  = Me%Direction%di
         dj  = Me%Direction%dj
@@ -38634,10 +38464,7 @@ do3:            do  k=KUB, kbottom,-1
         KFloor_UV            => Me%External_Var%KFloor_UV
 
         DXX_YY               => Me%External_Var%DXX_YY
-
-
         !End - Shorten variables name
-
 
         !------------Main cicle--------
 
@@ -38648,14 +38475,12 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
 
                 kbottom = KFloor_UV(I, J)
 
-
                 I1    = I+dj-di
                 J1    = J-dj+di
                 I2    = I+dj
                 J2    = J+di
                 I3    = I-di
                 J3    = J-dj
-
 
     do3:        do K=kbottom, KUB
 
@@ -38720,70 +38545,43 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
         enddo do2
         enddo do1
 
-
         !Nullify auxiliar pointers
-
-        nullify (ComputeFaces3D_UV)
-        nullify (KFloor_UV)
-        nullify (LandBoundaryFacesVU)
-
+        nullify (ComputeFaces3D_UV, LandBoundaryFacesVU)
+        nullify (KFloor_UV
         nullify (DXX_YY)
-
 
    End Subroutine CoriolisInterpolation
 
     !End------------------------------------------------------------------------------
 
 
-
-
     Subroutine ModifyRelaxHorizAdv
 
-
         !Arguments------------------------------------------------------------
-
-
         !Local---------------------------------------------------------------------
         real(8), dimension(:,:,:), pointer :: Horizontal_Transport
         real,    dimension(:,:,:), pointer :: DecayTime
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:),   pointer :: KFloor_UV
-
         real                               :: DecayTimeMin
-
         integer                            :: HT_ID, status
         integer                            :: ILB, IUB, JLB, JUB, KUB, kbottom, i, j, k
-
         integer                            :: CHUNK
-
     !------------initialization----
 
         !Begin - Shorten variables name
-
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
-
         KFloor_UV            => Me%External_Var%KFloor_UV
-
         Horizontal_Transport => Me%Forces%Horizontal_Transport
 
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB
+        
 
-        IUB = Me%WorkSize%IUB
-        JUB = Me%WorkSize%JUB
-        KUB = Me%WorkSize%KUB
-
-        ILB = Me%WorkSize%ILB
-        JLB = Me%WorkSize%JLB
-
-
-cd2:    if      (Me%Direction%XY == DirectionX_) then
-
+cd2:    if  (Me%Direction%XY == DirectionX_) then
             HT_ID = HorizontalTransportX_
-
-
         else if (Me%Direction%XY == DirectionY_) then cd2
-
             HT_ID = HorizontalTransportY_
-
         endif cd2
 
         call GetAssimilationCoef (Me%ObjAssimilation,                       &
@@ -38792,14 +38590,11 @@ cd2:    if      (Me%Direction%XY == DirectionX_) then
                                   CoefField3D = DecayTime,                               &
                                   STAT        = status)
 
-        if (status /= SUCCESS_)                                                          &
-            call SetError (FATAL_, INTERNAL_, "ModifyRelaxHorizAdv - Hydrodynamic - ERR01")
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxHorizAdv - Hydrodynamic - ERR01")
 
         CHUNK = CHUNK_J(JLB, JUB)
 
-        if (MonitorPerformance) then
-            call StartWatch ("ModuleHydrodynamic", "ModifyRelaxHorizAdv")
-        endif
+        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "ModifyRelaxHorizAdv")
 
         !$OMP PARALLEL PRIVATE(I,J,K,kbottom)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -38825,19 +38620,12 @@ do3:            do K=kbottom, KUB
         !$OMP END DO
         !$OMP END PARALLEL
 
-        if (MonitorPerformance) then
-            call StopWatch ("ModuleHydrodynamic", "ModifyRelaxHorizAdv")
-        endif
-
+        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "ModifyRelaxHorizAdv")
+        
         call UnGetAssimilation(Me%ObjAssimilation, DecayTime, STAT = status)
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxHorizAdv - Hydrodynamic - ERR02")
 
-        if (status /= SUCCESS_)                                                          &
-            call SetError (FATAL_, INTERNAL_, "ModifyRelaxHorizAdv - Hydrodynamic - ERR02")
-
-
-        nullify(ComputeFaces3D_UV   )
-        nullify(KFloor_UV           )
-        nullify(Horizontal_Transport)
+        nullify(ComputeFaces3D_UV, KFloor_UV, Horizontal_Transport)
 
     End Subroutine ModifyRelaxHorizAdv
 
@@ -38847,33 +38635,16 @@ do3:            do K=kbottom, KUB
 
     Subroutine Modify_WaveForces3D
 
-
-        !Variables Categories-----------------------------------------------------------------
-
-
         !Arguments--------------------------------------------------------------------------
-
-
         !Local-----------------------------------------------------------------------------
         real,    dimension(:,:,:), pointer :: Wave3DExplicit_Acceleration
-
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
-
-        integer                            :: I, J, K
-
-        integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
-
+        integer                            :: I, J, K, IUB, ILB, JUB, JLB, KUB, KLB
         !--------------------------------------------------------------------------
 
-
         !Begin - Shorten variables name
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
 
         Wave3DExplicit_Acceleration => Me%Forces%Wave3DExplicit_Acceleration
 
@@ -38885,12 +38656,7 @@ do3:            do K=kbottom, KUB
 
 
         ! EXPLONENTIAL PROFILE PARAMETERIZATION FOR RADIATION STRESSES
-        if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress) then
-
-            call Compute_RadiationStressProfile
-
-        endif
-
+        if (Me%ComputeOptions%WaveForcing3D == ExpRadiationStress) call Compute_RadiationStressProfile
 
         ! GENERALIZED LAGRANGIAN MEAN APPROACH
         if (Me%ComputeOptions%WaveForcing3D == GLM) then
@@ -38910,17 +38676,14 @@ do3:            do K=kbottom, KUB
 
         endif
 
-
         do  k = KLB, KUB
         do  j = JLB, JUB
         do  i = ILB, IUB
-
             ! Large values (FillReal_Value) in non covered faces
             Wave3DExplicit_Acceleration (i, j, k) = Wave3DExplicit_Acceleration (i, j, k)    * &
                                                ComputeFaces3D_UV(i, j, k)                    + &
                                                (1. - ComputeFaces3D_UV(i, j, k))             * &
                                                FillValueReal
-
         enddo
         enddo
         enddo
@@ -38939,39 +38702,23 @@ do3:            do K=kbottom, KUB
     Subroutine Compute_RadiationStressProfile
 
         !Arguments------------------------------------------------------------
-
-
         !Local----------------------------------------------------------------
         real(8), dimension(:,:,:), pointer :: Volume_UV
-
         real,    dimension(:,:,:), pointer :: Density, SZZ, DUZ_VZ, Wave3DExplicit_Acceleration
-
         real,    dimension(:,:  ), pointer :: DUX_VY, DYY_XX, DZX_ZY, TauWaves_UV, WaveLength, &
                                               Waterlevel, WaterColumnUV
-
         real,    dimension(:), allocatable :: SUZ_VZ
-
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:),   pointer :: KFloor_UV
-
         real,  dimension(:,:), allocatable :: WAVN
-
         real                               :: force_2D, TauFace, FaceDensity, WlevFace, BathyFace, Vprofile
-
         integer                            :: di, dj, i, j, k, Kbottom, iSouth, jWest
-
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
-
         !Begin---------------------------------------------------------------------
 
         !Begin - Shorten variables name
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
 
         di  = Me%Direction%di
         dj  = Me%Direction%dj
@@ -39101,17 +38848,12 @@ do3:            do K=kbottom, KUB
         enddo doi
 
         ! Deallocate instance
-        deallocate(WAVN)
-        deallocate(SUZ_VZ)
+        deallocate(WAVN, SUZ_VZ)
 
         !Nullify auxiliar pointers
-        ! nullify(TiCoef_3D)
         nullify(Wave3DExplicit_Acceleration)
 
-        nullify(DYY_XX)
-        nullify(DUX_VY)
-        nullify(DZX_ZY)
-        nullify(DUZ_VZ)
+        nullify(DYY_XX, DUX_VY, DZX_ZY, DUZ_VZ)
 
         nullify(Volume_UV)
 
@@ -39133,36 +38875,20 @@ do3:            do K=kbottom, KUB
 
     Subroutine Compute_WaveInducedPressure
 
-
         !Arguments------------------------------------------------------------
-
-
-
-        !Local---------------------------------------------------------------------
-
+        !Local--------------------------------------------------------------------
         real,    dimension(:,:,:), pointer :: Wave3DExplicit_Acceleration, Wave3DExplicit_FPressureAccelUV
-
         real,    dimension(:,:  ), pointer :: DZX_ZY, JWaves
-
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:),   pointer :: KFloor_UV
-
         integer                            :: di, dj, i, j, k, Kbottom, iSouth, jWest
-
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
-
-        ! real                               :: a, b, c, d
 
         !Begin---------------------------------------------------------------------
 
         !Begin - Shorten variables name
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
 
         di  = Me%Direction%di
         dj  = Me%Direction%dj
@@ -39237,7 +38963,6 @@ do3:            do K=kbottom, KUB
 
 Subroutine Compute_WaveToOceanMomentum_Walstra
 
-
         ! Cette routine est construite en partie par analogie à Velocity_WaveStress (forcage par
         ! un champ de stress 2D dont on parametre un profil vertical...).
         ! Le forcage depend cependant ici de z mais sa forme relativement simple permet
@@ -39246,46 +38971,27 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
         ! verticalement (different de ce que fait MOHID pour la pression barotrope
         ! par exemple...)
 
-
         !Arguments------------------------------------------------------------
-
-
         !Local----------------------------------------------------------------
         real(8), dimension(:,:,:), pointer :: Volume_UV
         real,    dimension(:,:,:), pointer :: SZZ, DUZ_VZ, &
                                               Wave3DExplicit_FBreakingAccelUV, Wave3DExplicit_Acceleration
-
         real,    dimension(:,:  ), pointer :: DUX_VY, DYY_XX, DZX_ZY, Two_UV, Waterlevel, Hs
-
-
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:  ), pointer :: KFloor_UV
-
         real,    dimension(:), allocatable :: SUZ_VZ
-
         real                               :: Z0
-
         real                               :: force_2D, Two_Face, WlevFace, Vprofile
-
         integer                            :: di, dj, i, j, k, Kbottom, iSouth, jWest, INDEXZ0
-
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
-
         !Begin---------------------------------------------------------------------
 
         !Begin - Shorten variables name
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
 
         di  = Me%Direction%di
         dj  = Me%Direction%dj
-
-        !DT_Velocity          =  Me%Velocity%DT
 
         Wave3DExplicit_Acceleration => Me%Forces%Wave3DExplicit_Acceleration
         Wave3DExplicit_FBreakingAccelUV => Me%Forces%Wave3DExplicit_FBreakingAccelUV
@@ -39394,10 +39100,7 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
         nullify(Wave3DExplicit_Acceleration)
         nullify(Wave3DExplicit_FBreakingAccelUV)
 
-        nullify(DYY_XX)
-        nullify(DUX_VY)
-        nullify(DZX_ZY)
-        nullify(DUZ_VZ)
+        nullify(DYY_XX, DUX_VY, DZX_ZY, DUZ_VZ)
 
         deallocate(SUZ_VZ)
 
@@ -39416,46 +39119,28 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
 
     Subroutine Compute_WaveVortexForce
 
-
         !Arguments------------------------------------------------------------
-
-
-
         !Local---------------------------------------------------------------------
 
         real,    dimension(:,:,:), pointer :: Wave3DExplicit_Acceleration, Wave3DExplicit_FVortexAccelUV
-
         real,    dimension(:,:  ), pointer :: DZX_ZY, DXX_YY
-
         real, dimension(:,:,:), pointer    :: StokesVel_UV, StokesVel_VU,                   &
                                               Velocity_UV_Old, Velocity_VU_Old
-
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV, ComputeFaces3D_VU
-
         integer, dimension(:,:),   pointer :: KFloor_UV
-
         real(8)                            :: FVortexAcceleration_1, FVortexAcceleration_2
-
         real                               :: VUvar1, VUvar2,                               &
                                               Vel_UV_WestSouth, Vel_VU_WestSouth,           &
                                               Vel_UV_EastNorth, Vel_VU_EastNorth,           &
                                               StokesVel_VU_center
-
         integer                            :: i, j, k, IUB, ILB, JUB, JLB, KUB, KLB
-
         integer                            :: di, dj, Kbottom, I1, I2, I3, I4, J1, J2,      &
                                               J3, J4, Noland1, Noland2, Iaux
-
         !Begin---------------------------------------------------------------------
 
         !Begin - Shorten variables name
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
 
         di  = Me%Direction%di
         dj  = Me%Direction%dj
@@ -39482,7 +39167,6 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
         Velocity_VU_Old      => Me%Velocity%Horizontal%VU%Old
 
         !End - Shorten variables name
-
 
             do j=JLB, JUB
             do i=ILB, IUB
@@ -39585,21 +39269,16 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
             enddo
             enddo
 
-
         !Nullify auxiliar pointers
-        nullify(Wave3DExplicit_Acceleration)
-        nullify(Wave3DExplicit_FVortexAccelUV)
+        nullify(Wave3DExplicit_Acceleration, Wave3DExplicit_FVortexAccelUV)
 
         nullify(DZX_ZY, DXX_YY)
 
-        nullify(ComputeFaces3D_UV)
-        nullify(ComputeFaces3D_VU)
+        nullify(ComputeFaces3D_UV, ComputeFaces3D_VU)
         nullify(KFloor_UV)
 
-        nullify(StokesVel_UV)
-        nullify(StokesVel_VU)
-        nullify(Velocity_UV_Old)
-        nullify(Velocity_VU_Old)
+        nullify(StokesVel_UV, StokesVel_VU)
+        nullify(Velocity_UV_Old, Velocity_VU_Old)
 
     End Subroutine Compute_WaveVortexForce
 
@@ -39612,48 +39291,29 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
 
     Subroutine Compute_WaveVortexForce2
 
-
         !Arguments------------------------------------------------------------
-
-
-
         !Local---------------------------------------------------------------------
 
         real,    dimension(:,:,:), pointer :: Wave3DExplicit_Acceleration, Wave3DExplicit_FVortexAccelUV
-
         real(8), dimension(:,:,:), pointer :: StokesWaterFlux_XY, Volume_UV
-
         real,    dimension(:,:  ), pointer :: DZX_ZY, DXX_YY
-
         real, dimension(:,:,:), pointer    :: StokesVel_UV, StokesVel_VU,                   &
                                               Velocity_UV_Old, Velocity_VU_Old
-
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV, ComputeFaces3D_VU
-
         integer, dimension(:,:),   pointer :: KFloor_UV
-
         real(8)                            :: FVortexAcceleration_1, FVortexAcceleration_2
-
         real                               :: VUvar1, VUvar2,                               &
                                               Vel_UV_WestSouth, Vel_VU_WestSouth,           &
                                               Vel_UV_EastNorth, Vel_VU_EastNorth,           &
                                               StokesVel_VU_center
-
         integer                            :: i, j, k, IUB, ILB, JUB, JLB, KUB, KLB
-
         integer                            :: di, dj, Kbottom, I1, I2, I3, I4, J1, J2,      &
                                               J3, J4, Noland1, Noland2, Iaux
-
         !Begin---------------------------------------------------------------------
 
         !Begin - Shorten variables name
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
 
         di  = Me%Direction%di
         dj  = Me%Direction%dj
@@ -39683,7 +39343,6 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
         Velocity_VU_Old      => Me%Velocity%Horizontal%VU%Old
 
         !End - Shorten variables name
-
 
             do j=JLB, JUB
             do i=ILB, IUB
@@ -39787,22 +39446,17 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
             enddo
             enddo
 
-
         !Nullify auxiliar pointers
-        nullify(Wave3DExplicit_Acceleration)
-        nullify(Wave3DExplicit_FVortexAccelUV)
+        nullify(Wave3DExplicit_Acceleration, Wave3DExplicit_FVortexAccelUV)
 
         nullify(DZX_ZY, DXX_YY)
         nullify(StokesWaterFlux_XY, Volume_UV)
 
-        nullify(ComputeFaces3D_UV)
-        nullify(ComputeFaces3D_VU)
+        nullify(ComputeFaces3D_UV, ComputeFaces3D_VU)
         nullify(KFloor_UV)
 
-        nullify(StokesVel_UV)
-        nullify(StokesVel_VU)
-        nullify(Velocity_UV_Old)
-        nullify(Velocity_VU_Old)
+        nullify(StokesVel_UV, StokesVel_VU)
+        nullify(Velocity_UV_Old, Velocity_VU_Old)
 
     End Subroutine Compute_WaveVortexForce2
 
@@ -39837,9 +39491,7 @@ Subroutine Compute_WaveToOceanMomentum_Walstra
 
         !Begin-----------------------------------------------------------------
 
-        if (MonitorPerformance) then
-            call StartWatch ("ModuleHydrodynamic", "ModifyTidePotential")
-        endif
+        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "ModifyTidePotential")
 
         IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB; KUB = Me%WorkSize%KUB
         ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB
@@ -40066,8 +39718,6 @@ it1:            if (Me%TidePotential%Algorithm == Kantha) then
            !Area_UV, WaterFlux_XY, Me%WaterFluxes%New_Old, Velocity_UV_New, Velocity_UV_Old
            !ComputeFaces3D_UV, KFloor_UV, Direction
         !Arguments------------------------------------------------------------
-
-
         !Local---------------------------------------------------------------------
         real(8), dimension(:,:,:), pointer :: WaterFlux_XY
 ! Modified by Matthias DELPEY - 24/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -40078,31 +39728,21 @@ it1:            if (Me%TidePotential%Algorithm == Kantha) then
         real,    dimension(:,:,:), pointer :: Baroclinic_UV_New, Baroclinic_UV_Old,      &
                                               DUZ_VZ, SZZ
         real,    dimension(:,:  ), pointer :: WaterColumnUV, DYY_XX
-
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV, ImposedNormalFacesUV,   &
                                               ImposedTangentialFacesUV
         integer, dimension(:,:),   pointer :: KFloor_Z, KFloor_UV, BoundaryPoints
-
         real(8)                            :: TotalFlux, dz
-
         integer                            :: I, J, K, Kbottom, di, dj
-
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB, ic, jc
-
         integer                            :: CHUNK
-
         !--------------------------------------------------------------------------
 
         !A if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_HorizontalWaterFlow")
 
         !Begin - Shorten variables name
 
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
 
         di  = Me%Direction%di
         dj  = Me%Direction%dj
@@ -40144,12 +39784,9 @@ it1:            if (Me%TidePotential%Algorithm == Kantha) then
         endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
         CHUNK = CHUNK_J(JLB, JUB)
 
-        if (MonitorPerformance) then
-            call StartWatch ("ModuleHydrodynamic", "Modify_HorizontalWaterFlow")
-        endif
+        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_HorizontalWaterFlow")
 
         !$OMP PARALLEL PRIVATE(i,j,k,Kbottom,ic,jc,TotalFlux,dz)
 
@@ -40169,9 +39806,7 @@ dok:            do  k = Kbottom, KUB
                                             dble((1. - Me%WaterFluxes%New_Old)) *            &
                                             dble(Velocity_UV_Old(i, j, k))) * &
                                             dble(Area_UV(i, j, k))
-
 ! Modified by Matthias DELPEY - 19/08/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
                     if (Me%ComputeOptions%WaveForcing3D == GLM) then
 
                         ! Contribution of the Stokes Drift to the advection
@@ -40184,7 +39819,6 @@ dok:            do  k = Kbottom, KUB
                         WaterFlux_XY(i, j, k) = WaterFlux_XY(i, j, k) + StokesWaterFlux_XY(i,j,k)
 
                     endif
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                 enddo dok
@@ -40218,10 +39852,7 @@ cd4:                if (ImposedNormalFacesUV    (i, j, k) == Imposed   .or.     
                                             dble((1. - Me%WaterFluxes%New_Old))                  *      &
                                             dble(Velocity_UV_Old(i, j, k)))       *      &
                                             dble(Me%SubModel%DUVZ_Old(i, j, k))
-
-
                     endif cd4
-
 
 cd11:               if (ComputeFaces3D_UV(i, j, k) == Covered) then
 
@@ -40232,8 +39863,6 @@ cd11:               if (ComputeFaces3D_UV(i, j, k) == Covered) then
                                             dble((1. - Me%WaterFluxes%New_Old))                            * &
                                             dble(Me%SubModel%UV_Old(i, j, k))) * &
                                             dble(Me%SubModel%DUVZ_Old(i, j, k))
-
-
                     endif cd11
 
 
@@ -40351,13 +39980,9 @@ cd10:           if (ImposedTangentialFacesUV(i, j, KUB) == Imposed) then
         endif cd6
         !$OMP END PARALLEL
 
-        if (MonitorPerformance) then
-            call StopWatch ("ModuleHydrodynamic", "Modify_HorizontalWaterFlow")
-        endif
+        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_HorizontalWaterFlow")
 
         if (Me%CyclicBoundary%ON) then
-
-
             if (Me%CyclicBoundary%Direction == Me%Direction%XY .or. &
                 Me%CyclicBoundary%Direction == DirectionXY_)  then
                 call CyclicBoundVectNormal    ( VectorD = WaterFlux_XY)
@@ -40367,27 +39992,18 @@ cd10:           if (ImposedTangentialFacesUV(i, j, KUB) == Imposed) then
                 Me%CyclicBoundary%Direction == DirectionXY_)  then
                 call CyclicBoundVectTangential( VectorD = WaterFlux_XY)
             endif
-
         endif
-
 
         nullify (WaterFlux_XY)
         nullify(StokesWaterFlux_XY)
         nullify (Velocity_UV_Old)
 
-        nullify (ComputeFaces3D_UV       )
-        nullify (KFloor_UV               )
-        nullify (KFloor_Z                )
-        nullify (Area_UV                 )
-        nullify (ImposedNormalFacesUV    )
-        nullify (ImposedTangentialFacesUV)
-        nullify (DYY_XX                  )
-        nullify (DWZ                     )
-        nullify (Baroclinic_UV_New       )
-        nullify (Baroclinic_UV_Old       )
-        nullify (SZZ                     )
-        nullify (WaterColumnUV           )
-        nullify (DUZ_VZ                  )
+        nullify (ComputeFaces3D_UV)
+        nullify (KFloor_UV, KFloor_Z)
+        nullify (Area_UV, WaterColumnUV)
+        nullify (ImposedNormalFacesUV, ImposedTangentialFacesUV)
+        nullify (DYY_XX, DWZ, SZZ, DUZ_VZ)
+        nullify (Baroclinic_UV_New, Baroclinic_UV_Old)
 
         !A if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_HorizontalWaterFlow")
 
@@ -40411,17 +40027,13 @@ cd10:           if (ImposedTangentialFacesUV(i, j, KUB) == Imposed) then
 
         !Arguments------------------------------------------------------------
         real,    dimension(:,:,:), pointer :: SigmaDens, Rox3XY
-
         !Local----------------------------------------------------------------
         real,    dimension(:,:,:), pointer :: DWZ, DUZ_VZ, SZZ
-
         real,    dimension(:,:  ), pointer :: DZX_ZY, Coriolis_Freq, DUX_VY
-
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
         integer, dimension(:,:  ), pointer :: BoundaryFacesUV
         integer, dimension(:,:),   pointer :: KFloor_UV
         Integer                            :: i, j, di, dj, k, kbottom, ileft, jleft
-
         Integer, dimension( : ), pointer   :: Kleft,Kright
 
         Real(8), dimension( : ), pointer   :: Depth_integ, Hcenter, Hleft, &
@@ -40431,10 +40043,9 @@ cd10:           if (ImposedTangentialFacesUV(i, j, KUB) == Imposed) then
         Real(8)                            :: DAux,DAuxRight,DAuxLeft, AuxRight, AuxLeft, &
                                               ZRight, ZLeft, DRight, DLeft, DensZRight, DensZLeft
 
-        type (T_Time)                      :: CurrentTime
+        type (T_Time)                     :: CurrentTime
 
         Real                               :: TimeCoef, F_UV, DT_RunPeriod, InertialPeriods
-
         integer                            :: IUB, ILB, JUB, JLB, KUB, KLB
         integer                            :: NRight, NLeft, kbright, kbleft, PoliDegree
 
@@ -40448,18 +40059,13 @@ cd10:           if (ImposedTangentialFacesUV(i, j, KUB) == Imposed) then
     !------------initialization----
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Modify_ROX3")
 
-
         !$ CHUNK = CHUNK_J(JLB,JUB)
 
         !Begin - Shorten variables name
 
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
-
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
+        
         di  = Me%Direction%di
         dj  = Me%Direction%dj
 
@@ -40476,16 +40082,6 @@ cd10:           if (ImposedTangentialFacesUV(i, j, KUB) == Imposed) then
         !End - Shorten variables name
 
         call SetMatrixValue(Rox3XY, Me%WorkSize, FillValueReal)
-
-!        Kleft             = FillValueInt   !rcm 7
-!        Kright            = FillValueInt
-!
-!        Depth_integ       = FillValueReal
-!        Hcenter           = FillValueReal
-!        Hleft             = FillValueReal
-!        Hright            = FillValueReal
-!        HroLeft           = FillValueReal
-!        HroRight          = FillValueReal
 
     !------------Main cicle--------
 
@@ -40764,7 +40360,6 @@ do27:           do  k=KUB, kbottom,-1
 
                 enddo do27
 
-
             endif
 
             end if cd1
@@ -40869,31 +40464,16 @@ do62:                   do  K = kbottom, KUB
 
         endif cd12
 
-!        if (MonitorPerformance) then
-!            call StopWatch ("ModuleHydrodynamic", "Modify_ROX3")
-!        endif
-
         !Nullify auxiliar pointers
-        nullify (Kleft)
-        nullify (Kright)
+        nullify (Kleft  , Hleft , HroLeft , DensLeft)
+        nullify (Kright), Hright, HroRight, DensRight)
         nullify (Depth_integ)
         nullify (Hcenter)
-        nullify (Hleft)
-        nullify (Hright)
-        nullify (HroLeft)
-        nullify (HroRight)
-        nullify (DensRight)
-        nullify (DensLeft )
 
-
-        nullify (ComputeFaces3D_UV)
-        nullify (BoundaryFacesUV)
+        nullify (ComputeFaces3D_UV, BoundaryFacesUV)
         nullify (KFloor_UV)
 
-        nullify (DWZ, SZZ)
-        nullify (DZX_ZY)
-        nullify (DUX_VY)
-        nullify (DUZ_VZ)
+        nullify (DWZ, SZZ, DZX_ZY, DUX_VY, DUZ_VZ)
 
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Modify_ROX3")
 
@@ -40912,70 +40492,38 @@ do62:                   do  K = kbottom, KUB
     !                                                                                      !
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-    Subroutine HydroPropAssimilationVelocity( PropertyID, PropModel,           &
-                                              PropSubModel, Map3D, KFloor, DT)
+    Subroutine HydroPropAssimilationVelocity( PropertyID, PropModel, PropSubModel, Map3D, KFloor, DT)
 
         !Arguments------------------------------------------------------------
-
-
         real,    dimension(:,:,:), pointer :: PropModel, PropSubModel
-
         integer, dimension(:,:,:), pointer :: Map3D
-
         integer, dimension(:,:),   pointer :: KFloor
-
         real                               :: DT
-
         integer                            :: PropertyID
-
         !Local---------------------------------------------------------------------
         real,    dimension(:,:,:), pointer :: DecayTime
-
         real,    dimension(:,:,:), pointer :: PropAssimilation
-
         type(T_Time)                       :: CurrentTime, EndTime, BeginTime
-
         real                               :: ColdPeriod, ColdOrder, CoefCold, DT_RunPeriod, AuxDecay
-
         integer                            :: I, J, K, Kbottom
-
         integer                            :: IUB, JUB, KUB, ILB, JLB, KLB, status
-
         integer                            :: CHUNK
-
     !------------initialization----
-
-
         !Begin - Shorten variables name
-
-        IUB = Me%WorkSize%IUB
-        JUB = Me%WorkSize%JUB
-        KUB = Me%WorkSize%KUB
-
-        ILB = Me%WorkSize%ILB
-        JLB = Me%WorkSize%JLB
-        KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB  ;  KLB = Me%WorkSize%KLB
 
         EndTime     = Me%EndTime
-
         BeginTime   = Me%BeginTime
-
         CurrentTime = Me%CurrentTime
 
         !End - Shorten variables name
 
-
         if (associated(PropSubModel)) then
-
             PropAssimilation => PropSubModel
             ColdPeriod       =  0.
-
         else
 
-            !call GetAssimilationField(Me%ObjAssimilation,                               &
-            !                          ID              = PropertyID,                     &
-            !                          Field3D         = PropAssimilation,               &
-            !                          STAT            = status)
             if      (PropertyID == VelocityU_) then
 
                 !It is important to read vector fields in agreggated way to allow the
@@ -41000,16 +40548,11 @@ do62:                   do  K = kbottom, KUB
                                       VectorY_ID        = VelocityV_,                   &
                                       VectorY_3D        = PropAssimilation,             &
                                       STAT              = status)
-
                 if (status /= SUCCESS_)                                                     &
                     call SetError (FATAL_, INTERNAL_, "HydroPropAssimilationVelocity - Hydrodynamic - ERR20")
-
             else
-
                 call SetError (FATAL_, INTERNAL_, "HydroPropAssimilationVelocity - Hydrodynamic - ERR30")
-
             endif
-
         endif
 
         call GetAssimilationCoef (Me%ObjAssimilation,                                   &
@@ -41068,22 +40611,17 @@ do3:            do K=kbottom, KUB
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "HydroPropAssimilationVelocity")
 
         call UnGetAssimilation(Me%ObjAssimilation, DecayTime, STAT = status)
-
         if (status /= SUCCESS_)                                                          &
             call SetError (FATAL_, INTERNAL_, "HydroPropAssimilationVelocity - Hydrodynamic - ERR60")
 
         if (.not. associated(PropSubModel)) then
 
-            call UnGetAssimilation(Me%ObjAssimilation, PropAssimilation,    &
-                                   STAT        = status)
-
+            call UnGetAssimilation(Me%ObjAssimilation, PropAssimilation, STAT = status)
             if (status /= SUCCESS_)                                                      &
                 call SetError (FATAL_, INTERNAL_, "HydroPropAssimilationVelocity - Hydrodynamic - ERR70")
 
         else
-
             nullify(PropAssimilation)
-
         endif
 
 
@@ -41104,8 +40642,6 @@ do3:            do K=kbottom, KUB
     Subroutine HydroPropAssimilation2D( PropertyID, PropModel, PropSubModel, Map3D, DT)
 
         !Arguments------------------------------------------------------------
-
-
         real,    dimension(:,:  ), pointer :: PropModel, PropSubModel
 
         integer, dimension(:,:,:), pointer :: Map3D
@@ -41127,41 +40663,26 @@ do3:            do K=kbottom, KUB
 
         integer                            :: IUB, JUB, KUB, ILB, JLB, status
         integer                            :: CHUNK
-
     !------------initialization----
-
-
         !Begin - Shorten variables name
 
-        IUB = Me%WorkSize%IUB
-        JUB = Me%WorkSize%JUB
-        KUB = Me%WorkSize%KUB
-
-        ILB = Me%WorkSize%ILB
-        JLB = Me%WorkSize%JLB
-
-
+        IUB = Me%WorkSize%IUB  ;  JUB = Me%WorkSize%JUB  ;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB  ;  JLB = Me%WorkSize%JLB
+        
         EndTime     = Me%EndTime
-
         BeginTime   = Me%BeginTime
-
         CurrentTime = Me%CurrentTime
 
         !End - Shorten variables name
 
         if (associated(PropSubModel)) then
-
             PropAssimilation => PropSubModel
-
         else
-
             call GetAssimilationField(Me%ObjAssimilation,                               &
                                       ID              = PropertyID,                     &
                                       Field2D         = PropAssimilation,               &
                                       STAT            = status)
-
-            if (status /= SUCCESS_)                                                     &
-                call SetError (FATAL_, INTERNAL_, "HydroPropAssimilation2D - Hydrodynamic - ERR01")
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "HydroPropAssimilation2D - Hydrodynamic - ERR01")
 
         endif
 
@@ -41172,9 +40693,7 @@ do3:            do K=kbottom, KUB
                                   ColdOrder       = ColdOrder,                          &
                                   STAT        = status)
 
-        if (status /= SUCCESS_)                                                         &
-            call SetError (FATAL_, INTERNAL_, "HydroPropAssimilation2D - Hydrodynamic - ERR02")
-
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "HydroPropAssimilation2D - Hydrodynamic - ERR02")
 
         DT_RunPeriod = CurrentTime - BeginTime
 
@@ -41215,24 +40734,14 @@ cd2:        if (Map3D(I, J, KUB) == Covered ) then
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "HydroPropAssimilation2D")
 
         call UnGetAssimilation(Me%ObjAssimilation, DecayTime, STAT = status)
-        if (status /= SUCCESS_)                                                          &
-            call SetError (FATAL_, INTERNAL_, "HydroPropAssimilation2D - Hydrodynamic - ERR04")
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "HydroPropAssimilation2D - Hydrodynamic - ERR04")
 
         if (.not. associated(PropSubModel)) then
-
-            call UnGetAssimilation(Me%ObjAssimilation, PropAssimilation,    &
-                                   STAT        = status)
-
-            if (status /= SUCCESS_)                                                      &
-                call SetError (FATAL_, INTERNAL_, "HydroPropAssimilation2D - Hydrodynamic - ERR05")
-
+            call UnGetAssimilation(Me%ObjAssimilation, PropAssimilation, STAT = status)
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "HydroPropAssimilation2D - Hydrodynamic - ERR05")
         else
-
-
             nullify(PropAssimilation)
-
         endif
-
 
 
     End Subroutine HydroPropAssimilation2D
@@ -41241,8 +40750,6 @@ cd2:        if (Map3D(I, J, KUB) == Covered ) then
     Subroutine VelocityRelaxation
 
         !Arguments------------------------------------------------------------
-
-
         !Local---------------------------------------------------------------------
         real,    dimension(:,:,:), pointer :: Velocity_UV_New, SubModel_UV_New
 
@@ -41251,18 +40758,14 @@ cd2:        if (Map3D(I, J, KUB) == Covered ) then
         integer, dimension(:,:),   pointer :: KFloor_UV
 
         integer                            :: Vel_ID
-
     !------------initialization----
 
         !Begin - Shorten variables name
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
-
         KFloor_UV            => Me%External_Var%KFloor_UV
-
         Velocity_UV_New      => Me%Velocity%Horizontal%UV%New
 
        !End - Shorten variables name
-
 
         nullify (SubModel_UV_New)
 
@@ -41282,16 +40785,11 @@ cd2:        if (Map3D(I, J, KUB) == Covered ) then
 
         endif
 
-
         call HydroPropAssimilation ( Vel_ID, Velocity_UV_New,            &
                                     SubModel_UV_New, ComputeFaces3D_UV, KFloor_UV,       &
                                     Me%Velocity%DT)
 
-
-        nullify(Velocity_UV_New  )
-        nullify(KFloor_UV        )
-        nullify(ComputeFaces3D_UV)
-
+        nullify(Velocity_UV_New, KFloor_UV, ComputeFaces3D_UV)
 
     End Subroutine VelocityRelaxation
     !----------------------------------------------------------------
@@ -41299,8 +40797,6 @@ cd2:        if (Map3D(I, J, KUB) == Covered ) then
     Subroutine WaterLevelRelaxation
 
         !Arguments------------------------------------------------------------
-
-
         !Local---------------------------------------------------------------------
         real,    dimension(:,:  ), pointer :: WaterLevel_New, SubModel_Z
 
@@ -41309,14 +40805,10 @@ cd2:        if (Map3D(I, J, KUB) == Covered ) then
         integer, dimension(:,:),   pointer :: KFloor_Z
 
         integer                            :: Vel_ID
-
     !------------initialization----
-
         !Begin - Shorten variables name
         OpenPoints3D        => Me%External_Var%OpenPoints3D
-
         KFloor_Z            => Me%External_Var%KFloor_Z
-
         WaterLevel_New      => Me%WaterLevel%New
 
        !End - Shorten variables name
@@ -41325,19 +40817,12 @@ cd2:        if (Map3D(I, J, KUB) == Covered ) then
         Vel_ID = WaterLevel_
         nullify (SubModel_Z)
 
-        if (Me%SubModel%ON)                                                 &
-            SubModel_Z => Me%SubModel%Z
-
+        if (Me%SubModel%ON) SubModel_Z => Me%SubModel%Z
 
         call HydroPropAssimilation ( Vel_ID, WaterLevel_New, SubModel_Z, &
                                     OpenPoints3D, Me%WaterLevel%DT)
 
-
-        nullify(WaterLevel_New   )
-        nullify(KFloor_Z         )
-        nullify(OpenPoints3D     )
-        nullify(SubModel_Z       )
-
+        nullify(WaterLevel_New, KFloor_Z, OpenPoints3D, SubModel_Z)
 
     End Subroutine WaterLevelRelaxation
     !----------------------------------------------------------------
@@ -41708,12 +41193,9 @@ dok:     do k=KUB,kbottom,-1
         real(8)                                           :: WestFace, EastFace, NorthFace, SouthFace, dVdT
         integer                                           :: I, J, K, IUB, ILB, JUB, JLB, KUB, KLB, CHUNK
         !Begin--------------------------------------------------------------------------
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
+
         CHUNK = CHUNK_J(JLB, JUB)
 
         !$OMP PARALLEL PRIVATE(i,j,k,dVdt, WestFace, EastFace, SouthFace, NorthFace)
@@ -41754,12 +41236,9 @@ dok:     do k=KUB,kbottom,-1
         real(8)                                           :: SouthFace, WestFace, EastFace, NorthFace
         integer                                           :: I, J, K, IUB, ILB, JUB, JLB, KUB, KLB, CHUNK
         !Begin--------------------------------------------------------------------------
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
+        
         CHUNK = CHUNK_J(JLB, JUB)
 
         !$OMP PARALLEL PRIVATE(i,j,k, WestFace, EastFace, SouthFace, NorthFace)
@@ -41804,9 +41283,7 @@ dok:     do k=KUB,kbottom,-1
 
         CHUNK = CHUNK_J(Me%WorkSize%JLB, Me%WorkSize%JUB)
 
-        if (MonitorPerformance) then
-            call StartWatch ("ModuleHydrodynamic", "Filter_3D_Fluxes")
-        endif
+        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Filter_3D_Fluxes")
 
         !$OMP PARALLEL PRIVATE(i,j,k)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -41826,9 +41303,7 @@ dok:     do k=KUB,kbottom,-1
         !Where (Me%External_Var%BoundaryPoints(:,:) == 1) &
         !       Me%WaterFluxes%Z(:,:,:) = 0 ?Probably ok, needs testing before changing
 
-        if (MonitorPerformance) then
-            call StopWatch ("ModuleHydrodynamic", "Filter_3D_Fluxes")
-        endif
+        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Filter_3D_Fluxes")
 
     end subroutine Filter_3D_Fluxes
 
@@ -41862,17 +41337,11 @@ dok:     do k=KUB,kbottom,-1
         integer                            :: I, J, IUB, ILB, JUB, JLB, KUB
 
         integer                            :: CHUNK
-
         !Begin--------------------------------------------------------------------------
 
-
         !Begin - Shorten variables name
-
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB
 
         DZX               => Me%External_Var%DZX
         DZY               => Me%External_Var%DZY
@@ -41889,42 +41358,30 @@ dok:     do k=KUB,kbottom,-1
 
         !End - Shorten variables name
 
-
         if (.not. Me%ComputeOptions%BaroclinicRadia == NoRadiation_)        &
             call ComputeBaroclinicVertVelocity( Grid)
 
         CHUNK = CHUNK_J(JLB, JUB)
 
-        if (MonitorPerformance) then
-            call StartWatch ("ModuleHydrodynamic", "Boundary_VerticalFlow")
-        endif
+        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Boundary_VerticalFlow")
 
         !$OMP PARALLEL PRIVATE(i,j)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
    do1: do j = JLB, JUB
    do2: do i = ILB, IUB
-
             if (BoundaryFacesU(i, j) == Boundary .and. ComputeFaces3D_U(i, j, KUB) == Covered) then
 
-
                 if (BoundaryPoints(i, j) == Boundary) then
-
                     call Compute_BoundaryVertFlux( WaterFlux_XY = WaterFlux_X,  &
                                                   WaterFlux_YX = WaterFlux_Y,                   &
                                                   i = i, j = j, di = 0, dj = 1, db = 1)
-
-
                 else
-
                     call Compute_BoundaryVertFlux( WaterFlux_XY = WaterFlux_X,  &
                                                   WaterFlux_YX = WaterFlux_Y,                   &
                                                   i = i, j = j, di = 0, dj = 1, db = 0)
                 endif
 
-
-
             endif
-
         enddo do2
         enddo do1
         !$OMP END DO
@@ -41932,11 +41389,8 @@ dok:     do k=KUB,kbottom,-1
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
 do3:    do j = JLB, JUB
 do4:    do i = ILB, IUB
-
             if (BoundaryFacesV(i, j) == Boundary .and. ComputeFaces3D_V(i, j, KUB) == Covered) then
-
                 if (BoundaryPoints(i, j) == Boundary) then
-
                     call Compute_BoundaryVertFlux( WaterFlux_XY = WaterFlux_Y, &
                                                   WaterFlux_YX = WaterFlux_X,                  &
                                                   i = i, j = j, di = 1, dj = 0, db = 1)
@@ -41945,31 +41399,21 @@ do4:    do i = ILB, IUB
                     call Compute_BoundaryVertFlux( WaterFlux_XY = WaterFlux_Y, &
                                                   WaterFlux_YX = WaterFlux_X,                  &
                                                   i = i, j = j, di = 1, dj = 0, db = 0)
-
                 endif
-
-
             endif
-
         enddo do4
         enddo do3
         !$OMP END DO
         !$OMP END PARALLEL
 
-        if (MonitorPerformance) then
-            call StopWatch ("ModuleHydrodynamic", "Boundary_VerticalFlow")
-        endif
+        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "Boundary_VerticalFlow")
 
         !Nullify auxiliar pointers
         nullify(DZX , DZY       )
-        nullify(ComputeFaces3D_U)
-        nullify(ComputeFaces3D_V)
-        nullify(BoundaryFacesU  )
-        nullify(BoundaryFacesV  )
+        nullify(ComputeFaces3D_U, ComputeFaces3D_V)
+        nullify(BoundaryFacesU, BoundaryFacesV)
         nullify(BoundaryPoints  )
-
-        nullify(WaterFlux_X     )
-        nullify(WaterFlux_Y     )
+        nullify(WaterFlux_X, WaterFlux_Y)
 
     end Subroutine Boundary_VerticalFlow
 
@@ -42014,13 +41458,10 @@ do4:    do i = ILB, IUB
         integer                            :: ib, jb, i_int, j_int, K, KUB, i_int2, j_int2, i_ext, j_ext
         integer                            :: i_Tang1, j_Tang1, i_Tang2, j_Tang2
         integer                            :: kbottom
-
         !Begin--------------------------------------------------------------------------
-
 
         !Begin - Shorten variables name
         KUB = Me%WorkSize%KUB
-
 
         DT_Elevation        =  Me%WaterLevel%DT
 
@@ -42115,7 +41556,6 @@ cd1:        if (Me%ComputeOptions%BaroclinicRadia == Horizontal_) then
 
             endif cd1
 
-
             !Compute the vertical velocity relatively to the grid
             !When the cartesian velocity is compute in the routine "ComputeCartesianVelocity"
             !the across grid velocity in the boundary points is consider zero so the
@@ -42137,14 +41577,10 @@ cd1:        if (Me%ComputeOptions%BaroclinicRadia == Horizontal_) then
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
             !The water flux across grid is also compute for the boundary points
             WaterFlux_Z(ib, jb, k)     = Velocity_Z(ib, jb, k) * DUX(ib, jb) * DVY(ib, jb)
 
-
-
         enddo dok2
-
 
         !Nullify auxiliar pointers
         nullify(DUX, DVY           )
@@ -42153,14 +41589,9 @@ cd1:        if (Me%ComputeOptions%BaroclinicRadia == Horizontal_) then
         nullify(SZZ                )
         nullify(Density            )
         nullify(Velocity_Z         )
-        nullify(Vel_Z_Cartesian    )
-        nullify(Vel_Z_Baroclinic   )
-        nullify(Vel_Z_BaroclinicOld)
+        nullify(Vel_Z_Cartesian, Vel_Z_Baroclinic, Vel_Z_BaroclinicOld)
 
-        nullify(WaterFlux_Z        )
-        nullify(WaterLevel_New     )
-        nullify(WaterLevel_Old     )
-
+        nullify(WaterFlux_Z, WaterLevel_New, WaterLevel_Old)
 
     end Subroutine Compute_BoundaryVertFlux
 
@@ -42201,17 +41632,12 @@ cd1:        if (Me%ComputeOptions%BaroclinicRadia == Horizontal_) then
         real,    dimension(:,:,:), pointer  :: StokesVelU, StokesVelV, StokesVelW_cart
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-
         !Begin-----------------------------------------------------------------
 
         !Begin - Shorten variables name
 
-        IUB = Me%WorkSize%IUB
-        ILB = Me%WorkSize%ILB
-        JUB = Me%WorkSize%JUB
-        JLB = Me%WorkSize%JLB
-        KUB = Me%WorkSize%KUB
-        KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
 
         Velocity_W_Cartesian    => Me%Velocity%Vertical%Cartesian
         Velocity_W_Across       => Me%Velocity%Vertical%Across
@@ -42244,46 +41670,28 @@ cd1:        if (Me%ComputeOptions%BaroclinicRadia == Horizontal_) then
 
         ! ciclo a todos os pontos interiores
 
-        dszdt = 0.
-        velu  = 0.
-        dszdx = 0.
-        velv  = 0.
-        dszdy = 0.
-
-
+        dszdt = 0.  ;  dszdx = 0.  ;  dszdy = 0.
+        velu  = 0.  ;  velv  = 0.
+        
         if (Present(Grid)) then
-
-            if      (Grid == Variable) then
-
+            if  (Grid == Variable) then
                 MeshVelocity_ = .true.
-
-            else if (Grid == Fix     ) then
-
+            else if (Grid == Fix ) then
                 MeshVelocity_ = .false.
-
             endif
-
         else
-
             MeshVelocity_ = .true.
-
         endif
 
         if (Present(MeshSlope)) then
-
             MeshSlope_ = MeshSlope
-
         else
-
             MeshSlope_ = .true.
-
         endif
 
         CHUNK = CHUNK_I(ILB, IUB)
 
-        if (MonitorPerformance) then
-            call StartWatch ("ModuleHydrodynamic", "ComputeCartesianVertVelocity_Waves")
-        endif
+        if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "ComputeCartesianVertVelocity_Waves")
 
         !$OMP PARALLEL PRIVATE(i,j,k,dszdt,szzxp1,dzxp1,szzxm1,dzxm1,dszdx) &
         !$OMP PRIVATE(szzyp1,dzyp1,szzym1,dzym1,dszdy,velusup,veluinf,velvsup) &
@@ -42476,23 +41884,15 @@ cd2:                if (MeshSlope_ .and. BoundaryPoints(i, j) /= Boundary) then
         !$OMP END DO
         !$OMP END PARALLEL
 
-        if (MonitorPerformance) then
-            call StopWatch ("ModuleHydrodynamic", "ComputeCartesianVertVelocity_Waves")
-        endif
+        if (MonitorPerformance)call StopWatch ("ModuleHydrodynamic", "ComputeCartesianVertVelocity_Waves")
 
-        if (Me%CyclicBoundary%ON) then
-
-            call CyclicBoundVertical (Vector = Velocity_W_Cartesian)
-
-        endif
-
+        if (Me%CyclicBoundary%ON) call CyclicBoundVertical (Vector = Velocity_W_Cartesian)
 
         !nulify auxiliar variables
         nullify(Velocity_W_Cartesian, Velocity_W_Across, uavar, vavar, ComputeFaces3D_U, ComputeFaces3D_V, &
                 ComputeFaces3D_W, Volz_old, Volum_z, dzx, dzy, dux, dvy, dwz, szz, WaterPoints3D)
 
         nullify(WaterLevel_New, WaterLevel_Old)
-
         nullify(BoundaryPoints)
 
     !----------------------------------------------------------------------
