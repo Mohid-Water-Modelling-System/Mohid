@@ -4899,18 +4899,17 @@ iDF:                if (.not. NewOrigin%Default) then
 
                     endif iDF
 
-                else iFV
-
-                    !If not variable, get flow of the origin
+                    !get default flow of the origin
                     call GetData(NewOrigin%Flow,                                &
                                  Me%ObjEnterData,                               &
                                  flag,                                          &
                                  SearchType   = FromBlock,                      &
                                  keyword      ='FLOW',                          &
+                                 default      = 1.,                             &
                                  ClientModule ='ModuleLagrangianGlobal',        &
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR390'
-                    if (flag /= 1) then
+                    if (flag /= 1 .and. .not. NewOrigin%FlowVariable) then
                         write(*,*)'Keyword FLOW not defined at origin :',trim(adjustl(NewOrigin%Name))
                         stop      'ConstructOneOrigin - ModuleLagrangianGlobal - ERR393'
                 
@@ -10498,13 +10497,19 @@ FLOAT:  if (CurrentOrigin%Movement%Float            .or.    &
                 
                 if (Me%Now >= CurrentOrigin%Movement%NextJetActualization) then
 
+                    if (CurrentOrigin%Flow >0) then
                     call ActualizeJetProperties(CurrentOrigin)
+                    endif
 
                     CurrentOrigin%Movement%NextJetActualization = CurrentOrigin%Movement%NextJetActualization + &
                                                                   CurrentOrigin%Movement%JetDT
                 endif
 
+                if (CurrentOrigin%Flow >0) then
+
                 call GiveJetPropertiesToParticle (CurrentOrigin, NewParticle)
+
+            endif
 
             endif
 
