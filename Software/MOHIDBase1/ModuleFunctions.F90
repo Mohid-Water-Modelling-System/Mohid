@@ -6222,9 +6222,8 @@ d5:     do k = klast + 1,KUB
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>feeds back info from son to father using an volume weighted average method. routine for water level
-    !>@param[in] FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
-    !>           SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, DecayTime, DT,  &
-    !>           SonVolInFather, AuxMatrix, FatherCorners, VolumeSon, VolumeFather, IgnoreOBCells
+    !>@param[in] FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink,           &
+    !>           JLink, DecayTime, DT, SonVolInFather2D, AuxMatrix2D, VolumeSon2D, VolumeFather2DT, gnoreOBCells       
     subroutine FeedBack_Avrg_WL(FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink, &
                                 JLink, DecayTime, DT, SonVolInFather2D, AuxMatrix2D, VolumeSon2D, VolumeFather2D,         &
                                 IgnoreOBCells)
@@ -6279,7 +6278,7 @@ d5:     do k = klast + 1,KUB
     !>feeds back info from son to father using an volume weighted average method. routine for U/V types
     !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
     !>           SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, DecayTime, DT,  &
-    !>           SonVolInFather, AuxMatrix, FatherCorners, VolumeSon, VolumeFather, IgnoreOBCells
+    !>           SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells
     subroutine FeedBack_Avrg_UV(FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
                                 SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, DecayTime, DT,              &
                                 SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells)
@@ -6334,7 +6333,7 @@ d5:     do k = klast + 1,KUB
             if (Flag == 2) then
                 if (SonVolInFather(i, j, k) > 0.1) then
                     ! m/s                 = m/s + ((m4/s / m3) - m/s) * (m3/m3) * []
-                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                    &
+                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                  &
                                           + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) - FatherMatrix(i, j, k)) &
                                           * (SonVolInFather(i, j, k) / VolumeFather(i, j, k)) * DecayFactor
                 endif

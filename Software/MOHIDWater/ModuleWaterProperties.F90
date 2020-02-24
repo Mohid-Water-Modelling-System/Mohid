@@ -3223,8 +3223,7 @@ cd5 :                   if (Me%ExternalVar%BoundaryPoints2D(i, j) == Boundary) t
 
 do6 :                       do K = WKLB, WKUB
 
-                                NewProperty%Assimilation%Field(i, j, k) =               &
-                                    NewProperty%Assimilation%scalar
+                                NewProperty%Assimilation%Field(i, j, k) = NewProperty%Assimilation%scalar
 
                             end do do6
 

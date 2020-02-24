@@ -10488,7 +10488,7 @@ i7:             if (.not. ContinuousGOTM)  then
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Checks if a discharge is of type "upscaling" and constructs it
-    !>@param[in] FatherID, ObjHydrodynamicFather, SonID
+    !>@param[in] FatherID, ObjFather, SonID
     subroutine Set_Upscaling_Discharges(FatherID, ObjFather, SonID)
         !Arguments-------------------------------------------------------------
         integer,           intent(IN )              :: FatherID, SonID
@@ -20595,20 +20595,6 @@ cd1:    if (Evolution == Solve_Equations_) then
                 !$OMP END DO
 
                 !$OMP MASTER
-                !Fetch the reference barotropic velocity field
-                !call GetAssimilationField(Me%ObjAssimilation,                           &
-                !                     ID      = BarotropicVelocityU_,                    &
-                !                     Field2D = Me%Geostroph%Reference_U_barotropic,     &
-                !                     STAT    = STAT_CALL)
-                !if (STAT_CALL /= SUCCESS_)                                              &
-                !    stop 'MomentumMassConservation - ModuleHydrodynamic - ERR010'
-
-                !call GetAssimilationField(Me%ObjAssimilation,                           &
-                !                     ID      = BarotropicVelocityV_,                    &
-                !                     Field2D = Me%Geostroph%Reference_V_barotropic,     &
-                !                     STAT    = STAT_CALL)
-                !if (STAT_CALL /= SUCCESS_)                                              &
-                !    stop 'MomentumMassConservation - ModuleHydrodynamic - ERR020'
 
                 !It is important to read vector fields in agreggated way to allow the
                 !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
