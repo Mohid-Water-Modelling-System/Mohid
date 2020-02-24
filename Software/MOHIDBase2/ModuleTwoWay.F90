@@ -406,7 +406,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call GetGeometrySize (FatherTwoWayID, Size = Me%Father%Size, WorkSize = Me%Father%WorkSize, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - AllocateTwoWayAux - ERR10'
             
-           call GetHorizontalGridSize (HorizontalGridID = FatherTwoWayID,  Size = Me%Father%Size2D, &
+            call GetHorizontalGridSize (HorizontalGridID = FatherTwoWayID,  Size = Me%Father%Size2D, &
                                        WorkSize = Me%Father%WorkSize2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - AllocateTwoWayAux - ERR20'            
             
