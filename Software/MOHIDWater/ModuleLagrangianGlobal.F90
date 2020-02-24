@@ -4899,6 +4899,8 @@ iDF:                if (.not. NewOrigin%Default) then
 
                     endif iDF
 
+                endif iFV
+
                     !get default flow of the origin
                     call GetData(NewOrigin%Flow,                                &
                                  Me%ObjEnterData,                               &
@@ -4914,9 +4916,6 @@ iDF:                if (.not. NewOrigin%Default) then
                         stop      'ConstructOneOrigin - ModuleLagrangianGlobal - ERR393'
                 
                     endif 
-
-
-                endif iFV
 
                 call GetData(NewOrigin%MovingOrigin,                                    &
                              Me%ObjEnterData,                                           &
@@ -15611,7 +15610,6 @@ d1:         do em = 1, Me%EulerModelNumber
                 KUB = Me%EulerModel(em)%WorkSize%KUB
 
                 Me%EulerModel(em)%RelativeMassFilter(:,:,:) = 0. 
-                Me%EulerModel(em)%MassFiltered      (:,:,:) = 0. 
 
                 call GetFiltrationRate (Me%EulerModel(em)%ObjWaterProperties, FiltrationRateX,             &
                                         DTEulerian, Fecal_Coliforms_, STAT = STAT_CALL)
@@ -15631,7 +15629,7 @@ d1:         do em = 1, Me%EulerModelNumber
                         FiltrationRateX(i, j, k) > 0.) then
                         ![ ] = [1/T] * [T] / [L3]
                         Me%EulerModel(em)%RelativeMassFilter(i,j,k) = FiltrationRateX(i, j, k) * &
-                                                                  DTEulerian               
+                                                                  Me%DT_Partic               
 
                         if (Me%EulerModel(em)%RelativeMassFilter(i,j,k) > 1.)                   &
                             stop "Lagrangian - ActualizesMassFilterGrid - ERR30"
@@ -15646,7 +15644,12 @@ d1:         do em = 1, Me%EulerModelNumber
 
             enddo d1
 
+        endif i1
+
+        !Every lagrangian time step (Me%DT_Partic) computes the mass removed by the eulerian filter feeders. 
+
             CurrentOrigin => Me%FirstOrigin
+        
 CurrOr:     do while (associated(CurrentOrigin))
                 
                 !Filter Property 
@@ -15690,17 +15693,21 @@ CurrOr:     do while (associated(CurrentOrigin))
 
             enddo CurrOr
 
+i2:     if (Me%Now >= Me%NextFiltration) then
+
 d2:         do em = 1, Me%EulerModelNumber
 
                 call SetLagrangianSinksSources(Me%EulerModel(em)%ObjWaterProperties, Fecal_Coliforms_,     &
                                                Me%EulerModel(em)%MassFiltered, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop "Lagrangian - ActualizesMassFilterGrid - ERR60"
 
+                Me%EulerModel(em)%MassFiltered      (:,:,:) = 0.                 
+
             enddo d2
 
             Me%NextFiltration = Me%NextFiltration + DTEulerian
 
-        endif i1
+        endif i2
 
 
     end subroutine ActualizesMassFilterGrid
