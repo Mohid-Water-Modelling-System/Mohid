@@ -37679,10 +37679,7 @@ do3:            do k = kbottom, KUB
 
     Subroutine ModifyRelaxAceleration
 
-
         !Arguments------------------------------------------------------------
-
-
         !Local---------------------------------------------------------------------
         type T_Matrix3D
             real,    dimension(:,:,:), pointer :: VelAssimilation3D
@@ -37699,20 +37696,15 @@ do3:            do k = kbottom, KUB
         real,    dimension(:,:,:), pointer :: Velocity_UV_New, SubModel_UV_New,          &
                                               Relax_Aceleration, DecayTime,              &
                                               DUZ_VZ
-
         real,    dimension(:,:  ), pointer :: WaterColumnUV
-
         integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
-
         integer, dimension(:,:),   pointer :: KFloor_UV
 
         type (T_Time)                      :: CurrentTime, BeginTime, EndTime
 
         real                               :: ColdPeriod, ColdOrder, DT_RunPeriod, CoefCold, VelModel, VelReference
-
         integer                            :: Vel_ID, status
         integer                            :: ILB, IUB, JLB, JUB, KUB, kbottom, i, j, k
-
         integer                            :: CHUNK
         integer                            :: iL, NFieldsUV2D, NFieldsUV3D
 
@@ -37720,15 +37712,10 @@ do3:            do k = kbottom, KUB
 
         !Begin - Shorten variables name
         Relax_Aceleration    => Me%Forces%Relax_Aceleration
-
         ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
-
         KFloor_UV            => Me%External_Var%KFloor_UV
-
         WaterColumnUV        => Me%External_Var%WaterColumnUV
-
         DUZ_VZ               => Me%External_Var%DUZ_VZ
-
 
 cd1:    if (Me%Relaxation%ReferenceVelocity == TotalVel_   .or.             &
             Me%Relaxation%ReferenceVelocity == BarotrVel_)  then
@@ -37741,18 +37728,11 @@ cd1:    if (Me%Relaxation%ReferenceVelocity == TotalVel_   .or.             &
 
         endif cd1
 
-
-        IUB = Me%WorkSize%IUB
-        JUB = Me%WorkSize%JUB
-        KUB = Me%WorkSize%KUB
-
-        ILB = Me%WorkSize%ILB
-        JLB = Me%WorkSize%JLB
-
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB
+        
         EndTime     = Me%EndTime
-
         BeginTime   = Me%BeginTime
-
         CurrentTime = Me%CurrentTime
 
         !End - Shorten variables name
@@ -37764,10 +37744,7 @@ cd1:    if (Me%Relaxation%ReferenceVelocity == TotalVel_   .or.             &
         if (status /= SUCCESS_)                                                     &
             call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR070")
 
-        if (Me%ComputeOptions%AssimilaOneField) then
-            NFieldsUV2D = 0
-        endif
-
+        if (Me%ComputeOptions%AssimilaOneField) NFieldsUV2D = 0
 
         call GetNumberOfFields(AssimilationID  = Me%ObjAssimilation,            &
                                 ID              = VelocityU_,                    &
@@ -37776,15 +37753,9 @@ cd1:    if (Me%Relaxation%ReferenceVelocity == TotalVel_   .or.             &
         if (status /= SUCCESS_)                                                 &
             call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR070")
 
-        if (Me%ComputeOptions%AssimilaOneField) then
-            NFieldsUV3D = 1
-        endif
+        if (Me%ComputeOptions%AssimilaOneField) NFieldsUV3D = 1
 
-
-        allocate(List2D(NFieldsUV2D))
-        allocate(List3D(NFieldsUV3D))
-
-
+        allocate(List2D(NFieldsUV2D), List3D(NFieldsUV3D))
 
         nullify (SubModel_UV_New)
 
@@ -37792,8 +37763,7 @@ cd2:    if      (Me%Direction%XY == DirectionX_) then
 
             Vel_ID = VelocityU_
 
-            if (Me%SubModel%ON)                                                         &
-                SubModel_UV_New => Me%SubModel%U_New
+            if (Me%SubModel%ON) SubModel_UV_New => Me%SubModel%U_New
 
             !It is important to read vector fields in agreggated way to allow the
             !rotation of the meridional/zonal velocities to be align with the grid/cell orientation
@@ -37824,7 +37794,6 @@ cd2:    if      (Me%Direction%XY == DirectionX_) then
                     call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR10")
             enddo
 
-
         else if (Me%Direction%XY == DirectionY_) then cd2
 
             Vel_ID = VelocityV_
@@ -37844,7 +37813,6 @@ cd2:    if      (Me%Direction%XY == DirectionX_) then
                                       STAT              = status)
                 if (status /= SUCCESS_)                                                 &
                     call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR15")
-
             enddo
 
             do iL =1, NFieldsUV2D
@@ -37869,9 +37837,7 @@ cd2:    if      (Me%Direction%XY == DirectionX_) then
                                   ColdOrder       = ColdOrder,                          &
                                   STAT            = status)
 
-        if (status /= SUCCESS_)                                                         &
-            call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR20")
-
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR20")
 
         DT_RunPeriod = CurrentTime - BeginTime
 
@@ -37978,7 +37944,6 @@ do3:            do K=kbottom, KUB
                     ![m/s^2]                   = []*([m/s] - [m/s]) / [s]
                     Relax_Aceleration(i, j, k) = CoefCold  * (VelReference - VelModel)/ DecayTime(i, j, k)
 
-
                 enddo do3
 
             endif cd5
@@ -37988,42 +37953,28 @@ do3:            do K=kbottom, KUB
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
-        if (MonitorPerformance) then
-            call StopWatch ("ModuleHydrodynamic", "ModifyRelaxAceleration")
-        endif
+        if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "ModifyRelaxAceleration")
 
         call UnGetAssimilation(Me%ObjAssimilation, DecayTime, STAT = status)
-
-        if (status /= SUCCESS_)                                                         &
-            call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR50")
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR50")
 
         do iL =1, NFieldsUV3D
-            call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%VelAssimilation3D,    &
-                                   STAT        = status)
-            if (status /= SUCCESS_)                                                     &
-                call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR60")
+            call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%VelAssimilation3D, STAT = status)
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR60")
         enddo
 
         do iL =1, NFieldsUV2D
-            call UnGetAssimilation(Me%ObjAssimilation, List2D(iL)%VelAssimilation2D,    &
-                                   STAT        = status)
-            if (status /= SUCCESS_)                                                     &
-                call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR60")
+            call UnGetAssimilation(Me%ObjAssimilation, List2D(iL)%VelAssimilation2D, STAT = status)
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR60")
         enddo
 
-        deallocate(List3D)
-        deallocate(List2D)
+        deallocate(List3D, List2D)
 
         nullify(Relax_Aceleration)
-        nullify(ComputeFaces3D_UV)
-        nullify(KFloor_UV        )
-        nullify(Velocity_UV_New  )
-        nullify(WaterColumnUV    )
-        nullify(DUZ_VZ           )
+        nullify(ComputeFaces3D_UV, Velocity_UV_New)
+        nullify(KFloor_UV, WaterColumnUV, DUZ_VZ)
 
-        if (Me%SubModel%ON)                                                 &
-            nullify(SubModel_UV_New)
-
+        if (Me%SubModel%ON) nullify(SubModel_UV_New)
 
     End Subroutine ModifyRelaxAceleration
 
@@ -38533,7 +38484,7 @@ cd1:        if (ComputeFaces3D_UV(I, J, KUB) == Covered) then
 
         !Nullify auxiliar pointers
         nullify (ComputeFaces3D_UV, LandBoundaryFacesVU)
-        nullify (KFloor_UV
+        nullify (KFloor_UV)
         nullify (DXX_YY)
 
    End Subroutine CoriolisInterpolation
@@ -40452,7 +40403,7 @@ do62:                   do  K = kbottom, KUB
 
         !Nullify auxiliar pointers
         nullify (Kleft  , Hleft , HroLeft , DensLeft)
-        nullify (Kright), Hright, HroRight, DensRight)
+        nullify (Kright, Hright, HroRight, DensRight)
         nullify (Depth_integ)
         nullify (Hcenter)
 
@@ -42562,7 +42513,7 @@ dok:            do k = kbottom + 1, KUB
         KFloor_UV               => Me%External_Var%KFloor_UV
         !End - Shorten variables name
 
-        if (Me%ComputeOptions%Turbine call GetTurbineAcceleration(Me%ObjTurbine, Me%Forces%Turbine_Acceleration)
+        if (Me%ComputeOptions%Turbine) call GetTurbineAcceleration(Me%ObjTurbine, Me%Forces%Turbine_Acceleration)
             !Falta gestao de STAT
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "Velocity_ExplicitForces")
@@ -42695,13 +42646,9 @@ dok:            do k = kbottom + 1, KUB
             call AddWaterPressure_acceleration_W (PressureBackwardInTime)
         endif
 
-        if (Me%TidePotential%Compute) then
-            call AddTidePotential
-        endif
+        if (Me%TidePotential%Compute) call AddTidePotential
 
-        if (Me%ComputeOptions%AtmPressure) then
-            call AddAtmPressure
-        endif
+        if (Me%ComputeOptions%AtmPressure) call AddAtmPressure
 
     end subroutine AddBarotropicForce
 

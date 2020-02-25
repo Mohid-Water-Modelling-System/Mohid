@@ -6791,7 +6791,7 @@ d5:     do k = klast + 1,KUB
             endif
         else
             if (.not. present(IDNumber)) &
-                stop 'ConstructPropertyID - ModuleFunctions - ERR010'
+                stop 'ConstructPropertyIDOnFly - ModuleFunctions - ERR010'
 
             PropertyID%IDNumber = IDNumber
 
@@ -6817,7 +6817,7 @@ d5:     do k = klast + 1,KUB
         if (check) then
         if (.not. CheckPropertyName (PropertyID%Name, PropertyID%IDnumber)) then
             write (*, *)'The property isnt recognized by the model :', trim(PropertyID%Name)
-            stop 'ConstructPropertyID - ModuleFunctions - ERR20'
+            stop 'ConstructPropertyIDOnFly - ModuleFunctions - ERR20'
         endif
         endif
 

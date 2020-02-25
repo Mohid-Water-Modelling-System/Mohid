@@ -55,7 +55,7 @@ Module ModuleAssimilation
     use ModuleFillMatrix,       only: ConstructFillMatrix, GetDefaultValue, KillFillMatrix, &
                                       ModifyFillMatrix, GetAnalyticCelerityON,              &
                                       GetFilenameHDF, GetAnalyticCelerity, UngetFillMatrix
-    use ModuleFunctions,        only: ConstructPropertyID, Density, Sigma, CHUNK_J
+    use ModuleFunctions,        only: ConstructPropertyID, Density, Sigma, CHUNK_J, CHUNK_K
 
     implicit none
 
@@ -100,6 +100,7 @@ Module ModuleAssimilation
     public  ::  GetAltimSigmaDensAnalyzed
     public  ::  GetWaveCelerityField
     public  ::  GetNumberOfFields
+    public  ::  GetNumberOfUpscalingFields
 
     public  ::  UngetAssimilation
 
@@ -187,6 +188,7 @@ Module ModuleAssimilation
         type (T_Field)                          :: CoefField          
         real                                    :: ColdRelaxPeriod      = null_real
         real                                    :: ColdOrder            = null_real
+        logical                                 :: Upscaling            = .false.
         type (T_Time)                           :: LastActualization
         logical                                 :: TimeSerie            = .false.
         logical                                 :: OutputHDF            = .false.
@@ -1023,7 +1025,7 @@ cd2 :           if (BlockFound) then
         !Initial value of NewProperty%LastActualization = =-9999999
         call null_Time(NewProperty%LastActualization)
         
-        call read_property_keywords(NewProperty)
+        call read_property_keywords(NewProperty, iflag)
 
         call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                       &
                                    begin_field, end_field, BlockFound, STAT = STAT_CALL)
@@ -1139,9 +1141,10 @@ cd2 :           if (BlockFound) then
     !>@Brief
     !>Reads keywords from current property block in assimilation.dat
     !>@param[in] NewProperty
-    subroutine read_property_keywords (NewProperty)
+    subroutine read_property_keywords (NewProperty, iflag)
         !Arguments-------------------------------------------------------------
         type(T_property),          pointer      :: NewProperty
+        integer                                 :: iflag
         !Locals -----------------------------------------------------------------------------------
         integer                                 :: STAT_CALL
         !Begin ----------------------------------------------------------------
@@ -1230,6 +1233,7 @@ cd2 :           if (BlockFound) then
         integer, dimension(:,:  ), pointer      :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, PointsToFill2D
         !Locals ----------------------------------------------------------------
         real,    dimension(:,:  ), pointer      :: Matrix2D
+        integer                                 :: STAT_CALL
         !Begin------------------------------------------------------------------
         
         call SetMappingAndMatrix2D(NewProperty, PointsToFill2D, WaterPoints2D, WaterFaces2D_U, &
@@ -1317,10 +1321,10 @@ cd2 :           if (BlockFound) then
         !Arguments-------------------------------------------------------------
         type(T_property),          pointer, intent(INOUT) :: Property
         integer, dimension(:,:  ), pointer, intent(IN)    :: PointsToFill2D
-        real,    dimension(:,:  ), pointer, intent(IN)    :: Matrix2D
+        real,    dimension(:,:  ), pointer, intent(INOUT) :: Matrix2D
         !Locals ----------------------------------------------------------------
         integer                                           :: CellFaceIsOpen
-        integer                                           :: CHUNK, i, j, k
+        integer                                           :: CHUNK, i, j
         !Begin------------------------------------------------------------------
         CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
         
@@ -1369,11 +1373,12 @@ cd2 :           if (BlockFound) then
         real,    dimension(:,:  ), pointer      :: AnalyticCelerity
         logical                                 :: AnalyticCelerityON
         real                                    :: AnalyticDirection, AnalyticAverageValue
+        integer                                 :: STAT_CALL
         !Begin ---------------------------------------------------------------------------------------
         
         call GetAnalyticCelerityON(FillMatrixID       = NewProperty%ID%ObjFillMatrix, &
                                     AnalyticCelerityON = AnalyticCelerityON, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticCelery - ModuleAssimilation - ERR110'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticCelery - ModuleAssimilation - ERR10'
                     
         if (AnalyticCelerityON) then
                     
@@ -1384,7 +1389,7 @@ cd2 :           if (BlockFound) then
                                         AnalyticDirection    = AnalyticDirection,            &
                                         AnalyticAverageValue = AnalyticAverageValue,         &   
                                         STAT                 = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticCelery - ModuleAssimilation - ERR120'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticCelery - ModuleAssimilation - ERR20'
                         
             NewProperty%Field%WaveCelerity(:,:) = AnalyticCelerity(:,:)    
             NewProperty%Field%WaveDirection = AnalyticDirection     
@@ -1392,7 +1397,7 @@ cd2 :           if (BlockFound) then
                         
             call UngetFillMatrix(FillMatrixID = NewProperty%ID%ObjFillMatrix, &
                                     Array     = AnalyticCelerity, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticCelery - ModuleAssimilation - ERR130' 
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAnalyticCelery - ModuleAssimilation - ERR30' 
         endif
         
     end subroutine ConstructAnalyticCelery
@@ -1408,7 +1413,8 @@ cd2 :           if (BlockFound) then
         integer                                 :: ClientNumber
         integer, dimension(:,:,:), pointer      :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, PointsToFill3D
         real,    dimension(:,:,:), pointer      :: Matrix3D
-        integer                                 :: CellFaceIsOpen
+        !Locals ---------------------------------------------------------------
+        integer                                 :: STAT_CALL
         !Begin------------------------------------------------------------------
         
         call SetMappingAndMatrix3D(NewProperty, PointsToFill3D, WaterPoints3D, WaterFaces3D_U, &
@@ -1425,16 +1431,16 @@ cd2 :           if (BlockFound) then
                                     TypeZUV              = NewProperty%Field%TypeZUV,&
                                     ClientID             = ClientNumber,             &
                                     STAT                 = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR30'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR10'
 
         !Because it is searched(and filled) in the fill matrix module
         call GetDefaultValue(NewProperty%ID%ObjFillMatrix, NewProperty%Field%DefaultValue, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR40'
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR20'
                     
         call GetFilenameHDF (FillMatrixID   = NewProperty%ID%ObjFillMatrix,    &     
                                 FilenameHDF    = NewProperty%FilenameHDF,      &
                                 HdfFileExist   = NewProperty%HdfFileExist, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR50'                            
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR30'                            
                     
         if (.not. NewProperty%HdfFileExist) NewProperty%FilenameHDF = null_str 
 
@@ -1446,7 +1452,7 @@ cd2 :           if (BlockFound) then
         
         if(.not. NewProperty%ID%SolutionFromFile)then
             call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR60'
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR40'
         end if  
         
     end subroutine ConstructAssimilationField_3D
@@ -1470,7 +1476,7 @@ cd2 :           if (BlockFound) then
                 GetPropertyIDNumber(Property%ID%Name) == VelocityV_) then
                 
                 allocate (Matrix3D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
-                Matrix3D(:,:) = FillValueReal
+                Matrix3D(:,:,:) = FillValueReal
             else
                 Matrix3D => Property%Field%R3D
             endif
@@ -1496,25 +1502,25 @@ cd2 :           if (BlockFound) then
         !Arguments-------------------------------------------------------------
         type(T_property),          pointer, intent(INOUT) :: Property
         integer, dimension(:,:,:), pointer, intent(IN)    :: PointsToFill3D
-        real,    dimension(:,:,:), pointer, intent(IN)    :: Matrix3D
+        real,    dimension(:,:,:), pointer, intent(INOUT) :: Matrix3D
         !Locals ----------------------------------------------------------------
         integer                                           :: CellFaceIsOpen
         integer                                           :: CHUNK, i, j, k
         !Begin------------------------------------------------------------------
         CHUNK = CHUNK_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
         
-        if (GetPropertyIDNumber(NewProperty%ID%Name) == VelocityU_) then
+        if (GetPropertyIDNumber(Property%ID%Name) == VelocityU_) then
             !$OMP PARALLEL PRIVATE(i,j,k)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do k = Me%WorkSize%KLB,Me%WorkSize%KUB
             do j = Me%WorkSize%JLB,Me%WorkSize%JUB
             do i = Me%WorkSize%ILB,Me%WorkSize%IUB
                     
-                NewProperty%Field%R3D(i,j,k) = 0.
+                Property%Field%R3D(i,j,k) = 0.
                     
                 CellFaceIsOpen = PointsToFill3D(i,j-1,k) + PointsToFill3D(i,j  ,k)
                     
-                if (CellFaceIsOpen == 2) NewProperty%Field%R3D(i,j,k) = (Matrix3D(i,j-1,k) + Matrix3D(i,j,k)) / 2.
+                if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i,j-1,k) + Matrix3D(i,j,k)) / 2.
             enddo
             enddo
             enddo
@@ -1522,18 +1528,18 @@ cd2 :           if (BlockFound) then
             !$OMP END PARALLEL
         endif
 
-        if (GetPropertyIDNumber(NewProperty%ID%Name) == VelocityV_) then
+        if (GetPropertyIDNumber(Property%ID%Name) == VelocityV_) then
             !$OMP PARALLEL PRIVATE(i,j,k)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
             do k = Me%WorkSize%KLB,Me%WorkSize%KUB
             do j = Me%WorkSize%JLB,Me%WorkSize%JUB
             do i = Me%WorkSize%ILB,Me%WorkSize%IUB
                     
-                NewProperty%Field%R3D(i,j,k) = 0.
+                Property%Field%R3D(i,j,k) = 0.
                     
                 CellFaceIsOpen = PointsToFill3D(i-1,j,k) + PointsToFill3D(i  ,j,k)
 
-                if (CellFaceIsOpen == 2) NewProperty%Field%R3D(i,j,k) = (Matrix3D(i-1,j,k) + Matrix3D(i,j,k)) / 2.
+                if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i-1,j,k) + Matrix3D(i,j,k)) / 2.
             enddo
             enddo
             enddo
@@ -2570,23 +2576,19 @@ cd2:        if (STAT_CALL == SUCCESS_) then
         integer,            intent(IN )             :: ID
         integer,            intent(OUT)             :: NumberOfFields
         integer, optional,  intent(OUT)             :: STAT
-
         !External--------------------------------------------------------------
         integer                                     :: ready_        
-
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_
-
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
 
         call Ready(AssimilationID, ready_)    
         
-cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                            &
+cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
-
             NumberOfFields = CountNumOfFields(ID) 
             
             STAT_ = SUCCESS_            
@@ -2597,16 +2599,45 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
 
         end if cd1
 
-
-        if (present(STAT))                                                               &
-            STAT = STAT_
+        if (present(STAT)) STAT = STAT_
 
         !----------------------------------------------------------------------
 
     end subroutine GetNumberOfFields
 
     !--------------------------------------------------------------------------
-    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Gets number of upscaling fields defined by the user
+    subroutine GetNumberOfUpscalingFields(AssimilationID, ID, NumberOfFields, STAT)
+
+        !Arguments--------------------------------------------------------------
+        integer,            intent(IN )             :: AssimilationID, ID
+        integer,            intent(OUT)             :: NumberOfFields
+        integer, optional,  intent(OUT)             :: STAT
+        !External--------------------------------------------------------------
+        integer                                     :: ready_        
+        !Local-----------------------------------------------------------------
+        integer                                     :: STAT_
+        !----------------------------------------------------------------------
+
+        STAT_ = UNKNOWN_
+
+        call Ready(AssimilationID, ready_)    
+        
+        if ((ready_ .EQ. IDLE_ERR_     ) .OR.      &
+            (ready_ .EQ. READ_LOCK_ERR_)) then
+            
+            NumberOfFields = CountNumOfFields(ID) 
+            
+            STAT_ = SUCCESS_
+        else
+            STAT_ = ready_
+        end if
+
+        if (present(STAT)) STAT = STAT_
+
+    end subroutine GetNumberOfUpscalingFields
     
     !--------------------------------------------------------------------------
     
@@ -2628,7 +2659,9 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         do while (associated(PropertyX)) 
                 
             if (PropertyX%ID%IDNumber == ID) then
-                NumberOfFields  = NumberOfFields + 1
+                if (.not. PropertyX%Upscaling) then !Sobrinho
+                    NumberOfFields  = NumberOfFields + 1
+                endif
             endif
                 
             PropertyX => PropertyX%Next                 
@@ -2637,7 +2670,36 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
         
         CountNumOfFields = NumberOfFields
         
-    end function CountNumOfFields        
+    end function CountNumOfFields
+    
+    integer function CountNumOfUpscalingFields(ID)
+
+        !Arguments--------------------------------------------------------------
+        integer,            intent(IN )             :: ID
+        !Local-----------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX    
+        integer                                     :: NumberOfFields
+        !----------------------------------------------------------------------    
+   
+        NumberOfFields = 0
+            
+        PropertyX => Me%FirstAssimilationProp
+
+        do while (associated(PropertyX)) 
+                
+            if (PropertyX%ID%IDNumber == ID) then
+                if (PropertyX%Upscaling) then !Sobrinho
+                    NumberOfFields  = NumberOfFields + 1
+                endif
+            endif
+                
+            PropertyX => PropertyX%Next
+                
+        end do
+        
+        CountNumOfUpscalingFields = NumberOfFields
+        
+    end function CountNumOfUpscalingFields
    
     !--------------------------------------------------------------------------
 
@@ -3846,12 +3908,11 @@ do2 :   do j=JLB, JUB
         !Arguments-------------------------------------------------------------
         type(T_Property), pointer               :: PropertyX
         !Local-----------------------------------------------------------------
-        integer                                 :: STAT_CALL, i, j, k
+        integer                                 :: STAT_CALL
         integer, dimension(:,:  ), pointer      :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, PointsToFill2D
         integer, dimension(:,:,:), pointer      :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, PointsToFill3D 
         real,    dimension(:,:  ), pointer      :: Matrix2D
         real,    dimension(:,:,:), pointer      :: Matrix3D
-        integer                                    :: CHUNK
         !Begin------------------------------------------------------------------------
 
         call GetComputeCurrentTime(Me%ObjTime, Me%ActualTime, STAT = STAT_CALL)
@@ -3869,7 +3930,7 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
 
                 if (PropertyX%Dim == Dim_2D) then
                     
-                    call SetMappingAndMatrix2D(NewProperty, PointsToFill2D, WaterPoints2D, WaterFaces2D_U, &
+                    call SetMappingAndMatrix2D(PropertyX, PointsToFill2D, WaterPoints2D, WaterFaces2D_U, &
                                                WaterFaces2D_V, Matrix2D)
 
                     call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix,         &
@@ -3918,7 +3979,7 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
         call OutPut_TimeSeries  (PropertyX)
 
         call UngetExternals_assim_field (WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, &
-                                         WaterFaces3D_U, WaterFaces3D_V, WaterPoints3D)'
+                                         WaterFaces3D_U, WaterFaces3D_V, WaterPoints3D)
 
     end subroutine AssimilationFromFile
 
