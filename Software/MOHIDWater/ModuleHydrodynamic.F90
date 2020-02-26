@@ -352,9 +352,8 @@ Module ModuleHydrodynamic
     private ::                      GetNumberOfVelocityFields
     private ::                      GetAssimilationVectorFields_X
     private ::                      GetAssimilationVectorFields_Y
-    private ::                      Get_CoefColdPeriod
+    private ::                      GetTimeCoefs
     private ::                      Compute_ModelVelocity
-    private ::                      Compute_ReferenceVelocity
     private ::                  ModifyAltimAceleration
     private ::                  DumpingWaveStress
     private ::              VerticalMomentum
@@ -12915,6 +12914,12 @@ cd2 :           if (IC3D(i,j,k)>0) then
             !Forces
             allocate (Me%Forces%Relax_Aceleration(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
             if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "ConstructRelaxation - Hydrodynamic - ERR19")
+            
+            allocate (Me%Relaxation%Assim_VelReference(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
+            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "Failed allocation of Assim_VelReference")
+            
+            allocate (Me%Relaxation%Assim_VelModel(ILB:IUB, JLB:JUB, KLB:KUB), STAT = status)
+            if (status /= SUCCESS_) call SetError(FATAL_, INTERNAL_, "Failed allocation of Assim_VelModel")
 
             Me%Forces%Relax_Aceleration(:,:,:) = FillValueReal
         endif
@@ -38003,24 +38008,15 @@ do3:            do k = kbottom, KUB
         type (T_Matrix3D), dimension(:), pointer :: List3D
         type (T_Matrix2D), dimension(:), pointer :: List2D
 
-        real,    dimension(:,:,:), pointer :: Velocity_UV_New, SubModel_UV_New,          &
-                                              Relax_Aceleration, DecayTime, DUZ_VZ
-        real,    dimension(:,:  ), pointer :: WaterColumnUV
-        integer, dimension(:,:,:), pointer :: ComputeFaces3D_UV
-        integer, dimension(:,:),   pointer :: KFloor_UV
-
-        real                               :: CoefCold, VelModel, VelReference
+        real,    dimension(:,:,:), pointer :: Velocity_UV_New, SubModel_UV_New, Relax_Aceleration, DecayTime
+        real                               :: CoefCold
         integer                            :: Vel_ID, status, CHUNK
         integer                            :: ILB, IUB, JLB, JUB, KUB, kbottom, i, j, k
-        integer                            :: iL, NFieldsUV2D, NFieldsUV3D
+        integer                            :: iL, NFieldsUV2D, NFieldsUV3D, LocalSolution
     !------------initialization-----------------------------------------------------------
-
         !Begin - Shorten variables name
         Relax_Aceleration    => Me%Forces%Relax_Aceleration
-        ComputeFaces3D_UV    => Me%External_Var%ComputeFaces3D_UV
-        KFloor_UV            => Me%External_Var%KFloor_UV
-        WaterColumnUV        => Me%External_Var%WaterColumnUV
-        DUZ_VZ               => Me%External_Var%DUZ_VZ
+        LocalSolution = Me%ComputeOptions%LocalSolution
 
         if (Me%Relaxation%ReferenceVelocity == TotalVel_ .or. Me%Relaxation%ReferenceVelocity == BarotrVel_)  then
             Velocity_UV_New      => Me%Velocity%Horizontal%UV%New
@@ -38045,7 +38041,6 @@ do3:            do k = kbottom, KUB
             do iL = 1, NFieldsUV3D
                 call GetAssimilationVectorFields_X(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D)
             enddo
-            
             do iL = 1, NFieldsUV2D
                 call GetAssimilationVectorFields_X(iL, VelAssimilation2D = List2D(iL)%VelAssimilation2D)
             enddo
@@ -38056,121 +38051,107 @@ do3:            do k = kbottom, KUB
             do iL =1, NFieldsUV3D
                 call GetAssimilationVectorFields_Y(iL, VelAssimilation3D = List3D(iL)%VelAssimilation3D)
             enddo
-            
             do iL =1, NFieldsUV2D
                 call GetAssimilationVectorFields_Y(iL, VelAssimilation2D = List2D(iL)%VelAssimilation2D)
             enddo
         endif
 
-        call Get_CoefColdPeriod (Vel_ID, CoefCold)
+        call GetTimeCoefs (Vel_ID, CoefCold, DecayTime)
 !------------------------------------------Finished initialization --------------------------------------------
-        
-        CHUNK = CHUNK_J(JLB, JUB)
 
         if (MonitorPerformance) call StartWatch ("ModuleHydrodynamic", "ModifyRelaxAceleration")
         
-        call Compute_ModelVelocity
+        Me%Relaxation%Assim_VelReference(:,:,:) = 0.0
+        Me%Relaxation%Assim_VelModel(:,:,:) = 0.0
         
-        call Compute_ReferenceVelocity
+        !Compute model velocity----------------------------------------------------------
+        call Compute_ModelVelocity (Me%External_Var%ComputeFaces3D_UV, Me%External_Var%KFloor_UV, Velocity_UV_New, &
+                                    Me%External_Var%DUZ_VZ, Me%External_Var%WaterColumnUV)
+        
+        !compute reference velocity------------------------------------------------------
+        if (Me%Relaxation%BrFroceOnlyAssimil) then
+            do iL =1, NFieldsUV3D
+                call SumMatrixes_jik(Me%Relaxation%Assim_VelReference, Me%WorkSize, Me%External_Var%KFloor_UV, &
+                                     List3D(iL)%VelAssimilation3D, Me%External_Var%ComputeFaces3D_UV)
+            enddo
+            do iL =1, NFieldsUV2D
+                call AddMatrix2D_To_3D_jik(Me%Relaxation%Assim_VelReference, Me%WorkSize, Me%External_Var%KFloor_UV, &
+                                           List2D(iL)%VelAssimilation2D, Me%External_Var%ComputeFaces3D_UV)
+            enddo
+        elseif (LocalSolution == AssimilaPlusSubModel_ .or. LocalSolution == AssimilaGaugeSubmodel_) then
+            
+            where (Me%External_Var%ComputeFaces3D_UV(:,:,:) == 1) &
+                    Me%Relaxation%Assim_VelReference(:,:,:) = SubModel_UV_New(:, :, :)
 
+            do iL =1, NFieldsUV3D
+                call SumMatrixes_jik(Me%Relaxation%Assim_VelReference, Me%WorkSize, Me%External_Var%KFloor_UV, &
+                                    List3D(iL)%VelAssimilation3D, Me%External_Var%ComputeFaces3D_UV)
+            enddo
+            do iL =1, NFieldsUV2D
+                call AddMatrix2D_To_3D_jik(Me%Relaxation%Assim_VelReference, Me%WorkSize, Me%External_Var%KFloor_UV, &
+                                           List2D(iL)%VelAssimilation2D, Me%External_Var%ComputeFaces3D_UV)
+            enddo
+            
+        elseif (LocalSolution == Submodel_ .or. LocalSolution == GaugePlusSubModel_) then
+                    
+            where (Me%External_Var%ComputeFaces3D_UV(:,:,:) == 1) &
+                    Me%Relaxation%Assim_VelReference(:,:,:) = SubModel_UV_New(:, :, :)
+            
+        elseif (LocalSolution == NoLocalSolution_   .or. &
+                LocalSolution == AssimilationField_ .or. &
+                LocalSolution == AssimilaGauge_) then
+            
+            do iL =1, NFieldsUV3D
+                call SumMatrixes_jik(Me%Relaxation%Assim_VelReference, Me%WorkSize, Me%External_Var%KFloor_UV, &
+                                     List3D(iL)%VelAssimilation3D, Me%External_Var%ComputeFaces3D_UV)
+            enddo
+            do iL =1, NFieldsUV2D
+                call AddMatrix2D_To_3D_jik(Me%Relaxation%Assim_VelReference, Me%WorkSize, Me%External_Var%KFloor_UV, &
+                                           List2D(iL)%VelAssimilation2D, Me%External_Var%ComputeFaces3D_UV)
+            enddo
+        elseif (LocalSolution == Gauge_) then
+             stop 'ModifyRelaxAceleration - ModuleHydrodynamic - ERR10'
+        endif
+        
+        !Compute relaxation acceleration -------------------------------------------------------------
+        
+        CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE(I,J,K,kbottom,VelModel,VelReference)
-
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-do1:    do  J = JLB, JUB
-do2:    do  I = ILB, IUB
-
-cd5:        if (ComputeFaces3D_UV(I, J, KUB) == Covered ) then
-
-                kbottom = KFloor_UV(I, J)
-
-do3:            do K=kbottom, KUB
-
-                    if     (Me%ComputeOptions%LocalSolution == AssimilaPlusSubModel_  .or.  &
-                            Me%ComputeOptions%LocalSolution == AssimilaGaugeSubmodel_) then
-
-                        VelReference = SubModel_UV_New(i, j, k)
-
-                        do iL =1, NFieldsUV3D
-                            VelReference = VelReference + List3D(iL)%VelAssimilation3D(i, j, k)
-                        enddo
-
-                        do iL =1, NFieldsUV2D
-                            VelReference = VelReference + List2D(iL)%VelAssimilation2D(i, j)
-                        enddo
-
-                    elseif (Me%ComputeOptions%LocalSolution == Submodel_)             then
-
-                        VelReference = SubModel_UV_New(i, j, k)
-
-                    elseif (Me%ComputeOptions%LocalSolution == GaugePlusSubModel_)    then
-
-                        VelReference = SubModel_UV_New(i, j, k)
-
-                    elseif (Me%ComputeOptions%LocalSolution == NoLocalSolution_ .or.    &
-                            Me%ComputeOptions%LocalSolution == AssimilationField_ .or.  &
-                            Me%ComputeOptions%LocalSolution == AssimilaGauge_) then
-
-                        VelReference = 0.
-                        do iL =1, NFieldsUV3D
-                            VelReference = VelReference + List3D(iL)%VelAssimilation3D(i, j, k)
-                        enddo
-
-                        do iL =1, NFieldsUV2D
-                            VelReference = VelReference + List2D(iL)%VelAssimilation2D(i, j)
-                        enddo
-
-
-                    elseif (Me%ComputeOptions%LocalSolution == Gauge_) then
-
-                        stop 'ModifyRelaxAceleration - ModuleHydrodynamic - ERR40'
-
-                    endif
-
-                    if (Me%Relaxation%BrFroceOnlyAssimil) then
-
-                        VelReference = 0.
-                        do iL =1, NFieldsUV3D
-                            VelReference = VelReference + List3D(iL)%VelAssimilation3D(i, j, k)
-                        enddo
-
-                        do iL =1, NFieldsUV2D
-                            VelReference = VelReference + List2D(iL)%VelAssimilation2D(i, j)
-                        enddo
-
-                    endif
-
+        do  j = JLB, JUB
+        do  i = ILB, IUB
+            if (Me%External_Var%ComputeFaces3D_UV(i, j, KUB) == Covered ) then
+                kbottom = Me%External_Var%KFloor_UV(i, j)
+                do K=kbottom, KUB
                     ![m/s^2]                   = []*([m/s] - [m/s]) / [s]
-                    Relax_Aceleration(i, j, k) = CoefCold  * (VelReference - VelModel)/ DecayTime(i, j, k)
-
-                enddo do3
-
-            endif cd5
-
-        enddo do2
-        enddo do1
+                    Relax_Aceleration(i, j, k) = CoefCold * (Me%Relaxation%Assim_VelReference(i, j, k)  &
+                                                          -  Me%Relaxation%Assim_VelModel    (i, j, k)) &
+                                               / DecayTime(i, j, k)
+                enddo
+            endif
+        enddo
+        enddo
         !$OMP END DO NOWAIT
         !$OMP END PARALLEL
 
         if (MonitorPerformance) call StopWatch ("ModuleHydrodynamic", "ModifyRelaxAceleration")
 
         call UnGetAssimilation(Me%ObjAssimilation, DecayTime, STAT = status)
-        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR50")
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR20")
 
         do iL =1, NFieldsUV3D
             call UnGetAssimilation(Me%ObjAssimilation, List3D(iL)%VelAssimilation3D, STAT = status)
-            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR60")
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR30")
         enddo
 
         do iL =1, NFieldsUV2D
             call UnGetAssimilation(Me%ObjAssimilation, List2D(iL)%VelAssimilation2D, STAT = status)
-            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR60")
+            if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "ModifyRelaxAceleration - Hydrodynamic - ERR40")
         enddo
 
         deallocate(List3D, List2D)
 
-        nullify(Relax_Aceleration)
-        nullify(ComputeFaces3D_UV, Velocity_UV_New)
-        nullify(KFloor_UV, WaterColumnUV, DUZ_VZ)
+        nullify(Relax_Aceleration, Velocity_UV_New)
 
         if (Me%SubModel%ON) nullify(SubModel_UV_New)
 
@@ -38202,7 +38183,9 @@ do3:            do K=kbottom, KUB
     
     end subroutine GetNumberOfVelocityFields
     !------------------------------------------------------------------------------------------------
-    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Gets assimilation X component of vector fields from the assimilation module
     subroutine GetAssimilationVectorFields_X(iL, VelAssimilation2D, VelAssimilation3D)
         !Arguments---------------------------------------------------------------------
         real,    dimension(:,:,:), pointer, optional, intent(OUT) :: VelAssimilation3D
@@ -38233,7 +38216,9 @@ do3:            do K=kbottom, KUB
         
     end subroutine GetAssimilationVectorFields_X
     !----------------------------------------------------------------------------------
-    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Gets assimilation Y component of vector fields from the assimilation module
     subroutine GetAssimilationVectorFields_Y(iL, VelAssimilation2D, VelAssimilation3D)
         !Arguments---------------------------------------------------------------------
         real,    dimension(:,:,:), pointer, optional, intent(OUT) :: VelAssimilation3D
@@ -38264,15 +38249,18 @@ do3:            do K=kbottom, KUB
         
     end subroutine GetAssimilationVectorFields_Y
     !----------------------------------------------------------------------------------
-    
-    subroutine Get_CoefColdPeriod (Vel_ID, CoefCold)
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Gets cold coef and time decay set by the user, for nudging
+    subroutine GetTimeCoefs (Vel_ID, CoefCold, DecayTime)
         !Arguments---------------------------------------------------------------------
-        integer, intent(IN)                :: Vel_ID
-        real, intent(INOUT)                :: CoefCold
+        integer, intent(IN)                          :: Vel_ID
+        real, intent(OUT)                            :: CoefCold
+        real, dimension(:,:,:), pointer, intent(OUT) :: DecayTime
         !Local-------------------------------------------------------------------------
-        type (T_Time)                      :: CurrentTime, BeginTime, EndTime
-        real                               :: ColdPeriod, ColdOrder, DT_RunPeriod, CoefCold
-        integer                            :: status
+        type (T_Time)                                :: CurrentTime, BeginTime, EndTime
+        real                                         :: ColdPeriod, ColdOrder, DT_RunPeriod
+        integer                                      :: status
         !Begin ------------------------------------------------------------------------
         
         EndTime     = Me%EndTime
@@ -38300,17 +38288,22 @@ do3:            do K=kbottom, KUB
             if (CoefCold < 1.e-32) CoefCold = 1.e-32
         endif
         
-    end subroutine Get_CoefColdPeriod
+    end subroutine GetTimeCoefs
     !----------------------------------------------------------------------------------
     
-    subroutine Compute_ModelVelocity
+    subroutine Compute_ModelVelocity(ComputeFaces3D_UV, KFloor_UV, Velocity_UV_New, DUZ_VZ, WaterColumnUV)
         !Arguments---------------------------------------------------------------------
+        real,    dimension(:,:  ), pointer, intent(IN) :: WaterColumnUV
+        integer, dimension(:,:),   pointer, intent(IN) :: KFloor_UV
+        integer, dimension(:,:,:), pointer, intent(IN) :: ComputeFaces3D_UV
+        real,    dimension(:,:,:), pointer, intent(IN) :: Velocity_UV_New, DUZ_VZ
         !Local-------------------------------------------------------------------------
-        real                               :: ColdPeriod, ColdOrder, DT_RunPeriod, CoefCold
-        integer                            :: status, CHUNK
-        integer                            :: ILB, IUB, JLB, JUB, KUB, kbottom, i, j, k
+        integer                                        :: ILB, IUB, JLB, JUB, KUB, kbottom, i, j, k, CHUNK
         !Begin ------------------------------------------------------------------------
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB
         CHUNK = CHUNK_J(JLB, JUB)
+        
         if (Me%Relaxation%ReferenceVelocity == BarotrVel_) then
             !$OMP PARALLEL PRIVATE(I,J,K,kbottom)
             !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -38320,8 +38313,8 @@ do3:            do K=kbottom, KUB
                     kbottom = KFloor_UV(I, J)
 
                     do K=kbottom, KUB
-                        Me%Assim_VelModel  =  Me%Assim_VelModel + Velocity_UV_New(i, j, k)      &
-                                           *  DUZ_VZ(i, j, k) / WaterColumnUV(i, j)
+                        Me%Relaxation%Assim_VelModel  =  Me%Relaxation%Assim_VelModel + Velocity_UV_New(i, j, k)    &
+                                                      *  DUZ_VZ(i, j, k) / WaterColumnUV(i, j)
                     enddo
                 endif
             enddo
@@ -38329,10 +38322,11 @@ do3:            do K=kbottom, KUB
             !$OMP END DO NOWAIT
             !$OMP END PARALLEL
         else
-            Me%Assim_VelModel(:,:,:)  = Velocity_UV_New(:,:,:)
+            Me%Relaxation%Assim_VelModel(:,:,:)  = Velocity_UV_New(:,:,:)
         endif
     
     end subroutine Compute_ModelVelocity
+    !-----------------------------------------------------------------------------------
 
     Subroutine ModifyRelaxAcelerationVert
 

@@ -1091,20 +1091,20 @@ cd2 :           if (BlockFound) then
         integer                                 :: STAT_CALL
         !Begin ------------------------------------------------------------------------------------
         call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL) 
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR10'
+        if (STAT_CALL /= SUCCESS_) stop 'GetExternals_assim_field - ModuleAssimilation - ERR10'
 
         call GetWaterFaces2D(Me%ObjHorizontalMap,                                       &
                                WaterFaces2DU = WaterFaces2D_U,                          &
                                WaterFaces2DV = WaterFaces2D_V, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR20'
+        if (STAT_CALL /= SUCCESS_) stop 'GetExternals_assim_field - ModuleAssimilation - ERR20'
 
         call GetWaterFaces3D(Me%ObjMap,                                                 &
                                WaterFacesU3D = WaterFaces3D_U,                          &
                                WaterFacesV3D = WaterFaces3D_V, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR30'
+        if (STAT_CALL /= SUCCESS_) stop 'GetExternals_assim_field - ModuleAssimilation - ERR30'
 
         call GetWaterPoints3D(Me%ObjMap,WaterPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR40'
+        if (STAT_CALL /= SUCCESS_) stop 'GetExternals_assim_field - ModuleAssimilation - ERR40'
     
     end subroutine GetExternals_assim_field
     
@@ -2570,7 +2570,6 @@ cd2:        if (STAT_CALL == SUCCESS_) then
     !--------------------------------------------------------------------------
     
     subroutine GetNumberOfFields(AssimilationID, ID, NumberOfFields, STAT)
-
         !Arguments--------------------------------------------------------------
         integer,            intent(IN )             :: AssimilationID
         integer,            intent(IN )             :: ID
@@ -2581,7 +2580,6 @@ cd2:        if (STAT_CALL == SUCCESS_) then
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(AssimilationID, ready_)    
@@ -2601,8 +2599,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
 
         if (present(STAT)) STAT = STAT_
 
-        !----------------------------------------------------------------------
-
     end subroutine GetNumberOfFields
 
     !--------------------------------------------------------------------------
@@ -2610,7 +2606,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
     !>@Brief
     !>Gets number of upscaling fields defined by the user
     subroutine GetNumberOfUpscalingFields(AssimilationID, ID, NumberOfFields, STAT)
-
         !Arguments--------------------------------------------------------------
         integer,            intent(IN )             :: AssimilationID, ID
         integer,            intent(OUT)             :: NumberOfFields
@@ -2620,7 +2615,6 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_
         !----------------------------------------------------------------------
-
         STAT_ = UNKNOWN_
 
         call Ready(AssimilationID, ready_)    
@@ -2673,14 +2667,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
     end function CountNumOfFields
     
     integer function CountNumOfUpscalingFields(ID)
-
         !Arguments--------------------------------------------------------------
         integer,            intent(IN )             :: ID
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: PropertyX    
         integer                                     :: NumberOfFields
-        !----------------------------------------------------------------------    
-   
+        !----------------------------------------------------------------------
         NumberOfFields = 0
             
         PropertyX => Me%FirstAssimilationProp

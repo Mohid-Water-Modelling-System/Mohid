@@ -72,6 +72,8 @@ Module ModuleFunctions
     public  :: AddMAtrixtimesScalar
     public  :: AddMatrixtimesScalarDivByMatrix
     public  :: SumMatrixes
+    public  :: SumMatrixes_jik
+    public  :: AddMatrix2D_To_3D_jik
 #ifdef _USE_SEQASSIMILATION
     public  :: InvSingularDiagMatrix2D
     public  :: CholeskyFactorization
@@ -2062,6 +2064,68 @@ Module ModuleFunctions
         !$OMP END PARALLEL
 
     end subroutine SumMatrixes
+    
+    subroutine SumMatrixes_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), allocatable, intent (INOUT) :: MatrixA
+        real, dimension(:, :, :), pointer, intent (IN)        :: MatrixB
+        type (T_Size3D)                                       :: Size
+        integer, dimension(:,:), pointer, intent(IN)          :: KFloor
+        integer, dimension(:, :, :), pointer, intent (IN)     :: MapMatrix
+        !Local-----------------------------------------------------------------
+        integer                                               :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB, CHUNK, kbottom
+        !Begin-----------------------------------------------------------------
+        KUB = Size%KUB; JUB = Size%JUB; IUB = Size%IUB
+        KLB = Size%KLB; JLB = Size%JLB; ILB = Size%ILB
+
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j,k)
+        !$OMP DO SCHEDULE(STATIC, CHUNK)
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (MapMatrix(i, j, KUB) == 1) then
+                kbottom = KFloor(i, j)
+                do k = kbottom, KUB
+                    MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
+                enddo
+            endif
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+
+    end subroutine SumMatrixes_jik
+    
+    subroutine AddMatrix2D_To_3D_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), pointer, intent (INOUT) :: MatrixA
+        real, dimension(:, :   ), pointer, intent (IN)    :: MatrixB
+        type (T_Size3D)                                   :: Size
+        integer, dimension(:,:), pointer, intent(IN)      :: KFloor
+        integer, dimension(:, :, :), pointer, intent (IN) :: MapMatrix
+        !Local-----------------------------------------------------------------
+        integer                                           :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB, CHUNK, kbottom
+        !Begin-----------------------------------------------------------------
+        KUB = Size%KUB; JUB = Size%JUB; IUB = Size%IUB
+        KLB = Size%KLB; JLB = Size%JLB; ILB = Size%ILB
+
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
+        !$OMP DO SCHEDULE(STATIC, CHUNK)
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (MapMatrix(i, j, KUB) == 1) then
+                kbottom = KFloor(i, j)
+                do k = kbottom, KUB
+                    MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j)
+                enddo
+            endif
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+
+    end subroutine AddMatrix2D_To_3D_jik
 
 
     !End-------------------------------------------------------------------------
@@ -6300,7 +6364,7 @@ d5:     do k = klast + 1,KUB
         !Begin----------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
         IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
-		!adjust to number of layers of son domain
+        !adjust to number of layers of son domain
         k_difference = SizeFather%KUB - KUBSon
         KLBFather = SizeFather%KLB + k_difference !Sobrinho
         KUBFather = SizeFather%KUB
@@ -6314,9 +6378,9 @@ d5:     do k = klast + 1,KUB
             !For each Parent cell, add all son cells located inside (sonProp * sonVol)
             Flag = Open3DSon(i, j, k) + SonComputeFaces3D(i, j, k) + IgnoreOBCells(i, j)
             if (Flag == 3) then
-                ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather	= k + k_difference
+                ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather = k + k_difference
                 AuxMatrix(ifather, jfather, kfather) = AuxMatrix(ifather, jfather, kfather) +     &
-													   SonMatrix(i, j, k) * VolumeSon(i, j, k)
+                                                       SonMatrix(i, j, k) * VolumeSon(i, j, k)
             endif
         enddo
         enddo
@@ -6365,13 +6429,13 @@ d5:     do k = klast + 1,KUB
         !Local variables -----------------------------------------------------------------------------
         integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
                                                              KUBSon, KUBFather, KLBFather, ifather, jfather, kfather, &
-			                                                 k_difference, CHUNK, Flag
+                                                             k_difference, CHUNK, Flag
         real                                              :: DecayFactor
         !Begin----------------------------------------------------------------------------------------
         ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KUBSon = SizeSon%KUB
         IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KLBSon = SizeSon%KLB
-		!adjust to number of layers of son domain
-		k_difference = SizeFather%KUB - KUBSon
+        !adjust to number of layers of son domain
+        k_difference = SizeFather%KUB - KUBSon
         KLBFather = SizeFather%KLB + k_difference !Sobrinho
         KUBFather = SizeFather%KUB
 
@@ -6384,7 +6448,7 @@ d5:     do k = klast + 1,KUB
             !For each Parent cell, add all son cells located inside (sonProp * sonVol)
             Flag = Open3DSon(i, j, k) + IgnoreOBCells(i, j)
             if (Flag == 2) then
-				ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather	= k + k_difference
+                ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather    = k + k_difference
                 AuxMatrix(ifather, jfather, kfather) = AuxMatrix(ifather, jfather, kfather) +   &
                                                        SonMatrix(i, j, k) * VolumeSon(i, j, k)
             endif
@@ -6446,7 +6510,7 @@ d5:     do k = klast + 1,KUB
 
             iFather = Connections (index, 1); iSon = Connections (index, 3)
             jFather = Connections (index, 2); jSon = Connections (index, 4)
-		
+        
             Nom(iFather, jFather, k)  = Nom(iFather, jFather, k) + SonMatrix(iSon, jSon, k) / (Dist(index) ** IWDn) * &
                                                                    IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k)
 
@@ -6468,7 +6532,7 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
 
-							 end subroutine FeedBack_IWD
+                             end subroutine FeedBack_IWD
 
     !-------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
@@ -6476,7 +6540,7 @@ d5:     do k = klast + 1,KUB
     !>feeds back info from son to father using the inverse weigthed distance method. routine for Z types
     !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D, &
     !>                         SonComputeFaces3D, SizeSon, ILink, JLink, Connections, Dist, DecayTime, DT, &
-	!>						   IgnoreOBCells, Nodes, IWDn, Nom, Denom
+    !>                           IgnoreOBCells, Nodes, IWDn, Nom, Denom
     subroutine FeedBack_IWD_UV (FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D, &
                                 SonComputeFaces3D, SizeSon, ILink, JLink, Connections, Dist, DecayTime, DT, &
                                 IgnoreOBCells, Nodes, IWDn, Nom, Denom)
@@ -6504,8 +6568,8 @@ d5:     do k = klast + 1,KUB
         do k = KLBSon, KUBSon
         do index = 1, Nodes
 
-            iFather  = Connections (index, 1); iSon	= Connections (index, 3)
-            jFather  = Connections (index, 2); jSon	= Connections (index, 4)
+            iFather  = Connections (index, 1); iSon    = Connections (index, 3)
+            jFather  = Connections (index, 2); jSon    = Connections (index, 4)
             
             Nom(iFather, jFather, k) = Nom(iFather, jFather, k) +                             &
                                        SonMatrix(iSon, jSon, k) / (Dist(index) ** IWDn) *     &
@@ -6562,8 +6626,8 @@ d5:     do k = klast + 1,KUB
 
         do index = 1, Nodes ! ir buscar isto ao horizontal grid
 
-            iFather	= Connections (index, 1); iSon = Connections (index, 3)
-            jFather	= Connections (index, 2); jSon = Connections (index, 4)
+            iFather    = Connections (index, 1); iSon = Connections (index, 3)
+            jFather    = Connections (index, 2); jSon = Connections (index, 4)
 
             Nom(iFather, jFather, 1) = Nom(iFather, jFather, 1) + SonMatrix2D(iSon, jSon) / (Dist(index) ** IWDn) * &
                                                                   IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, 1)
@@ -13373,8 +13437,8 @@ D2:     do I=imax-1,2,-1
                 
             UpscaleFlow(line) = F_East + F_West
         enddo
-	end subroutine ComputeDischargeVolumeU
-	
+    end subroutine ComputeDischargeVolumeU
+    
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Computes volume to be added or removed due to upscaling discharge
