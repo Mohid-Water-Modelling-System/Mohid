@@ -18360,7 +18360,7 @@ cd1:            if (Me%ExternalVar%Now.GE.Property%Evolution%NextCompute) then
         integer                                 :: i, j, k, kbottom
         integer                                 :: STAT_CALL, Excreted_Property_ID
         real                                    :: StoichiometricRatio, AssimilationEfficiency
-        real                                    :: FilteredMass
+        real                                    :: FilteredMass, AuxConc
         integer                                 :: CHUNK
 
         !Begin----------------------------------------------------------------------
@@ -18418,7 +18418,14 @@ do3:                        do k = kbottom, KUB
 
                                 OldConcentration = PropertyX%Concentration(i, j, k)
 
-                                if(OldConcentration .gt. PropertyX%Evolution%Filtration%MinConcentrationToFilter)then
+                                
+                                if      (PropertyX%Evolution%Filtration%TypeOf == GrazeD) then
+                                    AuxConc = OldConcentration
+                                else if (PropertyX%Evolution%Filtration%TypeOf == GrazeR) then
+                                    AuxConc = GrazedProperty%Concentration(i, j, k)
+                                endif                                
+
+                                if(AuxConc .gt. PropertyX%Evolution%Filtration%MinConcentrationToFilter)then
 
                                     !Adapt the filtration rate in a way that the grazeD property concentration
                                     !is consistent with the the grazeR property
@@ -23355,7 +23362,7 @@ i2:     if (Me%OutPut%Radiation) then
 
         if (Me%OutPut%AditionalFields) then
 
-            call Ouput_Timeseries_AditionalResults()
+            call Output_Timeseries_AditionalResults()
 
         endif
 
@@ -23367,7 +23374,7 @@ i2:     if (Me%OutPut%Radiation) then
 
     !--------------------------------------------------------------------------
 
-    subroutine Ouput_Timeseries_AditionalResults()
+    subroutine Output_Timeseries_AditionalResults()
 
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
@@ -23380,25 +23387,25 @@ i2:     if (Me%OutPut%Radiation) then
 
 
             call GetShortWaveExtinctionField(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_TimeSeries - ModuleWaterProperties - ERR80')
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Output_Timeseries_AditionalResults - ModuleWaterProperties - ERR80')
 
             call WriteTimeSerie(Me%ObjTimeSerie,                                     &
                                 Data3D = Me%SolarRadiation%ShortWaveAverage, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                               &
-                call CloseAllAndStop ('OutPut_TimeSeries - ModuleWaterProperties - ERR90')
+                call CloseAllAndStop ('Output_Timeseries_AditionalResults - ModuleWaterProperties - ERR90')
 
 
             call WriteTimeSerie(Me%ObjTimeSerie,                                     &
                                 Data3D = ShortWaveExtinctionField, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)                                               &
-                call CloseAllAndStop ('OutPut_TimeSeries - ModuleWaterProperties - ERR100')
+                call CloseAllAndStop ('Output_Timeseries_AditionalResults - ModuleWaterProperties - ERR100')
 
             call UnGetLightExtinction(Me%ObjLightExtinction, ShortWaveExtinctionField, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('OutPut_TimeSeries - ModuleWaterProperties - ER110')
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Output_Timeseries_AditionalResults - ModuleWaterProperties - ER110')
 
         endif i2
 
-    end subroutine Ouput_Timeseries_AditionalResults
+    end subroutine Output_Timeseries_AditionalResults
 
     !-------------------------------------------------------------------------
 
