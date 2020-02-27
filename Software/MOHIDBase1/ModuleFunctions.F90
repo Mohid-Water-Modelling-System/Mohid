@@ -162,6 +162,7 @@ Module ModuleFunctions
     !Coordinates of grid cells
     public  :: RODAXY
     public  :: FromCartesianToGrid
+    public  :: SphericalToCart
 
     public  :: FromGridToCartesian
     interface  FromGridToCartesian
@@ -4709,6 +4710,29 @@ end function
     end subroutine FromGridToCartesianR8
 
     !--------------------------------------------------------------------------
+
+    subroutine SphericalToCart(Lat, Lon, X, Y, LonRef, LatRef)
+    
+        !Arguments-------------------------------------------------------------
+        real(8), intent(IN)             :: Lat, Lon, LonRef, LatRef    
+        real(8), intent(Out)            :: X, Y
+
+        !Local-----------------------------------------------------------------
+        real(8)                         :: radians, EarthRadius, Rad_Lat, CosenLat
+
+        !Begin-----------------------------------------------------------------
+                
+        radians      = Pi / 180.0
+        EarthRadius  = 6378000.
+
+        Rad_Lat     = Lat * radians
+        CosenLat    = cos(Rad_Lat)
+        X           = CosenLat * EarthRadius * (Lon - LonRef) * radians
+        Y           =            EarthRadius * (Lat - LatRef) * radians                
+
+    end subroutine SphericalToCart    
+    
+    !--------------------------------------------------------------------------    
 
     !Convert from user referential (Nautical, Currents) to cell trigonometric angle
     subroutine AngleFromFieldToGrid (AngleInReferential, Referential, GridAngle, AngleOutGrid)
@@ -13264,6 +13288,139 @@ D2:     do I=imax-1,2,-1
     end function WaveLengthHuntsApproximation
     
     !------------------------------------------------------------------------------
+    
+    
+    subroutine JONSWAP2(Hs,Tp,gamma,hmax,hmin, dh,fmin,fmax,df,tmax,dt, ETA, UU)
+    
+        !Arguments----------------------------------------------------
+        real,                            intent(IN)      :: Hs,Tp,gamma,hmax, hmin, dh,fmin,fmax,df,tmax,dt
+        real, dimension(:), allocatable, intent(OUT)     :: ETA,UU
+        
+        !Computes the sea level and velocity time series based in a JONSWAP spectrum
+        !
+        !Input: Hs - Significant height
+        !       Tp - peak period
+        !       Gamma - peakedness factor determines the concentraton
+        !               of the spectrum on the peak frequency,  1 <= gamma <= 7.
+        !       hmax - sea bed level 
+        !       hmin - average sea level   
+        !       dh   - vertical discretization used to compute the average in depth velocity   
+        !       fmim - min frequency
+        !       fmax - max frequency
+        !       df - frequency discretization
+        !       tmax -time serie period
+        !       dt - time discretization
+        !
+        !Output: ETA - sea level
+        !        UU  - average velocity in the water column
+
+        !Local----------------------------------------------------------------
+        real, dimension(:,:,:), allocatable :: U
+        real, dimension(:,:),   allocatable :: wave, U1
+        real, dimension(:),     allocatable :: f, z, t, w
+        real                                :: wp, h, SIG, K, LLC
+        real                                :: SS, SJ, phi, A, Ab, sigmaX, RAND
+        integer                             :: x, l, i, nf, nh, nt
+        
+        !Begin----------------------------------------------------------------
+
+        !f=fmin:df:fmax;
+        if (df >0.) then 
+            nf = int((fmax-fmin)/df)+1
+            allocate(f(1:nf))
+            allocate(w(1:nf))
+            f(1) = fmin
+            do i =2, nf
+                f(i) = f(i-1) + df
+            enddo
+            w(:) = f(:)
+            
+        else
+            stop "JONSWAP2 - ERR10"
+        endif    
+        
+        
+        !z=-h:.5:0;
+        h = hmax-hmin
+        if (dh >0. .and. h > 0.) then 
+            nh = int(h/dh)+1
+            allocate(z(1:nh))
+            z(1) = 0.
+            do i =2, nf
+                z(i) = z(i-1) + dh
+            enddo            
+        else
+            stop "JONSWAP2 - ERR20"
+        endif    
+  
+
+        !t=0:dt:tmax;
+        if (dt >0.) then 
+            nt = int(tmax/dt)+1
+            allocate(t(1:nh))
+            t(1) = 0
+            do i =2, nf
+                t(i) = t(i-1) + dt
+            enddo    
+
+        else
+            stop "JONSWAP2 - ERR30"
+        endif      
+        
+        allocate(ETA (1:nt))
+        allocate(UU  (1:nt))        
+        allocate(wave(1:nt,     1:nf))
+        allocate(U1  (1:nt,     1:nf))
+        allocate(U   (1:nt,1:nh,1:nf))
+
+        
+        wp = 1/Tp;
+        do x = 1, nf
+             if (f(x)<wp) then
+                 sigmaX= 0.07;
+             else
+                 sigmaX = 0.09;
+             endif
+             
+             SS =0.3125*Hs**2*wp**4*f(x)**-5*exp(-1.25*(f(x)/wp)**-4);
+             SJ =(1-0.285*log(gamma))*SS*gamma**(exp(-.5*((f(x)-wp)/(sigmaX*wp))**2));
+             
+             !Jonsoap 
+             A  = sqrt(2*SJ*df); 
+             
+             !Pierson-Moskowitz Spectrum
+             !A = sqrt(2*SS*df);
+             
+             call RANDOM_NUMBER(RAND)
+             phi= 2*Pi*(RAND-0.5); ! random phase of ith frequency
+             
+             wave(:,x) =(A * cos(f(x)*2*pi*t(:) + phi));
+     
+            !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            !%% comprimento de onda na profundidade local %%%%%%%%%%%%%%%%%%%%%%%%%%
+            !LL0=g./(2*pi).*(1/f(x)).**2; 
+            !k0=2*pi./LL0;
+            !k0h=k0*h;
+            !kh=sqrt((k0h).**2+(k0h)./(1+.66666667*k0h+(.35555556*k0h.**2)+...
+            !(.16084656*k0h.**3)+(.06320988*k0h.**4)+(0.02175405*k0h.**5)+...
+            !(.00654080*k0h.**6))); ,K=kh/h;, LLC=2*pi./K;
+            LLC = WaveLengthHuntsApproximation(1/f(x), h)
+            K = 2*Pi/LLC 
+            SIG=sqrt(Gravity*K*tanh(K*h));
+            do l=1,nh
+                U(:,l,x)=((A*Gravity*K/(SIG))*(cosh(K*(h+z(l))))/cosh(K*h))*cos(f(x)*2*Pi*t(:)+phi);
+            enddo
+        enddo
+        !sum in frequency
+        ETA(:)  =Sum(Wave(:,:  ),2) 
+        !sum in frequency
+        U1 (:,:)=Sum(U   (:,:,:),3)  
+        !average in depth
+        UU (:  )=Sum(U1  (:,:  ),2) / h 
+    
+    end subroutine JONSWAP2
+    
+!------------------------------------------------------------------------------    
     
     !>@author Joao Sobrinho Maretec
     !>@Brief

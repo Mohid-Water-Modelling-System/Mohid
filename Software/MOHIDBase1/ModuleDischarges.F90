@@ -183,6 +183,7 @@ Module ModuleDischarges
     type       T_WaterFlow
         logical                                 :: Variable        = .false.
         integer                                 :: FlowColumn      = null_int
+        real                                    :: ScaleFactor   = FillValueReal
         real                                    :: scalar          = FillValueReal
         logical                                 :: Upscaling       = .false.
         integer                                 :: UpscalingMethod = 1
@@ -1271,6 +1272,18 @@ i1:     if (NewDischarge%TimeSerieON) then
                 NewDischarge%WaterFlow%Variable = .false.
             endif
 
+            call GetData(NewDischarge%WaterFlow%ScaleFactor,                            &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         FromBlock,                                                     &
+                         keyword      ='FLOW_SCALE_FACTOR',                             &
+                         ClientModule = 'ModuleDischarges',                             &
+                         Default      = 1.,                                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR25'            
+            
+            
+            
         endif i1
 
 
@@ -3439,6 +3452,8 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
 
                 Flow = TimeSerieValue(DischargeX%TimeSerie, DischargeX%UseOriginalValues, &
                                      TimeX, DischargeX%WaterFlow%FlowColumn)
+
+                Flow = Flow * DischargeX%WaterFlow%ScaleFactor
 
             elseif (DischargeX%DischargeType == FlowOver) then
 

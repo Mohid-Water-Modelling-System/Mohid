@@ -36,7 +36,8 @@ Module ModuleHorizontalGrid
                                   UTMToLatLon, LatLonToUTM, ComputeGridZone,            &
                                   LatLonToLambertSP2, RelativePosition4VertPolygon,     &
                                   CHUNK_J, WGS84toGoogleMaps, AngleFromFieldToGrid,     &
-                                  AngleFromGridToField, THOMAS_2D, THOMAS_3D
+                                  AngleFromGridToField, THOMAS_2D, THOMAS_3D,           &
+                                  SphericalToCart
 #ifdef _USE_PROJ4
     use ModuleFunctions, only   : GeographicToCartesian, CartesianToGeographic
 #endif _USE_PROJ4
@@ -4342,7 +4343,8 @@ BF1:    if (Me%ReadCartCorners) then
         integer                             :: i, j, STATUS, k
         integer, dimension(2)               :: GridUTMmax, GridUTMmin, GridUTM
 
-        real(8)                             :: radians, Radius, Angle, EarthRadius, Rad_Lat, CosenLat
+        real(8)                             :: radians, Radius, Angle
+        !real(8)                             :: EarthRadius, Rad_Lat, CosenLat
 
         real                                :: MaxLon, MinLon, MaxLat, MinLat, MinX, MinY
 
@@ -4554,15 +4556,21 @@ cd33 :              if (Me%Grid_Angle .NE. 0.0) then
 
 ipp:            if (Me%ProjType == PAULO_PROJECTION_) then
 
-                    radians      = Pi / 180.0
-                    EarthRadius  = 6378000.
 
+
+                    !radians      = Pi / 180.0
+                    !EarthRadius  = 6378000.
+                    !
                     do j = JLB, JUB + 1
                     do i = ILB, IUB + 1
-                        Rad_Lat     = Me%LatitudeConn(i,j)* radians
-                        CosenLat    = cos(Rad_Lat)
-                        XX_IE(i, j) = CosenLat * EarthRadius * (Me%LongitudeConn(i, j) - Me%Longitude) * radians
-                        YY_IE(i, j) =            EarthRadius * (Me%LatitudeConn (i, j) - Me%Latitude ) * radians
+                    !    Rad_Lat     = Me%LatitudeConn(i,j)* radians
+                    !    CosenLat    = cos(Rad_Lat)
+                    !    XX_IE(i, j) = CosenLat * EarthRadius * (Me%LongitudeConn(i, j) - Me%Longitude) * radians
+                    !    YY_IE(i, j) =            EarthRadius * (Me%LatitudeConn (i, j) - Me%Latitude ) * radians
+                        call FromSphericalToCart(Lat = Me%LatitudeConn (i, j),              &
+                                                 Lon = Me%LongitudeConn(i, j),              &
+                                                 X   = XX_IE(i, j),                         &
+                                                 Y   = YY_IE(i, j))    
                     enddo
                     enddo
 
@@ -4831,9 +4839,60 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
     end subroutine Mercator
 
     !--------------------------------------------------------------------------
-    !This subroutine convert geographic coordinates in to sherical mercator projection
+    !This subroutine convert spherical coordinates in to cartesina coordinates
 
+    subroutine FromSphericalToCart(Lat, Lon, X, Y)
+    
+        !Arguments-------------------------------------------------------------
+        real(8), intent(IN)             :: Lat, Lon    
+        real(8), intent(Out)            :: X, Y
 
+        !Local-----------------------------------------------------------------
+        real(8)                         :: radians, EarthRadius, Rad_Lat, CosenLat
+
+        !Begin-----------------------------------------------------------------
+                
+        !radians      = Pi / 180.0
+        !EarthRadius  = 6378000.
+        !
+        !Rad_Lat     = Lat * radians
+        !CosenLat    = cos(Rad_Lat)
+        !X           = CosenLat * EarthRadius * (Lon - Me%Longitude) * radians
+        !Y           =            EarthRadius * (Lat - Me%Latitude ) * radians             
+
+        call SphericalToCart(Lat, Lon, X, Y, Me%Longitude, Me%Latitude)        
+
+    end subroutine FromSphericalToCart
+    
+    
+                
+    subroutine FromCartToSpherical(X, Y, Lat, Lon)
+    
+        !Arguments-------------------------------------------------------------
+        real(8), intent(IN)             :: X, Y   
+        real(8), intent(Out)            :: Lat, Lon
+
+        !Local-----------------------------------------------------------------
+        real(8)                         :: radians, EarthRadius, Rad_Lat, CosenLat
+
+        !Begin-----------------------------------------------------------------
+                
+        radians      = Pi / 180.0
+        EarthRadius  = 6378000.
+        
+        Lat          = Y / (EarthRadius * radians) + Me%Latitude
+        
+        Rad_Lat      = Lat * radians
+        CosenLat     = cos(Rad_Lat) 
+
+        if (CosenLat == 0.) then
+            stop 'FromCartToSpherical - ModuleHorizontalGrid - ERR10'
+        endif    
+        
+        Lon          = X / (CosenLat * EarthRadius * radians) + Me%Longitude
+        
+        
+    end subroutine FromCartToSpherical    
 
 #ifdef _USE_PROJ4
 
@@ -5605,7 +5664,7 @@ cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXY
         enddo
 
 
-        if (Me%GridBorderAlongGrid%Type_ == Rectang_) then
+        if (Me%GridBorderAlongGrid%Type_ == Rectang_ .or. Me%CoordType == SIMPLE_GEOG_) then
             Me%XX_AlongGrid(:, :)  = Me%XX_IE(:,:)
         else
 
@@ -5619,7 +5678,7 @@ cd1:    if (Me%Grid_Angle /= 0. .or. Me%CoordType == CIRCULAR_ .or. Me%CornersXY
 
         endif
 
-        if (Me%GridBorderAlongGrid%Type_ == Rectang_) then
+        if (Me%GridBorderAlongGrid%Type_ == Rectang_ .or. Me%CoordType == SIMPLE_GEOG_) then
             Me%YY_AlongGrid(:,:)  = Me%YY_IE(:,:)
         else
 
@@ -10370,7 +10429,7 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
 
 
     subroutine GetCellZ_XY(HorizontalGridID, I, J, PercI, PercJ, XPoint, YPoint, &
-                           Referential, STAT)
+                           Xin, Yin, Referential, STAT)
 
         !Arguments---------------------------------------------------------------
         integer,            intent(OUT)             :: HorizontalGridID
@@ -10378,6 +10437,7 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
         real,               intent(IN )             :: PercI, PercJ
         real,               intent(OUT)             :: XPoint, YPoint
         integer, optional,  intent(IN )             :: Referential
+        real,    optional,  intent(IN )             :: Xin, Yin
         integer, optional,  intent(OUT)             :: STAT
 
         !Local-------------------------------------------------------------------
@@ -10405,10 +10465,27 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
             endif
 
+            if (Me%CoordType == SIMPLE_GEOG_ .and. present(Xin) .and. present(Yin)) then 
+                
+                if (Referential_ == GridCoord_) then
+                    
+                    call FromCartToSpherical(Lat = YPoint,                              &
+                                             Lon = XPoint,                              &
+                                             X   = Xin,                                 &
+                                             Y   = Yin)    
+                else
+            
+                    call FromSphericalToCart(Lat = Yin,                                 &
+                                             Lon = Xin,                                 &
+                                             X   = XPoint,                              &
+                                             Y   = YPoint)    
+                endif
+                
+            else    
             XX2D        => Me%XX_IE
             YY2D        => Me%YY_IE
 
-            if (Referential_ == GridCoord_.and. (Me%CoordType == SIMPLE_GEOG_ .or. Me%CoordType == GEOG_)) then
+                if (Referential_ == GridCoord_.and. (Me%CoordType == GEOG_ .or. Me%CoordType == SIMPLE_GEOG_)) then
 
                 XX2D        => Me%LongitudeConn
                 YY2D        => Me%LatitudeConn
@@ -10434,7 +10511,7 @@ i1:     if ((ready_ == IDLE_ERR_     ) .OR.                                     
 
             nullify(XX2D)
             nullify(YY2D)
-
+            endif                       
 
             STAT_ = SUCCESS_
         else    i1

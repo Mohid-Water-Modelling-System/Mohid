@@ -193,6 +193,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         logical                                 :: From2D_To_3D        
         character(len=StringLength)             :: NetCDFName
         real                                    :: Add, Multiply, MinValue
+        real                                    :: NewMissingValue, OldMissingValue
         real                                    :: UnitsScale
         real                                    :: UnitsAdd        
         type (T_ValueIn)                        :: ValueIn        
@@ -215,8 +216,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         character(len=StringLength)             :: TempRH, PressureRH, SpecificHumidityRH
         logical                                 :: ExtractLayer
         integer                                 :: LayerNumber
-        logical                                 :: AverageInDepth
-        character(len=StringLength)             :: AverageInDepthName
+        logical                                 :: AverageInDepth, Wfp
+        character(len=StringLength)             :: AverageInDepthName, WfpName
         logical                                 :: Reflectivity2Precipitation
         character(len=StringLength)             :: ReflectivityName
         integer                                 :: DirectionReferential
@@ -369,6 +370,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         
         call WriteVerticalZ_2D
        
+        call WriteWaveFpToWaveTp
+       
         if (Me%OutNetCDF) call WriteTimeNetCDF(DefDimTime=.false.)
     
         call KillNetCDFCF_2_HDF5MOHID
@@ -376,6 +379,66 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         STAT = SUCCESS_
 
     end subroutine ConvertNetCDFCF_2_HDF5MOHID
+
+    !------------------------------------------------------------------------
+    
+    !------------------------------------------------------------------------
+    
+    subroutine WriteWaveFpToWaveTp
+        !Local-----------------------------------------------------------------
+        real,   dimension(:,:  ), pointer           :: TpProp
+        integer                                     :: i, iP, iPt
+        logical                                     :: Found
+        !Begin-----------------------------------------------------------------
+
+        nullify(TpProp)
+        
+        do iP = 1, Me%PropNumber
+        
+            if (Me%Field(iP)%Wfp) then
+        
+                !Found property to be average in depth
+                Found = .false.
+                do iPt = 1, Me%PropNumber
+                    if (trim(Me%Field(iPt)%ID%Name)==trim(Me%Field(iP)%WfpName)) then
+                        Found = .true.
+                        exit
+                    endif
+                enddo
+                if (.not. Found) stop 'WriteWaveFpToWaveTp - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+
+
+                do i=1, Me%Date%TotalInstOut
+
+                    if      (Me%Field(iP)%Dim/=2) then
+                        stop 'WriteWaveFpToWaveTp - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                    endif
+                    
+                    allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    
+                    TpProp => Me%Field(iP)%Value2DOut                    
+                    
+                    call ReadFieldHDF5(iPt, i)
+                    
+                    !Compute prop3D average in depth
+                    call ComputePeakPeriod(TpProp)
+
+                    !Write prop3D average in depth
+                    if (Me%OutHDF5) then
+                        call WriteFieldHDF5  (iP, i)    
+                    endif
+
+                    if (Me%OutNetCDF) then
+                        call WriteFieldNetCDF(iP, i)                        
+                    endif
+
+                    deallocate(Me%Field(iP)%Value2DOut)
+
+                enddo
+            endif                
+        enddo    
+        
+    end subroutine WriteWaveFpToWaveTp
 
     !------------------------------------------------------------------------
     
@@ -1481,6 +1544,35 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         
 
     end subroutine ComputeVectorIntensity
+    
+    !------------------------------------------------------------------------    
+
+    !------------------------------------------------------------------------    
+
+
+    subroutine ComputePeakPeriod(TpProp)
+    
+        !Arguments-------------------------------------------------------------
+        real, dimension(:,:  ), pointer             :: TpProp
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, j
+        !Begin-----------------------------------------------------------------
+        
+        do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+        do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+        
+            if(TpProp(i, j) > 0.) then
+                    
+                    TpProp(i, j) =1. / TpProp(i, j)
+                    
+            endif
+            
+        enddo
+        enddo
+            
+    end subroutine ComputePeakPeriod
+    
+    !------------------------------------------------------------------------  
     
     !------------------------------------------------------------------------    
 
@@ -3122,6 +3214,24 @@ BF:         if (BlockFound) then
                                  STAT         = STAT_CALL)        
                     if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
 
+                    call GetData(Me%Field(ip)%OldMissingValue,                          &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'OLD_MISSING_VALUE',                    &
+                                 default      = FillValueReal,                          &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR52'                    
+                    
+                    call GetData(Me%Field(ip)%NewMissingValue,                          &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'NEW_MISSING_VALUE',                    &
+                                 default      = FillValueReal,                          &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR53'
+                    
                     call GetData(Array2,                                                &
                                  Me%ObjEnterData, iflag,                                &
                                  SearchType   = FromBlockInBlock,                       &
@@ -3711,6 +3821,31 @@ BF:         if (BlockFound) then
 
                     endif        
 
+                    call GetData(Me%Field(ip)%Wfp,                                      &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'WAVE_PF_To_WAVE_TP',                   &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)       
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2930'         
+                    
+                    if (Me%Field(ip)%Wfp) then
+                        
+                        call GetData(Me%Field(ip)%WfpName,                              &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlockInBlock,                   &
+                                     keyword      = 'WAVE_PF_To_WAVE_TP_NAME',          &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)       
+                        if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2940'
+                        
+                        if (iflag == 0) then
+                            stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR2950'
+                        endif   
+
+                    endif 
+
                 else BF
                 
                     stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR3000'    
@@ -3769,7 +3904,8 @@ BF:         if (BlockFound) then
                 Me%Field(iP)%Beaufort         .or. Me%Field(iP)%ComputeRH                  .or. &
                 Me%Field(iP)%WaveBeaufort     .or. Me%Field(iP)%ComputeDirection           .or. &
                 Me%Field(iP)%AverageInDepth   .or. Me%Field(iP)%Reflectivity2Precipitation .or. &
-                Me%Field(iP)%Energy2Power     .or. Me%Field(iP)%AvModelStart2Inst) then
+                Me%Field(iP)%Energy2Power     .or. Me%Field(iP)%AvModelStart2Inst          .or. &
+                Me%Field(iP)%Wfp) then
             
                 Me%ReadPropNumber = Me%ReadPropNumber - 1
             
@@ -4581,7 +4717,7 @@ BF:             if (BlockFound) then
                     Me%Field(iP)%Beaufort                   .or. Me%Field(iP)%WaveBeaufort   .or.  &
                     Me%Field(iP)%ComputeDirection           .or. Me%Field(iP)%AverageInDepth .or.  &
                     Me%Field(iP)%Reflectivity2Precipitation .or. Me%Field(iP)%Energy2Power   .or.  &
-                    Me%Field(iP)%AvModelStart2Inst) then
+                    Me%Field(iP)%AvModelStart2Inst          .or. Me%Field(iP)%Wfp) then
                 
                     WriteProp       = .false.
                 
@@ -4606,7 +4742,7 @@ BF:             if (BlockFound) then
                            Me%Field(iP)%Beaufort                    .or. Me%Field(iP)%WaveBeaufort .or. &
                            Me%Field(iP)%ComputeDirection            .or. Me%Field(iP)%AverageInDepth.or.&
                            Me%Field(iP)%Reflectivity2Precipitation  .or. Me%Field(iP)%Energy2Power  .or.&
-                           Me%Field(iP)%AvModelStart2Inst))  &
+                           Me%Field(iP)%AvModelStart2Inst           .or. Me%Field(iP)%Wfp))  &
                     call DeAllocateValueIn(Me%Field(iP)%ValueIn)
             enddo
         enddo
@@ -5023,9 +5159,26 @@ i5:         if (Me%OutHDF5) then
                 else 
                     Me%Field(iP)%Value3DOut(i, j, k) = FillValueReal
                 endif                
+                
             enddo
             enddo
             enddo
+                
+            if (Me%Field(iP)%OldMissingValue /= Me%Field(iP)%NewMissingValue) then     
+                
+                do k= Me%WorkSize%KLB, Me%WorkSize%KUB                    
+                do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i= Me%WorkSize%ILB, Me%WorkSize%IUB        
+                    
+                    if (Me%Field(iP)%Value3DOut(i, j, k) == Me%Field(iP)%OldMissingValue) then
+                        Me%Field(iP)%Value3DOut(i, j, k) =  Me%Field(iP)%NewMissingValue
+                    endif
+                    
+                enddo
+                enddo
+                enddo
+                
+            endif
                 
             if (Me%Depth%Interpolate) deallocate(DepthAux, ValueAux)
                 
@@ -5089,6 +5242,20 @@ i5:         if (Me%OutHDF5) then
             enddo
             enddo
                 
+           if (Me%Field(iP)%OldMissingValue /= Me%Field(iP)%NewMissingValue) then     
+                
+                do j= Me%WorkSize%JLB, Me%WorkSize%JUB
+                do i= Me%WorkSize%ILB, Me%WorkSize%IUB        
+                    
+                    if (Me%Field(iP)%Value2DOut(i, j) == Me%Field(iP)%OldMissingValue) then
+                        Me%Field(iP)%Value2DOut(i, j)  = Me%Field(iP)%NewMissingValue
+                    endif
+                    
+                enddo
+                enddo
+                
+            endif
+            
                 
         endif
 
