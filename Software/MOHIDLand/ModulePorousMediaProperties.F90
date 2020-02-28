@@ -491,7 +491,7 @@ Module ModulePorousMediaProperties
         character(PathLength)                   :: TransientHDF        = null_str
         character(PathLength)                   :: DataSedimentQualityFile = null_str
         character(PathLength)                   :: ChainReactionsDataFile = null_str
-        character(len=StringLength)             :: BoxesFile           = null_str
+        character(len=line_length)              :: BoxesFile           = null_str
         integer                                 :: AsciiUnit           = null_int
     end type T_Files    
 
@@ -3431,7 +3431,7 @@ do1:    do while(associated(Property))
 
         !Local-----------------------------------------------------------------
         integer                                             :: STAT_CALL, iflag
-        character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=line_length)                          :: TimeSerieLocationFile
         character(len=StringLength), dimension(:,:), pointer:: PropertyList
         integer                                             :: nProperties
         integer                                             :: n
@@ -3650,7 +3650,7 @@ do1:    do while(associated(Property))
         integer                                             :: nProperties
         integer                                             :: STAT_CALL
         integer                                             :: iflag
-        character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=line_length)                          :: TimeSerieLocationFile
         type (T_Property), pointer                          :: PropertyX
         integer                                             :: n
         integer                                             :: TimeSerieNumber, dn, Id, Jd

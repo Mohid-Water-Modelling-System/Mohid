@@ -891,7 +891,7 @@ cd2 :       if (BlockFound) then
       integer                                             :: nProperties
       integer                                             :: STAT_CALL
       integer                                             :: iflag
-      character(len=StringLength)                         :: TimeSerieLocationFile
+      character(len=line_length)                          :: TimeSerieLocationFile
       type (T_Property), pointer                          :: PropertyX
       integer                                             :: n
       integer                                             :: TimeSerieNumber, dn, Id, Jd
