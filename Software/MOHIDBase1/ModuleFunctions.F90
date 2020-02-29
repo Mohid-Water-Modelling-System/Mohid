@@ -2098,13 +2098,13 @@ Module ModuleFunctions
     
     subroutine AddMatrix2D_To_3D_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)
         !Arguments-------------------------------------------------------------
-        real, dimension(:, :, :), pointer, intent (INOUT) :: MatrixA
-        real, dimension(:, :   ), pointer, intent (IN)    :: MatrixB
-        type (T_Size3D)                                   :: Size
-        integer, dimension(:,:), pointer, intent(IN)      :: KFloor
-        integer, dimension(:, :, :), pointer, intent (IN) :: MapMatrix
+        real, dimension(:, :, :), allocatable, intent (INOUT) :: MatrixA
+        real, dimension(:, :   ), pointer, intent (IN)        :: MatrixB
+        type (T_Size3D)                                       :: Size
+        integer, dimension(:,:), pointer, intent(IN)          :: KFloor
+        integer, dimension(:, :, :), pointer, intent (IN)     :: MapMatrix
         !Local-----------------------------------------------------------------
-        integer                                           :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB, CHUNK, kbottom
+        integer                                               :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB, CHUNK, kbottom
         !Begin-----------------------------------------------------------------
         KUB = Size%KUB; JUB = Size%JUB; IUB = Size%IUB
         KLB = Size%KLB; JLB = Size%JLB; ILB = Size%ILB
