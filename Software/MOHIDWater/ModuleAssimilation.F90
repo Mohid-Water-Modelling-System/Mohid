@@ -1001,35 +1001,85 @@ cd2 :           if (BlockFound) then
 
     !--------------------------------------------------------------------------
     !This subroutine reads all the information needed to construct the property values       
-    ! in the domain and in the boundaries            
-
+    ! in the domain and in the boundaries
+    
     subroutine ConstructAssimilationField(NewProperty, ClientNumber)
+
         !Arguments-------------------------------------------------------------
         type(T_property),          pointer      :: NewProperty
         integer                                 :: ClientNumber
+
         !Local-----------------------------------------------------------------
-        integer                                 :: STAT_CALL
-        integer, dimension(:,:  ), pointer      :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V
-        integer, dimension(:,:,:), pointer      :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V
-        integer                                 :: SizeILB, SizeIUB, SizeJLB, SizeJUB, SizeKLB, SizeKUB
+        integer                                 :: STAT_CALL, i, j, k
+        integer, dimension(:,:  ), pointer      :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, PointsToFill2D
+        integer, dimension(:,:,:), pointer      :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, PointsToFill3D 
+        real,    dimension(:,:  ), pointer      :: Matrix2D
+        real,    dimension(:,:,:), pointer      :: Matrix3D
+        real,    dimension(:,:  ), pointer      :: AnalyticCelerity        
+        real                                    :: AnalyticDirection, AnalyticAverageValue
         integer                                 :: iflag
+        integer                                 :: SizeILB, SizeIUB, SizeJLB
+        integer                                 :: SizeJUB, SizeKLB, SizeKUB
         character(len=StringLength)             :: Char_TypeZUV
         logical                                 :: BlockFound
+        logical                                 :: AnalyticCelerityON
+
         !----------------------------------------------------------------------
-        SizeILB = Me%Size%ILB;  SizeJLB = Me%Size%JLB;  SizeKLB = Me%Size%KLB
-        SizeIUB = Me%Size%IUB;  SizeJUB = Me%Size%JUB;  SizeKUB = Me%Size%KUB
-        
-        call GetExternals_assim_field (WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, &
-                                       WaterFaces3D_U, WaterFaces3D_V, WaterPoints3D)
+ 
+        SizeILB = Me%Size%ILB
+        SizeIUB = Me%Size%IUB
+        SizeJLB = Me%Size%JLB
+        SizeJUB = Me%Size%JUB
+        SizeKLB = Me%Size%KLB
+        SizeKUB = Me%Size%KUB
+
+        call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR10'
+
+        call GetWaterFaces2D(Me%ObjHorizontalMap,                                       &
+                               WaterFaces2DU = WaterFaces2D_U,                          &
+                               WaterFaces2DV = WaterFaces2D_V,                          &
+                               STAT            = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR20'
+
+        call GetWaterFaces3D(Me%ObjMap,                                                 &
+                               WaterFacesU3D = WaterFaces3D_U,                          &
+                               WaterFacesV3D = WaterFaces3D_V,                          &
+                               STAT            = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR30'
+
+        call GetWaterPoints3D(Me%ObjMap,WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR40'
+
 
         !Initial value of NewProperty%LastActualization = =-9999999
         call null_Time(NewProperty%LastActualization)
+
+
+        !By default the property dimension is R3D (scalar) 
+        call GetData(NewProperty%Dim, Me%ObjEnterData, iflag,                           &
+                     keyword        = 'DIMENSION',                                      &  
+                     default        = Dim_3D,                                           &
+                     SearchType     = FromBlock,                                        &
+                     ClientModule   = 'ModuleAssimilation',                             &
+                     STAT           = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR50'
+
+        call GetData(NewProperty%GroupOutPutName, Me%ObjEnterData, iflag,               &
+                     keyword        = 'GROUP_OUTPUT_NAME',                              &  
+                     default        = trim(NewProperty%ID%Name),                        &
+                     SearchType     = FromBlock,                                        &
+                     ClientModule   = 'ModuleAssimilation',                             &
+                     STAT           = STAT_CALL)            
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR55'
         
-        call read_property_keywords(NewProperty, iflag)
 
         call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                       &
-                                   begin_field, end_field, BlockFound, STAT = STAT_CALL)
-        
+                                   begin_field, end_field, BlockFound,                  &
+                                   STAT = STAT_CALL)
+
         if(STAT_CALL .EQ. SUCCESS_)then
 
             if (BlockFound) then
@@ -1041,41 +1091,461 @@ cd2 :           if (BlockFound) then
                              default        = "Z",                                      &
                              STAT           = STAT_CALL)            
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR60'
-                
-                NewProperty%Field%TypeZUV  = TranslateTypeZUV(Char_TypeZUV)
 
-                if (NewProperty%Dim == Dim_2D) then
-                    
+                if (NewProperty%Dim == Dim_2D) then 
+
                     allocate(NewProperty%Field%R2D (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR10'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR70'
                     
                     NewProperty%Field%R2D(:,:) = FillValueReal
+            
+                    NewProperty%Field%TypeZUV  = TranslateTypeZUV(Char_TypeZUV)
+
+                    if (NewProperty%Field%TypeZUV == TypeZ_) then
+
+                        PointsToFill2D => WaterPoints2D
+
+                        if (GetPropertyIDNumber(NewProperty%ID%Name) == BarotropicVelocityU_ .or. &
+                            GetPropertyIDNumber(NewProperty%ID%Name) == BarotropicVelocityV_) then
+
+                            allocate (Matrix2D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                            Matrix2D(:,:) = FillValueReal
+
+                        else
+
+                            Matrix2D => NewProperty%Field%R2D
+
+                        endif
+
+                    else if (NewProperty%Field%TypeZUV == TypeU_) then
+
+                        PointsToFill2D => WaterFaces2D_U
+                        Matrix2D       => NewProperty%Field%R2D
+
+                    else if (NewProperty%Field%TypeZUV == TypeV_) then
+
+                        PointsToFill2D => WaterFaces2D_V
+                        Matrix2D       => NewProperty%Field%R2D
+
+                    else
+
+                        stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR80'
+
+                    endif
+
+
+
+                    call ConstructFillMatrix  (PropertyID           = NewProperty%ID,           &
+                                               EnterDataID          = Me%ObjEnterData,          &
+                                               TimeID               = Me%ObjTime,               &
+                                               HorizontalGridID     = Me%ObjHorizontalGrid,     &
+                                               ExtractType          = FromBlockInBlock,         &
+                                               PointsToFill2D       = PointsToFill2D,           &
+                                               Matrix2D             = Matrix2D,                 &
+                                               TypeZUV              = NewProperty%Field%TypeZUV,&
+                                               ClientID             = ClientNumber,             &
+                                               STAT                 = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR90'
+
+                    call GetDefaultValue(NewProperty%ID%ObjFillMatrix, NewProperty%CoefField%DefaultValue, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR100'
                     
-                    call ConstructAssimilationField_2D (NewProperty, WaterPoints2D, &
-                                                        WaterFaces2D_U, WaterFaces2D_V, ClientNumber)
+                    call GetFilenameHDF (FillMatrixID   = NewProperty%ID%ObjFillMatrix, &     
+                                         FilenameHDF    = NewProperty%FilenameHDF,      &
+                                         HdfFileExist   = NewProperty%HdfFileExist,     &
+                                         STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ConstructAssimilationField - ModuleAssimilation - ERR105'
+                    endif                         
+                    
+                    if (.not. NewProperty%HdfFileExist) then
+                        NewProperty%FilenameHDF = null_str
+                    endif                        
+
+                    if (NewProperty%Field%TypeZUV == TypeZ_) then
+                        if (GetPropertyIDNumber(NewProperty%ID%Name) == BarotropicVelocityU_) then
+
+                            do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+                            do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+                    
+                                NewProperty%Field%R2D(i,j) = 0.
+
+                                if (PointsToFill2D(i,j-1) == OpenPoint .and.          &
+                                    PointsToFill2D(i,j  ) == OpenPoint) then
+                                    NewProperty%Field%R2D(i,j) = (Matrix2D(i,j-1)+Matrix2D(i,j))/2.
+                                endif
+
+                            enddo
+                            enddo
+
+                            deallocate(Matrix2D)
+
+                        endif
+
+                        if (GetPropertyIDNumber(NewProperty%ID%Name) == BarotropicVelocityV_) then
+
+                            do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+                            do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+                    
+                                NewProperty%Field%R2D(i,j) = 0.
+
+                                if (PointsToFill2D(i-1,j) == OpenPoint .and.          &
+                                    PointsToFill2D(i  ,j) == OpenPoint) then
+                                    NewProperty%Field%R2D(i,j) = (Matrix2D(i-1,j)+Matrix2D(i,j))/2.
+                                endif
+
+                            enddo
+                            enddo
+
+                            deallocate(Matrix2D)
+
+                        endif
+                    endif
+
+                    nullify   (PointsToFill2D)
+                    nullify   (Matrix2D)
+                    
+                    call GetAnalyticCelerityON(FillMatrixID       = NewProperty%ID%ObjFillMatrix, &
+                                               AnalyticCelerityON = AnalyticCelerityON,           &
+                                               STAT               = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR110'
+                    
+                    if (AnalyticCelerityON) then
+                    
+                        allocate(NewProperty%Field%WaveCelerity(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    
+                        call GetAnalyticCelerity(FillMatrixID         = NewProperty%ID%ObjFillMatrix, &
+                                                 AnalyticCelerity     = AnalyticCelerity,             &
+                                                 AnalyticDirection    = AnalyticDirection,            &
+                                                 AnalyticAverageValue = AnalyticAverageValue,         &   
+                                                 STAT                 = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR120'
+                        
+                        NewProperty%Field%WaveCelerity(:,:) = AnalyticCelerity(:,:)
+                        
+                        NewProperty%Field%WaveDirection = AnalyticDirection
+                        
+                        NewProperty%Field%AverageValue  = AnalyticAverageValue                     
+                        
+                        call UngetFillMatrix(FillMatrixID = NewProperty%ID%ObjFillMatrix, &
+                                             Array        = AnalyticCelerity,           &
+                                             STAT         = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR130' 
+                        
+                    endif
+
+
+                    if(.not. NewProperty%ID%SolutionFromFile)then
+
+                        call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR140'
+            
+                    end if
+
+
                 else if (NewProperty%Dim == Dim_3D) then
-        
-                    allocate(NewProperty%Field%R3D(SizeILB:SizeIUB, SizeJLB:SizeJUB, SizeKLB:SizeKUB), STAT= STAT_CALL)       
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR20'
+
+                    allocate(NewProperty%Field%R3D   (SizeILB:SizeIUB, SizeJLB:SizeJUB, SizeKLB:SizeKUB), &
+                             STAT = STAT_CALL)            
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR150'
 
                     NewProperty%Field%R3D(:,:,:) = FillValueReal
+
+                    NewProperty%Field%TypeZUV   = TranslateTypeZUV(Char_TypeZUV)
+
+                    if (NewProperty%Field%TypeZUV == TypeZ_) then
+
+                        PointsToFill3D => WaterPoints3D
+
+                        if (GetPropertyIDNumber(NewProperty%ID%Name) == VelocityU_ .or. &
+                            GetPropertyIDNumber(NewProperty%ID%Name) == VelocityV_) then
+
+                            allocate (Matrix3D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
+                            Matrix3D(:,:,:) = FillValueReal
+
+                        else
+
+                            Matrix3D => NewProperty%Field%R3D
+
+                        endif
+
+                    else if (NewProperty%Field%TypeZUV == TypeU_) then
+
+                        PointsToFill3D => WaterFaces3D_U
+                        Matrix3D       => NewProperty%Field%R3D
+
+                    else if (NewProperty%Field%TypeZUV == TypeV_) then
+
+                        PointsToFill3D => WaterFaces3D_V
+                        Matrix3D       => NewProperty%Field%R3D
+
+                    else
+
+                        stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR160'
+
+                    endif
+
+
+                    call ConstructFillMatrix  (PropertyID           = NewProperty%ID,           &
+                                               EnterDataID          = Me%ObjEnterData,          &
+                                               TimeID               = Me%ObjTime,               &
+                                               HorizontalGridID     = Me%ObjHorizontalGrid,     &
+                                               GeometryID           = Me%ObjGeometry,           &
+                                               ExtractType          = FromBlockInBlock,         &
+                                               PointsToFill3D       = PointsToFill3D,           &
+                                               Matrix3D             = Matrix3D,                 &
+                                               TypeZUV              = NewProperty%Field%TypeZUV,&
+                                               ClientID             = ClientNumber,             &
+                                               STAT                 = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR170'
+
+                    call GetDefaultValue(NewProperty%ID%ObjFillMatrix, NewProperty%Field%DefaultValue, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR180'
                     
-                    call ConstructAssimilationField_3D (NewProperty, WaterPoints3D, &
-                                                        WaterFaces3D_U, WaterFaces3D_V, ClientNumber)
+                    call GetFilenameHDF (FillMatrixID   = NewProperty%ID%ObjFillMatrix, &     
+                                         FilenameHDF    = NewProperty%FilenameHDF,      &
+                                         HdfFileExist   = NewProperty%HdfFileExist,     &
+                                         STAT           = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ConstructAssimilationField - ModuleAssimilation - ERR185'
+                    endif                                 
+                    
+                    if (.not. NewProperty%HdfFileExist) then
+                        NewProperty%FilenameHDF = null_str
+                    endif    
+
+                    if (NewProperty%Field%TypeZUV == TypeZ_) then
+                        if (GetPropertyIDNumber(NewProperty%ID%Name) == VelocityU_) then
+
+                            do k = Me%WorkSize%KLB,Me%WorkSize%KUB
+                            do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+                            do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+                    
+                                NewProperty%Field%R3D(i,j,k) = 0.
+
+                                if (PointsToFill3D(i,j-1,k) == OpenPoint .and.          &
+                                    PointsToFill3D(i,j  ,k) == OpenPoint) then
+                                    NewProperty%Field%R3D(i,j,k) = (Matrix3D(i,j-1,k)+Matrix3D(i,j,k))/2.
+                                endif
+
+                            enddo
+                            enddo
+                            enddo
+
+                            deallocate(Matrix3D)
+
+                        endif
+
+                        if (GetPropertyIDNumber(NewProperty%ID%Name) == VelocityV_) then
+
+                            do k = Me%WorkSize%KLB,Me%WorkSize%KUB
+                            do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+                            do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+                    
+                                NewProperty%Field%R3D(i,j,k) = 0.
+
+                                if (PointsToFill3D(i-1,j,k) == OpenPoint .and.          &
+                                    PointsToFill3D(i  ,j,k) == OpenPoint) then
+                                    NewProperty%Field%R3D(i,j,k) = (Matrix3D(i-1,j,k)+Matrix3D(i,j,k))/2.
+                                endif
+
+                            enddo
+                            enddo
+                            enddo
+
+                            deallocate(Matrix3D)
+
+                        endif
+                    endif
+
+                    nullify   (PointsToFill3D)
+                    nullify   (Matrix3D)
+
+
+                    if(.not. NewProperty%ID%SolutionFromFile)then
+
+                        call KillFillMatrix(NewProperty%ID%ObjFillMatrix, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR190'
+            
+                    end if
+               
                 else
+
                     stop 'ConstructAssimilationField - ModuleAssimilation - ERR200'
+
                 end if
+
             else
+
                 stop 'ConstructAssimilationField - ModuleAssimilation - ERR210'
+
             end if
+
         else
+
             stop 'ConstructAssimilationField - ModuleAssimilation - ERR220'
+
         end if
+
+        !Along this period the relaxation term grows lineary until the value specified
+        !<BeginKeyword>
+            !Keyword          : COLD_RELAX_PERIOD
+            !<BeginDescription>       
+               ! 
+               !The user specify the period along which wants the relaxation have a linear growth
+               !
+            !<EndDescription>
+            !Type             : Real 
+            !Default          : 0.
+
+            !File keyword     : IN_DAD3D 
+            !Multiple Options : 0 (.false.), 1 (.true.)
+            !Search Type      : From File
+        !<EndKeyword>
+
+
+        !By default property do not have a cold relaxation period
+        call GetData(NewProperty%ColdRelaxPeriod,                                       &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'COLD_RELAX_PERIOD',                              &
+                     Default        = Me%ColdRelaxPeriodDefault,                        &
+                     SearchType     = FromBlock,                                        &
+                     ClientModule   = 'ModuleAssimilation',                             &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR230'
+
+        !By default cold coefficient follows a x^4 evolution
+        call GetData(NewProperty%ColdOrder,                                             &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'COLD_ORDER',                                     &
+                     Default        = 4.,                                               &
+                     SearchType     = FromBlock,                                        &
+                     ClientModule   = 'ModuleAssimilation',                             &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR240'
+
+        !By default property don't have time serie
+        call GetData(NewProperty%TimeSerie,                                             &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'TIME_SERIE',                                     &
+                     Default        = .false.,                                          &
+                     SearchType     = FromBlock,                                        &
+                     ClientModule   = 'ModuleAssimilation',                             &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR250'
+
+        if (NewProperty%TimeSerie) then
+            NewProperty%LastTimeSerieOutput = Me%ActualTime
+        endif
+
+
+        !By default property don't have time serie
+        call GetData(NewProperty%OutputHDF,                                             &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'OUTPUT_HDF',                                     &
+                     Default        = .false.,                                          &
+                     SearchType     = FromBlock,                                        &
+                     ClientModule   = 'ModuleAssimilation',                             &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR260'
+
+        call UngetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR270'
+
+        call UngetHorizontalMap(Me%ObjHorizontalMap, WaterFaces2D_U, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR280'
+
+        call UngetHorizontalMap(Me%ObjHorizontalMap, WaterFaces2D_V, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR290'
+
         
-        call UngetExternals_assim_field (WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, &
-                                         WaterFaces3D_U, WaterFaces3D_V, WaterPoints3D)
+        call UnGetMap(Me%ObjMap, WaterFaces3D_U, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR300'
+
+        call UnGetMap(Me%ObjMap, WaterFaces3D_V, STAT = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR310'
+
+        call UnGetMap(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR320'
+
+        !----------------------------------------------------------------------
 
     end subroutine ConstructAssimilationField
+
+    !subroutine ConstructAssimilationField(NewProperty, ClientNumber) Sobrinho
+    !    !Arguments-------------------------------------------------------------
+    !    type(T_property),          pointer      :: NewProperty
+    !    integer                                 :: ClientNumber
+    !    !Local-----------------------------------------------------------------
+    !    integer                                 :: STAT_CALL
+    !    integer, dimension(:,:  ), pointer      :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V
+    !    integer, dimension(:,:,:), pointer      :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V
+    !    integer                                 :: SizeILB, SizeIUB, SizeJLB, SizeJUB, SizeKLB, SizeKUB
+    !    integer                                 :: iflag
+    !    character(len=StringLength)             :: Char_TypeZUV
+    !    logical                                 :: BlockFound
+    !    !----------------------------------------------------------------------
+    !    SizeILB = Me%Size%ILB;  SizeJLB = Me%Size%JLB;  SizeKLB = Me%Size%KLB
+    !    SizeIUB = Me%Size%IUB;  SizeJUB = Me%Size%JUB;  SizeKUB = Me%Size%KUB
+    !    
+    !    call GetExternals_assim_field (WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, &
+    !                                   WaterFaces3D_U, WaterFaces3D_V, WaterPoints3D)
+    !
+    !    !Initial value of NewProperty%LastActualization = =-9999999
+    !    call null_Time(NewProperty%LastActualization)
+    !    
+    !    call read_property_keywords(NewProperty, iflag)
+    !
+    !    call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                       &
+    !                               begin_field, end_field, BlockFound, STAT = STAT_CALL)
+    !    
+    !    if(STAT_CALL .EQ. SUCCESS_)then
+    !
+    !        if (BlockFound) then
+    !
+    !            call GetData(Char_TypeZUV, Me%ObjEnterData, iflag,                      &
+    !                         keyword        = 'TYPE_ZUV',                               &  
+    !                         SearchType     = FromBlockInBlock,                         &
+    !                         ClientModule   = 'ModuleAssimilation',                     &
+    !                         default        = "Z",                                      &
+    !                         STAT           = STAT_CALL)            
+    !            if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR60'
+    !            
+    !            NewProperty%Field%TypeZUV  = TranslateTypeZUV(Char_TypeZUV)
+    !
+    !            if (NewProperty%Dim == Dim_2D) then
+    !                
+    !                allocate(NewProperty%Field%R2D (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
+    !                if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR10'
+    !                
+    !                NewProperty%Field%R2D(:,:) = FillValueReal
+    !                
+    !                call ConstructAssimilationField_2D (NewProperty, WaterPoints2D, &
+    !                                                    WaterFaces2D_U, WaterFaces2D_V, ClientNumber)
+    !            else if (NewProperty%Dim == Dim_3D) then
+    !    
+    !                allocate(NewProperty%Field%R3D(SizeILB:SizeIUB, SizeJLB:SizeJUB, SizeKLB:SizeKUB), STAT= STAT_CALL)       
+    !                if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR20'
+    !
+    !                NewProperty%Field%R3D(:,:,:) = FillValueReal
+    !                
+    !                call ConstructAssimilationField_3D (NewProperty, WaterPoints3D, &
+    !                                                    WaterFaces3D_U, WaterFaces3D_V, ClientNumber)
+    !            else
+    !                stop 'ConstructAssimilationField - ModuleAssimilation - ERR200'
+    !            end if
+    !        else
+    !            stop 'ConstructAssimilationField - ModuleAssimilation - ERR210'
+    !        end if
+    !    else
+    !        stop 'ConstructAssimilationField - ModuleAssimilation - ERR220'
+    !    end if
+    !    
+    !    call UngetExternals_assim_field (WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, &
+    !                                     WaterFaces3D_U, WaterFaces3D_V, WaterPoints3D)
+    !
+    !end subroutine ConstructAssimilationField
     !---------------------------------------------------------------------------------------------------------------------
     
     !>@author Joao Sobrinho Maretec
@@ -1265,6 +1735,7 @@ cd2 :           if (BlockFound) then
         if (NewProperty%Field%TypeZUV == TypeZ_) then
             !Checks if property is barotropic velocity. If so, computes face velocity
             call Check_ComputeFacesVelocity2D(NewProperty, PointsToFill2D, Matrix2D)
+            deallocate(Matrix2D)
         endif
 
         nullify (PointsToFill2D, Matrix2D)
@@ -1357,8 +1828,6 @@ cd2 :           if (BlockFound) then
             !$OMP END DO
             !$OMP END PARALLEL
         endif
-        
-        deallocate(Matrix2D)
     
     end subroutine Check_ComputeFacesVelocity2D
     
@@ -1446,6 +1915,7 @@ cd2 :           if (BlockFound) then
 
         if (NewProperty%Field%TypeZUV == TypeZ_) then
            call Check_ComputeFacesVelocity3D(NewProperty, PointsToFill3D, Matrix3D)
+           deallocate(Matrix3D)
         endif
 
         nullify   (PointsToFill3D, Matrix3D)
@@ -1546,8 +2016,6 @@ cd2 :           if (BlockFound) then
             !$OMP END DO
             !$OMP END PARALLEL
         endif
-        
-        deallocate(Matrix3D)
     
     end subroutine Check_ComputeFacesVelocity3D
     
@@ -3892,38 +4360,89 @@ do2 :   do j=JLB, JUB
     End Subroutine Splint
 
     !--------------------------------------------------------------------------
-
-    !--------------------------------------------------------------------------
-
     subroutine AssimilationFromFile(PropertyX)
 
         !Arguments-------------------------------------------------------------
         type(T_Property), pointer               :: PropertyX
+        
         !Local-----------------------------------------------------------------
-        integer                                 :: STAT_CALL
+        integer                                 :: STAT_CALL, i, j, k
         integer, dimension(:,:  ), pointer      :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, PointsToFill2D
         integer, dimension(:,:,:), pointer      :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, PointsToFill3D 
         real,    dimension(:,:  ), pointer      :: Matrix2D
         real,    dimension(:,:,:), pointer      :: Matrix3D
+        integer                                    :: CHUNK
+         
         !Begin------------------------------------------------------------------------
 
         call GetComputeCurrentTime(Me%ObjTime, Me%ActualTime, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
-        
-        call GetExternals_assim_field (WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, &
-                                       WaterFaces3D_U, WaterFaces3D_V, WaterPoints3D)
 
-        if (MonitorPerformance) call StartWatch ("ModuleAssimilation", "AssimilationFromFile")
+        call GetWaterPoints2D(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL) 
+        if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
+        
+        call GetWaterPoints3D(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
+
+        call GetWaterFaces2D(Me%ObjHorizontalMap,                                               &
+                               WaterFaces2DU = WaterFaces2D_U,      &
+                               WaterFaces2DV = WaterFaces2D_V,      &
+                               STAT            = STAT_CALL)
+
+        if (STAT_CALL /= SUCCESS_) stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR90'
+
+        call GetWaterFaces3D(Me%ObjMap,                                               &
+                               WaterFacesU3D = WaterFaces3D_U,                      &
+                               WaterFacesV3D = WaterFaces3D_V,                      &
+                               STAT            = STAT_CALL)
+
+        if (MonitorPerformance) then
+            call StartWatch ("ModuleAssimilation", "AssimilationFromFile")
+        endif
 
         !Verifies if its necessary to update the property
 cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
 
+
             if (PropertyX%ID%SolutionFromFile) then
 
-                if (PropertyX%Dim == Dim_2D) then
-                    
-                    call SetMappingAndMatrix2D(PropertyX, PointsToFill2D, WaterPoints2D, WaterFaces2D_U, &
-                                               WaterFaces2D_V, Matrix2D)
+
+                if (PropertyX%Dim == Dim_2D) then 
+
+                    if (PropertyX%Field%TypeZUV == TypeZ_) then
+
+                        PointsToFill2D => WaterPoints2D
+
+                        if (GetPropertyIDNumber(PropertyX%ID%Name) == BarotropicVelocityU_ .or. &
+                            GetPropertyIDNumber(PropertyX%ID%Name) == BarotropicVelocityV_) then
+
+                            allocate (Matrix2D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                            Matrix2D(:,:) = FillValueReal
+                        
+                        else
+
+                            Matrix2D => PropertyX%Field%R2D
+
+                        endif
+
+                    else if (PropertyX%Field%TypeZUV == TypeU_) then
+
+                        PointsToFill2D => WaterFaces2D_U
+                        Matrix2D       => PropertyX%Field%R2D
+
+                    else if (PropertyX%Field%TypeZUV == TypeV_) then
+
+                        PointsToFill2D => WaterFaces2D_V
+                        Matrix2D       => PropertyX%Field%R2D
+
+                    else
+
+                        stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR230'
+
+                    endif
+
+
+
 
                     call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix,         &
                                            Matrix2D       = Matrix2D,                            &
@@ -3932,15 +4451,93 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
                     if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
 
                     if (PropertyX%Field%TypeZUV == TypeZ_) then
-                        call Check_ComputeFacesVelocity2D(PropertyX, PointsToFill2D, Matrix2D)
+                        if (GetPropertyIDNumber(PropertyX%ID%Name) == BarotropicVelocityU_) then
+                            
+                            CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+                            !$OMP PARALLEL PRIVATE(i,j)
+                            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                            do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+                            do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+                    
+                                PropertyX%Field%R2D(i,j) = 0.
+
+                                if (PointsToFill2D(i,j-1) == OpenPoint .and.          &
+                                    PointsToFill2D(i,j  ) == OpenPoint) then
+                                    PropertyX%Field%R2D(i,j) = (Matrix2D(i,j-1)+Matrix2D(i,j))/2.
+                                endif
+
+                            enddo
+                            enddo
+                            !$OMP END DO
+                            !$OMP END PARALLEL
+
+                            deallocate(Matrix2D)
+
+                        endif
+
+                        if (GetPropertyIDNumber(PropertyX%ID%Name) == BarotropicVelocityV_) then
+
+                            CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+                            !$OMP PARALLEL PRIVATE(i,j)
+                            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)                        
+                            do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+                            do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+                    
+                                PropertyX%Field%R2D(i,j) = 0.
+
+                                if (PointsToFill2D(i-1,j) == OpenPoint .and.          &
+                                    PointsToFill2D(i  ,j) == OpenPoint) then
+                                    PropertyX%Field%R2D(i,j) = (Matrix2D(i-1,j)+Matrix2D(i,j))/2.
+                                endif
+
+                            enddo
+                            enddo
+                            !$OMP END DO
+                            !$OMP END PARALLEL
+
+                            deallocate(Matrix2D)
+
+                        endif
+
                     endif
 
-                    nullify (PointsToFill2D, Matrix2D)
+                    nullify   (PointsToFill2D)
+                    nullify   (Matrix2D)
                 
                 else if (PropertyX%Dim == Dim_3D) then
-                    
-                    call SetMappingAndMatrix3D(PropertyX, PointsToFill3D, WaterPoints3D, WaterFaces3D_U, &
-                                               WaterFaces3D_V, Matrix3D)
+
+                    if (PropertyX%Field%TypeZUV == TypeZ_) then
+
+                        PointsToFill3D => WaterPoints3D
+
+                        if (GetPropertyIDNumber(PropertyX%ID%Name) == VelocityU_ .or. &
+                            GetPropertyIDNumber(PropertyX%ID%Name) == VelocityV_) then
+
+                            allocate (Matrix3D(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB,Me%Size%KLB:Me%Size%KUB))
+                            Matrix3D(:,:,:) = FillValueReal
+
+                        else
+
+                            Matrix3D => PropertyX%Field%R3D
+
+                        endif
+
+                    else if (PropertyX%Field%TypeZUV == TypeU_) then
+
+                        PointsToFill3D => WaterFaces3D_U
+                        Matrix3D       => PropertyX%Field%R3D
+
+                    else if (PropertyX%Field%TypeZUV == TypeV_) then
+
+                        PointsToFill3D => WaterFaces3D_V
+                        Matrix3D       => PropertyX%Field%R3D
+
+                    else
+
+                        stop 'ReadInitialImposedSolution  - ModuleHydrodynamic - ERR230'
+
+                    endif
+
 
                     call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix,         &
                                            Matrix3D       = Matrix3D,                &
@@ -3949,10 +4546,61 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
                     if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
 
                     if (PropertyX%Field%TypeZUV == TypeZ_) then
-                        call Check_ComputeFacesVelocity3D(PropertyX, PointsToFill3D, Matrix3D)
+                        if (GetPropertyIDNumber(PropertyX%ID%Name) == VelocityU_) then
+
+                            CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+                            !$OMP PARALLEL PRIVATE(i,j,k)
+                            do k = Me%WorkSize%KLB,Me%WorkSize%KUB
+                            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                            do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+                            do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+                    
+                                PropertyX%Field%R3D(i,j,k) = 0.
+
+                                if (PointsToFill3D(i,j-1,k) == OpenPoint .and.          &
+                                    PointsToFill3D(i,j  ,k) == OpenPoint) then
+                                    PropertyX%Field%R3D(i,j,k) = (Matrix3D(i,j-1,k)+Matrix3D(i,j,k))/2.
+                                endif
+
+                            enddo
+                            enddo
+                            !$OMP END DO
+                            enddo
+                            !$OMP END PARALLEL
+
+                            deallocate(Matrix3D)
+
+                        endif
+
+                        if (GetPropertyIDNumber(PropertyX%ID%Name) == VelocityV_) then
+
+                            CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
+                            !$OMP PARALLEL PRIVATE(i,j,k)
+                            do k = Me%WorkSize%KLB,Me%WorkSize%KUB
+                            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                            do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+                            do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+                    
+                                PropertyX%Field%R3D(i,j,k) = 0.
+
+                                if (PointsToFill3D(i-1,j,k) == OpenPoint .and.          &
+                                    PointsToFill3D(i  ,j,k) == OpenPoint) then
+                                    PropertyX%Field%R3D(i,j,k) = (Matrix3D(i-1,j,k)+Matrix3D(i,j,k))/2.
+                                endif
+
+                            enddo
+                            enddo
+                            !$OMP END DO
+                            enddo
+                            !$OMP END PARALLEL
+
+                            deallocate(Matrix3D)
+
+                        endif
                     endif
 
-                    nullify (PointsToFill3D, Matrix3D)
+                    nullify   (PointsToFill3D)
+                    nullify   (Matrix3D)
 
                 endif
 
@@ -3960,9 +4608,12 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
             
             PropertyX%LastActualization = Me%ActualTime
 
+
         endif cd1
 
-        if (MonitorPerformance) call StopWatch ("ModuleAssimilation", "AssimilationFromFile")
+        if (MonitorPerformance) then
+            call StopWatch ("ModuleAssimilation", "AssimilationFromFile")
+        endif
 
         !Do if necessary the output of the Assimilation propertyX
         if (Me%OutPut%ON) call OutPutResultsHDF   
@@ -3970,10 +4621,107 @@ cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
         !Output TimeSerie
         call OutPut_TimeSeries  (PropertyX)
 
-        call UngetExternals_assim_field (WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, &
-                                         WaterFaces3D_U, WaterFaces3D_V, WaterPoints3D)
+
+        call UngetHorizontalMap(Me%ObjHorizontalMap, WaterPoints2D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
+
+        call UngetHorizontalMap(Me%ObjHorizontalMap, WaterFaces2D_U, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
+
+        call UngetHorizontalMap(Me%ObjHorizontalMap, WaterFaces2D_V, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
+
+        call UngetMap(Me%ObjMap, WaterPoints3D, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
+
+        call UngetMap(Me%ObjMap, WaterFaces3D_U, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
+
+        call UngetMap(Me%ObjMap, WaterFaces3D_V, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
 
     end subroutine AssimilationFromFile
+    !--------------------------------------------------------------------------
+
+!    subroutine AssimilationFromFile(PropertyX) Sobrinho
+!
+!        !Arguments-------------------------------------------------------------
+!        type(T_Property), pointer               :: PropertyX
+!        !Local-----------------------------------------------------------------
+!        integer                                 :: STAT_CALL
+!        integer, dimension(:,:  ), pointer      :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, PointsToFill2D
+!        integer, dimension(:,:,:), pointer      :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, PointsToFill3D 
+!        real,    dimension(:,:  ), pointer      :: Matrix2D
+!        real,    dimension(:,:,:), pointer      :: Matrix3D
+!        !Begin------------------------------------------------------------------------
+!
+!        call GetComputeCurrentTime(Me%ObjTime, Me%ActualTime, STAT = STAT_CALL)
+!        if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
+!        
+!        call GetExternals_assim_field (WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, &
+!                                       WaterFaces3D_U, WaterFaces3D_V, WaterPoints3D)
+!
+!        if (MonitorPerformance) call StartWatch ("ModuleAssimilation", "AssimilationFromFile")
+!
+!        !Verifies if its necessary to update the property
+!cd1:    if (Me%ActualTime > PropertyX%LastActualization) then
+!
+!            if (PropertyX%ID%SolutionFromFile) then
+!
+!                if (PropertyX%Dim == Dim_2D) then
+!                    
+!                    call SetMappingAndMatrix2D(PropertyX, PointsToFill2D, WaterPoints2D, WaterFaces2D_U, &
+!                                               WaterFaces2D_V, Matrix2D)
+!
+!                    call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix,         &
+!                                           Matrix2D       = Matrix2D,                            &
+!                                           PointsToFill2D = PointsToFill2D,                      &
+!                                           STAT           = STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
+!
+!                    if (PropertyX%Field%TypeZUV == TypeZ_) then
+!                        call Check_ComputeFacesVelocity2D(PropertyX, PointsToFill2D, Matrix2D)
+!                    endif
+!
+!                    nullify (PointsToFill2D, Matrix2D)
+!                
+!                else if (PropertyX%Dim == Dim_3D) then
+!                    
+!                    call SetMappingAndMatrix3D(PropertyX, PointsToFill3D, WaterPoints3D, WaterFaces3D_U, &
+!                                               WaterFaces3D_V, Matrix3D)
+!
+!                    call ModifyFillMatrix (FillMatrixID   = PropertyX%ID%ObjFillMatrix,         &
+!                                           Matrix3D       = Matrix3D,                &
+!                                           PointsToFill3D = PointsToFill3D,                      &
+!                                           STAT           = STAT_CALL)
+!                    if (STAT_CALL /= SUCCESS_) stop 'AssimilationFromFile - ModuleAssimilation - ERR01'
+!
+!                    if (PropertyX%Field%TypeZUV == TypeZ_) then
+!                        call Check_ComputeFacesVelocity3D(PropertyX, PointsToFill3D, Matrix3D)
+!                    endif
+!
+!                    nullify (PointsToFill3D, Matrix3D)
+!
+!                endif
+!
+!            endif
+!            
+!            PropertyX%LastActualization = Me%ActualTime
+!
+!        endif cd1
+!
+!        if (MonitorPerformance) call StopWatch ("ModuleAssimilation", "AssimilationFromFile")
+!
+!        !Do if necessary the output of the Assimilation propertyX
+!        if (Me%OutPut%ON) call OutPutResultsHDF   
+!        
+!        !Output TimeSerie
+!        call OutPut_TimeSeries  (PropertyX)
+!
+!        call UngetExternals_assim_field (WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, &
+!                                         WaterFaces3D_U, WaterFaces3D_V, WaterPoints3D)
+!
+!    end subroutine AssimilationFromFile
 
 
     !--------------------------------------------------------------------------

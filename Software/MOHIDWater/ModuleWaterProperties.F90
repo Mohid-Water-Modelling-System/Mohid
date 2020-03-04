@@ -20405,8 +20405,9 @@ i4 :                if (Property%SubModel%ON .and. N_Field == 1) then
                                                   STAT            = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                      &
                             call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR20')
-
-                        Property%Assimilation%Field(:,:,:) = PropAssimilation(:,:,:)
+                        
+                        
+                        call SetMatrixValue(Property%Assimilation%Field, Me%Size, PropAssimilation)
 
 
                     end if i4
