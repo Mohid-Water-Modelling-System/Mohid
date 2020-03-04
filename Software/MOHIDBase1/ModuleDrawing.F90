@@ -4030,7 +4030,7 @@ i1:     if ( crossProduct(vx,vy) .eq. 0.d0) then
         !Local------------------------------------------------------
         real(8)                             :: sumTotal
         type (T_Polygon), pointer           :: AuxX
-        real,       dimension(:), pointer   :: X, Y 
+        real(8),    dimension(:), pointer   :: X, Y 
         integer                             :: n       
         !Begin------------------------------------------------------
 
@@ -4076,11 +4076,11 @@ i1:     if ( crossProduct(vx,vy) .eq. 0.d0) then
         type (T_Polygon), pointer           :: PolygonX
         real, optional                      :: LatRef, LonRef
         !Local------------------------------------------------------
-        real                                :: LatRef_, LonRef_       
+        real(8)                             :: LatRef_, LonRef_       
         real(8)                             :: sumTotal
         type (T_Polygon), pointer           :: AuxX
-        real,       dimension(:), pointer   :: X, Y
-        real                                :: Lat, Lon
+        real(8),   dimension(:), pointer    :: X, Y
+        real(8)                             :: Lat, Lon
         integer                             :: n, i       
         !Begin------------------------------------------------------
 

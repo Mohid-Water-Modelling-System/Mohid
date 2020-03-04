@@ -7921,14 +7921,14 @@ cd1 :   if ( SurfaceRadiation_                              == Property .or.    
 !!  Public-domain function by Darel Rex Finley, 2006.
 !   Computes the area of polygon
 
-    real function PolygonArea(X, Y, points)
+    real(8) function PolygonArea(X, Y, points)
 
         !Arguments-------------------------------------------------------------
-        real,       dimension(:), pointer :: X, Y
+        real(8),    dimension(:), pointer :: X, Y
         integer                           :: points
 
         !Local-----------------------------------------------------------------
-        real                              :: area=0.
+        real(8)                           :: area=0.
         integer                           :: i, j
 
         !Begin-----------------------------------------------------------------
