@@ -208,13 +208,15 @@ Module ModuleLitter
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-    subroutine ConstructLitterWater(ObjLitterID, TimeID, Nomfich, ModelDomain, STAT)
+    subroutine ConstructLitterWater(ObjLitterID, TimeID, Nomfich, ModelDomain,          &
+                                    ResultsHDF, STAT)
 
         !Arguments---------------------------------------------------------------
         integer            ,            intent(OUT)     :: ObjLitterID 
         integer            ,            intent(INOUT)   :: TimeID 
         character(len=*)   ,            intent(IN)      :: Nomfich
         type (T_Polygon), pointer,      intent(IN)      :: ModelDomain
+        character(len=*)   ,            intent(IN)      :: ResultsHDF
         integer, optional, intent(OUT)                  :: STAT     
 
         !Local-------------------------------------------------------------------
@@ -243,6 +245,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ExtVar%ModelDomain   => ModelDomain
             
             Me%ExtVar%ObjTime       = AssociateInstance (mTIME_, TimeID)
+            
+            Me%Files%ResultsHDF = ResultsHDF
             
             call GetExternalTime
             
@@ -505,22 +509,22 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_  ) then
         end if cd1  
         
         
-        !Transient HDF File
-        Message   ='Instant fields of litter particles in HDF format.'
-        call ReadFileName  (KEYWORD     = 'PARTIC_HDF',                                 &
-                            FILE_NAME   = Me%Files%ResultsHDF,                          &
-                            Message     = Message,                                      &
-                            TIME_END    = Me%ExtVar%EndTime,                            &
-                            Extension   = 'hdf5',                                       &
-                            FilesInput  = Me%Files%Nomfich,                             &
-                            STAT        = STAT_CALL)                           
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructFilesNames - ModuleLitter - ERR40'
-
-        i = len_trim(Me%Files%ResultsHDF)
-        
-        if (Me%Files%ResultsHDF(i:i) /="5") then
-            Me%Files%ResultsHDF = trim(Me%Files%ResultsHDF)//"5"
-        endif
+        !!Transient HDF File
+        !Message   ='Instant fields of litter particles in HDF format.'
+        !call ReadFileName  (KEYWORD     = 'PARTIC_HDF',                                 &
+        !                    FILE_NAME   = Me%Files%ResultsHDF,                          &
+        !                    Message     = Message,                                      &
+        !                    TIME_END    = Me%ExtVar%EndTime,                            &
+        !                    Extension   = 'hdf5',                                       &
+        !                    FilesInput  = Me%Files%Nomfich,                             &
+        !                    STAT        = STAT_CALL)                           
+        !if (STAT_CALL /= SUCCESS_) stop 'ConstructFilesNames - ModuleLitter - ERR40'
+        !
+        !i = len_trim(Me%Files%ResultsHDF)
+        !
+        !if (Me%Files%ResultsHDF(i:i) /="5") then
+        !    Me%Files%ResultsHDF = trim(Me%Files%ResultsHDF)//"5"
+        !endif
 
         !Initial Particle Litter List HDF File
         Message   ='Initial list of litter particles in HDF format.'

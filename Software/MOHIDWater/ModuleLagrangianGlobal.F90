@@ -1507,6 +1507,7 @@ Module ModuleLagrangianGlobal
         real                                    :: CurrentZ                 = FillValueReal
         real                                    :: D50vel                   = FillValueReal
         real                                    :: D50                      = FillValueReal
+        real                                    :: BottomStress             = FillValueReal
         integer                                 :: SolutionWH               = FillValueInt
         integer                                 :: SolutionWP               = FillValueInt
         integer                                 :: SolutionWD               = FillValueInt
@@ -1862,6 +1863,8 @@ Module ModuleLagrangianGlobal
         logical                                 :: StopWithNoPart       = .false.
 
         integer, dimension(:), pointer          :: ObjHDF5              => null()
+        character(len=PathLength),                                                      &
+                        dimension(:), pointer   :: HDF5FileName         => null()
 
         integer                                 :: ObjEnterData         = 0
         integer                                 :: ObjEnterDataClone    = 0
@@ -2199,6 +2202,7 @@ em2:            do em =1, Me%EulerModelNumber
             !Starts the HDF Output
             if (Me%OutPut%Write_) call ConstructHDF5Output    
             
+           
            
             !Starts the Statistic
             if (Me%State%Statistics) then
@@ -4456,22 +4460,7 @@ em4:        do em =1, Me%EulerModelNumber
             stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR415' 
         endif
         
-#ifdef _LITTER_
-        if (Me%LitterON) then
-            call ConstructLitter(ObjLitterID    = Me%ObjLitter,                         &
-                                 TimeID         = Me%ExternalVar%ObjTime,               &
-                                 Nomfich        = Me%Files%Nomfich,                     &
-                                 ModelDomain    = Me%GridsBounds,                       &
-                                 STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR420'
-        endif  
-#else
-        if (Me%LitterON) then
-            write(*,*) 'executable not compile with the Module ModuleLitter'
-            write(*,*) 'this executable do not run the option LITTER_ON : 1'
-            stop 'ConstructOrigins - ModuleLagrangianGlobal - ERR430'
-        endif                    
-#endif  
+
         
         !Number of times it read the lagrangian data looking for origins
         !Only when the _CGI_ option is on is able to read several times 
@@ -11787,13 +11776,14 @@ d1:     do em = 1, Me%EulerModelNumber
         integer, pointer, dimension(:, :, :)        :: WaterPoints3D
         integer                                     :: STAT_CALL
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                                     :: HDF5_CREATE, em, ic
+        integer                                     :: HDF5_CREATE, em, ic, emMax
         character(len = PathLength)                 :: FileName
 
  
         !Begin-----------------------------------------------------------------
 
         allocate(Me%ObjHDF5(Me%EulerModelNumber))
+        allocate(Me%HDF5FileName(Me%EulerModelNumber))
 
         Me%ObjHDF5(:) = 0
 
@@ -11824,6 +11814,7 @@ em1:    do em =1, Me%EulerModelNumber
                 FileName = trim(Me%Files%TransientHDF(1:ic-4))//"_"//trim(Me%EulerModel(em)%Name)//".hdf5"
             endif
             
+            Me%HDF5FileName(em) = FileName
 
             !Opens HDF File
             call ConstructHDF5      (Me%ObjHDF5(em), trim(FileName), HDF5_CREATE, STAT = STAT_CALL)
@@ -11929,6 +11920,28 @@ em1:    do em =1, Me%EulerModelNumber
         enddo em1
 
         nullify(EulerModel)
+
+#ifdef _LITTER_
+        if (Me%LitterON) then
+                
+            emMax = Me%EulerModelNumber
+                
+            call ConstructLitter(ObjLitterID    = Me%ObjLitter,                         &
+                                 TimeID         = Me%ExternalVar%ObjTime,               &
+                                 Nomfich        = Me%Files%Nomfich,                     &
+                                 ModelDomain    = Me%GridsBounds,                       &
+                                 ResultsHDF     = Me%HDF5FileName(emMax),               &
+                                 STAT           = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR80'
+        endif  
+#else
+        if (Me%LitterON) then
+            write(*,*) 'executable not compile with the Module ModuleLitter'
+            write(*,*) 'this executable do not run the option LITTER_ON : 1'
+            stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR90'
+        endif                    
+#endif              
+                    
 
     end subroutine ConstructHDF5Output
   
@@ -16780,12 +16793,16 @@ CurrOr: do while (associated(CurrentOrigin))
         CurrentPartic => CurrentOrigin%FirstPartic
 CP:     do while (associated (CurrentPartic))
 
+
+            
+
             if (Me%State%Oil) then
                 CurrentPartic%OilViscCin = OilViscCin
                 If (CurrentOrigin%MethodFloatVel .EQ. Zheng_) then
                     CurrentPartic%OWInterfacialTension = OWInterfacialTension
                 end if
             end if
+            
             
             ComputeTrajectory = .true. 
 
@@ -16815,6 +16832,14 @@ CT:         do while (ComputeTrajectory)
                     Velocity_U => Me%EulerModel(emp)%Velocity_U
                     Velocity_V => Me%EulerModel(emp)%Velocity_V
                 endif
+
+                if (CurrentOrigin%State%Deposition) then
+                
+                    CurrentPartic%BottomStress =                                                    &
+                        FromGrid2DToParticleXY(CurrentPartic    = CurrentPartic,                    &
+                                               Matrix2D         = Me%EulerModel(emp)%BottomStress,  &
+                                               WaterPoints2D    = Me%EulerModel(emp)%WaterPoints2D)
+                endif                        
 
 BD:             if (CurrentPartic%Beached .or. CurrentPartic%Deposited .or. CurrentPartic%AtTheBottom &
                     .or. (CurrentPartic%HNSParticleState .EQ. Bottom_Deposited_)) then
@@ -18056,8 +18081,10 @@ iy:                 if  (Me%EulerModel(NewPosition%ModelID)%OpenPoints3D(NewI, N
         !and of the erosion rate. The erosion rate (Er) is quantifiied in the form of
         !a probability that is equal to  min (1, Er * dt / MassSedTotal(i,j))
 
-        TauStress = Me%EulerModel(emp)%BottomStress(CurrentPartic%Position%I,           &
-                                                    CurrentPartic%Position%J)        
+        !TauStress = Me%EulerModel(emp)%BottomStress(CurrentPartic%Position%I,           &
+        !                                            CurrentPartic%Position%J)   
+        
+        TauStress = CurrentPartic%BottomStress
         
         if (CurrentOrigin%Deposition%TauUncertainty > 0) then
                             
@@ -18091,6 +18118,9 @@ cd1:    if (TauStress >= CurrentPartic%TauErosionMix) then
 
     !--------------------------------------------------------------------------
 
+
+    !--------------------------------------------------------------------------    
+
     logical function VerifyDeposition(CurrentOrigin, CurrentPartic)
 
         !Arguments-------------------------------------------------------------
@@ -18119,7 +18149,9 @@ cd1:    if (CurrentOrigin%Deposition%BottomDistance    >=                       
 !Odd, N.V.M., Owen, M.W., 1972. A two-layer model of mud transport in the Thames estuary. 
 !In: Proceedings. Institution of Civil Engineers, London, pp. 195-202.
     
-            TauStress = Me%EulerModel(emp)%BottomStress(i,j)
+            !TauStress = Me%EulerModel(emp)%BottomStress(i,j)
+            
+            TauStress = CurrentPartic%BottomStress
     
             if (CurrentOrigin%Deposition%TauUncertainty > 0) then
                             
@@ -21667,17 +21699,17 @@ CurrOr4:            do while (associated(CurrentOrigin))
 !
 !--------------------------------------------------------------------------   
     
-    function FromGridToParticleXY(CurrentPartic, Matrix3D, ig)    
+    function FromGrid2DToParticleXY(CurrentPartic, Matrix2D, WaterPoints2D)    
     
 
         !Arguments-------------------------------------------------------------
         type (T_Partic),    pointer                 :: CurrentPartic
-        real,   dimension(:,:,:), pointer           :: Matrix3D
-        integer                                     :: ig
-        real                                        :: FromGridToParticleXY
+        real,     dimension(:,:), pointer           :: Matrix2D
+        integer,  dimension(:,:), pointer           :: WaterPoints2D        
+        real                                        :: FromGrid2DToParticleXY
 
         !Local-----------------------------------------------------------------
-        integer                                     :: i, j, em, KUB
+        integer                                     :: i, j, em
         real                                        :: ValueSW, ValueNW, ValueSE, ValueNE, ValueN, ValueS
         integer                                     :: MaskSW, MaskNW, MaskSE, MaskNE, MaskN, MaskS       
         real                                        :: X_W, X_E, Xv, Y_S, Y_N, Yv, PercI, PercJ
@@ -21720,18 +21752,17 @@ CurrOr4:            do while (associated(CurrentOrigin))
         Y_S = 0.                
         Y_N = 1.
                 
-        ValueSW     = Matrix3D(iS, jW, ig)
-        ValueSE     = Matrix3D(iS, jE, ig)
-        ValueNW     = Matrix3D(iN, jW, ig)
-        ValueNE     = Matrix3D(iN, jE, ig)
+        ValueSW     = Matrix2D(iS, jW)
+        ValueSE     = Matrix2D(iS, jE)
+        ValueNW     = Matrix2D(iN, jW)
+        ValueNE     = Matrix2D(iN, jE)
                 
         em  = CurrentPartic%Position%ModelID         
-        KUB = Me%EulerModel(em)%WorkSize%KUB
         
-        MaskSW      = Me%EulerModel(em)%Waterpoints3D (iS, jW, KUB)
-        MaskSE      = Me%EulerModel(em)%Waterpoints3D (iS, jE, KUB)
-        MaskNW      = Me%EulerModel(em)%Waterpoints3D (iN, jW, KUB)
-        MaskNE      = Me%EulerModel(em)%Waterpoints3D (iN, jE, KUB)
+        MaskSW      = WaterPoints2D (iS, jW)
+        MaskSE      = WaterPoints2D (iS, jE)
+        MaskNW      = WaterPoints2D (iN, jW)
+        MaskNE      = WaterPoints2D (iN, jE)
 
         if (ValueSW < FillValueReal/1e4) ValueSW = 0.
         if (ValueSE < FillValueReal/1e4) ValueSE = 0.                
@@ -21775,10 +21806,10 @@ CurrOr4:            do while (associated(CurrentOrigin))
             InterpolBilinear  = FillValueReal
         endif
         
-        FromGridToParticleXY = InterpolBilinear
+        FromGrid2DToParticleXY = InterpolBilinear
         
     
-    end function FromGridToParticleXY
+    end function FromGrid2DToParticleXY
     
 !--------------------------------------------------------------------------       
     
@@ -25613,6 +25644,10 @@ i1:             if (nP>0) then
                             call HDF5WriteDataMeteoOcean(CurrentOrigin, em, OutPutNumber)
                         endif
                         
+                        if (Me%State%Deposition) then
+                            call HDF5WriteDataBottomStress(CurrentOrigin, em, OutPutNumber)
+                        endif
+                        
     iplume:             if (CurrentOrigin%State%ComputePlume) then
 
                             emp = CurrentOrigin%Position%ModelID
@@ -26924,6 +26959,55 @@ DoCatch: do while (associated(CurrentOrigin))
     end subroutine Write1DNetCDFFile
     
 #endif    
+    
+    !--------------------------------------------------------------------------
+
+    subroutine HDF5WriteDataBottomStress(CurrentOrigin, em, OutPutNumber)
+    
+        !Arguments------------------------------------------------------------------    
+        type(T_Origin),                              pointer :: CurrentOrigin
+        integer                                              :: em, OutPutNumber 
+
+        !Local----------------------------------------------------------------------                    
+        type (T_Partic)                            , pointer :: CurrentPartic
+        real,                         dimension (:), pointer :: Matrix1D
+        character (len = StringLength)                       :: Name, Units
+        integer                                              :: nP, STAT_CALL
+        
+        !Begin----------------------------------------------------------------------    
+
+        
+        
+        !bottom shear stress
+        
+        allocate(Matrix1D  (CurrentOrigin%nParticle))
+        
+        CurrentPartic => CurrentOrigin%FirstPartic
+        nP = 0
+        do while (associated(CurrentPartic))
+            nP = nP + 1
+            Matrix1D  (nP) =  CurrentPartic%BottomStress
+            CurrentPartic  => CurrentPartic%Next
+        enddo            
+        if (nP > 0) then
+            !HDF 5
+            Name = "Bottom Stress"
+            Units ="Pa"
+            call HDF5WriteData  (Me%ObjHDF5(em),                                        &
+                                 "/Results/"//trim(CurrentOrigin%Name)//                &
+                                 "/"//trim(Name),                                       &
+                                 trim(Name),                                            &
+                                 trim(Units),                                           &
+                                 Array1D = Matrix1D,                                    &
+                                 OutputNumber = OutPutNumber,                           &
+                                 STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'HDF5WriteDataMeteoOcean - ModuleLagrangianGlobal - ERR10'
+
+        endif
+
+        deallocate(Matrix1D)
+        
+    end subroutine HDF5WriteDataBottomStress        
     
     !--------------------------------------------------------------------------
     subroutine HDF5WriteDataMeteoOcean(CurrentOrigin, em, OutPutNumber)
