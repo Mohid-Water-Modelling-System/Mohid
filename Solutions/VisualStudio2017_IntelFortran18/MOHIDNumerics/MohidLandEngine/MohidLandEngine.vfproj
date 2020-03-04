@@ -129,6 +129,7 @@
 		<Filter Name="Resource Files" Filter="rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe"/>
 		<Filter Name="Source Files" Filter="f90;for;f;fpp;ftn;def;odl;idl">
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModuleBasin.F90"/>
+		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModuleExternalCoupler.f90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModuleIrrigation.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModulePorousMedia.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModulePorousMediaProperties.F90"/>
@@ -145,5 +146,6 @@
 			<FileConfiguration Name="Debug Double OpenMI|Win32">
 				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions=""/></FileConfiguration>
 			<FileConfiguration Name="Debug Double OpenMI|x64">
-				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions=""/></FileConfiguration></File></Filter></Files>
+				<Tool Name="VFFortranCompilerTool" PreprocessorDefinitions=""/></FileConfiguration></File>
+		<File RelativePath="..\..\..\..\Software\MOHIDLand\SWMMCoupler.f90"/></Filter></Files>
 	<Globals/></VisualStudioProject>

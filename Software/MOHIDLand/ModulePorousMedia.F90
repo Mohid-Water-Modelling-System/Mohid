@@ -402,7 +402,7 @@ Module ModulePorousMedia
 
     type     T_FromTimeSerie
         integer                                 :: ObjTimeSerie         = 0
-        character(len=StringLength)             :: FileName             = null_str
+        character(len=line_length)             :: FileName             = null_str
         integer                                 :: DataColumn           = null_int
     end type T_FromTimeSerie
 
@@ -432,7 +432,7 @@ Module ModulePorousMedia
         logical                                 :: FillOutsidePoints    = .false.
         logical                                 :: OutputTriangles      = .false.
         integer                                 :: Instant              = null_int
-        character(len=StringLength)             :: FileName             = null_str
+        character(len=line_length)             :: FileName             = null_str
         type (T_Nodes)                          :: Nodes
     end type T_Triangulation
     
@@ -4406,11 +4406,11 @@ DoPiezometers:      do while(associated(Piezometer))
         integer                                             :: nProperties
         integer                                             :: STAT_CALL
         integer                                             :: iflag, i
-        character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=line_length)                         :: TimeSerieLocationFile
         integer                                             :: TimeSerieNumber, dn, Id, Jd
         real                                                :: CoordX, CoordY
         logical                                             :: CoordON, IgnoreOK
-        character(len=StringLength)                         :: TimeSerieName
+        character(len=line_length)                         :: TimeSerieName
         character(len= 20)                                  :: comment
         
         
@@ -4561,7 +4561,7 @@ i1:         if (CoordON) then
 
         !Local-----------------------------------------------------------------
         integer                                             :: STAT_CALL, iflag
-        character(len=StringLength)                         :: TimeSerieLocationFile
+        character(len=line_length)                         :: TimeSerieLocationFile
         character(len=StringLength), dimension(:,:), pointer:: PropertyList
         integer                                             :: nProperties
 
