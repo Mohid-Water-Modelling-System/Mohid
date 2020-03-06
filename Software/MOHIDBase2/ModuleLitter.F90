@@ -1492,7 +1492,7 @@ i2:         if (CurrentPartic%BeachPeriod >= Me%BeachAreas%Individual(nArea)%Age
         type (T_Particle), pointer                  :: CurrentPartic
         real                                        :: PointX, PointY
         integer                                     :: nGrid, nTotalGrids
-        integer                                     :: iOut, STAT_CALL, I, J
+        integer                                     :: iOut, STAT_CALL, I, J, Nout
         logical                                     :: HaveDomain
         type (T_Time)                               :: Aux, OutTime
         real, dimension(6), target                  :: AuxTime
@@ -1507,8 +1507,9 @@ d1:     do nGrid = 1, nTotalGrids
             iOut = Me%OutputGrids%Individual(nGrid)%NextOutput
             
             OutTime = Me%OutputGrids%Individual(nGrid)%OutTime(iOut)
+            Nout    = size(Me%OutputGrids%Individual(nGrid)%OutTime)
             
-i1:         if (Me%ExtVar%CurrentTime >=  OutTime) then
+i1:         if (Me%ExtVar%CurrentTime >=  OutTime .and. iOut <= Nout) then
     
                 if (Me%ExtVar%Backtracking) then
                     iOut = Me%OutputGrids%Individual(nGrid)%Number - iOut + 1 
