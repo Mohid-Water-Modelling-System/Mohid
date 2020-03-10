@@ -5209,7 +5209,7 @@ cd1:    if(Me%CDWINDmethod == Constant)then
                         
                     elseif (VM >  1.  .and. VM <  3.)then
 
-                        CDWIND = (0.00062 + 0.00156 * VM)                         
+                        CDWIND = (0.00062 + 0.00156 / VM)                         
                     
                     elseif (VM >=  3.  .and. VM <  10.)then
 
