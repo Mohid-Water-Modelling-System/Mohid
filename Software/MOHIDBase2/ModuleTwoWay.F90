@@ -137,6 +137,10 @@ Module ModuleTwoWay
         type (T_External)                           :: External_Var
         type (T_Discharges)                         :: DischargeCells
         integer                                     :: InstanceID
+        integer                                     :: ObjHorizontalGrid
+        integer                                     :: ObjGeometry
+        integer                                     :: ObjHorizontalMap
+        integer                                     :: ObjMap
         real, dimension (:, :, :), allocatable      :: TotSonIn
         real, dimension (:, :   ), allocatable      :: TotSonIn_2D
         real, dimension (:, :, :), allocatable      :: AuxMatrix
@@ -302,12 +306,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             if (IntMethod == 2) Me%Hydro%IWDn = IWDn
             
-            call GetBoundaries(HorizontalMapID = TwoWayID, BoundaryPoints2D = Me%External_Var%BoundaryPoints2D, STAT = STAT_CALL)
+            call GetBoundaries(HorizontalMapID = Me%ObjHorizontalMap,                               &
+                               BoundaryPoints2D = Me%External_Var%BoundaryPoints2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ConstructTwoWayHydrodynamic - ERR01'
             
             call Compute_MatrixFilterOB (IgnoreOBNumCells, Me%External_Var%BoundaryPoints2D)
             
-            call UnGetHorizontalMap(TwoWayID, Me%External_Var%BoundaryPoints2D, STAT = STAT_CALL)
+            call UnGetHorizontalMap(Me%ObjHorizontalMap, Me%External_Var%BoundaryPoints2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - ConstructTwoWayHydrodynamic - ERR02'           
             
             STAT_ = SUCCESS_
@@ -392,8 +397,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Arguments-------------------------------------------------------------
         integer                            :: FatherTwoWayID, TwoWayID
         !Local-----------------------------------------------------------------
-        integer                            :: ready_, ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL
+        integer                            :: ready_, ready_father, ILB, IUB, JLB, JUB, KLB, KUB, STAT_CALL
         logical                            :: isIWD
+        type (T_TwoWay), pointer           :: ObjFather
         !----------------------------------------------------------------------
         call Ready (TwoWayID, ready_)
         
@@ -403,10 +409,17 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             isIWD = .false.
             Me%Father%InstanceID = FatherTwoWayID
             
-            call GetGeometrySize (FatherTwoWayID, Size = Me%Father%Size, WorkSize = Me%Father%WorkSize, STAT = STAT_CALL)
+            call ReadyFather(FatherTwoWayID, ObjFather, ready_father)
+            
+            Me%Father%ObjHorizontalGrid = ObjFather%ObjHorizontalGrid
+            Me%Father%ObjGeometry       = ObjFather%ObjGeometry
+            Me%Father%ObjHorizontalMap  = ObjFather%ObjHorizontalMap
+            Me%Father%ObjMap            = ObjFather%ObjMap
+            
+            call GetGeometrySize (Me%Father%ObjGeometry, Size = Me%Father%Size, WorkSize = Me%Father%WorkSize, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - AllocateTwoWayAux - ERR10'
             
-            call GetHorizontalGridSize (HorizontalGridID = FatherTwoWayID,  Size = Me%Father%Size2D, &
+            call GetHorizontalGridSize (HorizontalGridID = Me%Father%ObjHorizontalGrid,  Size = Me%Father%Size2D, &
                                        WorkSize = Me%Father%WorkSize2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ModuleTwoWay - AllocateTwoWayAux - ERR20'            
             
@@ -426,9 +439,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%Father%AuxMatrix(:,:,:) = 0.0
                 Me%Father%AuxMatrix2D(:,:) = 0.0
                 !construct connection matrix of father-son for use in two-way discharges
-                call ConstructP2C_Avrg(FatherTwoWayID, TwoWayID)
+                call ConstructP2C_Avrg(Me%Father%ObjHorizontalGrid, Me%ObjHorizontalGrid)
             else
-                call ConstructP2C_IWD(FatherTwoWayID, TwoWayID)
+                call ConstructP2C_IWD(Me%Father%ObjHorizontalGrid, Me%ObjHorizontalGrid)
                 
                 allocate(Me%Father%IWDNom  (ILB:IUB, JLB:JUB, KLB:KUB))
                 allocate(Me%Father%IWDDenom(ILB:IUB, JLB:JUB, KLB:KUB))
@@ -460,7 +473,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.                    &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            call GetGeometryKFloor(GeometryID = Me%Father%InstanceID, Z = Me%Father%External_Var%KFloor_Z, &
+            call GetGeometryKFloor(GeometryID = Me%Father%ObjGeometry, Z = Me%Father%External_Var%KFloor_Z, &
                                     STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructUpscalingDischarges - Failed to get Father KfloorZ'
             
@@ -492,7 +505,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 endif
 
             endif
-                call UnGetGeometry(Me%Father%InstanceID, Me%Father%External_Var%KFloor_Z,   STAT = STAT_CALL)
+                call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%KFloor_Z,   STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructUpscalingDischarges : failed to unget KFloor_Z.'
         else  
             stop 'Construct_Upscaling_Discharges - ModuleTwoWay -  Failed ready function'               
@@ -651,28 +664,31 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 !For future developments (when other modules call for twoway)
             endif
             
-            call GetHorizontalGrid(HorizontalGridID = SonID, ILinkV = Me%External_Var%IV, JLinkV = Me%External_Var%JV,&
+            call GetHorizontalGrid(HorizontalGridID = Me%ObjHorizontalGrid, &
+                                   ILinkV = Me%External_Var%IV, JLinkV = Me%External_Var%JV, &
                                    ILinkU = Me%External_Var%IU, JLinkU = Me%External_Var%JU, &
                                    ILinkZ = Me%External_Var%IZ, JLinkZ = Me%External_Var%JZ, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Son-Father link matrixes'
             
-            Call GetGeometryAreas(SonID, AreaU = Me%External_Var%AreaU, AreaV = Me%External_Var%AreaV, STAT = STAT_CALL)
+            Call GetGeometryAreas(GeometryID = Me%ObjGeometry, AreaU = Me%External_Var%AreaU, &
+                                  AreaV = Me%External_Var%AreaV, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Could not get Son AreaU or AreaV matrix'            
             
-            call GetGeometryVolumes(GeometryID = SonID, VolumeU = Me%External_Var%VolumeU, VolumeV = Me%External_Var%VolumeV, &
-                                    VolumeZ = Me%External_Var%VolumeZ, VolumeZ_2D = Me%External_Var%VolumeZ_2D, STAT = STAT_CALL)
+            call GetGeometryVolumes(GeometryID = Me%ObjGeometry, VolumeU = Me%External_Var%VolumeU, &
+                                    VolumeV = Me%External_Var%VolumeV, VolumeZ = Me%External_Var%VolumeZ, &
+                                    VolumeZ_2D = Me%External_Var%VolumeZ_2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get son U/V volume matrixes'
             
-            call GetOpenPoints3D   (Map_ID = SonID, OpenPoints3D = Me%External_Var%Open3D, STAT = STAT_CALL)
+            call GetOpenPoints3D   (Map_ID = Me%ObjMap, OpenPoints3D = Me%External_Var%Open3D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Son OpenPoints3D'
             
-            call GetComputeFaces3D (Map_ID = SonID, ComputeFacesU3D = Me%External_Var%ComputeFaces3D_U, &
+            call GetComputeFaces3D (Map_ID = Me%ObjMap, ComputeFacesU3D = Me%External_Var%ComputeFaces3D_U, &
                                     ComputeFacesV3D = Me%External_Var%ComputeFaces3D_V, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Son U/V ComputeFaces3D'
             
             if (Me%Hydro%InterpolationMethod == 2) then
-                
-                call GetConnections (HorizontalGridID = SonID, Connections_U = Me%External_Var%IWD_Connections_U, &
+                call GetConnections (HorizontalGridID = Me%ObjHorizontalGrid, &
+                                     Connections_U = Me%External_Var%IWD_Connections_U, &
                                      IWD_Distances_U = Me%External_Var%IWD_Distances_U, &
                                      Connections_V = Me%External_Var%IWD_Connections_V, &
                                      IWD_Distances_V = Me%External_Var%IWD_Distances_V, &
@@ -682,29 +698,31 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                      IWD_Nodes_U = Me%External_Var%IWD_Nodes_U,         &
                                      IWD_Nodes_V = Me%External_Var%IWD_Nodes_V, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get IWD connections'
-
             endif                           
 
-            call GetGeometryAreas(FatherID, AreaU = Me%Father%External_Var%AreaU, &
+            call GetGeometryAreas(GeometryID = Me%Father%ObjGeometry, AreaU = Me%Father%External_Var%AreaU, &
                                   AreaV = Me%Father%External_Var%AreaV, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get father AreaU or AreaV matrix'
             
-            call GetGridCellArea(HorizontalGridID = FatherID, GridCellArea = Me%Father%External_Var%AreaZ, STAT = STAT_CALL)
+            call GetGridCellArea(HorizontalGridID = Me%Father%ObjHorizontalGrid, &
+                                 GridCellArea = Me%Father%External_Var%AreaZ, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father AreaZ matrix'
             
-            call GetOpenPoints3D   (Map_ID = FatherID, OpenPoints3D = Me%Father%External_Var%Open3D, STAT = STAT_CALL)
+            call GetOpenPoints3D (Map_ID = Me%Father%ObjMap, OpenPoints3D = Me%Father%External_Var%Open3D, &
+                                  STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father OpenPoints3D'
         
-            call GetGeometryVolumes(GeometryID = FatherID, VolumeU = Me%Father%External_Var%VolumeU, &
+            call GetGeometryVolumes(GeometryID = Me%Father%ObjGeometry, VolumeU = Me%Father%External_Var%VolumeU, &
                                     VolumeV = Me%Father%External_Var%VolumeV, VolumeZ = Me%Father%External_Var%VolumeZ,&
                                     VolumeZ_2D = Me%Father%External_Var%VolumeZ_2D, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father Volume U/V/2D matrixes'
             
-            call GetComputeFaces3D(Map_ID          = FatherID, ComputeFacesU3D = Me%Father%External_Var%ComputeFaces3D_U, &
+            call GetComputeFaces3D(Map_ID = Me%Father%ObjMap, ComputeFacesU3D = Me%Father%External_Var%ComputeFaces3D_U, &
                                    ComputeFacesV3D = Me%Father%External_Var%ComputeFaces3D_V, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father ComputeFaces3D U/V'
         
-            call GetGeometryKFloor(GeometryID = FatherID, U = Me%Father%External_Var%KFloor_U, V = Me%Father%External_Var%KFloor_V, &
+            call GetGeometryKFloor(GeometryID = Me%Father%ObjMap, U = Me%Father%External_Var%KFloor_U, &
+                                   V = Me%Father%External_Var%KFloor_V,                                &
                                    Z = Me%Father%External_Var%KFloor_Z, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'PrepTwoWay - Failed to get Father KfloorU/V'
             
@@ -1296,80 +1314,78 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 !For future developments (when other modules call for twoway)
             endif            
             !Unget son
-            call UngetHorizontalGrid(SonID, Me%External_Var%IV,    STAT = status)
+            call UngetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IV,    STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR01'
-            call UngetHorizontalGrid(SonID, Me%External_Var%JV,    STAT = status)
+            call UngetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%JV,    STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR10'
-            call UngetHorizontalGrid(SonID, Me%External_Var%IU,    STAT = status)
+            call UngetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IU,    STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR20'
-            call UngetHorizontalGrid(SonID, Me%External_Var%JU,    STAT = status)
+            call UngetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%JU,    STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR30'
-            call UngetHorizontalGrid(SonID, Me%External_Var%IZ,    STAT = status)
+            call UngetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IZ,    STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR40'
-            call UngetHorizontalGrid(SonID, Me%External_Var%JZ,    STAT = status)
+            call UngetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%JZ,    STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR50'
-            call UnGetGeometry(SonID, Me%External_Var%VolumeU,     STAT = status)
+            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeU,     STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR60'
-            call UnGetGeometry(SonID, Me%External_Var%VolumeV,     STAT = status)
+            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeV,     STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR70'
-            call UnGetGeometry(SonID, Me%External_Var%VolumeZ,     STAT = status)
+            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeZ,     STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR80'
-            call UnGetGeometry(SonID, Me%External_Var%VolumeZ_2D,  STAT = status)
+            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%VolumeZ_2D,  STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR90'
-            call UnGetMap(SonID, Me%External_Var%Open3D,           STAT = status)
+            call UnGetMap(Me%ObjMap, Me%External_Var%Open3D,           STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR100'
-            call UnGetMap(SonID, Me%External_Var%ComputeFaces3D_U, STAT = status)
+            call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_U, STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR110'
-            call UnGetMap(SonID, Me%External_Var%ComputeFaces3D_V, STAT = status)
+            call UnGetMap(Me%ObjMap, Me%External_Var%ComputeFaces3D_V, STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR120'
-            call UnGetGeometry(SonID, Me%External_Var%AreaU, STAT = status)
+            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%AreaU, STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR121.'
-            call UnGetGeometry(SonID, Me%External_Var%AreaV, STAT = status)
+            call UnGetGeometry(Me%ObjGeometry, Me%External_Var%AreaV, STAT = status)
             if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR122.'
             
             if (Me%Hydro%InterpolationMethod == 2) then
-                
-                call UnGetHorizontalGrid(SonID, Me%External_Var%IWD_Connections_U, status)
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Connections_U, status)
                 if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR130'
-                call UnGetHorizontalGrid(SonID, Me%External_Var%IWD_Connections_V, status)
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Connections_V, status)
                 if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR140'
-                call UnGetHorizontalGrid(SonID, Me%External_Var%IWD_Connections_Z, status)
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Connections_Z, status)
                 if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR150'
-                call UnGetHorizontalGrid(SonID, Me%External_Var%IWD_Distances_U, status)
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Distances_U, status)
                 if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR160'
-                call UnGetHorizontalGrid(SonID, Me%External_Var%IWD_Distances_V, status)
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Distances_V, status)
                 if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR170'
-                call UnGetHorizontalGrid(SonID, Me%External_Var%IWD_Distances_Z, status)
+                call UnGetHorizontalGrid(Me%ObjHorizontalGrid, Me%External_Var%IWD_Distances_Z, status)
                 if (status /= SUCCESS_) stop 'UngetTwoWayExternal_Vars-TwoWay-ERR180'
-                
             endif             
             
             !Unget father
-            call UnGetMap(FatherID, Me%Father%External_Var%Open3D,           STAT = status)
+            call UnGetMap(Me%Father%ObjMap, Me%Father%External_Var%Open3D,                STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR190'
-            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ,     STAT = status)
+            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeZ,     STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR200'
-            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeU,     STAT = status)
+            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeU,     STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR210'
-            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeV,     STAT = status)
+            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeV,     STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR220'
-            call UnGetGeometry(FatherID, Me%Father%External_Var%VolumeZ_2D,  STAT = status)
+            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%VolumeZ_2D,  STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR230'
-            call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_U, STAT = status)
+            call UnGetMap(Me%Father%ObjMap, Me%Father%External_Var%ComputeFaces3D_U,      STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR240'
-            call UnGetMap(FatherID, Me%Father%External_Var%ComputeFaces3D_V, STAT = status)
+            call UnGetMap(Me%Father%ObjMap, Me%Father%External_Var%ComputeFaces3D_V,      STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR250'
-            call UnGetGeometry(FatherID, Me%Father%External_Var%AreaU,      STAT = status)
+            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%AreaU,       STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR260.'
-            call UnGetGeometry(FatherID, Me%Father%External_Var%AreaV,      STAT = status)
+            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%AreaV,       STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR270.'
-            call UnGetGeometry(FatherID, Me%Father%External_Var%KFloor_U,   STAT = status)
+            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%KFloor_U,    STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR275.'
-            call UnGetGeometry(FatherID, Me%Father%External_Var%KFloor_V,   STAT = status)
+            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%KFloor_V,    STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR280.'
-            call UnGetGeometry(FatherID, Me%Father%External_Var%KFloor_Z,   STAT = status)
+            call UnGetGeometry(Me%Father%ObjGeometry, Me%Father%External_Var%KFloor_Z,    STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR285.'
-            call UnGetHorizontalGrid(FatherID, Me%Father%External_Var%AreaZ, status)
+            call UnGetHorizontalGrid(Me%Father%ObjHorizontalGrid, Me%Father%External_Var%AreaZ, STAT = status)
             if (status /= SUCCESS_) stop 'UnGetExternal2WayAuxVariables-TwoWay-ERR290.'
             
             STAT_ = SUCCESS_

@@ -10495,10 +10495,10 @@ i7:             if (.not. ContinuousGOTM)  then
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Checks if a discharge is of type "upscaling" and constructs it
-    !>@param[in] FatherID, ObjFather, SonID
-    subroutine Set_Upscaling_Discharges(FatherID, ObjFather, SonID)
+    !>@param[in] ObjFather, SonID
+    subroutine Set_Upscaling_Discharges(ObjFather, SonID)
         !Arguments-------------------------------------------------------------
-        integer,           intent(IN )              :: FatherID, SonID
+        integer,           intent(IN )              :: SonID
         type (T_Hydrodynamic), pointer, intent(IN)  :: ObjFather
         !Local-----------------------------------------------------------------
         integer                                     :: DischargeID, I, J, DischargesNumber, STAT_CALL
@@ -10511,13 +10511,13 @@ i7:             if (.not. ContinuousGOTM)  then
 
         call GetDischargesNumber(ObjFather%ObjDischarges, DischargesNumber, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get number of discharges'
-        call GetConnections(SonID, Connections_Z = Connections, STAT = STAT_CALL)
+        call GetConnections(Me%ObjHorizontalGrid, Connections_Z = Connections, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Connections matrix'
-        call GetWaterPoints2D(SonID, SonWaterPoints2D, STAT = STAT_CALL)
+        call GetWaterPoints2D(Me%ObjHorizontalMap, SonWaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Son waterpoints'
-        call GetWaterPoints2D(FatherID, FatherWaterPoints2D, STAT = STAT_CALL)
+        call GetWaterPoints2D(ObjFather%ObjHorizontalMap, FatherWaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Father waterpoints'
-        call GetHorizontalGrid (HorizontalGridID = SonID, ILinkZ = IZ, JLinkZ = JZ, STAT = STAT_CALL)
+        call GetHorizontalGrid (HorizontalGridID = Me%ObjHorizontalGrid, ILinkZ = IZ, JLinkZ = JZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get ILinkZ or JLinkZ'
 
         do DischargeID = 1, DischargesNumber
@@ -10554,15 +10554,15 @@ i7:             if (.not. ContinuousGOTM)  then
 
         enddo
 
-        call UnGetHorizontalGrid(SonID,    Connections,         STAT = STAT_CALL)
+        call UnGetHorizontalGrid(Me%ObjHorizontalGrid,    Connections,         STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget Connections matrix'
-        call UnGetHorizontalMap (SonID,    SonWaterPoints2D,    STAT = STAT_CALL)
+        call UnGetHorizontalMap (Me%ObjHorizontalMap,    SonWaterPoints2D,    STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget SonWaterPoints2D'
-        call UnGetHorizontalMap (FatherID, FatherWaterPoints2D, STAT = STAT_CALL)
+        call UnGetHorizontalMap (ObjFather%ObjHorizontalMap, FatherWaterPoints2D, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget FatherWaterPoints2D'
-        call UngetHorizontalGrid(SonID,    IZ,                  STAT = STAT_CALL)
+        call UngetHorizontalGrid(Me%ObjHorizontalGrid,    IZ,                  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget ILinkZ'
-        call UngetHorizontalGrid(SonID,    JZ,                  STAT = STAT_CALL)
+        call UngetHorizontalGrid(Me%ObjHorizontalGrid,    JZ,                  STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to unget JLinkZ'
 
     end subroutine Set_Upscaling_Discharges
@@ -15518,7 +15518,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_ .and. readyFather_ .EQ. IDLE_ERR_) then
                     endif
                     
                     if (ObjHydrodynamicFather%ComputeOptions%UpscalingDischarge)then
-                        call Set_Upscaling_Discharges(HydrodynamicFatherID, ObjHydrodynamicFather, HydrodynamicID)
+                        call Set_Upscaling_Discharges(ObjHydrodynamicFather, HydrodynamicID)
                     endif
                 endif
 
@@ -38116,7 +38116,7 @@ do3:            do k = kbottom, KUB
         !Compute relaxation acceleration -------------------------------------------------------------
         
         CHUNK = CHUNK_J(JLB, JUB)
-        !$OMP PARALLEL PRIVATE(I,J,K,kbottom,VelModel,VelReference)
+        !$OMP PARALLEL PRIVATE(I,J,K,kbottom)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
         do  j = JLB, JUB
         do  i = ILB, IUB
