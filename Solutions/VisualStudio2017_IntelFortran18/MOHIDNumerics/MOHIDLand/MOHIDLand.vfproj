@@ -156,7 +156,7 @@
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Release Double OpenMP|x64" WholeProgramOptimization="true">
 				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" MultiProcessorCompilation="true" Optimization="optimizeFull" PrefetchInsertionOpt="prefetchAggressive" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\x64\Release Double OpenMP;..\MOHIDBase2\x64\Release Double OpenMP" OpenMP="OpenMPParallelCode" F2003Semantics="true" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" FloatingPointModel="precise" RuntimeChecks="rtChecksNone"/>
-				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName).exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\x64\Release Double OpenMP;..\MOHIDBase2\x64\Release Double OpenMP;..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\lib;..\..\..\..\ExternalLibs\SWMM" IgnoreDefaultLibraryNames="msvcrt" GenerateManifest="false" SubSystem="subSystemConsole" StackReserveSize="64000000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib.lib libszip.lib SWMM.lib ActionSoft.Models.Swmm.Utils.lib"/>
+				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName).exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\x64\Release Double OpenMP;..\MOHIDBase2\x64\Release Double OpenMP;..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\lib;..\..\..\..\ExternalLibs\SWMM" IgnoreDefaultLibraryNames="msvcrt" GenerateManifest="false" SubSystem="subSystemConsole" StackReserveSize="64000000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib.lib libszip.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
 				<Tool Name="VFCustomBuildTool"/>
@@ -175,7 +175,7 @@
 				<Tool Name="VFPostBuildEventTool"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
 		<Configuration Name="Debug OpenMP|x64">
-				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" HeapArrays="64" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Debug OpenMP;..\MOHIDBase2\Debug OpenMP" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" LocalSavedScalarsZero="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" HeapArrays="64" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Debug OpenMP;..\MOHIDBase2\Debug OpenMP" PreprocessorDefinitions="_SewerGEMSEngineCoupler_" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF95" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" LocalSavedScalarsZero="true" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
 				<Tool Name="VFLinkerTool" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\Debug OpenMP;..\MOHIDBase2\Debug OpenMP;..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll" IgnoreDefaultLibraryNames="LIBCMT.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="64000000" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib"/>
 				<Tool Name="VFResourceCompilerTool"/>
 				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
@@ -323,6 +323,46 @@
 				<Tool Name="VFPreLinkEventTool"/>
 				<Tool Name="VFPreBuildEventTool"/>
 				<Tool Name="VFPostBuildEventTool" CommandLine="copy &quot;$(OutDir)\$(ProjectName).exe&quot; &quot;$(OutDir)\$(ProjectName)_release_double_phreeqc_x64.exe&quot;"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release Double OpenMP SewerGEMSCoupled|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" OmitFramePointers="false" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Release Double OpenMP;..\MOHIDBase2\Release Double OpenMP" OpenMP="OpenMPParallelCode" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" Traceback="true"/>
+				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName)_release_double_openmp_x86.exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\Release Double OpenMP;..\MOHIDBase2\Release Double OpenMP;..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\Lib;..\..\..\..\ExternalLibs\Zlib_1.2\dll;..\..\..\..\ExternalLibs\SZlib_2.1\dll;..\..\..\..\ExternalLibs\Proj4\Lib;..\..\..\..\ExternalLibs\NetCDF\Lib" SubSystem="subSystemConsole" StackReserveSize="64000000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib1.lib szlibdll.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool" CommandLine="copy &quot;$(OutDir)\$(ProjectName).exe&quot; &quot;$(OutDir)\$(ProjectName)_release_double_openmp_x86.exe&quot;"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Release Double OpenMP SewerGEMSCoupled|x64" WholeProgramOptimization="true">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" MultiProcessorCompilation="true" Optimization="optimizeFull" PrefetchInsertionOpt="prefetchAggressive" BufferedIO="true" InterproceduralOptimizations="ipoSingleFile" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\x64\Release Double OpenMP;..\MOHIDBase2\x64\Release Double OpenMP" PreprocessorDefinitions="_SewerGEMSEngineCoupler_" OpenMP="OpenMPParallelCode" F2003Semantics="true" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" RealKIND="realKIND8" LocalSavedScalarsZero="true" FloatingPointExceptionHandling="fpe0" FloatingPointModel="precise" RuntimeChecks="rtChecksNone"/>
+				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName).exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\x64\Release Double OpenMP;..\MOHIDBase2\x64\Release Double OpenMP;..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\lib;..\..\..\..\ExternalLibs\SWMM" IgnoreDefaultLibraryNames="msvcrt" GenerateManifest="false" SubSystem="subSystemConsole" StackReserveSize="64000000" LargeAddressAware="addrAwareLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib.lib libszip.lib SWMM.lib ActionSoft.Models.Swmm.Utils.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool" CommandLine="copy &quot;$(OutDir)\$(ProjectName).exe&quot; &quot;$(OutDir)\$(ProjectName)_release_double_openmp_x64.exe&quot;"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug Double SewerGEMSCoupled|Win32">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\Debug Double;..\MOHIDBase2\Debug Double" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" Traceback="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
+				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName).exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\Debug Double;..\MOHIDBase2\Debug Double;..\..\..\..\ExternalLibs\HDF5_1.8.17_x86\lib" IgnoreDefaultLibraryNames="LIBCMT.lib" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="999999999" LargeAddressAware="addrAwareNoLarge" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib.lib libszip.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool" CommandLine="copy &quot;$(OutDir)\$(ProjectName).exe&quot; &quot;$(OutDir)\$(ProjectName)_debug_double_x86.exe&quot;"/>
+				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration>
+		<Configuration Name="Debug Double SewerGEMSCoupled|x64">
+				<Tool Name="VFFortranCompilerTool" SuppressStartupBanner="true" DebugInformationFormat="debugEnabled" Optimization="optimizeDisabled" HeapArrays="64" Preprocess="preprocessYes" AdditionalIncludeDirectories="..\MOHIDBase1\x64\Debug Double;..\MOHIDBase2\x64\Debug Double" PreprocessorDefinitions="_SewerGEMSEngineCoupler_" OpenMPConditionalCompilation="false" StandardWarnings="standardWarningsF03" WarnDeclarations="true" WarnUnusedVariables="true" WarnTruncateSource="true" WarnInterfaces="true" RealKIND="realKIND8" FloatingPointExceptionHandling="fpe0" FloatingPointModel="precise" Traceback="true" RuntimeChecks="rtChecksAll" NullPointerCheck="true" BoundsCheck="true" RuntimeLibrary="rtMultiThreadedDebug" Interfaces="true"/>
+				<Tool Name="VFLinkerTool" OutputFile="$(OutDir)\$(ProjectName).exe" LinkIncremental="linkIncrementalNo" SuppressStartupBanner="true" AdditionalLibraryDirectories="..\MOHIDBase1\x64\Debug Double;..\MOHIDBase2\x64\Debug Double;..\..\..\..\ExternalLibs\HDF5_1.8.17_x64\lib" IgnoreDefaultLibraryNames="msvcrt.lib; libcmt.lib" GenerateManifest="false" GenerateDebugInformation="true" SubSystem="subSystemConsole" StackReserveSize="64000000" AdditionalDependencies="MOHIDBase1.lib MOHIDBase2.lib hdf5.lib  hdf5_fortran.lib hdf5_f90cstub.lib zlib.lib libszip.lib SWMM.lib ActionSoft.Models.Swmm.Utils.lib"/>
+				<Tool Name="VFResourceCompilerTool"/>
+				<Tool Name="VFMidlTool" SuppressStartupBanner="true" TargetEnvironment="midlTargetAMD64"/>
+				<Tool Name="VFCustomBuildTool"/>
+				<Tool Name="VFPreLinkEventTool"/>
+				<Tool Name="VFPreBuildEventTool"/>
+				<Tool Name="VFPostBuildEventTool" CommandLine="copy &quot;$(OutDir)\$(ProjectName).exe&quot; &quot;$(OutDir)\$(ProjectName)_debug_double_x64.exe&quot;"/>
 				<Tool Name="VFManifestTool" SuppressStartupBanner="true"/></Configuration></Configurations>
 	<Files>
 		<Filter Name="Header Files" Filter="fi;fd"/>
@@ -333,9 +373,9 @@
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModuleIrrigation.F90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModulePorousMedia.f90"/>
 		<File RelativePath="..\..\..\..\Software\MOHIDLand\ModulePorousMediaProperties.F90">
-			<FileConfiguration Name="Release Double|x64">
-				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
 			<FileConfiguration Name="Release Double|Win32">
+				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
+			<FileConfiguration Name="Release Double|x64">
 				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
 			<FileConfiguration Name="Release Double OpenMP PhreeqC|x64">
 				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
@@ -343,15 +383,17 @@
 				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
 			<FileConfiguration Name="Release OpenMP|x64">
 				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
-			<FileConfiguration Name="Release Double Parallel|Win32">
+			<FileConfiguration Name="Release OpenMP|Win32">
 				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
 			<FileConfiguration Name="Release Double OpenMP|x64">
 				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
-			<FileConfiguration Name="Release OpenMP|Win32">
+			<FileConfiguration Name="Release Double Parallel|Win32">
+				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
+			<FileConfiguration Name="Release Double Phreeqc|Win32">
 				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
 			<FileConfiguration Name="Release Double OpenMP PhreeqC|Win32">
 				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
-			<FileConfiguration Name="Release Double Phreeqc|Win32">
+			<FileConfiguration Name="Release Double OpenMP SewerGEMSCoupled|x64">
 				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration>
 			<FileConfiguration Name="Release Double Phreeqc|x64">
 				<Tool Name="VFFortranCompilerTool" Preprocess="preprocessYes"/></FileConfiguration></File>
