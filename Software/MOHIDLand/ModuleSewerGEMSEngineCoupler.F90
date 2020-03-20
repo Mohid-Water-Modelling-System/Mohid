@@ -36,6 +36,7 @@
     use ModuleGlobalData
     use ModuleEnterData
     use ModuleHorizontalGrid
+    use ModuleTime
     use iso_c_binding
 
     implicit none
@@ -50,6 +51,14 @@
     character(kind = c_char) :: rptFile(*)
     character(kind = c_char) :: outFile(*)
     end subroutine SewerGEMSEngine_open
+    
+    subroutine SewerGEMSEngine_getDates(startDate, startTime, endDate, endTime) bind(C, name='swmm_getTimeLimits')
+    use iso_c_binding
+    character(kind = c_char) :: startDate(*)
+    character(kind = c_char) :: startTime(*)
+    character(kind = c_char) :: endDate(*)
+    character(kind = c_char) :: endTime(*)
+    end subroutine SewerGEMSEngine_getDates
 
     subroutine SewerGEMSEngine_start(saveResults) bind(C, name='swmm_start')
     use iso_c_binding
@@ -236,6 +245,8 @@
         character(len = line_length)      :: STORMWATER_HDF
         character(len = line_length)      :: SWMM_timeSeries_location
         character(len = line_length)      :: SWMM_timeSeries_dir
+        type(T_Time)                      :: BeginTime
+        type(T_Time)                      :: EndTime
     contains
     procedure :: initialize => initSewerGEMSEngineCoupler
     procedure :: mapElements
@@ -245,6 +256,7 @@
     procedure, private :: inDomainNode
     !control procedures
     procedure, private :: initializeSewerGEMSEngine
+    procedure :: checkSewerGEMSEngineDates
     procedure, private :: getSewerGEMSEngineFilesPaths
     procedure :: defaultPerformTimeStep
     procedure :: runStep => PerformTimeStep
@@ -574,10 +586,56 @@
     call SewerGEMSEngine_open(inFile, rptFile, outFile)
     call SewerGEMSEngine_start(saveResults)
 #endif
-
+    
     print*,''
 
     end subroutine initializeSewerGEMSEngine
+    
+    !---------------------------------------------------------------------------
+    !> @author Ricardo Birjukovs Canelas - Bentley Systems
+    !> @brief
+    !> Checks that start/end dates between owner model and SewerGEMSEngine are consistent
+    !---------------------------------------------------------------------------
+    subroutine checkSewerGEMSEngineDates(self, beginDateM, endDateM)
+    class(SewerGEMSEngine_coupler_class), intent(inout) :: self
+    type(T_Time), intent(in) :: beginDateM
+    type(T_Time), intent(in) :: endDateM
+    character(len = 99, kind = c_char) :: startDate, startTime, endDate, endTime
+    character(len = :), allocatable :: year, month, day, hour, minute, second, fullDate
+    
+#ifdef _SewerGEMSEngineCoupler_
+    call SewerGEMSEngine_getDates(startDate, startTime, endDate, endTime)
+#endif
+
+    !extracting initial date components from string, quick and dirty
+    month = startDate(1:2)
+    day = startDate(4:5)
+    year = startDate(7:10)
+    hour = startTime(1:2)
+    minute = startTime(4:5)
+    second = startTime(7:8)
+    fullDate = year//" "//month//" "//day//" "//hour//" "//minute//" "//second
+    self%BeginTime = ConvertStringtToDate(fullDate, .true.)
+    !extracting final date components from string, quick and dirty
+    month = endDate(1:2)
+    day = endDate(4:5)
+    year = endDate(7:10)
+    hour = endTime(1:2)
+    minute = endTime(4:5)
+    second = endTime(7:8)
+    fullDate = year//" "//month//" "//day//" "//hour//" "//minute//" "//second
+    self%EndTime = ConvertStringtToDate(fullDate, .true.)
+    
+    print*, ''
+    if (self%BeginTime .ne. beginDateM .or. self%EndTime .ne. endDateM) then
+        print*, 'SewerGEMSEngine dates are not consistent with MOHID'
+        print*, 'Please edit, run the coupling tools and try again'
+        stop
+    else
+        print*, 'Start end dates consistent, continuing'
+    end if
+    
+    end subroutine checkSewerGEMSEngineDates
 
     !---------------------------------------------------------------------------
     !> @author Ricardo Birjukovs Canelas - Bentley Systems

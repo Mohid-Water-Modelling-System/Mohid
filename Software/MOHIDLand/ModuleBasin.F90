@@ -3562,7 +3562,7 @@ do1:                do
             call me%ExternalCoupler%initialize()
             if (Me%Coupled%SewerGEMSEngineCoupling) then
                 temp = 'SewerGEMSEngine'
-                call me%ExternalCoupler%initializeCouplerToModel(temp, Me%ObjHorizontalGrid, Me%ExtVar%BasinPoints)                
+                call me%ExternalCoupler%initializeCouplerToModel(temp, Me%ObjHorizontalGrid, Me%ExtVar%BasinPoints, Me%BeginTime, Me%EndTime)                
             end if
         endif
         
