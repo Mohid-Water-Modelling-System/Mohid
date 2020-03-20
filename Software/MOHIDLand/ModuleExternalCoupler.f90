@@ -36,6 +36,7 @@
 
     use ModuleGlobalData
     use ModuleHorizontalGrid
+    use ModuleTime
     use ModuleSewerGEMSEngineCoupler
 
     implicit none
@@ -84,20 +85,24 @@
     !> @brief
     !> Initializes an External Coupler object
     !---------------------------------------------------------------------------
-    subroutine initializeCouplerToModel(self, modelName, HorizontalGridID, basinPoints)
+    subroutine initializeCouplerToModel(self, modelName, HorizontalGridID, basinPoints, beginDate, endDate)
     class(external_coupler_class), intent(inout) :: self
     character(len = StringLength), intent(in) :: modelName
+    integer, dimension(:,:), intent(in) :: basinPoints
+    type(T_Time), intent(in) :: beginDate
+    type(T_Time), intent(in) :: endDate
     real, allocatable, dimension(:,:) :: mapArrayXY
     integer, allocatable, dimension(:,:) :: mapArrayIJ
     integer, allocatable, dimension(:) :: mapArrayID
     integer, intent(inout) :: HorizontalGridID
-    integer, dimension(:,:), intent(in) :: basinPoints
+    
 
     if (self%initialized) then
         if (modelName == 'SewerGEMSEngine') then
             self%SewerGEMSEngineCoupling = .true.
             !initialize the model coupler
             call self%SewerGEMSEngineCoupler%initialize(mapArrayXY, mapArrayIJ, mapArrayID)
+            call self%SewerGEMSEngineCoupler%checkSewerGEMSEngineDates(beginDate, endDate)
             call GetXYArrayIJ(HorizontalGridID, mapArrayXY, mapArrayIJ)
             call GetCellIDfromIJArray(HorizontalGridID, mapArrayIJ, mapArrayID)
             call self%mapElements(modelName, mapArrayIJ, mapArrayID, basinPoints)
