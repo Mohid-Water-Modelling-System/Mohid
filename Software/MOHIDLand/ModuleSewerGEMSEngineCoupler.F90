@@ -1167,13 +1167,28 @@
     class(SewerGEMSEngine_coupler_class), intent(inout) :: self
     character(len = StringLength), intent(in) :: dataName
     integer, dimension(:), allocatable, intent(inout) :: cellIDs
+    integer :: i, c
 
     if (dataName == 'Outfalls') then
         allocate(cellIDs(count(self%n2cMap(:,isOutfall) == 1)))
-        where(self%n2cMap(:,isOutfall) == 1) cellIDs = self%n2cMap(:,cellID)
+        c = 1
+        do i = 1, size(self%n2cMap(:,isOutfall))
+            if (self%n2cMap(i,isOutfall) == 1) then
+                cellIDs(c) = self%n2cMap(i,cellID)
+                c = c + 1
+            end if
+        end do        
+        !where(self%n2cMap(:,isOutfall) == 1) cellIDs = self%n2cMap(:,cellID)
     else if (dataName == 'XSections') then
         allocate(cellIDs(count(self%n2cMap(:,isXSection) == 1)))
-        where(self%n2cMap(:,isXSection) == 1) cellIDs = self%n2cMap(:,cellID)
+        c = 1
+        do i = 1, size(self%n2cMap(:,isXSection))
+            if (self%n2cMap(i,isXSection) == 1) then
+                cellIDs(c) = self%n2cMap(i,cellID)
+                c = c + 1
+            end if
+        end do
+        !where(self%n2cMap(:,isXSection) == 1) cellIDs = self%n2cMap(:,cellID)
     else
         stop 'SewerGEMSEngine_coupler_class::GetCellList - requested data not mapped for coupling'
     end if
