@@ -3275,18 +3275,18 @@ do1 :   do while (associated(PropertyX))
 
         if (Me%COARE)then
         
-        call Search_Property(PropertyX, LatentHeat_,                STAT = STAT_CALL)
-        call Search_Property(PropertyY, SensibleHeat_,              STAT = STAT_CALL)
-        call Search_Property(PropertyZ, NetLongWaveRadiation_,      STAT = STAT_CALL)
-        call Search_Property(PropertyW, UpwardLongWaveRadiation_,   STAT = STAT_CALL)
-        call Search_Property(PropertyA, DownwardLongWaveRadiation_, STAT = STAT_CALL)
-        call Search_Property(PropertyB, SurfaceRadiation_,          STAT = STAT_CALL)
-        call Search_Property(PropertyC, NonSolarFlux_,              STAT = STAT_CALL)
-        !call Search_Property(PropertyD, Albedo_,                    STAT = STAT_CALL)
-        call CheckRadiationOptions(PropertyZ, PropertyW, PropertyA, PropertyB)
-        call CheckLatentSensibleOptions (PropertyX, PropertyY)
+            call Search_Property(PropertyX, LatentHeat_,                STAT = STAT_CALL)
+            call Search_Property(PropertyY, SensibleHeat_,              STAT = STAT_CALL)
+            call Search_Property(PropertyZ, NetLongWaveRadiation_,      STAT = STAT_CALL)
+            call Search_Property(PropertyW, UpwardLongWaveRadiation_,   STAT = STAT_CALL)
+            call Search_Property(PropertyA, DownwardLongWaveRadiation_, STAT = STAT_CALL)
+            call Search_Property(PropertyB, SurfaceRadiation_,          STAT = STAT_CALL)
+            call Search_Property(PropertyC, NonSolarFlux_,              STAT = STAT_CALL)
+            !call Search_Property(PropertyD, Albedo_,                    STAT = STAT_CALL)
+            call CheckRadiationOptions(PropertyZ, PropertyW, PropertyA, PropertyB)
+            call CheckLatentSensibleOptions (PropertyX, PropertyY)
         
-        call ComputeCOAREHeatBudget(PropertyX, PropertyY, PropertyZ, PropertyW, PropertyA, PropertyB, PropertyC)
+            call ComputeCOAREHeatBudget(PropertyX, PropertyY, PropertyZ, PropertyW, PropertyA, PropertyB, PropertyC)
             
             if(Me%IntOptions%Evaporation)then
                 call Search_Property(PropertyX, Evaporation_,            STAT = STAT_CALL)
@@ -3594,7 +3594,6 @@ do1 :   do while (associated(PropertyX))
         JUB = Me%WorkSize2D%JUB
         JLB = Me%WorkSize2D%JLB
 
-
         call GetAtmosphereProperty(AtmosphereID = Me%ObjAtmosphere,         &
                                    Scalar       = SolarRadiation,           &
                                    ID           = SolarRadiation_,          &
@@ -3614,30 +3613,25 @@ do1 :   do while (associated(PropertyX))
                     stop 'Construct_PropertyValues - ModuleInterfaceWaterAir - ERR40'
             endif
             
-            call SetMatrixValue(Me%SurfaceAlbedo, Me%Size2D,   &
-                    Me%ReflectionCoef)
+            call SetMatrixValue(Me%SurfaceAlbedo, Me%Size2D, Me%ReflectionCoef)
         endif
                 
-                CHUNK = CHUNK_J(JLB, JUB)
-                !$OMP PARALLEL PRIVATE(i,j)
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                do j=JLB, JUB
-                do i=ILB, IUB
+            CHUNK = CHUNK_J(JLB, JUB)
+            !$OMP PARALLEL PRIVATE(i,j)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j=JLB, JUB
+            do i=ILB, IUB
             
-                    if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
+                if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
 
-                        PropSurfaceRadiation%Field(i, j) = SolarRadiation(i, j) * (1 - Me%SurfaceAlbedo(i, j))
+                    PropSurfaceRadiation%Field(i, j) = SolarRadiation(i, j) * (1 - Me%SurfaceAlbedo(i, j))
                                                                 
-                    endif
+                endif
 
-                enddo
-                enddo
-                !$OMP END DO
-                !$OMP END PARALLEL
-
-            !if (MonitorPerformance) then
-            !    call StopWatch ("ModuleInterfaceWaterAir", "ComputeSurfaceRadiation")
-            !endif
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
 
         call UnGetAtmosphere(Me%ObjAtmosphere, SolarRadiation, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ComputeSurfaceRadiation - ModuleInterfaceWaterAir - ERR04'
@@ -4071,28 +4065,15 @@ do1 :   do while (associated(PropertyX))
 
 
     subroutine ComputeDownLongWaveRad(PropDownwardLongWaveRadiation)
-
         !Arguments-------------------------------------------------------------
         type(T_Property), pointer                   :: PropDownwardLongWaveRadiation
-
         !Local-----------------------------------------------------------------
         integer                                     :: ILB, IUB, JLB, JUB, KUB, i, j
         integer                                     :: STAT_CALL
-        
         !Begin-----------------------------------------------------------------
 
-        ILB = Me%WorkSize2D%ILB
-        IUB = Me%WorkSize2D%IUB
-        JLB = Me%WorkSize2D%JLB
-        JUB = Me%WorkSize2D%JUB
-        KUB = Me%WorkSize3D%KUB
-
-       
-        call GetAtmosphereProperty(AtmosphereID = Me%ObjAtmosphere,                 &
-                                   Scalar       = Me%ExtAtm%RelativeHumidity%Field, &
-                                   ID           = RelativeHumidity_,                &
-                                   STAT         = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ComputeDownLongWaveRad - ModuleInterfaceWaterAir - ERR10'
+        ILB = Me%WorkSize2D%ILB;  IUB = Me%WorkSize2D%IUB;  KUB = Me%WorkSize3D%KUB
+        JLB = Me%WorkSize2D%JLB;  JUB = Me%WorkSize2D%JUB
 
         call GetAtmosphereProperty(AtmosphereID = Me%ObjAtmosphere,                 &
                                    Scalar       = Me%ExtAtm%CloudCover%Field,       &
@@ -4110,23 +4091,17 @@ do1 :   do while (associated(PropertyX))
         do j = JLB, JUB
         do i = ILB, IUB
             if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
-
                 PropDownwardLongWaveRadiation%Field(i, j) = LongWaveDownward (Me%ExtAtm%CloudCover%Field    (i, j),      &
                                                                               Me%ExtAtm%AirTemperature%Field(i, j)) 
-
             endif
         enddo
         enddo
-
-        call UnGetAtmosphere(Me%ObjAtmosphere, Me%ExtAtm%RelativeHumidity%Field, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ComputeDownLongWaveRad - ModuleInterfaceWaterAir - ERR40'
         
         call UnGetAtmosphere(Me%ObjAtmosphere, Me%ExtAtm%CloudCover%Field, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ComputeDownLongWaveRad - ModuleInterfaceWaterAir - ERR50'
 
         call UnGetAtmosphere(Me%ObjAtmosphere, Me%ExtAtm%AirTemperature%Field, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ComputeDownLongWaveRad - ModuleInterfaceWaterAir - ERR60'
-
 
     end subroutine ComputeDownLongWaveRad
 
@@ -4207,10 +4182,8 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
         type(T_Property), pointer                   :: PropSurfaceRadiation
         type(T_Property), pointer                   :: PropNonSolarFlux
         !type(T_Property), pointer                   :: PropAlbedo
-    
         !External--------------------------------------------------------------
         integer                                     :: STAT_CALL
-    
         !Local-----------------------------------------------------------------
         real,    dimension(:,:,:), pointer          :: WaterTemperature, WaterDensity
         !real,    dimension(:,:  ), pointer          :: SolarRadiation
@@ -4304,7 +4277,7 @@ i3:         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
                         else
                 
                             call ComputeWarmLayer (PropNetLongWaveRadiation, PropUpLongWaveRadiation,           &
-                                                   PropDownLongWaveRadiation, PropSurfaceRadiation, WaterDensity)!, WaterDensity
+                                                   PropDownLongWaveRadiation, PropSurfaceRadiation, WaterDensity)
                     
                         endif
 
@@ -4908,48 +4881,40 @@ i1:     if (Me%ExtWater%WaterPoints2D(i, j) == WaterPoint) then
 
     subroutine CheckRadiationOptions (PropNetLongWaveRadiation, PropUpLongWaveRadiation, PropDownLongWaveRadiation, &
                                       PropSurfaceRadiation)
-    
         !Arguments ------------------------------------------------------------
         type(T_Property), pointer                   :: PropNetLongWaveRadiation
         type(T_Property), pointer                   :: PropUpLongWaveRadiation
         type(T_Property), pointer                   :: PropDownLongWaveRadiation
         type(T_Property), pointer                   :: PropSurfaceRadiation
-        
         !Local -----------------------------------------------------------------
         integer                                     :: STAT_CALL
-        
         !Begin -------------------------------------------------------------------
         
         if (PropNetLongWaveRadiation%ID%SolutionFromFile .OR. PropNetLongWaveRadiation%Constant) then
-            
-                write(*,*) 'Net Long Wave Radiation must be computed when using COARE-based algorithm.'
-                stop 'CheckCOARELongWaveOptions - ModuleInterfaceWaterAir - ERR01'
+            write(*,*) 'Net Long Wave Radiation must be computed when using COARE-based algorithm.'
+            stop 'CheckCOARELongWaveOptions - ModuleInterfaceWaterAir - ERR01'
         endif
             
         if (PropUpLongWaveRadiation%ID%SolutionFromFile .OR. PropUpLongWaveRadiation%Constant) then
-
-                write(*,*) 'Upward Long Wave Radiation must be computed when using COARE-based algorithm.'
-                stop 'CheckCOARELongWaveOptions - ModuleInterfaceWaterAir - ERR02'
-
+            write(*,*) 'Upward Long Wave Radiation must be computed when using COARE-based algorithm.'
+            stop 'CheckCOARELongWaveOptions - ModuleInterfaceWaterAir - ERR02'
         endif
          
         if (PropDownLongWaveRadiation%ID%SolutionFromFile) then
 
-                call ModifyFillMatrix(FillMatrixID      = PropDownLongWaveRadiation%ID%ObjFillMatrix,&
-                                      Matrix2D          = PropDownLongWaveRadiation%Field,           &
-                                      PointsToFill2D    = Me%ExtWater%WaterPoints2D,                     &
-                                      STAT              = STAT_CALL)
-                if(STAT_CALL .ne. SUCCESS_) stop 'CheckCOARELongWaveOptions - ModuleInterfaceWaterAir - ERR03'
+            call ModifyFillMatrix(FillMatrixID      = PropDownLongWaveRadiation%ID%ObjFillMatrix,&
+                                    Matrix2D          = PropDownLongWaveRadiation%Field,           &
+                                    PointsToFill2D    = Me%ExtWater%WaterPoints2D,                     &
+                                    STAT              = STAT_CALL)
+            if(STAT_CALL .ne. SUCCESS_) stop 'CheckCOARELongWaveOptions - ModuleInterfaceWaterAir - ERR03'
 
         elseif (.not. PropDownLongWaveRadiation%Constant) then
-
-                call ComputeDownLongWaveRad(PropDownLongWaveRadiation)
-
+            call ComputeDownLongWaveRad(PropDownLongWaveRadiation)
         endif
         
         if (PropSurfaceRadiation%ID%SolutionFromFile .OR. PropSurfaceRadiation%Constant) then
-                write(*,*) 'Surface Radiation must be computed when using COARE-based algorithm.'
-                stop 'CheckCOARELongWaveOptions - ModuleInterfaceWaterAir - ERR04'
+            write(*,*) 'Surface Radiation must be computed when using COARE-based algorithm.'
+            stop 'CheckCOARELongWaveOptions - ModuleInterfaceWaterAir - ERR04'
         endif
         
     end subroutine CheckRadiationOptions

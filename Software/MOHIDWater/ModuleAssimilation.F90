@@ -1511,14 +1511,14 @@ cd2 :           if (BlockFound) then
                              ClientModule   = 'ModuleAssimilation',                     &
                              default        = "Z",                                      &
                              STAT           = STAT_CALL)            
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR60'
+                if (STAT_CALL /= SUCCESS_) stop 'Failed to get Type_ZUV of a property - ModuleAssimilation - ERR10'
                 
                 NewProperty%Field%TypeZUV  = TranslateTypeZUV(Char_TypeZUV)
     
                 if (NewProperty%Dim == Dim_2D) then
                     
                     allocate(NewProperty%Field%R2D (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR10'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR20'
                     
                     NewProperty%Field%R2D(:,:) = FillValueReal
                     
@@ -1527,20 +1527,20 @@ cd2 :           if (BlockFound) then
                 else if (NewProperty%Dim == Dim_3D) then
         
                     allocate(NewProperty%Field%R3D(SizeILB:SizeIUB, SizeJLB:SizeJUB, SizeKLB:SizeKUB), STAT= STAT_CALL)       
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR20'
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR30'
     
                     NewProperty%Field%R3D(:,:,:) = FillValueReal
                     
                     call ConstructAssimilationField_3D (NewProperty, WaterPoints3D, &
                                                         WaterFaces3D_U, WaterFaces3D_V, ClientNumber)
                 else
-                    stop 'ConstructAssimilationField - ModuleAssimilation - ERR200'
+                    stop 'For a type Z , a property must be 2D or 3D - ModuleAssimilation - ERR40'
                 end if
             else
-                stop 'ConstructAssimilationField - ModuleAssimilation - ERR210'
+                stop 'begin or end field block not found - ModuleAssimilation - ERR50'
             end if
         else
-            stop 'ConstructAssimilationField - ModuleAssimilation - ERR220'
+            stop 'Failed to extract from an assimilation block - ModuleAssimilation - ERR60'
         end if
         
         call UngetExternals_assim_field (WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, &
@@ -1799,36 +1799,39 @@ cd2 :           if (BlockFound) then
         !Begin------------------------------------------------------------------
         CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
         
-        if (GetPropertyIDNumber(Property%ID%Name) == BarotropicVelocityU_) then
-            !$OMP PARALLEL PRIVATE(i,j,CellFaceIsOpen)
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do j = Me%WorkSize%JLB,Me%WorkSize%JUB
-            do i = Me%WorkSize%ILB,Me%WorkSize%IUB
-                Property%Field%R2D(i,j) = 0.
+        if (Property%Upscaling)then
+            
+            if (GetPropertyIDNumber(Property%ID%Name) == BarotropicVelocityU_) then
+                !$OMP PARALLEL PRIVATE(i,j,CellFaceIsOpen)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+                    Property%Field%R2D(i,j) = 0.
                     
-                CellFaceIsOpen = PointsToFill2D(i,j-1) + PointsToFill2D(i,j)
-                if (CellFaceIsOpen == 2) Property%Field%R2D(i,j) = (Matrix2D(i,j-1)+Matrix2D(i,j))/2.
-            enddo
-            enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
-            deallocate(Matrix2D)
-        endif
+                    CellFaceIsOpen = PointsToFill2D(i,j-1) + PointsToFill2D(i,j)
+                    if (CellFaceIsOpen == 2) Property%Field%R2D(i,j) = (Matrix2D(i,j-1)+Matrix2D(i,j))/2.
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
+                deallocate(Matrix2D)
+            endif
 
-        if (GetPropertyIDNumber(Property%ID%Name) == BarotropicVelocityV_) then
-            !$OMP PARALLEL PRIVATE(i,j,CellFaceIsOpen)
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do j = Me%WorkSize%JLB,Me%WorkSize%JUB
-            do i = Me%WorkSize%ILB,Me%WorkSize%IUB
-                Property%Field%R2D(i,j) = 0.
+            if (GetPropertyIDNumber(Property%ID%Name) == BarotropicVelocityV_) then
+                !$OMP PARALLEL PRIVATE(i,j,CellFaceIsOpen)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+                    Property%Field%R2D(i,j) = 0.
 
-                CellFaceIsOpen = PointsToFill2D(i-1,j) + PointsToFill2D(i  ,j)
-                if (CellFaceIsOpen == 2) Property%Field%R2D(i,j) = (Matrix2D(i-1,j)+Matrix2D(i,j))/2.
-            enddo
-            enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
-            deallocate(Matrix2D)
+                    CellFaceIsOpen = PointsToFill2D(i-1,j) + PointsToFill2D(i  ,j)
+                    if (CellFaceIsOpen == 2) Property%Field%R2D(i,j) = (Matrix2D(i-1,j)+Matrix2D(i,j))/2.
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
+                deallocate(Matrix2D)
+            endif
         endif
     
     end subroutine Check_ComputeFacesVelocity2D
@@ -1916,7 +1919,7 @@ cd2 :           if (BlockFound) then
         if (.not. NewProperty%HdfFileExist) NewProperty%FilenameHDF = null_str 
 
         if (NewProperty%Field%TypeZUV == TypeZ_) then
-           call Check_ComputeFacesVelocity3D(NewProperty, PointsToFill3D, Matrix3D)
+            if (.not. NewProperty%Upscaling) call Check_ComputeFacesVelocity3D(NewProperty, PointsToFill3D, Matrix3D)
         endif
 
         nullify   (PointsToFill3D, Matrix3D)
@@ -1980,44 +1983,48 @@ cd2 :           if (BlockFound) then
         !Begin------------------------------------------------------------------
         CHUNK = CHUNK_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
         
-        if (GetPropertyIDNumber(Property%ID%Name) == VelocityU_) then
-            !$OMP PARALLEL PRIVATE(i,j,k,CellFaceIsOpen)
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do k = Me%WorkSize%KLB,Me%WorkSize%KUB
-            do j = Me%WorkSize%JLB,Me%WorkSize%JUB
-            do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+        if (Property%Upscaling)then
+            deallocate(Matrix3D) !Property%Field%R3D is already computed for the U and V cells
+        else
+            if (GetPropertyIDNumber(Property%ID%Name) == VelocityU_) then
+                !$OMP PARALLEL PRIVATE(i,j,k,CellFaceIsOpen)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do k = Me%WorkSize%KLB,Me%WorkSize%KUB
+                do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB,Me%WorkSize%IUB
                     
-                Property%Field%R3D(i,j,k) = 0.
+                    Property%Field%R3D(i,j,k) = 0.
                     
-                CellFaceIsOpen = PointsToFill3D(i,j-1,k) + PointsToFill3D(i,j  ,k)
+                    CellFaceIsOpen = PointsToFill3D(i,j-1,k) + PointsToFill3D(i,j  ,k)
                     
-                if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i,j-1,k) + Matrix3D(i,j,k)) / 2.
-            enddo
-            enddo
-            enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
-            deallocate(Matrix3D)
-        endif
+                    if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i,j-1,k) + Matrix3D(i,j,k)) / 2.
+                enddo
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
+                deallocate(Matrix3D)
+            endif
 
-        if (GetPropertyIDNumber(Property%ID%Name) == VelocityV_) then
-            !$OMP PARALLEL PRIVATE(i,j,k,CellFaceIsOpen)
-            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-            do k = Me%WorkSize%KLB,Me%WorkSize%KUB
-            do j = Me%WorkSize%JLB,Me%WorkSize%JUB
-            do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+            if (GetPropertyIDNumber(Property%ID%Name) == VelocityV_) then
+                !$OMP PARALLEL PRIVATE(i,j,k,CellFaceIsOpen)
+                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+                do k = Me%WorkSize%KLB,Me%WorkSize%KUB
+                do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+                do i = Me%WorkSize%ILB,Me%WorkSize%IUB
                     
-                Property%Field%R3D(i,j,k) = 0.
+                    Property%Field%R3D(i,j,k) = 0.
                     
-                CellFaceIsOpen = PointsToFill3D(i-1,j,k) + PointsToFill3D(i  ,j,k)
+                    CellFaceIsOpen = PointsToFill3D(i-1,j,k) + PointsToFill3D(i  ,j,k)
 
-                if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i-1,j,k) + Matrix3D(i,j,k)) / 2.
-            enddo
-            enddo
-            enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
-            deallocate(Matrix3D)
+                    if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i-1,j,k) + Matrix3D(i,j,k)) / 2.
+                enddo
+                enddo
+                enddo
+                !$OMP END DO
+                !$OMP END PARALLEL
+                deallocate(Matrix3D)
+            endif
         endif
     
     end subroutine Check_ComputeFacesVelocity3D
@@ -3093,7 +3100,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
         if ((ready_ .EQ. IDLE_ERR_     ) .OR.      &
             (ready_ .EQ. READ_LOCK_ERR_)) then
             
-            NumberOfFields = CountNumOfFields(ID) 
+            NumberOfFields = CountNumOfUpscalingFields(ID) 
             
             STAT_ = SUCCESS_
         else

@@ -19851,7 +19851,6 @@ cd2 :       if (Property%Evolution%MaxConcentration) then
 
         !Arguments-------------------------------------------------------------
         type(T_Property),           pointer :: Temperature
-
         !Local variables-------------------------------------------------------
         real,   dimension(:,:), pointer     :: WaterColumnZ
         real                                :: TopHeatFlux, BottomHeatFlux
@@ -19859,25 +19858,18 @@ cd2 :       if (Property%Evolution%MaxConcentration) then
         integer                             :: ILB, IUB, JLB, JUB, KUB
         integer                             :: i, j, k, kbottom, STAT_CALL
         real                                :: SpecifHeat
-
         !Begin----------------------------------------------------------------------
-
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
 
         !WaterColumnZ
         call GetGeometryWaterColumn(Me%ObjGeometry, WaterColumn = WaterColumnZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ComputeSurfaceHeatFluxes - ModuleWaterProperties - ERR10')
 
-
 do1:    do j = JLB, JUB
 do2:    do i = ILB, IUB
 
 cd1:        if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint .and. WaterColumnZ(i,j) > .5) then
-
 
                 kbottom = Me%ExternalVar%KFloor_Z(i, j)
 
@@ -19920,8 +19912,7 @@ do3:            do k = kbottom, KUB
                     endif
 
                     ![Celsius]  =  [Celsius]  + [Celsius]
-                    Temperature%Concentration(i, j, k) =                                &
-                        Temperature%Concentration(i, j, k) + AuxT
+                    Temperature%Concentration(i, j, k) = Temperature%Concentration(i, j, k) + AuxT
 
                 enddo do3
 
@@ -20349,19 +20340,13 @@ dn:         do n=1, nCells
         integer                                     :: N_Field, NumberOfFields
         !Begin--------------------------------------------------------------------
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
 
-        !CHUNK = CHUNK_J(JLB, JUB) Sobrinho
         CHUNK = CHUNK_K(KLB, KUB)
         Property => Me%FirstProperty
 
         Actual = Me%ExternalVar%Now
-
 
 d1 :    do while (associated(Property))
 
@@ -20435,8 +20420,6 @@ i4 :                if (Property%SubModel%ON .and. N_Field == 1) then
                     call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR50')
                 endif
 
-
-
                 DT_RunPeriod = Actual - Me%BeginTime
 
                 if (ColdPeriod > (Me%EndTime - Me%BeginTime) .and. Me%FirstIteration) then
@@ -20444,7 +20427,6 @@ i4 :                if (Property%SubModel%ON .and. N_Field == 1) then
                     write(*,*) trim(Property%ID%Name)
                     write(*,*) "Cold Assimilation period larger than simulation period"
                 endif
-
 
                 if (ColdPeriod <= DT_RunPeriod) then
                     CoefCold = 1.
@@ -20592,13 +20574,9 @@ i7:                     if      (Property%Assimilation%DecayTime(i, j, KUB)  > 0
         integer                                     :: I, J, K, STAT_CALL
         !Begin--------------------------------------------------------------------
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
-
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
+        
         !ComputeFaces3D
         call GetComputeFaces3D(Me%ObjMap,                                           &
                                ComputeFacesU3D = Me%ExternalVar%ComputeFacesU3D,    &
@@ -20719,12 +20697,8 @@ doiw :  do i = ILB, IUB
 
         !Begin--------------------------------------------------------------------
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
 
         Property => Me%FirstProperty
 

@@ -1100,12 +1100,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             nullify (FirstObjFillMatrix)
             call RegisterModule (mFillMatrix_) 
         endif
-
-        if (present(ObjFillMatrix)) then
-            ObjFillMatrix_ = ObjFillMatrix
-        else
-            ObjFillMatrix_ = PropertyID%ObjFillMatrix
-        endif
+        
+        ObjFillMatrix_ = PropertyID%ObjFillMatrix
+        if (present(ObjFillMatrix)) ObjFillMatrix_ = ObjFillMatrix
 
         call Ready(ObjFillMatrix_, ready_)    
 
@@ -1113,45 +1110,29 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
             
+            Me%SpongeFILE_DT = null_str
+            PredictDTMethod_ = 1
+            Me%ValueIsUsedForDTPrediction = .false.
+            FillMatrix_ = null_real
+            
+            if (present(PredictDTMethod))            PredictDTMethod_              = PredictDTMethod
+            if (present(MinForDTDecrease))           Me%MinForDTDecrease           = MinForDTDecrease
+            if (present(ValueIsUsedForDTPrediction)) Me%ValueIsUsedForDTPrediction = ValueIsUsedForDTPrediction
+            if (present(CheckDates))                 Me%CheckDates                 = CheckDates
+            if (present(SpongeFILE_DT))              Me%SpongeFILE_DT              = trim(SpongeFILE_DT)
+            if (present(FillMatrix))                 FillMatrix_                   = FillMatrix
+            
             if (present(RotateAngleToGrid)) then
                 Me%RotateAngleToGrid = RotateAngleToGrid
             else
-                if (Me%PropertyID%IsAngle) then
-                    Me%RotateAngleToGrid = .true.                    
-                endif 
+                if (Me%PropertyID%IsAngle) Me%RotateAngleToGrid = .true.
             endif
             
-            if (present(CheckDates)) then
-                Me%CheckDates = CheckDates
-            endif
-            
-            if (present(SpongeFILE_DT)) then
-                Me%SpongeFILE_DT = trim(SpongeFILE_DT)
-            else
-                Me%SpongeFILE_DT = null_str
-            endif            
-
 !~             if (Check_Vectorial_Property(PropertyID%IDNumber)) then
             if (PropertyID%IsVectorial) then
                 write(*,*) 'Constructing vectorial property but expected scalar'
                 stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR00'
             endif               
-            
-            if (present(PredictDTMethod)) then
-                PredictDTMethod_ = PredictDTMethod
-            else
-                PredictDTMethod_ = 1
-            endif
-
-            if (present(MinForDTDecrease)) then
-                Me%MinForDTDecrease = MinForDTDecrease
-            endif
-
-            if (present(ValueIsUsedForDTPrediction)) then
-                Me%ValueIsUsedForDTPrediction = ValueIsUsedForDTPrediction
-            else
-                Me%ValueIsUsedForDTPrediction = .false.
-            endif
 
             Me%ObjEnterData      = AssociateInstance (mENTERDATA_,      EnterDataID     )
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
@@ -1176,7 +1157,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 !            Me%WorkSize3D%KLB   = Me%Size3D%KLB + 1
 !            Me%WorkSize3D%KUB   = Me%Size3D%KUB - 1
 
-
             Me%Size2D       = T_Size2D(null_int, null_int, null_int, null_int)
             Me%Dim          = Dim3D
             Me%TypeZUV      = TypeZUV
@@ -1198,12 +1178,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%Matrix3DCellAngle  => Matrix3D
                 where (PointsToFill3D == WaterPoint) Me%Matrix3DFieldAngle = null_real
                 where (PointsToFill3D == WaterPoint) Me%Matrix3DCellAngle  = null_real
-            endif 
-
-            if (present(FillMatrix)) then
-                FillMatrix_ = FillMatrix
-            else
-                FillMatrix_ = null_real
             endif
 
             where (PointsToFill3D == WaterPoint) Me%Matrix3D = FillMatrix_
@@ -1211,9 +1185,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (Me%TypeZUV == TypeU_) then
                 Me%Size3D%JUB       = Me%Size3D%JUB + 1
                 Me%WorkSize3D%JUB   = Me%WorkSize3D%JUB + 1
-            endif
-
-            if (Me%TypeZUV == TypeV_) then
+            elseif (Me%TypeZUV == TypeV_) then
                 Me%Size3D%IUB       = Me%Size3D%IUB + 1
                 Me%WorkSize3D%IUB   = Me%WorkSize3D%IUB + 1
             endif
@@ -1223,16 +1195,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%WorkSize3D%KLB   = Me%WorkSize3D%KLB - 1
             endif
 
-
             if (present(FileNameHDF)) then
-            
                 Me%ArgumentFileName = .true.
                 Me%FileNameHDF(1)  = trim(FileNameHDF)
-                
             else
-            
                 Me%ArgumentFileName = .false.
-            
             endif
             
             if(present(OverrideValueKeyword))then
@@ -1241,7 +1208,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             else
                 Me%OverrideValueKeywordON = .false.
             end if
-
 
             if (present(ClientID)) then
                 call ReadOptions (ExtractType,                          &
@@ -1253,7 +1219,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                   PointsToFill3D = PointsToFill3D,      &
                                   PredictDTMethod = PredictDTMethod_)
             endif
-
 
             !Is this a angle property? convert to cell referential angle
             if (Me%RotateAngleToGrid) then
@@ -1271,42 +1236,29 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                 Rotate            = .true.,                               &
                                                 KLB               = Me%WorkSize3D%KLB,                    &
                                                 KUB               = Me%WorkSize3D%KUB,                    &
-                                                STAT              = STAT_CALL)                  
-              
-                
+                                                STAT              = STAT_CALL)
             endif            
                         
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
-            if (nUsers == 0) stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR01' 
-
-            if(Me%TimeEvolution == None)then
-                PropertyID%SolutionFromFile  = .false.
-            else 
-                PropertyID%SolutionFromFile  = .true.
-            end if
+            if (nUsers == 0) stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR01'
+            
+            PropertyID%SolutionFromFile  = .true.
+            if(Me%TimeEvolution == None) PropertyID%SolutionFromFile  = .false.
 
             !Returns ID
             ObjFillMatrix_ = Me%InstanceID
-                        
-            if (present(ObjFillMatrix)) then
-                ObjFillMatrix            = ObjFillMatrix_ 
-            else
-                PropertyID%ObjFillMatrix = ObjFillMatrix_
-            endif            
             
-            nullify(Me%Matrix3D           )
-            nullify(Me%Matrix3DFieldAngle )
-            nullify(Me%Matrix3DCellAngle  )
-            nullify(Me%PointsToFill3D)
+            PropertyID%ObjFillMatrix = ObjFillMatrix_
+            if (present(ObjFillMatrix)) ObjFillMatrix = ObjFillMatrix_       
+            
+            nullify(Me%Matrix3D, Me%PointsToFill3D)
+            nullify(Me%Matrix3DFieldAngle, Me%Matrix3DCellAngle)
 
             STAT_ = SUCCESS_
 
         else cd0
-            
             stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR02' 
-
         end if cd0
-
 
         if (present(STAT)) STAT = STAT_
 

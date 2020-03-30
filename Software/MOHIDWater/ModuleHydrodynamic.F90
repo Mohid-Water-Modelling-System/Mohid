@@ -8975,29 +8975,16 @@ found:      if(BlockFound) then
     Subroutine Verify_Numerical_Options
 
         !Arguments-------------------------------------------------------------
-
-
         !Local-----------------------------------------------------------------
-
         integer :: WorkKUB, WorkIUB, WorkJUB, WorkILB, WorkJLB, STAT_CALL
         real    :: Total_RunPeriod, InertialPeriods, RampPeriod
-
         !Begin-----------------------------------------------------------------
 
-
-        WorkKUB = Me%WorkSize%KUB
-
-        WorkIUB = Me%WorkSize%IUB
-        WorkILB = Me%WorkSize%ILB
-
-        WorkJUB = Me%WorkSize%JUB
-        WorkJLB = Me%WorkSize%JLB
-
+        WorkIUB = Me%WorkSize%IUB; WorkJUB = Me%WorkSize%JUB; WorkKUB = Me%WorkSize%KUB
+        WorkILB = Me%WorkSize%ILB; WorkJLB = Me%WorkSize%JLB
 
         if (Me%ComputeOptions%Baroclinic .and. WorkKUB == 1)                &
             call SetError(FATAL_, KEYWORD_, 'Inconsistency: mode baroclinic active in a 2D model - ERR01')
-
-
 
         if (Me%ComputeOptions%BarotropicRadia /= NoRadiation_ .and.         &
             Me%ComputeOptions%Imposed_BoundaryWave)                         &
@@ -9040,7 +9027,6 @@ found:      if(BlockFound) then
                    Me%ComputeOptions%UpStream == Quick_Scheme))             &
             call SetError(FATAL_, KEYWORD_, 'Verify_Numerical_Options - Hydrodynamic - ERR08.')
 
-
 cd1:    if (Me%ComputeOptions%Baroclinic) then
 
 cd2:        if (Me%ComputeOptions%BaroclinicRamp) then
@@ -9059,11 +9045,8 @@ cd2:        if (Me%ComputeOptions%BaroclinicRamp) then
                     call SetError (WARNING_, KEYWORD_, &
                                   'The RAMP option only work for bigger runs. Check RAMP_START in following files')
 
-
 cd3:            if (Me%ComputeOptions%Continuous) then
-
                      call SetError(WARNING_, KEYWORD_, 'You are using the RAMP option with continuous calculus. Check RAMP_START')
-
                 end if cd3
 
             end if cd2
@@ -9125,11 +9108,6 @@ cd3:            if (Me%ComputeOptions%Continuous) then
             Me%ComputeOptions%Evolution == Read_File_)                                  &
             call SetError(FATAL_, INTERNAL_, 'Verify_Numerical_Options - Hydrodynamic - ERR18.')
 
-!        if (Me%ComputeOptions%SurfaceWaterFlux .and.                           &
-!            Me%ComputeOptions%Recording             )                       &
-!            call SetError(FATAL_, INTERNAL_, 'Verify_Numerical_Options - Hydrodynamic - ERR19.')
-
-
         if (Me%ComputeOptions%TideSlowStartCoef > 0. .and.                              &
             .not. (Me%ComputeOptions%Compute_Tide    .or.                               &
                    Me%TidePotential%Compute    ))                                       &
@@ -9148,12 +9126,6 @@ cd3:            if (Me%ComputeOptions%Continuous) then
                   Me%TidePotential%Compute )                                            &
             call SetError(WARNING_, KEYWORD_, 'Verify_Numerical_Options - Hydrodynamic - WRN21.')
 
-
-
-!        if (Me%ComputeOptions%BarotropicRadia /= FlatherLocalSolution_ .and.&
-!            Me%SubModel%ON)                                                 &
-!            call SetError(FATAL_, KEYWORD_, 'Verify_Numerical_Options - Hydrodynamic - ERR25.')
-
         if (Me%ComputeOptions%BarotropicRadia == FlatherLocalSolution_ .and.            &
             Me%ComputeOptions%LocalSolution   /= SubModel_             .and.            &
             Me%ComputeOptions%LocalSolution   /= AssimilaPlusSubModel_ .and.            &
@@ -9161,12 +9133,6 @@ cd3:            if (Me%ComputeOptions%Continuous) then
             Me%ComputeOptions%LocalSolution   /= AssimilaGaugeSubModel_.and.            &
             Me%SubModel%ON)                                                             &
             call SetError(WARNING_, KEYWORD_, 'The model is not using in the flather OBC the submodel as the local solution')
-
-
-!        if (.not. Me%ComputeOptions%Imposed_BoundaryWave .and.              &
-!            Me%SubModel%ON)                                                 &
-!            call SetError(FATAL_, KEYWORD_, 'Verify_Numerical_Options - Hydrodynamic - ERR26.')
-
 
         if (Me%ComputeOptions%BaroclinicRadia /= Horizontal_ .and.                      &
             Me%ComputeOptions%BaroclinicRadia /= Vertical_   .and.                      &
@@ -9194,7 +9160,7 @@ cd3:            if (Me%ComputeOptions%Continuous) then
 
         if (Me%ComputeOptions%Wind == InitialSmoothWind_  .and.                         &
             Me%ComputeOptions%Continuous )                                              &
-            call SetError(FATAL_, KEYWORD_, 'Verify_Numerical_Options - Hydrodynamic - ERR32.')
+            call SetError(FATAL_, KEYWORD_, 'Cannot use wind_smooth_period in a continuous simulation')
 
         call GetCheckDistortion (Me%ObjHorizontalGrid,                                  &
                                  Me%External_Var%Distortion,                            &
@@ -9242,8 +9208,6 @@ cd3:            if (Me%ComputeOptions%Continuous) then
             write(*,*) 'One of the options TIDE or INVERTBAROMETER must be on'
             write(*,*) 'Verify_Numerical_Options - Hydrodynamic - ERR60.'
         endif
-
-
 
     End Subroutine Verify_Numerical_Options
 
@@ -38313,8 +38277,9 @@ do3:            do k = kbottom, KUB
                     kbottom = KFloor_UV(I, J)
 
                     do K=kbottom, KUB
-                        Me%Relaxation%Assim_VelModel  =  Me%Relaxation%Assim_VelModel + Velocity_UV_New(i, j, k)    &
-                                                      *  DUZ_VZ(i, j, k) / WaterColumnUV(i, j)
+                        Me%Relaxation%Assim_VelModel(i, j, k)  = Me%Relaxation%Assim_VelModel(i, j, k) 
+                                                               + Velocity_UV_New(i, j, k) 
+                                                               * DUZ_VZ(i, j, k) / WaterColumnUV(i, j)
                     enddo
                 endif
             enddo
