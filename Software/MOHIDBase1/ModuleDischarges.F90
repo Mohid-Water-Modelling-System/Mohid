@@ -183,6 +183,7 @@ Module ModuleDischarges
     type       T_WaterFlow
         logical                                 :: Variable        = .false.
         integer                                 :: FlowColumn      = null_int
+        real                                    :: ScaleFactor   = FillValueReal
         real                                    :: scalar          = FillValueReal
         logical                                 :: Upscaling       = .false.
         integer                                 :: UpscalingMethod = 1
@@ -211,6 +212,7 @@ Module ModuleDischarges
         real, dimension(:), pointer             :: Level
         real, dimension(:), pointer             :: Flow
         integer                                 :: nValues
+        character(len=StringLength)             :: File                 = null_str
     end  type T_RatingCurve
 
     type       T_Valve
@@ -1212,12 +1214,13 @@ i2:         if (NewDischarge%Localization%AlternativeLocations) then
 
         !Local-----------------------------------------------------------------
         integer                                     :: flag, STAT_CALL
-        character(len = StringLength), parameter    :: beginratingcurve = '<<begin_rating_curve>>'
-        character(len = StringLength), parameter    :: endratingcurve   = '<<end_rating_curve>>'
+        character(len = StringLength), parameter    :: beginratingcurve = '<begin_rating_curve>'
+        character(len = StringLength), parameter    :: endratingcurve   = '<end_rating_curve>'
         real, dimension(:), pointer                 :: BufferLine
         logical                                     :: BlockLayersFound
         integer                                     :: FirstLine, LastLine
         integer                                     :: iValue, iLine
+        integer                                     :: localFile, localClientNumber
 
 
         !----------------------------------------------------------------------
@@ -1269,6 +1272,18 @@ i1:     if (NewDischarge%TimeSerieON) then
                 NewDischarge%WaterFlow%Variable = .false.
             endif
 
+            call GetData(NewDischarge%WaterFlow%ScaleFactor,                            &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         FromBlock,                                                     &
+                         keyword      ='FLOW_SCALE_FACTOR',                             &
+                         ClientModule = 'ModuleDischarges',                             &
+                         Default      = 1.,                                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR25'            
+            
+            
+            
         endif i1
 
 
@@ -1483,9 +1498,22 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
             endif
 
         else if (NewDischarge%DischargeType == RatingCurve) then i2
-
+            
+            !get rating curve file name
+            call GetData(NewDischarge%RatingCurve%File,                                &
+                         Me%ObjEnterData,                                               &
+                         flag,                                                          &
+                         FromBlock,                                                     &
+                         keyword      ='RATING_CURVE_FILE',                             &
+                         ClientModule = 'ModuleDischarges',                             &
+                         STAT         = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR138 - no rating curve file specified'
+            
+            call ConstructEnterData(localFile, NewDischarge%RatingCurve%File, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'Construct_FlowValues - ModuleDischarges - ERR138.5 - no rating curve file found'
+            
             !Get Block with rating curves values
-            call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,                   &
+            call ExtractBlockFromBuffer(localFile, localClientNumber,                   &
                             beginratingcurve, endratingcurve,                           &
                             BlockLayersFound,                                           &
                             FirstLine = FirstLine,                                      &
@@ -1494,7 +1522,6 @@ i2:     if (NewDischarge%DischargeType == FlowOver) then
 
 cd1 :       if (STAT_CALL .EQ. SUCCESS_  .and. BlockLayersFound) then
 
-
                     allocate(NewDischarge%RatingCurve%Level(LastLine - FirstLine -1))
                     allocate(NewDischarge%RatingCurve%Flow(LastLine - FirstLine -1))
                     NewDischarge%RatingCurve%nValues = LastLine - FirstLine -1
@@ -1502,24 +1529,22 @@ cd1 :       if (STAT_CALL .EQ. SUCCESS_  .and. BlockLayersFound) then
 
                     iValue = 1;
                     do  iLine = FirstLine+1, LastLine-1
-
                         call GetData(BufferLine,                                            &
-                                     Me%ObjEnterData,                                       &
+                                     localFile,                                       &
                                      flag,                                                  &
                                      Buffer_Line = iLine,                                   &
                                      STAT = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_ .or. flag /= 2)             &
                             stop "Read Rating Curve Values - ModuleDischarges - ERR139"
-
                         NewDischarge%RatingCurve%Level(iValue) = BufferLine (1)
                         NewDischarge%RatingCurve%Flow(iValue) = BufferLine (2)
-
                         iValue = iValue + 1
+                    end do
 
-                    enddo
-
+                    call Block_Unlock(localFile, localClientNumber, STAT = STAT_CALL)
                     deallocate (BufferLine)
-
+                    
+                    call KillEnterData(localFile, STAT = STAT_CALL)
             else
 
                 stop "Read Rating Curve Values - ModuleDischarges - ERR140"
@@ -3427,6 +3452,8 @@ cd2:        if (DischargeX%DischargeType == Normal .and. DischargeX%WaterFlow%Va
 
                 Flow = TimeSerieValue(DischargeX%TimeSerie, DischargeX%UseOriginalValues, &
                                      TimeX, DischargeX%WaterFlow%FlowColumn)
+
+                Flow = Flow * DischargeX%WaterFlow%ScaleFactor
 
             elseif (DischargeX%DischargeType == FlowOver) then
 

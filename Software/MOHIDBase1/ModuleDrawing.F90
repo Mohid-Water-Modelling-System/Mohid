@@ -57,8 +57,11 @@ Module ModuleDrawing
     public  ::    GetSpecificPolygon 
     public  ::    GetPolyLimits
     public  ::    VertPolygonInsidePolygon
+    public  ::    PolygonSphericalTypeArea
+    public  ::    PolygonTypeArea    
     
     private ::    PolyLimits_Intersect_PolyLimits
+    
     
     
     public  ::    SliceCellIn4
@@ -4027,7 +4030,7 @@ i1:     if ( crossProduct(vx,vy) .eq. 0.d0) then
         !Local------------------------------------------------------
         real(8)                             :: sumTotal
         type (T_Polygon), pointer           :: AuxX
-        real,       dimension(:), pointer   :: X, Y 
+        real(8),    dimension(:), pointer   :: X, Y 
         integer                             :: n       
         !Begin------------------------------------------------------
 
@@ -4057,6 +4060,75 @@ i1:     if ( crossProduct(vx,vy) .eq. 0.d0) then
             
 
     end function PolygonTypeArea  
+    
+    
+   
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!                                                                                       !
+! Subroutine goal : computes an area of polygon X define in spherical coordinatesusing  !
+!                   a Public-domain function by Darel Rex Finley, 2006.                 !
+!                                                                                       !
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+    real(8) function PolygonSphericalTypeArea(PolygonX, LatRef, LonRef)
+        
+        !Arguments--------------------------------------------------
+        type (T_Polygon), pointer           :: PolygonX
+        real, optional                      :: LatRef, LonRef
+        !Local------------------------------------------------------
+        real(8)                             :: LatRef_, LonRef_       
+        real(8)                             :: sumTotal
+        type (T_Polygon), pointer           :: AuxX
+        real(8),   dimension(:), pointer    :: X, Y
+        real(8)                             :: Lat, Lon
+        integer                             :: n, i       
+        !Begin------------------------------------------------------
+
+        AuxX => PolygonX 
+        
+        sumTotal    = 0.
+        
+        if (present(LatRef)) then
+            LatRef_ = LatRef
+        else
+            LatRef_ = AuxX%VerticesF(1)%Y
+        endif
+
+        if (present(LonRef)) then
+            LonRef_ = LonRef
+        else
+            LonRef_ = AuxX%VerticesF(1)%X
+        endif        
+
+        do while(associated(AuxX)) 
+        
+            n = AuxX%Count
+            
+            allocate(X(1:n),Y(1:n))
+            
+            X(1:n) = AuxX%VerticesF(1:n)%X
+            Y(1:n) = AuxX%VerticesF(1:n)%Y    
+            
+            do i=1,n
+                Lat = Y(i)
+                Lon = X(i)
+                call SphericalToCart(Lat, Lon, X(i), Y(i), LonRef_, LatRef_)
+            enddo
+
+            sumTotal    = sumTotal  + PolygonArea(X, Y, n) 
+                
+            deallocate(X,Y)
+            
+            AuxX => AuxX%Next
+        enddo            
+                              
+        PolygonSphericalTypeArea = sumTotal
+        
+        nullify(AuxX)
+            
+
+    end function PolygonSphericalTypeArea  
+    
     
     
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

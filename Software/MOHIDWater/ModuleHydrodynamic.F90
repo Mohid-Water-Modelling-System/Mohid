@@ -24389,7 +24389,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
 
         !External_Var - Grid
         integer, dimension (:,:  ), pointer  :: KFloorZ   ! bottom layer
-        real,    dimension (:,:  ), pointer  :: DUX, DVY, DZX_ZY, DZY_ZX
+        real,    dimension (:,:  ), pointer  :: DUX, DVY, DZX_ZY, DZY_ZX, WaterColumn
         real,    dimension (:,:,:), pointer  :: Area_UV, DWZ, DUZ_VZ, SZZ
         real(8), dimension (:,:,:), pointer  :: Volume_UV, Volume_W
 
@@ -24445,6 +24445,7 @@ cd2:        if      (Num_Discretization == Abbott    ) then
         DUZ_VZ              => Me%External_Var%DUZ_VZ
         DWZ                 => Me%External_Var%DWZ
         SZZ                 => Me%External_Var%SZZ
+        WaterColumn         => Me%External_Var%WaterColumn
 
 
         !External_Var - Mapping
@@ -24765,6 +24766,7 @@ i1:             if (OpenPoints3D(i, j, k) == OpenPoint) then !cell must not be c
 
         !External_Var - Grid
         nullify (DUX, DVY, Area_UV, Volume_UV, Volume_W, DZX_ZY, DZY_ZX, KFloorZ, DUZ_VZ, DWZ, SZZ)
+        nullify (WaterColumn)
 
         !External_Var - Mapping
         nullify (ComputeFaces3D_UV, ComputeFaces3D_VU, OpenPoints3D, ComputeFaces3D_W)
@@ -30981,14 +30983,14 @@ diL:        do iL =1, NFieldsSSH
                                     NumberOfFields  = NFieldsUV3D,                   &
                                     STAT            = status)
             if (status /= SUCCESS_)                                                 &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR070")
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR080") 
 
             if (Me%ComputeOptions%AssimilaOneField) then
                 NFieldsUV3D = 1
             endif
 
             if (NFieldsUV3D + NFieldsUV2D /= NFieldsSSH) then
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR080")
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR090")
             endif
 
 
@@ -31006,7 +31008,7 @@ diL2:       do iL =1, NFieldsUV2D
                                          STAT              = status)
 
                 if (status /= SUCCESS_) then
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR090")
+                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR100")
                 endif
 
                 do  j = JLB, JUB
@@ -31040,7 +31042,7 @@ diL3:       do iL =1, NFieldsUV3D
                                         VectorY_3D        = List3D(iL)%LocalVel3D_Y,    &
                                         STAT              = status)
                 if (status /= SUCCESS_) then
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR100")
+                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR110")
                 endif
 
 
@@ -31130,13 +31132,13 @@ ifc:    if  (Me%ComputeOptions%LocalSolution == NoLocalSolution_) then
                                           STAT            = status)
 
                 if (status /= SUCCESS_) then
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR110")
+                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR120")
                 endif
 
             else
 
                 write(*,*) 'Define the analytic celerity in assimilation_x.dat for property WaterLevel_'
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR120")
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR130")
 
             endif
 
@@ -31576,7 +31578,7 @@ cd15:           if (LocalSolution) then
         call UnGetGridData(Me%ObjGridData, Bathymetry, STAT = status)
 
         if (status /= SUCCESS_)                                                         &
-            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR130")
+            call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR140")
 
 
 
@@ -31587,7 +31589,7 @@ cd24:   if (Me%ComputeOptions%LocalSolution == Gauge_             .or.          
 
             call UnGetOpenBoundary(Me%ObjOpenBoundary, GaugeWaterLevel, STAT = status)
             if (status /= SUCCESS_) &
-                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR140")
+                call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR150")
 
 
         endif cd24
@@ -31605,7 +31607,7 @@ diL4:       do iL =1, NFieldsSSH
                                         List2D(iL)%AssimilaWaterLevel, STAT = status)
 
                 if (status /= SUCCESS_)                                                     &
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR150")
+                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR160")
 
             enddo diL4
 
@@ -31614,14 +31616,12 @@ diL5:       do iL =1, NFieldsUV2D
                 call UnGetAssimilation(Me%ObjAssimilation,                                  &
                                         List2D(iL)%LocalVel2D_X, STAT = status)
                 if (status /= SUCCESS_)                                                     &
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR130")
-
-
+                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR170")
 
                 call UnGetAssimilation(Me%ObjAssimilation,                                  &
                                         List2D(iL)%LocalVel2D_Y, STAT = status)
                 if (status /= SUCCESS_)                                                     &
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR140")
+                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR180")
 
             enddo diL5
 
@@ -31630,9 +31630,7 @@ diL6:       do iL =1, NFieldsUV3D
                 call UnGetAssimilation(Me%ObjAssimilation,                                  &
                                         List3D(iL)%LocalVel3D_X, STAT = status)
                 if (status /= SUCCESS_)                                                     &
-                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR150")
-
-
+                    call SetError (FATAL_, INTERNAL_, "WaterLevel_FlatherLocalSolution - Hydrodynamic - ERR190")
 
                 call UnGetAssimilation(Me%ObjAssimilation,                                  &
                                         List3D(iL)%LocalVel3D_Y, STAT = status)
