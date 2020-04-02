@@ -38277,8 +38277,8 @@ do3:            do k = kbottom, KUB
                     kbottom = KFloor_UV(I, J)
 
                     do K=kbottom, KUB
-                        Me%Relaxation%Assim_VelModel(i, j, k)  = Me%Relaxation%Assim_VelModel(i, j, k) 
-                                                               + Velocity_UV_New(i, j, k) 
+                        Me%Relaxation%Assim_VelModel(i, j, k)  = Me%Relaxation%Assim_VelModel(i, j, k) &
+                                                               + Velocity_UV_New(i, j, k) &
                                                                * DUZ_VZ(i, j, k) / WaterColumnUV(i, j)
                     enddo
                 endif
@@ -54660,9 +54660,10 @@ cd1:    if (HydrodynamicID > 0) then
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     End Subroutine ReadLock_ModuleWaves
-
+    
+#endif
     !--------------------------------------------------------------------------
-
+#ifndef _WAVES_
     real function TimeSerieValue(ObjTimeSerie, Now, TimeSerieColumn)
         !Arguments--------------------------------------------------------------
         integer                                         :: ObjTimeSerie, TimeSerieColumn
