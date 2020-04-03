@@ -697,6 +697,7 @@ MOHID_TOOLS(){
     HDF5Exporter \
     HDF5Extractor \
     HDF5Statistics \
+	Valida4D \
     #Shell \   ## error
     )
 
@@ -773,6 +774,11 @@ MOHID_TOOLS(){
       modules_HDF5Statistics=( \
         ModuleHDF5Statistics)
         COMPILE_MOHID_TOOLS modules_HDF5Statistics "$tool"
+
+    elif [ $tool = 'Valida4D' ]; then
+      modules_Valida4D=( \
+		ModuleValida4D)
+        COMPILE_MOHID_TOOLS modules_Valida4D "$tool"
 
     elif [ $tool = 'MohidDDC' ]; then
       modules_DDC=( \
