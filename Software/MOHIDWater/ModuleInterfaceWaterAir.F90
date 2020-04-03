@@ -106,7 +106,9 @@ Module ModuleInterfaceWaterAir
     private ::      ConstructRugosity
 ! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Modified by Matthias DELPEY - 16/12/2011
+#ifndef _WAVES_
     private ::      ConstructWaveFluxTKE
+#endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  
     private ::      Construct_PropertyList
@@ -131,7 +133,9 @@ Module ModuleInterfaceWaterAir
     private ::      ModifyRugosity
     private ::          ComputeWavesRugosity
 ! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#ifndef _WAVES_
     private ::      ModifyWaveFluxTKE
+#endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     private ::      ModifyLocalAtmVariables
@@ -648,7 +652,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             call ConstructRugosity
             
 ! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#ifndef _WAVES_
             call ConstructWaveFluxTKE
+#endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
             call Construct_PropertyList
@@ -1102,7 +1108,7 @@ i1:         if(BlockFound)then
     
 ! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Modified by Matthias DELPEY - 16/12/2011 
-
+#ifndef _WAVES_
     subroutine ConstructWaveFluxTKE
 
         !Local------------------------------------------------------------------
@@ -1143,6 +1149,7 @@ i1:         if(BlockFound)then
         endif
 
     end subroutine ConstructWaveFluxTKE
+#endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     
@@ -2801,6 +2808,7 @@ do1 :   do while (associated(PropertyX))
             
 ! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Modified by Matthias DELPEY - 16/12/2011
+#ifndef _WAVES_
             if (Me%WaveFluxTKE%ON) then
 
                 call SetTurbGOTMWaveSurfaceFluxTKE(TurbGOTMID      = Me%ObjTurbGOTM,                 &
@@ -2809,6 +2817,7 @@ do1 :   do while (associated(PropertyX))
                 if (STAT_CALL /= SUCCESS_)                                                           &
                     stop 'SetSubModulesConstructor - ModuleInterfaceWaterAir - ERR20a'
             endif
+#endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
         endif
@@ -3009,9 +3018,11 @@ do1 :   do while (associated(PropertyX))
             call ModifyRugosity
 
 ! Modified by Matthias DELPEY - 16/12/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+#ifndef _WAVES_
             if (Me%WaveFluxTKE%ON) then
                 call ModifyWaveFluxTKE
             endif
+#endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
             if(Me%Coupled%TimeSerie%Yes)            &
@@ -5916,7 +5927,7 @@ do4:    do i=ILB, IUB
     
 ! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Modified by Matthias DELPEY - 28/11/2011 - 16/12/2011
-    
+#ifndef _WAVES_
     subroutine ModifyWaveFluxTKE
 
         !Arguments-------------------------------------------------------------
@@ -5942,7 +5953,7 @@ do4:    do i=ILB, IUB
         if (STAT_CALL /= SUCCESS_) stop 'ModifyWaveFluxTKE - InterfaceWaterAir - ERR01a'
     
     end subroutine ModifyWaveFluxTKE
-
+#endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     
     subroutine OutPut_TimeSeries
@@ -6826,6 +6837,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
 ! Modified by Matthias DELPEY - 18/10/2011 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Modified by Matthias DELPEY - 16/12/2011
+#ifndef _WAVES_
                 if (Me%WaveFluxTKE%ON) then
 
                     deallocate(Me%WaveFluxTKE%Field,   STAT = STAT_CALL) 
@@ -6841,6 +6853,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                     endif
 
                 endif
+#endif
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
                 if(Me%Coupled%BoxTimeSerie%Yes)then
