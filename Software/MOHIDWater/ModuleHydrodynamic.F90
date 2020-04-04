@@ -10065,6 +10065,12 @@ d1:             do dn = 1, DischargesNumber
 
                     call GetDischargesIDName (Me%ObjDischarges, dn, DischargeName, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR50'
+                    
+                    !Sobrinho
+                    if (Kd > Me%Size%KUB) then
+                        write(*,*) 'Discharge K_CELL is outside the domain - ',trim(DischargeName),' - ',trim(Me%ModelName)
+                        stop 'Discharge K_CELL is outside the domain'
+                    endif
 
                     if (CoordinatesON) then
                         call GetXYCellZ(Me%ObjHorizontalGrid, CoordinateX, CoordinateY, Id, Jd, STAT = STAT_CALL)

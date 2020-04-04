@@ -4126,35 +4126,21 @@ fl:                         if (Flow > 0.) then
 
         !Arguments-------------------------------------------------------------
         real                                :: ImpExp_AdvXX, ImpExp_AdvYY
-
         !Local-----------------------------------------------------------------
         integer                             :: di,    dj    
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                             :: ILBWS, IUBWS, JLBWS, JUBWS, KLBWS, KUBWS
         integer                             :: STAT_CALL        
-
         !----------------------------------------------------------------------
 
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorizontalAdvection")
 
-        ILBWS = Me%WorkSize%ILB
-        IUBWS = Me%WorkSize%IUB
+        ILBWS = Me%WorkSize%ILB;  JLBWS = Me%WorkSize%JLB;  KLBWS = Me%WorkSize%KLB
+        IUBWS = Me%WorkSize%IUB;  JUBWS = Me%WorkSize%JUB;  KUBWS = Me%WorkSize%KUB
 
-        JLBWS = Me%WorkSize%JLB
-        JUBWS = Me%WorkSize%JUB
-
-        KLBWS = Me%WorkSize%KLB
-        KUBWS = Me%WorkSize%KUB
-
-        ILB   = Me%Size%ILB
-        IUB   = Me%Size%IUB
-
-        JLB   = Me%Size%JLB 
-        JUB   = Me%Size%JUB
-
-        KLB   = Me%Size%KLB
-        KUB   = Me%Size%KUB
-                
+        ILB   = Me%Size%ILB;  JLB   = Me%Size%JLB;  KLB   = Me%Size%KLB
+        IUB   = Me%Size%IUB;  JUB   = Me%Size%JUB;  KUB   = Me%Size%KUB
+     
         if (.not. Me%ExternalVar%AdvectionNudging) then
             call HorizontalAdvectionXX(ImpExp_AdvXX)
         else
@@ -4173,11 +4159,7 @@ fl:                         if (Flow > 0.) then
 
 cd1:    if (ImpExp_AdvYY == ImplicitScheme .or. ImpExp_AdvXX == ImplicitScheme) then 
 
-
 cd3D:       if (KUBWS > 1) then
-
-                !if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorAdvection-THOMAS3D")
-
 
 cd2:            if (ImpExp_AdvXX == ImplicitScheme) then 
 
@@ -4294,15 +4276,9 @@ cd2:            if (ImpExp_AdvXX == ImplicitScheme) then
 
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorizontalAdvectionUpwindExplict")
 
-        ILB   = Me%WorkSize%ILB
-        IUB   = Me%WorkSize%IUB
+        ILB   = Me%WorkSize%ILB;  JLB   = Me%WorkSize%JLB;  KLB   = Me%WorkSize%KLB
+        IUB   = Me%WorkSize%IUB;  JUB   = Me%WorkSize%JUB;  KUB   = Me%WorkSize%KUB
                    
-        JLB   = Me%WorkSize%JLB 
-        JUB   = Me%WorkSize%JUB
-                   
-        KLB   = Me%WorkSize%KLB
-        KUB   = Me%WorkSize%KUB
-        
         CHUNK = ChunkJ        
 
         !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX, AdvFluxY)
@@ -4318,7 +4294,6 @@ doi1 :      do i = ILB, IUB
     
                 if (Me%ExternalVar%ComputeFacesU3D(i, j, k) == 1) then
                 
-                    
                     if (Me%ExternalVar%Wflux_X(i, j, k) > 0.) then
                         Me%COEF3_HorAdvXX%D_flux(i,   j, k) =   Me%ExternalVar%Wflux_X(i, j, k)
                     else
@@ -4401,10 +4376,9 @@ doi2 :  do i = ILB, IUB
 
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorizontalAdvectionXX")
 
-        ILB = Me%WorkSize%ILB ; IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB ; JUB = Me%WorkSize%JUB
-        KLB = Me%WorkSize%KLB ; KUB = Me%WorkSize%KUB
-        
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
+
         JLB_Aux = JLB + 1 ; JUB_Aux = JUB + 1
 
         CHUNK = CHUNK_I(ILB, IUB)
@@ -4572,10 +4546,9 @@ doi5 :  do i = ILB, IUB
         integer :: CHUNK
         !----------------------------------------------------------------------
 
-        ILB = Me%WorkSize%ILB ; IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB ; JUB = Me%WorkSize%JUB
-        KLB = Me%WorkSize%KLB ; KUB = Me%WorkSize%KUB
-        
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB; KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
+
         CHUNK = CHUNK_K(KLB, KUB)
         !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX)
         !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -4621,22 +4594,13 @@ doi5 :  do i = ILB, IUB
 
         if (MonitorPerformance) call StartWatch ("ModuleAdvectionDiffusion", "HorizontalAdvectionXX")
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
 
         CHUNK = CHUNK_I(ILB, IUB)
         !$OMP PARALLEL PRIVATE(i,j,k,AdvFluxX,DT2,DT1)
 
 st:     if (Me%State%HorAdv) then
-
-            !! $OMP PARALLEL SHARED(CHUNK) PRIVATE(I,K)
-            !! $OMP DO SCHEDULE(DYNAMIC, CHUNK)
 
 k1:         do k = KLB, KUB
             !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -4661,8 +4625,6 @@ i1:         do i = ILB, IUB
             end do i1
             !$OMP END DO
             end do k1
-        
-        !! $OMP END PARALLEL
 
         endif st
 
@@ -5724,13 +5686,8 @@ cd2 :                       if (Me%WaterFluxOBoundary(i,j,k) < 0.0) Then ! water
 
         !----------------------------------------------------------------------
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-
-        KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
 
         ComputeFacesU3D => Me%ExternalVar%ComputeFacesU3D
         ComputeFacesV3D => Me%ExternalVar%ComputeFacesV3D
@@ -5771,11 +5728,7 @@ do2 :           do k = KLB, KUB
 
         if (MonitorPerformance) call StopWatch ("ModuleAdvectionDiffusion", "FluxAtOpenBoundary")
 
-        nullify(ComputeFacesU3D)
-        nullify(ComputeFacesV3D)
-        nullify(ComputeFacesW3D)
-
-
+        nullify(ComputeFacesU3D, ComputeFacesV3D, ComputeFacesW3D)
         !----------------------------------------------------------------------
 
     end subroutine FluxAtOpenBoundary
@@ -5928,7 +5881,6 @@ cd1 :   if (ready_ /= OFF_ERR_) then
                 nUsers = DeassociateInstance (mGEOMETRY_,       Me%ObjGeometry)
                 if (nUsers == 0) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR04'
 
-
 #ifdef _ENABLE_CUDA                
                 !Kills ModuleCuda
                 call KillCuda (Me%ObjCuda, STAT = STAT_CALL)
@@ -5936,18 +5888,15 @@ cd1 :   if (ready_ /= OFF_ERR_) then
 #endif _ENABLE_CUDA                
 
                 deallocate(Me%Diffusion_CoeficientX, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR06'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR06'
                 nullify   (Me%Diffusion_CoeficientX)
 
                 deallocate(Me%Diffusion_CoeficientY, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR06a'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR06a'
                 nullify   (Me%Diffusion_CoeficientY)
 
                 deallocate(Me%Diffusion_CoeficientZ, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR06b'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR06b'
                 nullify   (Me%Diffusion_CoeficientZ)
                 
                 if (allocated(Me%Diff_H_Const_U)) then
@@ -5966,44 +5915,31 @@ cd1 :   if (ready_ /= OFF_ERR_) then
                 endif
                 
                 deallocate(Me%Fluxes%AdvFluxX, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR07'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR07'
                 nullify   (Me%Fluxes%AdvFluxX   ) 
 
-
                 deallocate(Me%Fluxes%AdvFluxY, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR08'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR08'
                 nullify   (Me%Fluxes%AdvFluxY   ) 
 
-
                 deallocate(Me%Fluxes%AdvFluxZ, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR09'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR09'
                 nullify   (Me%Fluxes%AdvFluxZ) 
 
-
                 deallocate(Me%Fluxes%DifFluxX, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR10'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR10'
                 nullify   (Me%Fluxes%DifFluxX) 
-
  
                 deallocate(Me%Fluxes%DifFluxY, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR11'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR11'
                 nullify   (Me%Fluxes%DifFluxY) 
-
  
                 deallocate(Me%Fluxes%DifFluxZ, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR12'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR12'
                 nullify   (Me%Fluxes%DifFluxZ) 
-
  
                 deallocate(Me%WaterFluxOBoundary, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR13'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR13'
                 nullify   (Me%WaterFluxOBoundary)
 
 #ifdef _USE_PAGELOCKED
@@ -6013,88 +5949,71 @@ cd1 :   if (ready_ /= OFF_ERR_) then
                 call FreePageLocked(Me%ObjCuda, Me%COEF3%FPtr, Me%COEF3%F)
 #else
                 deallocate(Me%COEF3%D, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR14a'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR14a'
                 nullify   (Me%COEF3%D) 
 
                 deallocate(Me%COEF3%E, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR14b'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR14b'
                 nullify   (Me%COEF3%E) 
 
                 deallocate(Me%COEF3%F, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR14c'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR14c'
                 nullify   (Me%COEF3%F) 
 #endif
 
                 deallocate(Me%COEF3_VertAdv%D_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR16f'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR16f'
                 nullify   (Me%COEF3_VertAdv%D_Flux) 
 
                 deallocate(Me%COEF3_VertAdv%E_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR16g'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR16g'
                 nullify   (Me%COEF3_VertAdv%E_Flux)
 
                 deallocate(Me%COEF3_VertAdv%C_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR16h'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR16h'
                 nullify   (Me%COEF3_VertAdv%C_Flux) 
 
                 deallocate(Me%COEF3_VertAdv%F_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR16i'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR16i'
                 nullify   (Me%COEF3_VertAdv%F_Flux)
-
-
+                
                 deallocate(Me%COEF3_HorAdvXX%C_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR18h'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR18h'
                 nullify   (Me%COEF3_HorAdvXX%C_Flux) 
 
                 deallocate(Me%COEF3_HorAdvXX%D_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR18f'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR18f'
                 nullify   (Me%COEF3_HorAdvXX%D_Flux) 
 
                 deallocate(Me%COEF3_HorAdvXX%E_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR18g'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR18g'
                 nullify   (Me%COEF3_HorAdvXX%E_Flux) 
 
                 deallocate(Me%COEF3_HorAdvXX%F_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR18i'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR18i'
                 nullify   (Me%COEF3_HorAdvXX%F_Flux) 
 
                 deallocate(Me%COEF3_HorAdvYY%D_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20f'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20f'
                 nullify   (Me%COEF3_HorAdvYY%D_Flux) 
 
                 deallocate(Me%COEF3_HorAdvYY%E_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20g'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20g'
                 nullify   (Me%COEF3_HorAdvYY%E_Flux) 
 
                 deallocate(Me%COEF3_HorAdvYY%C_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20h'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20h'
                 nullify   (Me%COEF3_HorAdvYY%C_Flux) 
 
                 deallocate(Me%COEF3_HorAdvYY%F_Flux, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20i'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR20i'
                 nullify   (Me%COEF3_HorAdvYY%F_Flux) 
 #ifdef _USE_PAGELOCKED
                 ! FreePageLocked will also nullify the pointers and arrays
                 call FreePageLocked(Me%ObjCuda, Me%TICOEF3Ptr, Me%TICOEF3)
 #else
                 deallocate(Me%TICOEF3, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR21'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR21'
                 nullify   (Me%TICOEF3)
                 
 #endif
@@ -6111,21 +6030,17 @@ cd1 :   if (ready_ /= OFF_ERR_) then
                 deallocate(Me%THOMAS)
 
                 deallocate(Me%VECW, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR22'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR22'
                 nullify   (Me%VECW)
 
-
                 deallocate(Me%VECG, STAT = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)                                             &
-                    stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR23'
+                if (STAT_CALL /= SUCCESS_) stop 'KillAdvectionDiffusion - ModuleAdvectionDiffusion - ERR23'
                 nullify   (Me%VECG)
 
                 call DeallocateInstance()
 
                 AdvectionDiffusionID = 0
                 STAT_                = SUCCESS_
-
 
             endif
 
@@ -6134,7 +6049,6 @@ cd1 :   if (ready_ /= OFF_ERR_) then
             STAT_ = UNKNOWN_
 
         end if cd1
-
 
         if (present(STAT))                                                    &
             STAT = STAT_
@@ -6166,7 +6080,6 @@ cd1 :   if (ready_ /= OFF_ERR_) then
 
             !Now update linked list
             PreviousAdvectionDiffusion%Next => AuxAdvectionDiffusion%Next
-
 
         endif
 
@@ -6201,7 +6114,6 @@ cd1:    if (AdvectionDiffusionID > 0) then
             ready_ = OFF_ERR_
         end if cd1
 
-
         !----------------------------------------------------------------------
 
     end subroutine Ready
@@ -6225,7 +6137,6 @@ cd1:    if (AdvectionDiffusionID > 0) then
             stop 'ModuleAdvectionDiffusion - LocateObjAdvectionDiffusion - ERR01'
 
     end subroutine LocateObjAdvectionDiffusion
-
 
 
 end module ModuleAdvectionDiffusion
