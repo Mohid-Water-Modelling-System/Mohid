@@ -386,6 +386,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     
     subroutine WriteWaveFpToWaveTp
         !Local-----------------------------------------------------------------
+        real,   dimension(:,:  ), pointer           :: Prop2D
         real,   dimension(:,:  ), pointer           :: TpProp
         integer                                     :: i, iP, iPt
         logical                                     :: Found
@@ -397,7 +398,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         
             if (Me%Field(iP)%Wfp) then
         
-                !Found property to be average in depth
+                !Found property to calculated
                 Found = .false.
                 do iPt = 1, Me%PropNumber
                     if (trim(Me%Field(iPt)%ID%Name)==trim(Me%Field(iP)%WfpName)) then
@@ -410,20 +411,35 @@ Module ModuleNetCDFCF_2_HDF5MOHID
 
                 do i=1, Me%Date%TotalInstOut
 
+                    !Read 2D property
+
+                    if      (Me%Field(iPt)%Dim/=2) then
+                        stop 'WriteWaveFpToWaveTp - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+                    endif
+                    
+                    allocate(Me%Field(iPt)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    
+                    Prop2D => Me%Field(iPt)%Value2DOut                 
+                    
+                    call ReadFieldHDF5(iPt, i)
+                    
+                    !Allocate new 2D property
+                    
+                    allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+
                     if      (Me%Field(iP)%Dim/=2) then
-                        stop 'WriteWaveFpToWaveTp - ModuleNetCDFCF_2_HDF5MOHID - ERR50'
+                        stop 'WriteWaveFpToWaveTp - ModuleNetCDFCF_2_HDF5MOHID - ERR30'
                     endif
                     
                     allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
                     
                     TpProp => Me%Field(iP)%Value2DOut                    
                     
-                    call ReadFieldHDF5(iPt, i)
-                    
-                    !Compute prop3D average in depth
-                    call ComputePeakPeriod(TpProp)
+                    !Compute peak frequency to peak period
+                    write(*,*) '  Calculating= ', trim(Me%Field(iP)%ID%Name), i
+                    call ComputePeakPeriod(Prop2D,TpProp)
 
-                    !Write prop3D average in depth
+                    !Write TpProp 
                     if (Me%OutHDF5) then
                         call WriteFieldHDF5  (iP, i)    
                     endif
@@ -1550,9 +1566,10 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     !------------------------------------------------------------------------    
 
 
-    subroutine ComputePeakPeriod(TpProp)
+    subroutine ComputePeakPeriod(Prop2D, TpProp)
     
         !Arguments-------------------------------------------------------------
+        real, dimension(:,:  ), pointer             :: Prop2D
         real, dimension(:,:  ), pointer             :: TpProp
         !Local-----------------------------------------------------------------
         integer                                     :: i, j
@@ -1561,12 +1578,11 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
         
-            if(TpProp(i, j) > 0.) then
+            if(Prop2D(i, j) > 0.) then
                     
-                    TpProp(i, j) =1. / TpProp(i, j)
+                TpProp(i, j) =1. / Prop2D(i, j)
                     
             endif
-            
         enddo
         enddo
             
