@@ -605,7 +605,7 @@ Module ModuleInterfaceSedimentWater
          real, pointer, dimension (:,:)             :: Residual_Tau_X       => null()         
          real, pointer, dimension (:,:)             :: Residual_Tau_Y       => null()         
 
-         
+         logical                                    :: OutputON             = .false. 
     end type T_Shear
 
     type       T_WaveShear
@@ -1137,7 +1137,6 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         !Local-----------------------------------------------------------------
         integer                             :: ILB, IUB, JLB, JUB, iflag
-        logical                             :: OutputShearStress
 
         !Begin-----------------------------------------------------------------
         
@@ -1186,7 +1185,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         Me%Shear_Stress%Velocity(:,:) = 0.
 
 
-        call GetData(OutputShearStress,                                             &     
+        call GetData(Me%Shear_Stress%OutputON,                                      &     
                      Me%ObjEnterData, iflag,                                        &
                      SearchType   = FromFile,                                       &
                      Keyword      = 'OUTPUT_SHEAR_STRESS',                          &
@@ -1196,7 +1195,7 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         if(STAT_CALL .ne. SUCCESS_)&
             stop 'ConstructShearStress - ModuleInterfaceSedimentWater - ERR50'
         
-        if(OutputShearStress)then
+        if (Me%Shear_Stress%OutputON) then
             
             Me%Coupled%OutputHDF%Yes = ON
             
@@ -5508,7 +5507,7 @@ do2:            do i = ILB, IUB
                                         
             endif
 
-            if (Me%Coupled%OutputHDF%Yes .and. Me%ExtWater%ResidualON) then
+            if (Me%Shear_Stress%OutputON .and. Me%ExtWater%ResidualON) then
                 call ComputeShearStressResidual                
             endif    
      
@@ -10103,7 +10102,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 if (Me%OutPut%Yes) then
 
-                    if (Me%ExtWater%ResidualON) then
+                    if (Me%Shear_Stress%OutputON .and. Me%ExtWater%ResidualON) then
                         call OutPut_Residual_HDF
                     endif
 
@@ -10759,7 +10758,7 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
         endif            
         
         
-        if (Me%Coupled%OutputHDF%Yes .and. Me%ExtWater%ResidualON) then
+        if (Me%Shear_Stress%OutputON .and. Me%ExtWater%ResidualON) then
             
             PropertyName = GetPropertyName(ShearStressX_)
             GroupName    = "/Residual/"//trim(PropertyName)
