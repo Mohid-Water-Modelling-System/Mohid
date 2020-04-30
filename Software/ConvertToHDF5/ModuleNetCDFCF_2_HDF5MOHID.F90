@@ -236,6 +236,8 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         logical                                 :: CheckMinMaxLimits
         real                                    :: MinLimit
         real                                    :: MaxLimit
+        real                                    :: GridRotation
+        logical                                 :: ComputeRotatedVector
     end type  T_Field
 
     type T_NetCDF_Out                                         
@@ -349,6 +351,7 @@ Module ModuleNetCDFCF_2_HDF5MOHID
         endif
         
 
+        call WriteRotatedVector
           
         call WriteRotation
 
@@ -673,6 +676,116 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     end subroutine WriteComputeDirection
     
     !------------------------------------------------------------------------
+    
+    !------------------------------------------------------------------------    
+
+    subroutine WriteRotatedVector
+    
+        !Local-----------------------------------------------------------------
+        integer                                     :: i, iP, iPx, iPy
+        logical                                     :: Found
+        !Begin-----------------------------------------------------------------
+        
+        do iP = 1, Me%PropNumber
+        
+            if (Me%Field(iP)%ComputeRotatedVector) then
+        
+                !Found component X
+                Found = .false.
+                do iPx = 1, Me%PropNumber
+                    if (trim(Me%Field(iPx)%ID%Name)==trim(Me%Field(iP)%VectorX)) then
+                        Found = .true.
+                        exit
+                    endif
+                enddo
+                if (.not. Found) stop 'WriteComputeDirection - ModuleNetCDFCF_2_HDF5MOHID - ERR10'
+
+                !Found component Y
+                Found = .false.
+                do iPy = 1, Me%PropNumber
+                    if (trim(Me%Field(iPy)%ID%Name)==trim(Me%Field(iP)%VectorY)) then
+                        Found = .true.
+                        exit
+                    endif
+                enddo
+                if (.not. Found) stop 'WriteComputeDirection - ModuleNetCDFCF_2_HDF5MOHID - ERR20'
+
+
+                do i=1, Me%Date%TotalInstOut
+                    !Read component X
+
+                    if      (Me%Field(iPx)%Dim==2) then
+                        allocate(Me%Field(iPx)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    else
+                        allocate(Me%Field(iPx)%Value3DOut(Me%Size%ILB:Me%Size%IUB,           &
+                                                          Me%Size%JLB:Me%Size%JUB,           &
+                                                          Me%Size%KLB:Me%Size%KUB))                    
+                    endif
+                    
+                    if      (Me%Field(iP)%Dim==2) then
+                        allocate(Me%Field(iP)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    else
+                        allocate(Me%Field(iP)%Value3DOut(Me%Size%ILB:Me%Size%IUB,           &
+                                                         Me%Size%JLB:Me%Size%JUB,           &
+                                                         Me%Size%KLB:Me%Size%KUB))                    
+                    endif
+                    
+                    call ReadFieldHDF5(iPx, i)
+
+                    !Compute vector direction
+                    call ModifyRotatedVector(iPx=iPx, Step=1, iP=iP)   
+                    
+                    if      (Me%Field(iPx)%Dim==2) then
+                        deallocate(Me%Field(iPx)%Value2DOut)
+                    else
+                        deallocate(Me%Field(iPx)%Value3DOut)                    
+                    endif                    
+                    
+                    if      (Me%Field(iPy)%Dim==2) then
+                        allocate(Me%Field(iPy)%Value2DOut(Me%Size%ILB:Me%Size%IUB,Me%Size%JLB:Me%Size%JUB))
+                    else
+                        allocate(Me%Field(iPy)%Value3DOut(Me%Size%ILB:Me%Size%IUB,           &
+                                                          Me%Size%JLB:Me%Size%JUB,           &
+                                                          Me%Size%KLB:Me%Size%KUB))                    
+                    endif
+                                 
+                    
+                    !Read component Y                    
+                    call ReadFieldHDF5(iPy, i)
+
+                    !Compute vector direction
+                    call ModifyRotatedVector(iPx=iPy, Step=2, iP=iP)              
+
+                    if      (Me%Field(iPy)%Dim==2) then
+                        deallocate(Me%Field(iPy)%Value2DOut)
+                    else
+                        deallocate(Me%Field(iPy)%Value3DOut)                    
+                    endif
+               
+                    !Write wind direction
+                    if (Me%OutHDF5) then
+                        call WriteFieldHDF5  (iP, i)    
+                    endif
+
+                    if (Me%OutNetCDF) then
+                        call WriteFieldNetCDF(iP, i)                        
+                    endif
+                    
+                    
+                    if      (Me%Field(iP)%Dim==2) then
+                        deallocate(Me%Field(iP)%Value2DOut)
+                    else
+                        deallocate(Me%Field(iP)%Value3DOut)
+                    endif
+
+                enddo
+            endif                
+        enddo    
+        
+    end subroutine WriteRotatedVector
+    
+    !------------------------------------------------------------------------
+    
     !------------------------------------------------------------------------    
 
     subroutine WriteVerticalZ_2D
@@ -1993,6 +2106,117 @@ Module ModuleNetCDFCF_2_HDF5MOHID
     end subroutine ComputeVectorDirection
     !------------------------------------------------------------------------
 
+
+    subroutine ModifyRotatedVector(iPx, step, iP)
+    
+        !Arguments-------------------------------------------------------------
+        integer                                     :: iPx, step, iP
+        
+        !Local-----------------------------------------------------------------
+        type(T_Field), pointer                      :: Field_UV        
+        integer                                     :: i, j, k
+        real                                        :: AngleX, AngleY, Xgrid, Ygrid
+        
+        !Begin-----------------------------------------------------------------
+
+        allocate(Field_UV)
+        nullify(Field_UV)
+        
+        Field_UV => Me%Field(iPx)
+
+
+        if      (Me%Field(iP)%Dim==3) then
+        
+            do k = Me%WorkSize%KLB, Me%WorkSize%KUB
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                if (Step ==1) then
+                    Me%Field(iP)%Value3DOut(i,j,k) = 0.0
+                endif
+                
+                if(Me%Mapping%Value3DOut(i,j,k) == 1)then
+                    if (Step ==1) then
+                        Me%Field(iP)%Value3DOut(i,j,k) = Field_UV%Value3DOut(i,j,k)
+                    else if (Step ==2) then
+                        
+                        AngleX = Me%Field(iP)%GridRotation * Pi / 180
+                        AngleY = AngleX + Pi / 2.
+                        
+                        call FromCartesianToGrid (Xcart  = Me%Field(iP)%Value3DOut(i,j,k),&
+                                                  Ycart  = Field_UV%Value3DOut(i,j,k),  &
+                                                  Tetha1 = AngleX,                      &
+                                                  Tetha2 = AngleY,                      &
+                                                  Xgrid  = Xgrid,                       &
+                                                  Ygrid  = Ygrid)
+                        
+                        if     (Me%Field(iP)%VectorComponent == Zonal) then
+
+                            Me%Field(iP)%Value3DOut(i,j,k) = Xgrid
+                        
+                        elseif (Me%Field(iP)%VectorComponent == Meridional) then
+                            
+                            Me%Field(iP)%Value3DOut(i,j,k) = Ygrid
+                            
+                        endif
+                        
+                    endif
+                endif
+
+            enddo
+            enddo
+            enddo
+        
+        else if (Me%Field(iP)%Dim==2) then
+
+            do j = Me%WorkSize%JLB, Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB, Me%WorkSize%IUB
+
+                if (Step ==1) then
+                    Me%Field(iP)%Value2DOut(i,j) = 0.0
+                endif
+                                
+                if(Me%Mapping%Value2DOut(i,j) == 1)then
+                    if (Step ==1) then
+                        Me%Field(iP)%Value2DOut(i,j) = Field_UV%Value2DOut(i,j)
+                    else if (Step ==2) then
+                    
+                        AngleX = Me%Field(iP)%GridRotation * Pi / 180
+                        AngleY = AngleX + Pi / 2.
+                        
+                        call FromCartesianToGrid (Xcart  = Me%Field(iP)%Value2DOut(i,j),&
+                                                  Ycart  = Field_UV%Value2DOut(i,j),    & 
+                                                  Tetha1 = AngleX,                      &
+                                                  Tetha2 = AngleY,                      &
+                                                  Xgrid  = Xgrid,&
+                                                  Ygrid  = Ygrid)
+                        
+                        if     (Me%Field(iP)%VectorComponent == Zonal) then
+
+                            Me%Field(iP)%Value2DOut(i,j) = Xgrid
+                        
+                        elseif (Me%Field(iP)%VectorComponent == Meridional) then
+                            
+                            Me%Field(iP)%Value2DOut(i,j) = Ygrid
+                            
+                        endif
+
+                    endif
+                endif
+
+            enddo
+            enddo
+
+        endif        
+
+        nullify(Field_UV)
+
+        
+
+    end subroutine ModifyRotatedVector
+    !------------------------------------------------------------------------
+
+    
     subroutine ComputeBeaufort(iPx, iP)
     
         !Arguments-------------------------------------------------------------
@@ -3466,8 +3690,23 @@ BF:         if (BlockFound) then
                         stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR240'
                     endif
                     
+                    call GetData(Me%Field(ip)%ComputeRotatedVector,                     &
+                                 Me%ObjEnterData, iflag,                                &
+                                 SearchType   = FromBlockInBlock,                       &
+                                 keyword      = 'ROTATE_VECTOR',                        &
+                                 default      = .false.,                                &
+                                 ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',           &
+                                 STAT         = STAT_CALL)        
+                    if (STAT_CALL /= SUCCESS_) stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR245'
+                    
+                    if (Me%Field(ip)%ComputeRotatedVector .and. .not. Me%OutHDF5) then
+                        write(*,*) 'To rotate a vector need to write hdf5 output file'
+                        stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR246'
+                    endif                    
+                    
                     if (Me%Field(ip)%ComputeIntensity .or. Me%Field(ip)%Rotation .or.   &
-                    Me%Field(ip)%Beaufort .or. Me%Field(ip)%ComputeDirection) then
+                        Me%Field(ip)%Beaufort .or. Me%Field(ip)%ComputeDirection .or.   &
+                        Me%Field(ip)%ComputeRotatedVector) then
 
                         call GetData(Me%Field(ip)%VectorX,                              &
                                      Me%ObjEnterData, iflag,                            &
@@ -3482,7 +3721,8 @@ BF:         if (BlockFound) then
                     endif                        
                     
                     if (Me%Field(ip)%ComputeIntensity .or. Me%Field(ip)%Rotation .or.   &
-                    Me%Field(ip)%Beaufort .or. Me%Field(ip)%ComputeDirection) then                    
+                        Me%Field(ip)%Beaufort .or. Me%Field(ip)%ComputeDirection .or.   &
+                        Me%Field(ip)%ComputeRotatedVector) then                  
 
                         call GetData(Me%Field(ip)%VectorY,                              &
                                      Me%ObjEnterData, iflag,                            &
@@ -3497,7 +3737,7 @@ BF:         if (BlockFound) then
                                         
                     endif                  
                     
-                    if (Me%Field(ip)%Rotation) then
+                    if (Me%Field(ip)%Rotation .or. Me%Field(ip)%ComputeRotatedVector) then
                     
                         call GetData(Me%Field(ip)%VectorComponent,                      &
                                      Me%ObjEnterData, iflag,                            &
@@ -3510,6 +3750,20 @@ BF:         if (BlockFound) then
                         endif                            
                     
                     endif                      
+
+                    if (Me%Field(ip)%ComputeRotatedVector) then                    
+
+                        call GetData(Me%Field(ip)%GridRotation,                         &
+                                     Me%ObjEnterData, iflag,                            &
+                                     SearchType   = FromBlockInBlock,                   &
+                                     keyword      = 'GRID_ROTATION',                    &
+                                     ClientModule = 'ModuleNetCDFCF_2_HDF5MOHID',       &
+                                     STAT         = STAT_CALL)       
+                        if (STAT_CALL /= SUCCESS_ .or. iflag == 0) then
+                            stop 'ReadFieldOptions - ModuleNetCDFCF_2_HDF5MOHID - ERR275'
+                        endif                           
+                        
+                    endif
 
                     call GetData(Me%Field(ip)%CenterX,                              &
                                  Me%ObjEnterData, iflag,                            &
@@ -3921,7 +4175,7 @@ BF:         if (BlockFound) then
                 Me%Field(iP)%WaveBeaufort     .or. Me%Field(iP)%ComputeDirection           .or. &
                 Me%Field(iP)%AverageInDepth   .or. Me%Field(iP)%Reflectivity2Precipitation .or. &
                 Me%Field(iP)%Energy2Power     .or. Me%Field(iP)%AvModelStart2Inst          .or. &
-                Me%Field(iP)%Wfp) then
+                Me%Field(iP)%Wfp              .or. Me%Field(iP)%ComputeRotatedVector  ) then
             
                 Me%ReadPropNumber = Me%ReadPropNumber - 1
             
@@ -4733,7 +4987,8 @@ BF:             if (BlockFound) then
                     Me%Field(iP)%Beaufort                   .or. Me%Field(iP)%WaveBeaufort   .or.  &
                     Me%Field(iP)%ComputeDirection           .or. Me%Field(iP)%AverageInDepth .or.  &
                     Me%Field(iP)%Reflectivity2Precipitation .or. Me%Field(iP)%Energy2Power   .or.  &
-                    Me%Field(iP)%AvModelStart2Inst          .or. Me%Field(iP)%Wfp) then
+                    Me%Field(iP)%AvModelStart2Inst          .or. Me%Field(iP)%Wfp            .or.  &
+                    Me%Field(iP)%ComputeRotatedVector) then
                 
                     WriteProp       = .false.
                 
@@ -4758,7 +5013,8 @@ BF:             if (BlockFound) then
                            Me%Field(iP)%Beaufort                    .or. Me%Field(iP)%WaveBeaufort .or. &
                            Me%Field(iP)%ComputeDirection            .or. Me%Field(iP)%AverageInDepth.or.&
                            Me%Field(iP)%Reflectivity2Precipitation  .or. Me%Field(iP)%Energy2Power  .or.&
-                           Me%Field(iP)%AvModelStart2Inst           .or. Me%Field(iP)%Wfp))  &
+                           Me%Field(iP)%AvModelStart2Inst           .or. Me%Field(iP)%Wfp           .or.&
+                           Me%Field(iP)%ComputeRotatedVector))  &
                     call DeAllocateValueIn(Me%Field(iP)%ValueIn)
             enddo
         enddo
