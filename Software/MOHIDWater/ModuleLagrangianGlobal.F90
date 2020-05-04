@@ -74,7 +74,8 @@ Module ModuleLagrangianGlobal
 !                                                                               !and contamination probability in each box
 !   MONITOR_BOX_CONT_DEPTH  : real                      []                      !Depth considered to contamination probability
 !   EULERIAN_MONITOR_BOX    : char                      []                      !Eulerian results monitoring box
-!   MONITOR_POLY            : int                       [0]                     !Number of polygons to be use in pure lagrangiam monitorization (no grid)
+!   MONITOR_POLY            : int                       [0]                     !Number of polygons to be use in pure 
+!                                                                               !lagrangiam monitorization (no grid)
 !   MONITOR_POLY_DT         : real                      [DT_PARTIC]             !Time step use to monitor the particles
 !   <BeginMonitorPoly>
 !   poly1.xy
@@ -6956,21 +6957,6 @@ SP:             if (NewProperty%SedimentPartition%ON) then
 
                 if (PropertyID == Sediment) SedimentDefined = .true.
 
-                if (NewOrigin%State%FarFieldBuoyancy .or. NewOrigin%State%ComputePlume) then
-
-                    if (PropertyID == Salinity_   ) then
-                        if (NewOrigin%State%ComputePlume)                               &
-                            NewOrigin%Movement%JetSalinity    = NewProperty%Concentration
-                        SalOK = .true.
-                    endif
-
-                    if (PropertyID == Temperature_) then
-                        if (NewOrigin%State%ComputePlume)                               &
-                            NewOrigin%Movement%JetTemperature = NewProperty%Concentration
-                        TempOK = .true.
-                    endif
-
-                endif
 
                 call GetData(NewProperty%HasOdour,                                      &
                              Me%ObjEnterData,                                           &
@@ -7034,10 +7020,7 @@ SP:             if (NewProperty%SedimentPartition%ON) then
 
         if (NewOrigin%Filtration) Me%State%Filtration = .true. 
 
-        if ((NewOrigin%State%FarFieldBuoyancy  .or. Me%State%ComputePlume)              &
-             .and. .not.(TempOK .and. SalOK)) then
-            call SetError (FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1460')
-        endif
+
         if (NewOrigin%State%Deposition .and. .not. SedimentDefined)                     &
             call SetError (FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1470')
 
@@ -7253,6 +7236,37 @@ SP:             if (NewProperty%SedimentPartition%ON) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1590'
             
         endif            
+        
+        !Actualizes Variable Flow and concentration
+        if (NewOrigin%EmissionTemporal == Continuous_ .and. .not.NewOrigin%Default)  then
+            call ActualizeOrigin (NewOrigin)
+        endif
+        
+        if (NewOrigin%State%FarFieldBuoyancy .or. NewOrigin%State%ComputePlume) then
+
+            NewProperty => NewOrigin%FirstProperty
+            do while (associated(NewProperty))
+
+                if (NewProperty%ID == Salinity_) then
+                    NewOrigin%Movement%JetSalinity = NewProperty%Concentration
+                    SalOK = .true.
+                endif
+                if (NewProperty%ID == Temperature_) then
+                    NewOrigin%Movement%JetTemperature = NewProperty%Concentration
+                    TempOK = .true.
+                endif                
+
+                NewProperty => NewProperty%Next
+            enddo
+
+            nullify(NewProperty)
+
+            if (.not.(TempOK .and. SalOK)) then
+                call SetError (FATAL_, INTERNAL_, 'ConstructOneOrigin - ModuleLagrangianGlobal - ERR1460')
+            endif                  
+                
+        endif
+            
         
         if (NewOrigin%State%ComputePlume .and. .not. NewOrigin%Default) then
 
@@ -10610,7 +10624,7 @@ FLOAT:  if (CurrentOrigin%Movement%Float            .or.    &
 
         !Arguments-------------------------------------------------------------
         type (T_Origin), pointer                    :: CurrentOrigin
-        real                                        :: ParticleVolume
+        real,   intent(OUT), optional               :: ParticleVolume
 
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: CurrentProperty
@@ -10618,6 +10632,7 @@ FLOAT:  if (CurrentOrigin%Movement%Float            .or.    &
         real                                        :: Value1, Value2, TotalVolume
         logical                                     :: TimeCycle
         integer                                     :: STAT_CALL
+        real                                        :: ParticleVolume_
 
         !Begin-----------------------------------------------------------------
 
@@ -10634,19 +10649,18 @@ FLOAT:  if (CurrentOrigin%Movement%Float            .or.    &
             Value1 = Value1 * CurrentOrigin%FlowScaleFactor
             Value2 = Value2 * CurrentOrigin%FlowScaleFactor
 
-            !if (TimeCycle) then
-            !    CurrentOrigin%Flow = Value1
-            !    ParticleVolume = CurrentOrigin%Flow     *                                   &
-            !                     CurrentOrigin%DT_EMIT  /                                   &
-            !                     CurrentOrigin%NbrParticlesIteration
-
-            !else
+            if (TimeCycle) then
+                CurrentOrigin%Flow = Value1
+            else
                 !Interpolates Value for current instant
-    !            call InterpolateValueInTime(Me%ExternalVar%Now, Time1,               &
-    !                                        Value1, Time2, Value2, CurrentOrigin%Flow)
+                call InterpolateValueInTime(Me%ExternalVar%Now, Time1,               &
+                                            Value1, Time2, Value2, CurrentOrigin%Flow)
+
+            endif
 
                 StartTime = Me%Now 
                 EndTime   = Me%Now + CurrentOrigin%DT_EMIT
+            
                 if (EndTime > Me%ExternalVar%EndTime) then
                     CurrentOrigin%NbrParticlesIteration = 0
                 else
@@ -10665,17 +10679,18 @@ FLOAT:  if (CurrentOrigin%Movement%Float            .or.    &
                          
                         if (CurrentOrigin%NbrParticlesIteration < 1) CurrentOrigin%NbrParticlesIteration = 1
                         
-                        ParticleVolume                      = TotalVolume / real(CurrentOrigin%NbrParticlesIteration)
+                    ParticleVolume_                    = TotalVolume / real(CurrentOrigin%NbrParticlesIteration)
                         
-                        if (ParticleVolume > CurrentOrigin%MaxVol) then
-                            write(*,*) 'Particle volume ', ParticleVolume, 'larger than maximum volume allowed ', &
+                    if (ParticleVolume_ > CurrentOrigin%MaxVol) then
+                        write(*,*) 'Particle volume ', ParticleVolume_, 'larger than maximum volume allowed ', &
                                        CurrentOrigin%MaxVol
                             stop 'ActualizeOrigin - ModuleLagrangianGlobal - ERR20.'
                         endif
                         
                     endif
                 endif
-            !endif
+
+            if (present(ParticleVolume)) ParticleVolume = ParticleVolume_
 
         endif
 
@@ -10683,7 +10698,9 @@ FLOAT:  if (CurrentOrigin%Movement%Float            .or.    &
         do while (associated(CurrentProperty))
 
             if (CurrentProperty%ConcVariable) then
+                
                 call ActualizeConcentration (CurrentProperty)
+                
             endif
 
             CurrentProperty => CurrentProperty%Next
@@ -18854,7 +18871,11 @@ OIL:            if (CurrentOrigin%State%Oil) then
                         CurrentPartic%W = W
                     endif
 
+                    if (ai > 0) then
                     CurrentPartic%W = sqrt(ai * 0.0004) + W
+                    else
+                        stop      'MoveParticVertical - ModuleLagrangianGlobal - ERR40'
+                    endif
 
 
 
@@ -25648,7 +25669,7 @@ i1:             if (nP>0) then
                             call HDF5WriteDataBottomStress(CurrentOrigin, em, OutPutNumber)
                         endif
                         
-    iplume:             if (CurrentOrigin%State%ComputePlume) then
+    iplume:             if (CurrentOrigin%State%ComputePlume .and. CurrentOrigin%Flow > 0.) then
 
                             emp = CurrentOrigin%Position%ModelID
 

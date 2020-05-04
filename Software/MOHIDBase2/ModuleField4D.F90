@@ -2763,11 +2763,11 @@ it:     if (NewPropField%ChangeInTime) then
 
                     if(NewPropField%NextInstant .lt. 1) then
                         write(*,*)
-                        write(*,*)'Could not read solution from file'
+                        !write(*,*)'Could not read solution from file'
                         write(*,*) 'Filename =', trim(Me%File%FileName)                    
                         write(*,*)'Could not find second instant in file'
                         write(*,*)'Matrix name: '//trim(NewPropField%FieldName)
-                        stop      'ConstructPropertyField - ModuleField4D - ERR210'
+                        !stop      'ConstructPropertyField - ModuleField4D - ERR210'
                     end if
 
                
@@ -2785,11 +2785,11 @@ it:     if (NewPropField%ChangeInTime) then
 
                     if(NewPropField%NextInstant .gt. Me%File%NumberOfInstants) then
                         write(*,*)
-                        write(*,*)'Could not read solution from file'
+                        !write(*,*)'Could not read solution from file'
                         write(*,*) 'Filename =', trim(Me%File%FileName)                    
                         write(*,*)'Could not find second instant in file'
                         write(*,*)'Matrix name: '//trim(NewPropField%FieldName)
-                        stop      'ConstructPropertyField - ModuleField4D - ERR220'
+                        !stop      'ConstructPropertyField - ModuleField4D - ERR220'
                     end if
 
                 endif

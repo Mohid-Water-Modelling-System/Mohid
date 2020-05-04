@@ -417,7 +417,7 @@ Module ModuleValida4D
                          Me%ObjEnterData, iflag,                                        &
                          SearchType   = FromFile,                                       &
                          keyword      = 'FILE_LIST_MODE',                               &
-                         default      = .false.,                                        &
+                         default      = .true.,                                         &
                          ClientModule = 'ModuleValida4D',                               &
                          STAT         = STAT_CALL)                                          
             if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleValida4D - ERR205'
