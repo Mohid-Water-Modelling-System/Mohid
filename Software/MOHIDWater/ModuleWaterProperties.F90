@@ -264,8 +264,9 @@ Module ModuleWaterProperties
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
                                           ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
-                                          SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977
-                                          !SpecificHeatUNESCO Sobrinho
+                                          SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977, &
+                                          GetPointer
+                                          
     use mpi
 #else _USE_MPI
     use ModuleFunctions,            only: SigmaLeendertse, SigmaUNESCO, SigmaWang,              &
@@ -278,8 +279,8 @@ Module ModuleWaterProperties
                                           ComputeT90_Canteras, SetMatrixValue, CHUNK_J, CHUNK_K, &
                                           InterpolateProfileR8, TimeToString, ChangeSuffix,     &
                                           ExtraPol3DNearestCell, ConstructPropertyIDOnFly, Pad, &
-                                          SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977
-                                          !SpecificHeatUNESCO Sobrinho
+                                          SWPercentage_PaulsonSimpson1977, LWCoef_PaulsonSimpson1977, &
+                                          GetPointer
 #endif _USE_MPI
 
     use ModuleTurbulence,           only: GetHorizontalViscosity, GetVerticalDiffusivity,       &
@@ -512,8 +513,8 @@ Module ModuleWaterProperties
     private ::      Reinitialize_Solution
     private ::      ModifySpecificHeat
     private ::          ComputeSpecificHeatUNESCO
-    private ::      ComputeTwoWay
-    private ::          UpdateFatherModelWP
+    private ::      Upscaling
+    private ::          Compute_wp_upscaling
     private ::      OutPut_Results_HDF
     private ::      OutPut_SurfaceResults_HDF
     private ::      OutPut_TimeSeries
@@ -943,6 +944,7 @@ Module ModuleWaterProperties
         logical                                 :: OutputSurfaceHDF     = .false.
         logical                                 :: OutputProfile        = .false.
         logical                                 :: OutputHDFSedVel      = .false.
+        logical                                 :: UpscalingSinkSource  = .false.
         logical                                 :: BoxTimeSerie         = .false.
         logical                                 :: BoxIntegrationByArea = .false.
         logical                                 :: Statistics           = .false.
@@ -956,6 +958,7 @@ Module ModuleWaterProperties
         real, pointer, dimension(:,:  )         :: SurfaceFlux
         real, pointer, dimension(:,:,:)         :: Mass_Created
         real, pointer, dimension(:,:,:)         :: Mass_Destroid
+        real, allocatable, dimension(:,:,:)     :: UpscalingMassLoss
         real, pointer, dimension(:,:  )         :: BottomFlux
         real, pointer, dimension(:,:,:)         :: Filtration
         real, pointer, dimension(:    )         :: DischConc
@@ -1260,10 +1263,6 @@ Module ModuleWaterProperties
 
         logical                                 :: Continuous = .false.
         logical                                 :: Optimize   = .false.
-        logical                                 :: OptimizeHorizontalAdvection = .false.
-        logical                                 :: OptimizeHorizontalDiffusion = .false.
-        logical                                 :: OptimizeVerticalAdvection   = .false.
-        logical                                 :: OptimizeVerticalDiffusion   = .false.
         
         integer                                 :: Docycle_method = 1
 
@@ -1834,12 +1833,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
 
-
     subroutine ReadConfiguration
 
         integer     :: iflag
         integer     :: status
-
+        
         call GetData(Me%PhreeqCOnlyForStart,                    &
                      Me%ObjEnterData, iflag,                    &
                      SearchType   = FromFile,                   &
@@ -1859,65 +1857,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      STAT         = status)
         if (status /= SUCCESS_) &
             call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR10')
-        
-        call GetData(Me%Optimize,                               &
-                     Me%ObjEnterData, iflag,                    &
-                     SearchType   = FromFile,                   &
-                     keyword      = 'OPTIMIZE',                 &
-                     default      = .false.,                    &
-                     ClientModule = 'ModuleWaterProperties',    &
-                     STAT         = status)
-        if (status /= SUCCESS_) &
-            call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR11')
-        
-        if (Me%Optimize) then
-            
-            call GetData(Me%OptimizeHorizontalAdvection,                             &
-                         Me%ObjEnterData, iflag,                    &
-                         SearchType   = FromFile,                   &
-                         keyword      = 'OPTIMIZE_ADVECTIONH',      &
-                         default      = .true.,                    &
-                         ClientModule = 'ModuleWaterProperties',    &
-                         STAT         = status)
-            if (status /= SUCCESS_) &
-                call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR11')
-        
-            call GetData(Me%OptimizeHorizontalDiffusion,                      &
-                         Me%ObjEnterData, iflag,                    &
-                         SearchType   = FromFile,                   &
-                         keyword      = 'OPTIMIZE_DIFFUSIONH',      &
-                         default      = .true.,                    &
-                         ClientModule = 'ModuleWaterProperties',    &
-                         STAT         = status)
-            if (status /= SUCCESS_) &
-                call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR12')
-        
-            call GetData(Me%OptimizeVerticalAdvection,                             &
-                         Me%ObjEnterData, iflag,                    &
-                         SearchType   = FromFile,                   &
-                         keyword      = 'OPTIMIZE_ADVECTIONV',      &
-                         default      = .true.,                    &
-                         ClientModule = 'ModuleWaterProperties',    &
-                         STAT         = status)
-            if (status /= SUCCESS_) &
-                call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR13')
-        
-            call GetData(Me%OptimizeVerticalDiffusion,              &
-                         Me%ObjEnterData, iflag,                    &
-                         SearchType   = FromFile,                   &
-                         keyword      = 'OPTIMIZE_DIFFUSIONV',      &
-                         default      = .true.,                    &
-                         ClientModule = 'ModuleWaterProperties',    &
-                         STAT         = status)
-            if (status /= SUCCESS_) &
-                call CloseAllAndStop ('ReadConfiguration - ModuleWaterProperties - ERR14')
-            
-        endif
 
-        if (Me%Continuous) then
-            Me%MustStartPhreeqC = .false.
-        endif
-
+        if (Me%Continuous) Me%MustStartPhreeqC = .false.
 
     end subroutine ReadConfiguration
 
@@ -3282,8 +3223,7 @@ cd5 :                   if (Me%ExternalVar%BoundaryPoints2D(i, j) == Boundary) t
 
 do6 :                       do K = WKLB, WKUB
 
-                                NewProperty%Assimilation%Field(i, j, k) =               &
-                                    NewProperty%Assimilation%scalar
+                                NewProperty%Assimilation%Field(i, j, k) = NewProperty%Assimilation%scalar
 
                             end do do6
 
@@ -7283,33 +7223,20 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
         !Arguments-------------------------------------------------------------
         type(T_property), pointer       :: NewProperty
         integer                         :: ClientNumber
-
         !External--------------------------------------------------------------
         integer                         :: STAT_CALL
-
         !Local-----------------------------------------------------------------
         character(len=8)                :: BoundaryMethod
-        integer                         :: iflag
-        integer                         :: i,j,k
+        integer                         :: iflag, i,j,k
         integer                         :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                         :: WILB, WIUB, WJLB, WJUB
-        integer                         :: WKLB, WKUB
-
+        integer                         :: WILB, WIUB, WJLB, WJUB, WKLB, WKUB
         !----------------------------------------------------------------------
 
-        ILB = Me%Size%ILB
-        IUB = Me%Size%IUB
-        JLB = Me%Size%JLB
-        JUB = Me%Size%JUB
-        KLB = Me%Size%KLB
-        KUB = Me%Size%KUB
+        ILB = Me%Size%ILB; JLB = Me%Size%JLB; KLB = Me%Size%KLB
+        IUB = Me%Size%IUB; JUB = Me%Size%JUB; KUB = Me%Size%KUB
 
-        WILB = Me%WorkSize%ILB
-        WIUB = Me%WorkSize%IUB
-        WJLB = Me%WorkSize%JLB
-        WJUB = Me%WorkSize%JUB
-        WKLB = Me%WorkSize%KLB
-        WKUB = Me%WorkSize%KUB
+        WILB = Me%WorkSize%ILB; WJLB = Me%WorkSize%JLB; WKLB = Me%WorkSize%KLB
+        WIUB = Me%WorkSize%IUB; WJUB = Me%WorkSize%JUB; WKUB = Me%WorkSize%KUB
 
 #ifdef _USE_PAGELOCKED
         ! Allocate pagelocked memory to optimize CUDA transfers
@@ -7343,14 +7270,10 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
 
         endif
 
-        !if (NewProperty%Evolution%DataAssimilation /= NoNudging) then
-
-            allocate (NewProperty%Assimilation%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_)                                                     &
-                call CloseAllAndStop ('Construct_PropertyValues - ModuleWaterProperties - ERR30')
-                NewProperty%Assimilation%Field(:,:,:) = FillValueReal
-
-        !endif
+        allocate (NewProperty%Assimilation%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
+        if (STAT_CALL .NE. SUCCESS_)                                                     &
+            call CloseAllAndStop ('Construct_PropertyValues - ModuleWaterProperties - ERR30')
+            NewProperty%Assimilation%Field(:,:,:) = FillValueReal
 
         !<BeginKeyword>
             !Keyword          : OLD
@@ -7590,14 +7513,11 @@ cd1 :   if      (STAT_CALL .EQ. FILE_NOT_FOUND_ERR_   ) then
             NewProperty%Evolution%ImposeDryCells = .true.
         endif
 
-
-
         ! if the property is not 'OLD' the property values in the domain and
         ! in the boundaries are initialized
         ! if it's true ('OLD') this same values are read from the final file of the
         ! previous run
 cd1 :   if (.not.NewProperty%Old) then
-
 
             call ConstructFillMatrix  (PropertyID           = NewProperty%ID,               &
                                        EnterDataID          = Me%ObjEnterData,              &
@@ -7644,21 +7564,13 @@ cd1 :   if (.not.NewProperty%Old) then
             NewProperty%Concentration( IUB, WJLB:WJUB, WKLB:WKUB) = &
             NewProperty%Concentration(WIUB, WJLB:WJUB, WKLB:WKUB)
 
-
-            !if (NewProperty%Evolution%DataAssimilation /= NoNudging) then
-                !By default the assimilation field is equal to the initial one
-
 do3 :           do K = WKLB, WKUB
 do2 :           do J = JLB, JUB
 do1 :           do I = ILB, IUB
-
                     NewProperty%Assimilation%Field(I, J, K) = NewProperty%Concentration(i,j,k)
-
                 end do do1
                 end do do2
                 end do do3
-
-            !endif
 
             !Only the EXTERIOR and the INTERIOR process were considered
 
@@ -7697,18 +7609,11 @@ cd2 :           if      (BoundaryMethod=='EXTERIOR'        ) then
 
 do4 :               do J = JLB, JUB
 do5 :               do I = ILB, IUB
-
 cd5 :                   if (Me%ExternalVar%BoundaryPoints2D(i, j) == Boundary) then
-
 do6 :                       do K = WKLB, WKUB
-
-                                NewProperty%Assimilation%Field(i, j, k) =               &
-                                    NewProperty%Assimilation%scalar
-
+                                NewProperty%Assimilation%Field(i, j, k) = NewProperty%Assimilation%scalar
                             end do do6
-
                         endif cd5
-
                     end do do5
                     end do do4
 
@@ -7740,49 +7645,36 @@ do6 :                       do K = WKLB, WKUB
 
         !Arguments-------------------------------------------------------------
         type(T_property),  pointer      :: NewProperty
-
         !Local-----------------------------------------------------------------
         integer                         :: i,j,k
         integer                         :: ILB, IUB, JLB, JUB, KLB, KUB
         real                            :: NewValue
-
         !----------------------------------------------------------------------
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB; JLB = Me%WorkSize%JLB; KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB; JUB = Me%WorkSize%JUB; KUB = Me%WorkSize%KUB
 
         if (NewProperty%AddOffSet)then
-
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-
                 if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
-                    NewProperty%Concentration(i,j,k)   = NewProperty%Concentration(i,j,k)      + &
-                                                         NewProperty%OffSet
+                    NewProperty%Concentration(i,j,k)   = NewProperty%Concentration(i,j,k) + NewProperty%OffSet
                 endif
-
             enddo
             enddo
             enddo
-
         endif
 
         !Verification if the values read are lower than zero in water points
 do9 :   do I = ILB, IUB
 do8 :   do J = JLB, JUB
 do7 :   do K = KLB, KUB
-
+            NewProperty%Concentration(i, j, k) = FillValueReal
+            
 cd21:       if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then
-
                 if(NewProperty%Evolution%MinConcentration) then
-
                     if (NewProperty%Concentration(i, j, k) < NewProperty%MinValue) then
-
                         write(*,*)
                         write(*,*)"Property : ", trim(NewProperty%ID%Name)
                         write(*,*)"Initial concentration is below the minimum value in cell", i, j, k
@@ -7792,11 +7684,9 @@ cd21:       if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then
                         write(*,*)"New concentration = ", NewProperty%MinValue
                         write(*,*)"CheckFieldConsistence - ModuleWaterProperties - WRN01"
                         write(*,*)
-
                     endif
 
                 elseif (NewProperty%Concentration(i, j, k) < 0.) then
-
                         write(*,*)
                         write(*,*)"Property : ", trim(NewProperty%ID%Name)
                         write(*,*)"Negative initial concentration in cell", i, j, k
@@ -7808,36 +7698,22 @@ cd21:       if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then
                         write(*,*)
 
                         NewProperty%Concentration(i,j,k) = NewValue
-
                 endif
-
-            else  cd21
-
-                NewProperty%Concentration(i, j, k) = FillValueReal
-
             endif cd21
-
-
         enddo do7
         enddo do8
         enddo do9
 
-
         if (NewProperty%AddOffSet)then
-
             do K = Me%WorkSize%KLB, Me%WorkSize%KUB
             do J = Me%WorkSize%JLB, Me%WorkSize%JUB
             do I = Me%WorkSize%ILB, Me%WorkSize%IUB
-
                 if(Me%ExternalVar%WaterPoints3D(i,j,k) == WaterPoint)then
-                    NewProperty%Concentration(i,j,k)   = NewProperty%Concentration(i,j,k)      - &
-                                                         NewProperty%OffSet
+                    NewProperty%Concentration(i,j,k)   = NewProperty%Concentration(i,j,k) - NewProperty%OffSet
                 endif
-
             enddo
             enddo
             enddo
-
         endif
 
     end subroutine CheckFieldConsistence
@@ -7911,15 +7787,12 @@ cd21:       if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then
             do k = KLB, KUB
             do j = JLB, JUB
             do i = ILB, IUB
-
                 if(Me%ExternalVar%Waterpoints3D(i,j,k) == WaterPoint .and. Concentration(i, j, k) > 0.)then
 
                     Cumulative = Cumulative + Concentration(i, j, k)
                     Count      = Count + 1
 
                 end if
-
-
             enddo
             enddo
             enddo
@@ -7950,29 +7823,19 @@ cd21:       if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then
      ! in the domain and in the boundaries
 
     subroutine Construct_WqRateValues(NewWqRate)
-
         !Arguments-------------------------------------------------------------
         type(T_wqrate), pointer         :: NewWqRate
-
         !External--------------------------------------------------------------
         integer                         :: STAT_CALL
-
         !Local-----------------------------------------------------------------
         integer                         :: ILB, IUB, JLB, JUB, KLB, KUB
-
         !----------------------------------------------------------------------
-
-        ILB = Me%Size%ILB
-        IUB = Me%Size%IUB
-        JLB = Me%Size%JLB
-        JUB = Me%Size%JUB
-        KLB = Me%Size%KLB
-        KUB = Me%Size%KUB
-
+        ILB = Me%Size%ILB; JLB = Me%Size%JLB; KUB = Me%Size%KUB
+        IUB = Me%Size%IUB; JUB = Me%Size%JUB; KLB = Me%Size%KLB
+        
         allocate(NewWqRate%Field(ILB:IUB, JLB:JUB, KLB:KUB), STAT = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)call CloseAllAndStop ('Construct_WqRateValues - ModuleWaterProperties - ERR01')
         NewWqRate%Field(:,:,:) = FillValueReal
-
 
     end subroutine Construct_WqRateValues
 
@@ -7981,29 +7844,18 @@ cd21:       if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then
     !This functions gives defaul values to each property if this value are not specified
 
     function DefaultValueProp(PropertyID)
-
     !Arguments-----------------------------------------------------------------
-
     real    :: DefaultValueProp
     integer :: PropertyID
 
-
 case1 : select case(PropertyID)
             case(Temperature_)
-
                 DefaultValueProp = 11.
-
             case(Salinity_)
-
                 DefaultValueProp = 35.
-
             case default
-
                 DefaultValueProp = 0.
-
         end select case1
-
-
 
     end Function DefaultValueProp
 
@@ -8016,11 +7868,9 @@ case1 : select case(PropertyID)
         !Arguments-------------------------------------------------------------
         type(T_property),           pointer     :: NewProperty
         integer                                 :: ClientNumber
-
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
         real                                    :: ModelDT
-
         !Local-----------------------------------------------------------------
         integer                                 :: iflag
         real                                    :: ErrorAux, auxFactor, DTaux
@@ -8045,6 +7895,7 @@ case1 : select case(PropertyID)
             !End Block        : <endproperty>
         !<EndKeyword>
 
+        
         call GetData(NewProperty%Evolution%AdvectionDiffusion,                           &
                      Me%ObjEnterData, iflag,                                             &
                      SearchType   = FromBlock,                                           &
@@ -8055,11 +7906,9 @@ case1 : select case(PropertyID)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR10')
 
-        if (NewProperty%Evolution%AdvectionDiffusion)                                    &
-            NewProperty%Evolution%Variable = .true.
+        if (NewProperty%Evolution%AdvectionDiffusion) NewProperty%Evolution%Variable = .true.
 
-        if (NewProperty%evolution%AdvectionDiffusion)                                    &
-            call Read_Advec_Difus_Parameters(NewProperty)
+        if (NewProperty%evolution%AdvectionDiffusion) call Read_Advec_Difus_Parameters(NewProperty)
 
 
         !<BeginKeyword>
@@ -8089,8 +7938,7 @@ case1 : select case(PropertyID)
         if (NewProperty%Evolution%InstantMixing .and. NewProperty%evolution%AdvectionDiffusion) &
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR30')
 
-        if(NewProperty%Evolution%InstantMixing)                                          &
-           NewProperty%Evolution%Variable = .true.
+        if(NewProperty%Evolution%InstantMixing) NewProperty%Evolution%Variable = .true.
 
         !<BeginKeyword>
             !Keyword          : WATER_QUALITY
@@ -8141,7 +7989,6 @@ case1 : select case(PropertyID)
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR50')
 
         if(NewProperty%Evolution%Macroalgae) NewProperty%evolution%Variable = .true.
-
 
         !<BeginKeyword>
             !Keyword          : SEAGRLEAVES
@@ -8194,7 +8041,6 @@ case1 : select case(PropertyID)
 
         if(NewProperty%evolution%CEQUALW2) NewProperty%evolution%Variable = .true.
 
-
         !<BeginKeyword>
             !Keyword          : LIFE
             !<BeginDescription>
@@ -8231,8 +8077,6 @@ case1 : select case(PropertyID)
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR71')
 
         if(NewProperty%evolution%Bivalve) NewProperty%evolution%Variable = .true.
-
-
 
         !<BeginKeyword>
             !Keyword          : WWTPQ
@@ -8310,9 +8154,7 @@ case1 : select case(PropertyID)
 
         if(NewProperty%evolution%Partitioning) NewProperty%evolution%Variable = .true.
 
-        if(NewProperty%Evolution%Partitioning)                                           &
-            call Read_Partition_Parameters(NewProperty)
-
+        if(NewProperty%Evolution%Partitioning) call Read_Partition_Parameters(NewProperty)
 
         !<BeginKeyword>
             !Keyword          : DISCHARGES
@@ -8337,9 +8179,7 @@ case1 : select case(PropertyID)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR90')
 
-        if (NewProperty%evolution%Discharges)                                            &
-            NewProperty%Evolution%Variable = .true.
-
+        if (NewProperty%evolution%Discharges) NewProperty%Evolution%Variable = .true.
 
         !<BeginKeyword>
             !Keyword          : DISCHARGES_TRACKING
@@ -8363,7 +8203,6 @@ case1 : select case(PropertyID)
                      STAT         = STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR110')
-
 
         !<BeginKeyword>
             !Keyword          : VERTICAL_MOVEMENT
@@ -8422,17 +8261,13 @@ case1 : select case(PropertyID)
         if (NewProperty%evolution%SurfaceFluxes .and. .not. Me%ExtSurface%PrecipitationON) then
 
             call GetHydrodynamicAirOptions (Me%ObjHydrodynamic,                         &
-                                            SurfaceWaterFluxYes =                       &
-                                            Me%ExtSurface%PrecipitationON,              &
+                                            SurfaceWaterFluxYes = Me%ExtSurface%PrecipitationON,              &
                                             WindYes = Dummy,             &
                                             AtmPressureYes = Dummy,      &
-                                            MslpYes = Dummy,             &
-                                            STAT = STAT_CALL)
-
+                                            MslpYes = Dummy, STAT = STAT_CALL)
 
             if (STAT_CALL .NE. SUCCESS_)                                                &
                 call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR135')
-
         endif
 
         !<BeginKeyword>
@@ -8458,8 +8293,7 @@ case1 : select case(PropertyID)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR140')
 
-        if (NewProperty%Evolution%BottomFluxes)                                          &
-            NewProperty%Evolution%Variable = .true.
+        if (NewProperty%Evolution%BottomFluxes) NewProperty%Evolution%Variable = .true.
 
         !<BeginKeyword>
             !Keyword          : DATA_ASSIMILATION
@@ -8484,9 +8318,7 @@ case1 : select case(PropertyID)
         if (STAT_CALL .NE. SUCCESS_)                                                     &
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR150')
             
-        if (NewProperty%Evolution%DataAssimilation /= NoNudging)then
-            NewProperty%Evolution%Variable = .true.
-        endif
+        if (NewProperty%Evolution%DataAssimilation /= NoNudging) NewProperty%Evolution%Variable = .true.
 
         if (NewProperty%Evolution%DataAssimilation /= NoNudging      .and.              &
             NewProperty%Evolution%DataAssimilation /= NudgingToRef   .and.              &
@@ -8495,13 +8327,11 @@ case1 : select case(PropertyID)
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR160')
         endif
 
-        if(NewProperty%Evolution%DataAssimilation == Hybrid .and. .not. &
-           NewProperty%SubModel%ON)then
+        if(NewProperty%Evolution%DataAssimilation == Hybrid .and. .not. NewProperty%SubModel%ON)then
             write(*,*)'Data assimilation scheme set to Hybrid but SUBMODEL is not set'
             write(*,*)'Property : ', trim(NewProperty%ID%Name)
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR170')
         endif
-
 
         !<BeginKeyword>
             !Keyword          : LIGHT_EXTINCTION
@@ -8539,7 +8369,6 @@ case1 : select case(PropertyID)
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                &
                 call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR190')
-
         end if
 
         call GetData(NewProperty%Evolution%Filtration%On,                               &
@@ -8581,7 +8410,6 @@ case1 : select case(PropertyID)
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR210')
 
         if(NewProperty%Evolution%LagSinksSources) NewProperty%evolution%Variable = .true.
-
 
         !<BeginKeyword>
             !Keyword          : FIRST_ORDER_DECAY
@@ -8631,8 +8459,6 @@ case1 : select case(PropertyID)
                          STAT         = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_)                                                &
                 call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR230')
-
-
 
             if (.not.CheckPropertyName(trim(AuxName),NewProperty%evolution%T90PropertyID)) then
                 call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR240')
@@ -8716,11 +8542,9 @@ case1 : select case(PropertyID)
 
         endif
 
-
         if (NewProperty%ID%IDNumber == Oxygen_) then
             call GetData(NewProperty%evolution%OxygenSaturation,                        &
-                             Me%ObjEnterData,                                           &
-                             iflag,                                                     &
+                             Me%ObjEnterData, iflag,                                    &
                              SearchType   = FromBlock,                                  &
                              keyword      ='OXYGEN_SATURATION',                         &
                              ClientModule ='ModuleWaterProperties',                     &
@@ -8730,10 +8554,8 @@ case1 : select case(PropertyID)
                 call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR260')
 
             if (NewProperty%evolution%OxygenSaturation) then
-
                 Me%OxygenSaturation = .true.
                 NewProperty%Evolution%AdvectionDiffusion = .false.
-
             endif
 
         else
@@ -8743,8 +8565,7 @@ case1 : select case(PropertyID)
 
         if (NewProperty%ID%IDNumber == CarbonDioxide_) then
             call GetData(NewProperty%evolution%CO2_PP_Output,                           &
-                             Me%ObjEnterData,                                           &
-                             iflag,                                                     &
+                             Me%ObjEnterData, iflag,                                    &
                              SearchType   = FromBlock,                                  &
                              keyword      ='CO2_PPRESSURE_OUTPUT',                      &
                              ClientModule ='ModuleWaterProperties',                     &
@@ -8755,11 +8576,9 @@ case1 : select case(PropertyID)
 
         endif
 
-
         if (NewProperty%ID%IDNumber == Oxygen_) then
             call GetData(NewProperty%evolution%O2_Sat_Output,                           &
-                             Me%ObjEnterData,                                           &
-                             iflag,                                                     &
+                             Me%ObjEnterData, iflag,                                    &
                              SearchType   = FromBlock,                                  &
                              keyword      ='O2_SATURATION_OUTPUT',                      &
                              ClientModule ='ModuleWaterProperties',                     &
@@ -8772,8 +8591,7 @@ case1 : select case(PropertyID)
 
         if (NewProperty%ID%IDNumber == PHYTOPLANKTON_) then
             call GetData(NewProperty%evolution%CHLA_WQ_Output,                          &
-                             Me%ObjEnterData,                                           &
-                             iflag,                                                     &
+                             Me%ObjEnterData, iflag,                                    &
                              SearchType   = FromBlock,                                  &
                              keyword      ='CHLA_WQ_OUTPUT',                            &
                              ClientModule ='ModuleWaterProperties',                     &
@@ -8784,11 +8602,9 @@ case1 : select case(PropertyID)
 
         endif
 
-
         if (NewProperty%ID%IDNumber == PHYTOPLANKTON_) then
             call GetData(NewProperty%evolution%C_CHLA_Output,                           &
-                             Me%ObjEnterData,                                           &
-                             iflag,                                                     &
+                             Me%ObjEnterData, iflag,                                    &
                              SearchType   = FromBlock,                                  &
                              keyword      ='C_CHLA_OUTPUT',                             &
                              ClientModule ='ModuleWaterProperties',                     &
@@ -8798,9 +8614,6 @@ case1 : select case(PropertyID)
                 call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR300')
 
         endif
-
-
-
 
        !<BeginKeyword>
             !Keyword          : REINITIALIZE
@@ -8841,10 +8654,9 @@ case1 : select case(PropertyID)
             if (VariableDT) then
 
                 NewProperty%Evolution%DTInterval       = ModelDT
-
                 NewProperty%Evolution%HydroIntegration = .false.
 
-        else
+            else
 
             !<BeginKeyword>
                 !Keyword          : DT_INTERVAL
@@ -8907,9 +8719,7 @@ case1 : select case(PropertyID)
                     NewProperty%Evolution%HydroIntegration = .true.
 
                 else
-
                     NewProperty%Evolution%HydroIntegration = .false.
-
                 end if
 
             endif
@@ -8983,6 +8793,19 @@ case1 : select case(PropertyID)
             write(*,*) 'Model not made to run TwoWay if property is constant over time', trim(NewProperty%ID%Name)
             call CloseAllAndStop ('Subroutine Construct_PropertyEvolution - ModuleWaterProperties - ERR380')
         endif
+        
+        !Checks if user wants to compute and output mass destroid or gained due to upscaling (set in son domain only)
+        call GetData(NewProperty%UpscalingSinkSource,                                   &
+                     Me%ObjEnterData, iflag,                                            &
+                     Keyword        = 'UPSCALING_SINK_SOURCE',                          &
+                     Default        = .false.,                                          &
+                     SearchType     = FromBlock,                                        &
+                     ClientModule   = 'ModuleWaterProperties',                          &
+                     STAT           = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_PropertyEvolution - ModuleWaterProperties - ERR390')
+
+        if (NewProperty%UpscalingSinkSource .and. .not. NewProperty%SubModel%ON) &
+            call CloseAllAndStop ('UPSCALING_SINK_SOURCE keyword must only be defined in Son domain')
 
         !----------------------------------------------------------------------
 
@@ -9003,7 +8826,6 @@ case1 : select case(PropertyID)
             write(*,*)
             write(*,*)' Property ', trim(NewProperty%ID%Name), ' discharged without advection-diffusion.'
             call CloseAllAndStop ('Subroutine CheckDischarges - ModuleWaterProperties - ERR10')
-
         end if
 
         call GetPointDischargesState(Me%ObjHydrodynamic, HydroDischarge)
@@ -9012,7 +8834,6 @@ case1 : select case(PropertyID)
             if (HydroDischarge .and. NewProperty%evolution%AdvectionDiffusion)  then
                 write(*,*)' Property ', trim(NewProperty%ID%Name), ' must have DISCHARGES active as there is a waterdischarge'
                 call CloseAllAndStop ('Subroutine CheckDischarges - ModuleWaterProperties - ERR020')
-
             endif
         endif
 
@@ -9633,10 +9454,8 @@ cd1:    if (BoundaryCondition == Orlanski) then
             call CloseAllAndStop ('ReadSubModelOptions - ModuleWaterProperties - ERR40')
 
         if (NewProperty%Submodel%TwoWay .and. .not. NewProperty%SubModel%ON) then
-
             write(*,*) 'Keyword TWO_WAY must ONLY be defined in nested son domains'
             call CloseAllAndStop ('ReadSubModelOptions - ModuleWaterProperties - ERR50')
-
         endif
 
         if (NewProperty%Submodel%TwoWay)then
@@ -10554,7 +10373,7 @@ cd2:    if (NewProperty%Evolution%Partition%NonComplianceCriteria) then
                      SearchType     = ExtractType,                                      &
                      ClientModule   = 'ModuleWaterProperties',                          &
                      STAT           = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_PropertyOutPut - ModuleWaterProperties - ERR01')
+        if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_PropertyOutPut - ModuleWaterProperties - ERR07')
 
     end subroutine Construct_PropertyOutPut
 
@@ -12484,7 +12303,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
             
             if (.not. associated (Me%Next))then
-                Call ComputeTwoWay (WaterPropertiesID, Me%ExternalVar%Now)
+                Call Upscaling (WaterPropertiesID, Me%ExternalVar%Now)
             endif
 
             if(Me%OutPut%Yes)                                 &
@@ -13140,8 +12959,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                                    PropIDNumber, InitialField, STAT)
 
         !Arguments-------------------------------------------------------------
-        integer                                     :: WaterPropertiesSonID
-        integer                                     :: WaterPropertiesFatherID
+        integer                                     :: WaterPropertiesSonID, WaterPropertiesFatherID
         integer,            intent(IN )             :: PropIDNumber
         logical,            intent(IN )             :: InitialField
         integer, optional,  intent(OUT)             :: STAT
@@ -13149,13 +12967,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         !Local-----------------------------------------------------------------
         type(T_WaterProperties), pointer            :: ObjWaterPropertiesFather
         type(T_Property       ), pointer            :: PropertyFather, PropertySon
-        integer                                     :: ready_
-        integer                                     :: STAT_
-        integer                                     :: STAT_CALL
+        integer                                     :: ready_, STAT_, STAT_CALL, ILB, IUB, JLB, JUB, KLB, KUB
         integer, dimension(:,:,:),  pointer         :: Open3DFather
         logical                                     :: PropFatherOld
         real,    pointer, dimension(:,:,:)          :: FatherZCellCenter
-
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -13163,6 +12978,10 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         call Ready(WaterPropertiesSonID, ready_)
 
         call LocateObjFather (ObjWaterPropertiesFather, WaterPropertiesFatherID)
+        
+        JLB = ObjWaterPropertiesFather%WorkSize%JLB; JUB = ObjWaterPropertiesFather%WorkSize%JUB !Sobrinho
+        ILB = ObjWaterPropertiesFather%WorkSize%ILB; IUB = ObjWaterPropertiesFather%WorkSize%IUB
+        KLB = ObjWaterPropertiesFather%WorkSize%KUB; KUB = ObjWaterPropertiesFather%WorkSize%KUB
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
@@ -13176,9 +12995,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
             if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('SetWaterPropFather - ModuleWaterProperties - ERR20')
 
             if (.not.associated(PropertyFather)) then
-
                 call CloseAllAndStop ('SetWaterPropFather - ModuleWaterProperties - ERR30')
-
             endif
 
             if(InitialField)then
@@ -13203,9 +13020,13 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
                 call ConstructTimeInterpolation(PropertySon         = PropertySon,                           &
                                                 PropFatherVariable  = PropertyFather%Evolution%Variable,     &
                                                 DT_Father           = PropertyFather%Evolution%DTInterval)
-
+                !Sobrinho
+                if (PropertySon%UpscalingSinkSource) allocate(PropertyFather%UpscalingMassLoss(ILB:IUB, JLB:JUB, KLB:KUB))
+                PropertyFather%UpscalingMassLoss = 0.0
+                !Change variable here instead of in construct phase, because user must define everything in son domain.
+                !Doing it here facilitates writing to HDF
+                PropertyFather%UpscalingSinkSource = .true.
             end if
-
 
             if (PropertyFather%Evolution%LastCompute > PropertySon%SubModel%NextTime .or. InitialField) then
 
@@ -13291,21 +13112,13 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
         !Local---------------------------------------------------------------------
         real                                :: Aux1, Aux2, DT_Son
-        integer                             :: STAT_CALL
-        integer                             :: FATAL_
-        integer                             :: OUT_OF_MEM_
+        integer                             :: STAT_CALL, FATAL_, OUT_OF_MEM_
         integer                             :: ILB, IUB, JLB, JUB, KLB, KUB
-        integer                             :: FatherLayers, SonLayers
-        integer                             :: FatherKLB, FatherKUB
-
+        integer                             :: FatherLayers, SonLayers, FatherKLB, FatherKUB
         !----------------------------------------------------------------------
 
-        IUB    = Me%Size%IUB
-        ILB    = Me%Size%ILB
-        JUB    = Me%Size%JUB
-        JLB    = Me%Size%JLB
-        KUB    = Me%Size%KUB
-        KLB    = Me%Size%KLB
+        IUB = Me%Size%IUB; JUB = Me%Size%JUB; KUB = Me%Size%KUB
+        ILB = Me%Size%ILB; JLB = Me%Size%JLB; KLB = Me%Size%KLB
 
         !Ang: new implementation
         FatherKLB = PropertySon%SubModel%FatherKLB
@@ -14134,39 +13947,27 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
     subroutine Advection_Diffusion_Processes
 
         !External--------------------------------------------------------------
-        real(8), pointer, dimension(:,:,:)      :: AdvFluxX
-        real(8), pointer, dimension(:,:,:)      :: AdvFluxY
-        real(8), pointer, dimension(:,:,:)      :: AdvFluxZ
-        real(8), pointer, dimension(:,:,:)      :: DifFluxX
-        real(8), pointer, dimension(:,:,:)      :: DifFluxY
-        real(8), pointer, dimension(:,:,:)      :: DifFluxZ
+        real(8), pointer, dimension(:,:,:)      :: AdvFluxX, AdvFluxY, AdvFluxZ
+        real(8), pointer, dimension(:,:,:)      :: DifFluxX, DifFluxY, DifFluxZ
         integer                                 :: STAT_CALL
-
         !Local-----------------------------------------------------------------
         type (T_Property), pointer              :: Property
         type (T_Time)                           :: Actual
         real                                    :: ImpExp_AdvXX, ImpExp_AdvYY, firstSchmidt
-        integer                                 :: ILB, IUB
-        integer                                 :: JLB, JUB
-        integer                                 :: KLB, KUB
+        integer                                 :: ILB, IUB, JLB, JUB, KLB, KUB
         integer                                 :: I, J, K
         integer, pointer, dimension(:,:,:)      :: OpenPoints3D
         integer                                 :: CHUNK
         logical                                 :: ComputeBoxTimeSerie, PropertyComputeBoxTimeSerie, &
                                                    OptimizeFlag, FirstWaterProperty
-
         !----------------------------------------------------------------------
 
         if (MonitorPerformance)                                         &
               call StartWatch ("ModuleWaterProperties", "Advection_Diffusion_Processes")
 
-        ILB = Me%Size%ILB
-        IUB = Me%Size%IUB
-        JLB = Me%Size%JLB
-        JUB = Me%Size%JUB
-        KLB = Me%Size%KLB
-        KUB = Me%Size%KUB
-
+        ILB = Me%Size%ILB;  JLB = Me%Size%JLB;  KLB = Me%Size%KLB
+        IUB = Me%Size%IUB;  JUB = Me%Size%JUB;  KUB = Me%Size%KUB
+        
         Property => Me%FirstProperty
 
         Actual = Me%ExternalVar%Now
@@ -14181,8 +13982,7 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
         if (STAT_CALL /= SUCCESS_) &
            call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR10')
 
-        call GetVerticalDiffusivity(Me%ObjTurbulence,                                  &
-                                    VerticalDiffusivityCenter = Me%ExternalVar%Diff_V, &
+        call GetVerticalDiffusivity(Me%ObjTurbulence, VerticalDiffusivityCenter = Me%ExternalVar%Diff_V, &
                                     STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) &
             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR20')
@@ -14223,8 +14023,6 @@ cd2:    if (PropertySon%SubModel%InterpolTime) then
             Property => Property%Next
         enddo
         if (Me%Coupled%AdvectionDiffusion%NumberOfProperties < 2) OptimizeFlag = .false.
-        
-        if (.not. Me%Optimize) OptimizeFlag = .false.
 
         FirstWaterProperty = .true.
         Property => Me%FirstProperty
@@ -14330,13 +14128,9 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                     endif cd7
 
                     if (Property%SubModel%ON) then
-
                         if (.not. Property%SubModel%Set) then
-
                             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR90')
-
                         endif
-
                     endif
 
                     if  (Me%FreeConvection) call FreeConvection(Property, Me%ExternalVar%VolumeZ, OpenPoints3D)
@@ -14344,9 +14138,7 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                     call SmallDepthsMixing_Processes(Property, Me%ExternalVar%VolumeZ, OpenPoints3D)
 
                     if (Property%WarnOnNegativeValues)then
-
                         call CheckIfConcentrationIsNegative(Property, 'before advection-diffusion')
-
                     endif
 
                     if (Property%AddOffSet)then
@@ -14450,10 +14242,6 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                             NoFluxV           = Me%NoFlux%V,                                &
                             NoFluxW           = Me%NoFlux%W,                                &
                             Optimize          = OptimizeFlag,                               &
-                            Optimize_AdvH     = Me%OptimizeHorizontalAdvection,                &
-                            Optimize_DifH     = Me%OptimizeHorizontalDiffusion,                &
-                            Optimize_AdvV     = Me%OptimizeVerticalAdvection,                  &
-                            Optimize_DifV     = Me%OptimizeVerticalDiffusion,                  &
                             FirstProperty     = FirstWaterProperty,                         &
                             STAT              = STAT_CALL)
                     if (STAT_CALL .NE. SUCCESS_)                                            &
@@ -14520,18 +14308,15 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                     if (Property%evolution%HydroIntegration) then
 
                         !WaterFluxes
-                        call UnGetHydroIntegration(Me%ObjHydroIntegration,              &
-                                                   Me%ExternalVar%WaterFluxX, STAT = STAT_CALL)
+                        call UnGetHydroIntegration(Me%ObjHydroIntegration, Me%ExternalVar%WaterFluxX, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                                    &
                             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR130')
 
-                        call UnGetHydroIntegration(Me%ObjHydroIntegration,              &
-                                                    Me%ExternalVar%WaterFluxY,  STAT = STAT_CALL)
+                        call UnGetHydroIntegration(Me%ObjHydroIntegration, Me%ExternalVar%WaterFluxY, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                                    &
                             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR140')
 
-                        call UnGetHydroIntegration(Me%ObjHydroIntegration,              &
-                                                    Me%ExternalVar%WaterFluxZ,  STAT = STAT_CALL)
+                        call UnGetHydroIntegration(Me%ObjHydroIntegration, Me%ExternalVar%WaterFluxZ, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                                    &
                             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR150')
 
@@ -14552,13 +14337,11 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
                         if (STAT_CALL .NE. SUCCESS_)                                    &
                             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR180')
 
-                        call UnGetHydroIntegration(Me%ObjHydroIntegration,              &
-                                                   OpenPoints3D, STAT = STAT_CALL)
+                        call UnGetHydroIntegration(Me%ObjHydroIntegration, OpenPoints3D, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                                    &
                             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR190')
 
-                        call UnGetHydroIntegration(Me%ObjHydroIntegration,              &
-                                                   Me%ExternalVar%VolumeZOld, STAT = STAT_CALL)
+                        call UnGetHydroIntegration(Me%ObjHydroIntegration, Me%ExternalVar%VolumeZOld, STAT = STAT_CALL)
                         if (STAT_CALL .NE. SUCCESS_)                                    &
                             call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR200')
 
@@ -14597,14 +14380,12 @@ cd10:                       if (Property%evolution%Advec_Difus_Parameters%Implic
 cd6 :               if (PropertyComputeBoxTimeSerie) then
 
                             !Gets Advective Flux
-                            call GetAdvFlux(Me%ObjAdvectionDiffusion,                       &
-                                        AdvFluxX, AdvFluxY, AdvFluxZ, STAT = STAT_CALL)
+                            call GetAdvFlux(Me%ObjAdvectionDiffusion, AdvFluxX, AdvFluxY, AdvFluxZ, STAT = STAT_CALL)
                             if (STAT_CALL .NE. SUCCESS_)                                    &
                                 call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR280')
 
                             !Gets Diffusive Flux
-                            call GetDifFlux (Me%ObjAdvectionDiffusion,                      &
-                                         DifFluxX,  DifFluxY,  DifFluxZ,  STAT = STAT_CALL)
+                            call GetDifFlux (Me%ObjAdvectionDiffusion, DifFluxX, DifFluxY, DifFluxZ, STAT = STAT_CALL)
                             if (STAT_CALL .NE. SUCCESS_)                                    &
                                 call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR290')
 
@@ -14714,8 +14495,7 @@ cd6 :               if (PropertyComputeBoxTimeSerie) then
         call UnGetTurbulence(Me%ObjTurbulence, Me%ExternalVar%Diff_V, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Advection_Diffusion_Processes - ModuleWaterProperties - ERR390')
 
-        if (MonitorPerformance)                                         &
-            call StopWatch ("ModuleWaterProperties", "Advection_Diffusion_Processes")
+        if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "Advection_Diffusion_Processes")
 
         !----------------------------------------------------------------------
 
@@ -16884,6 +16664,7 @@ cd5:                if (TotalVolume > 0.) then
 
             call GetVelocityModulus(HydrodynamicID  = Me%ObjHydrodynamic,               &
                                     VelocityModulus = Me%ExternalVar%VelocityModulus,   &
+                                    Compute         = .true.,                           &
                                     STAT            = STAT_CALL)
 
             if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Bivalve_Processes - ModuleWaterProperties - ERR01')
@@ -19374,8 +19155,7 @@ do1 :   do while (associated(PropertyX))
     !>@Brief
     !>For each domain checks and starts twoway procedure
     !>@param[in] WaterPropertiesID, CurrentTime
-    subroutine ComputeTwoWay (WaterPropertiesID, CurrentTime)
-
+    subroutine Upscaling (WaterPropertiesID, CurrentTime)
     !External ----------------------------------------------------------------------------
     type (T_Property), pointer                  :: PropertyX
     type (T_Time)                               :: CurrentTime
@@ -19384,7 +19164,7 @@ do1 :   do while (associated(PropertyX))
     !Locals
     integer                                     :: ID, ready_
     !Begin------------------------------------------------------------------------------
-    if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "ComputeTwoWay")
+    if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "Upscaling")
 
     if(.not. Me%Start2way)then
 
@@ -19394,7 +19174,6 @@ do1 :   do while (associated(PropertyX))
         do while (associated(PropertyX))
             if (PropertyX%Submodel%TwoWay) then
                 if (CurrentTime - Me%BeginTime .gt. PropertyX%Submodel%TwoWayWaitPeriod)then
-
                     Me%Start2way = .true.
                     exit
                 endif
@@ -19405,28 +19184,20 @@ do1 :   do while (associated(PropertyX))
     endif
 
     if (Me%Start2way)then
+        do ID = WaterPropertiesID, 2, -1
+            if (ID /= WaterPropertiesID) call Ready (ID, ready_) ! points Me% to domain "ID"
 
-            do ID = WaterPropertiesID, 2, -1
-                if(ID == WaterPropertiesID)then
-                    !does nothing
-                else
-                    call Ready (ID, ready_) ! points Me% to domain "ID"
-                endif
-
-                FatherWaterpropertiesID = Me%WPFatherInstanceID    ! Changes ID to Father
-                    
-                    ! ID = sonID ,  FatherWaterpropertiesID = FatherID
-                if (FatherWaterpropertiesID > 0) then
-                    call UpdateFatherModelWP(ID, FatherWaterpropertiesID)
-                endif
-            enddo
-
-            call Ready (WaterPropertiesID, ready_) ! swithes back to the final Domain
+            FatherWaterpropertiesID = Me%WPFatherInstanceID    ! Changes ID to Father
+                
+            ! ID = sonID ,  FatherWaterpropertiesID = FatherID
+            if (FatherWaterpropertiesID > 0) call Compute_wp_upscaling(ID, FatherWaterpropertiesID)
+        enddo
+        call Ready (WaterPropertiesID, ready_) ! swithes back to the final Domain
     endif
 
-    if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "ComputeTwoWay")
+    if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "Upscaling")
 
-    end subroutine ComputeTwoWay
+    end subroutine Upscaling
 
     !--------------------------------------------------------------------------
 
@@ -19434,83 +19205,78 @@ do1 :   do while (associated(PropertyX))
     !>@Brief
     !> Prepares TwoWay external variables, then for each property calls modify twoway
     !>@param[in] SonWaterPropertiesID, FatherWaterPropertiesID
-    subroutine UpdateFatherModelWP(SonWaterPropertiesID, FatherWaterPropertiesID)
+    subroutine Compute_wp_upscaling(SonWaterPropertiesID, FatherWaterPropertiesID)
         !Arguments--------------------------------------------------------------------------------------------
-        integer                                 :: SonWaterPropertiesID, FatherWaterPropertiesID
+        integer, intent(IN)                     :: SonWaterPropertiesID, FatherWaterPropertiesID
         !Local variables--------------------------------------------------------------------------------------
-        type (T_WaterProperties), pointer       :: ObjWaterPropertiesFather
+        type (T_WaterProperties), pointer       :: ObjFather
         type (T_Property), pointer              :: PropertyX, PropertyFather
         real(8), dimension(:,:,:), pointer      :: FatherFlow
         integer                                 :: STAT_CALL
         logical                                 :: FirstTime
-
         !Begin------------------------------------------------------------------------------
-        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "UpdateFatherModelWP")
+        if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "Compute_wp_upscaling")
         FirstTime = .true.
 
         !Me% is pointing to Son domain!
         PropertyX => Me%FirstProperty
 
-        call LocateObjFather(ObjWaterPropertiesFather, FatherWaterPropertiesID) !Gets father solution
+        call LocateObjFather(ObjFather, FatherWaterPropertiesID) !Gets father solution
         !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
-        call PrepTwoWay (SonID             = SonWaterPropertiesID,    &
-                         FatherID          = FatherWaterPropertiesID, &
-                         CallerID          = mWATERPROPERTIES_,       &
-                         STAT              = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - failed PrepTwoWay'
+        call PrepTwoWay (SonID = SonWaterPropertiesID, FatherID = FatherWaterPropertiesID, &
+                         CallerID = mWATERPROPERTIES_, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - failed PrepTwoWay'
         
-        if (ObjWaterPropertiesFather%Coupled%UpscalingDischarge%Yes) then
+        if (ObjFather%Coupled%UpscalingDischarge%Yes) then
             !Get matrix from hydrodynamic module
             call GetDischargesFluxes(FatherWaterPropertiesID, Discharges = FatherFlow, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - failed getdischargeFluxes matrix'
+            if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - failed getdischargeFluxes matrix'
             !Update the matrix with upscaling flux
             call GetUpscalingDischarge(FatherWaterPropertiesID, FatherFlow, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - failed to get upscaling discharge flow'
+            if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - failed to get upscaling discharge flow'
         endif
-        
         
         !Assimilates all the properties with twoway option ON
         do while (associated(PropertyX))
             
-            call Search_PropertyFather(ObjWaterPropertiesFather, PropertyFather,            &
-                                        PropertyX%ID%IDNumber, STAT = STAT_CALL)
+            call Search_PropertyFather(ObjFather, PropertyFather, PropertyX%ID%IDNumber, STAT = STAT_CALL)
             if (STAT_CALL == SUCCESS_)then
 
                 if (PropertyX%Submodel%TwoWay)then
-
                     if(PropertyX%Evolution%NextCompute == PropertyFather%Evolution%LastCompute)then
                     !Assimilation of son domain into father domain
-                        
+                        !Account for change in concentration
+                        if (PropertyX%UpscalingSinkSource) &
+                            PropertyFather%UpscalingMassLoss(:,:,:) = PropertyFather%UpscalingMassLoss(:,:,:) &
+                                                                    + PropertyFather%Concentration(:,:,:)
+
                         call ModifyTwoWay (SonID            = SonWaterPropertiesID,                 &
                                            FatherMatrix     = PropertyFather%Concentration,         &
                                            SonMatrix        = PropertyX%Concentration,              &
                                            CallerID         = mWATERPROPERTIES_,                    &
                                            TD               = PropertyX%Submodel%TwoWayTimeDecay,   &
                                            STAT             = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR02.'
+                        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR02.'
                         
-                        if (ObjWaterPropertiesFather%Coupled%UpscalingDischarge%Yes) then
-                            call UpscaleDischarge_WP(FatherID    = FatherWaterPropertiesID,                 &
-                                                     Prop        = PropertyFather%Concentration,            &
-                                                     PropVector  = PropertyFather%DischConc,                &
-                                                     Flow        = FatherFlow,                              &
-                                                     FlowVector  = ObjWaterPropertiesFather%Discharge%Flow, &
-                                                     dI          = ObjWaterPropertiesFather%Discharge%i,    &
-                                                     dJ          = ObjWaterPropertiesFather%Discharge%j,    &
-                                                     dK          = ObjWaterPropertiesFather%Discharge%k,    &
-                                                     Kmin        = ObjWaterPropertiesFather%Discharge%kmin, &
-                                                     Kmax        = ObjWaterPropertiesFather%Discharge%kmin, &
-                                                     FirstTime   = FirstTime)
+                        if (ObjFather%Coupled%UpscalingDischarge%Yes) then
+                            call UpscaleDischarge_WP(FatherID = FatherWaterPropertiesID,                 &
+                                                     Prop = PropertyFather%Concentration, PropVector = PropertyFather%DischConc, &
+                                                     Flow = FatherFlow, FlowVector = ObjFather%Discharge%Flow, &
+                                                     dI = ObjFather%Discharge%i, dJ = ObjFather%Discharge%j, &
+                                                     dK = ObjFather%Discharge%k, Kmin = ObjFather%Discharge%kmin, &
+                                                     Kmax = ObjFather%Discharge%kmin, FirstTime = FirstTime)
                             FirstTime = .false.
                         endif
                         
-
+                        if (PropertyX%UpscalingSinkSource) &
+                            PropertyFather%UpscalingMassLoss(:,:,:) = PropertyFather%UpscalingMassLoss(:,:,:) &
+                                                                    - PropertyFather%Concentration(:,:,:)
                     endif
                 endif
             else
                 write(*,*)'Cant find property in submodel for the 2way algorithm'
                 write(*,*)'Property missing = ', trim(PropertyX%ID%Name)
-                call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR03')
+                call CloseAllAndStop ('Compute_wp_upscaling - ModuleWaterProperties - ERR03')
             endif
 
             nullify (PropertyFather)
@@ -19520,19 +19286,18 @@ do1 :   do while (associated(PropertyX))
 
         nullify (PropertyX)
 
-        call UngetTwoWayExternal_Vars(SonID             = SonWaterPropertiesID,    &
-                                      FatherID          = FatherWaterPropertiesID, &
-                                      CallerID          = mWATERPROPERTIES_,       &
-                                      STAT              = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'UpdateFatherModelWP - ModuleWaterProperties - ERR04.'
+        call UngetTwoWayExternal_Vars(SonID = SonWaterPropertiesID, FatherID = FatherWaterPropertiesID, &
+                                      CallerID = mWATERPROPERTIES_, STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR04.'
         
-        call unGetHydrodynamic(FatherWaterPropertiesID, FatherFlow, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) &
-            call CloseAllAndStop ('UpdateFatherModelWP - ModuleWaterProperties - ERR05.')
+        if (ObjFather%Coupled%UpscalingDischarge%Yes) then
+            call unGetHydrodynamic(FatherWaterPropertiesID, FatherFlow, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Compute_wp_upscaling - ModuleWaterProperties - ERR05.')
+        endif
 
-    if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "UpdateFatherModelWP")
+    if (MonitorPerformance) call StopWatch ("ModuleWaterProperties", "Compute_wp_upscaling")
 
-    end subroutine UpdateFatherModelWP
+    end subroutine Compute_wp_upscaling
 
     !------------------------------------------------------------------------------------
 
@@ -19969,13 +19734,9 @@ do1 :   do while (associated(PropertyX))
 
         if (MonitorPerformance) call StartWatch ("ModuleWaterProperties", "SetLimitsProperty")
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
-
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
+        
         CHUNK = CHUNK_K(Me%WorkSize%KLB, Me%WorkSize%KUB)
 
 cd1 :       if (Property%Evolution%MinConcentration) then
@@ -20097,7 +19858,6 @@ cd2 :       if (Property%Evolution%MaxConcentration) then
 
         !Arguments-------------------------------------------------------------
         type(T_Property),           pointer :: Temperature
-
         !Local variables-------------------------------------------------------
         real,   dimension(:,:), pointer     :: WaterColumnZ
         real                                :: TopHeatFlux, BottomHeatFlux
@@ -20105,25 +19865,18 @@ cd2 :       if (Property%Evolution%MaxConcentration) then
         integer                             :: ILB, IUB, JLB, JUB, KUB
         integer                             :: i, j, k, kbottom, STAT_CALL
         real                                :: SpecifHeat
-
         !Begin----------------------------------------------------------------------
-
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
 
         !WaterColumnZ
         call GetGeometryWaterColumn(Me%ObjGeometry, WaterColumn = WaterColumnZ, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('ComputeSurfaceHeatFluxes - ModuleWaterProperties - ERR10')
 
-
 do1:    do j = JLB, JUB
 do2:    do i = ILB, IUB
 
 cd1:        if (Me%ExternalVar%OpenPoints3D(i, j, KUB) == OpenPoint .and. WaterColumnZ(i,j) > .5) then
-
 
                 kbottom = Me%ExternalVar%KFloor_Z(i, j)
 
@@ -20166,8 +19919,7 @@ do3:            do k = kbottom, KUB
                     endif
 
                     ![Celsius]  =  [Celsius]  + [Celsius]
-                    Temperature%Concentration(i, j, k) =                                &
-                        Temperature%Concentration(i, j, k) + AuxT
+                    Temperature%Concentration(i, j, k) = Temperature%Concentration(i, j, k) + AuxT
 
                 enddo do3
 
@@ -20595,19 +20347,13 @@ dn:         do n=1, nCells
         integer                                     :: N_Field, NumberOfFields
         !Begin--------------------------------------------------------------------
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
 
-        !CHUNK = CHUNK_J(JLB, JUB) Sobrinho
         CHUNK = CHUNK_K(KLB, KUB)
         Property => Me%FirstProperty
 
         Actual = Me%ExternalVar%Now
-
 
 d1 :    do while (associated(Property))
 
@@ -20651,8 +20397,9 @@ i4 :                if (Property%SubModel%ON .and. N_Field == 1) then
                                                   STAT            = STAT_CALL)
                         if (STAT_CALL /= SUCCESS_)                                      &
                             call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR20')
-
-                        Property%Assimilation%Field(:,:,:) = PropAssimilation(:,:,:)
+                        
+                        
+                        call SetMatrixValue(Property%Assimilation%Field, Me%Size, PropAssimilation)
 
 
                     end if i4
@@ -20680,8 +20427,6 @@ i4 :                if (Property%SubModel%ON .and. N_Field == 1) then
                     call CloseAllAndStop ('DataAssimilationProcesses; WaterProperties. ERR50')
                 endif
 
-
-
                 DT_RunPeriod = Actual - Me%BeginTime
 
                 if (ColdPeriod > (Me%EndTime - Me%BeginTime) .and. Me%FirstIteration) then
@@ -20689,7 +20434,6 @@ i4 :                if (Property%SubModel%ON .and. N_Field == 1) then
                     write(*,*) trim(Property%ID%Name)
                     write(*,*) "Cold Assimilation period larger than simulation period"
                 endif
-
 
                 if (ColdPeriod <= DT_RunPeriod) then
                     CoefCold = 1.
@@ -20837,13 +20581,9 @@ i7:                     if      (Property%Assimilation%DecayTime(i, j, KUB)  > 0
         integer                                     :: I, J, K, STAT_CALL
         !Begin--------------------------------------------------------------------
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
-
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
+        
         !ComputeFaces3D
         call GetComputeFaces3D(Me%ObjMap,                                           &
                                ComputeFacesU3D = Me%ExternalVar%ComputeFacesU3D,    &
@@ -20964,12 +20704,8 @@ doiw :  do i = ILB, IUB
 
         !Begin--------------------------------------------------------------------
 
-        ILB = Me%WorkSize%ILB
-        IUB = Me%WorkSize%IUB
-        JLB = Me%WorkSize%JLB
-        JUB = Me%WorkSize%JUB
-        KLB = Me%WorkSize%KLB
-        KUB = Me%WorkSize%KUB
+        ILB = Me%WorkSize%ILB;  JLB = Me%WorkSize%JLB;  KLB = Me%WorkSize%KLB
+        IUB = Me%WorkSize%IUB;  JUB = Me%WorkSize%JUB;  KUB = Me%WorkSize%KUB
 
         Property => Me%FirstProperty
 
@@ -22630,8 +22366,17 @@ sp:                     if (.not. SimpleOutPut) then
                         if (STAT_CALL /= SUCCESS_)                                      &
                             call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR150')
                     endif
-
-
+                    
+                    if (PropertyX%UpscalingSinkSource .and. allocated(PropertyX%UpscalingMassLoss)) then
+                        call HDF5WriteData(ObjHDF5,                                     &
+                                           "/Results/Upscaling/"//PropertyX%ID%Name,   &
+                                           PropertyX%ID%Name,                           &
+                                           PropertyX%ID%Units,                          &
+                                           Array3D      = GetPointer(PropertyX%UpscalingMassLoss),  &
+                                           OutputNumber = OutPutNumber, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_)                                      &
+                            call CloseAllAndStop ('OutPut_Results_HDF - ModuleWaterProperties - ERR121') 
+                    endif
 
                     if (FirstTime) FirstTime = .false.
 
@@ -27162,22 +26907,11 @@ cd9 :               if (associated(PropertyX%Assimilation%Field)) then
     !--------------------------------------------------------------------------
 
     subroutine KillNoFluxInterior
-
         !Local-----------------------------------------------------------------
-
         !----------------------------------------------------------------------
-
-
         if (Me%NoFlux%ON) then
-
-            deallocate(Me%NoFlux%U)
-            deallocate(Me%NoFlux%V)
-            deallocate(Me%NoFlux%W)
-
+            deallocate(Me%NoFlux%U, Me%NoFlux%V, Me%NoFlux%W)
         endif
-
-
-
     end subroutine KillNoFluxInterior
 
     !--------------------------------------------------------------------------
@@ -27282,7 +27016,6 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
     subroutine Ready (WaterPropertiesID, ready_)
 
-
         !Arguments-------------------------------------------------------------
         integer                                     :: WaterPropertiesID
         integer                                     :: ready_
@@ -27356,11 +27089,9 @@ cd1:    if (WaterPropertiesID > 0) then
 !---------------------------------------------------------------------------------
 
     subroutine LocateObjFather (ObjWaterPropertiesFather, ObjWaterPropertiesID)
-
         !Arguments-------------------------------------------------------------
         type (T_WaterProperties), pointer           :: ObjWaterPropertiesFather
         integer                                     :: ObjWaterPropertiesID
-
         !Local-----------------------------------------------------------------
 
         nullify (ObjWaterPropertiesFather)

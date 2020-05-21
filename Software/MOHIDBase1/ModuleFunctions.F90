@@ -75,8 +75,10 @@ Module ModuleFunctions
     interface  SumMatrixes
         module procedure SumMatrixes_R4
         module procedure SumMatrixes_R8
-    end interface  SumMatrixes    
-    
+    end interface  SumMatrixes
+
+    public  :: SumMatrixes_jik
+    public  :: AddMatrix2D_To_3D_jik
 #ifdef _USE_SEQASSIMILATION
     public  :: InvSingularDiagMatrix2D
     public  :: CholeskyFactorization
@@ -346,12 +348,13 @@ Module ModuleFunctions
     public :: WaveLengthHuntsApproximation
 
     public :: THOMASZ_NewType2
-    
+
     !Upscaling routines
     public  :: SearchDischargeFace
     public  :: UpsDischargesLinks
     public  :: ComputeUpscalingVelocity
-    public  :: ComputeDischargeVolume
+    public  :: ComputeDischargeVolumeU
+    public  :: ComputeDischargeVolumeV
     public  :: UpdateDischargeConnections
     private :: SearchFace
     private :: Update_n_Z
@@ -1940,10 +1943,9 @@ Module ModuleFunctions
         integer                                           :: CHUNK
         !Begin-----------------------------------------------------------------
 
-        KUB = Size%KUB
-        KLB = Size%KLB
-        JUB = Size%JUB
-        JLB = Size%JLB
+        KUB = Size%KUB; JUB = Size%JUB
+        KLB = Size%KLB; JLB = Size%JLB
+
         if (DoMethod == 1) then
             CHUNK = CHUNK_J(JLB, JUB)
 
@@ -1961,8 +1963,7 @@ Module ModuleFunctions
             enddo
             !$OMP END DO
             !$OMP END PARALLEL
-                
-        
+
         else
             CHUNK = CHUNK_K(KLB, KUB)
             !$OMP PARALLEL PRIVATE(i,j,k)
@@ -1996,15 +1997,13 @@ Module ModuleFunctions
         integer, intent(IN)                               :: DoMethod
         integer, dimension(:,:), pointer, intent(IN)      :: KFloor
         !Local-----------------------------------------------------------------
-        integer                                           :: i, j, k, kbottom, KUB, KLB, JUB, JLB
-        integer                                           :: CHUNK
+        integer                                           :: i, j, k, kbottom, KUB, KLB, JUB, JLB, CHUNK
         real                                              :: Aux
         !Begin-----------------------------------------------------------------
 
-        KUB = Size%KUB
-        KLB = Size%KLB
-        JUB = Size%JUB
-        JLB = Size%JLB
+        KUB = Size%KUB; JUB = Size%JUB
+        KLB = Size%KLB; JLB = Size%JLB
+
         if (DoMethod == 1) then
             CHUNK = CHUNK_J(JLB, JUB)
             !$OMP PARALLEL PRIVATE(i,j,k, kbottom, Aux)
@@ -2050,16 +2049,11 @@ Module ModuleFunctions
         real(8), dimension(:, :, :), pointer, intent (IN)    :: MatrixB
         type (T_Size3D)                                   :: Size
         !Local-----------------------------------------------------------------
-        integer                                           :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB
-        integer                                           :: CHUNK
+        integer                                           :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB, CHUNK
         !Begin-----------------------------------------------------------------
 
-        KUB = Size%KUB
-        KLB = Size%KLB
-        JUB = Size%JUB
-        JLB = Size%JLB
-        IUB = Size%IUB
-        ILB = Size%ILB
+        KUB = Size%KUB; JUB = Size%JUB; IUB = Size%IUB
+        KLB = Size%KLB; JLB = Size%JLB; ILB = Size%ILB
 
         CHUNK = CHUNK_K(KLB, KUB)
 
@@ -2079,7 +2073,7 @@ Module ModuleFunctions
 
 
     !End-------------------------------------------------------------------------
-    
+
     subroutine SumMatrixes_R4(MatrixA, Size, MatrixB)
         !Arguments-------------------------------------------------------------
         real(4), dimension(:, :, :), pointer, intent (INOUT) :: MatrixA
@@ -2107,11 +2101,69 @@ Module ModuleFunctions
             MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
         enddo
         enddo
+    end subroutine SumMatrixes_R4
+
+    subroutine SumMatrixes_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), allocatable, intent (INOUT) :: MatrixA
+        real, dimension(:, :, :), pointer, intent (IN)        :: MatrixB
+        type (T_Size3D)                                       :: Size
+        integer, dimension(:,:), pointer, intent(IN)          :: KFloor
+        integer, dimension(:, :, :), pointer, intent (IN)     :: MapMatrix
+        !Local-----------------------------------------------------------------
+        integer                                               :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB, CHUNK, kbottom
+        !Begin-----------------------------------------------------------------
+        KUB = Size%KUB; JUB = Size%JUB; IUB = Size%IUB
+        KLB = Size%KLB; JLB = Size%JLB; ILB = Size%ILB
+
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j,k)
+        !$OMP DO SCHEDULE(STATIC, CHUNK)
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (MapMatrix(i, j, KUB) == 1) then
+                kbottom = KFloor(i, j)
+                do k = kbottom, KUB
+                    MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
+                enddo
+            endif
+        enddo
         enddo
         !$OMP END DO
         !$OMP END PARALLEL
 
-    end subroutine SumMatrixes_R4
+    end subroutine SumMatrixes_jik
+
+    subroutine AddMatrix2D_To_3D_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)
+        !Arguments-------------------------------------------------------------
+        real, dimension(:, :, :), allocatable, intent (INOUT) :: MatrixA
+        real, dimension(:, :   ), pointer, intent (IN)        :: MatrixB
+        type (T_Size3D)                                       :: Size
+        integer, dimension(:,:), pointer, intent(IN)          :: KFloor
+        integer, dimension(:, :, :), pointer, intent (IN)     :: MapMatrix
+        !Local-----------------------------------------------------------------
+        integer                                               :: i, j, k, KUB, KLB, JUB, JLB, IUB, ILB, CHUNK, kbottom
+        !Begin-----------------------------------------------------------------
+        KUB = Size%KUB; JUB = Size%JUB; IUB = Size%IUB
+        KLB = Size%KLB; JLB = Size%JLB; ILB = Size%ILB
+
+        CHUNK = CHUNK_J(JLB, JUB)
+        !$OMP PARALLEL PRIVATE(i,j,k,kbottom)
+        !$OMP DO SCHEDULE(STATIC, CHUNK)
+        do j = JLB, JUB
+        do i = ILB, IUB
+            if (MapMatrix(i, j, KUB) == 1) then
+                kbottom = KFloor(i, j)
+                do k = kbottom, KUB
+                    MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j)
+                enddo
+            endif
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+
+    end subroutine AddMatrix2D_To_3D_jik
 
 
     !End-------------------------------------------------------------------------
@@ -4712,27 +4764,27 @@ end function
     !--------------------------------------------------------------------------
 
     subroutine SphericalToCart(Lat, Lon, X, Y, LonRef, LatRef)
-    
+
         !Arguments-------------------------------------------------------------
-        real(8), intent(IN)             :: Lat, Lon, LonRef, LatRef    
+        real(8), intent(IN)             :: Lat, Lon, LonRef, LatRef
         real(8), intent(Out)            :: X, Y
 
         !Local-----------------------------------------------------------------
         real(8)                         :: radians, EarthRadius, Rad_Lat, CosenLat
 
         !Begin-----------------------------------------------------------------
-                
+
         radians      = Pi / 180.0
         EarthRadius  = 6378000.
 
         Rad_Lat     = Lat * radians
         CosenLat    = cos(Rad_Lat)
         X           = CosenLat * EarthRadius * (Lon - LonRef) * radians
-        Y           =            EarthRadius * (Lat - LatRef) * radians                
+        Y           =            EarthRadius * (Lat - LatRef) * radians
 
-    end subroutine SphericalToCart    
-    
-    !--------------------------------------------------------------------------    
+    end subroutine SphericalToCart
+
+    !--------------------------------------------------------------------------
 
     !Convert from user referential (Nautical, Currents) to cell trigonometric angle
     subroutine AngleFromFieldToGrid (AngleInReferential, Referential, GridAngle, AngleOutGrid)
@@ -6295,9 +6347,8 @@ d5:     do k = klast + 1,KUB
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>feeds back info from son to father using an volume weighted average method. routine for water level
-    !>@param[in] FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
-    !>           SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, DecayTime, DT,  &
-    !>           SonVolInFather, AuxMatrix, FatherCorners, VolumeSon, VolumeFather, IgnoreOBCells
+    !>@param[in] FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink,           &
+    !>           JLink, DecayTime, DT, SonVolInFather2D, AuxMatrix2D, VolumeSon2D, VolumeFather2DT, gnoreOBCells
     subroutine FeedBack_Avrg_WL(FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink, &
                                 JLink, DecayTime, DT, SonVolInFather2D, AuxMatrix2D, VolumeSon2D, VolumeFather2D,         &
                                 IgnoreOBCells)
@@ -6312,42 +6363,38 @@ d5:     do k = klast + 1,KUB
         real,    dimension(:,:),   pointer                  :: SonVolInFather2D, AuxMatrix2D
         !Local variables --------------------------------------------------------------------------------
         integer                                             :: i, j, KUBFather, KUBSon, IUBSon, ILBSon, JUBSon, JLBSon
-        integer                                             ::  NThreads, CHUNK, N
+        integer                                             :: Flag
+        real                                                :: DecayFactor
         !Begin-------------------------------------------------------------------------------------
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
-        KUBSon = SizeSon%KUB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KUBSon = SizeSon%KUB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB
         KUBFather = SizeFather%KUB
 
-        NThreads = openmp_num_threads
-        CHUNK = CHUNK_J(JLBSon, JUBSon, NThreads)
-        !$OMP PARALLEL PRIVATE(i,j)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
         do j = JLBSon, JUBSon
         do i = ILBSon, IUBSon
-            AuxMatrix2D(ILink(i, j), JLink(i, j)) = (AuxMatrix2D(ILink(i, j)+1, JLink(i, j)+1) + SonMatrix2D(i, j) *  &
-                                                     VolumeSon2D(i, j)) * Open3DSon(i, j, KUBSon) * IgnoreOBCells(i, j)
+            Flag = Open3DSon(i, j, KUBSon) + IgnoreOBCells(i, j)
+            if (Flag == 2) then
+                AuxMatrix2D(ILink(i, j), JLink(i, j)) = &
+                AuxMatrix2D(ILink(i, j)+1, JLink(i, j)+1) + SonMatrix2D(i, j) * VolumeSon2D(i, j)
+            endif
 
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
 
-        CHUNK = CHUNK_J(JLink(1, 1), JLink(IUBSon, JUBSon), NThreads)
-        N =  (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1))
-        !$OMP PARALLEL PRIVATE(i,j) IF(N > 10000)
-        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        DecayFactor = DT / DecayTime
+
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
         do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-            FatherMatrix2D(i, j) = FatherMatrix2D(i, j) + (AuxMatrix2D(i, j) / SonVolInFather2D(i, j) -   &
-                                   FatherMatrix2D(i, j)) * (DT / DecayTime) * (SonVolInFather2D(i, j) / &
-                                   (VolumeFather2D(i, j)+0.001)) * Open3DFather(i, j, KUBFather)
+            if (Open3DFather(i, j, KUBFather) == 1) then
+                if (SonVolInFather2D(i, j) > 0.1) then
+                    FatherMatrix2D(i, j) = FatherMatrix2D(i, j) + (AuxMatrix2D(i, j) / SonVolInFather2D(i, j) -   &
+                                           FatherMatrix2D(i, j)) * DecayFactor * (SonVolInFather2D(i, j) / &
+                                           VolumeFather2D(i, j))
+                endif
+            endif
         enddo
         enddo
-        !$OMP END DO
-        !$OMP END PARALLEL
+
     end subroutine FeedBack_Avrg_WL
 
     !--------------------------------------------------------------------------------------------------------------
@@ -6356,7 +6403,7 @@ d5:     do k = klast + 1,KUB
     !>feeds back info from son to father using an volume weighted average method. routine for U/V types
     !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
     !>           SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, DecayTime, DT,  &
-    !>           SonVolInFather, AuxMatrix, FatherCorners, VolumeSon, VolumeFather, IgnoreOBCells
+    !>           SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells
     subroutine FeedBack_Avrg_UV(FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D,           &
                                 SonComputeFaces3D, SizeFather, SizeSon, ILink, JLink, DecayTime, DT,              &
                                 SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells)
@@ -6371,96 +6418,54 @@ d5:     do k = klast + 1,KUB
         real,    intent (IN)                              :: DecayTime, DT
         real, dimension(:,:,:), pointer                   :: AuxMatrix, SonVolInFather
         !Local variables -----------------------------------------------------------------------------
-        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, N, &
-                                                             KUBSon, KUBFather, KLBFather, NThreads, OMPmethod, CHUNK
-
+        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
+                                                             KUBSon, KUBFather, KLBFather, ifather, jfather, kfather, &
+                                                             k_difference, CHUNK, Flag
+        real                                              :: DecayFactor
         !Begin----------------------------------------------------------------------------------------
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
-        KLBSon = SizeSon%KLB
-        KUBSon = SizeSon%KUB
-        KLBFather = SizeFather%KLB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
+        !adjust to number of layers of son domain
+        k_difference = SizeFather%KUB - KUBSon
+        KLBFather = SizeFather%KLB + k_difference !Sobrinho
         KUBFather = SizeFather%KUB
-        OMPmethod = 2 !paralelization at the k level
-        ! This function will have to be changed if the son domain is allowed to have cells outside the father domain
-        NThreads = openmp_num_threads
-        if (NThreads > 1) then
-            if (NThreads - KUBSon > 1) then
-                OMPmethod = 1
+
+        CHUNK = CHUNK_K(KLBSon, KUBSon)
+        !$OMP PARALLEL PRIVATE(i,j,k,Flag)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = KLBSon, KUBSon
+        do j = JLBSon, JUBSon
+        do i = ILBSon, IUBSon
+            !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+            Flag = Open3DSon(i, j, k) + SonComputeFaces3D(i, j, k) + IgnoreOBCells(i, j)
+            if (Flag == 3) then
+                ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather = k + k_difference
+                AuxMatrix(ifather, jfather, kfather) = AuxMatrix(ifather, jfather, kfather) +     &
+                                                       SonMatrix(i, j, k) * VolumeSon(i, j, k)
             endif
-        endif
-        if (OMPmethod == 2) then
-            CHUNK = CHUNK_K(KLBSon, KUBSon, NThreads)
-            !$OMP PARALLEL PRIVATE(i,j,k)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do k = KLBSon, KUBSon
-            do j = JLBSon, JUBSon
-            do i = ILBSon, IUBSon
-                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +         &
-                                                        SonMatrix(i, j, k) * VolumeSon(i, j, k) *         &
-                                                        Open3DSon(i, j, k) * SonComputeFaces3D(i, j, k) * &
-                                                        IgnoreOBCells(i, j)
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
 
-            enddo
-            enddo
-            enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
-            CHUNK = CHUNK_K(KLBFather, KUBFather, NThreads)
-            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon)-ILink(1, 1)) * (KUBFather-KLBFather) / &
-                NThreads
-            !$OMP PARALLEL PRIVATE(i,j) IF(N > 50000)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do k = KLBFather, KUBFather
-            do j = JLink(1, 1), JLink(IUBSon, JUBSon)
-            do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
-                                        FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
-                                        (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k) *                 &
-                                         FatherComputeFaces3D(i, j, k)
-            enddo
-            enddo
-            enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
-        else
-            CHUNK = CHUNK_J(JLBSon, JUBSon, NThreads)
-            !$OMP PARALLEL PRIVATE(i,j,k)
-            do k = KLBSon, KUBSon
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do j = JLBSon, JUBSon
-            do i = ILBSon, IUBSon
-                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +      &
-                                                     SonMatrix(i, j, k) * VolumeSon(i, j, k) *         &
-                                                     Open3DSon(i, j, k) * SonComputeFaces3D(i, j, k) * &
-                                                     IgnoreOBCells(i, j)
-            enddo
-            enddo
-            !$OMP END DO
-            enddo
-            !$OMP END PARALLEL
+        DecayFactor = DT / DecayTime
 
-            CHUNK = CHUNK_J(JLink(1, 1), JLink(IUBSon, JUBSon), NThreads)
-            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1)) * (KUBFather - KLBFather)
-            !$OMP PARALLEL PRIVATE(i,j,k) IF(N > 10000)
-            do k = KLBFather, KUBFather
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do j = JLink(1, 1), JLink(IUBSon, JUBSon)
-            do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
-                                        FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
-                                        (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k) *                 &
-                                         FatherComputeFaces3D(i, j, k)
-            enddo
-            enddo
-            !$OMP END DO
-            enddo
-            !$OMP END PARALLEL
-        endif
+        do k = KLBFather, KUBFather
+        do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+        do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+            Flag = Open3DFather(i, j, k) + FatherComputeFaces3D(i, j, k)
+            if (Flag == 2) then
+                if (SonVolInFather(i, j, k) > 0.1) then
+                    ! m/s                 = m/s + ((m4/s / m3) - m/s) * (m3/m3) * []
+                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                  &
+                                          + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) - FatherMatrix(i, j, k)) &
+                                          * (SonVolInFather(i, j, k) / VolumeFather(i, j, k)) * DecayFactor
+                endif
+            endif
+        enddo
+        enddo
+        enddo
 
     end subroutine FeedBack_Avrg_UV
     !-------------------------------------------------------------------------------------
@@ -6472,6 +6477,7 @@ d5:     do k = klast + 1,KUB
     !>           DT, SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells
     subroutine FeedBack_Avrg(FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeFather, SizeSon, ILink, &
                              JLink, DecayTime, DT, SonVolInFather, AuxMatrix, VolumeSon, VolumeFather, IgnoreOBCells)
+
         !Arguments---------------------------------------------------------------------------------
         type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
         real(8), dimension(:,:,:), pointer, intent(IN)    :: VolumeSon, VolumeFather
@@ -6482,96 +6488,54 @@ d5:     do k = klast + 1,KUB
         real,    intent (IN)                              :: DecayTime, DT
         real, dimension(:,:,:), pointer                   :: AuxMatrix, SonVolInFather
         !Local variables -----------------------------------------------------------------------------
-        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, N, &
-                                                             KUBSon, KUBFather, KLBFather, NThreads, OMPmethod, CHUNK
+        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
+                                                             KUBSon, KUBFather, KLBFather, ifather, jfather, kfather, &
+                                                             k_difference, CHUNK, Flag
+        real                                              :: DecayFactor
         !Begin----------------------------------------------------------------------------------------
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
-        KLBSon = SizeSon%KLB
-        KUBSon = SizeSon%KUB
-        KLBFather = SizeFather%KLB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KUBSon = SizeSon%KUB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KLBSon = SizeSon%KLB
+        !adjust to number of layers of son domain
+        k_difference = SizeFather%KUB - KUBSon
+        KLBFather = SizeFather%KLB + k_difference !Sobrinho
         KUBFather = SizeFather%KUB
-        OMPmethod = 2 !paralelization at the k level
-        ! This function will have to be changed if the son domain is allowed to have cells outside the father domain
-        NThreads = openmp_num_threads
-        if (NThreads > 1) then
-            if (NThreads - KUBSon > 1) then
-                OMPmethod = 1
+
+        CHUNK = CHUNK_K(KLBSon, KUBSon)
+        !$OMP PARALLEL PRIVATE(i,j,k, Flag)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = KLBSon, KUBSon
+        do j = JLBSon, JUBSon
+        do i = ILBSon, IUBSon
+            !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+            Flag = Open3DSon(i, j, k) + IgnoreOBCells(i, j)
+            if (Flag == 2) then
+                ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather    = k + k_difference
+                AuxMatrix(ifather, jfather, kfather) = AuxMatrix(ifather, jfather, kfather) +   &
+                                                       SonMatrix(i, j, k) * VolumeSon(i, j, k)
             endif
-        endif
-        if (OMPmethod == 2) then
-            CHUNK = CHUNK_K(KLBSon, KUBSon, NThreads)
-            !$OMP PARALLEL PRIVATE(i,j,k)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do k = KLBSon, KUBSon
-            do j = JLBSon, JUBSon
-            do i = ILBSon, IUBSon
-                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +   &
-                                                        SonMatrix(i, j, k) * VolumeSon(i, j, k) *      &
-                                                        Open3DSon(i, j, k) * IgnoreOBCells(i, j)
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
 
-            enddo
-            enddo
-            enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
-            CHUNK = CHUNK_K(KLBFather, KUBFather, NThreads)
-            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1)) * (KUBFather - KLBFather)
+        DecayFactor = DT / DecayTime
+        do k = KLBFather, KUBFather
+        do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+        do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+            if (Open3DFather(i, j, k) == 1) then
+                if (SonVolInFather(i, j, k) > 0.1) then
+                    ! [X]                 = [X] + ([X*m3] / [m3] - [X]) * ([m3] / [m3])
+                    FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                  &
+                                          + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) - FatherMatrix(i, j, k)) &
+                                          * (SonVolInFather(i, j, k) / VolumeFather(i, j, k)) * DecayFactor
+                endif
+            endif
+        enddo
+        enddo
+        enddo
 
-            !$OMP PARALLEL PRIVATE(i,j,k) IF(N > 10000)
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do k = KLBFather, KUBFather
-            do j = JLink(1, 1), JLink(IUBSon, JUBSon)
-            do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-
-                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
-                                        FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
-                                        (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k)
-
-            enddo
-            enddo
-            enddo
-            !$OMP END DO
-            !$OMP END PARALLEL
-        else
-            CHUNK = CHUNK_J(JLBSon, JUBSon, NThreads)
-            !$OMP PARALLEL PRIVATE(i,j,k)
-            do k = KLBSon, KUBSon
-            !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do j = JLBSon, JUBSon
-            do i = ILBSon, IUBSon
-                !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-                AuxMatrix(ILink(i, j), JLink(i, j), k) = AuxMatrix(ILink(i, j), JLink(i, j), k) +   &
-                                                     SonMatrix(i, j, k) * VolumeSon(i, j, k) *  &
-                                                     Open3DSon(i, j, k) * IgnoreOBCells(i, j)
-
-            enddo
-            enddo
-            !$OMP END DO
-            enddo
-            !$OMP END PARALLEL
-
-            CHUNK = CHUNK_J(JLink(1, 1), JLink(IUBSon, JUBSon), NThreads)
-            N = (JLink(IUBSon, JUBSon) - JLink(1, 1)) * (ILink(IUBSon, JUBSon) - ILink(1, 1)) * (KUBFather - KLBFather)
-            !$OMP PARALLEL PRIVATE(i,j,k) IF(N > 10000)
-            do k = KLBFather, KUBFather
-			!$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-            do j = JLink(1, 1), JLink(IUBSon, JUBSon)
-            do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) + (AuxMatrix(i, j, k) / SonVolInFather(i, j, k) -  &
-                                        FatherMatrix(i, j, k)) * (DT / DecayTime) * (SonVolInFather(i, j, k) /   &
-                                        (VolumeFather(i, j, k)+0.001)) * Open3DFather(i, j, k)
-            enddo
-            enddo
-            !$OMP END DO
-            enddo
-            !$OMP END PARALLEL
-        endif
-
-                             end subroutine FeedBack_Avrg
+    end subroutine FeedBack_Avrg
     !-------------------------------------------------------------------------------------
 
     !>@author Joao Sobrinho Maretec
@@ -6599,27 +6563,20 @@ d5:     do k = klast + 1,KUB
 
         !As the son domain can have less layers than the father domain, it is necessary to use the son size to avoid
         ! accessing unallocated memory adresses.
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
-        KLBSon = SizeSon%KLB
-        KUBSon = SizeSon%KUB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
 
         do k = KLBSon, KUBSon
         do index = 1, Nodes
 
-            iFather  = Connections (index, 1)
-            jFather  = Connections (index, 2)
-            iSon     = Connections (index, 3)
-            jSon     = Connections (index, 4)
+            iFather = Connections (index, 1); iSon = Connections (index, 3)
+            jFather = Connections (index, 2); jSon = Connections (index, 4)
 
             Nom(iFather, jFather, k)  = Nom(iFather, jFather, k) + SonMatrix(iSon, jSon, k) / (Dist(index) ** IWDn) * &
                                                                    IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k)
 
             Denom(iFather, jFather, k) = Denom(iFather, jFather, k) + (1.e-5 / (Dist(index) ** IWDn)) * &
                                                                    IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, k)
-
         enddo
         enddo
 
@@ -6636,14 +6593,15 @@ d5:     do k = klast + 1,KUB
         enddo
         enddo
 
-    end subroutine FeedBack_IWD
+                             end subroutine FeedBack_IWD
 
     !-------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>feeds back info from son to father using the inverse weigthed distance method. routine for Z types
-    !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, SizeSon, Connections, &
-    !>                         Distances, DecayTime, DT, IgnoreOBCells, Nodes, IWDn
+    !>@param[in] FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D, &
+    !>                         SonComputeFaces3D, SizeSon, ILink, JLink, Connections, Dist, DecayTime, DT, &
+    !>                           IgnoreOBCells, Nodes, IWDn, Nom, Denom
     subroutine FeedBack_IWD_UV (FatherMatrix, SonMatrix, Open3DFather, Open3DSon, FatherComputeFaces3D, &
                                 SonComputeFaces3D, SizeSon, ILink, JLink, Connections, Dist, DecayTime, DT, &
                                 IgnoreOBCells, Nodes, IWDn, Nom, Denom)
@@ -6665,20 +6623,14 @@ d5:     do k = klast + 1,KUB
 
         !As the son domain can have less layers than the father domain, it is necessary to use the son size to avoid
         ! accessing unallocated memory adresses.
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
-        KLBSon = SizeSon%KLB
-        KUBSon = SizeSon%KUB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
 
         do k = KLBSon, KUBSon
         do index = 1, Nodes
 
-            iFather  = Connections (index, 1)
-            jFather  = Connections (index, 2)
-            iSon     = Connections (index, 3)
-            jSon     = Connections (index, 4)
+            iFather  = Connections (index, 1); iSon    = Connections (index, 3)
+            jFather  = Connections (index, 2); jSon    = Connections (index, 4)
 
             Nom(iFather, jFather, k) = Nom(iFather, jFather, k) +                             &
                                        SonMatrix(iSon, jSon, k) / (Dist(index) ** IWDn) *     &
@@ -6711,8 +6663,8 @@ d5:     do k = klast + 1,KUB
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>feeds back info from son to father using the inverse weigthed distance method. routine for Z types
-    !>@param[in] FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeSon, Connections, &
-    !>                         Distances, DecayTime, DT, IgnoreOBCells, Nodes
+    !>@param[in] FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeSon, ILink, JLink, &
+    !>                         Connections, Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom
     subroutine FeedBack_IWD_WL (FatherMatrix2D, SonMatrix2D, Open3DFather, Open3DSon, SizeSon, ILink, JLink, &
                                 Connections, Dist, DecayTime, DT, IgnoreOBCells, Nodes, IWDn, Nom, Denom)
         !Arguments---------------------------------------------------------------------------------
@@ -6730,24 +6682,19 @@ d5:     do k = klast + 1,KUB
                                                              JUBSon, iSon, jSon, iFather, jFather
         !Begin----------------------------------------------------------------------------------------
 
-        ILBSon = SizeSon%ILB
-        IUBSon = SizeSon%IUB
-        JLBSon = SizeSon%JLB
-        JUBSon = SizeSon%JUB
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB
 
         do index = 1, Nodes ! ir buscar isto ao horizontal grid
 
-            iFather  = Connections (index, 1)
-            jFather  = Connections (index, 2)
-            iSon     = Connections (index, 3)
-            jSon     = Connections (index, 4)
+            iFather    = Connections (index, 1); iSon = Connections (index, 3)
+            jFather    = Connections (index, 2); jSon = Connections (index, 4)
 
             Nom(iFather, jFather, 1) = Nom(iFather, jFather, 1) + SonMatrix2D(iSon, jSon) / (Dist(index) ** IWDn) * &
                                                                   IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, 1)
 
             Denom(iFather, jFather, 1) = Denom(iFather, jFather, 1) + 1.e-5 / (Dist(index) ** IWDn) * &
                                                                   IgnoreOBCells(iSon, jSon) * Open3DSon(iSon, jSon, 1)
-
         enddo
 
         do j = JLink(1, 1), JLink(IUBSon, JUBSon)
@@ -6969,7 +6916,7 @@ d5:     do k = klast + 1,KUB
             endif
         else
             if (.not. present(IDNumber)) &
-                stop 'ConstructPropertyID - ModuleFunctions - ERR010'
+                stop 'ConstructPropertyIDOnFly - ModuleFunctions - ERR010'
 
             PropertyID%IDNumber = IDNumber
 
@@ -6995,7 +6942,7 @@ d5:     do k = klast + 1,KUB
         if (check) then
         if (.not. CheckPropertyName (PropertyID%Name, PropertyID%IDnumber)) then
             write (*, *)'The property isnt recognized by the model :', trim(PropertyID%Name)
-            stop 'ConstructPropertyID - ModuleFunctions - ERR20'
+            stop 'ConstructPropertyIDOnFly - ModuleFunctions - ERR20'
         endif
         endif
 
@@ -13286,25 +13233,25 @@ D2:     do I=imax-1,2,-1
 
 
     end function WaveLengthHuntsApproximation
-    
+
     !------------------------------------------------------------------------------
-    
-    
+
+
     subroutine JONSWAP2(Hs,Tp,gamma,hmax,hmin, dh,fmin,fmax,df,tmax,dt, ETA, UU)
-    
+
         !Arguments----------------------------------------------------
         real,                            intent(IN)      :: Hs,Tp,gamma,hmax, hmin, dh,fmin,fmax,df,tmax,dt
         real, dimension(:), allocatable, intent(OUT)     :: ETA,UU
-        
+
         !Computes the sea level and velocity time series based in a JONSWAP spectrum
         !
         !Input: Hs - Significant height
         !       Tp - peak period
         !       Gamma - peakedness factor determines the concentraton
         !               of the spectrum on the peak frequency,  1 <= gamma <= 7.
-        !       hmax - sea bed level 
-        !       hmin - average sea level   
-        !       dh   - vertical discretization used to compute the average in depth velocity   
+        !       hmax - sea bed level
+        !       hmin - average sea level
+        !       dh   - vertical discretization used to compute the average in depth velocity
         !       fmim - min frequency
         !       fmax - max frequency
         !       df - frequency discretization
@@ -13321,11 +13268,11 @@ D2:     do I=imax-1,2,-1
         real                                :: wp, h, SIG, K, LLC
         real                                :: SS, SJ, phi, A, Ab, sigmaX, RAND
         integer                             :: x, l, i, nf, nh, nt
-        
+
         !Begin----------------------------------------------------------------
 
         !f=fmin:df:fmax;
-        if (df >0.) then 
+        if (df >0.) then
             nf = int((fmax-fmin)/df)+1
             allocate(f(1:nf))
             allocate(w(1:nf))
@@ -13334,46 +13281,46 @@ D2:     do I=imax-1,2,-1
                 f(i) = f(i-1) + df
             enddo
             w(:) = f(:)
-            
+
         else
             stop "JONSWAP2 - ERR10"
-        endif    
-        
-        
+        endif
+
+
         !z=-h:.5:0;
         h = hmax-hmin
-        if (dh >0. .and. h > 0.) then 
+        if (dh >0. .and. h > 0.) then
             nh = int(h/dh)+1
             allocate(z(1:nh))
             z(1) = 0.
             do i =2, nf
                 z(i) = z(i-1) + dh
-            enddo            
+            enddo
         else
             stop "JONSWAP2 - ERR20"
-        endif    
-  
+        endif
+
 
         !t=0:dt:tmax;
-        if (dt >0.) then 
+        if (dt >0.) then
             nt = int(tmax/dt)+1
             allocate(t(1:nh))
             t(1) = 0
             do i =2, nf
                 t(i) = t(i-1) + dt
-            enddo    
+            enddo
 
         else
             stop "JONSWAP2 - ERR30"
-        endif      
-        
+        endif
+
         allocate(ETA (1:nt))
-        allocate(UU  (1:nt))        
+        allocate(UU  (1:nt))
         allocate(wave(1:nt,     1:nf))
         allocate(U1  (1:nt,     1:nf))
         allocate(U   (1:nt,1:nh,1:nf))
 
-        
+
         wp = 1/Tp;
         do x = 1, nf
              if (f(x)<wp) then
@@ -13381,54 +13328,54 @@ D2:     do I=imax-1,2,-1
              else
                  sigmaX = 0.09;
              endif
-             
+
              SS =0.3125*Hs**2*wp**4*f(x)**-5*exp(-1.25*(f(x)/wp)**-4);
              SJ =(1-0.285*log(gamma))*SS*gamma**(exp(-.5*((f(x)-wp)/(sigmaX*wp))**2));
-             
-             !Jonsoap 
-             A  = sqrt(2*SJ*df); 
-             
+
+             !Jonsoap
+             A  = sqrt(2*SJ*df);
+
              !Pierson-Moskowitz Spectrum
              !A = sqrt(2*SS*df);
-             
+
              call RANDOM_NUMBER(RAND)
              phi= 2*Pi*(RAND-0.5); ! random phase of ith frequency
-             
+
              wave(:,x) =(A * cos(f(x)*2*pi*t(:) + phi));
-     
+
             !%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             !%% comprimento de onda na profundidade local %%%%%%%%%%%%%%%%%%%%%%%%%%
-            !LL0=g./(2*pi).*(1/f(x)).**2; 
+            !LL0=g./(2*pi).*(1/f(x)).**2;
             !k0=2*pi./LL0;
             !k0h=k0*h;
             !kh=sqrt((k0h).**2+(k0h)./(1+.66666667*k0h+(.35555556*k0h.**2)+...
             !(.16084656*k0h.**3)+(.06320988*k0h.**4)+(0.02175405*k0h.**5)+...
             !(.00654080*k0h.**6))); ,K=kh/h;, LLC=2*pi./K;
             LLC = WaveLengthHuntsApproximation(1/f(x), h)
-            K = 2*Pi/LLC 
+            K = 2*Pi/LLC
             SIG=sqrt(Gravity*K*tanh(K*h));
             do l=1,nh
                 U(:,l,x)=((A*Gravity*K/(SIG))*(cosh(K*(h+z(l))))/cosh(K*h))*cos(f(x)*2*Pi*t(:)+phi);
             enddo
         enddo
         !sum in frequency
-        ETA(:)  =Sum(Wave(:,:  ),2) 
+        ETA(:)  =Sum(Wave(:,:  ),2)
         !sum in frequency
-        U1 (:,:)=Sum(U   (:,:,:),3)  
+        U1 (:,:)=Sum(U   (:,:,:),3)
         !average in depth
-        UU (:  )=Sum(U1  (:,:  ),2) / h 
-    
+        UU (:  )=Sum(U1  (:,:  ),2) / h
+
     end subroutine JONSWAP2
-    
-!------------------------------------------------------------------------------    
-    
+
+!------------------------------------------------------------------------------
+
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Searches discharge faces of father cell, and provides it to the son domain
     !>@param[in] Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, n_U, n_V, IZ, JZ
     subroutine SearchDischargeFace(Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, IZ, JZ, n_U, n_V, n_Z,&
                                    Kfloor, KUB)
-        !Arguments------------------------------------------------------------- 
+        !Arguments-------------------------------------------------------------
         integer, dimension(:, :), pointer, intent(IN)         :: Connection !Connection beteen father-Son Z cells
         integer, dimension(:, :), pointer, intent(IN)         :: SonWaterPoints, FatherWaterPoints, IZ, JZ, Kfloor
         integer, intent(IN)                                   :: ICell, JCell
@@ -13436,9 +13383,9 @@ D2:     do I=imax-1,2,-1
         !Local-----------------------------------------------------------------
         integer                                               :: di, dj, MaxSize, IFather, JFather
         !-------------------------------------------------------------------------
-         
+
         MaxSize = size(Connection, 1)
-        
+
         call Update_n_Z(n_Z, Kfloor, KUB, ICell, JCell)
         !If father cell to the north is land, check for son cells(compare with adjacent southern cell)
         if (FatherWaterPoints(Icell + 1, JCell) == 0) then
@@ -13454,11 +13401,11 @@ D2:     do I=imax-1,2,-1
             di      = 1 !only going to search northwards
             dj      = 0
             call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, IZ, n = n_V)
-        endif 
+        endif
         if (FatherWaterPoints(Icell, JCell + 1) == 0) then
             IFather = Icell
             JFather = JCell + 1
-            di      = 0 
+            di      = 0
             dj      = -1 !only going to search westward
             call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, JZ, n = n_U)
         endif
@@ -13468,8 +13415,8 @@ D2:     do I=imax-1,2,-1
             di      = 0 !only going to search eastward
             dj      = 1
             call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, JZ, n = n_U)
-        endif        
-    
+        endif
+
     end subroutine SearchDischargeFace
 
     !>@author Joao Sobrinho Maretec
@@ -13484,11 +13431,11 @@ D2:     do I=imax-1,2,-1
         integer, intent(IN)                              :: IFather, JFather, di, dj, MaxSize
         integer, optional                                :: n, tracer
         Integer, dimension(:, :), optional               :: Cells
-        
+
         !Local-----------------------------------------------------------------
         integer                                          :: Aux, Aux2, StartIndex, i, ISon, JSon, ISonAdjacent, &
                                                             JSonAdjacent, IJFather
-        !---------------------------------------------------------------------- 
+        !----------------------------------------------------------------------
         !Find index of matrix where connections to cell (IFather, JCell) begin
         !columns in connection(:) : 1 - IFather; 2 - JFather; 3 - ISon; 4 - JSon
         do i = 1, MaxSize
@@ -13500,7 +13447,7 @@ D2:     do I=imax-1,2,-1
                 endif
             endif
         enddo
-        
+
         if (di /=0) IJFather = IFather ! means we are searching the north/South direction
         if (dj /=0) IJFather = JFather ! means we are searching the west/east direction
         Aux2 = Aux
@@ -13512,7 +13459,7 @@ D2:     do I=imax-1,2,-1
                 JSon         = Connection(i, 4)
                 ISonAdjacent = Connection(i, 3) + di
                 JSonAdjacent = Connection(i, 4) + dj
-                    
+
                 if (SonWaterPoints(ISon, JSon) == 1)then
                     !Check if adjacent cell of son domain is inside Father dicharge cell
                     !this will need to change if a radious of search is used, as a son cell will &
@@ -13528,7 +13475,7 @@ D2:     do I=imax-1,2,-1
                     endif
                 endif
                 i = i + 1
-                Aux2 = Connection(i, 1) * Connection(i, 2)            
+                Aux2 = Connection(i, 1) * Connection(i, 2)
             enddo
         elseif (present(n)) then
             do while (Aux2 == Aux)
@@ -13536,7 +13483,7 @@ D2:     do I=imax-1,2,-1
                 JSon         = Connection(i, 4)
                 ISonAdjacent = Connection(i, 3) + di
                 JSonAdjacent = Connection(i, 4) + dj
-                    
+
                 if (SonWaterPoints(ISon, JSon) == 1)then
                     !Check if adjacent cell of son domain is inside Father dicharge cell
                     if (link(ISonAdjacent, JSonAdjacent) == (IJFather - 1))then
@@ -13546,18 +13493,18 @@ D2:     do I=imax-1,2,-1
                     endif
                 endif
                 i = i + 1
-                Aux2 = Connection(i, 1) * Connection(i, 2)            
-            enddo            
-            
+                Aux2 = Connection(i, 1) * Connection(i, 2)
+            enddo
+
         endif
-        
+
     end subroutine SearchFace
-    
+
     !-------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Searches discharge faces of father cell, and saves the upscaling discharge cell links between father-son cells
-    !>@param[in] n, Cells, Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, IZ, JZ, I   
+    !>@param[in] n, Cells, Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, IZ, JZ, I
     subroutine UpsDischargesLinks (Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, IZ, JZ, VelID, tracer, Cells)
         !Arguments------------------------------------------------------------------------------------------------
         integer, dimension(:, :), pointer, intent(IN)         :: Connection !Connection beteen father-Son Z cells
@@ -13567,15 +13514,15 @@ D2:     do I=imax-1,2,-1
         !Local----------------------------------------------------------------------------------------------------
         integer                                               :: di, dj, MaxSize, IFather, JFather
         !---------------------------------------------------------------------------------------------------------
-    
+
         MaxSize = size(Connection, 1)
         !If father cell to the north is land, check for son cells(compare with adjacent southern cell)
-        
+
         if (VelID == VelocityU_) then
             if (FatherWaterPoints(Icell, JCell + 1) == 0) then
                 IFather = Icell
                 JFather = JCell + 1
-                di      = 0 
+                di      = 0
                 dj      = -1 !only going to search westward
                 call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, JZ, Cells = Cells, &
                                  tracer = tracer)
@@ -13606,46 +13553,47 @@ D2:     do I=imax-1,2,-1
                                  tracer = tracer)
             endif
         endif
-        
+
     end subroutine UpsDischargesLinks
     !-------------------------------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Computes area averaged velocity of son cells nested in a father cell
     !>@param[in] DischargeVel, SonVel, DLink, SonArea, FatherArea, SonComputeFaces, AcumulatedVel, AuxArea, &
-    !> KFloor, KUBSon, KUBFather 
+    !> KFloor, KUBSon, KUBFather
     subroutine ComputeUpscalingVelocity(DischargeVel, SonVel, DLink, SonArea, FatherArea, SonComputeFaces, &
                                         AcumulatedVel, AuxArea, KFloor, KUBSon, KUBFather)
         !Arguments----------------------------------------------------------------------------------
         real, dimension(:, :, :),          intent(INOUT)    :: DischargeVel
-        real, dimension(:, :, :),          intent(INOUT)    :: AcumulatedVel, AuxArea 
+        real, dimension(:, :, :),          intent(INOUT)    :: AcumulatedVel, AuxArea
         real, dimension(:, :, :),    pointer, intent(IN)    :: SonArea, FatherArea, SonVel
         integer, dimension(:, :),    pointer, intent(IN)    :: KFloor
         integer, dimension(:, :, :), pointer, intent(IN)    :: SonComputeFaces
         integer, dimension(:, :),             intent(IN)    :: DLink
         !Local--------------------------------------------------------------------------------------
         integer                                             :: i, j, k, Maxlines, line, KUBSon, KUBFather, &
-                                                               i2, j2, k2, Kbottom
+                                                               iSon, jSon, kSon, Kbottom
         !-------------------------------------------------------------------------------------------
         Maxlines = size(DLink, 1)
         !Not worth paralelizing... too litle work for each thread.
         do line = 1, Maxlines
-            i = DLink(line, 1)
-            j = DLink(line, 2)
-            i2 = DLink(line, 3)
-            j2 = DLink(line, 4)
+            i    = DLink(line, 1)
+            j    = DLink(line, 2)
+            iSon = DLink(line, 3)
+            jSon = DLink(line, 4)
+
             KBottom = KFloor(i, j)
             do k = Kbottom, KUBFather
-                k2 = k - (KUBFather - KUBSon)
+                kSon = k - (KUBFather - KUBSon)
                 ! I am assuming the vertical discretization will be the same even if the son has less layers.
                 AcumulatedVel(i, j, k) = AcumulatedVel(i, j, k) + &
-                                         SonVel(i2, j2, k2) * SonArea(i2, j2, k2) * SonComputeFaces(i2, j2, k2)
-                    
-                AuxArea(i, j, k) = AuxArea(i, j, k) + SonArea(i2, j2, k2)
+                                         SonVel(iSon, jSon, kSon) * SonArea(iSon, jSon, kSon) * SonComputeFaces(iSon, jSon, kSon)
+
+                AuxArea(i, j, k) = AuxArea(i, j, k) + SonArea(iSon, jSon, kSon)
             enddo
-                  
+
         enddo
-            
+
         do line = 1, Maxlines
             i = DLink(line, 1)
             j = DLink(line, 2)
@@ -13653,50 +13601,69 @@ D2:     do I=imax-1,2,-1
             do k = Kbottom, KUBFather
                 DischargeVel(i, j, k) = AcumulatedVel(i, j, k) / FatherArea(i, j, k)
             enddo
-                  
-        enddo            
-    
+
+        enddo
+
     end subroutine ComputeUpscalingVelocity
     !--------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Computes volume to be added or removed due to upscaling discharge
-    !>@param[in] FatherU_old, FatherU, FatherV_old, FatherV, Volume, KUB, KFloorU, KFloorV, &
-    !>                                 AreaU, AreaV, CellsZ                                        
-                                      
-    subroutine ComputeDischargeVolume(FatherU_old, FatherU, FatherV_old, FatherV, AreaU, AreaV, &
-        UpscaleFlow, DischargeConnection)
+    !>@param[in] FatherU_old, FatherU, AreaU, UpscaleFlow, DischargeConnection
+    subroutine ComputeDischargeVolumeU(FatherU_old, FatherU, AreaU, UpscaleFlow, DischargeConnection)
         !Arguments--------------------------------------------------------------------------
-        real,    dimension(:, :, :), pointer, intent(IN)     :: FatherU, FatherV, AreaU, AreaV
-        real,    dimension(:, :, :), allocatable, intent(IN) :: FatherU_old, FatherV_old
+        real,    dimension(:, :, :), pointer, intent(IN)     :: FatherU, AreaU
+        real,    dimension(:, :, :), allocatable, intent(IN) :: FatherU_old
         real(8),    dimension(:)            , intent(INOUT)  :: UpscaleFlow
         integer, dimension(:, :)            , intent(IN)     :: DischargeConnection
         !Local-------------------------------------------------------------------------------
         integer                                              :: line, i, j, k, MaxSize
-        real                                                 :: F_East, F_West, F_South, F_North
+        real                                                 :: F_East, F_West
         !------------------------------------------------------------------------------------
         MaxSize = size(UpscaleFlow)
         do line = 1, MaxSize
             i = DischargeConnection(line, 1)
             j = DischargeConnection(line, 2)
             k = DischargeConnection(line, 3)
-            
-            F_West = (FatherU_old(i, j  , k) - FatherU(i, j  , k)) * AreaU(i, j  , k)
+
+            F_West =  (FatherU_old(i, j  , k) - FatherU(i, j  , k)) * AreaU(i, j  , k)
             F_East = -(FatherU_old(i, j+1, k) - FatherU(i, j+1, k)) * AreaU(i, j+1, k)
-            
-            F_South = (FatherV_old(i  , j, k) - FatherV(i  ,j , k)) * AreaV(i  , j, k)
-            F_North = -(FatherV_old(i+1, j, k) - FatherV(i+1,j , k)) * AreaV(i+1, j, k)
-                
-            UpscaleFlow(line) = F_South + F_North + F_East + F_West
-                
-            UpscaleFlow(line) = F_South + F_North + F_East + F_West
+
+            UpscaleFlow(line) = F_East + F_West
         enddo
-    end subroutine ComputeDischargeVolume
-        
+    end subroutine ComputeDischargeVolumeU
+
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Computes volume to be added or removed due to upscaling discharge
+    !>@param[in] FatherU_old, FatherU, AreaU, UpscaleFlow, DischargeConnection
+    subroutine ComputeDischargeVolumeV(FatherV_old, FatherV, AreaV, UpscaleFlow, DischargeConnection)
+        !Arguments--------------------------------------------------------------------------
+        real,    dimension(:, :, :), pointer, intent(IN)     :: FatherV, AreaV
+        real,    dimension(:, :, :), allocatable, intent(IN) :: FatherV_old
+        real(8),    dimension(:)            , intent(INOUT)  :: UpscaleFlow
+        integer, dimension(:, :)            , intent(IN)     :: DischargeConnection
+        !Local-------------------------------------------------------------------------------
+        integer                                              :: line, i, j, k, MaxSize
+        real                                                 :: F_South, F_North
+        !------------------------------------------------------------------------------------
+        MaxSize = size(UpscaleFlow)
+        do line = 1, MaxSize
+            i = DischargeConnection(line, 1)
+            j = DischargeConnection(line, 2)
+            k = DischargeConnection(line, 3)
+
+            F_South =  (FatherV_old(i  , j, k) - FatherV(i  ,j , k)) * AreaV(i  , j, k)
+            F_North = -(FatherV_old(i+1, j, k) - FatherV(i+1,j , k)) * AreaV(i+1, j, k)
+
+            UpscaleFlow(line) = UpscaleFlow(line) + F_South + F_North
+        enddo
+    end subroutine ComputeDischargeVolumeV
+
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Updates n_Z matrix
-    !>@param[in] n_Z, Kfloor, KUB, I, J         
+    !>@param[in] n_Z, Kfloor, KUB, I, J
     subroutine Update_n_Z(n_Z, KFloorZ, KUB, I, J)
         !Arguments--------------------------------------------------------------------------
         integer, dimension(:, :), pointer, intent(IN)        :: KFloorZ
@@ -13711,11 +13678,11 @@ D2:     do I=imax-1,2,-1
         enddo
     end subroutine Update_n_Z
     !----------------------------------------------------------------------------------------
-    
+
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !> Updates discharge matrix table with the I, J and K  Parent cells
-    !>@param[in] n_Z, Kfloor, KUB, I, J       
+    !>@param[in] n_Z, Kfloor, KUB, I, J
     subroutine UpdateDischargeConnections(CurrentZ, Matrix, KFloor, KUB, I, J)
         !Arguments--------------------------------------------------------------------------
         integer, dimension(:, :), allocatable , intent(INOUT)     :: Matrix
