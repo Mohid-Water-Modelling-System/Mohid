@@ -1248,6 +1248,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         !Arguments-------------------------------------------------------------
         integer                          , intent(IN)     :: FatherID
         real(8), dimension(:, :, :), pointer, intent(IN)  :: Flow
+        real,    dimension(:, :, :), pointer, intent(IN)  :: Prop
         real, dimension(:)      , pointer, intent(IN)     :: FlowVector, PropVector
         integer, dimension(:), pointer, intent(INOUT)     :: dI, dJ, dK, Kmin, Kmax
         logical                       , intent(IN)        :: FirstTime
@@ -1296,9 +1297,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !>Ungets all external vars
     !>@param[in] SonID, FatherID, CallerID, STAT
-    subroutine UngetTwoWayExternal_Vars(SonID, FatherID, CallerID, STAT)
+    subroutine UngetTwoWayExternal_Vars(SonID, CallerID, STAT)
         !Arguments--------------------------------------------------------------
-        integer, intent(IN)                         :: SonID, FatherID, CallerID
+        integer, intent(IN)                         :: SonID, CallerID
         integer, optional, intent(OUT)              :: STAT
         !Locals-----------------------------------------------------------------
         integer                                     :: ready_, status, STAT_

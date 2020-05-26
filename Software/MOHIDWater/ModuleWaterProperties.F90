@@ -19286,7 +19286,7 @@ do1 :   do while (associated(PropertyX))
 
         nullify (PropertyX)
 
-        call UngetTwoWayExternal_Vars(SonID = SonWaterPropertiesID, FatherID = FatherWaterPropertiesID, &
+        call UngetTwoWayExternal_Vars(SonID = SonWaterPropertiesID, &
                                       CallerID = mWATERPROPERTIES_, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR04.'
         

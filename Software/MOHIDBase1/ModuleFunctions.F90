@@ -2098,6 +2098,8 @@ Module ModuleFunctions
         enddo
         enddo
         enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
     end subroutine SumMatrixes_R4
 
     subroutine SumMatrixes_jik(MatrixA, Size, KFloor, MatrixB, MapMatrix)

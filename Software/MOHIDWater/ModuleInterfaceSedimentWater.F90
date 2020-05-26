@@ -8861,7 +8861,7 @@ subroutine BenthicEcology_Processes
                         BenthicRateX%Field2,                                             &
                         BenthicRateX%ID%Name,                                           &
                         Me%ExtWater%WaterPoints2D, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_ stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR60'
+            if (STAT_CALL .NE. SUCCESS_) stop 'BenthicEcology_Processes - ModuleInterfaceSedimentWater - ERR60'
         else
 
             where (Me%ExtWater%WaterPoints2D == WaterPoint)                             &

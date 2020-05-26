@@ -48043,7 +48043,7 @@ do5:            do i = ILB, IUB
                         if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR05.'
                     endif
 
-                    call UngetTwoWayExternal_Vars(SonID = AuxHydrodynamicID, FatherID = Me%FatherInstanceID, &
+                    call UngetTwoWayExternal_Vars(SonID = AuxHydrodynamicID, &
                                                   CallerID = mHydrodynamic_, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR06.'
                 endif
@@ -54737,7 +54737,6 @@ cd1:    if (HydrodynamicID > 0) then
     end function TimeSerieValue
 
     !--------------------------------------------------------------------------
-#ifndef _WAVES_
     Subroutine ReadUnLock_ModuleWaves
 
         !Local-----------------------------------------------------------------

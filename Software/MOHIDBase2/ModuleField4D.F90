@@ -5072,7 +5072,7 @@ d2:     do N =1, NW
         !Local-----------------------------------------------------------------
         type (T_PropField), pointer                     :: PropField
         integer                                         :: STAT_, ready_, STAT_CALL
-        integer                                         :: i, j, k
+        integer                                         :: k
         integer                                         :: SizeI1, SizeJ1, SizeK1
         integer                                         :: SizeI2, SizeJ2, SizeK2        
         integer                                         :: ILB1,IUB1,JLB1,JUB1,KLB1,KUB1
