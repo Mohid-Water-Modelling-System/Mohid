@@ -2084,12 +2084,8 @@ Module ModuleFunctions
         integer                                           :: CHUNK
         !Begin-----------------------------------------------------------------
 
-        KUB = Size%KUB
-        KLB = Size%KLB
-        JUB = Size%JUB
-        JLB = Size%JLB
-        IUB = Size%IUB
-        ILB = Size%ILB
+        KUB = Size%KUB; JUB = Size%JUB; IUB = Size%IUB
+        KLB = Size%KLB; JLB = Size%JLB; ILB = Size%ILB
 
         CHUNK = CHUNK_K(KLB, KUB)
 
@@ -2099,6 +2095,7 @@ Module ModuleFunctions
         do j = JLB, JUB
         do i = ILB, IUB
             MatrixA(i, j, k) = MatrixA(i, j, k) + MatrixB(i, j, k)
+        enddo
         enddo
         enddo
     end subroutine SumMatrixes_R4
