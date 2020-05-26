@@ -63,10 +63,6 @@ Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "Convert2Hdf5", "Convert2Hdf
 	EndProjectSection
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "Convert2netcdf", "Convert2netcdf\Convert2netcdf.vfproj", "{F8708A1A-EF60-4639-BD43-777C769C7864}"
-	ProjectSection(ProjectDependencies) = postProject
-		{98ABA093-7927-4BCD-B011-BF409B5BBB78} = {98ABA093-7927-4BCD-B011-BF409B5BBB78}
-		{0056F7D7-347A-40DE-98B8-843CF05B5488} = {0056F7D7-347A-40DE-98B8-843CF05B5488}
-	EndProjectSection
 EndProject
 Project("{6989167D-11E4-40FE-8C1A-2192A86A7E90}") = "ConvertToTimeSerie", "ConvertToTimeSerie\ConvertToTimeSerie.vfproj", "{D9A8E2CF-4DA2-4210-BDF7-05F2A281FCA6}"
 EndProject
