@@ -7670,7 +7670,6 @@ do6 :                       do K = WKLB, WKUB
 do9 :   do I = ILB, IUB
 do8 :   do J = JLB, JUB
 do7 :   do K = KLB, KUB
-            NewProperty%Concentration(i, j, k) = FillValueReal
             
 cd21:       if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then
                 if(NewProperty%Evolution%MinConcentration) then
@@ -7699,7 +7698,10 @@ cd21:       if (Me%ExternalVar%WaterPoints3D(i, j, k) == WaterPoint) then
 
                         NewProperty%Concentration(i,j,k) = NewValue
                 endif
+            else cd21
+                NewProperty%Concentration(i, j, k) = FillValueReal
             endif cd21
+            
         enddo do7
         enddo do8
         enddo do9
