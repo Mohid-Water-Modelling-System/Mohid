@@ -123,6 +123,7 @@ program Convert2netcdf
         real                                                :: TotalCPUTime
         real                                                :: ElapsedSeconds
         integer, dimension(8)                               :: F95Time
+        logical                                             :: MohidStandardInOutUnits = .false. 
                                                             
         integer                                             :: ObjEnterData     = 0
                                                             
@@ -693,7 +694,14 @@ program Convert2netcdf
                      STAT         = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR500'
         
-        
+        call GetData(Me%MohidStandardInOutUnits,                                        &
+                     Me%ObjEnterData,iflag,                                             &
+                     SearchType   = FromFile,                                           &
+                     keyword      = 'MOHID_STANDARD_IN_OUT_UNITS',                      &
+                     ClientModule = 'Convert2netcdf',                                   &
+                     Default      = .true.,                                             &
+                     STAT         = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ReadKeywords - Convert2netcdf - ERR510'        
                     
 
         call KillEnterData (Me%ObjEnterData, STAT = STAT_CALL)
@@ -1618,6 +1626,7 @@ program Convert2netcdf
         enddo
         enddo
         
+       Units = "m"
 
         call BuildAttributes("Bathymetry", NCDFName, LongName, StandardName, &
                                            Units, ValidMin, ValidMax,        &
@@ -1657,6 +1666,8 @@ program Convert2netcdf
         !Begin-----------------------------------------------------------------
 
         write(*,*)"Reading and writing mask..."
+        
+        Units ="-"
         
         KUB = Me%HDFFile%Size%KUB
 
@@ -1858,6 +1869,8 @@ program Convert2netcdf
         call h5gn_members_f(gr_id, "/Grid", nItems, STAT_CALL)
         if (STAT_CALL .NE. SUCCESS_) stop 'ReadMask - Convert2netcdf - ERR02'
 
+        Units ="-"
+
         do item = 1, nItems
 
             !Get info on object
@@ -1998,7 +2011,7 @@ program Convert2netcdf
         character(len=*), intent(out)                       :: NCDFName
         character(len=*), intent(out)                       :: LongName
         character(len=*), intent(out)                       :: StandardName
-        character(len=*), intent(out)                       :: Units
+        character(len=*), intent(inout)                     :: Units
         character(len=*), intent(out), optional             :: Positive
         real,             intent(out)                       :: ValidMin, Min
         real,             intent(out)                       :: ValidMax, Max
@@ -2014,8 +2027,9 @@ program Convert2netcdf
         integer                                             :: i, j, k
         real                                                :: Add_Factor_
         real                                                :: Multiply_Factor_
-
+        character(len=StringLength)                         :: Units_
         !Begin-----------------------------------------------------------------
+        
         if (present(Add_Factor)) then
             Add_Factor_      = Add_Factor
         else
@@ -2034,7 +2048,7 @@ program Convert2netcdf
                 NCDFName        = "bathymetry"
                 LongName        = "bathymetry"
                 StandardName    = "sea_floor_depth_below_geoid"
-                Units           = "m"
+                Units_          = "m"
                 ValidMin        = -50.
                 ValidMax        = 11000.
                 Positive        = "down"
@@ -2044,7 +2058,7 @@ program Convert2netcdf
                 NCDFName        = "mask"
                 LongName        = "mask of potential water points"
                 StandardName    = "land_binary_mask"
-                Units           = null_str
+                Units_          = null_str
                 ValidMin        = 0
                 ValidMax        = 1
                 MissingValue    = -99
@@ -2053,7 +2067,7 @@ program Convert2netcdf
                 NCDFName        = "mask"
                 LongName        = "mask of effective water points at one given instant"
                 StandardName    = "mask"
-                Units           = null_str
+                Units_          = null_str
                 ValidMin        = 0
                 ValidMax        = 1
                 MissingValue    = -99
@@ -2062,7 +2076,7 @@ program Convert2netcdf
                 NCDFName        = "temperature"
                 LongName        = "sea water temperature"
                 StandardName    = "sea_water_temperature"
-                Units           = "degC"
+                Units_          = "degC"
                 ValidMin        = 0.
                 ValidMax        = 50.
                 MissingValue    = Me%MissingValue
@@ -2071,7 +2085,7 @@ program Convert2netcdf
                 NCDFName        = "salinity"
                 LongName        = "sea water salinity"
                 StandardName    = "sea_water_salinity"
-                Units           = "1e-3"
+                Units_          = "1e-3"
                 ValidMin        = 0.
                 ValidMax        = 40.
                 MissingValue    = Me%MissingValue
@@ -2080,7 +2094,7 @@ program Convert2netcdf
                 NCDFName        = "density"
                 LongName        = "sea water density"
                 StandardName    = "sea_water_density"
-                Units           = "kg m-3"
+                Units_          = "kg m-3"
                 ValidMin        = 900.
                 ValidMax        = 1200.
                 MissingValue    = Me%MissingValue
@@ -2089,7 +2103,7 @@ program Convert2netcdf
                 NCDFName        = "dissolved_oxygen"
                 LongName        = "mass concentration of oxygen in sea water"
                 StandardName    = "mass_concentration_of_oxygen_in_sea_water"
-                Units           = "mg l-1"
+                Units_          = "mg l-1"
                 ValidMin        = 0.
                 ValidMax        = 30.
                 MissingValue    = Me%MissingValue
@@ -2098,7 +2112,7 @@ program Convert2netcdf
                 NCDFName        = "dissolved_oxygen_percent_saturation"
                 LongName        = "dissolved oxygen percent saturation"
                 StandardName    = "dissolved_oxygen_percent_saturation"
-                Units           = "%"
+                Units_          = "%"
                 ValidMin        = 0.
                 ValidMax        = 200.
                 MissingValue    = Me%MissingValue
@@ -2107,7 +2121,7 @@ program Convert2netcdf
                 NCDFName        = "u"
                 LongName        = "eastward sea water velocity"
                 StandardName    = "eastward_sea_water_velocity"
-                Units           = "m s-1"
+                Units_          = "m s-1"
                 ValidMin        = -5.
                 ValidMax        = 5.
                 MissingValue    = Me%MissingValue
@@ -2116,7 +2130,7 @@ program Convert2netcdf
                 NCDFName        = "v"
                 LongName        = "northward sea water velocity"
                 StandardName    = "northward_sea_water_velocity"
-                Units           = "m s-1"
+                Units_          = "m s-1"
                 ValidMin        = -5.
                 ValidMax        = 5.
                 MissingValue    = Me%MissingValue
@@ -2125,7 +2139,7 @@ program Convert2netcdf
                 NCDFName        = "velocity_W"
                 LongName        = "upward sea water velocity"
                 StandardName    = "upward_sea_water_velocity"
-                Units           = "m s-1"
+                Units_          = "m s-1"
                 ValidMin        = -2.
                 ValidMax        = 2.
                 MissingValue    = Me%MissingValue
@@ -2134,7 +2148,7 @@ program Convert2netcdf
                 NCDFName        = "vm"
                 LongName        = "sea water speed"
                 StandardName    = "sea_water_speed"
-                Units           = "m s-1"
+                Units_          = "m s-1"
                 ValidMin        = -5.
                 ValidMax        = 5.
                 MissingValue    = Me%MissingValue
@@ -2143,7 +2157,7 @@ program Convert2netcdf
                 NCDFName        = "ssh"
                 LongName        = "sea surface height"
                 StandardName    = "sea_surface_height"
-                Units           = "m"
+                Units_          = "m"
                 ValidMin        = -20.
                 ValidMax        = 20.
                 MissingValue    = Me%MissingValue
@@ -2152,7 +2166,7 @@ program Convert2netcdf
                 NCDFName        = "wind_modulus"
                 LongName        = "wind speed"
                 StandardName    = "wind_speed"
-                Units           = "m s-1"
+                Units_          = "m s-1"
                 ValidMin        = 0.0
                 ValidMax        = 100.
                 MissingValue    = Me%MissingValue
@@ -2160,7 +2174,7 @@ program Convert2netcdf
                 NCDFName        = "wind_speed_of_gust"
                 LongName        = "wind speed of gust"
                 StandardName    = "wind_speed_of_gust"
-                Units           = "m s-1"
+                Units_          = "m s-1"
                 ValidMin        = 0.0
                 ValidMax        = 200.
                 MissingValue    = Me%MissingValue                
@@ -2168,7 +2182,7 @@ program Convert2netcdf
                 NCDFName        = "x_wind"
                 LongName        = "x wind"
                 StandardName    = "x_wind"
-                Units           = "m s-1"
+                Units_          = "m s-1"
                 ValidMin        = -100.
                 ValidMax        = 100.
                 MissingValue    = Me%MissingValue
@@ -2177,7 +2191,7 @@ program Convert2netcdf
                 NCDFName        = "y_wind"
                 LongName        = "y wind"
                 StandardName    = "y_wind"
-                Units           = "m s-1"
+                Units_          = "m s-1"
                 ValidMin        = -100.
                 ValidMax        = 100.
                 MissingValue    = Me%MissingValue
@@ -2186,7 +2200,7 @@ program Convert2netcdf
                 NCDFName        = "air_temperature"
                 LongName        = "air temperature"
                 StandardName    = "air_temperature"
-                Units           = "degC"
+                Units_          = "degC"
                 ValidMin        = -90.
                 ValidMax        = 60.
                 MissingValue    = Me%MissingValue
@@ -2195,7 +2209,7 @@ program Convert2netcdf
                 NCDFName        = "air_pressure_at_mean_sea_level"
                 LongName        = "air_pressure_at_mean_sea_level"
                 StandardName    = "air_pressure_at_mean_sea_level"
-                Units           = "Pa"
+                Units_          = "Pa"
                 ValidMin        = 85000.
                 ValidMax        = 110000.
                 MissingValue    = Me%MissingValue
@@ -2204,7 +2218,7 @@ program Convert2netcdf
                 NCDFName        = "mean_sea_level_pressure"
                 LongName        = "air pressure at sea level"
                 StandardName    = "air_pressure_at_sea_level"
-                Units           = "Pa"
+                Units_          = "Pa"
                 ValidMin        = 85000.
                 ValidMax        = 110000.
                 MissingValue    = Me%MissingValue
@@ -2213,7 +2227,7 @@ program Convert2netcdf
                 NCDFName        = "relative_humidity"
                 LongName        = "relative humidity"
                 StandardName    = "relative_humidity"
-                Units           = "1"
+                Units_          = "1"
                 ValidMin        = 0.
                 ValidMax        = 1.
                 MissingValue    = Me%MissingValue
@@ -2222,7 +2236,7 @@ program Convert2netcdf
                 NCDFName        = "volume_absorption_coefficient_of_radiative_flux_in_sea_water"
                 LongName        = "short wave solar radiation light extinction coefficient"
                 StandardName    = "volume_absorption_coefficient_of_radiative_flux_in_sea_water"
-                Units           = "m-1"
+                Units_          = "m-1"
                 ValidMin        = 0.
                 ValidMax        = 100.
                 MissingValue    = Me%MissingValue
@@ -2231,7 +2245,7 @@ program Convert2netcdf
                 NCDFName        = "solar_radiation"
                 LongName        = "downwelling shortwave flux in air"
                 StandardName    = "downwelling_shortwave_flux_in_air"
-                Units           = "W m-2"
+                Units_          = "W m-2"
                 ValidMin        = 0.
                 ValidMax        = 1400.
                 MissingValue    = Me%MissingValue
@@ -2240,7 +2254,7 @@ program Convert2netcdf
                 NCDFName        = "downward_long_wave_radiation"
                 LongName        = "downwelling longwave flux in air"
                 StandardName    = "downwelling_longwave_flux_in_air"
-                Units           = "W m-2"
+                Units_          = "W m-2"
                 ValidMin        = 0.
                 ValidMax        = 1400.
                 MissingValue    = Me%MissingValue
@@ -2249,7 +2263,7 @@ program Convert2netcdf
                 NCDFName        = "phytoplankton"
                 LongName        = "mole concentration of phytoplankton expressed as carbon in sea water"
                 StandardName    = "mole_concentration_of_phytoplankton_expressed_as_carbon_in_sea_water"
-                Units           = "millimol m-3"
+                Units_          = "millimol m-3"
                 Multiply_Factor_ = 1000./12.0107
                 ValidMin        = 0. * Multiply_Factor_
                 ValidMax        = 10. * Multiply_Factor_
@@ -2259,7 +2273,7 @@ program Convert2netcdf
                 NCDFName        = "zooplankton"
                 LongName        = "mole concentration of zooplankton expressed as carbon in sea water"
                 StandardName    = "mole_concentration_of_zooplankton_expressed_as_carbon_in_sea_water"
-                Units           = "millimol m-3"
+                Units_          = "millimol m-3"
                 Multiply_Factor_ = 1000./12.0107
                 ValidMin        = 0. * Multiply_Factor_
                 ValidMax        = 10. * Multiply_Factor_
@@ -2269,7 +2283,7 @@ program Convert2netcdf
                 NCDFName        = "nitrate"
                 LongName        = "mole concentration of nitrate in sea water"
                 StandardName    = "mole_concentration_of_nitrate_in_sea_water"
-                Units           = "millimol m-3"
+                Units_          = "millimol m-3"
                 Multiply_Factor_ = 1000./14.0067
                 ValidMin        = 0. * Multiply_Factor_
                 ValidMax        = 10. * Multiply_Factor_
@@ -2279,7 +2293,7 @@ program Convert2netcdf
                 NCDFName        = "ammonia"
                 LongName        = "mole concentration of ammonium in sea water"
                 StandardName    = "mole_concentration_of_ammonium_in_sea_water"
-                Units           = "millimol m-3"
+                Units_          = "millimol m-3"
                 Multiply_Factor_ = 1000./14.0067
                 ValidMin        = 0. * Multiply_Factor_
                 ValidMax        = 10. * Multiply_Factor_
@@ -2289,7 +2303,7 @@ program Convert2netcdf
                 NCDFName        = "cohesive_sediment"
                 LongName        = "mass concentration of suspended matter in sea water"
                 StandardName    = "mass_concentration_of_suspended_matter_in_sea_water"
-                Units           = "mg l-1"
+                Units_          = "mg l-1"
                 ValidMin        = 0.
                 ValidMax        = 1000.
                 MissingValue    = Me%MissingValue
@@ -2298,7 +2312,7 @@ program Convert2netcdf
                 NCDFName        = "inorganic_phosphorus"
                 LongName        = "mole concentration of phosphate in sea water"
                 StandardName    = "mole_concentration_of_phosphate_in_sea_water"
-                Units           = "millimol m-3"
+                Units_          = "millimol m-3"
                 Multiply_Factor_ = 1000./30.974
                 ValidMin        = 0. * Multiply_Factor_
                 ValidMax        = 10. * Multiply_Factor_
@@ -2308,7 +2322,7 @@ program Convert2netcdf
                 NCDFName        = "particulate_organic_nitrogen"
                 LongName        = "mole concentration of particulate organic matter expressed as nitrogen in sea water"
                 StandardName    = "mole_concentration_of_particulate_organic_matter_expressed_as_nitrogen_in_sea_water"
-                Units           = "millimol m-3"
+                Units_          = "millimol m-3"
                 Multiply_Factor_ = 1000./14.0067
                 ValidMin        = 0. * Multiply_Factor_
                 ValidMax        = 10. * Multiply_Factor_
@@ -2318,7 +2332,7 @@ program Convert2netcdf
                 NCDFName        = "particulate_organic_phosphorus"
                 LongName        = "mole concentration of particulate organic matter expressed as phosphorus in sea water"
                 StandardName    = "mole_concentration_of_particulate_organic_matter_expressed_as_phosphorus_in_sea_water"
-                Units           = "millimol m-3"
+                Units_          = "millimol m-3"
                 Multiply_Factor_ = 1000./30.974
                 ValidMin        = 0. * Multiply_Factor_
                 ValidMax        = 10. * Multiply_Factor_
@@ -2328,7 +2342,7 @@ program Convert2netcdf
                 NCDFName        = "mean_wave_direction"
                 LongName        = "sea surface wave to direction"
                 StandardName    = "sea_surface_wave_to_direction"
-                Units           = "degree"
+                Units_          = "degree"
                 ValidMin        = 0. 
                 ValidMax        = 360.
                 MissingValue    = Me%MissingValue
@@ -2337,7 +2351,7 @@ program Convert2netcdf
                 NCDFName        = "swell_wave_direction"
                 LongName        = "sea surface swell wave to direction"
                 StandardName    = "sea_surface_swell_wave_to_direction"
-                Units           = "degree"
+                Units_          = "degree"
                 ValidMin        = 0. 
                 ValidMax        = 360.
                 MissingValue    = Me%MissingValue                
@@ -2347,7 +2361,7 @@ program Convert2netcdf
                 NCDFName        = "wave_X"
                 LongName        = "mean wave direction X"
                 StandardName    = "mean_wave_direction_X"
-                Units           = "-"
+                Units_          = "-"
                 ValidMin        = -1. 
                 ValidMax        = 1.
                 MissingValue    = Me%MissingValue
@@ -2356,7 +2370,7 @@ program Convert2netcdf
                 NCDFName        = "wave_Y"
                 LongName        = "mean wave direction Y"
                 StandardName    = "mean_wave_direction_Y"
-                Units           = "-"
+                Units_          = "-"
                 ValidMin        = -1. 
                 ValidMax        = 1.
                 MissingValue    = Me%MissingValue
@@ -2365,7 +2379,7 @@ program Convert2netcdf
                 NCDFName        = "significant_wave_height"
                 LongName        = "sea surface wave significant height"
                 StandardName    = "sea_surface_wave_significant_height"
-                Units           = "m"
+                Units_          = "m"
                 ValidMin        = 0. 
                 ValidMax        = 40.
                 MissingValue    = Me%MissingValue
@@ -2374,7 +2388,7 @@ program Convert2netcdf
                 NCDFName        = "swell_wave_height"
                 LongName        = "sea surface swell wave height"
                 StandardName    = "sea_surface_swell_wave_height"
-                Units           = "m"
+                Units_          = "m"
                 ValidMin        = 0. 
                 ValidMax        = 40.
                 MissingValue    = Me%MissingValue
@@ -2383,7 +2397,7 @@ program Convert2netcdf
                 NCDFName        = "wind_wave_height"
                 LongName        = "sea surface wind wave height"
                 StandardName    = "sea_surface_wind_wave_height"
-                Units           = "m"
+                Units_          = "m"
                 ValidMin        = 0. 
                 ValidMax        = 40.
                 MissingValue    = Me%MissingValue
@@ -2392,7 +2406,7 @@ program Convert2netcdf
                 NCDFName        = "mean_wave_period"
                 LongName        = "sea surface wave zero upcrossing period"
                 StandardName    = "sea_surface_wave_zero_upcrossing_period"
-                Units           = "s"
+                Units_          = "s"
                 ValidMin        = 0. 
                 ValidMax        = 30.
                 MissingValue    = Me%MissingValue
@@ -2402,7 +2416,7 @@ program Convert2netcdf
                 NCDFName        = "swell_wave_period"
                 LongName        = "sea surface swell wave period"
                 StandardName    = "sea_surface_swell_wave_period"
-                Units           = "s"
+                Units_          = "s"
                 ValidMin        = 0. 
                 ValidMax        = 30.
                 MissingValue    = Me%MissingValue
@@ -2411,7 +2425,7 @@ program Convert2netcdf
                 NCDFName        = "wind_wave_period"
                 LongName        = "sea surface wind wave period"
                 StandardName    = "sea_surface_wind_wave_period"
-                Units           = "s"
+                Units_          = "s"
                 ValidMin        = 0. 
                 ValidMax        = 30.
                 MissingValue    = Me%MissingValue
@@ -2421,7 +2435,7 @@ program Convert2netcdf
                 NCDFName        = trim(adjustl(Name))
                 LongName        = trim(adjustl(Name))
                 StandardName    = trim(adjustl(Name))
-                Units           = "unknown"
+                Units_          = "unknown"
                 ValidMin        =   Me%MissingValue / 10.
                 ValidMax        = - Me%MissingValue / 10. 
                 MissingValue    = Me%MissingValue
@@ -2430,6 +2444,36 @@ program Convert2netcdf
 
         Min = ValidMax
         Max = ValidMin
+
+        
+        if (Me%MohidStandardInOutUnits) then                
+            
+            Units = Units_
+            
+        else
+            
+            NCDFName        = trim(adjustl(Name))
+            LongName        = trim(adjustl(Name))
+            StandardName    = trim(adjustl(Name))
+            ValidMin        =   Me%MissingValue / 10.
+            ValidMax        = - Me%MissingValue / 10. 
+            MissingValue    = Me%MissingValue
+            !Units attributte is read before 
+
+            if (present(Add_Factor)) then
+                Add_Factor_      = Add_Factor
+            else
+                Add_Factor_      = 0.
+            endif
+
+            if (present(Multiply_Factor)) then
+                Multiply_Factor_      = Multiply_Factor
+            else
+                Multiply_Factor_      = 1.
+            endif  
+        
+            
+        endif        
 
 if1:   if(present(Int2D) .or. present(Int3D))then
            
@@ -2657,7 +2701,7 @@ if1:   if(present(Int2D) .or. present(Int3D))then
         integer                                     :: STAT_CALL
         integer(HID_T)                              :: class_id, space_id, dset_id
         integer(HID_T)                              :: datatype_id, rank, NumType
-        !integer(HID_T)                              :: ssize
+        integer(HID_T)                              :: attr_id, type_id
         integer(SIZE_T)                             :: ssize        
         integer(HSIZE_T), dimension(7)              :: dims
         integer                                     :: ILB, IUB, JLB, JUB, KLB, KUB
@@ -2687,7 +2731,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
 
         call h5dopen_f (gr_id, trim(adjustl(obj_name)), dset_id, STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR01'
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ReadDataSet - Convert2netcdf - ERR10'
+        endif
 
         call h5dget_space_f                 (dset_id,       space_id,       STAT_CALL)
         call h5sget_simple_extent_ndims_f   (space_id,      rank,           STAT_CALL)
@@ -2705,6 +2751,15 @@ if1:   if(present(Int2D) .or. present(Int3D))then
 
         call CheckAndCorrectVarName(obj_name, Name)
 
+        !Reads Units
+        call h5aopen_name_f     (dset_id, "Units", attr_id,     STAT_CALL)
+        call h5Tcopy_f          (H5T_NATIVE_CHARACTER, type_id, STAT_CALL)
+        call h5Tset_size_f      (type_id, Int8(StringLength),   STAT_CALL)
+        call h5aread_f          (attr_id, type_id, Units, dims, STAT_CALL)
+        call h5aclose_f         (attr_id,                       STAT_CALL) 
+        call h5Tclose_f         (type_id,                       STAT_CALL)
+        
+
         select case(rank) 
 
             case(2)
@@ -2713,7 +2768,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                   Me%Float2DIn(Me%HDFFile%Size%ILB:Me%HDFFile%Size%IUB,     &
                                                Me%HDFFile%Size%JLB:Me%HDFFile%Size%JUB),    &
                                   dims, STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR02'
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ReadDataSet - Convert2netcdf - ERR50'
+                endif
 
 
                 if (Me%DecimalPlaces > FillValueInt) then
@@ -2766,7 +2823,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                           OutputNumber  = item,                     &
                                           Array2D       = Me%Float2DOut,            &
                                           STAT          = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR03'
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ReadDataSet - Convert2netcdf - ERR60'
+                    endif
                 
                 else
                     
@@ -2782,7 +2841,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                           MissingValue  = MissingValue,             &
                                           Array2D       = Me%Float2DOut,             &
                                           STAT          = STAT_CALL)
-                    if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR04'
+                    if (STAT_CALL /= SUCCESS_) then
+                        stop 'ReadDataSet - Convert2netcdf - ERR70'
+                    endif
                 end if
 
 
@@ -2793,7 +2854,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                                Me%HDFFile%Size%JLB:Me%HDFFile%Size%JUB,     &
                                                Me%HDFFile%Size%KLB:Me%HDFFile%Size%KUB),    &
                                   dims, STAT_CALL)
-                if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR05'
+                if (STAT_CALL /= SUCCESS_) then
+                    stop 'ReadDataSet - Convert2netcdf - ERR80'
+                endif
 
                 if (Me%HDFFile%OutputIs2D) then                    
 
@@ -2850,7 +2913,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                               OutputNumber  = item,                     &
                                               Array2D       = Me%Float2DOut,            &
                                               STAT          = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR06'
+                        if (STAT_CALL /= SUCCESS_) then
+                            stop 'ReadDataSet - Convert2netcdf - ERR90'
+                        endif
                     
                     else
                         
@@ -2865,7 +2930,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                               MaxValue      = MaxValue,                 &
                                               Array2D       = Me%Float2DOut,            &
                                               STAT          = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR07'
+                        if (STAT_CALL /= SUCCESS_) then
+                            stop 'ReadDataSet - Convert2netcdf - ERR100'
+                        endif
                     end if
                     
                 else                 
@@ -2977,7 +3044,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                               OutputNumber  = item,                     &
                                               Array3D       = Me%Float3DOut,            &
                                               STAT          = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR06'
+                        if (STAT_CALL /= SUCCESS_) then
+                            stop 'ReadDataSet - Convert2netcdf - ERR110'
+                        endif
                     
                     else
                         
@@ -2992,7 +3061,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
                                               MaxValue      = MaxValue,                 &
                                               Array3D       = Me%Float3DOut,            &
                                               STAT          = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR07'
+                        if (STAT_CALL /= SUCCESS_) then
+                            stop 'ReadDataSet - Convert2netcdf - ERR120'
+                        endif
                     end if
 
                 endif
@@ -3000,7 +3071,9 @@ if1:   if(present(Int2D) .or. present(Int3D))then
          end select
 
         call h5dclose_f  (dset_id, STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadDataSet - Convert2netcdf - ERR08'
+        if (STAT_CALL /= SUCCESS_) then
+            stop 'ReadDataSet - Convert2netcdf - ERR990'
+        endif
 
     end subroutine ReadDataSet
 
