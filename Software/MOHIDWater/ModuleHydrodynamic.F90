@@ -8489,7 +8489,7 @@ cd21:   if (Baroclinic) then
         call GetData(Me%ComputeOptions%MatrixesOutputOpt,                        &
                         Me%ObjEnterData, iflag,                                  &
                         Keyword    = 'OPTIMIZE_MATRIXES_OUTPUT',                 &
-                        Default    = .true.,                                     &
+                        Default    = .false.,                                    &
                         SearchType = FromFile,                                   &
                         ClientModule ='ModuleHydrodynamic',                      &
                         STAT       = STAT_CALL)
@@ -13787,7 +13787,10 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
             endif
 
             call Read_Lock(mHydrodynamic_, Me%InstanceID)
-            if (Compute .and. Me%ComputeOptions%MatrixesOutputOpt) call ModifyMatrixesOutput
+
+            if (present(Compute)) then
+                if (Compute .and. Me%ComputeOptions%MatrixesOutputOpt) call ModifyMatrixesOutput
+            endif
 
             VelocityModulus => Me%OutPut%ModulusH
 
@@ -47746,7 +47749,7 @@ do5:            do i = ILB, IUB
         else
 
             if (Me%OutPut%TimeSerieON .or. Me%OutPut%hdf5ON .or.                            &
-                Me%OutPut%ProfileON   .or. Me%OutPut%HDF5_Surface_ON.or.                    &
+                Me%OutPut%ProfileON   .or. Me%OutPut%HDF5_Surface_ON .or.                    &
                 Me%OutW%OutPutWindowsON)then
 
                 call ModifyMatrixesOutput

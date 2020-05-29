@@ -12983,7 +12983,7 @@ cd1 :   if (ready_ .EQ. IDLE_ERR_) then
         
         JLB = ObjWaterPropertiesFather%WorkSize%JLB; JUB = ObjWaterPropertiesFather%WorkSize%JUB !Sobrinho
         ILB = ObjWaterPropertiesFather%WorkSize%ILB; IUB = ObjWaterPropertiesFather%WorkSize%IUB
-        KLB = ObjWaterPropertiesFather%WorkSize%KUB; KUB = ObjWaterPropertiesFather%WorkSize%KUB
+        KLB = ObjWaterPropertiesFather%WorkSize%KLB; KUB = ObjWaterPropertiesFather%WorkSize%KUB
 
 cd1 :   if (ready_ .EQ. IDLE_ERR_) then
 
