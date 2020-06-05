@@ -448,6 +448,10 @@ Module ModuleGeometry
             else
                 Me%ExternalVar%StopOnBathymetryChange = .true.
             endif
+            
+            if (present(LagrangianTracers))then
+                Me%ExternalVar%LagrangianTracers = LagrangianTracers
+            endif
 
             !Construct the variable common to all module
             if (present(NewDomain)) then
@@ -469,10 +473,6 @@ Module ModuleGeometry
                 call ConstructKFloor (SurfaceElevation)
             else
                 call ConstructKFloor
-            endif
-            
-            if (present(LagrangianTracers))then
-                Me%ExternalVar%LagrangianTracers = LagrangianTracers
             endif
 
             !Returns ID
