@@ -20786,8 +20786,10 @@ i2:             if (CurrentProperty%T90Compute) then
         type (T_Origin), pointer                    :: CurrentOrigin
         type (T_Partic), pointer                    :: CurrentPartic
         type (T_Property), pointer                  :: CurrentProperty
-        real                                        :: kd, rp, rd, ConcP, ConcD, Kdp, dt
+        real                                        :: kd, rp, rd, ConcP, ConcD, Kdp, dt, DC
         integer                                     :: nProp
+        
+        !Begin-----------------------------------------------------------------
         
         CurrentOrigin => Me%FirstOrigin
 CurrOr: do while (associated(CurrentOrigin))
@@ -20815,7 +20817,13 @@ CurrProp:       do while (associated(CurrentProperty))
                                 Kdp   = CurrentProperty%WaterPartition%TransferRate
                                 dt    = Me%DT_Partic
 
+                                DC    = rp * ConcD - rd * ConcP
+
+                                if (DC > 0.) then
                                 ConcP = ConcP + dt * Kdp * (rp * ConcD - rd * ConcP)
+                                else
+                                    ConcP = (ConcP + dt * Kdp * rp * ConcD) / (1 + dt * Kdp * rd)
+                                endif
 
                                 CurrentPartic%Concentration(nProp) = ConcP
 
@@ -20833,7 +20841,14 @@ CurrProp:       do while (associated(CurrentProperty))
                                 Kdp   = CurrentProperty%SedimentPartition%TransferRate
                                 dt    = Me%DT_Partic
 
+                                DC    = rp * ConcD - rd * ConcP
+
+                                if (DC > 0.) then
                                 ConcP = ConcP + dt * Kdp * (rp * ConcD - rd * ConcP)
+                                else
+                                    ConcP = (ConcP + dt * Kdp * rp * ConcD) / (1 + dt * Kdp * rd)
+                                endif
+
 
                                 CurrentPartic%Concentration(nProp) = ConcP
 
