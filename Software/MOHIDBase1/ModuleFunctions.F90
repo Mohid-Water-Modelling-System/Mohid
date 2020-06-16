@@ -9069,7 +9069,8 @@ i5:         if      (TVD_Limitation == MinMod) then
             endif
         endif
 
-        r = (Prop(2)-Prop(1))/ ((du(2) + du(1)) * dC)
+        !r = (Prop(2)-Prop(1))/ ((du(2) + du(1)) * dC)
+        r = (Prop(2)-Prop(1))/ (du(2) + du(1))/ dC
 
         Theta = max(0.,min(1.,2.*r),min(r, 2.))
 
@@ -9107,7 +9108,8 @@ i5:         if      (TVD_Limitation == MinMod) then
             endif
         endif
 
-        r = (Prop(3)-Prop(4))/ ((du(3) + du(4)) * dC)
+        !r = (Prop(3)-Prop(4))/ ((du(3) + du(4)) * dC)
+        r = (Prop(3)-Prop(4))/ (du(3) + du(4))/ dC
 
         Theta = max(0.,min(1.,2.*r),min(r, 2.))
 

@@ -4391,7 +4391,7 @@ st:     if (Me%State%HorAdv) then
                 do k = KLB, KUB
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do i = ILB, IUB
-
+                
                     call ComputeAdvection1D_TVD_SuperBee_2(JLB_Aux, JUB_Aux, Me%ExternalVar%DTProp,                 &
                                             Me%ExternalVar%DUX          (i,:),                                    &
                                             Me%ExternalVar%PROP         (i,:,k),                                  &
@@ -4402,7 +4402,7 @@ st:     if (Me%State%HorAdv) then
                 end do
                 !$OMP END DO
                 end do
-                
+
             else
     k1:         do k = KLB, KUB
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
@@ -4761,7 +4761,7 @@ st:     if (Me%State%HorAdv) then
                 do k = KLB, KUB
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
                 do j = JLB, JUB
-
+                
                     call ComputeAdvection1D_TVD_SuperBee_2(ILB_Aux, IUB_Aux, Me%ExternalVar%DTProp,                 &
                                             Me%ExternalVar%DVY          (:,j),                                    &
                                             Me%ExternalVar%PROP         (:,j,k),                                  &
@@ -4772,6 +4772,7 @@ st:     if (Me%State%HorAdv) then
                 end do
                 !$OMP END DO
                 end do
+                
              else
     k1:         do k = KLB, KUB
                 !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
