@@ -2148,9 +2148,9 @@ diV:    do iV = 1, Me%TableValues
             endif        
 
             if (Me%NullValue(iV)) then
-                write(AuxC,*) trim(adjustl(AuxC)), (" null ", iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+                write(AuxC,*) trim(adjustl(AuxC)), (" null ", iP=1,Me%PropNumber), "  ", Me%StationName(iV)
             else
-                write(AuxC,*) trim(adjustl(AuxC)), (Me%Properties(iP)%ValueHDF5(iV), iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+                write(AuxC,*) trim(adjustl(AuxC)), (Me%Properties(iP)%ValueHDF5(iV), iP=1,Me%PropNumber), "   ", Me%StationName(iV)
             endif
             
             write(unit,'(A)') trim(adjustl(AuxC))
@@ -2355,9 +2355,9 @@ diV1:   do iT = 1, Me%NoTimeValues
             endif              
             
             if (NullValue) then                
-                write(AuxC,*) trim(adjustl(AuxC)), (" null ", iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+                write(AuxC,*) trim(adjustl(AuxC)), (" null ", iP=1,Me%PropNumber), "   ", Me%StationName(iV)
             else
-                write(AuxC,*) trim(adjustl(AuxC)), (AuxProp(iP),iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+                write(AuxC,*) trim(adjustl(AuxC)), (AuxProp(iP),iP=1,Me%PropNumber), "   ", Me%StationName(iV)
             endif
         
             write(unit,'(A)') trim(adjustl(AuxC))
@@ -2403,9 +2403,9 @@ diV2:   do iT = 1, Me%NoTimeValues
             endif                          
             
             if (NullValue) then                
-                write(AuxC,*) trim(adjustl(AuxC)), (" null ", iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+                write(AuxC,*) trim(adjustl(AuxC)), (" null ", iP=1,Me%PropNumber), "   ", Me%StationName(iV)
             else
-                write(AuxC,*) trim(adjustl(AuxC)), (AuxProp(iP),iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+                write(AuxC,*) trim(adjustl(AuxC)), (AuxProp(iP),iP=1,Me%PropNumber), "   ", Me%StationName(iV)
             endif
         
             write(unit,'(A)') trim(adjustl(AuxC))
@@ -2448,9 +2448,9 @@ diV3:   do iT = 1, Me%NoTimeValues
             endif                          
 
             if (NullValue) then                
-                write(AuxC,*)  trim(adjustl(AuxC)), (" null ", iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+                write(AuxC,*)  trim(adjustl(AuxC)), (" null ", iP=1,Me%PropNumber), "   ", Me%StationName(iV)
             else
-                write(AuxC,*)  trim(adjustl(AuxC)), (AuxProp(iP),iP=1,Me%PropNumber), " , ", Me%StationName(iV)
+                write(AuxC,*)  trim(adjustl(AuxC)), (AuxProp(iP),iP=1,Me%PropNumber), "   ", Me%StationName(iV)
             endif
         
             write(unit,'(A)') trim(adjustl(AuxC))
