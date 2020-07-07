@@ -20857,13 +20857,18 @@ CurrProp:       do while (associated(CurrentProperty))
 
                             CurrentPartic => CurrentPartic%Next
                         enddo
+                    endif
 
-                        exit CurrProp
-
-                    else
                         nProp           =  nProp + 1
                         CurrentProperty => CurrentProperty%Next
-                    endif
+                    
+
+!                        exit CurrProp
+
+!                    else
+!                        nProp           =  nProp + 1
+ !                       CurrentProperty => CurrentProperty%Next
+ !                   endif
                 enddo CurrProp
 
 

@@ -10418,7 +10418,10 @@ i2:         if (GetGridBorderType == ComplexPolygon_) then
     
     mapArrayIJ = null_int
     do i=1, size(mapArrayXY, 1)
-        if (GetXYInsideDomain(HorizontalGridID, mapArrayXY(i,1), mapArrayXY(i,2))) call GetXYCellZ(HorizontalGridID, mapArrayXY(i,1), mapArrayXY(i,2), mapArrayIJ(i,1), mapArrayIJ(i,2))
+        if (GetXYInsideDomain(HorizontalGridID, mapArrayXY(i,1), mapArrayXY(i,2))) then
+            call GetXYCellZ(HorizontalGridID, mapArrayXY(i,1), mapArrayXY(i,2),         &
+                                              mapArrayIJ(i,1), mapArrayIJ(i,2))
+        endif
         !print*, 'id=',i, 'x=',mapArrayXY(i,1), 'y=',mapArrayXY(i,2)
         !print*, 'I=',mapArrayIJ(i,1), 'J=',mapArrayIJ(i,2)
     end do
