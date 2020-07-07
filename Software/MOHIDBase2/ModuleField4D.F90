@@ -63,7 +63,8 @@ Module ModuleField4D
                                        HDF5SetLimits, GetHDF5ArrayDimensions, KillHDF5, &
                                        HDF5WriteData, HDF5FlushMemory, HDF5WriteData,   &
                                        GetHDF5GroupExist, GetHDF5DataSetExist,          &
-                                       GetHDF5ArrayDim, HDF5ReadData
+                                       GetHDF5ArrayDim, HDF5ReadData,                   &
+                                       GetHDF5AllDataSetsOK
 #ifndef _NO_NETCDF                                       
     ! Manages NetCDF files
     use ModuleNetCDF,           only : GetNCDFFileAccess, ConstructNETCDF,              &
@@ -317,6 +318,7 @@ Module ModuleField4D
         real                                        :: DefaultValue         = null_real
         real                                        :: PredictedDT          = -null_real
         real                                        :: DTForNextEvent       = -null_real
+        
         type(T_PropField), pointer                  :: Next                 => null()    
     end type T_PropField            
 
@@ -377,6 +379,9 @@ Module ModuleField4D
         integer                                     :: ClientID             = null_int
         real,    dimension(2,2)                     :: WindowLimitsXY       = null_real
         type (T_Size2D)                             :: WindowLimitsJI        
+        
+        logical                                     :: CheckHDF5_File       = .false.         
+        
         type(T_Field4D), pointer                    :: Next                 => null()
     end type  T_Field4D
 
@@ -403,7 +408,7 @@ Module ModuleField4D
                                 LonReference, WindowLimitsXY, WindowLimitsJI,           &
                                 Extrapolate, ExtrapolateMethod, PropertyID, ClientID,   &
                                 FileNameList, FieldName, OnlyReadGridFromFile,          &
-                                DiscardFillValues, STAT)
+                                DiscardFillValues, CheckHDF5_File, STAT)
 
         !Arguments---------------------------------------------------------------
         integer,                                        intent(INOUT) :: Field4DID
@@ -429,6 +434,7 @@ Module ModuleField4D
         character(*),                         optional, intent(IN )   :: FieldName             
         logical,                              optional, intent(IN )   :: OnlyReadGridFromFile 
         logical,                              optional, intent(IN )   :: DiscardFillValues
+        logical,                              optional, intent(IN )   :: CheckHDF5_File  
         integer,                              optional, intent(OUT)   :: STAT     
         
         !Local-------------------------------------------------------------------
@@ -507,6 +513,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             Me%WindowWithData    = .true. 
 
+            if (present(CheckHDF5_File)) then
+                Me%CheckHDF5_File  = CheckHDF5_File
+            else
+                Me%CheckHDF5_File  = .false.
+            endif
+        
             call ConstructFile(ExtractType)
         
             if (present(Extrapolate)) then
@@ -2046,9 +2058,11 @@ wwd1:       if (Me%WindowWithData) then
         if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR320'        
         
 
+        
+
         ! Check if the simulation goes backward in time or forward in time (default mode)
         call GetBackTracking(Me%ObjTime, Me%BackTracking, STAT = STAT_CALL)                    
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR330' 
+        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleField4D - ERR340' 
         
         
 
@@ -2312,6 +2326,14 @@ i0:     if(PropField%SpaceDim == Dim2D) then
                     call ConstructHDF5 (Me%File%ObjList(n), trim(Me%File%FileNameList(n)), HDF5_READ, STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR30'
                     
+                    if (Me%CheckHDF5_File) then
+        
+                        call GetHDF5AllDataSetsOK (HDF5ID   = Me%File%ObjList(n),       &
+                                                   STAT     = STAT_CALL)                                      
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR35'
+            
+                    endif
+                    
                 enddo
                 
                 Me%File%Obj = Me%File%ObjList(1)
@@ -2319,6 +2341,14 @@ i0:     if(PropField%SpaceDim == Dim2D) then
             
                 call ConstructHDF5 (Me%File%Obj, trim(Me%File%FileName), HDF5_READ, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR40'
+            
+                if (Me%CheckHDF5_File) then
+        
+                    call GetHDF5AllDataSetsOK (HDF5ID   = Me%File%Obj,                  &
+                                               STAT     = STAT_CALL)                                      
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructFile - ModuleField4D - ERR45'
+            
+                endif
             
             endif
             
@@ -5072,7 +5102,7 @@ d2:     do N =1, NW
         !Local-----------------------------------------------------------------
         type (T_PropField), pointer                     :: PropField
         integer                                         :: STAT_, ready_, STAT_CALL
-        integer                                         :: i, j, k
+        integer                                         :: k
         integer                                         :: SizeI1, SizeJ1, SizeK1
         integer                                         :: SizeI2, SizeJ2, SizeK2        
         integer                                         :: ILB1,IUB1,JLB1,JUB1,KLB1,KUB1
