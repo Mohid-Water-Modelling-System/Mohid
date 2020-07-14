@@ -639,7 +639,7 @@ wwd:            if (Me%WindowWithData) then
                         else
                             Me%BuildGeometry      = .true.
 
-                            call ReadGeometryFromFile
+                            call ReadGeometryFromFile !Sobrinho - Busca X, Y e Z
                         endif
                         
                         if (present(MapID)) then
@@ -656,7 +656,7 @@ wwd:            if (Me%WindowWithData) then
                         else
                             Me%BuildMap      = .true.
 
-                            call ReadMap3DFromFile
+                            call ReadMap3DFromFile!Sobrinho - busca SZZ
                         endif
                    
                     endif
@@ -2887,7 +2887,7 @@ it:     if (NewPropField%ChangeInTime) then
 
                 if (NewPropField%PreviousInstant /= NewPropField%NextInstant) then
                 
-                    if (NewPropField%ID%IsAngle) then                                
+                    if (NewPropField%ID%IsAngle) then !Sobrinho - interpolacao no tempo                        
 
                         call InterpolateAngle3DInTime (ActualTime       = Me%StartTime,                 &
                                                        Size             = Me%WorkSize3D,                &
@@ -3560,7 +3560,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                                              WaterPoints3D      = WaterPoints3D,        &
                                              SZZ                = SZZ,                  &
                                              STAT               = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR80'
+                if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR80'  !Sobrinho - Calcula volumes e areas verticais
                 
                 deallocate(SZZ)
                 
@@ -5504,11 +5504,11 @@ CTF:                if (CorrectTimeFrame) then
                             call Interpolate2DCloud3DMatrix (PropField, X, Y, Field, NoData) 
                         else
                 
-                        if (.not.present(Z)) then
-                            stop 'ModifyField4DXYZ - ModuleField4D - ERR50'
-                        endif
+                            if (.not.present(Z)) then!Sobrinho - fiz tabs para ficar bem identado
+                                stop 'ModifyField4DXYZ - ModuleField4D - ERR50'
+                            endif
 
-                        call Interpolate3DCloud (PropField, X, Y, Z, Field, NoData) 
+                            call Interpolate3DCloud (PropField, X, Y, Z, Field, NoData) 
                             
                         endif
                     endif

@@ -10389,7 +10389,11 @@ n1:                         do nC =1, nCells
 
         endif i1
 
-i8:     if (Me%ComputeOptions%Relaxation .or. Me%ComputeOptions%AltimetryAssimilation%Yes) then
+        !Sobrinho - mudei para aqui a relaxation para poder enviar para o assimilation
+        if (Me%ComputeOptions%Relaxation) &
+            call ConstructRelaxation
+
+i8:     if (Me%ComputeOptions%Relaxation .or. Me%ComputeOptions%AltimetryAssimilation%Yes) then !Sobrinho - adicionar upscaling
 
             if (AssimilationID == 0) then
                 call StartAssimilation(Me%ObjAssimilation,                               &
@@ -10399,7 +10403,10 @@ i8:     if (Me%ComputeOptions%Relaxation .or. Me%ComputeOptions%AltimetryAssimil
                                        Me%ObjHorizontalMap,                              &
                                        Me%ObjMap,                                        &
                                        Me%ObjGeometry,                                   &
+                                       Hydro_Relaxation_HorAdv = Me%Relaxation%HorizAdv, &
                                        STAT = STAT_CALL)
+                !Sobrinho - adicionei a hor_adv para nao estar a calcular o minimum coef no assimilation, que só é necessário caso
+                ! a keyword BRHORIZ_ADV esteja activa (e por default nao está)
 
                  if (STAT_CALL /= SUCCESS_) stop 'Construct_Sub_Modules - ModuleHydrodynamic - ERR390'
 
@@ -10437,10 +10444,8 @@ i7:             if (.not. ContinuousGOTM)  then
         !Opens the energy result file and allocates the buffer to store the data
         if (Me%ComputeOptions%Energy) &
             call ConstructEnergy
-
-        if (Me%ComputeOptions%Relaxation) &
-            call ConstructRelaxation
-
+        
+        !Sobrinho - relaxation estava aqui
 
         !Allocates and initialise the variables necessary to compute
         !the tide potential
@@ -38026,10 +38031,12 @@ do3:            do k = kbottom, KUB
         integer                            :: Vel_ID, status, CHUNK
         integer                            :: ILB, IUB, JLB, JUB, KUB, kbottom, i, j, k
         integer                            :: iL, NFieldsUV2D, NFieldsUV3D, LocalSolution
+        logical                            :: Upscaling, Upscaling_Done
     !------------initialization-----------------------------------------------------------
         !Begin - Shorten variables name
         Relax_Aceleration    => Me%Forces%Relax_Aceleration
         LocalSolution = Me%ComputeOptions%LocalSolution
+        Upscaling = .false.
 
         if (Me%Relaxation%ReferenceVelocity == TotalVel_ .or. Me%Relaxation%ReferenceVelocity == BarotrVel_)  then
             Velocity_UV_New      => Me%Velocity%Horizontal%UV%New
@@ -38043,8 +38050,14 @@ do3:            do k = kbottom, KUB
         !End - Shorten variables name
 
         call GetNumberOfVelocityFields(NFieldsUV2D, NFieldsUV3D)
+        !Sobrinho
+        call GetNumberOfVelocityFields_upscaling(NFieldsUV2D_upscaling, NFieldsUV3D_upscaling)
+        
+        if (NFieldsUV2D_upscaling > 0 .or. NFieldsUV3D_upscaling > 0 ) Upscaling = .true.
 
         allocate(List2D(NFieldsUV2D), List3D(NFieldsUV3D))
+        allocate(List2D_upscaling(NFieldsUV2D_upscaling), List3D_upscaling(NFieldsUV3D_upscaling))
+        
         nullify (SubModel_UV_New)
 
         if (Me%Direction%XY == DirectionX_) then
@@ -38082,6 +38095,7 @@ do3:            do k = kbottom, KUB
                                     Me%External_Var%DUZ_VZ, Me%External_Var%WaterColumnUV)
 
         !compute reference velocity------------------------------------------------------
+        !Sobrinho - confirmar que isto passa no caso de só ter campos de upscaling.
         if (Me%Relaxation%BrFroceOnlyAssimil) then
             do iL =1, NFieldsUV3D
                 call SumMatrixes_jik(Me%Relaxation%Assim_VelReference, Me%WorkSize, Me%External_Var%KFloor_UV, &
@@ -38091,6 +38105,7 @@ do3:            do k = kbottom, KUB
                 call AddMatrix2D_To_3D_jik(Me%Relaxation%Assim_VelReference, Me%WorkSize, Me%External_Var%KFloor_UV, &
                                            List2D(iL)%VelAssimilation2D, Me%External_Var%ComputeFaces3D_UV)
             enddo
+            
         elseif (LocalSolution == AssimilaPlusSubModel_ .or. LocalSolution == AssimilaGaugeSubmodel_) then
 
             where (Me%External_Var%ComputeFaces3D_UV(:,:,:) == 1) &
@@ -38123,11 +38138,22 @@ do3:            do k = kbottom, KUB
                                            List2D(iL)%VelAssimilation2D, Me%External_Var%ComputeFaces3D_UV)
             enddo
         elseif (LocalSolution == Gauge_) then
-             stop 'ModifyRelaxAceleration - ModuleHydrodynamic - ERR10'
+            stop 'ModifyRelaxAceleration - ModuleHydrodynamic - ERR10'
         endif
-
+        
+        !Sobrinho - Adicionar velocidade upscaling. em vez de somar é preciso usar uma média ponderada no decaytime.
+        !Aqui é preciso chamar uma routina diferente que calcule a velocidade do filho em vez da massa no pai - queremos aceleracao
+        !Sobrinho - In case there is relaxation (flather for example) and upscaling.
+        !           Placed the cycle here to avoid calling it for every elseif above
+        if (Upscaling .and. .not. Upscaling_Done) then
+            do iL =1, NFieldsUV3D_upscaling
+                call SumMatrixes_jik(Me%Relaxation%Assim_VelReference, Me%WorkSize, Me%External_Var%KFloor_UV, &
+                                     List3D(iL)%VelAssimilation3D_upscaling, Me%External_Var%ComputeFaces3D_UV)
+            enddo
+        endif
+        
         !Compute relaxation acceleration -------------------------------------------------------------
-
+        
         CHUNK = CHUNK_J(JLB, JUB)
         !$OMP PARALLEL PRIVATE(I,J,K,kbottom)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -38262,7 +38288,7 @@ do3:            do k = kbottom, KUB
 
     end subroutine GetAssimilationVectorFields_Y
     !----------------------------------------------------------------------------------
-    !>@author Joao Sobrinho Maretec
+    !>@author Maretec
     !>@Brief
     !>Gets cold coef and time decay set by the user, for nudging
     subroutine GetTimeCoefs (Vel_ID, CoefCold, DecayTime)

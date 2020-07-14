@@ -463,6 +463,7 @@ Module ModuleFillMatrix
         logical                                     :: SpatialInterpolON    = .false.
         logical                                     :: InterpolOnlyVertically = .false.        
         logical                                     :: GenericYear          = .false.
+        logical                                     :: Upscaling            = .false.
         integer                                     :: Ncells
         real,    dimension(:), pointer              :: X                    => null()
         real,    dimension(:), pointer              :: Y                    => null()        
@@ -5760,7 +5761,7 @@ i2:     if (Me%Dim == Dim2D) then
                 
 if4D:       if (CurrentHDF%Field4D) then
 
-                call BuildField4D(ExtractType, ClientID, PointsToFill2D, PointsToFill3D, CurrentHDF)    
+                call BuildField4D(ExtractType, ClientID, PointsToFill2D, PointsToFill3D, CurrentHDF) !Sobrinho
         
             else if4D
         
@@ -6353,11 +6354,21 @@ d1:     do while (associated(CurrentHDF))
                          default      = .false.,                                            &
                          ClientModule = 'ModuleFillMatrix',                                 &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR340'  
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR340'
         
             if (CurrentHDF%GenericYear) then
                 CurrentHDF%CyclicTimeON = .true. 
             endif
+            
+            !Sobrinho
+            call GetData(CurrentHDF%Upscaling,                                              &
+                         Me%ObjEnterData , iflag,                                           &
+                         SearchType   = ExtractType,                                        &
+                         keyword      = 'UPSCALING',                                        &
+                         default      = .false.,                                            &
+                         ClientModule = 'ModuleFillMatrix',                                 &
+                         STAT         = STAT_CALL)                                      
+            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR350'
         
             if (MasterOrSlave) then
                 CurrentHDF%Field4D = .true. 
@@ -6489,9 +6500,9 @@ d1:     do while (associated(CurrentHDF))
         integer                                         :: STAT_CALL
         !Begin-----------------------------------------------------------------           
         
-ifSI:   if (CurrentHDF%SpatialInterpolON) then
+ifSI:   if (CurrentHDF%SpatialInterpolON .OR. CurrentHDF%Upscaling) then
 
-            call ConstructField4DInterpol(ExtractType, ClientID, PointsToFill2D, PointsToFill3D, CurrentHDF)
+            call ConstructField4DInterpol(ExtractType, ClientID, PointsToFill2D, PointsToFill3D, CurrentHDF) !Sobrinho
 
         else ifSI
         
@@ -7613,7 +7624,7 @@ if4D:   if (CurrentHDF%Field4D) then
             CurrentTime = GetField4DInstant (CurrentHDF%ObjField4D, Instant, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR10'
             
-            if (CurrentHDF%SpatialInterpolON) then
+            if (CurrentHDF%SpatialInterpolON .or. CurrentHDF%Upscaling) then
             
                 call ModifyField4DInterpol(CurrentTime      = CurrentTime,              & 
                                            Matrix2D         = Field,                    &

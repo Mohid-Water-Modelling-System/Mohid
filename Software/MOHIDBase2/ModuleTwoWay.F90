@@ -57,7 +57,6 @@ Module ModuleTwoWay
     public  :: PrepTwoWay
     public  :: UpscalingVolumeVariation
     public  :: UngetTwoWayExternal_Vars
-    public  :: Modify_Upscaling_Discharges
     public  :: UpscaleDischarge
     public  :: UpscaleDischarge_WP
 
@@ -197,7 +196,7 @@ Module ModuleTwoWay
     !>@param[in] ModelName, ObjTwoWayID
     subroutine ConstructTwoWay(ModelName, TwoWayID, HorizontalGridID, GeometryID, HorizontalMapID, MapID, STAT)
         !Arguments---------------------------------------------------------------
-        character(Len=*)                                :: ModelName
+        character(Len=*), optional                      :: ModelName
         integer                                         :: TwoWayID, HorizontalGridID, GeometryID, HorizontalMapID, MapID
         integer, optional                               :: STAT
         !External----------------------------------------------------------------
@@ -438,8 +437,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%Father%TotSonIn_2D(:,:) = 0.0
                 Me%Father%AuxMatrix(:,:,:) = 0.0
                 Me%Father%AuxMatrix2D(:,:) = 0.0
-                !construct connection matrix of father-son for use in two-way discharges
-                call ConstructP2C_Avrg(Me%Father%ObjHorizontalGrid, Me%ObjHorizontalGrid)
             else
                 call ConstructP2C_IWD(Me%Father%ObjHorizontalGrid, Me%ObjHorizontalGrid)
 
@@ -1124,78 +1121,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
         !----------------------------------------------------------------------
     end subroutine Nudging_IWD
-
-    !>@author Joao Sobrinho Maretec
-    !>@Brief
-    !>Responsible for calling the routines which compute upscaling velocity. Not in use because it is not possible
-    !>to determine the flow value with this method (we make a nudging of flow velocity on the parent, so we don't know
-    !>how much water should be added or removed)
-    !>@param[in] SonID, DVel_U, DVel_V, SonVel_U, SonVel_V, STAT
-    subroutine  Modify_Upscaling_Discharges(SonID, DVel_U, DVel_V, SonVel_U, SonVel_V, STAT)
-        !Arguments-------------------------------------------------------------
-        integer                                          :: SonID
-        real, dimension(:, :, :),          intent(INOUT) :: DVel_U, DVel_V
-        real, dimension(:, :, :), pointer, intent(IN)    :: SonVel_U, SonVel_V
-        !Local-----------------------------------------------------------------
-        integer                                          :: ready_, STAT
-        logical                                          :: ExitFlag
-        !----------------------------------------------------------------------
-
-        STAT     = UNKNOWN_
-        ExitFlag = .true.
-        call Ready(SonID, ready_)
-
-        if ((ready_ .EQ. IDLE_ERR_     ) .OR. (ready_ .EQ. READ_LOCK_ERR_)) then
-            if (allocated(Me%Father%DischargeCells%U)) ExitFlag = .false.
-            if (allocated(Me%Father%DischargeCells%V)) ExitFlag = .false.
-            ! if none of these matrixes is allocated then this son domain is not the one that is feeding
-            ! an upscale discharge into the father domain.
-            if (ExitFlag) then
-                STAT = SUCCESS_
-            else
-
-                if (allocated(Me%Father%DischargeCells%U))then
-
-                    Me%Father%AuxMatrix(:,:,:) = 0.0
-                    Me%Father%TotSonIn (:,:,:) = 0.0
-
-                    Call ComputeUpscalingVelocity(DischargeVel    = DVel_U,                          &
-                                                  SonVel          = SonVel_U,                        &
-                                                  DLink           = Me%Father%DischargeCells%U,      &
-                                                  SonArea         = Me%External_Var%AreaU,           &
-                                                  FatherArea      = Me%Father%External_Var%AreaU,    &
-                                                  AuxArea         = Me%Father%TotSonIn,              &
-                                                  AcumulatedVel   = Me%Father%AuxMatrix,             &
-                                                  SonComputeFaces = Me%External_Var%ComputeFaces3D_U,&
-                                                  KFloor          = Me%Father%External_Var%KFloor_U, &
-                                                  KUBSon          = Me%WorkSize%KUB,                 &
-                                                  KUBFather       = Me%Father%WorkSize%KUB)
-                endif
-
-                if (allocated(Me%Father%DischargeCells%V))then
-
-                    Me%Father%AuxMatrix(:,:,:) = 0.0
-                    Me%Father%TotSonIn (:,:,:) = 0.0
-
-                    Call ComputeUpscalingVelocity(DischargeVel    = DVel_V,                          &
-                                                  SonVel          = SonVel_V,                        &
-                                                  DLink           = Me%Father%DischargeCells%V,      &
-                                                  SonArea         = Me%External_Var%AreaV,           &
-                                                  FatherArea      = Me%Father%External_Var%AreaV,    &
-                                                  AuxArea         = Me%Father%TotSonIn,              &
-                                                  AcumulatedVel   = Me%Father%AuxMatrix,             &
-                                                  SonComputeFaces = Me%External_Var%ComputeFaces3D_V,&
-                                                  KFloor          = Me%Father%External_Var%KFloor_V, &
-                                                  KUBSon          = Me%WorkSize%KUB,                 &
-                                                  KUBFather       = Me%Father%WorkSize%KUB)
-                endif
-                STAT = SUCCESS_
-            endif
-        else
-            STAT = ready_
-        endif
-
-    end subroutine Modify_Upscaling_Discharges
 
     !---------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
