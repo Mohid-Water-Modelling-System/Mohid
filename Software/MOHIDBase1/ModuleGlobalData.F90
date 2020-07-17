@@ -2027,6 +2027,10 @@ Module ModuleGlobalData
         character(StringLength) :: Description       = null_str
         integer                 :: IDNumber          = null_int    
         integer                 :: ObjFillMatrix     = 0
+        integer                 :: ObjHorizontalGrid = null_int !Sobrinho
+        integer                 :: ObjHorizontalMap  = null_int !Sobrinho
+        integer                 :: ObjGeometry       = null_int !Sobrinho
+        integer                 :: ObjMap            = null_int !Sobrinho
         logical                 :: SolutionFromFile  = OFF
         logical                 :: IsAngle           = OFF
         logical                 :: IsParticulate     = OFF

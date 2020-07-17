@@ -9,7 +9,7 @@
 ! AFFILIATION   : IST/MARETEC, Marine Modelling Group
 ! DATE          : Jul 2018
 ! REVISION      : Joao Sobrinho - v2.0 - Dec 2018
-!>  DESCRIPTION : Module that computes twoway operations for MohidWater and MohidLand
+!>  DESCRIPTION : Module that computes twoway and upscaling operations
 !
 !> @author
 !> Joao Sobrinho
@@ -197,7 +197,8 @@ Module ModuleTwoWay
     subroutine ConstructTwoWay(ModelName, TwoWayID, HorizontalGridID, GeometryID, HorizontalMapID, MapID, STAT)
         !Arguments---------------------------------------------------------------
         character(Len=*), optional                      :: ModelName
-        integer                                         :: TwoWayID, HorizontalGridID, GeometryID, HorizontalMapID, MapID
+        integer         , intent(OUT)                   :: TwoWayID
+        integer         , intent(IN)                    :: HorizontalGridID, GeometryID, HorizontalMapID, MapID
         integer, optional                               :: STAT
         !External----------------------------------------------------------------
         integer                                         :: ready_
@@ -217,8 +218,8 @@ Module ModuleTwoWay
 cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
-
-            Me%ModelName = ModelName
+            
+            if present(ModelName) Me%ModelName = ModelName
 
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )

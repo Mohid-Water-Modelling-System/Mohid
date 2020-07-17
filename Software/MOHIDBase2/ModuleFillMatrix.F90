@@ -1063,7 +1063,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                      ObjFillMatrix, OverrideValueKeyword, ClientID,     &
                                      predictDTMethod, MinForDTDecrease,                 &
                                      ValueIsUsedForDTPrediction, CheckDates,            &
-                                     RotateAngleToGrid, SpongeFILE_DT, STAT)
+                                     RotateAngleToGrid, SpongeFILE_DT, NewDomain, STAT)
 
         !Arguments---------------------------------------------------------------
         type (T_PropertyID)                             :: PropertyID
@@ -1087,6 +1087,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         logical,      optional, intent(IN )             :: ValueIsUsedForDTPrediction 
         logical,      optional, intent(IN )             :: RotateAngleToGrid
         character(*), optional, intent(IN )             :: SpongeFILE_DT
+        logical,      optional, intent(IN )             :: NewDomain
         !Local-------------------------------------------------------------------
         real                                            :: FillMatrix_
         integer                                         :: ready_, STAT_, STAT_CALL, nUsers, ObjFillMatrix_
@@ -1127,7 +1128,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(RotateAngleToGrid)) then
                 Me%RotateAngleToGrid = RotateAngleToGrid
             else
-                if (Me%PropertyID%IsAngle) Me%RotateAngleToGrid = .true.
+                if (Me%PropertyID%IsAngle) Me%RotateAngleToGrid = .true. 
+                !used before Me%PropertyID = PropertyID.... BUG?
             endif
             
 !~             if (Check_Vectorial_Property(PropertyID%IDNumber)) then
@@ -1146,23 +1148,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             ! PointsToFill3D should have the same dimensions as Geometry anyway.
             ! Matrices that are used for the Thomas algorithm are padded if _USE_PAGELOCKED (CUDA only) or _PAD_MATRICES (Fortran) is defined
             call GetGeometrySize(GeometryID , Me%Size3D, Me%WorkSize3D, STAT_)
-!            Me%Size3D%ILB       = lbound(PointsToFill3D, dim = 1)
-!            Me%Size3D%IUB       = ubound(PointsToFill3D, dim = 1)
-!            Me%Size3D%JLB       = lbound(PointsToFill3D, dim = 2)
-!            Me%Size3D%JUB       = ubound(PointsToFill3D, dim = 2)
-!            Me%Size3D%KLB       = lbound(PointsToFill3D, dim = 3)
-!            Me%Size3D%KUB       = ubound(PointsToFill3D, dim = 3)
-!            Me%WorkSize3D%ILB   = Me%Size3D%ILB + 1
-!            Me%WorkSize3D%IUB   = Me%Size3D%IUB - 1
-!            Me%WorkSize3D%JLB   = Me%Size3D%JLB + 1
-!            Me%WorkSize3D%JUB   = Me%Size3D%JUB - 1
-!            Me%WorkSize3D%KLB   = Me%Size3D%KLB + 1
-!            Me%WorkSize3D%KUB   = Me%Size3D%KUB - 1
 
             Me%Size2D       = T_Size2D(null_int, null_int, null_int, null_int)
             Me%Dim          = Dim3D
             Me%TypeZUV      = TypeZUV
-            Me%PropertyID   = PropertyID
+            Me%PropertyID   = PropertyID !Sobrinho - aqui já estao os IDs para o field4D usar/preencher
 
             Me%Matrix3D       => Matrix3D
             Me%PointsToFill3D => PointsToFill3D
@@ -9389,31 +9379,20 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     !--------------------------------------------------------------------------
 
     subroutine ModifyFillMatrixVectorial (FillMatrixID,     &
-                                          Matrix2DU,        &
-                                          Matrix2DV,        &
-                                          Matrix3DU,        &
-                                          Matrix3DV,        & 
-                                          Matrix3DW,        &
-                                          Matrix2DX,        &
-                                          Matrix2DY,        &
-                                          Matrix3DX,        &
-                                          Matrix3DY,        &
-                                          PointsToFill2D,   &
-                                          PointsToFill3D,   &
+                                          Matrix2DU, Matrix2DV,             &
+                                          Matrix3DU, Matrix3DV, Matrix3DW,  &
+                                          Matrix2DX, Matrix2DY,             &
+                                          Matrix3DX, Matrix3DY,             &
+                                          PointsToFill2D, PointsToFill3D,   &
                                           Generic_4D_Value, &
                                           STAT)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: FillMatrixID
-        real,    dimension(:, :),    pointer, optional  :: Matrix2DU
-        real,    dimension(:, :),    pointer, optional  :: Matrix2DV
-        real,    dimension(:, :, :), pointer, optional  :: Matrix3DU
-        real,    dimension(:, :, :), pointer, optional  :: Matrix3DV
-        real,    dimension(:, :, :), pointer, optional  :: Matrix3DW
-        real,    dimension(:, :),    pointer, optional  :: Matrix2DX
-        real,    dimension(:, :),    pointer, optional  :: Matrix2DY
-        real,    dimension(:, :, :), pointer, optional  :: Matrix3DX
-        real,    dimension(:, :, :), pointer, optional  :: Matrix3DY        
+        real,    dimension(:, :),    pointer, optional  :: Matrix2DU, Matrix2DV
+        real,    dimension(:, :, :), pointer, optional  :: Matrix3DU, Matrix3DV, Matrix3DW
+        real,    dimension(:, :),    pointer, optional  :: Matrix2DX, Matrix2DY
+        real,    dimension(:, :, :), pointer, optional  :: Matrix3DX, Matrix3DY
         integer, dimension(:, :),    pointer, optional  :: PointsToFill2D
         integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
         real,                    intent( IN), optional  :: Generic_4D_Value
@@ -9570,18 +9549,12 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
                                                     STAT              = STAT_CALL)                    
                 endif
                 
-                nullify(Me%Matrix2D)
-                nullify(Me%Matrix3D)
-                nullify(Me%Matrix2DU)
-                nullify(Me%Matrix2DV)
-                nullify(Me%Matrix3DU)
-                nullify(Me%Matrix3DV)   
-                nullify(Me%Matrix2DX)
-                nullify(Me%Matrix2DY)
-                nullify(Me%Matrix3DX)
-                nullify(Me%Matrix3DY)                     
-                nullify(Me%PointsToFill2D)
-                nullify(Me%PointsToFill3D)
+                nullify(Me%Matrix2D, Me%Matrix3D)
+                nullify(Me%Matrix2DU, Me%Matrix3DU)
+                nullify(Me%Matrix2DV, Me%Matrix3DV)  
+                nullify(Me%Matrix2DX, Me%Matrix3DX)
+                nullify(Me%Matrix2DY, Me%Matrix3DY)                    
+                nullify(Me%PointsToFill2D, Me%PointsToFill3D)
                 
                 
                 STAT_ = SUCCESS_

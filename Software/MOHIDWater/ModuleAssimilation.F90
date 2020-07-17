@@ -104,6 +104,7 @@ Module ModuleAssimilation
     public  ::  GetWaveCelerityField
     public  ::  GetNumberOfFields
     public  ::  GetNumberOfUpscalingFields
+    private ::  AssociatedDomain
 
     public  ::  UngetAssimilation
 
@@ -192,6 +193,7 @@ Module ModuleAssimilation
         real                                    :: ColdRelaxPeriod      = null_real
         real                                    :: ColdOrder            = null_real
         logical                                 :: Upscaling            = .false.
+        integer                                 :: UpscalingDomain      = null_int
         type (T_Time)                           :: LastActualization
         logical                                 :: TimeSerie            = .false.
         logical                                 :: OutputHDF            = .false.
@@ -1496,7 +1498,7 @@ cd2 :           if (BlockFound) then
         integer                                 :: SizeILB, SizeIUB, SizeJLB, SizeJUB, SizeKLB, SizeKUB
         integer                                 :: iflag
         character(len=StringLength)             :: Char_TypeZUV
-        logical                                 :: BlockFound
+        logical                                 :: BlockFound, NewDomain
         !----------------------------------------------------------------------
         SizeILB = Me%Size%ILB;  SizeJLB = Me%Size%JLB;  SizeKLB = Me%Size%KLB
         SizeIUB = Me%Size%IUB;  SizeJUB = Me%Size%JUB;  SizeKUB = Me%Size%KUB
@@ -1515,6 +1517,7 @@ cd2 :           if (BlockFound) then
         if(STAT_CALL .EQ. SUCCESS_)then
     
             if (BlockFound) then
+                NewDomain = .false.
     
                 call GetData(Char_TypeZUV, Me%ObjEnterData, iflag,                      &
                              keyword        = 'TYPE_ZUV',                               &  
@@ -1529,6 +1532,13 @@ cd2 :           if (BlockFound) then
         
                 NewProperty%Field%TypeZUV  = TranslateTypeZUV(Char_TypeZUV)
                 
+                if (NewProperty%Upscaling) then
+                !Sobrinho Aqui
+                    !Checks if current grid domain (for when many domains are to be assimilated) is already built.
+                    if ( .not. AssociatedDomain(NewProperty))
+                         NewDomain = .true.
+                    endif
+                endif
                 if (NewProperty%Dim == Dim_2D) then
                     
                     allocate(NewProperty%Field%R2D (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
@@ -1537,7 +1547,7 @@ cd2 :           if (BlockFound) then
                     NewProperty%Field%R2D(:,:) = FillValueReal
                     
                     call ConstructAssimilationField_2D (NewProperty, WaterPoints2D, &
-                                                        WaterFaces2D_U, WaterFaces2D_V, ClientNumber)
+                                                        WaterFaces2D_U, WaterFaces2D_V, ClientNumber, NewDomain)
                 else if (NewProperty%Dim == Dim_3D) then
         
                     allocate(NewProperty%Field%R3D(SizeILB:SizeIUB, SizeJLB:SizeJUB, SizeKLB:SizeKUB), STAT= STAT_CALL)      
@@ -1546,19 +1556,28 @@ cd2 :           if (BlockFound) then
                     NewProperty%Field%R3D(:,:,:) = FillValueReal
                     
                     call ConstructAssimilationField_3D (NewProperty, WaterPoints3D, &
-                                                        WaterFaces3D_U, WaterFaces3D_V, ClientNumber)
+                                                        WaterFaces3D_U, WaterFaces3D_V, ClientNumber, NewDomain)
                 else
                     stop 'For a type Z , a property must be 2D or 3D - ModuleAssimilation - ERR40'
                 end if
                 
-                if (NewProperty%Upscaling) then
-                    call ConstructTwoWay !Sobrinho
-                endif
+                ! if (NewProperty%Upscaling) then
+                ! !Sobrinho Aqui
+                    ! if ( .not. AssociatedDomain(NewProperty))
+                        ! call ConstructTwoWay        (TwoWayID         = NewProperty%ID%ObjTwoWay,               &
+                                                     ! HorizontalGridID = NewProperty%ID%ObjHorizontalGrid,       &
+                                                     ! GeometryID       = NewProperty%ID%ObjGeometry,             &
+                                                     ! HorizontalMapID  = NewProperty%ID%ObjHorizontalMap,        &
+                                                     ! MapID            = NewProperty%ID%ObjMap,                  &
+                                                     ! STAT        = STAT_CALL)
+                        ! if (STAT_CALL /= SUCCESS_) stop 'Failed to construct TwoWay - ModuleAssimilation - ERR50'
+                    ! endif
+                ! endif
             else
-                stop 'begin or end field block not found - ModuleAssimilation - ERR50'
+                stop 'begin or end field block not found - ModuleAssimilation - ERR60'
             end if
         else
-            stop 'Failed to extract from an assimilation block - ModuleAssimilation - ERR60'
+            stop 'Failed to extract from an assimilation property block - ModuleAssimilation - ERR70'
         end if
         
         call UngetExternals_assim_field (WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, &
@@ -1726,7 +1745,7 @@ cd2 :           if (BlockFound) then
             !Sobrinho - ID of regional domain the user wants to upscale. used to avoid several allocations of grid matrixes
             ! when more than one property is used - allocation of one instance of each module per hdf input, which means 
             ! several duplicated matrixes
-            call GetData(NewProperty%upscalingdomain_id,                                       &
+            call GetData(NewProperty%UpscalingDomain,                                       &
                             Me%ObjEnterData, iflag,                                            &
                             Keyword        = 'UPSCALING_DOMAIN_ID',                            &
                             SearchType     = FromBlockInBlock,                                 &
@@ -1938,31 +1957,49 @@ cd2 :           if (BlockFound) then
     !>@Brief
     !>Constructs a 3D assimilation field (allocation and filling of matrixes)
     !>@param[in] NewProperty, WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, ClientNumber
-    subroutine ConstructAssimilationField_3D(NewProperty, WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, ClientNumber)
+    subroutine ConstructAssimilationField_3D(NewProperty, WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, ClientNumber, NewDomain)
         !Arguments-------------------------------------------------------------
-        type(T_property),          pointer      :: NewProperty
-        integer                                 :: ClientNumber
-        integer, dimension(:,:,:), pointer      :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, PointsToFill3D
-        real,    dimension(:,:,:), pointer      :: Matrix3D
+        type(T_property),          pointer, intent(IN)    :: NewProperty
+        integer                           , intent(IN)    :: ClientNumber
+        integer, dimension(:,:,:), pointer, intent(IN)    :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, PointsToFill3D
+        real,    dimension(:,:,:), pointer, intent(IN)    :: Matrix3D
+        logical, optional                 , intent(IN)    :: NewDomain
         !Locals ---------------------------------------------------------------
         integer                                 :: STAT_CALL
         !Begin------------------------------------------------------------------
         
         call SetMappingAndMatrix3D(NewProperty, PointsToFill3D, WaterPoints3D, WaterFaces3D_U, &
-                                    WaterFaces3D_V, Matrix3D) 
+                                    WaterFaces3D_V, Matrix3D)
 
-        call ConstructFillMatrix  (PropertyID           = NewProperty%ID,           &
-                                    EnterDataID          = Me%ObjEnterData,          &
-                                    TimeID               = Me%ObjTime,               &
-                                    HorizontalGridID     = Me%ObjHorizontalGrid,     &
-                                    GeometryID           = Me%ObjGeometry,           &
-                                    ExtractType          = FromBlockInBlock,         &
-                                    PointsToFill3D       = PointsToFill3D,           &
-                                    Matrix3D             = Matrix3D,                 &
-                                    TypeZUV              = NewProperty%Field%TypeZUV,&
-                                    ClientID             = ClientNumber,             &
-                                    STAT                 = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR10'
+        if (NewProperty%Upscaling) then !Sobrinho
+            call ConstructFillMatrix  (PropertyID            = NewProperty%ID,                    &
+                                        EnterDataID           = Me%ObjEnterData,                  &
+                                        TimeID                = Me%ObjTime,                       &
+                                        HorizontalGridID      = Me%ObjHorizontalGrid,             &
+                                        GeometryID            = Me%ObjGeometry,                   &
+                                        ExtractType           = FromBlockInBlock,                 &
+                                        PointsToFill3D        = PointsToFill3D,                   &
+                                        Matrix3D              = Matrix3D,                         &
+                                        TypeZUV               = NewProperty%Field%TypeZUV,        &
+                                        ClientID              = ClientNumber,                     &
+                                        NewDomain             = NewDomain,                        &
+                                        STAT                  = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR10'
+
+        else
+            call ConstructFillMatrix  (PropertyID           = NewProperty%ID,           &
+                                        EnterDataID          = Me%ObjEnterData,          &
+                                        TimeID               = Me%ObjTime,               &
+                                        HorizontalGridID     = Me%ObjHorizontalGrid,     &
+                                        GeometryID           = Me%ObjGeometry,           &
+                                        ExtractType          = FromBlockInBlock,         &
+                                        PointsToFill3D       = PointsToFill3D,           &
+                                        Matrix3D             = Matrix3D,                 &
+                                        TypeZUV              = NewProperty%Field%TypeZUV,&
+                                        ClientID             = ClientNumber,             &
+                                        STAT                 = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR10'        
+        endif
 
         !Because it is searched(and filled) in the fill matrix module
         call GetDefaultValue(NewProperty%ID%ObjFillMatrix, NewProperty%Field%DefaultValue, STAT = STAT_CALL)
@@ -3283,6 +3320,35 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
         CountNumOfUpscalingFields = NumberOfFields
         
     end function CountNumOfUpscalingFields
+    
+    integer function AssociatedDomain(NewProperty)
+        !Arguments--------------------------------------------------------------
+        type (T_Property), pointer, intent (IN)     :: NewProperty
+        !Local-----------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX    
+        logical                                     :: AssociatedDomain
+        !----------------------------------------------------------------------
+        AssociatedDomain = .false.
+            
+        PropertyX => Me%FirstAssimilationProp
+
+        do while (associated(PropertyX)) 
+                
+            if (PropertyX%UpscalingDomain == NewProperty%UpscalingDomain) then
+                NewProperty%ID%ObjTwoWay         = PropertyX%ID%ObjTwoWay
+                NewProperty%ID%ObjGeometry       = PropertyX%ID%ObjGeometry
+                NewProperty%ID%ObjHorizontalGrid = PropertyX%ID%ObjHorizontalGrid
+                NewProperty%ID%ObjHorizontalMap  = PropertyX%ID%ObjHorizontalMap
+                NewProperty%ID%ObjMap            = PropertyX%ID%ObjMap
+                AssociatedDomain = .true.
+                exit
+            else
+                PropertyX => PropertyX%Next
+            endif
+                
+        end do
+        
+    end function AssociatedDomain
    
     !--------------------------------------------------------------------------
 
@@ -4959,24 +5025,24 @@ TOut:   if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
                         call HDF5WriteData  (Me%ObjHDF5, "/DecayCoefs/"//GroupOutPutName, PropertyX%ID%Name, &
                                              PropertyX%ID%Units, Array2D = PropertyX%CoefField%R2D,          &
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR14'
+                        if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR10'
 
                     elseif (PropertyX%Dim == Dim_3D) then
 
                         call HDF5WriteData  (Me%ObjHDF5, "/Results/"//GroupOutPutName, PropertyX%ID%Name, &
                                              PropertyX%ID%Units, Array3D = PropertyX%Field%R3D,           &
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR10'
+                        if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR11'
 
 
                         call HDF5WriteData  (Me%ObjHDF5, "/DecayCoefs/"//GroupOutPutName, PropertyX%ID%Name, &
                                              PropertyX%ID%Units, Array3D = PropertyX%CoefField%R3D,          &
                                              OutputNumber = OutPutNumber, STAT = STAT_CALL)
-                        if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR10'
+                        if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR12'
 
                     else 
 
-                        stop 'OutPutResultsHDF - ModuleAssimilation - ERR11'
+                        stop 'OutPutResultsHDF - ModuleAssimilation - ERR13'
 
                     endif                
                 endif
@@ -4991,18 +5057,18 @@ TOut:   if (Actual >= Me%OutPut%OutTime(OutPutNumber)) then
 
             !Writes everything to disk
             call HDF5FlushMemory (Me%ObjHDF5, STAT = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR11'
+            if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR14'
         
         endif  TOut
         endif
 
         !SZZ
         call UnGetGeometry (Me%ObjGeometry, SZZ, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR12'
+        if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR15'
 
         !OpenPoints3D
         call UnGetMap(Me%ObjMap, OpenPoints3D, STAT = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR13'
+        if (STAT_CALL .NE. SUCCESS_) stop 'OutPutResultsHDF - ModuleAssimilation - ERR16'
       
             
        !----------------------------------------------------------------------
