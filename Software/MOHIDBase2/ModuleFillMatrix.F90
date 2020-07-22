@@ -90,7 +90,12 @@ Module ModuleFillMatrix
     !Constructor
     public  :: ConstructFillMatrix
     private ::      AllocateInstance
-    private ::      ReadOptions
+    !private ::      ReadOptions
+    private ::      Read_Fill_Options
+    private ::          UserTimeEvolution
+    private ::          UserInitMethod
+    private ::          FillWithDefault
+    private ::          FillWithUserOption
     private ::          ConstructProfileTSDefault
     private ::          ConstructSpaceLayers
     private ::          ConstructSpaceBox
@@ -558,6 +563,7 @@ Module ModuleFillMatrix
         
         logical                                     :: CheckDates = .true.
         character(len=PathLength)                   :: SpongeFILE_DT    = null_str
+        logical                                     :: NewDomain = .true.
 
         !Initialization Methods
         type (T_Layers   )                          :: Layers
@@ -762,15 +768,25 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%OverrideValueKeywordON = .false.
             end if
             
+            !if (present(ClientID)) then
+            !    call ReadOptions (ExtractType,                          &
+            !                      PointsToFill2D = PointsToFill2D,      &
+            !                      PredictDTMethod = PredictDTMethod_,   &
+            !                      ClientID = ClientID)
+            !else
+            !    call ReadOptions (ExtractType,                          &
+            !                      PointsToFill2D = PointsToFill2D,      &
+            !                      PredictDTMethod = PredictDTMethod_)
+            !endif
+            
+            call Read_Fill_Options (ExtractType, PredictDTMethod = PredictDTMethod_)
+            
+            call FillWithDefault (PointsToFill2D = PointsToFill2D)
+            
             if (present(ClientID)) then
-                call ReadOptions (ExtractType,                          &
-                                  PointsToFill2D = PointsToFill2D,      &
-                                  PredictDTMethod = PredictDTMethod_,   &
-                                  ClientID = ClientID)
+                call FillWithUserOption (ExtractType, PointsToFill2D = PointsToFill2D, ClientID = ClientID)
             else
-                call ReadOptions (ExtractType,                          &
-                                  PointsToFill2D = PointsToFill2D,      &
-                                  PredictDTMethod = PredictDTMethod_)
+                call FillWithUserOption (ExtractType, PointsToFill2D = PointsToFill2D)
             endif
             
             
@@ -988,15 +1004,25 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             end if
             
             !Here the Me%Matrix2DX and Me%Matrix2DY from user input field are filled
+            !if (present(ClientID)) then
+            !    call ReadOptions (ExtractType,                          &
+            !                      PointsToFill2D = PointsToFill2D,      &
+            !                      PredictDTMethod = PredictDTMethod_,   &
+            !                      ClientID = ClientID)
+            !else
+            !    call ReadOptions (ExtractType,                          &
+            !                      PointsToFill2D = PointsToFill2D,      &
+            !                      PredictDTMethod = PredictDTMethod_)
+            !endif
+            
+            call Read_Fill_Options (ExtractType, PredictDTMethod = PredictDTMethod_)
+            
+            call FillWithDefault (PointsToFill2D = PointsToFill2D)
+            
             if (present(ClientID)) then
-                call ReadOptions (ExtractType,                          &
-                                  PointsToFill2D = PointsToFill2D,      &
-                                  PredictDTMethod = PredictDTMethod_,   &
-                                  ClientID = ClientID)
+                call FillWithUserOption (ExtractType, PointsToFill2D = PointsToFill2D, ClientID = ClientID)
             else
-                call ReadOptions (ExtractType,                          &
-                                  PointsToFill2D = PointsToFill2D,      &
-                                  PredictDTMethod = PredictDTMethod_)
+                call FillWithUserOption (ExtractType, PointsToFill2D = PointsToFill2D)
             endif
             
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
@@ -1087,7 +1113,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         logical,      optional, intent(IN )             :: ValueIsUsedForDTPrediction 
         logical,      optional, intent(IN )             :: RotateAngleToGrid
         character(*), optional, intent(IN )             :: SpongeFILE_DT
-        logical,      optional, intent(IN )             :: NewDomain
+        logical,      optional, intent(IN )             :: NewDomain!Sobrinho
         !Local-------------------------------------------------------------------
         real                                            :: FillMatrix_
         integer                                         :: ready_, STAT_, STAT_CALL, nUsers, ObjFillMatrix_
@@ -1117,6 +1143,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             PredictDTMethod_ = 1
             Me%ValueIsUsedForDTPrediction = .false.
             FillMatrix_ = null_real
+            Me%NewDomain = .true.
             
             if (present(PredictDTMethod))            PredictDTMethod_              = PredictDTMethod
             if (present(MinForDTDecrease))           Me%MinForDTDecrease           = MinForDTDecrease
@@ -1124,12 +1151,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(CheckDates))                 Me%CheckDates                 = CheckDates
             if (present(SpongeFILE_DT))              Me%SpongeFILE_DT              = trim(SpongeFILE_DT)
             if (present(FillMatrix))                 FillMatrix_                   = FillMatrix
+            if (present(NewDomain))                  Me%NewDomain                  = NewDomain
             
             if (present(RotateAngleToGrid)) then
                 Me%RotateAngleToGrid = RotateAngleToGrid
             else
                 if (Me%PropertyID%IsAngle) Me%RotateAngleToGrid = .true. 
-                !used before Me%PropertyID = PropertyID.... BUG?
+                !used before Me%PropertyID = PropertyID.... BUG? Sobrinho
             endif
             
 !~             if (Check_Vectorial_Property(PropertyID%IDNumber)) then
@@ -1152,7 +1180,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%Size2D       = T_Size2D(null_int, null_int, null_int, null_int)
             Me%Dim          = Dim3D
             Me%TypeZUV      = TypeZUV
-            Me%PropertyID   = PropertyID !Sobrinho - aqui já estao os IDs para o field4D usar/preencher
+            Me%PropertyID   = PropertyID !Sobrinho - aqui ja estao os IDs para o field4D usar/preencher
 
             Me%Matrix3D       => Matrix3D
             Me%PointsToFill3D => PointsToFill3D
@@ -1183,9 +1211,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
 
             !Specific of the Vertical_Z matrix see ModuleGeometry 
-            if (Me%TypeZUV == TypeW_) then
-                Me%WorkSize3D%KLB   = Me%WorkSize3D%KLB - 1
-            endif
+            if (Me%TypeZUV == TypeW_) Me%WorkSize3D%KLB   = Me%WorkSize3D%KLB - 1
 
             if (present(FileNameHDF)) then
                 Me%ArgumentFileName = .true.
@@ -1201,15 +1227,25 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%OverrideValueKeywordON = .false.
             end if
 
+            !if (present(ClientID)) then
+            !    call ReadOptions (ExtractType,                          &
+            !                      PointsToFill3D = PointsToFill3D,      &
+            !                      PredictDTMethod = PredictDTMethod_,   &
+            !                      ClientID = ClientID)
+            !else
+            !    call ReadOptions (ExtractType,                          &
+            !                      PointsToFill3D = PointsToFill3D,      &
+            !                      PredictDTMethod = PredictDTMethod_)
+            !endif
+            
+            call Read_Fill_Options (ExtractType, PredictDTMethod = PredictDTMethod_)
+            
+            call FillWithDefault (PointsToFill3D = PointsToFill3D)
+            
             if (present(ClientID)) then
-                call ReadOptions (ExtractType,                          &
-                                  PointsToFill3D = PointsToFill3D,      &
-                                  PredictDTMethod = PredictDTMethod_,   &
-                                  ClientID = ClientID)
+                call FillWithUserOption (ExtractType, PointsToFill3D = PointsToFill3D, ClientID = ClientID)
             else
-                call ReadOptions (ExtractType,                          &
-                                  PointsToFill3D = PointsToFill3D,      &
-                                  PredictDTMethod = PredictDTMethod_)
+                call FillWithUserOption (ExtractType, PointsToFill3D = PointsToFill3D)
             endif
 
             !Is this a angle property? convert to cell referential angle
@@ -1435,16 +1471,26 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             end if
 
             !Here matrixes Me%Matrix3DX and Me%Matrix3DY are filled from user info
+            !if (present(ClientID)) then
+            !    call ReadOptions (ExtractType,                          &
+            !                      PointsToFill3D = PointsToFill3D,      &
+            !                      PredictDTMethod = PredictDTMethod_,   &
+            !                      ClientID = ClientID)
+            !else
+            !    call ReadOptions (ExtractType,                          &
+            !                      PointsToFill3D = PointsToFill3D,      &
+            !                      PredictDTMethod = PredictDTMethod_)
+            !endif
+            
+            call Read_Fill_Options (ExtractType, PredictDTMethod = PredictDTMethod_)
+            
+            call FillWithDefault (PointsToFill3D = PointsToFill3D)
+            
             if (present(ClientID)) then
-                call ReadOptions (ExtractType,                          &
-                                  PointsToFill3D = PointsToFill3D,      &
-                                  PredictDTMethod = PredictDTMethod_,   &
-                                  ClientID = ClientID)
+                call FillWithUserOption (ExtractType, PointsToFill3D = PointsToFill3D, ClientID = ClientID)
             else
-                call ReadOptions (ExtractType,                          &
-                                  PointsToFill3D = PointsToFill3D,      &
-                                  PredictDTMethod = PredictDTMethod_)
-            endif                               
+                call FillWithUserOption (ExtractType, PointsToFill3D = PointsToFill3D)
+            endif
             
             !!Need to rotate input field (Me%Matrix3DX and Me%Matrix3DY) to grid (Me%Matrix3DU and Me%Matrix3DV))            
             call RotateVectorFieldToGrid(HorizontalGridID  = Me%ObjHorizontalGrid, &
@@ -1543,30 +1589,607 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
     !--------------------------------------------------------------------------
 
-    subroutine ReadOptions (ExtractType, PointsToFill2D, PointsToFill3D, ClientID, PredictDTMethod)
+    !subroutine ReadOptions (ExtractType, PointsToFill2D, PointsToFill3D, ClientID, PredictDTMethod)
+    !
+    !    !Arguments-------------------------------------------------------------
+    !    integer                                         :: ExtractType
+    !    integer, dimension(:, :),    pointer, optional  :: PointsToFill2D
+    !    integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
+    !    integer, optional, intent(IN)                   :: ClientID
+    !    integer, optional, intent(IN)                   :: PredictDTMethod
+    !
+    !    !Local----------------------------------------------------------------
+    !    integer                                         :: STAT_CALL, ClientID_
+    !    integer                                         :: iflag
+    !    character(len=StringLength)                     :: AuxString
+    !    logical                                         :: AuxBoolean
+    !    integer                                         :: AuxInteger
+    !    logical                                         :: CanContinue
+    !    !---------------------------------------------------------------------
+    !    
+    !    if (present(ClientID)) then
+    !        ClientID_ = ClientID
+    !    else
+    !        ClientID_ = FillValueInt           
+    !    endif
+    !
+    !    !Reads Time Evolution
+    !    call GetData(AuxString, Me%ObjEnterData,  iflag,                            &
+    !                 SearchType     = ExtractType,                                  &
+    !                 keyword        = 'FILE_IN_TIME',                               &
+    !                 default        = "None",                                       &
+    !                 ClientModule   = 'ModuleFillMatrix',                           &
+    !                 STAT           = STAT_CALL)
+    !    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR010'
+    !
+    !    !write(*,*) trim(adjustl(AuxString))
+    !
+    !    select case (trim(adjustl(AuxString)))
+    !        case ("None",       "NONE", "none")
+    !            Me%TimeEvolution    = None
+    !        case ("Hdf",        "HDF",          "hdf")
+    !            Me%TimeEvolution    = ReadHDF
+    !        case ("Timeserie",  "TIMESERIE",    "timeserie",    "TimeSerie")
+    !            Me%TimeEvolution    = ReadTimeSerie
+    !        case ("Profile_Timeserie",  "PROFILE_TIMESERIE",    "profile_timeserie",    "Profile_TimeSerie")
+    !            Me%TimeEvolution    = ProfileTimeSerie
+    !        case ("Multitimeserie", "MULTITIMESERIE", "multitimeserie", "MultiTimeserie")
+    !            Me%TimeEvolution    = MultiTimeserie
+    !        case ("Analytic Wave",  "ANALYTIC WAVE",    "analytic wave")
+    !            Me%TimeEvolution    = AnalyticWave                     
+    !        case default
+    !            write(*,*)'Invalid option for keyword FILE_IN_TIME'
+    !            stop 'ReadOptions - ModuleFillMatrix - ERR020'
+    !    end select
+    !
+    !    !write (*,*) Me%TimeEvolution
+    !    
+    !    if (Me%ArgumentFileName) Me%TimeEvolution    = ReadHDF
+    !
+    !    !write (*,*) Me%TimeEvolution
+    !
+    !
+    !    if(Me%TimeEvolution == None)then
+    !
+    !        call GetData(AuxString, Me%ObjEnterData,  iflag,                            &
+    !                     SearchType     = ExtractType,                                  &
+    !                     keyword        = 'INITIALIZATION_METHOD',                      &
+    !                     default        = "Constant",                                   &
+    !                     ClientModule   = 'ModuleFillMatrix',                           &
+    !                     STAT           = STAT_CALL)
+    !        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR030'
+    !
+    !        !write(*,*) trim(adjustl(AuxString))
+    !
+    !        select case (trim(adjustl(AuxString)))
+    !            case ("Constant",   "CONSTANT",   "constant")
+    !                Me%InitializationMethod = Constant
+    !            case ("Layers",     "LAYERS",     "layers")
+    !                Me%InitializationMethod = Layers
+    !            case ("Boxes",      "BOXES",      "boxes")
+    !                Me%InitializationMethod = Boxes
+    !            case ("ASCII_File", "ASCII_FILE", "ascii_file",   "Ascii_file")
+    !                Me%InitializationMethod = AsciiFile
+    !            case ("Profile",    "PROFILE",    "profile")
+    !                Me%InitializationMethod = Profile
+    !            case ("Analytic Profile",    "ANALYTIC PROFILE",    "analytic profile")
+    !                Me%InitializationMethod = AnalyticProfile
+    !            case ("Hdf",        "HDF",          "hdf")
+    !                Me%InitializationMethod = ReadHDF
+    !            case ("Timeserie",  "TIMESERIE",    "timeserie",    "TimeSerie")
+    !                Me%InitializationMethod = ReadTimeSerie
+    !            case ("Profile_Timeserie",  "PROFILE_TIMESERIE",    "profile_timeserie",    "Profile_TimeSerie")
+    !                Me%InitializationMethod = ProfileTimeSerie
+    !            case ("Sponge",  "SPONGE",    "sponge")
+    !                Me%InitializationMethod = Sponge
+    !            case default
+    !                write(*,*)'Invalid option for keyword INITIALIZATION_METHOD'
+    !                stop 'ReadOptions - ModuleFillMatrix - ERR040'
+    !        end select
+    !
+    !
+    !        call GetData(Me%RemainsConstant, Me%ObjEnterData,  iflag,                   &
+    !                     SearchType     = ExtractType,                                  &
+    !                     keyword        = 'REMAIN_CONSTANT',                            &
+    !                     default        = .false.,                                      &
+    !                     ClientModule   = 'ModuleFillMatrix',                           &
+    !                     STAT           = STAT_CALL)
+    !        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR050'
+    !
+    !        call GetData(AuxString, Me%ObjEnterData,  iflag,                            &
+    !                     SearchType     = ExtractType,                                  &
+    !                     keyword        = 'INITIALIZATION_DEFAULT',                     &
+    !                     default        = "Constant",                                   &
+    !                     ClientModule   = 'ModuleFillMatrix',                           &
+    !                     STAT           = STAT_CALL)
+    !        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR060'
+    !
+    !        select case (trim(adjustl(AuxString)))
+    !            case ("Constant",   "CONSTANT",   "constant")
+    !                Me%InitializationDefault = Constant
+    !            case ("Profile_Timeserie",  "PROFILE_TIMESERIE",    "profile_timeserie",    "Profile_TimeSerie")
+    !                Me%InitializationDefault = ProfileTimeSerie
+    !        end select
+    !    
+    !    end if
+    !    
+    !
+    !    ! Check if the simulation goes backward in time or forward in time (default mode)
+    !    call GetBackTracking(Me%ObjTime, Me%BackTracking, STAT = STAT_CALL)                    
+    !    if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR070' 
+    !
+    !    call GetComputeTimeLimits(Me%ObjTime, BeginTime = Me%BeginTime,                 &
+    !                              EndTime = Me%EndTime, STAT = STAT_CALL)
+    !    if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR080'        
+    !
+    !    !Gets the default value        
+    !    call GetData(Me%DefaultValue, Me%ObjEnterData,  iflag,                          &
+    !                 SearchType     = ExtractType,                                      &
+    !                 keyword        = 'DEFAULTVALUE',                                   &
+    !                 ClientModule   = 'ModuleFillMatrix',                               &
+    !                 default        = null_real,                                        &
+    !                 STAT           = STAT_CALL)        
+    !    if (STAT_CALL .NE. SUCCESS_) then            
+    !        !normal case, found only one value (STAT_CALL size err and iflag = 1). ignore
+    !        !vectorial 2D case, found only two values (STAT_CALL size err and iflag = 2). ignore
+    !        if (STAT_CALL /= SIZE_ERR_) then
+    !            write(*,*) "Property ", trim(Me%PropertyID%Name)
+    !            write(*,*) "Wrong number of arguments for DEFAULTVALUE keyword"
+    !            stop 'ReadOptions - ModuleFillMatrix - ERR090'                
+    !        endif          
+    !        
+    !        !need to define two or three values, not only one
+    !        if (Me%VectorialProp .and. iflag == 1) then
+    !            write(*,*) 'DEFAULTVALUE for vectorial prop needs to define the x and y'
+    !            write(*,*) '(and optionally z) components in 2/3 values'
+    !            write(*,*) 'separated by space. Property : ', trim(Me%PropertyID%Name)
+    !            stop 'ReadOptions - ModuleFillMatrix - ERR095'
+    !        endif
+    !    endif
+    !    
+    !    if (iflag == 0 .and. .not. Me%ArgumentFileName) then
+    !    
+    !        if(Me%OverrideValueKeywordON .and. Me%InitializationMethod == Constant)then
+    !        
+    !            call GetData(Me%DefaultValue, Me%ObjEnterData,  iflag,                 &
+    !                         SearchType     = ExtractType,                             &
+    !                         keyword        = trim(Me%OverrideValueKeyword),           &
+    !                         ClientModule   = 'ModuleFillMatrix',                      &
+    !                         default        = null_real,                               &
+    !                         STAT           = STAT_CALL)
+    !            if (STAT_CALL .NE. SUCCESS_) then
+    !                
+    !                if(STAT_CALL == SIZE_ERR_)then 
+    !                    if(.not. Me%VectorialProp .and. iflag .ne. 1)then
+    !                        write(*,*) "Property ", trim(Me%PropertyID%Name)
+    !                        write(*,*) "DEFAULTVALUE must be a scalar"
+    !                        stop 'ReadOptions - ModuleFillMatrix - ERR99'
+    !                    elseif(iflag > 3)then
+    !                        write(*,*) "Property ", trim(Me%PropertyID%Name)
+    !                        write(*,*) "Too many arguments in keyword "//trim(Me%OverrideValueKeyword)
+    !                        stop 'ReadOptions - ModuleFillMatrix - ERR98'
+    !                    endif
+    !                else
+    !                    stop 'ReadOptions - ModuleFillMatrix - ERR100'
+    !                endif 
+    !                
+    !            
+    !            end if
+    !            
+    !            if(iflag == 0)then
+    !                
+    !                write(*,*)'Please define override keyword '//trim(Me%OverrideValueKeyword)
+    !                write(*,*)'to give a default value for property '//trim(Me%PropertyID%Name)
+    !                stop 'ReadOptions - ModuleFillMatrix - ERR101'
+    !                
+    !            end if
+    !            
+    !        elseif(Me%OverrideValueKeywordON .and. Me%InitializationMethod == Boxes)then
+    !        
+    !            Me%DefaultValue = null_real
+    !            
+    !        elseif(Me%OverrideValueKeywordON .and. Me%InitializationMethod == AsciiFile)then
+    !        
+    !            Me%DefaultValue = null_real
+    !            
+    !        elseif((Me%OverrideValueKeywordON .and. .not. Me%InitializationMethod == Boxes    ) .or. &
+    !               (Me%OverrideValueKeywordON .and. .not. Me%InitializationMethod == AsciiFile) .or. &
+    !               (Me%OverrideValueKeywordON .and. .not. Me%InitializationMethod == Constant ))then
+    !               
+    !            write(*,*)'Initialization method for property '//trim(Me%PropertyID%Name)
+    !            write(*,*)'can only be CONSTANT, BOXES or ASCII'
+    !            stop 'ReadOptions - ModuleFillMatrix - ERR102'
+    !
+    !        
+    !        else
+    !
+    !            write(*,*)'Please define default value for property '//trim(Me%PropertyID%Name)
+    !            stop 'ReadOptions - ModuleFillMatrix - ERR103'
+    !
+    !        end if
+    !    
+    !    
+    !    end if
+    !   
+    !    !Keywords that define how to "work" values (interpolate, accumulate, nothing)
+    !    call GetData(Me%InterpolateValues,                                              &
+    !                 Me%ObjEnterData,  iflag,                                           &
+    !                 SearchType     = ExtractType,                                      &
+    !                 keyword        = 'INTERPOLATE_VALUES',                             &
+    !                 default        = .false.,                                          &
+    !                 ClientModule   = 'ModuleFillMatrix',                               &
+    !                 STAT           = STAT_CALL)
+    !    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR104'       
+    !    
+    !    call GetData(Me%AccumulateValues,                                               &
+    !                 Me%ObjEnterData,  iflag,                                           &
+    !                 SearchType     = ExtractType,                                      &
+    !                 keyword        = 'ACCUMULATE_VALUES',                              &
+    !                 default        = .false.,                                          &
+    !                 ClientModule   = 'ModuleFillMatrix',                               &
+    !                 STAT           = STAT_CALL)
+    !    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR105'     
+    !      
+    !    call GetData(Me%UseOriginalValues,                                              &
+    !                 Me%ObjEnterData,  iflag,                                           &
+    !                 SearchType     = ExtractType,                                      &
+    !                 keyword        = 'USE_ORIGINAL_VALUES',                            &
+    !                 default        = .false.,                                          &
+    !                 ClientModule   = 'ModuleFillMatrix',                               &
+    !                 STAT           = STAT_CALL)
+    !    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR110'       
+    !
+    !    if ((Me%InterpolateValues .AND. Me%AccumulateValues)   .OR. &
+    !        (Me%InterpolateValues .AND. Me%UseOriginalValues)  .OR. &
+    !        (Me%AccumulateValues  .AND. Me%UseOriginalValues)) then            
+    !        write (*,*) 'The keywords INTERPOLATE_VALUES, ACCUMULATE_VALUES and'
+    !        write (*,*) 'USE_ORIGINAL_VALUES are mutually exclusives.'
+    !        write (*,*) 'Only one can be set to true.'
+    !        stop 'ReadOptions - ModuleFillMatrix - ERR120'            
+    !    endif
+    !
+    !    !Property ValuesType (Interpolated, accumulate, original value) 
+    !    call GetData(AuxInteger,                                                        &
+    !                 Me%ObjEnterData,  iflag,                                           &
+    !                 SearchType     = ExtractType,                                      &
+    !                 keyword        = 'VALUES_TYPE',                                    &
+    !                 default        = InterpolatedValues,                               &
+    !                 ClientModule   = 'ModuleFillMatrix',                               &
+    !                 STAT           = STAT_CALL)
+    !    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR120-A'       
+    !    if (iflag .NE. 0) then
+    !        write(*,*) 
+    !        write(*,*) 'ModuleFillMatrix WARNING:'
+    !        write(*,*) 'VALUES_TYPE keyword was removed.'
+    !        write(*,*) 'Use these instead: '
+    !        write(*,*) '   INTERPOLATE_VALUES  => to interpolate values'
+    !        write(*,*) '   ACCUMULATE_VALUES   => to accumulate values'
+    !        write(*,*) '   USE_ORIGINAL_VALUES => to use original values'
+    !        write(*,*)         
+    !        stop 'ReadOptions - ModuleFillMatrix - ERR120-B' 
+    !    endif
+    !    
+    !    !Property not interpolated (e.g. Concentration on rain)
+    !    call GetData(AuxBoolean, Me%ObjEnterData,  iflag,                               &
+    !                 SearchType     = ExtractType,                                      &
+    !                 keyword        = 'NO_INTERPOLATION_OR_ACCUMULATION',               &
+    !                 default        = .false.,                                          &
+    !                 ClientModule   = 'ModuleFillMatrix',                               &
+    !                 STAT           = STAT_CALL)
+    !    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR130'
+    !    if (iflag .NE. 0) then
+    !        write(*,*) 
+    !        write(*,*) 'ModuleFillMatrix WARNING:'
+    !        write(*,*) 'NO_INTERPOLATION_OR_ACCUMULATION keyword is deprecated.'
+    !        write(*,*) 'To use values without interpolation or accumulation use instead: '
+    !        write(*,*) '   "USE_ORIGINAL_VALUES : 1"'
+    !        write(*,*) 
+    !    
+    !        if (AuxBoolean) then            
+    !            Me%InterpolateValues = .false.
+    !            Me%AccumulateValues  = .false.
+    !            Me%UseOriginalValues = .true.
+    !        endif
+    !    endif
+    !    
+    !    if (.NOT. AuxBoolean) then        
+    !        !Accumulitve Property (e.g. Rain from gauges) !this keyword name should be changed because is
+    !        !not describing well what is the computation. However a lot of people use it already...
+    !        call GetData(AuxBoolean, Me%ObjEnterData,  iflag,                               &
+    !                     SearchType     = ExtractType,                                      &
+    !                     keyword        = 'NO_INTERPOLATION',                               &
+    !                     default        = .false.,                                          &
+    !                     ClientModule   = 'ModuleFillMatrix',                               &
+    !                     STAT           = STAT_CALL)
+    !        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR140'
+    !        if (iflag .NE. 0) then
+    !            write(*,*) 
+    !            write(*,*) 'ModuleFillMatrix WARNING:'
+    !            write(*,*) 'NO_INTERPOLATION keyword is deprecated.'
+    !            write(*,*) 'To use interpolated values use instead : '
+    !            write(*,*) '   "INTERPOLATE_VALUES : 1"'
+    !            write(*,*) 'To use accumulated values use instead :'
+    !            write(*,*) '   "ACCUMULATE_VALUES : 1" '
+    !            write(*,*) 
+    !        
+    !            if (AuxBoolean) then                    
+    !                Me%InterpolateValues = .false.
+    !                Me%AccumulateValues  = .true.
+    !                Me%UseOriginalValues = .false.                   
+    !            else       
+    !                Me%InterpolateValues = .true.
+    !                Me%AccumulateValues  = .false.
+    !                Me%UseOriginalValues = .false.                           
+    !            endif            
+    !        endif
+    !    endif  
+    !    
+    !    if ((.NOT. Me%InterpolateValues) .AND. &
+    !        (.NOT. Me%AccumulateValues)  .AND. &
+    !        (.NOT. Me%UseOriginalValues)) then  
+    !        Me%InterpolateValues = .true.     
+    !    endif
+    !    
+    !
+    !    !When to shut down DT?
+    !    call GetData(Me%MinForDTDecrease, Me%ObjEnterData,  iflag,                      &
+    !                 SearchType     = ExtractType,                                      &
+    !                 keyword        = 'MIN_FOR_DT_DECREASE',                            &
+    !                 default        = AllMostZero,                                      &
+    !                 ClientModule   = 'ModuleFillMatrix',                               &
+    !                 STAT           = STAT_CALL)
+    !    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR150'
+    !    
+    !    !Assumes the last instant value to avoid linear interpolation
+    !    call GetData(Me%PreviousInstantValues, Me%ObjEnterData,  iflag,                 &
+    !                 SearchType     = ExtractType,                                      &
+    !                 keyword        = 'PREVIOUS_INSTANT_VALUES',                        &
+    !                 default        = .false.,                                          &
+    !                 ClientModule   = 'ModuleFillMatrix',                               &
+    !                 STAT           = STAT_CALL)
+    !    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR155'
+    !
+    !    call GetData(Me%IgnoreNoDataPoint,                                              &
+    !                 Me%ObjEnterData,  iflag,                                           &
+    !                 SearchType     = ExtractType,                                      &
+    !                 keyword        = 'IGNORE_NODATA_POINT',                            &
+    !                 default        = .true.,                                           &
+    !                 ClientModule   = 'ModuleFillMatrix',                               &
+    !                 STAT           = STAT_CALL)
+    !    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR156' 
+    !    
+    !    if (.NOT. Me%IgnoreNoDataPoint) then
+    !        call GetData(Me%NoDataValue,                                                &
+    !                     Me%ObjEnterData,  iflag,                                       &
+    !                     SearchType     = ExtractType,                                  &
+    !                     keyword        = 'NODATA_VALUE',                               &
+    !                     default        = -99.0,                                        &
+    !                     ClientModule   = 'ModuleFillMatrix',                           &
+    !                     STAT           = STAT_CALL)
+    !        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR157'                  
+    !    endif
+    !    
+    !
+    !    call GetData(Me%PredictDTMethod,                                            &
+    !                 Me%ObjEnterData,  iflag,                                       &
+    !                 SearchType     = ExtractType,                                  &
+    !                 keyword        = 'PREDICT_DT_METHOD',                          &
+    !                 default        = PredictDTMethod,                              &
+    !                 ClientModule   = 'ModuleFillMatrix',                           &
+    !                 STAT           = STAT_CALL)
+    !    if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR158'
+    !
+    !    !Fill Matrix with default Value. This is the user field (not rotated to grid)
+    !    if (Me%VectorialProp) then
+    !        if (Me%Dim == Dim2D) then
+    !            where (PointsToFill2D == WaterPoint) Me%Matrix2DX = Me%DefaultValue(1)
+    !            where (PointsToFill2D == WaterPoint) Me%Matrix2DY = Me%DefaultValue(2)
+    !        else
+    !            where (PointsToFill3D == WaterPoint) Me%Matrix3DX = Me%DefaultValue(1)
+    !            where (PointsToFill3D == WaterPoint) Me%Matrix3DY = Me%DefaultValue(2)
+    !        endif            
+    !    
+    !    !User field angle (not rotated to grid)
+    !    else if (Me%RotateAngleToGrid) then
+    !        if (Me%Dim == Dim2D) then
+    !            where (PointsToFill2D == WaterPoint) Me%Matrix2DFieldAngle = Me%DefaultValue(1)
+    !        else
+    !            where (PointsToFill3D == WaterPoint) Me%Matrix3DFieldAngle = Me%DefaultValue(1)
+    !        endif            
+    !    
+    !    else
+    !        if (Me%Dim == Dim2D) then
+    !            where (PointsToFill2D == WaterPoint) Me%Matrix2D = Me%DefaultValue(1)
+    !        else
+    !            where (PointsToFill3D == WaterPoint) Me%Matrix3D = Me%DefaultValue(1)
+    !        endif
+    !    endif
+    !    
+    !    CanContinue  = .true.
+    !    if (Me%VectorialProp) then
+    !        if (Me%TimeEvolution == None) then            
+    !            if ((Me%InitializationDefault /= Constant) .or. (Me%InitializationMethod /= Constant            &
+    !                .and. Me%InitializationMethod /= ASCIIFile .and. Me%InitializationMethod /= ReadTimeSerie  &
+    !                .and. Me%InitializationMethod /= ReadHDF)) then
+    !                CanContinue = .false.
+    !            endif
+    !        elseif (Me%TimeEvolution /= ReadTimeSerie .and. Me%TimeEvolution /= ReadHDF) then
+    !            CanContinue = .false.
+    !        endif
+    !    endif
+    !    if (.not. CanContinue) then
+    !        write(*,*) 'For now vectorial property can only be defined by constant, asciifile, timeserie or HDF'
+    !        write(*,*) 'Property : ', trim(Me%PropertyID%Name)
+    !        stop ' ReadOptios - ModuleFillMatrix - ERR159'
+    !    endif
+    !
+    !
+    !    select case (Me%TimeEvolution)
+    !
+    !        case(None)
+    !
+    !            !Fill Matrix with an initialization default
+    !            select case(Me%InitializationDefault)
+    !
+    !                case(Constant)
+    !
+    !                    !Do nothing. Matrix values equal default value
+    !
+    !                case(ProfileTimeSerie)
+    !
+    !                    if (Me%Dim == Dim2D) then
+    !                        write(*,*)'Cannot Initialize 2D matrix by profile time serie'
+    !                        stop 'ReadOptions - ModuleFillMatrix - ERR160'
+    !                    else
+    !                        call ConstructProfileTSDefault (PointsToFill3D, ExtractType)
+    !                    endif
+    !
+    !            end select
+    !
+    !            select case(Me%InitializationMethod)
+    !
+    !                case(Constant)
+    !
+    !                    !Do nothing. Matrix values equal default value
+    !
+    !                case(Layers)
+    !
+    !                    if (Me%Dim == Dim2D) then
+    !                        write(*,*)'Cannot Initialise 2D Matrix by Layers'
+    !                        stop 'ReadOptions - ModuleFillMatrix - ERR170'
+    !                    else
+    !                        call ConstructSpaceLayers (ExtractType, PointsToFill3D)
+    !                    endif
+    !
+    !                case(Boxes)
+    !
+    !                    if (Me%Dim == Dim2D) then
+    !                        call ConstructSpaceBox (ExtractType, PointsToFill2D = PointsToFill2D)
+    !                    else
+    !                        call ConstructSpaceBox (ExtractType, PointsToFill3D = PointsToFill3D)
+    !                    endif
+    !
+    !                case(AsciiFile)
+    !                    
+    !                    if (Me%Dim == Dim2D) then
+    !                        call ConstructSpaceASCIIFile (ExtractType, PointsToFill2D = PointsToFill2D)
+    !                    else
+    !                        call ConstructSpaceASCIIFile (ExtractType, PointsToFill3D = PointsToFill3D)
+    !                    endif
+    !
+    !
+    !                case(Sponge)
+    !                    
+    !                    if (Me%Dim == Dim2D) then
+    !                        call ConstructSponge (ExtractType, PointsToFill2D = PointsToFill2D)
+    !                    else
+    !                        call ConstructSponge (ExtractType, PointsToFill3D = PointsToFill3D)
+    !                    endif
+    !
+    !                case(Profile)
+    !
+    !                    if (Me%Dim == Dim2D) then
+    !                        write(*,*)'Cannot Initialise 2D Matrix by Profile'
+    !                        stop 'ReadOptions - ModuleFillMatrix - ERR180'
+    !                    else
+    !                        call ConstructSpaceProfile(ExtractType, PointsToFill3D)
+    !                    endif
+    !
+    !
+    !                case(AnalyticProfile)
+    !
+    !                    if (Me%Dim == Dim2D) then
+    !                        write(*,*)'Cannot Initialise 2D Matrix by Profile'
+    !                        stop 'ReadOptions - ModuleFillMatrix - ERR190'
+    !                    else
+    !                        call ConstructAnalyticProfile(ExtractType, PointsToFill3D)
+    !                    endif
+    !
+    !                case(ReadTimeSerie)
+    !
+    !                    if (Me%Dim == Dim2D) then
+    !                        call ConstructSpaceTimeSerie    (ExtractType, PointsToFill2D = PointsToFill2D) 
+    !                    else
+    !                        call ConstructSpaceTimeSerie    (ExtractType, PointsToFill3D = PointsToFill3D) 
+    !                    endif                        
+    !
+    !                case(ReadHDF)
+    !
+    !                    if (Me%Dim == Dim2D) then
+    !                        call ConstructHDFInput (ExtractType, ClientID_, PointsToFill2D = PointsToFill2D)
+    !                    else    
+    !                        call ConstructHDFInput (ExtractType, ClientID_, PointsToFill3D = PointsToFill3D)
+    !                    endif
+    !
+    !                case(ProfileTimeSerie)
+    !
+    !                    call ConstructProfileTimeSerie (PointsToFill3D, ExtractType)
+    !
+    !                end select
+    !
+    !        case(ReadTimeSerie)
+    !
+    !            if (Me%Dim == Dim2D) then
+    !                call ConstructSpaceTimeSerie    (ExtractType, PointsToFill2D = PointsToFill2D) 
+    !            else
+    !                call ConstructSpaceTimeSerie    (ExtractType, PointsToFill3D = PointsToFill3D) 
+    !            endif
+    !
+    !        case(ReadHDF)
+    !
+    !            if (Me%Dim == Dim2D) then
+    !                call ConstructHDFInput (ExtractType, ClientID_, PointsToFill2D = PointsToFill2D)
+    !            else    
+    !                call ConstructHDFInput (ExtractType, ClientID_, PointsToFill3D = PointsToFill3D)
+    !            endif
+    !
+    !        case(ProfileTimeSerie)
+    !
+    !            if (Me%Dim == Dim2D) then
+    !                write(*,*)'Cannot read 2D matrix by profile time serie'
+    !                stop 'ReadOptions - ModuleFillMatrix - ERR200'
+    !            else
+    !                call ConstructProfileTimeSerie (PointsToFill3D, ExtractType)
+    !            endif
+    !            
+    !        case(MultiTimeserie)
+    !        
+    !            if (.not. present(ClientID)) &
+    !                stop 'ReadOptions - ModuleFillMatrix - ERR210'                            
+    !
+    !            if (Me%Dim == Dim2D) then
+    !                call ConstructMultiTimeSerie (ClientID, PointsToFill2D = PointsToFill2D)
+    !                call ModifyMultiTimeSerie    (PointsToFill2D = PointsToFill2D) 
+    !            else
+    !                call ConstructMultiTimeSerie (ClientID, PointsToFill3D = PointsToFill3D)
+    !                call ModifyMultiTimeSerie    (PointsToFill3D = PointsToFill3D) 
+    !            endif     
+    !            
+    !        case(AnalyticWave)
+    !            call ConstructAnalyticWave (ExtractType)
+    !            if (Me%Dim == Dim2D) then
+    !                call ModifyAnalyticWave    (PointsToFill2D = PointsToFill2D) 
+    !            else
+    !                call ModifyAnalyticWave    (PointsToFill3D = PointsToFill3D) 
+    !            endif     
+    !                
+    !                       
+    !            
+    !    end select
+    !
+    !end subroutine ReadOptions
+    
+    !--------------------------------------------------------------------------
+    subroutine Read_Fill_Options (ExtractType, PredictDTMethod)
 
         !Arguments-------------------------------------------------------------
         integer                                         :: ExtractType
-        integer, dimension(:, :),    pointer, optional  :: PointsToFill2D
-        integer, dimension(:, :, :), pointer, optional  :: PointsToFill3D
-        integer, optional, intent(IN)                   :: ClientID
         integer, optional, intent(IN)                   :: PredictDTMethod
-
         !Local----------------------------------------------------------------
-        integer                                         :: STAT_CALL, ClientID_
-        integer                                         :: iflag
+        integer                                         :: STAT_CALL, iflag, AuxInteger
         character(len=StringLength)                     :: AuxString
-        logical                                         :: AuxBoolean
-        integer                                         :: AuxInteger
-        logical                                         :: CanContinue
+        logical                                         :: AuxBoolean, CanContinue
         !---------------------------------------------------------------------
-        
-        if (present(ClientID)) then
-            ClientID_ = ClientID
-        else
-            ClientID_ = FillValueInt           
-        endif
-
         !Reads Time Evolution
         call GetData(AuxString, Me%ObjEnterData,  iflag,                            &
                      SearchType     = ExtractType,                                  &
@@ -1574,34 +2197,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default        = "None",                                       &
                      ClientModule   = 'ModuleFillMatrix',                           &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR010'
-
-        !write(*,*) trim(adjustl(AuxString))
-
-        select case (trim(adjustl(AuxString)))
-            case ("None",       "NONE", "none")
-                Me%TimeEvolution    = None
-            case ("Hdf",        "HDF",          "hdf")
-                Me%TimeEvolution    = ReadHDF
-            case ("Timeserie",  "TIMESERIE",    "timeserie",    "TimeSerie")
-                Me%TimeEvolution    = ReadTimeSerie
-            case ("Profile_Timeserie",  "PROFILE_TIMESERIE",    "profile_timeserie",    "Profile_TimeSerie")
-                Me%TimeEvolution    = ProfileTimeSerie
-            case ("Multitimeserie", "MULTITIMESERIE", "multitimeserie", "MultiTimeserie")
-                Me%TimeEvolution    = MultiTimeserie
-            case ("Analytic Wave",  "ANALYTIC WAVE",    "analytic wave")
-                Me%TimeEvolution    = AnalyticWave                     
-            case default
-                write(*,*)'Invalid option for keyword FILE_IN_TIME'
-                stop 'ReadOptions - ModuleFillMatrix - ERR020'
-        end select
-
-        !write (*,*) Me%TimeEvolution
+        if (STAT_CALL .NE. SUCCESS_) stop 'Read_Fill_Options - ModuleFillMatrix - ERR010'
+        
+        !read TimeEvolution keyword defined by user
+        Me%TimeEvolution = UserTimeEvolution (AuxString)
         
         if (Me%ArgumentFileName) Me%TimeEvolution    = ReadHDF
-
-        !write (*,*) Me%TimeEvolution
-
 
         if(Me%TimeEvolution == None)then
 
@@ -1611,36 +2212,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default        = "Constant",                                   &
                          ClientModule   = 'ModuleFillMatrix',                           &
                          STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR030'
-
-            !write(*,*) trim(adjustl(AuxString))
-
-            select case (trim(adjustl(AuxString)))
-                case ("Constant",   "CONSTANT",   "constant")
-                    Me%InitializationMethod = Constant
-                case ("Layers",     "LAYERS",     "layers")
-                    Me%InitializationMethod = Layers
-                case ("Boxes",      "BOXES",      "boxes")
-                    Me%InitializationMethod = Boxes
-                case ("ASCII_File", "ASCII_FILE", "ascii_file",   "Ascii_file")
-                    Me%InitializationMethod = AsciiFile
-                case ("Profile",    "PROFILE",    "profile")
-                    Me%InitializationMethod = Profile
-                case ("Analytic Profile",    "ANALYTIC PROFILE",    "analytic profile")
-                    Me%InitializationMethod = AnalyticProfile
-                case ("Hdf",        "HDF",          "hdf")
-                    Me%InitializationMethod = ReadHDF
-                case ("Timeserie",  "TIMESERIE",    "timeserie",    "TimeSerie")
-                    Me%InitializationMethod = ReadTimeSerie
-                case ("Profile_Timeserie",  "PROFILE_TIMESERIE",    "profile_timeserie",    "Profile_TimeSerie")
-                    Me%InitializationMethod = ProfileTimeSerie
-                case ("Sponge",  "SPONGE",    "sponge")
-                    Me%InitializationMethod = Sponge
-                case default
-                    write(*,*)'Invalid option for keyword INITIALIZATION_METHOD'
-                    stop 'ReadOptions - ModuleFillMatrix - ERR040'
-            end select
-
+            if (STAT_CALL .NE. SUCCESS_) stop 'Read_Fill_Options - ModuleFillMatrix - ERR030'
+            
+            !read TimeEvolution keyword defined by user
+            Me%InitializationMethod = UserInitMethod(AuxString)
 
             call GetData(Me%RemainsConstant, Me%ObjEnterData,  iflag,                   &
                          SearchType     = ExtractType,                                  &
@@ -1648,7 +2223,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default        = .false.,                                      &
                          ClientModule   = 'ModuleFillMatrix',                           &
                          STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR050'
+            if (STAT_CALL .NE. SUCCESS_) stop 'Read_Fill_Options - ModuleFillMatrix - ERR050'
 
             call GetData(AuxString, Me%ObjEnterData,  iflag,                            &
                          SearchType     = ExtractType,                                  &
@@ -1656,7 +2231,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default        = "Constant",                                   &
                          ClientModule   = 'ModuleFillMatrix',                           &
                          STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR060'
+            if (STAT_CALL .NE. SUCCESS_) stop 'Read_Fill_Options - ModuleFillMatrix - ERR060'
 
             select case (trim(adjustl(AuxString)))
                 case ("Constant",   "CONSTANT",   "constant")
@@ -1666,15 +2241,14 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             end select
         
         end if
-        
 
         ! Check if the simulation goes backward in time or forward in time (default mode)
         call GetBackTracking(Me%ObjTime, Me%BackTracking, STAT = STAT_CALL)                    
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR070' 
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Fill_Options - ModuleFillMatrix - ERR070' 
 
         call GetComputeTimeLimits(Me%ObjTime, BeginTime = Me%BeginTime,                 &
                                   EndTime = Me%EndTime, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR080'        
+        if (STAT_CALL /= SUCCESS_) stop 'Read_Fill_Options - ModuleFillMatrix - ERR080'        
 
         !Gets the default value        
         call GetData(Me%DefaultValue, Me%ObjEnterData,  iflag,                          &
@@ -1687,9 +2261,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             !normal case, found only one value (STAT_CALL size err and iflag = 1). ignore
             !vectorial 2D case, found only two values (STAT_CALL size err and iflag = 2). ignore
             if (STAT_CALL /= SIZE_ERR_) then
-                write(*,*) "Property ", trim(Me%PropertyID%Name)
-                write(*,*) "Wrong number of arguments for DEFAULTVALUE keyword"
-                stop 'ReadOptions - ModuleFillMatrix - ERR090'                
+                write(*,*) "Wrong number of arguments for DEFAULTVALUE keyword in Property ", trim(Me%PropertyID%Name)
+                stop 'Read_Fill_Options - ModuleFillMatrix - ERR090'                
             endif          
             
             !need to define two or three values, not only one
@@ -1697,7 +2270,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 write(*,*) 'DEFAULTVALUE for vectorial prop needs to define the x and y'
                 write(*,*) '(and optionally z) components in 2/3 values'
                 write(*,*) 'separated by space. Property : ', trim(Me%PropertyID%Name)
-                stop 'ReadOptions - ModuleFillMatrix - ERR095'
+                stop 'Read_Fill_Options - ModuleFillMatrix - ERR095'
             endif
         endif
         
@@ -1715,27 +2288,23 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     
                     if(STAT_CALL == SIZE_ERR_)then 
                         if(.not. Me%VectorialProp .and. iflag .ne. 1)then
-                            write(*,*) "Property ", trim(Me%PropertyID%Name)
-                            write(*,*) "DEFAULTVALUE must be a scalar"
-                            stop 'ReadOptions - ModuleFillMatrix - ERR99'
+                            write(*,*) "DEFAULTVALUE must be a scalar for Property ", trim(Me%PropertyID%Name)
+                            stop 'Read_Fill_Options - ModuleFillMatrix - ERR99'
                         elseif(iflag > 3)then
                             write(*,*) "Property ", trim(Me%PropertyID%Name)
                             write(*,*) "Too many arguments in keyword "//trim(Me%OverrideValueKeyword)
-                            stop 'ReadOptions - ModuleFillMatrix - ERR98'
+                            stop 'Read_Fill_Options - ModuleFillMatrix - ERR98'
                         endif
                     else
-                        stop 'ReadOptions - ModuleFillMatrix - ERR100'
+                        stop 'Read_Fill_Options - ModuleFillMatrix - ERR100'
                     endif 
                     
-                
                 end if
                 
                 if(iflag == 0)then
-                    
                     write(*,*)'Please define override keyword '//trim(Me%OverrideValueKeyword)
                     write(*,*)'to give a default value for property '//trim(Me%PropertyID%Name)
-                    stop 'ReadOptions - ModuleFillMatrix - ERR101'
-                    
+                    stop 'Read_Fill_Options - ModuleFillMatrix - ERR101'
                 end if
                 
             elseif(Me%OverrideValueKeywordON .and. Me%InitializationMethod == Boxes)then
@@ -1752,16 +2321,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                    
                 write(*,*)'Initialization method for property '//trim(Me%PropertyID%Name)
                 write(*,*)'can only be CONSTANT, BOXES or ASCII'
-                stop 'ReadOptions - ModuleFillMatrix - ERR102'
+                stop 'Read_Fill_Options - ModuleFillMatrix - ERR102'
 
-            
             else
-
                 write(*,*)'Please define default value for property '//trim(Me%PropertyID%Name)
-                stop 'ReadOptions - ModuleFillMatrix - ERR103'
-
+                stop 'Read_Fill_Options - ModuleFillMatrix - ERR103'
             end if
-        
         
         end if
        
@@ -1799,7 +2364,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             write (*,*) 'The keywords INTERPOLATE_VALUES, ACCUMULATE_VALUES and'
             write (*,*) 'USE_ORIGINAL_VALUES are mutually exclusives.'
             write (*,*) 'Only one can be set to true.'
-            stop 'ReadOptions - ModuleFillMatrix - ERR120'            
+            stop 'Read_Fill_Options - ModuleFillMatrix - ERR120'            
         endif
 
         !Property ValuesType (Interpolated, accumulate, original value) 
@@ -1814,13 +2379,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         if (iflag .NE. 0) then
             write(*,*) 
             write(*,*) 'ModuleFillMatrix WARNING:'
-            write(*,*) 'VALUES_TYPE keyword was removed.'
-            write(*,*) 'Use these instead: '
+            write(*,*) 'VALUES_TYPE keyword was removed. Use these instead: '
             write(*,*) '   INTERPOLATE_VALUES  => to interpolate values'
             write(*,*) '   ACCUMULATE_VALUES   => to accumulate values'
             write(*,*) '   USE_ORIGINAL_VALUES => to use original values'
             write(*,*)         
-            stop 'ReadOptions - ModuleFillMatrix - ERR120-B' 
+            stop 'Read_Fill_Options - ModuleFillMatrix - ERR120-B' 
         endif
         
         !Property not interpolated (e.g. Concentration on rain)
@@ -1830,13 +2394,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default        = .false.,                                          &
                      ClientModule   = 'ModuleFillMatrix',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR130'
+        if (STAT_CALL .NE. SUCCESS_) stop 'Read_Fill_Options - ModuleFillMatrix - ERR130'
         if (iflag .NE. 0) then
             write(*,*) 
             write(*,*) 'ModuleFillMatrix WARNING:'
             write(*,*) 'NO_INTERPOLATION_OR_ACCUMULATION keyword is deprecated.'
-            write(*,*) 'To use values without interpolation or accumulation use instead: '
-            write(*,*) '   "USE_ORIGINAL_VALUES : 1"'
+            write(*,*) 'To use values without interpolation or accumulation use instead: "USE_ORIGINAL_VALUES : 1"'
             write(*,*) 
         
             if (AuxBoolean) then            
@@ -1855,25 +2418,22 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default        = .false.,                                          &
                          ClientModule   = 'ModuleFillMatrix',                               &
                          STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR140'
+            if (STAT_CALL .NE. SUCCESS_) stop 'Read_Fill_Options - ModuleFillMatrix - ERR140'
             if (iflag .NE. 0) then
                 write(*,*) 
                 write(*,*) 'ModuleFillMatrix WARNING:'
                 write(*,*) 'NO_INTERPOLATION keyword is deprecated.'
-                write(*,*) 'To use interpolated values use instead : '
-                write(*,*) '   "INTERPOLATE_VALUES : 1"'
-                write(*,*) 'To use accumulated values use instead :'
-                write(*,*) '   "ACCUMULATE_VALUES : 1" '
-                write(*,*) 
+                write(*,*) 'To use interpolated values use instead : "INTERPOLATE_VALUES : 1"'
+                write(*,*) 'To use accumulated values use instead  : "ACCUMULATE_VALUES  : 1"'
+                write(*,*)
+                
+                Me%UseOriginalValues = .false.
+                Me%InterpolateValues = .true.
+                Me%AccumulateValues  = .false.
             
                 if (AuxBoolean) then                    
                     Me%InterpolateValues = .false.
-                    Me%AccumulateValues  = .true.
-                    Me%UseOriginalValues = .false.                   
-                else       
-                    Me%InterpolateValues = .true.
-                    Me%AccumulateValues  = .false.
-                    Me%UseOriginalValues = .false.                           
+                    Me%AccumulateValues  = .true.                         
                 endif            
             endif
         endif  
@@ -1884,7 +2444,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%InterpolateValues = .true.     
         endif
         
-
         !When to shut down DT?
         call GetData(Me%MinForDTDecrease, Me%ObjEnterData,  iflag,                      &
                      SearchType     = ExtractType,                                      &
@@ -1892,7 +2451,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default        = AllMostZero,                                      &
                      ClientModule   = 'ModuleFillMatrix',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR150'
+        if (STAT_CALL .NE. SUCCESS_) stop 'Read_Fill_Options - ModuleFillMatrix - ERR150'
         
         !Assumes the last instant value to avoid linear interpolation
         call GetData(Me%PreviousInstantValues, Me%ObjEnterData,  iflag,                 &
@@ -1901,7 +2460,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default        = .false.,                                          &
                      ClientModule   = 'ModuleFillMatrix',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR155'
+        if (STAT_CALL .NE. SUCCESS_) stop 'Read_Fill_OptionsRead_Fill_Options - ModuleFillMatrix - ERR155'
 
         call GetData(Me%IgnoreNoDataPoint,                                              &
                      Me%ObjEnterData,  iflag,                                           &
@@ -1910,7 +2469,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default        = .true.,                                           &
                      ClientModule   = 'ModuleFillMatrix',                               &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR156' 
+        if (STAT_CALL .NE. SUCCESS_) stop 'Read_Fill_Options - ModuleFillMatrix - ERR156' 
         
         if (.NOT. Me%IgnoreNoDataPoint) then
             call GetData(Me%NoDataValue,                                                &
@@ -1920,9 +2479,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                          default        = -99.0,                                        &
                          ClientModule   = 'ModuleFillMatrix',                           &
                          STAT           = STAT_CALL)
-            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR157'                  
+            if (STAT_CALL .NE. SUCCESS_) stop 'Read_Fill_Options - ModuleFillMatrix - ERR157'                  
         endif
-        
 
         call GetData(Me%PredictDTMethod,                                            &
                      Me%ObjEnterData,  iflag,                                       &
@@ -1931,8 +2489,101 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                      default        = PredictDTMethod,                              &
                      ClientModule   = 'ModuleFillMatrix',                           &
                      STAT           = STAT_CALL)
-        if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptions - ModuleFillMatrix - ERR158'
+        if (STAT_CALL .NE. SUCCESS_) stop 'Read_Fill_Options - ModuleFillMatrix - ERR158'
+        
+        CanContinue  = .true.
+        if (Me%VectorialProp) then
+            if (Me%TimeEvolution == None) then            
+                if ((Me%InitializationDefault /= Constant) .or. (Me%InitializationMethod /= Constant            &
+                    .and. Me%InitializationMethod /= ASCIIFile .and. Me%InitializationMethod /= ReadTimeSerie  &
+                    .and. Me%InitializationMethod /= ReadHDF)) then
+                    CanContinue = .false.
+                endif
+            elseif (Me%TimeEvolution /= ReadTimeSerie .and. Me%TimeEvolution /= ReadHDF) then
+                CanContinue = .false.
+            endif
+        endif
+        if (.not. CanContinue) then
+            write(*,*) 'For now vectorial property can only be defined by constant, asciifile, timeserie or HDF'
+            write(*,*) 'Property : ', trim(Me%PropertyID%Name)
+            stop ' Read_Fill_Options - ModuleFillMatrix - ERR159'
+        endif
 
+    end subroutine Read_Fill_Options
+
+    !--------------------------------------------------------------------------
+    
+    integer function UserTimeEvolution (AuxString)
+        !Arguments-------------------------------------------------------------
+        character(len=StringLength)                :: AuxString
+        !Local-----------------------------------------------------------------
+        integer                                    :: UserOption
+        !Begin-----------------------------------------------------------------
+        select case (trim(adjustl(AuxString)))
+            case ("None",       "NONE", "none")
+                UserOption    = None
+            case ("Hdf",        "HDF",          "hdf")
+                UserOption    = ReadHDF
+            case ("Timeserie",  "TIMESERIE",    "timeserie",    "TimeSerie")
+                UserOption    = ReadTimeSerie
+            case ("Profile_Timeserie",  "PROFILE_TIMESERIE",    "profile_timeserie",    "Profile_TimeSerie")
+                UserOption    = ProfileTimeSerie
+            case ("Multitimeserie", "MULTITIMESERIE", "multitimeserie", "MultiTimeserie")
+                UserOption    = MultiTimeserie
+            case ("Analytic Wave",  "ANALYTIC WAVE",    "analytic wave")
+                UserOption    = AnalyticWave                     
+            case default
+                write(*,*)'Invalid option for keyword FILE_IN_TIME'
+                stop 'UserTimeEvolution - ModuleFillMatrix - ERR010'
+        end select
+        
+        UserTimeEvolution = UserOption
+    end function TimeEvolution
+    !--------------------------------------------------------------------------
+    
+    integer function UserInitMethod(AuxString)
+        !Arguments-------------------------------------------------------------
+        character(len=StringLength)                :: AuxString
+        !Local-----------------------------------------------------------------
+        integer                                    :: UserOption
+        !Begin-----------------------------------------------------------------
+        select case (trim(adjustl(AuxString)))
+            case ("Constant",   "CONSTANT",   "constant")
+                UserOption = Constant
+            case ("Layers",     "LAYERS",     "layers")
+                UserOption = Layers
+            case ("Boxes",      "BOXES",      "boxes")
+                UserOption = Boxes
+            case ("ASCII_File", "ASCII_FILE", "ascii_file",   "Ascii_file")
+                UserOption = AsciiFile
+            case ("Profile",    "PROFILE",    "profile")
+                UserOption = Profile
+            case ("Analytic Profile",    "ANALYTIC PROFILE",    "analytic profile")
+                UserOption = AnalyticProfile
+            case ("Hdf",        "HDF",          "hdf")
+                UserOption = ReadHDF
+            case ("Timeserie",  "TIMESERIE",    "timeserie",    "TimeSerie")
+                UserOption = ReadTimeSerie
+            case ("Profile_Timeserie",  "PROFILE_TIMESERIE",    "profile_timeserie",    "Profile_TimeSerie")
+                UserOption = ProfileTimeSerie
+            case ("Sponge",  "SPONGE",    "sponge")
+                UserOption = Sponge
+            case default
+                write(*,*)'Invalid option for keyword INITIALIZATION_METHOD'
+                stop 'UserInitMethod - ModuleFillMatrix - ERR010'
+        end select
+        
+        UserInitMethod = UserOption
+        
+    end function UserInitMethod
+    !--------------------------------------------------------------------------
+    
+    subroutine FillWithDefault (PointsToFill2D, PointsToFill3D)
+        !Arguments-------------------------------------------------------------
+        integer, dimension(:, :),    pointer, optional, intent(IN)  :: PointsToFill2D
+        integer, dimension(:, :, :), pointer, optional, intent(IN)  :: PointsToFill3D
+        !Begin-----------------------------------------------------------------
+        
         !Fill Matrix with default Value. This is the user field (not rotated to grid)
         if (Me%VectorialProp) then
             if (Me%Dim == Dim2D) then
@@ -1958,158 +2609,116 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 where (PointsToFill3D == WaterPoint) Me%Matrix3D = Me%DefaultValue(1)
             endif
         endif
+    end subroutine FillWithDefault
+    !--------------------------------------------------------------------------
+    
+    subroutine FillWithUserOption (ExtractType, PointsToFill2D, PointsToFill3D, ClientID)
+        !Arguments-------------------------------------------------------------
+        integer                                                     :: ExtractType
+        integer, dimension(:, :),    pointer, intent(IN), optional  :: PointsToFill2D
+        integer, dimension(:, :, :), pointer, intent(IN), optional  :: PointsToFill3D
+        integer                             , intent(IN), optional  :: ClientID
+        !Locals----------------------------------------------------------------
+        integer                                                     :: ClientID
+        !Begin-----------------------------------------------------------------
+        ClientID_ = FillValueInt
+        if (present(ClientID)) ClientID_ = ClientID
         
-        CanContinue  = .true.
-        if (Me%VectorialProp) then
-            if (Me%TimeEvolution == None) then            
-                if ((Me%InitializationDefault /= Constant) .or. (Me%InitializationMethod /= Constant            &
-                    .and. Me%InitializationMethod /= ASCIIFile .and. Me%InitializationMethod /= ReadTimeSerie  &
-                    .and. Me%InitializationMethod /= ReadHDF)) then
-                    CanContinue = .false.
-                endif
-            elseif (Me%TimeEvolution /= ReadTimeSerie .and. Me%TimeEvolution /= ReadHDF) then
-                CanContinue = .false.
-            endif
-        endif
-        if (.not. CanContinue) then
-            write(*,*) 'For now vectorial property can only be defined by constant, asciifile, timeserie or HDF'
-            write(*,*) 'Property : ', trim(Me%PropertyID%Name)
-            stop ' ReadOptios - ModuleFillMatrix - ERR159'
-        endif
-    
-    
         select case (Me%TimeEvolution)
-
             case(None)
-
                 !Fill Matrix with an initialization default
                 select case(Me%InitializationDefault)
-
                     case(Constant)
-
                         !Do nothing. Matrix values equal default value
-
                     case(ProfileTimeSerie)
-
                         if (Me%Dim == Dim2D) then
                             write(*,*)'Cannot Initialize 2D matrix by profile time serie'
-                            stop 'ReadOptions - ModuleFillMatrix - ERR160'
+                            stop 'FillWithUserOption - ModuleFillMatrix - ERR10'
                         else
                             call ConstructProfileTSDefault (PointsToFill3D, ExtractType)
                         endif
-    
                 end select
 
                 select case(Me%InitializationMethod)
 
                     case(Constant)
-
                         !Do nothing. Matrix values equal default value
-
                     case(Layers)
-
                         if (Me%Dim == Dim2D) then
                             write(*,*)'Cannot Initialise 2D Matrix by Layers'
-                            stop 'ReadOptions - ModuleFillMatrix - ERR170'
+                            stop 'FillWithUserOption - ModuleFillMatrix - ERR20'
                         else
                             call ConstructSpaceLayers (ExtractType, PointsToFill3D)
                         endif
-
                     case(Boxes)
-
                         if (Me%Dim == Dim2D) then
                             call ConstructSpaceBox (ExtractType, PointsToFill2D = PointsToFill2D)
                         else
                             call ConstructSpaceBox (ExtractType, PointsToFill3D = PointsToFill3D)
                         endif
-
                     case(AsciiFile)
-                        
                         if (Me%Dim == Dim2D) then
                             call ConstructSpaceASCIIFile (ExtractType, PointsToFill2D = PointsToFill2D)
                         else
                             call ConstructSpaceASCIIFile (ExtractType, PointsToFill3D = PointsToFill3D)
                         endif
-
-
                     case(Sponge)
-                        
                         if (Me%Dim == Dim2D) then
                             call ConstructSponge (ExtractType, PointsToFill2D = PointsToFill2D)
                         else
                             call ConstructSponge (ExtractType, PointsToFill3D = PointsToFill3D)
                         endif
-
                     case(Profile)
-
                         if (Me%Dim == Dim2D) then
                             write(*,*)'Cannot Initialise 2D Matrix by Profile'
-                            stop 'ReadOptions - ModuleFillMatrix - ERR180'
+                            stop 'FillWithUserOption - ModuleFillMatrix - ERR30'
                         else
                             call ConstructSpaceProfile(ExtractType, PointsToFill3D)
                         endif
-
-
                     case(AnalyticProfile)
-
                         if (Me%Dim == Dim2D) then
                             write(*,*)'Cannot Initialise 2D Matrix by Profile'
-                            stop 'ReadOptions - ModuleFillMatrix - ERR190'
+                            stop 'FillWithUserOption - ModuleFillMatrix - ERR40'
                         else
                             call ConstructAnalyticProfile(ExtractType, PointsToFill3D)
                         endif
-
                     case(ReadTimeSerie)
-
                         if (Me%Dim == Dim2D) then
                             call ConstructSpaceTimeSerie    (ExtractType, PointsToFill2D = PointsToFill2D) 
                         else
                             call ConstructSpaceTimeSerie    (ExtractType, PointsToFill3D = PointsToFill3D) 
-                        endif                        
-
+                        endif    
                     case(ReadHDF)
-
                         if (Me%Dim == Dim2D) then
                             call ConstructHDFInput (ExtractType, ClientID_, PointsToFill2D = PointsToFill2D)
                         else    
                             call ConstructHDFInput (ExtractType, ClientID_, PointsToFill3D = PointsToFill3D)
                         endif
-
                     case(ProfileTimeSerie)
-
                         call ConstructProfileTimeSerie (PointsToFill3D, ExtractType)
-
-                    end select
+                end select
 
             case(ReadTimeSerie)
-
                 if (Me%Dim == Dim2D) then
                     call ConstructSpaceTimeSerie    (ExtractType, PointsToFill2D = PointsToFill2D) 
                 else
                     call ConstructSpaceTimeSerie    (ExtractType, PointsToFill3D = PointsToFill3D) 
                 endif
-
             case(ReadHDF)
-
                 if (Me%Dim == Dim2D) then
                     call ConstructHDFInput (ExtractType, ClientID_, PointsToFill2D = PointsToFill2D)
                 else    
                     call ConstructHDFInput (ExtractType, ClientID_, PointsToFill3D = PointsToFill3D)
                 endif
-
             case(ProfileTimeSerie)
-
                 if (Me%Dim == Dim2D) then
                     write(*,*)'Cannot read 2D matrix by profile time serie'
-                    stop 'ReadOptions - ModuleFillMatrix - ERR200'
+                    stop 'FillWithUserOption - ModuleFillMatrix - ERR50'
                 else
                     call ConstructProfileTimeSerie (PointsToFill3D, ExtractType)
                 endif
-                
             case(MultiTimeserie)
-            
-                if (.not. present(ClientID)) &
-                    stop 'ReadOptions - ModuleFillMatrix - ERR210'                            
+                if (.not. present(ClientID)) stop 'FillWithUserOption - ModuleFillMatrix - ERR60'                          
 
                 if (Me%Dim == Dim2D) then
                     call ConstructMultiTimeSerie (ClientID, PointsToFill2D = PointsToFill2D)
@@ -2118,23 +2727,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     call ConstructMultiTimeSerie (ClientID, PointsToFill3D = PointsToFill3D)
                     call ModifyMultiTimeSerie    (PointsToFill3D = PointsToFill3D) 
                 endif     
-                
             case(AnalyticWave)
                 call ConstructAnalyticWave (ExtractType)
                 if (Me%Dim == Dim2D) then
                     call ModifyAnalyticWave    (PointsToFill2D = PointsToFill2D) 
                 else
                     call ModifyAnalyticWave    (PointsToFill3D = PointsToFill3D) 
-                endif     
-                    
-                           
-                
+                endif
         end select
-
-    end subroutine ReadOptions
-
-    !--------------------------------------------------------------------------
+            
+    end subroutine FillWithUserOption
     
+    !--------------------------------------------------------------------------------------------------
+
     subroutine InsertTimeSerieToList(TimeSerie)
         !Arguments-------------------------------------------------------------
         type (T_TimeSerie), pointer                    :: TimeSerie

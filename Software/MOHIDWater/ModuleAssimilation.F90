@@ -105,6 +105,7 @@ Module ModuleAssimilation
     public  ::  GetNumberOfFields
     public  ::  GetNumberOfUpscalingFields
     private ::  AssociatedDomain
+    private ::  UpscalingPropExists
 
     public  ::  UngetAssimilation
 
@@ -1498,10 +1499,10 @@ cd2 :           if (BlockFound) then
         integer                                 :: SizeILB, SizeIUB, SizeJLB, SizeJUB, SizeKLB, SizeKUB
         integer                                 :: iflag
         character(len=StringLength)             :: Char_TypeZUV
-        logical                                 :: BlockFound, NewDomain
+        logical                                 :: BlockFound, NewDomain, NewProp
         !----------------------------------------------------------------------
-        SizeILB = Me%Size%ILB;  SizeJLB = Me%Size%JLB;  SizeKLB = Me%Size%KLB
-        SizeIUB = Me%Size%IUB;  SizeJUB = Me%Size%JUB;  SizeKUB = Me%Size%KUB
+        ILB = Me%Size%ILB;  JLB = Me%Size%JLB;  KLB = Me%Size%KLB
+        IUB = Me%Size%IUB;  JUB = Me%Size%JUB;  KUB = Me%Size%KUB
         
         call GetExternals_assim_field (WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, &
                                        WaterFaces3D_U, WaterFaces3D_V, WaterPoints3D)
@@ -1517,7 +1518,10 @@ cd2 :           if (BlockFound) then
         if(STAT_CALL .EQ. SUCCESS_)then
     
             if (BlockFound) then
+                !For child field
                 NewDomain = .false.
+                !for current (Father) domain field
+                NewProp   = .true.
     
                 call GetData(Char_TypeZUV, Me%ObjEnterData, iflag,                      &
                              keyword        = 'TYPE_ZUV',                               &  
@@ -1533,46 +1537,36 @@ cd2 :           if (BlockFound) then
                 NewProperty%Field%TypeZUV  = TranslateTypeZUV(Char_TypeZUV)
                 
                 if (NewProperty%Upscaling) then
-                !Sobrinho Aqui
-                    !Checks if current grid domain (for when many domains are to be assimilated) is already built.
-                    if ( .not. AssociatedDomain(NewProperty))
-                         NewDomain = .true.
-                    endif
+                !Sobrinho Checks if current grid domain (for when many domains are to be assimilated) is already built.
+                    if ( .not. AssociatedDomain(NewProperty)) NewDomain = .true.
+                    !Sobrinho - checks if current property has already been allocated (multiple assim fields)
+                    if ( UpscalingPropExists(GetPropertyIDNumber(NewProperty%ID%Name)) NewProp = .false.
                 endif
+                
                 if (NewProperty%Dim == Dim_2D) then
                     
-                    allocate(NewProperty%Field%R2D (SizeILB:SizeIUB, SizeJLB:SizeJUB), STAT = STAT_CALL)
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR20'
-                    
-                    NewProperty%Field%R2D(:,:) = FillValueReal
-                    
+                    if (NewProp) then
+                        allocate(NewProperty%Field%R2D (ILB:IUB, JLB:JUB), STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR20'
+                        NewProperty%Field%R2D(:,:) = FillValueReal
+                    endif
+
                     call ConstructAssimilationField_2D (NewProperty, WaterPoints2D, &
                                                         WaterFaces2D_U, WaterFaces2D_V, ClientNumber, NewDomain)
                 else if (NewProperty%Dim == Dim_3D) then
         
-                    allocate(NewProperty%Field%R3D(SizeILB:SizeIUB, SizeJLB:SizeJUB, SizeKLB:SizeKUB), STAT= STAT_CALL)      
-                    if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR30'
-    
-                    NewProperty%Field%R3D(:,:,:) = FillValueReal
-                    
+                    if (NewProp) then
+                        allocate(NewProperty%Field%R3D(ILB:IUB, JLB:JUB, KLB:KUB), STAT= STAT_CALL)      
+                        if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField - ModuleAssimilation - ERR30'
+                        NewProperty%Field%R3D(:,:,:) = FillValueReal
+                    endif
+
                     call ConstructAssimilationField_3D (NewProperty, WaterPoints3D, &
                                                         WaterFaces3D_U, WaterFaces3D_V, ClientNumber, NewDomain)
                 else
                     stop 'For a type Z , a property must be 2D or 3D - ModuleAssimilation - ERR40'
                 end if
                 
-                ! if (NewProperty%Upscaling) then
-                ! !Sobrinho Aqui
-                    ! if ( .not. AssociatedDomain(NewProperty))
-                        ! call ConstructTwoWay        (TwoWayID         = NewProperty%ID%ObjTwoWay,               &
-                                                     ! HorizontalGridID = NewProperty%ID%ObjHorizontalGrid,       &
-                                                     ! GeometryID       = NewProperty%ID%ObjGeometry,             &
-                                                     ! HorizontalMapID  = NewProperty%ID%ObjHorizontalMap,        &
-                                                     ! MapID            = NewProperty%ID%ObjMap,                  &
-                                                     ! STAT        = STAT_CALL)
-                        ! if (STAT_CALL /= SUCCESS_) stop 'Failed to construct TwoWay - ModuleAssimilation - ERR50'
-                    ! endif
-                ! endif
             else
                 stop 'begin or end field block not found - ModuleAssimilation - ERR60'
             end if
@@ -3321,12 +3315,12 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
         
     end function CountNumOfUpscalingFields
     
-    integer function AssociatedDomain(NewProperty)
+    logical function AssociatedDomain(NewProperty)
         !Arguments--------------------------------------------------------------
         type (T_Property), pointer, intent (IN)     :: NewProperty
         !Local-----------------------------------------------------------------
         type (T_Property), pointer                  :: PropertyX    
-        logical                                     :: AssociatedDomain
+        logical                                     :: DomainIsAssociated
         !----------------------------------------------------------------------
         AssociatedDomain = .false.
             
@@ -3340,7 +3334,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
                 NewProperty%ID%ObjHorizontalGrid = PropertyX%ID%ObjHorizontalGrid
                 NewProperty%ID%ObjHorizontalMap  = PropertyX%ID%ObjHorizontalMap
                 NewProperty%ID%ObjMap            = PropertyX%ID%ObjMap
-                AssociatedDomain = .true.
+                DomainIsAssociated = .true.
                 exit
             else
                 PropertyX => PropertyX%Next
@@ -3348,7 +3342,47 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
                 
         end do
         
+        AssociatedDomain = DomainIsAssociated
+        
     end function AssociatedDomain
+    
+    logical function UpscalingPropExists(PropertyIDNumber)
+        !Arguments--------------------------------------------------------------
+        type (T_Property), pointer, intent (IN)     :: NewProperty
+        !Local-----------------------------------------------------------------
+        type (T_Property), pointer                  :: PropertyX    
+        logical                                     :: IsAllocated
+        !----------------------------------------------------------------------
+        IsAllocated = .false.
+            
+        PropertyX => Me%FirstAssimilationProp
+
+        do while (associated(PropertyX)) 
+                
+            if (PropertyX%Upscaling) then
+                if (GetPropertyIDNumber(PropertyX%ID%Name) == GetPropertyIDNumber(NewProperty%ID%Name)) then
+                    if (NewProperty%Dim == Dim_2D) then
+                        NewProperty%Field%R2D => PropertyX%Field%R2D
+                        IsAllocated = .true.
+                    elseif (NewProperty%Dim == Dim_3D) then
+                        NewProperty%Field%R3D => PropertyX%Field%R3D
+                        IsAllocated = .true.
+                    else
+                        write(*,*) "Z type must be 2D or 3D - upscaling field ", trim(NewProperty%ID%Name)
+                        stop "UpscalingPropExists - ModuleAssimilation - ERR10"
+                    exit
+                else
+                    PropertyX => PropertyX%Next
+                endif
+            else
+                PropertyX => PropertyX%Next
+            endif
+                
+        end do
+        
+        UpscalingPropExists = IsAllocated
+        
+    end function UpscalingPropExists
    
     !--------------------------------------------------------------------------
 
