@@ -45,6 +45,7 @@ Module ModuleTwoWay
     private ::  Compute_MatrixFilterOB
     public  :: AllocateTwoWayAux
     public  :: ConstructUpscalingDischarges
+    private :: DischargeIsAssociated
 
     !Selector
     public  :: GetUpscalingDischarge
@@ -459,14 +460,16 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !> Searches and sets discharge faces of father cell, and finds son cells to use in upscaling
     !>@param[in] SonID, dI, dJ, Connections, SonWaterPoints, FatherWaterPoints, IZ, JZ, Task
-    subroutine ConstructUpscalingDischarges(SonID, dI, dJ, Connections, SonWaterPoints, FatherWaterPoints, IZ, JZ, Task)
+    subroutine ConstructUpscalingDischarges(SonID, dI, dJ, Connections, SonWaterPoints, FatherWaterPoints, IZ, JZ, &
+    Task, Flag)
         !Arguments-------------------------------------------------------------
-        integer, intent(IN)                           :: SonID, dI, dJ !dI & dJ = Cell discharge location
-        integer, intent(IN)                           :: Task
-        integer,  dimension(:,:), pointer, intent(IN) :: Connections, SonWaterPoints, FatherWaterPoints
-        integer, dimension(:,:), pointer, intent(IN)  :: IZ, JZ !Connection between a Z son cell and its father Z cell
+        integer, intent(IN)                              :: SonID, dI, dJ !dI & dJ = Cell discharge location
+        integer, intent(IN)                              :: Task
+        integer,  dimension(:,:), pointer, intent(IN)    :: Connections, SonWaterPoints, FatherWaterPoints
+        integer, dimension(:,:), pointer , intent(IN)    :: IZ, JZ !Connection between a son Zcell and its father Zcell
+        logical, optional                , intent(INOUT) :: Flag
         !Local-----------------------------------------------------------------
-        integer                                       :: ready_, STAT_CALL !, VelID
+        integer                                       :: ready_, STAT_CALL
         !----------------------------------------------------------------------
         call Ready (SonID, ready_)
 
@@ -478,10 +481,15 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (STAT_CALL /= SUCCESS_) stop 'ConstructUpscalingDischarges - Failed to get Father KfloorZ'
 
             if (Task == 1) then !find number of lines to allocate
-                call SearchDischargeFace(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ,  IZ, JZ, &
-                                         Me%Father%DischargeCells%n_U, Me%Father%DischargeCells%n_V, &
-                                         Me%Father%DischargeCells%n_Z, Me%Father%External_Var%KFloor_Z, &
-                                         Me%Father%WorkSize%KUB)
+                if (DischargeIsAssociated (Connections, dI, dJ)) then
+                    call SearchDischargeFace(Connections, SonWaterPoints, FatherWaterPoints, dI, dJ,  IZ, JZ, &
+                                             Me%Father%DischargeCells%n_U, Me%Father%DischargeCells%n_V, &
+                                             Me%Father%DischargeCells%n_Z, Me%Father%External_Var%KFloor_Z, &
+                                             Me%Father%WorkSize%KUB)
+                    !If this call did not generate an error, then a discharge has been found
+                    Flag = .true.
+                endif
+
                 !Me%Father%DischargeCells%n_U/V - son cells to be included in the calculation
             elseif (Task == 2) then ! allocate
 
@@ -492,7 +500,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                     allocate (Me%Father%DischargeCells%Z(Me%Father%DischargeCells%n_Z, 3))
                     allocate (Me%Father%DischargeCells%Flow(Me%Father%DischargeCells%n_Z))
                 else
-                    write(*,*)'No upscaling discharges was found between SonID: ', SonID, 'and its father'
+                    write(*,*)'No upscaling discharge faces were found between SonID: ', SonID, 'and its father'
                 endif
 
             else ! Fill upscaling matrixes which have the son cells need to be included in the calculation
@@ -500,8 +508,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 !This update is done for each new discharge cell, in order to fill the matrix of discharge cells
                 !Save discharge cell IDs into a matrix
                 if (Me%Father%DischargeCells%n_Z > 0) then
-                    call UpdateDischargeConnections(Me%Father%DischargeCells%Current_Z, Me%Father%DischargeCells%Z, &
-                                                    Me%Father%External_Var%KFloor_Z, Me%Father%WorkSize%KUB, dI, dJ)
+                    if (DischargeIsAssociated (Connections, dI, dJ)) then
+                        call UpdateDischargeConnections(Me%Father%DischargeCells%Current_Z, &
+                                                        Me%Father%DischargeCells%Z, Me%Father%External_Var%KFloor_Z, &
+                                                        Me%Father%WorkSize%KUB, dI, dJ)
+                    endif
                 endif
 
             endif
@@ -512,6 +523,30 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         endif
 
     end subroutine ConstructUpscalingDischarges
+    
+    !-------------------------------------------------------------------------
+    logical function DischargeIsAssociated (Connections, IFather, JFather)
+        !Arguments------------------------------------------------------------------
+        integer, intent(IN)                              :: IFather, JFather !IFather & JFather = discharge location
+        integer,  dimension(:,:), pointer, intent(IN)    :: Connections
+        !Local-----------------------------------------------------------------------
+        Logical                                          :: Found
+        integer                                          :: MaxSize, i
+        !Begin-----------------------------------------------------------------------
+        MaxSize = size(Connections, 1)
+        found = .false.
+        do i = 1, MaxSize
+            if (Connections(i, 1) == IFather)then
+                if (Connections(i, 2) == JFather)then
+                    Found = .true.
+                    exit
+                endif
+            endif
+        enddo
+        
+        DischargeIsAssociated = Found
+        
+    end function DischargeIsAssociated
 
     !-------------------------------------------------------------------------
 
@@ -645,10 +680,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>Gets external variables
-    !>@param[in] SonID, FatherID, CallerID, STAT
-    subroutine PrepTwoWay (SonID, FatherID, CallerID, STAT)
+    !>@param[in] SonID, CallerID, STAT
+    subroutine PrepTwoWay (SonID, CallerID, STAT)
         !Arguments--------------------------------------------------------------
-        integer, intent(IN)                         :: SonID, FatherID, CallerID
+        integer, intent(IN)                         :: SonID, CallerID
         integer, optional                           :: STAT
         !Locals-----------------------------------------------------------------
         integer                                     :: STAT_CALL, ready_, STAT_
@@ -1244,16 +1279,19 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !>Routine responsible for filling the concentration for each upscaling discharge cell
     !>@param[in] FatherID, Prop, PropVector, Flow, FlowVector, dI, dJ, dK, Kmin, Kmax, FirstTime
-    subroutine UpscaleDischarge_WP (FatherID, Prop, PropVector, Flow, FlowVector, dI, dJ, dK, Kmin, Kmax, FirstTime)
+    subroutine UpscaleDischarge_WP (FatherID, Connections_Z, Prop, PropVector, Flow, FlowVector, dI, dJ, dK, Kmin, &
+    Kmax, FirstTime)
         !Arguments-------------------------------------------------------------
         integer                          , intent(IN)     :: FatherID
+        integer, dimension(:,:    ), pointer, intent(IN)  :: Connections_Z
         real(8), dimension(:, :, :), pointer, intent(IN)  :: Flow
         real,    dimension(:, :, :), pointer, intent(IN)  :: Prop
         real, dimension(:)      , pointer, intent(IN)     :: FlowVector, PropVector
         integer, dimension(:), pointer, intent(INOUT)     :: dI, dJ, dK, Kmin, Kmax
         logical                       , intent(IN)        :: FirstTime
         !Local-----------------------------------------------------------------
-        integer                                           :: STAT_CALL, DischargeNumber, AuxCell, AuxKmin, AuxKmax, dis, nCells, i
+        integer                                           :: STAT_CALL, DischargeNumber, AuxCell, AuxKmin, AuxKmax, dis, &
+                                                             nCells, i
         integer, dimension(:), pointer                    :: VectorI, VectorJ, VectorK
         !----------------------------------------------------------------------
 
@@ -1263,31 +1301,34 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         AuxCell = 0
         do dis = 1 , DischargeNumber
 
-            call GetDischargeFlowDistribuiton(FatherID, DischargeIDNumber = dis, nCells = nCells, VectorI = VectorI, &
-                                              VectorJ = VectorJ, VectorK = VectorK, kmin = AuxKmin, kmax = AuxKmax, &
-                                              STAT = STAT_CALL)
+            call GetDischargeFlowDistribuiton(FatherID, DischargeIDNumber = dis, nCells = nCells, &
+                                                VectorI = VectorI, VectorJ = VectorJ, VectorK = VectorK, &
+                                                kmin = AuxKmin, kmax = AuxKmax, STAT = STAT_CALL)
             if (STAT_CALL/=SUCCESS_) stop 'UpscaleDischarge_WP - failed to get dischargeflowdistribution'
-
-            if (IsUpscaling(FatherID, dis)) then
-                if (FirstTime)then
-                    do i = 1, nCells
-                        AuxCell = AuxCell + 1
-                        dI        (AuxCell) = VectorI(i)
-                        dJ        (AuxCell) = VectorJ(i)
-                        dK        (AuxCell) = VectorK(i)
-                        Kmin      (AuxCell) = AuxKmin
-                        Kmax      (AuxCell) = AuxKmax
-                        FlowVector(AuxCell) = Flow(VectorI(i), VectorJ(i), VectorK(i))
-                        PropVector(AuxCell) = Prop(VectorI(i), VectorJ(i), VectorK(i))
-                    enddo
+            
+            !using VectorI/J(1) because the value is the same for the entire vector (only the K value changes)
+            if (DischargeIsAssociated (Connections_Z, VectorI(1), VectorJ(1))) then
+                if (IsUpscaling(FatherID, dis)) then
+                    if (FirstTime)then
+                        do i = 1, nCells
+                            AuxCell = AuxCell + 1
+                            dI        (AuxCell) = VectorI(i)
+                            dJ        (AuxCell) = VectorJ(i)
+                            dK        (AuxCell) = VectorK(i)
+                            Kmin      (AuxCell) = AuxKmin
+                            Kmax      (AuxCell) = AuxKmax
+                            FlowVector(AuxCell) = Flow(VectorI(i), VectorJ(i), VectorK(i))
+                            PropVector(AuxCell) = Prop(VectorI(i), VectorJ(i), VectorK(i))
+                        enddo
+                    else
+                        do i = 1, nCells
+                            AuxCell = AuxCell + 1
+                            PropVector(AuxCell) = Prop(VectorI(i), VectorJ(i), VectorK(i))
+                        enddo
+                    endif
                 else
-                    do i = 1, nCells
-                        AuxCell = AuxCell + 1
-                        PropVector(AuxCell) = Prop(VectorI(i), VectorJ(i), VectorK(i))
-                    enddo
+                    AuxCell = AuxCell + nCells
                 endif
-            else
-                AuxCell = AuxCell + nCells
             endif
         enddo
 
