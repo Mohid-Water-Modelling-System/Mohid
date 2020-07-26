@@ -218,7 +218,7 @@ Module ModuleWaterProperties
                                           GetDDecompMPI_ID, GetDDecompON,                       &
                                           WindowIntersectDomain, ReturnsIntersectionCorners,    &
                                           GetGridOutBorderPolygon, GetDDecompWorkSize2D,        &
-                                          GetDDecompMapping2D
+                                          GetDDecompMapping2D, GetConnections
 
 #ifdef _USE_MPI
     use ModuleHorizontalGrid,       only: ReceiveSendProperitiesMPI
@@ -19214,6 +19214,7 @@ do1 :   do while (associated(PropertyX))
         type (T_WaterProperties), pointer       :: ObjFather
         type (T_Property), pointer              :: PropertyX, PropertyFather
         real(8), dimension(:,:,:), pointer      :: FatherFlow
+        integer, dimension(:,:  ), pointer      :: Connections
         integer                                 :: STAT_CALL
         logical                                 :: FirstTime
         !Begin------------------------------------------------------------------------------
@@ -19225,8 +19226,7 @@ do1 :   do while (associated(PropertyX))
 
         call LocateObjFather(ObjFather, FatherWaterPropertiesID) !Gets father solution
         !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
-        call PrepTwoWay (SonID = SonWaterPropertiesID, FatherID = FatherWaterPropertiesID, &
-                         CallerID = mWATERPROPERTIES_, STAT = STAT_CALL)
+        call PrepTwoWay (SonID = SonWaterPropertiesID, CallerID = mWATERPROPERTIES_, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - failed PrepTwoWay'
         
         if (ObjFather%Coupled%UpscalingDischarge%Yes) then
@@ -19242,43 +19242,44 @@ do1 :   do while (associated(PropertyX))
         do while (associated(PropertyX))
             
             call Search_PropertyFather(ObjFather, PropertyFather, PropertyX%ID%IDNumber, STAT = STAT_CALL)
-            if (STAT_CALL == SUCCESS_)then
+            if (STAT_CALL /= SUCCESS_)then
+                write(*,*)'Cant find property in submodel for the 2way algorithm', trim(PropertyX%ID%Name)
+                call CloseAllAndStop ('Compute_wp_upscaling - ModuleWaterProperties - ERR01')
+            endif
+            
+            if (PropertyX%Submodel%TwoWay)then
+                if(PropertyX%Evolution%NextCompute == PropertyFather%Evolution%LastCompute)then
+                !Assimilation of son domain into father domain
+                    !Account for change in concentration
+                    if (PropertyX%UpscalingSinkSource) &
+                        PropertyFather%UpscalingMassLoss(:,:,:) = PropertyFather%UpscalingMassLoss(:,:,:) &
+                                                                + PropertyFather%Concentration(:,:,:)
 
-                if (PropertyX%Submodel%TwoWay)then
-                    if(PropertyX%Evolution%NextCompute == PropertyFather%Evolution%LastCompute)then
-                    !Assimilation of son domain into father domain
-                        !Account for change in concentration
-                        if (PropertyX%UpscalingSinkSource) &
-                            PropertyFather%UpscalingMassLoss(:,:,:) = PropertyFather%UpscalingMassLoss(:,:,:) &
-                                                                    + PropertyFather%Concentration(:,:,:)
-
-                        call ModifyTwoWay (SonID            = SonWaterPropertiesID,                 &
-                                           FatherMatrix     = PropertyFather%Concentration,         &
-                                           SonMatrix        = PropertyX%Concentration,              &
-                                           CallerID         = mWATERPROPERTIES_,                    &
-                                           TD               = PropertyX%Submodel%TwoWayTimeDecay,   &
-                                           STAT             = STAT_CALL)
-                        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR02.'
+                    call ModifyTwoWay (SonID            = SonWaterPropertiesID,                 &
+                                        FatherMatrix     = PropertyFather%Concentration,         &
+                                        SonMatrix        = PropertyX%Concentration,              &
+                                        CallerID         = mWATERPROPERTIES_,                    &
+                                        TD               = PropertyX%Submodel%TwoWayTimeDecay,   &
+                                        STAT             = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - ModuleWaterProperties - ERR02.'
                         
-                        if (ObjFather%Coupled%UpscalingDischarge%Yes) then
-                            call UpscaleDischarge_WP(FatherID = FatherWaterPropertiesID,                 &
-                                                     Prop = PropertyFather%Concentration, PropVector = PropertyFather%DischConc, &
-                                                     Flow = FatherFlow, FlowVector = ObjFather%Discharge%Flow, &
-                                                     dI = ObjFather%Discharge%i, dJ = ObjFather%Discharge%j, &
-                                                     dK = ObjFather%Discharge%k, Kmin = ObjFather%Discharge%kmin, &
-                                                     Kmax = ObjFather%Discharge%kmin, FirstTime = FirstTime)
-                            FirstTime = .false.
-                        endif
+                    if (ObjFather%Coupled%UpscalingDischarge%Yes) then
+                        call GetConnections(Me%ObjHorizontalGrid, Connections_Z = Connections, STAT = STAT_CALL)
+                        if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - Failed to get Connections matrix'
                         
-                        if (PropertyX%UpscalingSinkSource) &
-                            PropertyFather%UpscalingMassLoss(:,:,:) = PropertyFather%UpscalingMassLoss(:,:,:) &
-                                                                    - PropertyFather%Concentration(:,:,:)
+                        call UpscaleDischarge_WP(FatherID = FatherWaterPropertiesID, Connections_Z = Connections,            &
+                                                 Prop = PropertyFather%Concentration, PropVector = PropertyFather%DischConc, &
+                                                 Flow = FatherFlow, FlowVector = ObjFather%Discharge%Flow, &
+                                                 dI = ObjFather%Discharge%i, dJ = ObjFather%Discharge%j, &
+                                                 dK = ObjFather%Discharge%k, Kmin = ObjFather%Discharge%kmin, &
+                                                 Kmax = ObjFather%Discharge%kmin, FirstTime = FirstTime)
+                        FirstTime = .false.
                     endif
+                        
+                    if (PropertyX%UpscalingSinkSource) &
+                        PropertyFather%UpscalingMassLoss(:,:,:) = PropertyFather%UpscalingMassLoss(:,:,:) &
+                                                                - PropertyFather%Concentration(:,:,:)
                 endif
-            else
-                write(*,*)'Cant find property in submodel for the 2way algorithm'
-                write(*,*)'Property missing = ', trim(PropertyX%ID%Name)
-                call CloseAllAndStop ('Compute_wp_upscaling - ModuleWaterProperties - ERR03')
             endif
 
             nullify (PropertyFather)
@@ -20011,7 +20012,7 @@ do3:            do k = kbottom, KUB
 
         !For all Discharges
 dd:     do dis = 1, Me%Discharge%Number
-            
+            !Sobrinho - AQUI
             if (IsUpscaling(Me%ObjDischarges, dis))then
                 !Do nothing, as module twoway will be the one managing this discharge
                 call GetDischargeFlowDistribuiton(Me%ObjDischarges, dis, nCells, FlowDistribution, &
