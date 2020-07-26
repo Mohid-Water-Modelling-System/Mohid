@@ -10476,11 +10476,9 @@ i7:             if (.not. ContinuousGOTM)  then
         integer                                     :: Task
         integer,  dimension(:,:), pointer           :: Connections, SonWaterPoints2D, FatherWaterPoints2D
         integer, dimension(:,:), pointer            :: IZ, JZ
-        logical                                     :: FoundDischarge
         !----------------------------------------------------------------------
 
         Task = 1 !Flag to indicate that the code should only find the matrixes size for allocation
-        FoundDischarge = .false.
 
         call GetDischargesNumber(ObjFather%ObjDischarges, DischargesNumber, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get number of discharges'
@@ -10499,17 +10497,12 @@ i7:             if (.not. ContinuousGOTM)  then
 
                 call GetDischargesGridLocalization(ObjFather%ObjDischarges, DischargeID, Igrid = I, JGrid = J, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'Set_Upscaling_Discharges - Failed to get Discharge location'
-                !Managed by ModuleTwoWay
+
                 call ConstructUpscalingDischarges(SonID, I, J, Connections, SonWaterPoints2D, &
-                                                  FatherWaterPoints2D, IZ, JZ, Task, Flag = FoundDischarge)
+                                                  FatherWaterPoints2D, IZ, JZ, Task) !Managed by ModuleTwoWay
             endif
 
         enddo
-        
-        if (.not. FoundDischarge) then
-            write (*,*) 'No upscaling discharges were found between SonID: ', trim(Me%ModelName), 'and its father'
-            stop 'Set_Upscaling_Discharges - Failed to find an upscaling Discharge'
-        endif
 
         Task = 2 ! Allocate upscaling matrixes
 
@@ -47977,7 +47970,8 @@ do5:            do i = ILB, IUB
                             ObjHydrodynamicFather%Velocity%Horizontal%U%New(:,:,:)
                     endif
                     !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
-                    call PrepTwoWay (SonID = AuxHydrodynamicID, CallerID = mHydrodynamic_, STAT = STAT_CALL)
+                    call PrepTwoWay (SonID = AuxHydrodynamicID, FatherID = Me%FatherInstanceID, CallerID = mHydrodynamic_,&
+                                     STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR01.'
 
     !-------------------------------------------Updates father U matrix with son information-------------------------------------

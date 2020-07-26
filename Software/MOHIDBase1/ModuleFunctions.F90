@@ -351,6 +351,7 @@ Module ModuleFunctions
 
     !Upscaling routines
     public  :: SearchDischargeFace
+    public  :: UpsDischargesLinks
     public  :: ComputeUpscalingVelocity
     public  :: ComputeDischargeVolumeU
     public  :: ComputeDischargeVolumeV
@@ -13386,6 +13387,7 @@ D2:     do I=imax-1,2,-1
 
         MaxSize = size(Connection, 1)
 
+        call Update_n_Z(n_Z, Kfloor, KUB, ICell, JCell)
         !If father cell to the north is land, check for son cells(compare with adjacent southern cell)
         if (FatherWaterPoints(Icell + 1, JCell) == 0) then
             IFather = Icell + 1
@@ -13415,8 +13417,6 @@ D2:     do I=imax-1,2,-1
             dj      = 1
             call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, JZ, n = n_U)
         endif
-        
-        call Update_n_Z(n_Z, Kfloor, KUB, ICell, JCell)
 
     end subroutine SearchDischargeFace
 
@@ -13424,13 +13424,15 @@ D2:     do I=imax-1,2,-1
     !>@Brief
     !> Searches discharge faces of father cell, and its son cells responsible for an upscaling discharge.
     !> Will also update the connection matrix of the upscaling discharges (one matrix for all discharges)
-    !>@param[in] Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, link, n, Cells
-    subroutine SearchFace(Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, link, n)
+    !>@param[in] Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, link, tracer, n, Cells
+    subroutine SearchFace(Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, link, tracer, n, Cells)
         !Arguments-------------------------------------------------------------
         integer, dimension(:, :), pointer, intent(IN)    :: Connection
         integer, dimension(:, :), pointer, intent(IN)    :: SonWaterPoints, link
         integer, intent(IN)                              :: IFather, JFather, di, dj, MaxSize
-        integer                                          :: n
+        integer, optional                                :: n, tracer
+        Integer, dimension(:, :), optional               :: Cells
+
         !Local-----------------------------------------------------------------
         integer                                          :: Aux, Aux2, StartIndex, i, ISon, JSon, ISonAdjacent, &
                                                             JSonAdjacent, IJFather
@@ -13446,14 +13448,37 @@ D2:     do I=imax-1,2,-1
                 endif
             endif
         enddo
-        
-        if (StartIndex /= 0) then
-            
-            if (di /=0) IJFather = IFather ! means we are searching the north/South direction
-            if (dj /=0) IJFather = JFather ! means we are searching the west/east direction
-            Aux2 = Aux
-            i = StartIndex
-            !Check if current face needs to be considered for the discharge velocity
+
+        if (di /=0) IJFather = IFather ! means we are searching the north/South direction
+        if (dj /=0) IJFather = JFather ! means we are searching the west/east direction
+        Aux2 = Aux
+        i = StartIndex
+        !Check if current face needs to be considered for the discharge velocity
+        if (present(Cells)) then
+            do while (Aux2 == Aux)
+                ISon         = Connection(i, 3)
+                JSon         = Connection(i, 4)
+                ISonAdjacent = Connection(i, 3) + di
+                JSonAdjacent = Connection(i, 4) + dj
+
+                if (SonWaterPoints(ISon, JSon) == 1)then
+                    !Check if adjacent cell of son domain is inside Father dicharge cell
+                    !this will need to change if a radious of search is used, as a son cell will &
+                    !belong to more than 1 father cell
+                    if (link(ISonAdjacent, JSonAdjacent) == (IJFather - 1))then
+                        if (SonWaterPoints(ISonAdjacent, JSonAdjacent) == 1)then
+                            tracer = tracer + 1
+                            Cells(tracer, 1) = Connection(i, 1)
+                            Cells(tracer, 2) = Connection(i, 2)
+                            Cells(tracer, 3) = Connection(i, 3)
+                            Cells(tracer, 4) = Connection(i, 4)
+                        endif
+                    endif
+                endif
+                i = i + 1
+                Aux2 = Connection(i, 1) * Connection(i, 2)
+            enddo
+        elseif (present(n)) then
             do while (Aux2 == Aux)
                 ISon         = Connection(i, 3)
                 JSon         = Connection(i, 4)
@@ -13464,19 +13489,73 @@ D2:     do I=imax-1,2,-1
                     !Check if adjacent cell of son domain is inside Father dicharge cell
                     if (link(ISonAdjacent, JSonAdjacent) == (IJFather - 1))then
                         if (SonWaterPoints(ISonAdjacent, JSonAdjacent) == 1)then
-                            n = n + 1 ! Found a discharge face
+                            n = n + 1 ! Found a discharge face   AQUI
                         endif
                     endif
                 endif
                 i = i + 1
                 Aux2 = Connection(i, 1) * Connection(i, 2)
             enddo
+
         endif
 
     end subroutine SearchFace
 
     !-------------------------------------------------------------------------------------
-    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !> Searches discharge faces of father cell, and saves the upscaling discharge cell links between father-son cells
+    !>@param[in] n, Cells, Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, IZ, JZ, I
+    subroutine UpsDischargesLinks (Connection, SonWaterPoints, FatherWaterPoints, ICell, JCell, IZ, JZ, VelID, tracer, Cells)
+        !Arguments------------------------------------------------------------------------------------------------
+        integer, dimension(:, :), pointer, intent(IN)         :: Connection !Connection beteen father-Son Z cells
+        integer, dimension(:, :), pointer, intent(IN)         :: SonWaterPoints, FatherWaterPoints, IZ, JZ
+        integer, intent(IN)                                   :: ICell, JCell, VelID, tracer
+        integer, dimension(:, :)                              :: Cells
+        !Local----------------------------------------------------------------------------------------------------
+        integer                                               :: di, dj, MaxSize, IFather, JFather
+        !---------------------------------------------------------------------------------------------------------
+
+        MaxSize = size(Connection, 1)
+        !If father cell to the north is land, check for son cells(compare with adjacent southern cell)
+
+        if (VelID == VelocityU_) then
+            if (FatherWaterPoints(Icell, JCell + 1) == 0) then
+                IFather = Icell
+                JFather = JCell + 1
+                di      = 0
+                dj      = -1 !only going to search westward
+                call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, JZ, Cells = Cells, &
+                                 tracer = tracer)
+            endif
+            if (FatherWaterPoints(Icell, JCell - 1) == 0) then
+                IFather = Icell
+                JFather = JCell - 1
+                di      = 0 !only going to search eastward
+                dj      = 1
+                call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, JZ, Cells = Cells, &
+                                 tracer = tracer)
+            endif
+        else
+            if (FatherWaterPoints(Icell + 1, JCell) == 0) then
+                IFather = Icell + 1
+                JFather = JCell
+                di      = -1 !only going to search southwards
+                dj      = 0
+                call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, IZ, Cells = Cells, &
+                                 tracer = tracer)
+            endif
+            if (FatherWaterPoints(Icell - 1, JCell) == 0) then
+                IFather = Icell - 1
+                JFather = JCell
+                di      = 1 !only going to search northwards
+                dj      = 0
+                call SearchFace (Connection, MaxSize, IFather, JFather, di, dj, SonWaterPoints, IZ, Cells = Cells, &
+                                 tracer = tracer)
+            endif
+        endif
+
+    end subroutine UpsDischargesLinks
     !-------------------------------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
     !>@Brief
