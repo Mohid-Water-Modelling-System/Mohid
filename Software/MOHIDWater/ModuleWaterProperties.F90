@@ -20023,15 +20023,15 @@ dd:     do dis = 1, Me%Discharge%Number
                 ! skips adresses correspondent to upscaling discharges
                 
                 if (Me%FirstIteration)then
-                    Aux = AuxCell
+                    Aux = AuxCell + 1
                     if (AuxCell == 0)Aux = 1
                     
                     !need to get i, j , k for adv dif.
-                    do n = Aux, nCells
+                    do n = Aux, nCells + AuxCell
                         Me%Discharge%Flow   (n) = 0.
-                        Me%Discharge%i      (n) = VectorI(n)
-                        Me%Discharge%j      (n) = VectorJ(n)
-                        Me%Discharge%k      (n) = VectorK(n)
+                        Me%Discharge%i      (n) = VectorI(n - AuxCell)
+                        Me%Discharge%j      (n) = VectorJ(n - AuxCell)
+                        Me%Discharge%k      (n) = VectorK(n - AuxCell)
                         Me%Discharge%kmin   (n) = kmin
                         Me%Discharge%kmax   (n) = kmax                            
                     enddo
