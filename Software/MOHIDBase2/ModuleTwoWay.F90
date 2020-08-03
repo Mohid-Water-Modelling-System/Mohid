@@ -219,7 +219,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
             
-            if present(ModelName) Me%ModelName = ModelName
+            if (present(ModelName)) Me%ModelName = ModelName
 
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
@@ -644,9 +644,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !>@Brief
     !>Gets external variables
     !>@param[in] SonID, FatherID, CallerID, STAT
-    subroutine PrepTwoWay (SonID, FatherID, CallerID, STAT)
+    subroutine PrepTwoWay (SonID, CallerID, STAT)
         !Arguments--------------------------------------------------------------
-        integer, intent(IN)                         :: SonID, FatherID, CallerID
+        integer, intent(IN)                         :: SonID, CallerID
         integer, optional                           :: STAT
         !Locals-----------------------------------------------------------------
         integer                                     :: STAT_CALL, ready_, STAT_

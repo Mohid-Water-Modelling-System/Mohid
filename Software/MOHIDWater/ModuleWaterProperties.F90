@@ -14854,7 +14854,6 @@ cd6 :               if (PropertyComputeBoxTimeSerie) then
 
         !Begin-----------------------------------------------------------------
 
-        !!!$ CHUNK = CHUNK_J(Me%Size%JLB,Me%Size%JUB) Sobrinho
         !$ CHUNK = CHUNK_K(Me%Size%KLB,Me%Size%KUB)
         !$OMP PARALLEL PRIVATE(k,j,i,char_i,char_j,char_k)
         !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
@@ -14862,21 +14861,14 @@ cd6 :               if (PropertyComputeBoxTimeSerie) then
         do j = Me%WorkSize%JLB, Me%WorkSize%JUB
         do i = Me%WorkSize%ILB, Me%WorkSize%IUB
             if(Me%ExternalVar%WaterPoints3D(i, j, k) == 1)then
-
-
                 if (Property%Concentration (i,j,k) .lt. 0.0) then
-
                     write(char_i, '(i4)')i
                     write(char_j, '(i4)')j
                     write(char_k, '(i4)')k
-
                     StrWarning = trim(Property%ID%Name)//' has a negative concentration in cell(i,j,k)'// &
                                                        char_i//','//char_j//','//char_k//' '//Message
-
                     call SetError(WARNING_, INTERNAL_, StrWarning, ON)
-
                 end if
-
             end if
         end do
         end do
@@ -19225,7 +19217,7 @@ do1 :   do while (associated(PropertyX))
 
         call LocateObjFather(ObjFather, FatherWaterPropertiesID) !Gets father solution
         !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
-        call PrepTwoWay (SonID = SonWaterPropertiesID, FatherID = FatherWaterPropertiesID, &
+        call PrepTwoWay (SonID = SonWaterPropertiesID, &
                          CallerID = mWATERPROPERTIES_, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'Compute_wp_upscaling - failed PrepTwoWay'
         

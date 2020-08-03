@@ -364,7 +364,8 @@ Module ModuleField4D
         
         logical                                     :: Extrapolate          = .false. 
         integer                                     :: ExtrapolateMethod    = null_int        
-        logical                                     :: DiscardFillValues    = .true.     
+        logical                                     :: DiscardFillValues    = .true.
+        logical                                     :: Upscaling            = .false.
         
 
         integer                                     :: MaskDim              = Dim3D
@@ -403,7 +404,7 @@ Module ModuleField4D
                                 LonReference, WindowLimitsXY, WindowLimitsJI,           &
                                 Extrapolate, ExtrapolateMethod, PropertyID, ClientID,   &
                                 FileNameList, FieldName, OnlyReadGridFromFile,          &
-                                DiscardFillValues, STAT)
+                                DiscardFillValues, Upscaling, STAT)
 
         !Arguments---------------------------------------------------------------
         integer,                                        intent(INOUT) :: Field4DID
@@ -429,7 +430,8 @@ Module ModuleField4D
         character(*),                         optional, intent(IN )   :: FieldName             
         logical,                              optional, intent(IN )   :: OnlyReadGridFromFile 
         logical,                              optional, intent(IN )   :: DiscardFillValues
-        integer,                              optional, intent(OUT)   :: STAT     
+        logical,                              optional, intent(IN )   :: Upscaling
+        integer,                              optional, intent(OUT)   :: STAT
         
         !Local-------------------------------------------------------------------
         type (T_PropField), pointer                           :: NewPropField        
@@ -455,12 +457,20 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjEnterData      = AssociateInstance (mENTERDATA_,      EnterDataID     )
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
             
-            if (present(ClientID)) then
-                Me%ClientID = ClientID
-            else
-                Me%ClientID = FillValueInt
-            endif
+            Me%ClientID          = FillValueInt
+            Me%MaskDim           = DimUnknown
+            Me%Extrapolate       = .true.
+            Me%ExtrapolateMethod = ExtrapolAverage_
+            Me%DiscardFillValues = .true.
+            Upscaling            = .false.
             
+            if (present(MaskDim))           Me%MaskDim           = MaskDim
+            if (present(ClientID))          Me%ClientID          = ClientID
+            if (present(Extrapolate))       Me%Extrapolate       = Extrapolate
+            if (present(ExtrapolateMethod)) Me%ExtrapolateMethod = ExtrapolateMethod
+            if (present(DiscardFillValues)) Me%DiscardFillValues = DiscardFillValues
+            if (present(Upscaling))         Me%Upscaling         = Upscaling
+                
             Me%File%FileListON      = .false.
             
             if (present(FileNameList)) then
@@ -482,16 +492,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif                
             
             if (.not. Me%File%FileListON) then
-                
-                if (present(FileName)) then
-                    Me%File%FileName     = trim(FileName)
-
-                else                 
-                    stop 'ConstructField4D - ModuleField4D - ERR20' 
-                endif
-            endif                
-            
-            
+                if (.not. present(FileName)) stop 'ConstructField4D - ModuleField4D - ERR20'
+                Me%File%FileName     = trim(FileName)
+            endif
             
             !Set field name
             if (present(FieldName)) then
@@ -499,97 +502,49 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 Me%File%FieldName         = trim(FieldName)
             endif
             
-            if (present(MaskDim)) then
-                Me%MaskDim  = MaskDim
-            else
-                Me%MaskDim  = DimUnknown
-            endif
-            
             Me%WindowWithData    = .true. 
 
             call ConstructFile(ExtractType)
-        
-            if (present(Extrapolate)) then
-                Me%Extrapolate = Extrapolate
-            else
-                Me%Extrapolate = .true. 
-            endif
-            
-            if (present(ExtrapolateMethod)) then
-                Me%ExtrapolateMethod = ExtrapolateMethod
-            else
-                Me%ExtrapolateMethod = ExtrapolAverage_
-            endif   
-            
-            if (present(DiscardFillValues)) then
-                Me%DiscardFillValues = DiscardFillValues
-            else
-                Me%DiscardFillValues = .true. 
-            endif            
-            
-            
-            
-            
-            
+   
             if (present(HorizontalGridID)) then
                 Me%ObjHorizontalGrid        = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
-                
                 Me%BuildHorizontalGrid      = .false.
             else
-                Me%BuildHorizontalGrid      = .true.
-                            
-                if (present(LatReference)) then
-                    Me%LatReference = LatReference
-                else
-                    stop 'ConstructField4D - ModuleField4D - ERR30' 
-                endif
-
-                if (present(LonReference)) then
-                    Me%LonReference = LonReference
-                else
-                    stop 'ConstructField4D - ModuleField4D - ERR40' 
-                endif
+                Me%BuildHorizontalGrid  = .true.
+                Me%ReadWindowXY         = .false.
+                Me%ReadWindowJI         = .false.
+                Me%ReadWindow           = .false.
                 
+                if (.not. present(LatReference)) stop 'ConstructField4D - ModuleField4D - ERR30'
+                Me%LatReference = LatReference
+
+                if (.not. present(LonReference)) stop 'ConstructField4D - ModuleField4D - ERR40'
+                Me%LonReference = LonReference
+
                 if (present(WindowLimitsXY)) then
                     Me%WindowLimitsXY(1:2,1:2) = WindowLimitsXY(1:2,1:2)
                     Me%ReadWindowXY            = .true.
-                else
-                    Me%ReadWindowXY            = .false.
                 endif
                 
                 if (present(WindowLimitsJI)) then
                     Me%WindowLimitsJI          = WindowLimitsJI
                     Me%ReadWindowJI            = .true.
-                else
-                    Me%ReadWindowJI            = .false.
                 endif
                 
-                if (Me%ReadWindowXY .and. Me%ReadWindowJI) then                
-                    stop 'ConstructField4D - ModuleField4D - ERR50' 
-                endif
+                if (Me%ReadWindowXY .and. Me%ReadWindowJI) stop 'ConstructField4D - ModuleField4D - ERR50' 
                 
-                if (Me%ReadWindowXY .or. Me%ReadWindowJI) then
-                    Me%ReadWindow = .true.
-                else
-                    Me%ReadWindow = .false.
-                endif
-                
-               
+                if (Me%ReadWindowXY .or. Me%ReadWindowJI) Me%ReadWindow = .true.
+
                 call ReadGridFromFile()
                 
             endif
             
-            if (present(OnlyReadGridFromFile)) then
-                OnlyReadGridFromFile_ = OnlyReadGridFromFile
-            else
-                OnlyReadGridFromFile_ = .false.
-            endif                
+            OnlyReadGridFromFile_ = .false.
+            if (present(OnlyReadGridFromFile)) OnlyReadGridFromFile_ = OnlyReadGridFromFile              
                    
 OG:         if (.not. OnlyReadGridFromFile_) then
            
-                if (Me%File%NumberOfInstants == 1) then
-                    Me%WindowWithData = .false.
-                endif
+                if (Me%File%NumberOfInstants == 1) Me%WindowWithData = .false.
                 
 wwd:            if (Me%WindowWithData) then            
                 
@@ -597,48 +552,36 @@ wwd:            if (Me%WindowWithData) then
                                                Size             = Me%Size2D,                    &
                                                WorkSize         = Me%WorkSize2D,                &
                                                STAT             = STAT_CALL) 
-                    if (STAT_CALL/=SUCCESS_) then
-                        stop 'ConstructField4D - ModuleField4D - ERR60' 
-                    endif
-                    
+                    if (STAT_CALL/=SUCCESS_) stop 'ConstructField4D - ModuleField4D - ERR60' 
                     
                     if (present(BathymetryID)) then
                         Me%ObjBathymetry            = AssociateInstance (mGRIDDATA_,       BathymetryID    )
-                        
                         Me%BuildBathymetry      = .false.
                     else
                         Me%BuildBathymetry      = .true.
-
                         call ReadBathymFromFile
                     endif
 
                     if (present(HorizontalMapID)) then
                         Me%ObjHorizontalMap         = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
-                        
                         Me%BuildHorizontalMap      = .false.
                     else
                         Me%BuildHorizontalMap      = .true.
-
-
                         call ReadMap2DFromFile
                     endif
                     
                     call GetWaterPoints2D(HorizontalMapID   = Me%ObjHorizontalMap,              &
                                           WaterPoints2D     = Me%ExternalVar%WaterPoints2D,     &
                                           STAT              = STAT_CALL) 
-                    if (STAT_CALL/=SUCCESS_) then
-                        stop 'ConstructField4D - ModuleField4D - ERR70' 
-                    endif 
+                    if (STAT_CALL/=SUCCESS_) stop 'ConstructField4D - ModuleField4D - ERR70' 
 
                     if (Me%MaskDim == Dim3D) then
 
                         if (present(GeometryID)) then
                             Me%ObjGeometry          = AssociateInstance (mGEOMETRY_,       GeometryID      )
-                        
                             Me%BuildGeometry      = .false.
                         else
                             Me%BuildGeometry      = .true.
-
                             call ReadGeometryFromFile !Sobrinho - Busca X, Y e Z
                         endif
                         
@@ -648,23 +591,19 @@ wwd:            if (Me%WindowWithData) then
                             call GetWaterPoints3D(Map_ID            = Me%ObjMap,                    &
                                                   WaterPoints3D     = Me%ExternalVar%WaterPoints3D, &
                                                   STAT              = STAT_CALL) 
-                            if (STAT_CALL/=SUCCESS_) then
-                                stop 'ConstructField4D - ModuleField4D - ERR80' 
-                            endif 
+                            if (STAT_CALL/=SUCCESS_) stop 'ConstructField4D - ModuleField4D - ERR80' 
                         
                             Me%BuildMap      = .false.
                         else
                             Me%BuildMap      = .true.
-
                             call ReadMap3DFromFile!Sobrinho - busca SZZ
                         endif
-                   
                     endif
                     
                     call AllocatePropertyField  (NewPropField, Me%MaskDim)
                     
                     if (present(PropertyID)) then
-                        NewPropField%ID = PropertyID
+                        NewPropField%ID = PropertyID !Sobrinho - aqui serao guardados os objID para enviar para o fillmatrix
                     else
                         call ConstructPropertyID (NewPropField%ID, Me%ObjEnterData, ExtractType)
                     endif
@@ -677,26 +616,18 @@ wwd:            if (Me%WindowWithData) then
                         call ConstructPropertyField          (NewPropField)
                     endif
                     
-                    if (Me%OutPut%Yes) then
-                        call Open_HDF5_OutPut_File(NewPropField)
-                    endif
+                    if (Me%OutPut%Yes) call Open_HDF5_OutPut_File(NewPropField)
                     
                     call UnGetHorizontalMap(HorizontalMapID = Me%ObjHorizontalMap,              &
                                             Array           = Me%ExternalVar%WaterPoints2D,     &
                                             STAT            = STAT_CALL) 
-                    if (STAT_CALL/=SUCCESS_) then
-                        stop 'ConstructField4D - ModuleField4D - ERR90' 
-                    endif 
+                    if (STAT_CALL/=SUCCESS_) stop 'ConstructField4D - ModuleField4D - ERR90' 
                     
                     if (Me%MaskDim == Dim3D) then
-                    
                         call UnGetMap(Map_ID          = Me%ObjMap,                              &
                                       Array           = Me%ExternalVar%WaterPoints3D,           &
                                       STAT            = STAT_CALL) 
-                        if (STAT_CALL/=SUCCESS_) then
-                            stop 'ConstructField4D - ModuleField4D - ERR100' 
-                        endif 
-                    
+                        if (STAT_CALL/=SUCCESS_) stop 'ConstructField4D - ModuleField4D - ERR100' 
                     endif
                 
                 endif wwd
@@ -704,8 +635,7 @@ wwd:            if (Me%WindowWithData) then
             endif OG                
                          
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
-            if (nUsers == 0) stop 'ConstructField4D - ModuleField4D - ERR110' 
-             
+            if (nUsers == 0) stop 'ConstructField4D - ModuleField4D - ERR110'
             
             !Returns ID
             Field4DID = Me%InstanceID
@@ -713,11 +643,8 @@ wwd:            if (Me%WindowWithData) then
             STAT_ = SUCCESS_
 
         else cd0
-            
             stop 'ConstructField4D - ModuleField4D - ERR120' 
-
         end if cd0
-
 
         if (present(STAT)) STAT = STAT_
 
@@ -1089,17 +1016,13 @@ wwd1:       if (Me%WindowWithData) then
         !Local-----------------------------------------------------------------
         real,      pointer, dimension(:,:)      :: Bathym       
         integer                                 :: ILB, IUB, JLB, JUB,STAT_CALL
-
         !Begin-----------------------------------------------------------------
         
         allocate(Bathym  (Me%Size2D%ILB:Me%Size2D%IUB,Me%Size2D%JLB:Me%Size2D%JUB))
         
-        ILB = Me%WorkSize2D%ILB
-        IUB = Me%WorkSize2D%IUB        
-        JLB = Me%WorkSize2D%JLB
-        JUB = Me%WorkSize2D%JUB
-        
-            
+        ILB = Me%WorkSize2D%ILB; JLB = Me%WorkSize2D%JLB
+        IUB = Me%WorkSize2D%IUB; JUB = Me%WorkSize2D%JUB       
+  
        !Read horizontal grid
         if      (Me%File%Form == HDF5_  ) then
             
@@ -1116,14 +1039,12 @@ wwd1:       if (Me%WindowWithData) then
 #ifndef _NO_NETCDF
         else if (Me%File%Form == NetCDF_) then
         
-            call NETCDFReadData(NCDFID          = Me%File%Obj,                          &
-                                Array2D         = Bathym,                               &
-                                Name            = trim(Me%File%BathymName),             &
-                                ILB             = ILB,                                  &
-                                IUB             = IUB,                                  &
-                                JLB             = JLB,                                  &
-                                JUB             = JUB,                                  &
-                                STAT            = STAT_CALL)        
+            call NETCDFReadData(NCDFID  = Me%File%Obj,                          &
+                                Array2D = Bathym,                               &
+                                Name    = trim(Me%File%BathymName),             &
+                                ILB  = ILB, IUB = IUB,                          &
+                                JLB  = JLB, JUB = JUB,                          &
+                                STAT = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_)stop 'ReadBathymFromFile - ModuleField4D - ERR20'
 #endif                  
         endif
@@ -1137,7 +1058,6 @@ wwd1:       if (Me%WindowWithData) then
                                STAT                 = STAT_CALL)
         
         if (STAT_CALL /= SUCCESS_)stop 'ReadBathymFromFile - ModuleField4D - ERR30'
-
 
         deallocate(Bathym)
         nullify   (Bathym)
@@ -1254,13 +1174,10 @@ wwd1:       if (Me%WindowWithData) then
 #endif                      
             endif
             
-            if (ArrayHDF_Dim /= 2) then
-                Mask2D(:,:) = Mask3D(:,:,Kmax)
-            endif                
+            if (ArrayHDF_Dim /= 2) Mask2D(:,:) = Mask3D(:,:,Kmax)            
             
             deallocate(Mask3D)
             nullify   (Mask3D)
-            
 
         else        
                     
@@ -1398,13 +1315,9 @@ wwd1:       if (Me%WindowWithData) then
         allocate(mask (Me%Size3D%ILB:Me%Size3D%IUB,Me%Size3D%JLB:Me%Size3D%JUB,Me%Size3D%KLB:Me%Size3D%KUB))  
         
 
-        ILB = Me%WorkSize3D%ILB
-        IUB = Me%WorkSize3D%IUB        
-        JLB = Me%WorkSize3D%JLB
-        JUB = Me%WorkSize3D%JUB
-        KLB = Me%WorkSize3D%KLB
-        KUB = Me%WorkSize3D%KUB
-        
+        ILB = Me%WorkSize3D%ILB; JLB = Me%WorkSize3D%JLB; KLB = Me%WorkSize3D%KLB
+        IUB = Me%WorkSize3D%IUB; JUB = Me%WorkSize3D%JUB; KUB = Me%WorkSize3D%KUB     
+
        !Read horizontal grid
         if      (Me%File%Form == HDF5_  ) then
             
@@ -3416,31 +3329,19 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             Field    => NewPropField%NextField3D        
         endif
                     
-        ILB = Me%WorkSize3D%ILB
-        IUB = Me%WorkSize3D%IUB
-        JLB = Me%WorkSize3D%JLB
-        JUB = Me%WorkSize3D%JUB
-        
-        SILB = Me%Size3D%ILB
-        SIUB = Me%Size3D%IUB
-        SJLB = Me%Size3D%JLB
-        SJUB = Me%Size3D%JUB
+        ILB = Me%WorkSize3D%ILB; JLB = Me%WorkSize3D%JLB
+        IUB = Me%WorkSize3D%IUB; JUB = Me%WorkSize3D%JUB
 
-        if (NewPropField%From2Dto3D) then
-            KLB = 1
-            KUB = 1
-            SKLB = Me%Size3D%KLB
-            SKUB = Me%Size3D%KUB
-            
-        else
- 
-            KLB = Me%WorkSize3D%KLB
-            KUB = Me%WorkSize3D%KUB
-            SKLB = Me%Size3D%KLB
-            SKUB = Me%Size3D%KUB
-            
-        endif             
+        SILB = Me%Size3D%ILB; SJLB = Me%Size3D%JLB
+        SIUB = Me%Size3D%IUB; SJUB = Me%Size3D%JUB
         
+        if (NewPropField%From2Dto3D) then
+            KLB  = 1;              KUB = 1
+            SKLB = Me%Size3D%KLB; SKUB = Me%Size3D%KUB
+        else
+             KLB = Me%WorkSize3D%KLB;  KUB = Me%WorkSize3D%KU
+            SKLB = Me%Size3D%KLB    ; SKUB = Me%Size3D%KUB
+        endif             
          
         call GetWaterPoints3D(Map_ID            = Me%ObjMap,                            &
                               WaterPoints3D     = WaterPoints3D,                        &
@@ -3452,26 +3353,20 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             Aux3D(:,:,:) = 0.      
         endif            
             
-
         if (NewPropField%From2Dto3D) then
             FieldAux => Aux3D
         else
             FieldAux => Field
         endif
-        
 
         if      (Me%File%Form == HDF5_  ) then
 
             if (Me%File%FileListON) then
-            
                 Obj  = Me%File%ObjListInst(Instant)
                 iaux = Me%File%ListInst   (Instant)
-                 
             else
-
                 Obj  = Me%File%Obj
                 iaux = Instant
-            
             endif                         
         
             call GetHDF5ArrayDimensions(Obj, trim(NewPropField%VGroupPath),             &
@@ -3483,9 +3378,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
         
             call NETCDFGetDimensions (NCDFID = Me%File%Obj, JUB = Jmax, IUB = Imax, KUB = Kmax, STAT = STAT_CALL)
 #endif
-        endif   
-        
-        
+        endif
 
         if ((Imax < IUB - ILB + 1) .or.                                                &
             (Jmax < JUB - JLB + 1) .or.                                                &
@@ -3494,19 +3387,16 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             write (*,*) trim(NewPropField%FieldName)
             write (*,*) 'miss match between the input file and model domain'
             stop 'ReadValues3D - ModuleField4D - ERR30'                                   
-
         endif        
         
         if      (.not. Me%File%Form == HDF5_  .and. NewPropField%From3Dto2D) then
             stop 'ReadValues3D - ModuleField4D - ERR300'                                   
-        endif
-        
+        endif 
         
         if      (Me%File%Form == HDF5_  ) then
         
             call HDF5SetLimits  (Obj, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR40'
-            
             
             call HDF5ReadWindow(HDF5ID        = Obj,                                    &
                                 GroupName     = trim(NewPropField%VGroupPath),          &
@@ -3515,8 +3405,6 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                                 OutputNumber  = iaux,                                   &
                                 STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR50'
-            
-
             
             if (Me%File%ReadSZZ .and.  Me%File%SZZLast < iaux) then
             
@@ -3530,9 +3418,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                                                 GroupName     = "/Grid/VerticalZ",      &
                                                 nItems        = nItems,                 &
                                                 STAT          = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) then
-                    stop 'ReadValues3D - ModuleField4D - ERR70'            
-                endif
+                if (STAT_CALL /= SUCCESS_) stop 'ReadValues3D - ModuleField4D - ERR70'
                 
                 !Special case where there is only one  "/Grid/VerticalZ/Vertical_00001"
                 !Assumed stationay condition for the grid
@@ -3549,12 +3435,9 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                                     OutputNumber  = ivert,                              &
                                     OffSet3       = 0,                                  &                                    
                                     STAT          = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) then
-                    stop 'ReadValues3D - ModuleField4D - ERR70'            
-                endif
+                if (STAT_CALL /= SUCCESS_) stop 'ReadValues3D - ModuleField4D - ERR70'            
                 
                 Me%File%SZZLast = iaux
-                
                                                         
                 call ComputeVerticalGeometry(GeometryID         = Me%ObjGeometry,       &
                                              WaterPoints3D      = WaterPoints3D,        &
@@ -3564,27 +3447,22 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                 
                 deallocate(SZZ)
                 
-            endif            
-            
+            endif
 
 #ifndef _NO_NETCDF                                                   
         else if (Me%File%Form == NetCDF_) then
         
-            call NETCDFReadData(NCDFID          = Me%File%Obj,                          &
-                                Array3D         = FieldAux,                             &
-                                Name            = trim(NewPropField%FieldName),         &
-                                nInstant        = Instant,                              &
-                                ILB             = ILB,                                  &
-                                IUB             = IUB,                                  &
-                                JLB             = JLB,                                  &
-                                JUB             = JUB,                                  &
-                                KLB             = KLB,                                  &
-                                KUB             = KUB,                                  &
-                                STAT            = STAT_CALL)        
+            call NETCDFReadData(NCDFID   = Me%File%Obj,                           &
+                                Array3D  = FieldAux,                              &
+                                Name     = trim(NewPropField%FieldName),          &
+                                nInstant = Instant,                               &
+                                ILB      = ILB, IUB = IUB,                        &
+                                JLB      = JLB, JUB = JUB,                        &
+                                KLB      = KLB, KUB = KUB,                        &
+                                STAT = STAT_CALL)        
             if (STAT_CALL /= SUCCESS_)stop 'ReadValues3D - ModuleField4D - ERR90'            
 #endif            
         endif
-
         
         if (NewPropField%From2Dto3D) then    
            
@@ -3604,7 +3482,6 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                                         STAT            = STAT_CALL)                                     
             if (STAT_CALL /= SUCCESS_) stop 'ReadValues3D - ModuleValida4D - ERR110'
             
-           
             do j = JLB, JUB
             do i = ILB, IUB
 
@@ -3630,9 +3507,6 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
                                         Array           = SZZ,                          &
                                         STAT            = STAT_CALL)                                     
             if (STAT_CALL /= SUCCESS_) stop 'ReadValues3D - ModuleValida4D - ERR120'        
-            
-
-            
             
          endif               
          
@@ -3686,10 +3560,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             enddo
         end if        
 
-        if (NewPropField%From2Dto3D .or. NewPropField%From3Dto2D) then
-            deallocate(Aux3D)   
-        endif       
-
+        if (NewPropField%From2Dto3D .or. NewPropField%From3Dto2D) deallocate(Aux3D)    
 
         call UnGetMap(Map_ID            = Me%ObjMap,                                &
                       Array             = WaterPoints3D,                            &
@@ -5384,9 +5255,7 @@ d2:     do N =1, NW
 
         if (ready_ .EQ. IDLE_ERR_) then
         
-            if (present(InterpolationDT)) then                
-                InterpolationDT = - FillValueReal
-            endif                
+            if (present(InterpolationDT)) InterpolationDT = - FillValueReal             
         
             if (Me%WindowWithData) then
  
@@ -5404,7 +5273,6 @@ d2:     do N =1, NW
                 else   
                     Me%CurrentTimeInt = Me%CurrentTimeExt
                 endif
-                
 
 ifG4D:          if (PropField%Generic4D%ON) then
 
@@ -5426,13 +5294,9 @@ ifG4D:          if (PropField%Generic4D%ON) then
                             call ReadValues3D (PropField, Previous = .false.)
                         
                             Me%Matrix3D = PropField%NextField3D
-                        
-                        endif            
-                        
+                        endif
                     else
-                    
                         stop 'ModifyField4D - ModuleField4D - ERR20'
-                        
                     endif   
                 
                 else ifG4D
@@ -5448,25 +5312,15 @@ CTF:                if (CorrectTimeFrame) then
                 
                         if (PropField%Harmonics%Extract) then
                         
-                            if (present(WaveName)) then
-                                PropField%Harmonics%ExtractWave = WaveName
-                            else
-                                stop 'ModifyField4DXYZ - ModuleField4D - ERR20'                                                
-                            endif
+                            if (.not. present(WaveName)) stop 'ModifyField4DXYZ - ModuleField4D - ERR20'
+                            PropField%Harmonics%ExtractWave = WaveName
 
+                            if (.not. present(ExtractAmplitudes)) stop 'ModifyField4DXYZ - ModuleField4D - ERR30'
+                            PropField%Harmonics%ExtractAmp = ExtractAmplitudes
 
-                            if (present(ExtractAmplitudes)) then
-                                PropField%Harmonics%ExtractAmp = ExtractAmplitudes
-                            else
-                                stop 'ModifyField4DXYZ - ModuleField4D - ERR30'                                                
-                            endif
+                            PropField%Harmonics%ExtractPhaseReal = .false. 
+                            if (present(ExtractPhaseReal)) PropField%Harmonics%ExtractPhaseReal = ExtractPhaseReal
 
-                            if (present(ExtractPhaseReal)) then
-                                PropField%Harmonics%ExtractPhaseReal = ExtractPhaseReal
-                            else
-                                PropField%Harmonics%ExtractPhaseReal = .false. 
-                            endif
-                            
                         endif  
 
                         if      (PropField%SpaceDim == Dim2D) then
@@ -5475,7 +5329,7 @@ CTF:                if (CorrectTimeFrame) then
                                 !call FromHarmonics2Field2D(PropField, Me%CurrentTimeInt)                        
                                 call ModifyInputHarmonics2D(PropField)
                             else
-                                call ModifyInput2D        (PropField) 
+                                call ModifyInput2D        (PropField) !Sobrinho - aqui altera-se a matriz filho
                             endif                        
 
                         else if (PropField%SpaceDim == Dim3D) then
@@ -5485,15 +5339,12 @@ CTF:                if (CorrectTimeFrame) then
                             else
                                 call ModifyInput3D        (PropField) 
                             endif                        
-
                         endif
-                        
-                    endif CTF                        
-                        
-                endif ifG4D    
-                
-                if (CorrectTimeFrame) then
-                                       
+                    endif CTF
+                endif ifG4D
+                !If upscaling, no interpolation is made. all operations are done in Module twoway
+                if (CorrectTimeFrame .and. .not. Me%Upscaling) then
+                    
                     if      (PropField%SpaceDim == Dim2D) then
                 
                         call Interpolate2DCloud (PropField, X, Y, Field, NoData) 
@@ -5503,33 +5354,19 @@ CTF:                if (CorrectTimeFrame) then
                         if (PropField%From2Dto3D) then
                             call Interpolate2DCloud3DMatrix (PropField, X, Y, Field, NoData) 
                         else
-                
-                            if (.not.present(Z)) then!Sobrinho - fiz tabs para ficar bem identado
-                                stop 'ModifyField4DXYZ - ModuleField4D - ERR50'
-                            endif
+                            if (.not.present(Z)) stop 'ModifyField4DXYZ - ModuleField4D - ERR50'
 
                             call Interpolate3DCloud (PropField, X, Y, Z, Field, NoData) 
                             
                         endif
                     endif
-                    
                 endif                    
 
-                if (present(InterpolationDT)) then                                    
-                    InterpolationDT = PropField%NextTime - PropField%PreviousTime
-                endif
+                if (present(InterpolationDT)) InterpolationDT = PropField%NextTime - PropField%PreviousTime
 
-                                
-                
-                if (Me%Output%Yes) then
-                    call WriteOutput(PropField, PropertyIDNumber)
-                endif
-
-            
+                if (Me%Output%Yes) call WriteOutput(PropField, PropertyIDNumber)
             endif
-            
             STAT_ = SUCCESS_
-            
         else               
             STAT_ = ready_
         end if
@@ -6833,6 +6670,7 @@ if1:    if (PropField%Harmonics%Extract) then
             else if (PropField%ValuesType == InterpolatedValues) then       !For interpolation
 
                 !Interpolates the two matrixes in time
+                !!Sobrinho - aqui é feita a interpolacao no tempo
                 if (PropField%ID%IsAngle) then                
                     call InterpolateAngle2DInTime (ActualTime       = Me%CurrentTimeInt,            &
                                                    Size             = Me%WorkSize2D,                &

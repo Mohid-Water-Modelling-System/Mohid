@@ -195,6 +195,7 @@ Module ModuleAssimilation
         real                                    :: ColdOrder            = null_real
         logical                                 :: Upscaling            = .false.
         integer                                 :: UpscalingDomain      = null_int
+        integer                                 :: UpscalingNumIgnOBCells = null_int
         type (T_Time)                           :: LastActualization
         logical                                 :: TimeSerie            = .false.
         logical                                 :: OutputHDF            = .false.
@@ -203,6 +204,7 @@ Module ModuleAssimilation
         character(len=StringLength)             :: GroupOutPutName      = null_str
         character(len=PathLength  )             :: FilenameHDF          = null_str
         logical                                 :: HdfFileExist         = .false.
+        
     end type T_Property
 
     private :: T_Files
@@ -1490,16 +1492,15 @@ cd2 :           if (BlockFound) then
     !Sobrinho
     subroutine ConstructAssimilationField(NewProperty, ClientNumber)
         !Arguments-------------------------------------------------------------
-        type(T_property),          pointer      :: NewProperty
-        integer                                 :: ClientNumber
+        type(T_property), pointer, intent(INOUT)   :: NewProperty
+        integer                  , intent(IN)      :: ClientNumber
         !Local-----------------------------------------------------------------
-        integer                                 :: STAT_CALL
-        integer, dimension(:,:  ), pointer      :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V
-        integer, dimension(:,:,:), pointer      :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V
-        integer                                 :: SizeILB, SizeIUB, SizeJLB, SizeJUB, SizeKLB, SizeKUB
-        integer                                 :: iflag
-        character(len=StringLength)             :: Char_TypeZUV
-        logical                                 :: BlockFound, NewDomain, NewProp
+        integer                                    :: STAT_CALL
+        integer, dimension(:,:  ), pointer         :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V
+        integer, dimension(:,:,:), pointer         :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V
+        integer                                    :: iflag, ILB, JLB, KLB, IUB, JUB, KUB
+        character(len=StringLength)                :: Char_TypeZUV
+        logical                                    :: BlockFound, NewDomain, NewProp
         !----------------------------------------------------------------------
         ILB = Me%Size%ILB;  JLB = Me%Size%JLB;  KLB = Me%Size%KLB
         IUB = Me%Size%IUB;  JUB = Me%Size%JUB;  KUB = Me%Size%KUB
@@ -1532,7 +1533,7 @@ cd2 :           if (BlockFound) then
                 if (STAT_CALL /= SUCCESS_) stop 'Failed to get Type_ZUV of a property - ModuleAssimilation - ERR10'
                 
                 !Sobrinho - upscaling
-                call read_upscaling_keywords
+                call read_upscaling_keywords(NewProperty)
         
                 NewProperty%Field%TypeZUV  = TranslateTypeZUV(Char_TypeZUV)
                 
@@ -1540,7 +1541,7 @@ cd2 :           if (BlockFound) then
                 !Sobrinho Checks if current grid domain (for when many domains are to be assimilated) is already built.
                     if ( .not. AssociatedDomain(NewProperty)) NewDomain = .true.
                     !Sobrinho - checks if current property has already been allocated (multiple assim fields)
-                    if ( UpscalingPropExists(GetPropertyIDNumber(NewProperty%ID%Name)) NewProp = .false.
+                    if ( UpscalingPropExists(NewProperty)) NewProp = .false.
                 endif
                 
                 if (NewProperty%Dim == Dim_2D) then
@@ -1763,14 +1764,16 @@ cd2 :           if (BlockFound) then
     !>@Brief
     !>Constructs a 2D assimilation field (allocation and filling of matrixes)
     !>@param[in] NewProperty, WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, ClientNumber
-    subroutine ConstructAssimilationField_2D(NewProperty, WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, ClientNumber)
+    subroutine ConstructAssimilationField_2D(NewProperty, WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, ClientNumber, NewDomain)
         !Arguments-------------------------------------------------------------
-        type(T_property),          pointer      :: NewProperty
-        integer                                 :: ClientNumber
-        integer, dimension(:,:  ), pointer      :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, PointsToFill2D
+        type(T_property),          pointer, intent(INOUT) :: NewProperty
+        integer                           , intent(IN) :: ClientNumber
+        integer, dimension(:,:  ), pointer, intent(IN) :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V
+        logical, optional                 , intent(IN) :: NewDomain
         !Locals ----------------------------------------------------------------
-        real,    dimension(:,:  ), pointer      :: Matrix2D
-        integer                                 :: STAT_CALL
+        real,    dimension(:,:  ), pointer             :: Matrix2D
+        integer, dimension(:,:  ), pointer             :: PointsToFill2D
+        integer                                        :: STAT_CALL
         !Begin------------------------------------------------------------------
         
         call SetMappingAndMatrix2D(NewProperty, PointsToFill2D, WaterPoints2D, WaterFaces2D_U, &
@@ -1785,6 +1788,7 @@ cd2 :           if (BlockFound) then
                                     Matrix2D             = Matrix2D,                 &
                                     TypeZUV              = NewProperty%Field%TypeZUV,&
                                     ClientID             = ClientNumber,             &
+                                    NewDomain             = NewDomain,               &
                                     STAT                 = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_2D - ModuleAssimilation - ERR30'
 
@@ -1821,9 +1825,10 @@ cd2 :           if (BlockFound) then
     !>@param[in] Property, PointsToFill2D, WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, Matrix2D
     subroutine SetMappingAndMatrix2D(Property, PointsToFill2D, WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, Matrix2D)
         !Arguments-------------------------------------------------------------
-        type(T_property),          pointer      :: Property
-        integer, dimension(:,:  ), pointer      :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V, PointsToFill2D
-        real,    dimension(:,:  ), pointer      :: Matrix2D
+        type(T_property),          pointer, intent(IN)     :: Property
+        integer, dimension(:,:  ), pointer, intent(IN)     :: WaterPoints2D, WaterFaces2D_U, WaterFaces2D_V
+        integer, dimension(:,:  ), pointer, intent(INOUT)  :: PointsToFill2D
+        real,    dimension(:,:  ), pointer, intent(INOUT)  :: Matrix2D
         !Begin------------------------------------------------------------------
         if (Property%Field%TypeZUV == TypeZ_) then
 
@@ -1856,7 +1861,7 @@ cd2 :           if (BlockFound) then
     !>@param[in] Property, PointsToFill2D, Matrix2D 
     subroutine Check_ComputeFacesVelocity2D(Property, PointsToFill2D, Matrix2D)
         !Arguments-------------------------------------------------------------
-        type(T_property),          pointer, intent(INOUT) :: Property
+        type(T_property),          pointer, intent(OUT)   :: Property
         integer, dimension(:,:  ), pointer, intent(IN)    :: PointsToFill2D
         real,    dimension(:,:  ), pointer, intent(INOUT) :: Matrix2D
         !Locals ----------------------------------------------------------------
@@ -1951,15 +1956,17 @@ cd2 :           if (BlockFound) then
     !>@Brief
     !>Constructs a 3D assimilation field (allocation and filling of matrixes)
     !>@param[in] NewProperty, WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, ClientNumber
-    subroutine ConstructAssimilationField_3D(NewProperty, WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, ClientNumber, NewDomain)
+    subroutine ConstructAssimilationField_3D(NewProperty, WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, ClientNumber,&
+    NewDomain)
         !Arguments-------------------------------------------------------------
-        type(T_property),          pointer, intent(IN)    :: NewProperty
-        integer                           , intent(IN)    :: ClientNumber
-        integer, dimension(:,:,:), pointer, intent(IN)    :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, PointsToFill3D
-        real,    dimension(:,:,:), pointer, intent(IN)    :: Matrix3D
-        logical, optional                 , intent(IN)    :: NewDomain
+        type(T_property),          pointer, intent(INOUT)    :: NewProperty
+        integer                           , intent(IN)       :: ClientNumber
+        integer, dimension(:,:,:), pointer, intent(IN)       :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V
+        logical, optional                 , intent(IN)       :: NewDomain
         !Locals ---------------------------------------------------------------
-        integer                                 :: STAT_CALL
+        integer, dimension(:,:,:), pointer                   :: PointsToFill3D
+        real,    dimension(:,:,:), pointer                   :: Matrix3D
+        integer                                              :: STAT_CALL
         !Begin------------------------------------------------------------------
         
         call SetMappingAndMatrix3D(NewProperty, PointsToFill3D, WaterPoints3D, WaterFaces3D_U, &
@@ -2027,9 +2034,10 @@ cd2 :           if (BlockFound) then
     !>@param[in] Property, PointsToFill3D, WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, Matrix3D
     subroutine SetMappingAndMatrix3D(Property, PointsToFill3D, WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, Matrix3D)
         !Arguments-------------------------------------------------------------
-        type(T_property),          pointer      :: Property
-        integer, dimension(:,:,:  ), pointer    :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V, PointsToFill3D
-        real,    dimension(:,:,:  ), pointer    :: Matrix3D
+        type(T_property),          pointer, intent(IN)      :: Property
+        integer, dimension(:,:,:  ), pointer, intent(IN)    :: WaterPoints3D, WaterFaces3D_U, WaterFaces3D_V
+        integer, dimension(:,:,:  ), pointer, intent(INOUT) :: PointsToFill3D
+        real,    dimension(:,:,:  ), pointer, intent(INOUT) :: Matrix3D
         !Begin------------------------------------------------------------------
         if (Property%Field%TypeZUV == TypeZ_) then
 
@@ -2063,7 +2071,7 @@ cd2 :           if (BlockFound) then
     !>@param[in] Property, PointsToFill3D, Matrix3D 
     subroutine Check_ComputeFacesVelocity3D(Property, PointsToFill3D, Matrix3D)
         !Arguments-------------------------------------------------------------
-        type(T_property),          pointer, intent(INOUT) :: Property
+        type(T_property),          pointer, intent(OUT)   :: Property
         integer, dimension(:,:,:), pointer, intent(IN)    :: PointsToFill3D
         real,    dimension(:,:,:), pointer, intent(INOUT) :: Matrix3D
         !Locals ----------------------------------------------------------------
@@ -2125,19 +2133,13 @@ cd2 :           if (BlockFound) then
         integer                                 :: ClientNumber
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
-        integer, dimension(:,:  ), pointer      :: WaterPoints2D, PointsToFill2D 
-        integer, dimension(:,:,:), pointer      :: WaterPoints3D, PointsToFill3D
+        integer, dimension(:,:  ), pointer      :: WaterPoints2D 
+        integer, dimension(:,:,:), pointer      :: WaterPoints3D
         integer                                 :: iflag
         logical                                 :: BlockFound
         !Local-----------------------------------------------------------------
-        integer                                 :: SizeILB, SizeIUB, SizeJLB, SizeJUB, SizeKLB, SizeKUB
-        integer                                 :: di, dj, i, j, k
         character(len=StringLength)             :: Char_TypeZUV
         !----------------------------------------------------------------------
- 
-        !SizeILB = Me%Size%ILB;  SizeJLB = Me%Size%JLB;  SizeKLB = Me%Size%KLB
-        !SizeIUB = Me%Size%IUB;  SizeJUB = Me%Size%JUB;  SizeKUB = Me%Size%KUB
-
         call ExtractBlockFromBlock(Me%ObjEnterData, ClientNumber,      &
                                    begin_coef, end_coef, BlockFound, STAT = STAT_CALL)
         
@@ -2161,21 +2163,17 @@ cd0:        if (BlockFound) then !Sobrinho Aqui
 
                 NewProperty%CoefField%TypeZUV = TranslateTypeZUV(Char_TypeZUV)
                 
-                !if (NewProperty%Upscaling) then
-                !    call ConstructPropertyCoefficients_2D(NewProperty)
-                !else
-                    if (NewProperty%Dim == Dim_2D) then
-                        call ConstructPropertyCoefficients_2D(NewProperty)
-                    else if (NewProperty%Dim == Dim_3D) then
-                        call ConstructPropertyCoefficients_3D(NewProperty)
-                    else
-                        stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR12'
-                    end if                    
-                !endif
+                if (NewProperty%Dim == Dim_2D) then
+                    call ConstructPropertyCoefficients_2D(NewProperty, WaterPoints2D)
+                else if (NewProperty%Dim == Dim_3D) then
+                    call ConstructPropertyCoefficients_3D(NewProperty, WaterPoints3D)
+                else
+                    stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR12'
+                end if                    
+
             else
                 stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR13'
             end if cd0
-
         else
             stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR14'
         end if
@@ -2203,23 +2201,23 @@ cd0:        if (BlockFound) then !Sobrinho Aqui
         integer                                        :: STAT_CALL
         integer, dimension(:,:  ), pointer             :: PointsToFill2D
         !Local-----------------------------------------------------------------
-        integer                                        :: i, j
+        integer                                        :: i, j, ILB, JLB, IUB, JUB
         type(T_Size3D)                                 :: Size
         type(T_Size3D)                                 :: WorkSize
         !----------------------------------------------------------------------
         if (NewProperty%Upscaling) then
-            call GetGeometrySize(NewProperty%ObjGeometry, Size = Size, WorkSize = WorkSize, STAT = STAT_CALL)
+            call GetGeometrySize(NewProperty%ID%ObjGeometry, Size = Size, WorkSize = WorkSize, STAT = STAT_CALL)
             if(STAT_CALL .ne. SUCCESS_)stop 'Could not get size for upscaling 2D field - Assimilation'
         else
             Size = Me%Size ; WorkSize = Me%WorkSize
         endif
         !Sobrinho - Passar a parte do upscaling para uma routina à parte em que é feito o fill matrix para a matriz filho e depois
         ! é feito o fill da matrix pai com chamada para o TwoWay, ou directamente no assimilation ou functions        
-        SizeILB = Size%ILB;  SizeJLB = Size%JLB
-        SizeIUB = Size%IUB;  SizeJUB = Size%JUB
+        ILB = Size%ILB; JLB = Size%JLB
+        IUB = Size%IUB; JUB = Size%JUB
         
-        allocate(NewProperty%CoefField%R2D (SizeILB:SizeIUB, SizeJLB:SizeJUB))
-        allocate(PointsToFill2D            (SizeILB:SizeIUB, SizeJLB:SizeJUB))
+        allocate(NewProperty%CoefField%R2D (ILB:IUB, JLB:JUB))
+        allocate(PointsToFill2D            (ILB:IUB, JLB:JUB))
                     
         if (NewProperty%CoefField%TypeZUV == TypeZ_) then
             PointsToFill2D (:,:) = WaterPoints2D (:,:)
@@ -2284,18 +2282,31 @@ cd0:        if (BlockFound) then !Sobrinho Aqui
     !>@Brief
     !>Constructs property coefficient for a 3D field
     !>@param[in] NewProperty
-    subroutine ConstructPropertyCoefficients_3D(NewProperty)
+    subroutine ConstructPropertyCoefficients_3D(NewProperty, WaterPoints3D)
         !Arguments-------------------------------------------------------------
         type(T_property),     pointer           :: NewProperty
+        integer, dimension(:,:,:), pointer      :: WaterPoints3D
         !External--------------------------------------------------------------
         integer                                 :: STAT_CALL
-        integer, dimension(:,:,:), pointer      :: WaterPoints3D, PointsToFill3D
+        integer, dimension(:,:,:), pointer      :: PointsToFill3D
         !Local-----------------------------------------------------------------
-        integer                                 :: i, j, k
+        integer                                 :: i, j, k, ILB, JLB, KLB, IUB, JUB, KUB 
+        type(T_Size3D)                          :: Size
+        type(T_Size3D)                          :: WorkSize
         !----------------------------------------------------------------------
+        if (NewProperty%Upscaling) then
+            call GetGeometrySize(NewProperty%ID%ObjGeometry, Size = Size, WorkSize = WorkSize, STAT = STAT_CALL)
+            if(STAT_CALL .ne. SUCCESS_)stop 'Could not get size for upscaling 2D field - Assimilation'
+        else
+            Size = Me%Size ; WorkSize = Me%WorkSize
+        endif
+        !Sobrinho - Passar a parte do upscaling para uma routina à parte em que é feito o fill matrix para a matriz filho e depois
+        ! é feito o fill da matrix pai com chamada para o TwoWay, ou directamente no assimilation ou functions        
+        ILB = Size%ILB; JLB = Size%JLB; KLB = Size%KLB
+        IUB = Size%IUB; JUB = Size%JUB; KUB = Size%KUB
         
-        allocate(NewProperty%CoefField%R3D(Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))
-        allocate(PointsToFill3D           (Me%Size%ILB:Me%Size%IUB, Me%Size%JLB:Me%Size%JUB, Me%Size%KLB:Me%Size%KUB))
+        allocate(NewProperty%CoefField%R3D(ILB:IUB, JLB:JUB, KLB:KUB))
+        allocate(PointsToFill3D           (ILB:IUB, JLB:JUB, KLB:KUB))
                     
         if (NewProperty%CoefField%TypeZUV == TypeZ_) then
                     
@@ -3346,7 +3357,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
         
     end function AssociatedDomain
     
-    logical function UpscalingPropExists(PropertyIDNumber)
+    logical function UpscalingPropExists(NewProperty)
         !Arguments--------------------------------------------------------------
         type (T_Property), pointer, intent (IN)     :: NewProperty
         !Local-----------------------------------------------------------------
@@ -3370,6 +3381,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
                     else
                         write(*,*) "Z type must be 2D or 3D - upscaling field ", trim(NewProperty%ID%Name)
                         stop "UpscalingPropExists - ModuleAssimilation - ERR10"
+                    endif
                     exit
                 else
                     PropertyX => PropertyX%Next

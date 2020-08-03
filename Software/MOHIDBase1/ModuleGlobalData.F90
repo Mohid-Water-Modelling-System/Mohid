@@ -2031,6 +2031,7 @@ Module ModuleGlobalData
         integer                 :: ObjHorizontalMap  = null_int !Sobrinho
         integer                 :: ObjGeometry       = null_int !Sobrinho
         integer                 :: ObjMap            = null_int !Sobrinho
+        integer                 :: ObjTwoWay         = null_int !Sobrinho
         logical                 :: SolutionFromFile  = OFF
         logical                 :: IsAngle           = OFF
         logical                 :: IsParticulate     = OFF

@@ -191,7 +191,8 @@ Module ModuleHydrodynamic
                                        KillAssimilation, GetAssimilationAltimetry,       &
                                        GetAssimilationAltimetryDT, GetAltimetryDecayTime,&
                                        GetAltimSigmaDensAnalyzed, GetAssimilationVectorField, &
-                                       GetWaveCelerityField, GetNumberOfFields
+                                       GetWaveCelerityField, GetNumberOfFields, GetNumberOfUpscalingFields
+    
     use ModuleStopWatch,        only : StartWatch, StopWatch
     use ModuleStatistic,        only : ConstructStatistic, GetStatisticMethod,           &
                                        GetStatisticParameters, GetStatisticLayersNumber, &
@@ -38017,20 +38018,25 @@ do3:            do k = kbottom, KUB
         !Local---------------------------------------------------------------------
         type T_Matrix3D
             real,    dimension(:,:,:), pointer :: VelAssimilation3D
+            real,    dimension(:,:,:), pointer :: VelAssimilation3D_upscaling
         end type T_Matrix3D
 
         type T_Matrix2D
             real,    dimension(:,:  ), pointer :: VelAssimilation2D
+            real,    dimension(:,:  ), pointer :: VelAssimilation2D_upscaling
         end type T_Matrix2D
 
         type (T_Matrix3D), dimension(:), pointer :: List3D
         type (T_Matrix2D), dimension(:), pointer :: List2D
+        type (T_Matrix3D), dimension(:), pointer :: List3D_upscaling
+        type (T_Matrix2D), dimension(:), pointer :: List2D_upscaling
 
         real,    dimension(:,:,:), pointer :: Velocity_UV_New, SubModel_UV_New, Relax_Aceleration, DecayTime
         real                               :: CoefCold
         integer                            :: Vel_ID, status, CHUNK
         integer                            :: ILB, IUB, JLB, JUB, KUB, kbottom, i, j, k
         integer                            :: iL, NFieldsUV2D, NFieldsUV3D, LocalSolution
+        integer                            :: NFieldsUV2D_upscaling, NFieldsUV3D_upscaling
         logical                            :: Upscaling, Upscaling_Done
     !------------initialization-----------------------------------------------------------
         !Begin - Shorten variables name
@@ -38148,7 +38154,7 @@ do3:            do k = kbottom, KUB
         if (Upscaling .and. .not. Upscaling_Done) then
             do iL =1, NFieldsUV3D_upscaling
                 call SumMatrixes_jik(Me%Relaxation%Assim_VelReference, Me%WorkSize, Me%External_Var%KFloor_UV, &
-                                     List3D(iL)%VelAssimilation3D_upscaling, Me%External_Var%ComputeFaces3D_UV)
+                                     List3D_upscaling(iL)%VelAssimilation3D_upscaling, Me%External_Var%ComputeFaces3D_UV)
             enddo
         endif
         
@@ -38288,6 +38294,29 @@ do3:            do k = kbottom, KUB
 
     end subroutine GetAssimilationVectorFields_Y
     !----------------------------------------------------------------------------------
+    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Gets number of barotropic_U/V and velocity_U/V fields provided in assimilation.dat
+    subroutine GetNumberOfVelocityFields_upscaling(NFieldsUV2D_upscaling, NFieldsUV3D_upscaling)
+        !Arguments -------------------------------------------------------------------
+        integer, intent(OUT)               :: NFieldsUV2D_upscaling, NFieldsUV3D_upscaling
+        !Locals ----------------------------------------------------------------------
+        integer                            :: status
+        !Begin -----------------------------------------------------------------------
+
+        call GetNumberOfUpscalingFields(AssimilationID  = Me%ObjAssimilation,                &
+                                        ID             = BarotropicVelocityU_,              &
+                                        NumberOfFields = NFieldsUV2D_upscaling, STAT = status)
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "GetNumberOfVelocityFields - Hydrodynamic - ERR010")
+
+        call GetNumberOfUpscalingFields(AssimilationID  = Me%ObjAssimilation,            &
+                                        ID             = VelocityU_,                    &
+                                        NumberOfFields = NFieldsUV3D_upscaling, STAT = status)
+        if (status /= SUCCESS_) call SetError (FATAL_, INTERNAL_, "GetNumberOfVelocityFields - Hydrodynamic - ERR020")
+
+    end subroutine GetNumberOfVelocityFields_upscaling
+    
     !>@author Maretec
     !>@Brief
     !>Gets cold coef and time decay set by the user, for nudging
@@ -47996,7 +48025,7 @@ do5:            do i = ILB, IUB
                             ObjHydrodynamicFather%Velocity%Horizontal%U%New(:,:,:)
                     endif
                     !Tells TwoWay module to get auxiliar variables (volumes, cell conections etc)
-                    call PrepTwoWay (SonID = AuxHydrodynamicID, FatherID = Me%FatherInstanceID, CallerID = mHydrodynamic_,&
+                    call PrepTwoWay (SonID = AuxHydrodynamicID, CallerID = mHydrodynamic_,&
                                      STAT = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR01.'
 

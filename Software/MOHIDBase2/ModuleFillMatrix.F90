@@ -606,7 +606,7 @@ Module ModuleFillMatrix
                                      ObjFillMatrix, OverrideValueKeyword, ClientID,     &
                                      PredictDTMethod, MinForDTDecrease,                 &
                                      ValueIsUsedForDTPrediction, CheckDates,            &
-                                     RotateAngleToGrid, SpongeFILE_DT, STAT)
+                                     RotateAngleToGrid, SpongeFILE_DT, NewDomain, STAT)
 
         !Arguments---------------------------------------------------------------
         integer                                         :: EnterDataID
@@ -628,7 +628,8 @@ Module ModuleFillMatrix
         logical,      optional, intent(IN )             :: ValueIsUsedForDTPrediction
         logical,      optional, intent(IN )             :: RotateAngleToGrid
         character(*), optional, intent(IN )             :: SpongeFILE_DT
-
+        logical,      optional, intent(IN )             :: NewDomain
+        
         !Local-------------------------------------------------------------------
         integer                                         :: ready_, STAT_, STAT_CALL, nUsers, ObjFillMatrix_
         integer                                         :: PredictDTMethod_, Referential
@@ -644,11 +645,8 @@ Module ModuleFillMatrix
             call RegisterModule (mFillMatrix_) 
         endif
         
-        if (present(ObjFillMatrix)) then
-            ObjFillMatrix_ = ObjFillMatrix
-        else
-            ObjFillMatrix_ = PropertyID%ObjFillMatrix
-        endif
+        ObjFillMatrix_ = PropertyID%ObjFillMatrix
+        if (present(ObjFillMatrix)) ObjFillMatrix_ = ObjFillMatrix
 
         call Ready(ObjFillMatrix_, ready_)    
 
@@ -656,15 +654,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 
             call AllocateInstance
             
-            if (present(CheckDates)) then
-                Me%CheckDates = CheckDates
-            endif
+            if (present(CheckDates)) Me%CheckDates = CheckDates
             
-            if (present(SpongeFILE_DT)) then
-                Me%SpongeFILE_DT = trim(SpongeFILE_DT)
-            else
-                Me%SpongeFILE_DT = null_str
-            endif
+            Me%SpongeFILE_DT = null_str
+            if (present(SpongeFILE_DT)) Me%SpongeFILE_DT = trim(SpongeFILE_DT)
+            
+            Me%NewDomain = .true.
             
 !~             if (Check_Vectorial_Property(PropertyID%IDNumber)) then
             if (PropertyID%IsVectorial) then
@@ -672,21 +667,13 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                 stop 'ConstructFillMatrix2D - ModuleFillMatrix - ERR00'
             endif
             
-            if (present(PredictDTMethod)) then
-                PredictDTMethod_ = PredictDTMethod
-            else
-                PredictDTMethod_ = 1
-            endif
+            PredictDTMethod_ = 1
+            if (present(PredictDTMethod))  PredictDTMethod_    = PredictDTMethod
+            if (present(MinForDTDecrease)) Me%MinForDTDecrease = MinForDTDecrease
             
-            if (present(MinForDTDecrease)) then
-                Me%MinForDTDecrease = MinForDTDecrease
-            endif
-            
-            if (present(ValueIsUsedForDTPrediction)) then
-                Me%ValueIsUsedForDTPrediction = ValueIsUsedForDTPrediction
-            else
-                Me%ValueIsUsedForDTPrediction = .false.
-            endif
+            Me%ValueIsUsedForDTPrediction = .false.
+            if (present(ValueIsUsedForDTPrediction)) Me%ValueIsUsedForDTPrediction = ValueIsUsedForDTPrediction
+            if (present(NewDomain))                  Me%NewDomain                  = NewDomain
             
             Me%ObjEnterData      = AssociateInstance (mENTERDATA_,      EnterDataID     )
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
@@ -706,7 +693,6 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
 !            Me%WorkSize2D%JLB   = Me%Size2D%JLB + 1
 !            Me%WorkSize2D%JUB   = Me%Size2D%JUB - 1
 
-
             Me%Size3D       = T_Size3D(null_int, null_int, null_int, null_int, null_int, null_int)
             Me%Dim          = Dim2D
             Me%TypeZUV      = TypeZUV
@@ -715,9 +701,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             if (present(RotateAngleToGrid)) then
                 Me%RotateAngleToGrid = RotateAngleToGrid
             else
-                if (Me%PropertyID%IsAngle) then
-                    Me%RotateAngleToGrid = .true.                    
-                endif 
+                if (Me%PropertyID%IsAngle) Me%RotateAngleToGrid = .true.
             endif            
             
             Me%Matrix2D       => Matrix2D
@@ -751,14 +735,10 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             endif
             
             if (present(FileNameHDF)) then
-            
                 Me%ArgumentFileName = .true.
                 Me%FileNameHDF(1)   = trim(FileNameHDF)
-                
             else
-            
                 Me%ArgumentFileName = .false.
-            
             endif
             
             if(present(OverrideValueKeyword))then
@@ -788,11 +768,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             else
                 call FillWithUserOption (ExtractType, PointsToFill2D = PointsToFill2D)
             endif
-            
-            
+                       
             !Is this a angle property? convert to cell referential angle
             if (Me%RotateAngleToGrid) then
-
                 !angle referential
                 Prop => Me%PropertyID
                 Referential = Get_Angle_Referential(Prop)                                    
@@ -804,43 +782,27 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                 AngleOut          = Me%Matrix2DCellAngle,                 &
                                                 WaterPoints2D     = PointsToFill2D,                       &
                                                 Rotate            = .true.,                               &
-                                                STAT              = STAT_CALL)                                       
-                
+                                                STAT              = STAT_CALL)
             endif
             
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
-            if (nUsers == 0) stop 'ConstructFillMatrix2D - ModuleFillMatrix - ERR20' 
+            if (nUsers == 0) stop 'ConstructFillMatrix2D - ModuleFillMatrix - ERR20'
             
-            if(Me%TimeEvolution == None)then
-                PropertyID%SolutionFromFile  = .false.
-            else 
-                PropertyID%SolutionFromFile  = .true.
-            end if
+            PropertyID%SolutionFromFile  = .true.
+            if(Me%TimeEvolution == None) PropertyID%SolutionFromFile  = .false.
 
             !Returns ID
             ObjFillMatrix_ = Me%InstanceID
+            PropertyID%ObjFillMatrix = ObjFillMatrix_
+            if (present(ObjFillMatrix)) ObjFillMatrix = ObjFillMatrix_     
             
-            
-            if (present(ObjFillMatrix)) then
-                ObjFillMatrix            = ObjFillMatrix_ 
-            else
-                PropertyID%ObjFillMatrix = ObjFillMatrix_
-            endif       
-            
-            nullify(Me%Matrix2D      )
-            nullify(Me%Matrix2DFieldAngle )
-            nullify(Me%Matrix2DCellAngle )
-            nullify(Me%PointsToFill2D)
-                 
+            nullify(Me%Matrix2D, Me%Matrix2DFieldAngle, Me%Matrix2DCellAngle, Me%PointsToFill2D)
 
             STAT_ = SUCCESS_
 
         else cd0
-            
             stop 'ConstructFillMatrix2D - ModuleFillMatrix - ERR02'  
-
         end if cd0
-
 
         if (present(STAT)) STAT = STAT_
 
@@ -2538,7 +2500,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         end select
         
         UserTimeEvolution = UserOption
-    end function TimeEvolution
+    end function UserTimeEvolution
     !--------------------------------------------------------------------------
     
     integer function UserInitMethod(AuxString)
@@ -2619,7 +2581,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         integer, dimension(:, :, :), pointer, intent(IN), optional  :: PointsToFill3D
         integer                             , intent(IN), optional  :: ClientID
         !Locals----------------------------------------------------------------
-        integer                                                     :: ClientID
+        integer                                                     :: ClientID_
         !Begin-----------------------------------------------------------------
         ClientID_ = FillValueInt
         if (present(ClientID)) ClientID_ = ClientID
@@ -6368,7 +6330,7 @@ if4D:       if (CurrentHDF%Field4D) then
                 call GetHDF5GroupNumberOfItems(CurrentHDF%ObjHDF5, "/Time", &
                                                CurrentHDF%NumberOfInstants, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR190'
-        
+                
             endif if4D
         
             CurrentHDF%StartTime = HDF5TimeInstant(1, CurrentHDF)
@@ -7844,6 +7806,7 @@ d2:      do while(.not. FoundSecondInstant)
                                   PropertyID        = Me%PropertyID,                    &
                                   ClientID          = ClientID,                         &
                                   FileNameList      = CurrentHDF%FileNameList,          &
+                                  Upscaling         = CurrentHDF%Upscaling,             & !Sobrinho - upscaling
                                   STAT              = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR120'
         endif
@@ -8306,29 +8269,17 @@ if4D:   if (CurrentHDF%Field4D) then
         integer                                 :: STAT_CALL, i, j, k, ILB, IUB, JLB, JUB, KLB, KUB
         character(StringLength)                 :: DataSetVert
         logical                                 :: Exist1, Exist2
-
         !Begin-----------------------------------------------------------------
 
-
-         ILB = Me%WorkSize3D%ILB
-         IUB = Me%WorkSize3D%IUB
-         JLB = Me%WorkSize3D%JLB
-         JUB = Me%WorkSize3D%JUB
+         ILB = Me%WorkSize3D%ILB; JLB = Me%WorkSize3D%JLB
+         IUB = Me%WorkSize3D%IUB; JUB = Me%WorkSize3D%JUB
 
         if (CurrentHDF%From2Dto3D) then
-            KLB = 1
-            KUB = 1
-            Kmax= 1
+            KLB = 1; KUB = 1; Kmax = 1
         else
-            KLB = Me%WorkSize3D%KLB
-            KUB = Me%WorkSize3D%KUB
-        
-            if (.not. CurrentHDF%Field4D) then
-                CurrentHDF%ReadField3D => Field
-            endif
-            
+            KLB = Me%WorkSize3D%KLB; KUB = Me%WorkSize3D%KUB
+            if (.not. CurrentHDF%Field4D) CurrentHDF%ReadField3D => Field
         endif
-        
         
 if4D:   if (CurrentHDF%Field4D) then
 
@@ -8336,14 +8287,11 @@ if4D:   if (CurrentHDF%Field4D) then
             if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR10'
             
             if (CurrentHDF%SpatialInterpolON) then
-            
                 call ModifyField4DInterpol(CurrentTime      = CurrentTime,              & 
                                            Matrix3D         = Field,                    &
                                            CurrentHDF       = CurrentHDF,               &
                                            Instant          = Instant)
-
             else            
-
                 call ModifyField4D(Field4DID        = CurrentHDF%ObjField4D,            &
                                    PropertyIDNumber = Me%PropertyID%IDNumber,           & 
                                    CurrentTime      = CurrentTime,                      & 
@@ -8351,7 +8299,6 @@ if4D:   if (CurrentHDF%Field4D) then
                                    Instant          = Instant,                          &                                   
                                    STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR20'
-                
             endif                
 
         else if4D            
@@ -8377,12 +8324,9 @@ if4D:   if (CurrentHDF%Field4D) then
                     write (*,*) trim(CurrentHDF%FieldName)
                     write (*,*) 'miss match between the HDF5 input file and model domain'
                     stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR50'                                   
-                    
                 endif
                 
-                if (KUB /= 1) then
-                    stop 'When integrating field 3D to 2D KUB number of layers must be 1'
-                endif
+                if (KUB /= 1) stop 'When integrating field 3D to 2D KUB number of layers must be 1'
                 
                 Field(:,:,:) = 0.
                                 
@@ -8393,7 +8337,7 @@ if4D:   if (CurrentHDF%Field4D) then
                 allocate(WaterPoints3D(ILB-1:IUB+1, JLB-1:JUB+1, 0:Kmax+1))  
                 allocate(SZZ          (ILB-1:IUB+1, JLB-1:JUB+1, 0:Kmax+1))  
                      
-                call HDF5ReadData(CurrentHDF%ObjHDF5, trim(CurrentHDF%VGroupPath),                      &
+                call HDF5ReadData(CurrentHDF%ObjHDF5, trim(CurrentHDF%VGroupPath),                  &
                                   trim(CurrentHDF%FieldName),                                       &
                                   Array3D = AuxField, OutputNumber = Instant, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR70'     
@@ -8404,38 +8348,27 @@ if4D:   if (CurrentHDF%Field4D) then
                 
                 call HDF5SetLimits  (CurrentHDF%ObjHDF5, ILB, IUB, JLB, JUB, 0, Kmax, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR90'
-                
 
                 call GetHDF5DataSetExist (HDF5ID = CurrentHDF%ObjHDF5, DataSetName = "/Grid/VerticalZ/Vertical_00001",&
-                                          Exist  = Exist1, STAT = STAT_CALL)                                
+                                          Exist  = Exist1, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR100'
-                
 
                 call GetHDF5DataSetExist (HDF5ID = CurrentHDF%ObjHDF5, DataSetName = "/Grid/VerticalZ/VerticalZ_00001",&
-                                          Exist  = Exist2, STAT = STAT_CALL)                                
+                                          Exist  = Exist2, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR110'
-                
                
                 if (Exist1) then
-
-                    DataSetVert = "Vertical"            
+                    DataSetVert = "Vertical"           
                 else
-                
                     if (Exist2) then
-
                         DataSetVert = "VerticalZ"
-                    
                     else
                         write(*,*) 'Missing the follow DataSet /Grid/VerticalZ/Vertical_00001'
                         write(*,*) '                       OR'                            
                         write(*,*) 'Missing the follow DataSet /Grid/VerticalZ/VerticalZ_00001'                        
                         stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR120'
                     endif
-
                 endif
-                
-                    
-
                 
                 call HDF5ReadData(CurrentHDF%ObjHDF5, "/Grid/VerticalZ", trim(DataSetVert),&
                                   Array3D = SZZ, OutputNumber = Instant, STAT = STAT_CALL)
@@ -8458,12 +8391,10 @@ if4D:   if (CurrentHDF%Field4D) then
                     enddo
                 
                 enddo
-                enddo
-                     
+                enddo 
               
                 deallocate(AuxField, WaterPoints3D, SZZ)
 
-            
             else
                                         
                 if ((Imax /= IUB - ILB + 1) .or.                                                &
@@ -8471,19 +8402,15 @@ if4D:   if (CurrentHDF%Field4D) then
                     (Kmax /= KUB - KLB + 1)) then
                     
                     if (.not.(Kmax == 0 .and. KUB-KLB == 0)) then
-                    
                         write (*,*) trim(CurrentHDF%VGroupPath)
                         write (*,*) trim(CurrentHDF%FieldName)
                         write (*,*) 'miss match between the HDF5 input file and model domain'
                         stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR140'                                   
-                    
                     endif
-
                 endif
                 
                 call HDF5SetLimits  (CurrentHDF%ObjHDF5, ILB, IUB, JLB, JUB, KLB, KUB, STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR150'
-                
                      
                 call HDF5ReadData(CurrentHDF%ObjHDF5, trim(CurrentHDF%VGroupPath),                      &
                                   trim(CurrentHDF%FieldName),                                       &
@@ -8501,7 +8428,7 @@ if4D:   if (CurrentHDF%Field4D) then
                 enddo
                 enddo
                 enddo
-            
+
             else
                nullify(CurrentHDF%ReadField3D)  
             endif        
@@ -8530,9 +8457,7 @@ if4D:   if (CurrentHDF%Field4D) then
 
             end if            
             
-        endif if4D            
-
-
+        endif if4D
 
     end subroutine ReadHDF5Values3D
 
