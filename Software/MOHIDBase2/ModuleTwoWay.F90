@@ -289,8 +289,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         real                                        :: VelDT, DT
         integer, optional, intent(OUT)              :: STAT
         integer, optional                           :: IWDn
+        integer,           intent(IN)               :: DoCycleMethod
         !Local----------------------------------------------------------------
-        integer                                     :: STAT_CALL, ready_, STAT_, DoCycleMethod
+        integer                                     :: STAT_CALL, ready_, STAT_
         !---------------------------------------------------------------------
         call Ready(TwoWayID, ready_)
 

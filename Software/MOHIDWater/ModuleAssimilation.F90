@@ -309,6 +309,8 @@ Module ModuleAssimilation
         ! guillaume : Required by the Cooper-Haines method
         !Instance of ModuleWaterProperties     
         integer                                 :: ObjWaterProperties = 0
+        
+        integer                                 :: ObjTwoWay          = 0
 
         type(T_Assimilation), pointer           :: Next
     
@@ -342,6 +344,7 @@ Module ModuleAssimilation
                                  HorizontalMapID,                           &
                                  MapID,                                     &
                                  GeometryID,                                &
+                                 TwoWayID,                                  &
                                  Hydro_Relaxation_HorAdv,                   &
                                  STAT)
 
@@ -353,6 +356,7 @@ Module ModuleAssimilation
         integer                                         :: HorizontalMapID
         integer                                         :: MapID
         integer                                         :: GeometryID
+        integer                                         :: TwoWayID
         integer,                 optional, intent(OUT)  :: STAT     
         logical,                 optional, intent(IN)   :: Hydro_Relaxation_HorAdv
 
@@ -385,7 +389,8 @@ Module ModuleAssimilation
             Me%ObjHorizontalMap   = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID   )
             Me%ObjHorizontalGrid  = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID  )
             Me%ObjGeometry        = AssociateInstance (mGEOMETRY_,       GeometryID        )
-            Me%ObjMap             = AssociateInstance (mMAP_,            MapID             ) 
+            Me%ObjMap             = AssociateInstance (mMAP_,            MapID             )
+            Me%ObjTwoWay          = AssociateInstance (mTwoWay_,         TwoWayID          )
 
             if (present(Hydro_Relaxation_HorAdv)) Me%Relaxation_HorAdv = Hydro_Relaxation_HorAdv
 
@@ -1541,6 +1546,7 @@ cd2 :           if (BlockFound) then
                 !Sobrinho Checks if current grid domain (for when many domains are to be assimilated) is already built.
                     if ( .not. AssociatedDomain(NewProperty)) NewDomain = .true.
                     !Sobrinho - checks if current property has already been allocated (multiple assim fields)
+                    !If so, points NewProperty%Field%R2D to the last allocated upscaling property with the same name
                     if ( UpscalingPropExists(NewProperty)) NewProp = .false.
                 endif
                 
@@ -1783,12 +1789,16 @@ cd2 :           if (BlockFound) then
                                     EnterDataID          = Me%ObjEnterData,          &
                                     TimeID               = Me%ObjTime,               &
                                     HorizontalGridID     = Me%ObjHorizontalGrid,     &
+                                    GeometryID           = Me%ObjGeometry,           &
+                                    HorizontalMapID      = Me%ObjHorizontalMap,      &
+                                    MapID                = Me%ObjMap,                &
+                                    TwoWayID             = Me%ObjTwoWay,             &
                                     ExtractType          = FromBlockInBlock,         &
                                     PointsToFill2D       = PointsToFill2D,           &
                                     Matrix2D             = Matrix2D,                 &
                                     TypeZUV              = NewProperty%Field%TypeZUV,&
                                     ClientID             = ClientNumber,             &
-                                    NewDomain             = NewDomain,               &
+                                    NewDomain            = NewDomain,                &
                                     STAT                 = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_2D - ModuleAssimilation - ERR30'
 
@@ -2648,7 +2658,7 @@ cd3:            if (PropertyX%Dim == Dim_2D) then
                                           VectorX_ID, VectorY_ID,                       & 
                                           N_Field,                                      &
                                           VectorX_2D, VectorY_2D,                       &
-                                          VectorX_3D, VectorY_3D,                       &
+                                          VectorX_3D, VectorY_3D, Upscaling             &
                                           STAT)
 
         !Arguments--------------------------------------------------------------
@@ -2658,13 +2668,14 @@ cd3:            if (PropertyX%Dim == Dim_2D) then
         real, dimension(:,:  ), pointer, optional   :: VectorX_2D, VectorY_2D
         real, dimension(:,:,:), pointer, optional   :: VectorX_3D, VectorY_3D
         integer, optional, intent(OUT)              :: STAT
+        logical, optional, intent(IN)               :: Upscaling
 
         !External--------------------------------------------------------------
         integer                                     :: ready_        
         type (T_Property), pointer                  :: PropertyX, PropertyY
         integer                                     :: STAT_CALL_X, STAT_CALL_Y  
         integer                                     :: N_Field_
-        
+        logical                                     :: Upscaling_
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_
 
@@ -2681,8 +2692,13 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
                 N_Field_ = N_Field
             else
                 N_Field_ = 1
-            endif            
-
+            endif
+            
+            Upscaling_ = .false.
+            if (present(Upscaling)) Upscaling_ = Upscaling
+            
+            !Sobrinho - Acrescentar possibilidade de existirem mais propertyX com o mesmo nome
+            !Acrescentar nova searchproperty_upscaling
             nullify(PropertyX)
             call SearchProperty(PropertyX           = PropertyX,                        &
                                 PropertyXIDNumber   = VectorX_ID,                       &
@@ -3339,7 +3355,8 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
 
         do while (associated(PropertyX)) 
                 
-            if (PropertyX%UpscalingDomain == NewProperty%UpscalingDomain) then
+            if (PropertyX%Upscaling .and. (PropertyX%UpscalingDomain == NewProperty%UpscalingDomain)) then
+                !Son ID for use in fillmatrix and field4D
                 NewProperty%ID%ObjTwoWay         = PropertyX%ID%ObjTwoWay
                 NewProperty%ID%ObjGeometry       = PropertyX%ID%ObjGeometry
                 NewProperty%ID%ObjHorizontalGrid = PropertyX%ID%ObjHorizontalGrid
@@ -3555,7 +3572,7 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
         end do    
 
         if (associated(PropertyX)) then
-
+            !Sobrinho  é aqui que vai buscar os novos valores???
             call AssimilationFromFile(PropertyX)
 
             STAT_ = SUCCESS_  

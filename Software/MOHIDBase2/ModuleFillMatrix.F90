@@ -578,7 +578,10 @@ Module ModuleFillMatrix
         integer                                     :: ObjEnterData         = 0 
         integer                                     :: ObjTime              = 0
         integer                                     :: ObjHorizontalGrid    = 0    
-        integer                                     :: ObjGeometry          = 0    
+        integer                                     :: ObjGeometry          = 0
+        integer                                     :: ObjHorizontalMap     = 0
+        integer                                     :: ObjMap               = 0
+        integer                                     :: ObjTwoWay            = 0
 
         type(T_FillMatrix), pointer                 :: Next => null()
     end type  T_FillMatrix
@@ -601,7 +604,8 @@ Module ModuleFillMatrix
     !++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
     subroutine ConstructFillMatrix2D(PropertyID, EnterDataID, TimeID,                   &
-                                     HorizontalGridID, ExtractType, PointsToFill2D,     &
+                                     HorizontalGridID, GeometryID, HorizontalMapID,     &
+                                     MapID, TwoWayID, ExtractType, PointsToFill2D,      &
                                      Matrix2D, TypeZUV, Matrix2DInputRef, FileNameHDF,  &    
                                      ObjFillMatrix, OverrideValueKeyword, ClientID,     &
                                      PredictDTMethod, MinForDTDecrease,                 &
@@ -618,7 +622,11 @@ Module ModuleFillMatrix
         real, dimension(:, :), pointer, optional        :: Matrix2DInputRef      !original field (e.g. angle)
         integer                                         :: TypeZUV
         type (T_PropertyID)                             :: PropertyID
-        integer, optional, intent(IN)                   :: ClientID
+        integer,      optional, intent(IN )             :: ClientID
+        integer,      optional, intent(IN )             :: GeometryID
+        integer,      optional, intent(IN )             :: HorizontalMapID
+        integer,      optional, intent(IN )             :: MapID
+        integer,      optional, intent(IN )             :: TwoWayID
         character(*), optional, intent(IN )             :: FileNameHDF, OverrideValueKeyword
         integer,      optional, intent(INOUT)           :: ObjFillMatrix
         logical,      optional, intent(IN)              :: CheckDates
@@ -678,6 +686,12 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjEnterData      = AssociateInstance (mENTERDATA_,      EnterDataID     )
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
+            
+            !Sobrinho Parent domain IDs
+            if (present(HorizontalMapID)) Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
+            if (present(GeometryID))      Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
+            if (present(MapID))           Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
+            if (present(TwoWayID))        Me%ObjTwoWay         = AssociateInstance (mTwoWay_,         TwoWayID        )
 
             ! JPW 2012-01-28: Use HorizontalGridSize to set size of the matrix.
             ! Using ubound may cause inconsistency with padded matrices (making IUB larger than the actual grid bound).
@@ -1046,7 +1060,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
     !----------------------------------------------------------------------
 
     subroutine ConstructFillMatrix3D(PropertyID, EnterDataID, TimeID, HorizontalGridID, &
-                                     GeometryID, ExtractType, PointsToFill3D, Matrix3D, &
+                                     GeometryID, HorizontalMapID, MapID, TwoWayID,      &
+                                     ExtractType, PointsToFill3D, Matrix3D, &
                                      TypeZUV, Matrix3DInputRef, FillMatrix, FileNameHDF,&
                                      ObjFillMatrix, OverrideValueKeyword, ClientID,     &
                                      predictDTMethod, MinForDTDecrease,                 &
@@ -1065,6 +1080,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         real, dimension(:, :, :), pointer, optional     :: Matrix3DInputRef    !original field (e.g. angle)
         integer                                         :: TypeZUV
         integer, optional, intent(IN)                   :: ClientID
+        integer,      optional, intent(IN )             :: HorizontalMapID!Sobrinho
+        integer,      optional, intent(IN )             :: MapID!Sobrinho
+        integer,      optional, intent(IN )             :: TwoWayID!Sobrinho
         real        , optional, intent(IN )             :: FillMatrix
         character(*), optional, intent(IN )             :: FileNameHDF, OverrideValueKeyword
         integer,      optional, intent(INOUT)           :: ObjFillMatrix
@@ -1075,7 +1093,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
         logical,      optional, intent(IN )             :: ValueIsUsedForDTPrediction 
         logical,      optional, intent(IN )             :: RotateAngleToGrid
         character(*), optional, intent(IN )             :: SpongeFILE_DT
-        logical,      optional, intent(IN )             :: NewDomain!Sobrinho
+        logical,      optional, intent(IN )             :: NewDomain !Sobrinho
         !Local-------------------------------------------------------------------
         real                                            :: FillMatrix_
         integer                                         :: ready_, STAT_, STAT_CALL, nUsers, ObjFillMatrix_
@@ -1132,6 +1150,11 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%ObjTime           = AssociateInstance (mTIME_,           TimeID          )
             Me%ObjHorizontalGrid = AssociateInstance (mHORIZONTALGRID_, HorizontalGridID)
             Me%ObjGeometry       = AssociateInstance (mGEOMETRY_,       GeometryID      )
+            
+            !Sobrinho Parent domain IDs
+            if (present(HorizontalMapID)) Me%ObjHorizontalMap  = AssociateInstance (mHORIZONTALMAP_,  HorizontalMapID )
+            if (present(MapID))           Me%ObjMap            = AssociateInstance (mMAP_,            MapID           )
+            if (present(TwoWayID))        Me%ObjTwoWay         = AssociateInstance (mTwoWay_,         TwoWayID        )
 
             ! JPW 2012-01-28: Use GeometrySize to set size of the matrix.
             ! Using ubound may cause inconsistency with padded matrices (making IUB larger than the actual grid bound).
@@ -7790,25 +7813,52 @@ d2:      do while(.not. FoundSecondInstant)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR110'        
         
         else
-        
-            call ConstructField4D(Field4DID         = CurrentHDF%ObjField4D,            &
-                                  EnterDataID       = Me%ObjEnterData,                  &
-                                  ExtractType       = ExtractType,                      &
-                                  FileName          = CurrentHDF%FileName,              &
-                                  FieldName         = CurrentHDF%FieldName,             &
-                                  TimeID            = Me%ObjTime,                       &   
-                                  MaskDim           = Me%Dim,                           &
-                                  LatReference      = LatDefault,                       &
-                                  LonReference      = LongDefault,                      & 
-                                  WindowLimitsXY    = WindowLimitsXY,                   &
-                                  Extrapolate       = .true.,                           &
-                                  ExtrapolateMethod = CurrentHDF%ExtrapolateMethod,     &
-                                  PropertyID        = Me%PropertyID,                    &
-                                  ClientID          = ClientID,                         &
-                                  FileNameList      = CurrentHDF%FileNameList,          &
-                                  Upscaling         = CurrentHDF%Upscaling,             & !Sobrinho - upscaling
-                                  STAT              = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR120'
+            if (Me%NewDomain) then
+                !in case of upscaling, fills grid Ids in Me%PropertyID
+                call ConstructField4D(Field4DID         = CurrentHDF%ObjField4D,            &
+                                      EnterDataID       = Me%ObjEnterData,                  &
+                                      ExtractType       = ExtractType,                      &
+                                      FileName          = CurrentHDF%FileName,              &
+                                      FieldName         = CurrentHDF%FieldName,             &
+                                      TimeID            = Me%ObjTime,                       &   
+                                      MaskDim           = Me%Dim,                           &
+                                      LatReference      = LatDefault,                       &
+                                      LonReference      = LongDefault,                      & 
+                                      WindowLimitsXY    = WindowLimitsXY,                   &
+                                      Extrapolate       = .true.,                           &
+                                      ExtrapolateMethod = CurrentHDF%ExtrapolateMethod,     &
+                                      PropertyID        = Me%PropertyID,                    &
+                                      ClientID          = ClientID,                         &
+                                      FileNameList      = CurrentHDF%FileNameList,          &
+                                      Upscaling         = CurrentHDF%Upscaling,             & !Sobrinho - upscaling
+                                      STAT              = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR120'
+            else
+                !In case of upscaling, sends Ids of previously built grid Ids
+                call ConstructField4D(Field4DID         = CurrentHDF%ObjField4D,            &
+                                      EnterDataID       = Me%ObjEnterData,                  &
+                                      HorizontalGridID  = Me%PropertyID%ObjHorizontalGrid,  &
+                                      HorizontalMapID   = Me%PropertyID%ObjHorizontalMap,   &
+                                      MapID             = Me%PropertyID%ObjMap,             &
+                                      BathymetryID      = Me%PropertyID%ObjBathymetry,      &
+                                      ExtractType       = ExtractType,                      &
+                                      FileName          = CurrentHDF%FileName,              &
+                                      FieldName         = CurrentHDF%FieldName,             &
+                                      TimeID            = Me%ObjTime,                       &   
+                                      MaskDim           = Me%Dim,                           &
+                                      LatReference      = LatDefault,                       &
+                                      LonReference      = LongDefault,                      & 
+                                      WindowLimitsXY    = WindowLimitsXY,                   &
+                                      Extrapolate       = .true.,                           &
+                                      ExtrapolateMethod = CurrentHDF%ExtrapolateMethod,     &
+                                      PropertyID        = Me%PropertyID,                    &
+                                      ClientID          = ClientID,                         &
+                                      FileNameList      = CurrentHDF%FileNameList,          &
+                                      Upscaling         = CurrentHDF%Upscaling,             & !Sobrinho - upscaling
+                                      STAT              = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR130'
+            endif
+            
         endif
     
     end subroutine ConstructField4DInterpol

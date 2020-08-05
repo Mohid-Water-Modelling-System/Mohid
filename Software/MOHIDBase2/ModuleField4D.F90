@@ -424,7 +424,7 @@ Module ModuleField4D
         type (T_Size2D)            ,          optional, intent(IN )   :: WindowLimitsJI
         logical,                              optional, intent(IN )   :: Extrapolate
         integer,                              optional, intent(IN )   :: ExtrapolateMethod
-        type (T_PropertyID),                  optional, intent(IN )   :: PropertyID
+        type (T_PropertyID),                  optional, intent(INOUT) :: PropertyID !Sobrinho
         integer,                              optional, intent(IN )   :: ClientID
         character(*), dimension(:), pointer,  optional, intent(IN )   :: FileNameList             
         character(*),                         optional, intent(IN )   :: FieldName             
@@ -462,7 +462,7 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             Me%Extrapolate       = .true.
             Me%ExtrapolateMethod = ExtrapolAverage_
             Me%DiscardFillValues = .true.
-            Upscaling            = .false.
+            Me%Upscaling         = .false.
             
             if (present(MaskDim))           Me%MaskDim           = MaskDim
             if (present(ClientID))          Me%ClientID          = ClientID
@@ -603,7 +603,13 @@ wwd:            if (Me%WindowWithData) then
                     call AllocatePropertyField  (NewPropField, Me%MaskDim)
                     
                     if (present(PropertyID)) then
-                        NewPropField%ID = PropertyID !Sobrinho - aqui serao guardados os objID para enviar para o fillmatrix
+                        NewPropField%ID = PropertyID 
+                        !Sobrinho - aqui serao guardados os objID para enviar para o fillmatrix
+                        PropertyID%ObjMap = Me%ObjMap
+                        PropertyID%ObjHorizontalGrid =  Me%ObjHorizontalGrid
+                        PropertyID%ObjHorizontalMap =  Me%ObjHorizontalMap
+                        PropertyID%ObjGeometry =  Me%ObjGeometry
+                        PropertyID%ObjBathymetry =  Me%ObjBathymetry
                     else
                         call ConstructPropertyID (NewPropField%ID, Me%ObjEnterData, ExtractType)
                     endif
@@ -3339,7 +3345,7 @@ i0:     if(NewPropField%SpaceDim == Dim2D)then
             KLB  = 1;              KUB = 1
             SKLB = Me%Size3D%KLB; SKUB = Me%Size3D%KUB
         else
-             KLB = Me%WorkSize3D%KLB;  KUB = Me%WorkSize3D%KU
+             KLB = Me%WorkSize3D%KLB;  KUB = Me%WorkSize3D%KUB
             SKLB = Me%Size3D%KLB    ; SKUB = Me%Size3D%KUB
         endif             
          

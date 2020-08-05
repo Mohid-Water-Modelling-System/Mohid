@@ -4936,6 +4936,7 @@ do1 :   do while (associated(PropertyX))
                                        Me%ObjHorizontalMap,                             &
                                        Me%ObjMap,                                       &
                                        Me%ObjGeometry,                                  &
+                                       Me%ObjTwoWay,                                    &
                                        STAT = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) call CloseAllAndStop ('Construct_Sub_Modules - WaterProperties - ERR70')
 
