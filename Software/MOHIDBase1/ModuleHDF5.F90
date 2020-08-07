@@ -6862,6 +6862,7 @@ Module ModuleHDF5
            !Opens the group
             call h5gopen_f (Me%FileID, GroupName, gr_id, STAT_CALL)
             if (STAT_CALL /= SUCCESS_) then
+                write(*,*) 'Filename = ' , trim(Me%FileName)
                 write(*,*) 'Group name not present in the hdf5 input file', GroupName
                 stop 'GetHDF5ArrayDimensions - ModuleHDF5 - ERR10'
             endif

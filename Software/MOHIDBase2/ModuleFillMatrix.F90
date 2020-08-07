@@ -6365,7 +6365,7 @@ d1:     do while (associated(CurrentHDF))
                          default      = .false.,                                            &
                          ClientModule = 'ModuleFillMatrix',                                 &
                          STAT         = STAT_CALL)                                      
-            if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR310'    
+            if (STAT_CALL .NE. SUCCESS_) stop 'ReadOptionsHDFinput - ModuleFillMatrix - ERR310'    
             
             if (CurrentHDF%HarmonicsON) then
         
