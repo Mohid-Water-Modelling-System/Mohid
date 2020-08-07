@@ -22813,23 +22813,35 @@ CurrOr: do while (associated(CurrentOrigin))
         logical,    dimension(:), pointer           :: Beach, KillPartic        
         type (T_Origin), pointer                    :: CurrentOrigin
         type (T_Partic), pointer                    :: CurrentPartic
-        integer                                     :: n, STAT_CALL
+        integer                                     :: n, STAT_CALL, nTotal
 
         !Begin-----------------------------------------------------------------
 
+        nTotal = 0
+        
         CurrentOrigin => Me%FirstOrigin
-CurrOr: do while (associated(CurrentOrigin))
+dw1:    do while (associated(CurrentOrigin))
+            nTotal = nTotal + CurrentOrigin%nParticle
+            CurrentOrigin => CurrentOrigin%Next
+        enddo dw1
 
-            allocate   (Longitude   (CurrentOrigin%nParticle))
-            allocate   (Latitude    (CurrentOrigin%nParticle))
-            allocate   (Age         (CurrentOrigin%nParticle))
-            allocate   (Origin      (CurrentOrigin%nParticle))            
-            allocate   (ID          (CurrentOrigin%nParticle))                        
-            allocate   (Beach       (CurrentOrigin%nParticle))
-            allocate   (KillPartic  (CurrentOrigin%nParticle))            
             
-            CurrentPartic => CurrentOrigin%FirstPartic
+        allocate   (Longitude   (nTotal))
+        allocate   (Latitude    (nTotal))
+        allocate   (Age         (nTotal))
+        allocate   (Origin      (nTotal))            
+        allocate   (ID          (nTotal))                        
+        allocate   (Beach       (nTotal))
+        allocate   (KillPartic  (nTotal))
+            
             n = 1
+        
+        CurrentOrigin => Me%FirstOrigin
+        
+dw2:    do while (associated(CurrentOrigin))
+
+            CurrentPartic => CurrentOrigin%FirstPartic
+           
             do while (associated(CurrentPartic))
 
                 Longitude   (n) = CurrentPartic%Position%CoordX
@@ -22839,20 +22851,19 @@ CurrOr: do while (associated(CurrentOrigin))
                 ID          (n) = CurrentPartic%ID
                 KillPartic  (n) = CurrentPartic%KillPartic            
                 Beach       (n) = CurrentPartic%Beached
+                
                 CurrentPartic => CurrentPartic%Next
                 n = n + 1
             enddo
+            CurrentOrigin => CurrentOrigin%Next
+        enddo dw2
             
-            nullify(CurrentPartic)
-            
-            if (CurrentOrigin%nParticle /= n-1) then
-                stop 'ProcessLitter - ModuleLagrangianGlobal - ERR10'
-            endif
             
 #ifdef _LITTER_
             call ModifyLitter(ObjLitterID   = Me%ObjLitter,                             &
-                              nParticles    = CurrentOrigin%nParticle,                  &
+                            nParticles    = nTotal,                                   &
                               CurrentTime   = Me%Now,                                   &
+                            NextCompute   = Me%NextCompute,                           &
                               Longitude     = Longitude,                                &
                               Latitude      = Latitude,                                 &
                               Age           = Age,                                      &
@@ -22863,9 +22874,13 @@ CurrOr: do while (associated(CurrentOrigin))
                               STAT          = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ProcessLitter - ModuleLagrangianGlobal - ERR20'
 #endif  
+        n= 1
+
+        CurrentOrigin => Me%FirstOrigin
+dw3:    do while (associated(CurrentOrigin))
 
             CurrentPartic => CurrentOrigin%FirstPartic
-            n= 1
+ 
             do while (associated(CurrentPartic))
 
                 CurrentPartic%Beached    = Beach     (n)
@@ -22874,8 +22889,8 @@ CurrOr: do while (associated(CurrentOrigin))
                 CurrentPartic => CurrentPartic%Next
                 n = n + 1                
             enddo
-                
-            nullify(CurrentPartic)
+            CurrentOrigin => CurrentOrigin%Next
+        enddo dw3            
 
             deallocate   (Longitude   )
             deallocate   (Latitude    )
@@ -22885,11 +22900,7 @@ CurrOr: do while (associated(CurrentOrigin))
             deallocate   (Beach       )
             deallocate   (KillPartic  )            
 
-
-            CurrentOrigin => CurrentOrigin%Next
-
-        enddo CurrOr
-        
+        nullify(CurrentPartic)
         nullify(CurrentOrigin)
 
     end subroutine ProcessLitter
@@ -27914,6 +27925,8 @@ CurrOr:     do while (associated(CurrentOrigin))
             endif
 !#endif
             if (WriteFinal) call WriteFinalPartic
+
+            
 
             Me%OutPut%NextRestartOutput = Me%OutPut%NextRestartOutput + 1
 
