@@ -1914,7 +1914,7 @@ program Convert2netcdf
                 !This isn't the right way to look for a Mask.
                 !The mask variable should be explicited in the configuration file.
                 !And the defaults should be WaterPoints2D and WaterPoints3D.
-                if(class_id == H5T_INTEGER_F) then
+                if(class_id == H5T_INTEGER_F .and. trim(obj_name)/= "Define Cells") then
                     Me%IsMapping = .true.
                 else
                     Me%IsMapping = .false.
