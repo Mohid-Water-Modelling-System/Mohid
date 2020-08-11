@@ -1186,7 +1186,15 @@ i1:         if (GridsFound) then
         type (T_Particle), pointer                    :: PrevParticle  => null()
 
         logical                                       :: ParticleDeleted
+        integer                                       :: nP
+        
         !Begin-----------------------------------------------------------------
+
+        nP = ParticleID(ParticleToDelete)         
+        
+        if (nP > 0) then
+            Me%ExtVar%KillPartic(nP) = .true.
+        endif
 
         ParticleDeleted = .false. 
 
@@ -1475,6 +1483,38 @@ i4:                             if (Me%KillBeachLitter) then
 
 
     !--------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
+
+    integer function ParticleID(CurrentPartic)        
+        !Arguments-------------------------------------------------------------
+        type (T_Particle), pointer                  :: CurrentPartic
+
+        !Local-----------------------------------------------------------------
+        integer                                     :: nP, nPtotal
+        
+        !----------------------------------------------------------------------
+        
+        ParticleID  = FillValueInt
+        
+        nPtotal     = Me%ExtVar%nParticles
+        
+d1:     do nP    = 1, nPtotal
+    
+i1:         if (Me%ExtVar%Origin(nP) == CurrentPartic%Origin .and.                      &
+                Me%ExtVar%ID    (nP) == CurrentPartic%ID    ) then
+                ParticleID = nP
+                exit
+            endif i1
+
+        enddo   d1
+        
+
+    end function ParticleID
+
+
+    !--------------------------------------------------------------------------
+    
 
     !--------------------------------------------------------------------------
 
