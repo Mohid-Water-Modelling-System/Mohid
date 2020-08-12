@@ -77,7 +77,9 @@ Module ModuleField4D
 #endif
 #endif
     use ModuleTimeSerie
-    use ModuleTask2000,         only : Task2000Level               
+    use ModuleTask2000,         only : Task2000Level
+    
+    use ModuleTwoWay,           only : PrepTwoWay, ModifyTwoWay, UngetTwoWayExternal_Vars
                                        
     implicit none
 
@@ -580,6 +582,11 @@ wwd:            if (Me%WindowWithData) then
                         if (present(GeometryID)) then
                             Me%ObjGeometry          = AssociateInstance (mGEOMETRY_,       GeometryID      )
                             Me%BuildGeometry      = .false.
+                            if (Me%Upscaling) then
+                                call GetGeometrySize(GeometryID         = Me%ObjGeometry,                       &
+                                                     Size = Me%Size3D, WorkSize = Me%WorkSize3D, STAT = STAT_CALL)       
+                                if (STAT_CALL /= SUCCESS_)stop 'GetGeometrySize - ConstructField4D - ModuleField4D'
+                            endif
                         else
                             Me%BuildGeometry      = .true.
                             call ReadGeometryFromFile !Sobrinho - Busca X, Y e Z
@@ -1141,7 +1148,7 @@ wwd1:       if (Me%WindowWithData) then
                                       STAT          = STAT_CALL)
                     if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR40'
                     
-            elseif (ArrayHDF_Dim == 2) then
+                elseif (ArrayHDF_Dim == 2) then
 
                     call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,        &
                                                                JLB = JLB, JUB = JUB,        &
@@ -1157,11 +1164,11 @@ wwd1:       if (Me%WindowWithData) then
                     
                     
             
-            else
+                else
             
-                stop 'ReadMap2DFromFile - ModuleField4D - ERR46'
+                    stop 'ReadMap2DFromFile - ModuleField4D - ERR46'
             
-            endif                    
+                endif                    
             
 #ifndef _NO_NETCDF
             else if (Me%File%Form == NetCDF_) then
@@ -1203,7 +1210,6 @@ wwd1:       if (Me%WindowWithData) then
                     
                 endif
                 
-                
                 call HDF5SetLimits  (HDF5ID = Me%File%Obj, ILB = ILB, IUB = IUB,        &
                                                            JLB = JLB, JUB = JUB,        &
                                                            KLB = KLB, KUB = KUB,        &
@@ -1234,14 +1240,22 @@ wwd1:       if (Me%WindowWithData) then
         
         endif 
         
-        !Builds horizontal grid object
-        call ConstructHorizontalMap(HorizontalMapID      = Me%ObjHorizontalMap,         &
-                                    GridDataID           = Me%ObjBathymetry,            &
-                                    HorizontalGridID     = Me%ObjHorizontalGrid,        &
-                                    Points               = Mask2D,                      &
-                                    STAT                 = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR100'
-
+        !Builds horizontal map object
+        
+        if (Me%Upscaling) then
+            call ConstructHorizontalMap(HorizontalMapID      = Me%ObjHorizontalMap,         &
+                                        GridDataID           = Me%ObjBathymetry,            &
+                                        HorizontalGridID     = Me%ObjHorizontalGrid,        &
+                                        STAT                 = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR100'
+        else
+            call ConstructHorizontalMap(HorizontalMapID      = Me%ObjHorizontalMap,         &
+                                        GridDataID           = Me%ObjBathymetry,            &
+                                        HorizontalGridID     = Me%ObjHorizontalGrid,        &
+                                        Points               = Mask2D,                      &
+                                        STAT                 = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_)stop 'ReadMap2DFromFile - ModuleField4D - ERR100'
+        endif
 
         deallocate(Mask2D)
         nullify   (Mask2D)
@@ -4374,7 +4388,7 @@ d2:     do N =1, NW
         call UnGetHorizontalGrid(Me%ObjHorizontalGrid, CoordY, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'FromHarmonics2Field2D - ModuleField4D - ERR40'        
     
-        if(NewPropField%HasMultiplyingFactor)then
+        if((NewPropField%HasMultiplyingFactor) .and. (NewPropField%MultiplyingFactor /= 1))then
             do k = KLB, KUB
             do j = JLB, JUB
             do i = ILB, IUB
@@ -4384,7 +4398,7 @@ d2:     do N =1, NW
             enddo
         end if
 
-        if(NewPropField%HasAddingFactor)then
+        if((NewPropField%HasAddingFactor) .and. (NewPropField%AddingFactor /= 0))then
             do k = KLB, KUB
             do j = JLB, JUB
             do i = ILB, IUB
@@ -4997,9 +5011,7 @@ d2:     do N =1, NW
                     endif            
                     
                 else
-                
                     stop 'ModifyField4D - ModuleField4D - ERR20'
-                    
                 endif                    
                 
             else            
@@ -5025,86 +5037,80 @@ d2:     do N =1, NW
                             call FromHarmonics2Field3D(PropField, Me%CurrentTimeInt)                        
                         else
                             call ModifyInput3D        (PropField) 
-                        endif                        
-
+                        endif
                     endif
-                    
-                endif     
+                endif
                 
             endif                           
                 
-            if (Me%Output%Yes) then
-                call WriteOutput(PropField, PropertyIDNumber)
-            endif
+            if (Me%Output%Yes) call WriteOutput(PropField, PropertyIDNumber)
             
             if (present(Matrix2D)) then
-                Matrix2D(:,:) = Me%Matrix2D(:,:)
+                if (Me%Upscaling) then !Sobrinho
+                    call PrepTwoWay (SonID = Me%ObjHorizontalGrid, CallerID = mField4D_, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Failed PrepTwoWay call in ModifyField4D - ModuleField4D.'
+                    
+                    call ModifyTwoWay (SonID = Me%ObjHorizontalGrid, FatherMatrix2D = Matrix2D, &
+                                       SonMatrix2D = Me%Matrix2D, CallerID = mField4D_, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Failed ModifyTwoWay call in ModifyField4D - ModuleField4D.'
+                    
+                    call UngetTwoWayExternal_Vars(SonID = Me%ObjHorizontalGrid, CallerID = mField4D_, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Subroutine ComputeTwoWay - ModuleHydrodynamic. ERR06.'
+                else
+                    Matrix2D(:,:) = Me%Matrix2D(:,:)
+                endif
             endif
-
+            
             if (present(Matrix3D)) then
                 
-                SizeI1  = size(Matrix3D, 1)
-                SizeJ1  = size(Matrix3D, 2)
-                SizeK1  = size(Matrix3D, 3)
-                
-                SizeI2 = size(Me%Matrix3D, 1)
-                SizeJ2 = size(Me%Matrix3D, 2)                
-                SizeK2 = size(Me%Matrix3D, 3)
-                
-                ILB1   = LBound(Matrix3D, 1)
-                JLB1   = LBound(Matrix3D, 2)
-                KLB1   = LBound(Matrix3D, 3) 
-                
-                IUB1   = UBound(Matrix3D, 1)
-                JUB1   = UBound(Matrix3D, 2)                
-                KUB1   = UBound(Matrix3D, 3)                 
-                
-                ILB2   = LBound(Me%Matrix3D, 1)
-                JLB2   = LBound(Me%Matrix3D, 2)
-                KLB2   = LBound(Me%Matrix3D, 3) 
-                
-                IUB2   = UBound(Me%Matrix3D, 1)
-                JUB2   = UBound(Me%Matrix3D, 2)
-                KUB2   = UBound(Me%Matrix3D, 3)                                
-                
-                
-                if (SizeI1 /= SizeI2) then
-                    stop 'ModifyField4D - ModuleField4D - ERR30'
-                endif                        
-                
-                if (SizeJ1 /= SizeJ2) then
-                    stop 'ModifyField4D - ModuleField4D - ERR40'
-                endif                
-                
-                if      (PropField%From3Dto2D) then
-                    !Need to be a matrix3D with one layer
-                    if (SizeK1 /= 3) then
-                        stop 'ModifyField4D - ModuleField4D - ERR50'
-                    endif                        
+                if (Me%Upscaling) then !Sobrinho
+                    call PrepTwoWay (SonID = Me%ObjHorizontalGrid, CallerID = mField4D_, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Failed PrepTwoWay call in ModifyField4D - ModuleField4D.'
                     
-                    Matrix3D(:,:,1) = Me%Matrix3D(:,:, Me%WorkSize3D%KUB)
+                    call ModifyTwoWay (SonID = Me%ObjHorizontalGrid,                        &
+                                        FatherMatrix = Matrix3D, SonMatrix = Me%Matrix3D,   &
+                                        CallerID = mField4D_, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Failed ModifyTwoWay call in ModifyField4D - ModuleField4D.'
                     
-                elseif (PropField%From2Dto3D) then    
-                    
-                    
-                    do k = KLB1, KUB1
-                        Matrix3D(ILB1:IUB1,JLB1:JUB1,k) = Me%Matrix3D(ILB2:IUB2,JLB2:JUB2,1)                    
-                    enddo                        
-                    
-                    
+                    call UngetTwoWayExternal_Vars(SonID = Me%ObjHorizontalGrid, CallerID = mField4D_, STAT = STAT_CALL)
+                    if (STAT_CALL /= SUCCESS_) stop 'Failed UngetTwoWay call in ModifyField4D - ModuleField4D.'
                     
                 else
-                    if (SizeK1  /= SizeK2) then
-                        stop 'ModifyField4D - ModuleField4D - ERR60'
-                    endif                        
                     
+                    SizeI1  = size(Matrix3D, 1)     ; SizeJ1 = size(Matrix3D, 2)      ; SizeK1 = size(Matrix3D, 3)
+                    SizeI2  = size(Me%Matrix3D, 1)  ; SizeJ2 = size(Me%Matrix3D, 2)   ; SizeK2 = size(Me%Matrix3D, 3)
+                             
+                    ILB1   = LBound(Matrix3D, 1)    ; JLB1   = LBound(Matrix3D, 2)    ; KLB1   = LBound(Matrix3D, 3) 
+                    IUB1   = UBound(Matrix3D, 1)    ; JUB1   = UBound(Matrix3D, 2)    ; KUB1   = UBound(Matrix3D, 3)
+                
+                    ILB2   = LBound(Me%Matrix3D, 1) ; JLB2   = LBound(Me%Matrix3D, 2) ; KLB2   = LBound(Me%Matrix3D, 3)
+                    IUB2   = UBound(Me%Matrix3D, 1) ; JUB2   = UBound(Me%Matrix3D, 2) ; KUB2   = UBound(Me%Matrix3D, 3)
+                
+                    if (SizeI1 /= SizeI2) stop 'ModifyField4D - ModuleField4D - ERR30'                  
+                    if (SizeJ1 /= SizeJ2) stop 'ModifyField4D - ModuleField4D - ERR40'            
+                
+                    if      (PropField%From3Dto2D) then
+                        !Need to be a matrix3D with one layer
+                        if (SizeK1 /= 3) stop 'ModifyField4D - ModuleField4D - ERR50'                      
                     
-                    Matrix3D(ILB1:IUB1,JLB1:JUB1,KLB1:KUB1) = Me%Matrix3D(ILB2:IUB2,JLB2:JUB2,KLB2:KUB2)
+                        Matrix3D(:,:,1) = Me%Matrix3D(:,:, Me%WorkSize3D%KUB)
                     
-                endif                        
+                    elseif (PropField%From2Dto3D) then    
+                    
+                        do k = KLB1, KUB1
+                            Matrix3D(ILB1:IUB1,JLB1:JUB1,k) = Me%Matrix3D(ILB2:IUB2,JLB2:JUB2,1)                    
+                        enddo                        
+                    
+                    else
+                    
+                        if (SizeK1  /= SizeK2) stop 'ModifyField4D - ModuleField4D - ERR60'                     
+                    
+                        Matrix3D(ILB1:IUB1,JLB1:JUB1,KLB1:KUB1) = Me%Matrix3D(ILB2:IUB2,JLB2:JUB2,KLB2:KUB2)
+                    
+                    endif
+                endif
             endif
                                 
-            
             STAT_ = SUCCESS_
             
         else               
@@ -6612,19 +6618,14 @@ if1:    if (PropField%Harmonics%Extract) then
         
         !Arguments------------------------------------------------------------
         type (T_PropField), pointer                     :: PropField
-
         !Local----------------------------------------------------------------
         integer                                         :: STAT_CALL, n, i, j
-
         !Begin----------------------------------------------------------------
-
+        
         call GetWaterPoints2D(HorizontalMapID   = Me%ObjHorizontalMap,              &
                               WaterPoints2D     = Me%ExternalVar%WaterPoints2D,     &
                               STAT              = STAT_CALL) 
-
         if (STAT_CALL/=SUCCESS_) stop 'ModifyInput2D - ModuleField4D - ERR10' 
-
-        
 
         if (ReadNewField(PropField,n))then
 
@@ -6654,8 +6655,7 @@ if1:    if (PropField%Harmonics%Extract) then
                 if (abs(PropField%NextField2D(i,j)) > abs(FillValueReal))                  &
                     PropField%NextField2D    (i,j) = FillValueReal
             enddo
-            enddo   
-            
+            enddo
 
         end if
 
@@ -6676,7 +6676,6 @@ if1:    if (PropField%Harmonics%Extract) then
             else if (PropField%ValuesType == InterpolatedValues) then       !For interpolation
 
                 !Interpolates the two matrixes in time
-                !!Sobrinho - aqui é feita a interpolacao no tempo
                 if (PropField%ID%IsAngle) then                
                     call InterpolateAngle2DInTime (ActualTime       = Me%CurrentTimeInt,            &
                                                    Size             = Me%WorkSize2D,                &
@@ -6706,20 +6705,14 @@ if1:    if (PropField%Harmonics%Extract) then
                 call SetMatrixValue(Me%Matrix2D, Me%WorkSize2D, PropField%PreviousField2D, Me%ExternalVar%WaterPoints2D)
 
             else
-            
                 !do nothing
-                
             endif
-
         endif
 
         call UnGetHorizontalMap(HorizontalMapID   = Me%ObjHorizontalMap,                &
                                 Array             = Me%ExternalVar%WaterPoints2D,       &
                                 STAT              = STAT_CALL) 
-
         if (STAT_CALL/=SUCCESS_) stop 'ModifyInput2D - ModuleField4D - ERR20' 
-
-
 
     end subroutine ModifyInput2D
 

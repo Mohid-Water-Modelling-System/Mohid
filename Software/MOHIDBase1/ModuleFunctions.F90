@@ -207,11 +207,11 @@ Module ModuleFunctions
     public  :: FeedBack_IWD_UV
     public  :: FeedBack_IWD_WL
     
-    !public  :: Mass_In_Father_Avrg_WL
+    public  :: Upscaling_Avrg_WL
     !public  :: FeedBack_Avrg_WL
-    !public  :: Mass_In_Father_Avrg_UV
+    public  :: Mass_In_Father_Avrg_UV
     !public  :: FeedBack_Avrg_UV
-    !public  :: Mass_In_Father_Avrg
+    public  :: Upscaling_Avrg
     !public  :: FeedBack_Avrg
     
 
@@ -6409,73 +6409,43 @@ d5:     do k = klast + 1,KUB
     !>Computes son mass in father cells using an volume weighted average method. routine for water level
     !>@param[in] MassInFather2D, SonMatrix2D, Open3DSon, SizeFather, SizeSon, ILink, &
     !>JLink, VolumeSon2D, IgnoreOBCells
-    !subroutine Mass_In_Father_Avrg_WL(MassInFather2D, SonMatrix2D, Open3DSon, SizeFather, SizeSon, ILink, &
-    !JLink, VolumeSon2D, IgnoreOBCells)
-    !    !Arguments---------------------------------------------------------------------------------
-    !    type(T_Size3D)                    , intent(IN)      :: SizeSon, SizeFather
-    !    real(8), dimension(:,:  ), pointer, intent(IN)      :: VolumeSon2D
-    !    real,    dimension(:,:  ), pointer, intent(IN)      :: SonMatrix2D
-    !    integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DSon
-    !    integer, dimension(:,:  ), pointer, intent(IN)      :: ILink, JLink, IgnoreOBCells
-    !    real,    dimension(:,:),   pointer, intent(INOUT)   :: MassInFather2D
-    !    !Local variables --------------------------------------------------------------------------------
-    !    integer                                             :: i, j, KUBFather, KUBSon, IUBSon, ILBSon, JUBSon, JLBSon
-    !    integer                                             :: Flag
-    !    !Begin-------------------------------------------------------------------------------------
-    !    ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB
-    !    IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
-    !    KUBFather = SizeFather%KUB
-    !
-    !    do j = JLBSon, JUBSon
-    !    do i = ILBSon, IUBSon
-    !        Flag = Open3DSon(i, j, KUBSon) + IgnoreOBCells(i, j)
-    !        if (Flag == 2) then
-    !            MassInFather2D(ILink(i, j), JLink(i, j)) = &
-    !            MassInFather2D(ILink(i, j)+1, JLink(i, j)+1) + SonMatrix2D(i, j) * VolumeSon2D(i, j)
-    !        endif
-    !    enddo
-    !    enddo
-    !end subroutine Mass_In_Father_Avrg_WL
+    subroutine Upscaling_Avrg_WL(FatherMatrix2D, SonMatrix2D, SonMask, SizeSon, ILink, &
+    JLink, VolumeSon2D, TotSonIn2D)
+        !Arguments---------------------------------------------------------------------------------
+        type(T_Size3D)                    , intent(IN)      :: SizeSon
+        real(8), dimension(:,:  ), pointer, intent(IN)      :: VolumeSon2D
+        real,    dimension(:,:  ), pointer, intent(IN)      :: SonMatrix2D
+        real,    dimension(:,:),   pointer, intent(IN)      :: TotSonIn2D
+        integer, dimension(:,:,:), pointer, intent(IN)      :: SonMask
+        integer, dimension(:,:  ), pointer, intent(IN)      :: ILink, JLink
+        real,    dimension(:,:),   pointer, intent(INOUT)   :: FatherMatrix2D
+        !Local variables --------------------------------------------------------------------------------
+        integer                                             :: i, j, IUBSon, ILBSon, JUBSon, JLBSon, KUBSon
+        integer                                             :: ifather, jfather
+        !Begin-------------------------------------------------------------------------------------
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB
+        KUBSon = SizeSon%KUB
+    
+        do j = JLBSon, JUBSon
+        do i = ILBSon, IUBSon
+            ifather = ILink(i, j) ; jfather = JLink(i, j)
+            FatherMatrix2D(ifather, jfather) = FatherMatrix2D(ifather, jfather) &
+                                             + SonMatrix2D(i, j) * VolumeSon2D(i, j) * SonMask(i, j, KUBSon)
+        enddo
+        enddo
+        
+        do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+        do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+            if (TotSonIn2D(i, j) > 0) then
+                ! m/s                 = m/s + ((m4/s / m3) - m/s) * (m3/m3) * []
+                FatherMatrix2D(i, j) = FatherMatrix2D(i, j) / TotSonIn2D(i, j)
+            endif
+        enddo
+        enddo
+        
+    end subroutine Upscaling_Avrg_WL
                                 
-    !>@author Joao Sobrinho Maretec
-    !>@Brief
-    !>feeds back info from son to father using an volume weighted average method. routine for water level
-    !>@param[in] FatherMatrix2D, MassInFather2D, Open3DFather, SizeFather, SizeSon, ILink, &
-    !>JLink, DecayTime, DT, SonVolInFather2D, VolumeFather2D
-    !subroutine FeedBack_Avrg_WL(FatherMatrix2D, MassInFather2D, Open3DFather, SizeFather, SizeSon, ILink, &
-    !                            JLink, DecayTime, DT, SonVolInFather2D, VolumeFather2D)
-    !    !Arguments---------------------------------------------------------------------------------
-    !    type(T_Size3D)                    , intent(IN)      :: SizeSon, SizeFather
-    !    real(8), dimension(:,:  ), pointer, intent(IN)      :: VolumeFather2D
-    !    real,    dimension(:,:  ), pointer, intent(IN)      :: MassInFather2D, SonVolInFather2D
-    !    integer, dimension(:,:,:), pointer, intent(IN)      :: Open3DFather
-    !    real,    dimension(:,:  ), pointer, intent(INOUT)   :: FatherMatrix2D
-    !    integer, dimension(:,:  ), pointer, intent(IN)      :: ILink, JLink
-    !    real,                               intent(IN)      :: DecayTime, DT
-    !    !Local variables --------------------------------------------------------------------------------
-    !    integer                                             :: i, j, KUBFather, KUBSon, IUBSon, ILBSon, JUBSon, JLBSon
-    !    integer                                             :: Flag
-    !    real                                                :: DecayFactor
-    !    !Begin-------------------------------------------------------------------------------------
-    !    ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB
-    !    IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB
-    !    KUBFather = SizeFather%KUB    
-    !                            
-    !    DecayFactor = DT / DecayTime
-    !
-    !    do j = JLink(1, 1), JLink(IUBSon, JUBSon)
-    !    do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-    !        if (Open3DFather(i, j, KUBFather) == 1) then
-    !            if (SonVolInFather2D(i, j) > 0.1) then
-    !                FatherMatrix2D(i, j) = FatherMatrix2D(i, j) + (AuxMatrix2D(i, j) / SonVolInFather2D(i, j) -   &
-    !                                       FatherMatrix2D(i, j)) * DecayFactor * (SonVolInFather2D(i, j) / &
-    !                                       VolumeFather2D(i, j))
-    !            endif
-    !        endif
-    !    enddo
-    !    enddo
-    !
-    !end subroutine FeedBack_Avrg_WL
 
     !--------------------------------------------------------------------------------------------------------------
     !>@author Joao Sobrinho Maretec
@@ -6554,94 +6524,48 @@ d5:     do k = klast + 1,KUB
     !>Computes son volume in father cells using an volume weighted average method. routine for U/V types
     !>@param[in] MassInFather, SonMatrix, Open3DSon, SonComputeFaces3D, SizeFather, SizeSon, &
     !>ILink, JLink, VolumeSon, IgnoreOBCells
-    !subroutine Mass_In_Father_Avrg_UV(MassInFather, SonMatrix, Open3DSon, SonComputeFaces3D, SizeFather, SizeSon, &
-    !                                  ILink, JLink, VolumeSon, IgnoreOBCells)
-    !    !Arguments---------------------------------------------------------------------------------
-    !    type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
-    !    real(8), dimension(:,:,:), pointer, intent(IN)    :: VolumeSon
-    !    real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
-    !    integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink, IgnoreOBCells
-    !    integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DSon, SonComputeFaces3D
-    !    real,    dimension(:,:,:), pointer, intent(INOUT) :: MassInFather
-    !    !Local variables -----------------------------------------------------------------------------
-    !    integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
-    !                                                         KUBSon, KUBFather, KLBFather, ifather, jfather, kfather, &
-    !                                                         k_difference, CHUNK, Flag
-    !    !Begin----------------------------------------------------------------------------------------
-    !    ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
-    !    IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
-    !    !adjust to number of layers of son domain
-    !    k_difference = SizeFather%KUB - KUBSon
-    !    KLBFather = SizeFather%KLB + k_difference !Sobrinho
-    !    KUBFather = SizeFather%KUB
-    !
-    !    CHUNK = CHUNK_K(KLBSon, KUBSon)
-    !    !$OMP PARALLEL PRIVATE(i,j,k,Flag)
-    !    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-    !    do k = KLBSon, KUBSon
-    !    do j = JLBSon, JUBSon
-    !    do i = ILBSon, IUBSon
-    !        !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-    !        Flag = Open3DSon(i, j, k) + SonComputeFaces3D(i, j, k) + IgnoreOBCells(i, j)
-    !        if (Flag == 3) then
-    !            ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather = k + k_difference
-    !            MassInFather(ifather, jfather, kfather) = MassInFather(ifather, jfather, kfather) +     &
-    !                                                      SonMatrix(i, j, k) * VolumeSon(i, j, k)
-    !        endif
-    !    enddo
-    !    enddo
-    !    enddo
-    !    !$OMP END DO
-    !    !$OMP END PARALLEL
-    !end subroutine Mass_In_Father_Avrg_UV
+    subroutine Mass_In_Father_Avrg_UV(MassInFather, SonMatrix, Open3DSon, SonComputeFaces3D, SizeFather, SizeSon, &
+        ILink, JLink, VolumeSon)
+        !Arguments---------------------------------------------------------------------------------
+        type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
+        real(8), dimension(:,:,:), pointer, intent(IN)    :: VolumeSon
+        real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
+        integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink
+        integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DSon, SonComputeFaces3D
+        real,    dimension(:,:,:), pointer, intent(OUT)   :: MassInFather
+        !Local variables -----------------------------------------------------------------------------
+        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
+                                                             KUBSon, KUBFather, KLBFather, ifather, jfather, kfather, &
+                                                             k_difference, CHUNK, Flag
+        !Begin----------------------------------------------------------------------------------------
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KLBSon = SizeSon%KLB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
+        !adjust to number of layers of son domain
+        k_difference = SizeFather%KUB - KUBSon
+        KLBFather = SizeFather%KLB + k_difference !Sobrinho
+        KUBFather = SizeFather%KUB
+    
+        CHUNK = CHUNK_K(KLBSon, KUBSon)
+        !$OMP PARALLEL PRIVATE(i,j,k,Flag)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = KLBSon, KUBSon
+        do j = JLBSon, JUBSon
+        do i = ILBSon, IUBSon
+            !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+            Flag = Open3DSon(i, j, k) + SonComputeFaces3D(i, j, k)
+            if (Flag == 2) then
+                ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather = k + k_difference
+                MassInFather(ifather, jfather, kfather) = MassInFather(ifather, jfather, kfather) +     &
+                                                          SonMatrix(i, j, k) * VolumeSon(i, j, k)
+            endif
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+    end subroutine Mass_In_Father_Avrg_UV
     !!-------------------------------------------------------------------------------------
     !           
-    !!>@author Joao Sobrinho Maretec
-    !!>@Brief
-    !!>feeds back info from son to father using an volume weighted average method. routine for U/V types
-    !!>@param[in] FatherMatrix, SonMassInFather, Open3DFather, FatherComputeFaces3D, &
-    !!> SizeFather, SizeSon, ILink, JLink, DecayTime, DT, SonVolInFather, VolumeFather
-    !subroutine FeedBack_Avrg_UV (FatherMatrix, SonMassInFather, Open3DFather, FatherComputeFaces3D, &
-    !SizeFather, SizeSon, ILink, JLink, DecayTime, DT, SonVolInFather, VolumeFather)
-    !    !Arguments---------------------------------------------------------------------------------
-    !    type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
-    !    real(8), dimension(:,:,:), pointer, intent(IN)    :: VolumeFather
-    !    real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
-    !    integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink
-    !    integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather, FatherComputeFaces3D
-    !    real,                               intent(IN)    :: DecayTime, DT
-    !    real,    dimension(:,:,:), pointer, intent(IN)    :: SonMassInFather, SonVolInFather
-    !    !Local variables -----------------------------------------------------------------------------
-    !    integer                                           :: i, j, k, IUBSon, JUBSon, KUBSon, KUBFather, &
-    !                                                         KLBFather, ifather, jfather, kfather, k_difference, Flag
-    !    real                                              :: DecayFactor
-    !    !Begin----------------------------------------------------------------------------------------
-    !    IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
-    !    !adjust to number of layers of son domain
-    !    k_difference = SizeFather%KUB - KUBSon
-    !    KLBFather = SizeFather%KLB + k_difference !Sobrinho
-    !    KUBFather = SizeFather%KUB
-    !    
-    !    DecayFactor = DT / DecayTime
-    !
-    !    do k = KLBFather, KUBFather
-    !    do j = JLink(1, 1), JLink(IUBSon, JUBSon)
-    !    do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-    !        Flag = Open3DFather(i, j, k) + FatherComputeFaces3D(i, j, k)
-    !        if (Flag == 2) then
-    !            if (SonVolInFather(i, j, k) > 0.1) then
-    !                ! m/s                 = m/s + ((m4/s / m3) - m/s) * (m3/m3) * []
-    !                FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                            &
-    !                                      + (SonMassInFather(i, j, k) / SonVolInFather(i, j, k)              &
-    !                                      - FatherMatrix(i, j, k)) &
-    !                                      * (SonVolInFather(i, j, k) / VolumeFather(i, j, k)) * DecayFactor
-    !            endif
-    !        endif
-    !    enddo
-    !    enddo
-    !    enddo
-    !
-    !end subroutine FeedBack_Avrg_UV
 
     !>@author Joao Sobrinho Maretec
     !>@Brief
@@ -6714,93 +6638,58 @@ d5:     do k = klast + 1,KUB
     !>@Brief
     !>Computes son mass in each father cell. routine for Z types
     !>@param[in] SonMassInFather, SonMatrix, Open3DSon, SizeFather, SizeSon, ILink, &
-    !>JLink, VolumeSon, VolumeFather, IgnoreOBCells
-    !subroutine Mass_In_Father_Avrg(SonMassInFather, SonMatrix, Open3DSon, SizeFather, SizeSon, ILink, &
-    !JLink, VolumeSon, VolumeFather, IgnoreOBCells)
-    !    !Arguments---------------------------------------------------------------------------------
-    !    type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
-    !    real(8), dimension(:,:,:), pointer, intent(IN)    :: VolumeSon, VolumeFather
-    !    real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
-    !    real,    dimension(:,:,:), pointer, intent(INOUT) :: SonMassInFather
-    !    integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink, IgnoreOBCells
-    !    integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DSon
-    !    real, dimension(:,:,:), pointer                   :: SonVolInFather
-    !    !Local variables -----------------------------------------------------------------------------
-    !    integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
-    !                                                         KUBSon, ifather, jfather, kfather, &
-    !                                                         k_difference, CHUNK, Flag
-    !    !Begin----------------------------------------------------------------------------------------
-    !    ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KUBSon = SizeSon%KUB
-    !    IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KLBSon = SizeSon%KLB
-    !    !adjust to number of layers of son domain
-    !    k_difference = SizeFather%KUB - KUBSon
-    !
-    !    CHUNK = CHUNK_K(KLBSon, KUBSon)
-    !    !$OMP PARALLEL PRIVATE(i,j,k, Flag)
-    !    !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
-    !    do k = KLBSon, KUBSon
-    !    do j = JLBSon, JUBSon
-    !    do i = ILBSon, IUBSon
-    !        !For each Parent cell, add all son cells located inside (sonProp * sonVol)
-    !        Flag = Open3DSon(i, j, k) + IgnoreOBCells(i, j)
-    !        if (Flag == 2) then
-    !            ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather    = k + k_difference
-    !            SonMassInFather(ifather, jfather, kfather) = SonMassInFather(ifather, jfather, kfather) +   &
-    !                                                   SonMatrix(i, j, k) * VolumeSon(i, j, k)
-    !        endif
-    !    enddo
-    !    enddo
-    !    enddo
-    !    !$OMP END DO
-    !    !$OMP END PARALLEL
-    !end subroutine Mass_In_Father_Avrg
+    !>JLink, VolumeSon, IgnoreOBCells
+    subroutine Upscaling_Avrg(FatherMatrix, SonMatrix, SonMask, SizeFather, SizeSon, ILink, &
+    JLink, VolumeSon, TotSonIn)
+        !Arguments---------------------------------------------------------------------------------
+        type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
+        real(8), dimension(:,:,:), pointer, intent(IN)    :: VolumeSon
+        real,    dimension(:,:,:), pointer, intent(IN)    :: SonMatrix
+        real,    dimension(:,:,:), pointer, intent(IN)    :: TotSonIn
+        real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
+        integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink
+        integer, dimension(:,:,:), pointer, intent(IN)    :: SonMask
+        !Local variables -----------------------------------------------------------------------------
+        integer                                           :: i, j, k, ILBSon, JLBSon, IUBSon, JUBSon, KLBSon, &
+                                                             KUBSon, ifather, jfather, kfather, &
+                                                             k_difference, CHUNK
+        !Begin----------------------------------------------------------------------------------------
+        ILBSon = SizeSon%ILB; JLBSon = SizeSon%JLB; KUBSon = SizeSon%KUB
+        IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KLBSon = SizeSon%KLB
+        !adjust to number of layers of son domain
+        k_difference = SizeFather%KUB - KUBSon
+    
+        CHUNK = CHUNK_K(KLBSon, KUBSon)
+        !$OMP PARALLEL PRIVATE(i,j,k, ifather, jfather, kfather)
+        !$OMP DO SCHEDULE(DYNAMIC, CHUNK)
+        do k = KLBSon, KUBSon
+        do j = JLBSon, JUBSon
+        do i = ILBSon, IUBSon
+            !For each Parent cell, add all son cells located inside (sonProp * sonVol)
+            !Using multiplication instead of if because I am assuming most applications will involve using the most
+            !part of the son domain
+            ifather = ILink(i, j) ; jfather = JLink(i, j) ; kfather    = k + k_difference
+            FatherMatrix(ifather, jfather, kfather) =   FatherMatrix(ifather, jfather, kfather) +   &
+                                                        SonMatrix(i, j, k) * VolumeSon(i, j, k) * SonMask(i, j, k)
+        enddo
+        enddo
+        enddo
+        !$OMP END DO
+        !$OMP END PARALLEL
+        
+        do k = SizeFather%KLB, SizeFather%KUB
+        do j = JLink(1, 1), JLink(IUBSon, JUBSon)
+        do i = ILink(1, 1), ILink(IUBSon, JUBSon)
+            if (TotSonIn(i, j, k) > 0) then
+                ! [X]                 = (X * [m3])            / ([m3]
+                FatherMatrix(i, j, k) = FatherMatrix(i, j, k) / TotSonIn(i, j, k)
+            endif
+        enddo
+        enddo
+        enddo
+    end subroutine Upscaling_Avrg
     !---------------------------------------------------------------------------------------------------
                              
-    !>@author Joao Sobrinho Maretec
-    !>@Brief
-    !>feeds back info from son to father using an volume weighted average method. routine for Z types
-    !>@param[in] FatherMatrix, SonMassInFather, Open3DFather, SizeFather, SizeSon, ILink, &
-    !>JLink, DecayTime, DT, SonVolInFather, VolumeFather
-    !subroutine FeedBack_Avrg(FatherMatrix, SonMassInFather, Open3DFather, SizeFather, SizeSon, ILink, &
-    !                         JLink, DecayTime, DT, SonVolInFather, VolumeFather)
-    !    !Arguments---------------------------------------------------------------------------------
-    !    type(T_Size3D)                    , intent(IN)    :: SizeSon, SizeFather
-    !    real(8), dimension(:,:,:), pointer, intent(IN)    :: VolumeFather
-    !    real,    dimension(:,:,:), pointer, intent(INOUT) :: FatherMatrix
-    !    integer, dimension(:,:),   pointer, intent(IN)    :: ILink, JLink
-    !    integer, dimension(:,:,:), pointer, intent(IN)    :: Open3DFather
-    !    real,    intent (IN)                              :: DecayTime, DT
-    !    real, dimension(:,:,:), pointer                   :: SonMassInFather, SonVolInFather
-    !    !Local variables -----------------------------------------------------------------------------
-    !    integer                                           :: i, j, k, IUBSon, JUBSon, KUBSon, KUBFather, &
-    !                                                         KLBFather, ifather, jfather, kfather, k_difference, Flag
-    !    real                                              :: DecayFactor
-    !    !Begin----------------------------------------------------------------------------------------
-    !    IUBSon = SizeSon%IUB; JUBSon = SizeSon%JUB; KUBSon = SizeSon%KUB
-    !    !adjust to number of layers of son domain
-    !    k_difference = SizeFather%KUB - KUBSon
-    !    KLBFather = SizeFather%KLB + k_difference !Sobrinho
-    !    KUBFather = SizeFather%KUB                   
-    !                         
-    !    DecayFactor = DT / DecayTime
-    !    do k = KLBFather, KUBFather
-    !    do j = JLink(1, 1), JLink(IUBSon, JUBSon)
-    !    do i = ILink(1, 1), ILink(IUBSon, JUBSon)
-    !        if (Open3DFather(i, j, k) == 1) then
-    !            if (SonVolInFather(i, j, k) > 0.1) then
-    !                ! [X]                 = [X] + ([X*m3] / [m3] - [X]) * ([m3] / [m3])
-    !                FatherMatrix(i, j, k) = FatherMatrix(i, j, k)                                                  &
-    !                                      + (SonMassInFather(i, j, k) / SonVolInFather(i, j, k) - FatherMatrix(i, j, k)) &
-    !                                      * (SonVolInFather(i, j, k) / VolumeFather(i, j, k)) * DecayFactor
-    !            endif
-    !        endif
-    !    enddo
-    !    enddo
-    !    enddo
-    !
-    !end subroutine FeedBack_Avrg
-    !-------------------------------------------------------------------------------------
-
     !>@author Joao Sobrinho Maretec
     !>@Brief
     !>feeds back info from son to father using the inverse weigthed distance method. routine for Z types

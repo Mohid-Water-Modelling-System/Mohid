@@ -61,7 +61,8 @@ Module ModuleFillMatrix
                                        GetGridOutBorderCartLimits,                      &
                                        GetGridBorderCartPolygon,                        &
                                        GetHorizontalGrid, ConstructHorizontalGrid,      &
-                                       KillHorizontalGrid, GetDDecompON, GetCellRotation
+                                       KillHorizontalGrid, GetDDecompON, GetCellRotation, &
+                                       ConstructFatherGridLocation
     use ModuleTimeSerie,        only : StartTimeSerieInput, GetTimeSerieValue,          &
                                        GetTimeSerieDTForNextEvent,                      &
                                        GetTimeSerieTimeOfNextDataset,                   & 
@@ -79,6 +80,8 @@ Module ModuleFillMatrix
                                        ModifyField4DXYZ, GetField4DGeneric4DValue,      &
                                        KillField4D
     use ModuleStopWatch,        only : StartWatch, StopWatch
+    
+    use ModuleTwoWay,           only : ConstructTwoWay, AllocateTwoWayAux, KillTwoWay
                                        
 
     implicit none
@@ -105,6 +108,7 @@ Module ModuleFillMatrix
     private ::          ConstructSpaceTimeSerie
     private ::          ConstructProfileTimeSerie
     private ::          ConstructHDFInput
+    private ::              Build_Upscaling
     private ::              HDF5TimeInstant 
     private ::              ReadHDF5Values2D
     private ::              ReadHDF5Values3D
@@ -462,6 +466,7 @@ Module ModuleFillMatrix
         type(T_Generic4D)                           :: Generic4D
         !logical                                     :: ArgumentFileName     = .false. 
         integer                                     :: ObjField4D           = 0
+        integer                                     :: ObjTwoWay            = 0
         logical                                     :: Field4D              = .false.
         logical                                     :: HarmonicsON          = .false.
         real                                        :: HarmonicsDT          = null_real
@@ -469,6 +474,7 @@ Module ModuleFillMatrix
         logical                                     :: InterpolOnlyVertically = .false.        
         logical                                     :: GenericYear          = .false.
         logical                                     :: Upscaling            = .false.
+        integer                                     :: UpscalingMethod      =  1 !Volume weighted average Sobrinho
         integer                                     :: Ncells
         real,    dimension(:), pointer              :: X                    => null()
         real,    dimension(:), pointer              :: Y                    => null()        
@@ -681,6 +687,8 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
             
             Me%ValueIsUsedForDTPrediction = .false.
             if (present(ValueIsUsedForDTPrediction)) Me%ValueIsUsedForDTPrediction = ValueIsUsedForDTPrediction
+            
+            !Upscaling - Sobrinho
             if (present(NewDomain))                  Me%NewDomain                  = NewDomain
             
             Me%ObjEnterData      = AssociateInstance (mENTERDATA_,      EnterDataID     )
@@ -1251,7 +1259,9 @@ cd0 :   if (ready_ .EQ. OFF_ERR_) then
                                                 KUB               = Me%WorkSize3D%KUB,                    &
                                                 STAT              = STAT_CALL)
             endif            
-                        
+            
+            if (Me%PropertyID%ObjTwoWay /= null_int) PropertyID = Me%PropertyID !Sobrinho
+            
             nUsers = DeassociateInstance(mENTERDATA_, Me%ObjEnterData)
             if (nUsers == 0) stop 'ConstructFillMatrix3D - ModuleFillMatrix - ERR01'
             
@@ -6342,7 +6352,12 @@ i2:     if (Me%Dim == Dim2D) then
 if4D:       if (CurrentHDF%Field4D) then
 
                 call BuildField4D(ExtractType, ClientID, PointsToFill2D, PointsToFill3D, CurrentHDF) !Sobrinho
-        
+                
+                !Sobrinho
+                if (CurrentHDF%Upscaling) then
+                    if (Me%NewDomain) call Build_Upscaling(CurrentHDF)
+                endif
+                
             else if4D
         
                 call GetHDF5FileAccess  (HDF5_READ = HDF5_READ)
@@ -6368,8 +6383,6 @@ if4D:       if (CurrentHDF%Field4D) then
                 Me%RemainsConstant = .false.
             endif            
         
-
-        
             call GetComputeCurrentTime(Me%ObjTime, CurrentTime, STAT = STAT_CALL)
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR200'
         
@@ -6383,28 +6396,20 @@ if4D:       if (CurrentHDF%Field4D) then
             !Initial field
     i1:     if (CurrentHDF%Generic4D%ON .or. (CurrentHDF%Field4D .and. CurrentHDF%HarmonicsOn)) then
         
-                if (Me%Dim == Dim2D) then
-                    call ModifyHDFInput2D (PointsToFill2D, CurrentHDF) 
-                else
-                    call ModifyHDFInput3D (PointsToFill3D, CurrentHDF)
-                endif
+                if (Me%Dim == Dim2D) call ModifyHDFInput2D (PointsToFill2D, CurrentHDF) 
+                if (Me%Dim == Dim3D) call ModifyHDFInput3D (PointsToFill3D, CurrentHDF)
             
             else i1
             
     i2:         if(CurrentHDF%NumberOfInstants > 1)then
 
     i3:             if (Me%PredictDTMethod == 2) then
-                
                         call ConstructHDFPredictDTMethod2(Now, PointsToFill3D, PointsToFill2D, CurrentHDF)
-                
                     else i3
-
                         call ConstructHDFPredictDTMethod1(Now, CurrentHDF)
-
                     endif i3
 
                 elseif(CurrentHDF%NumberOfInstants == 1)then i2
-
 
                     call ConstructHDFOneInstant(Now, CurrentHDF) 
 
@@ -6416,17 +6421,8 @@ if4D:       if (CurrentHDF%Field4D) then
                 end if i2
 
     i4:         if (Me%PredictDTMethod == 1) then
-            
-    i5:             if(Me%Dim == Dim2D)then
-
-                        call DTMethod_1_PrevNext2D(Now, PointsToFill2D, CurrentHDF)    
-
-                    else i5
-
-                        call DTMethod_1_PrevNext3D(Now, PointsToFill3D, CurrentHDF)    
-
-                    end if i5
-                
+                    if(Me%Dim == Dim2D) call DTMethod_1_PrevNext2D(Now, PointsToFill2D, CurrentHDF)    
+                    if(Me%Dim == Dim3D) call DTMethod_1_PrevNext3D(Now, PointsToFill3D, CurrentHDF)    
                 endif i4
 
             endif i1
@@ -6446,20 +6442,15 @@ if4D:       if (CurrentHDF%Field4D) then
         type(T_Field4D)                                 :: CurrentHDF
         !Local----------------------------------------------------------------- 
         integer                                         :: ILB, IUB, JLB, JUB, KLB, KUB
-
         !Begin-----------------------------------------------------------------           
 
-
-        
         nullify(CurrentHDF%PreviousField2D, CurrentHDF%NextField2D)
         nullify(CurrentHDF%PreviousField3D, CurrentHDF%NextField3D)
         
 i0:     if(Me%Dim == Dim2D)then
 
-            ILB = Me%Size2D%ILB
-            IUB = Me%Size2D%IUB
-            JLB = Me%Size2D%JLB
-            JUB = Me%Size2D%JUB
+            ILB = Me%Size2D%ILB; JLB = Me%Size2D%JLB
+            IUB = Me%Size2D%IUB; JUB = Me%Size2D%JUB
 
             allocate(CurrentHDF%PreviousField2D (ILB:IUB, JLB:JUB))
             allocate(CurrentHDF%NextField2D     (ILB:IUB, JLB:JUB))
@@ -6470,12 +6461,8 @@ i0:     if(Me%Dim == Dim2D)then
 
         else i0
 
-            ILB = Me%Size3D%ILB
-            IUB = Me%Size3D%IUB
-            JLB = Me%Size3D%JLB
-            JUB = Me%Size3D%JUB
-            KLB = Me%Size3D%KLB
-            KUB = Me%Size3D%KUB
+            ILB = Me%Size3D%ILB; JLB = Me%Size3D%JLB; KLB = Me%Size3D%KLB
+            IUB = Me%Size3D%IUB; JUB = Me%Size3D%JUB; KUB = Me%Size3D%KUB
 
             allocate(CurrentHDF%PreviousField3D (ILB:IUB, JLB:JUB, KLB:KUB))
             allocate(CurrentHDF%NextField3D     (ILB:IUB, JLB:JUB, KLB:KUB))
@@ -6486,7 +6473,6 @@ i0:     if(Me%Dim == Dim2D)then
 
         endif i0    
             
-
     end subroutine AllocateHDFInput
 
     !-----------------------------------------------------------------------------------
@@ -6950,9 +6936,19 @@ d1:     do while (associated(CurrentHDF))
                          STAT         = STAT_CALL)                                      
             if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR350'
         
-            if (MasterOrSlave) then
-                CurrentHDF%Field4D = .true. 
+            !Sobrinho
+            if (CurrentHDF%Upscaling) then
+                call GetData(CurrentHDF%UpscalingMethod,                                              &
+                             Me%ObjEnterData , iflag,                                           &
+                             SearchType   = ExtractType,                                        &
+                             keyword      = 'UPSCALING_METHOD',                                 &
+                             default      = 1,                                                  &
+                             ClientModule = 'ModuleFillMatrix',                                 &
+                             STAT         = STAT_CALL)                                      
+                if (STAT_CALL .NE. SUCCESS_) stop 'ConstructHDFInput - ModuleFillMatrix - ERR360'
             endif
+            
+            if (MasterOrSlave) CurrentHDF%Field4D = .true. 
             
             CurrentHDF => CurrentHDF%Next
             
@@ -7064,7 +7060,40 @@ d1:     do while (associated(CurrentHDF))
     end subroutine ReadListFilesFromBlockInBlock
                 
     !--------------------------------------------------------------------------
-    
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Constructs module twoway with known upscaling options, and constructs connection matrixes between grid domains.
+    !>@param[in] CurrentHDF
+    subroutine Build_Upscaling(CurrentHDF)
+        !Arguments--------------------------------------------------------------------
+        type(T_Field4D), pointer                        :: CurrentHDF
+        !Locals-----------------------------------------------------------------------
+        integer                                         :: STAT_CALL
+        !Begin------------------------------------------------------------------------
+        
+        !If not newdomain, ObjTwoWay is defined when this module checks for
+        !already build properties (function AssociatedDomain)
+        call ConstructTwoWay(  ModelName            = trim(CurrentHDF%FileName),            &
+                                TwoWayID            = Me%PropertyID%ObjTwoWay,              &
+                                HorizontalGridID    = Me%PropertyID%ObjHorizontalGrid,      &
+                                GeometryID          = Me%PropertyID%ObjGeometry,            &
+                                HorizontalMapID     = Me%PropertyID%ObjHorizontalMap,       &
+                                MapID               = Me%PropertyID%ObjMap,                 &
+                                IntMethod           = CurrentHDF%UpscalingMethod,           &
+                                STAT                = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Failed to construct TwoWay - Build_Upscaling - Module FillMatrix'
+        
+        CurrentHDF%ObjTwoWay = Me%PropertyID%ObjTwoWay
+        
+        call ConstructFatherGridLocation(Me%PropertyID%ObjHorizontalGrid, Me%ObjHorizontalGrid,             &
+                                            OkCross = .false., OkZ = .true., OkU = .false., OkV = .false.,  &
+                                            STAT = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'Failed to construct FatherGridLocation - Build_Upscaling - Module FillMatrix'
+        
+        call AllocateTwoWayAux(Me%ObjTwoWay, Me%PropertyID%ObjTwoWay)
+        
+    end subroutine Build_Upscaling
+    !--------------------------------------------------------------------------
     
     subroutine BuildField4D(ExtractType, ClientID, PointsToFill2D, PointsToFill3D, CurrentHDF)    
     
@@ -7080,12 +7109,16 @@ d1:     do while (associated(CurrentHDF))
         integer                                         :: STAT_CALL
         !Begin-----------------------------------------------------------------           
         
-ifSI:   if (CurrentHDF%SpatialInterpolON .OR. CurrentHDF%Upscaling) then
+ifSI:   if (CurrentHDF%SpatialInterpolON) then
 
-            call ConstructField4DInterpol(ExtractType, ClientID, PointsToFill2D, PointsToFill3D, CurrentHDF) !Sobrinho
+            call ConstructField4DInterpol(ExtractType, ClientID, PointsToFill2D, PointsToFill3D, CurrentHDF) 
 
+        elseif  (CurrentHDF%Upscaling) then ifSI
+    
+            call ConstructField4DInterpol_Upscaling(ExtractType, ClientID, CurrentHDF) !Sobrinho
+            
         else ifSI
-        
+            
             call GetDDecompParameters(HorizontalGridID = Me%ObjHorizontalGrid,          &
                                       MasterOrSlave    = MasterOrSlave,                 &
                                       STAT             = STAT_CALL)
@@ -7170,8 +7203,14 @@ ifMS:       if (MasterOrSlave) then
         allocate(CurrentHDF%PreviousField3D (ILB:IUB, JLB:JUB, KLB:KUB))
         allocate(CurrentHDF%NextField3D     (ILB:IUB, JLB:JUB, KLB:KUB))
 
-        CurrentHDF%PreviousField3D(:,:,:) = FillValueReal
-        CurrentHDF%NextField3D    (:,:,:) = FillValueReal
+        if (CurrentHDF%Upscaling) then
+            CurrentHDF%PreviousField3D(:,:,:) = 0.0
+            CurrentHDF%NextField3D    (:,:,:) = 0.0
+        else
+            CurrentHDF%PreviousField3D(:,:,:) = FillValueReal
+            CurrentHDF%NextField3D    (:,:,:) = FillValueReal
+        endif
+        
 
         call ReadHDF5Values3D(CurrentHDF%PreviousInstant, CurrentHDF%PreviousField3D, CurrentHDF)
         call ReadHDF5Values3D(CurrentHDF%NextInstant,     CurrentHDF%NextField3D, CurrentHDF    )
@@ -7253,18 +7292,24 @@ ifMS:       if (MasterOrSlave) then
         integer                                         :: ILB, IUB, JLB, JUB, i, j
         !Begin-----------------------------------------------------------------          
         
-        ILB = Me%Size2D%ILB
-        IUB = Me%Size2D%IUB
-        JLB = Me%Size2D%JLB
-        JUB = Me%Size2D%JUB
+        ILB = Me%Size2D%ILB; JLB = Me%Size2D%JLB
+        IUB = Me%Size2D%IUB; JUB = Me%Size2D%JUB
 
         allocate(CurrentHDF%PreviousField2D (ILB:IUB, JLB:JUB))
         allocate(CurrentHDF%NextField2D     (ILB:IUB, JLB:JUB))
 
-        CurrentHDF%PreviousField2D(:,:) = FillValueReal
-        CurrentHDF%NextField2D    (:,:) = FillValueReal
+        if (CurrentHDF%Upscaling) then
+            CurrentHDF%PreviousField2D(:,:) = 0.0
+            CurrentHDF%NextField2D    (:,:) = 0.0
+        else
+            CurrentHDF%PreviousField2D(:,:) = FillValueReal
+            CurrentHDF%NextField2D    (:,:) = FillValueReal
+        endif
 
+        !AQUI
         call ReadHDF5Values2D(CurrentHDF%PreviousInstant, CurrentHDF%PreviousField2D, CurrentHDF)
+        !Sobrinho
+        !Isto já é a matriz com as dimensoes do Pai devolvida ao Assimilation. chamar modifytwoway aqui dentro
         call ReadHDF5Values2D(CurrentHDF%NextInstant,     CurrentHDF%NextField2D,     CurrentHDF)
         
         !limit maximum values
@@ -7665,7 +7710,7 @@ d2:      do while(.not. FoundSecondInstant)
             icount = 0
             do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
             do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB        
-                if (PointsToFill2D(i,j) == WaterPoint) icount = icount + 1
+                icount = icount + PointsToFill2D(i,j)
             enddo
             enddo
             
@@ -7680,7 +7725,7 @@ d2:      do while(.not. FoundSecondInstant)
 
                 do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
                 do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
-                    if (PointsToFill3D(i,j,Me%WorkSize3D%KUB) == WaterPoint) icount = icount + 1
+                    icount = icount + PointsToFill3D(i,j,Me%WorkSize3D%KUB)
                 enddo
                 enddo
                 
@@ -7692,7 +7737,7 @@ d2:      do while(.not. FoundSecondInstant)
                 do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
                 do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
                 do i = Me%WorkSize3D%ILB, Me%WorkSize3D%IUB        
-                    if (PointsToFill3D(i,j,k) == WaterPoint) icount = icount + 1
+                    icount = icount + PointsToFill3D(i,j,k)
                 enddo
                 enddo
                 enddo
@@ -7704,12 +7749,7 @@ d2:      do while(.not. FoundSecondInstant)
          
                 CurrentHDF%Z(1:NCells) = FillValueReal                
                 
-            endif                
-            
-
-        
-
-                                                     
+            endif                                        
         endif                    
             
         allocate(CurrentHDF%X(1:NCells), CurrentHDF%Y(1:NCells), CurrentHDF%Prop(1:NCells), CurrentHDF%NoData(1:NCells))
@@ -7813,6 +7853,93 @@ d2:      do while(.not. FoundSecondInstant)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR110'        
         
         else
+            
+            call ConstructField4D(Field4DID         = CurrentHDF%ObjField4D,            &
+                                    EnterDataID       = Me%ObjEnterData,                  &
+                                    ExtractType       = ExtractType,                      &
+                                    FileName          = CurrentHDF%FileName,              &
+                                    FieldName         = CurrentHDF%FieldName,             &
+                                    TimeID            = Me%ObjTime,                       &   
+                                    MaskDim           = Me%Dim,                           &
+                                    LatReference      = LatDefault,                       &
+                                    LonReference      = LongDefault,                      & 
+                                    WindowLimitsXY    = WindowLimitsXY,                   &
+                                    Extrapolate       = .true.,                           &
+                                    ExtrapolateMethod = CurrentHDF%ExtrapolateMethod,     &
+                                    PropertyID        = Me%PropertyID,                    &
+                                    ClientID          = ClientID,                         &
+                                    FileNameList      = CurrentHDF%FileNameList,          &
+                                    STAT              = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR120'
+            
+        endif
+    
+    end subroutine ConstructField4DInterpol
+    !----------------------------------------------------------------------------
+    !>@author Joao Sobrinho Maretec
+    !>@Brief
+    !>Constructs field 4D for spatial interpolation from an upscaling domain HDF.
+    !>@param[in] ExtractType, ClientID, CurrentHDF
+    subroutine ConstructField4DInterpol_Upscaling(ExtractType, ClientID, CurrentHDF)
+        !Arguments----------------------------------------------------------------------
+        integer                                         :: ExtractType, ClientID
+        type(T_Field4D)                                 :: CurrentHDF
+        !Local--------------------------------------------------------------------------
+        real, dimension(1:2,1:2)                        :: WindowLimitsXY
+        real                                            :: West, East, South, North  
+        real                                            :: LatDefault, LongDefault
+        real, dimension(4)                              :: Aux4
+        integer                                         :: iflag, ObjHorizontalGridAux, STAT_CALL
+        character(len=PathLength)                       :: BathymetryFile
+        !Begin--------------------------------------------------------------------------      
+
+        Aux4 (:) = FillValueReal
+        !West, East, South, North
+        call GetData(Aux4,                                                              &
+                     Me%ObjEnterData , iflag,                                           &
+                     SearchType   = ExtractType,                                        &
+                     keyword      = 'BORDER_LIMITS',                                    &
+                     ClientModule = 'ModuleFillMatrix',                                 &
+                     STAT         = STAT_CALL)                                      
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol_Upscaling - ModuleFillMatrix - ERR10'
+        
+        if (iflag < 4) then
+            
+            call ReadFileName('IN_BATIM', BathymetryFile, "Bathymetry File", STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol_Upscaling - ModuleFillMatrix - ERR20'
+            
+            ObjHorizontalGridAux = 0
+    
+            !Entire grid
+            call ConstructHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux,       &
+                                         DataFile         = BathymetryFile,             &
+                                         STAT             = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol_Upscaling - ModuleFillMatrix - ERR30'
+            
+            call GetGridBorderLimits(ObjHorizontalGridAux, West, East, South, North, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol_Upscaling - ModuleFillMatrix - ERR40'
+
+            call KillHorizontalGrid(HorizontalGridID = ObjHorizontalGridAux, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol_Upscaling - ModuleFillMatrix - ERR50'
+
+        elseif (iflag == 4) then
+            West = Aux4(1); East = Aux4(2); South = Aux4(3); North = Aux4(4);
+        else
+            stop 'ConstructField4DInterpol_Upscaling - ModuleFillMatrix - ERR60'
+        endif
+
+        write(*,*) 'Border limits', West, East, South, North
+
+        WindowLimitsXY(2,1) = South
+        WindowLimitsXY(2,2) = North
+        WindowLimitsXY(1,1) = West
+        WindowLimitsXY(1,2) = East
+        
+        call GetLatitudeLongitude(Me%ObjHorizontalGrid, Latitude  = LatDefault,         &
+                                                        Longitude = LongDefault,        & 
+                                                        STAT      = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol_Upscaling - ModuleFillMatrix - ERR100'
+        
             if (Me%NewDomain) then
                 !in case of upscaling, fills grid Ids in Me%PropertyID
                 call ConstructField4D(Field4DID         = CurrentHDF%ObjField4D,            &
@@ -7832,7 +7959,7 @@ d2:      do while(.not. FoundSecondInstant)
                                       FileNameList      = CurrentHDF%FileNameList,          &
                                       Upscaling         = CurrentHDF%Upscaling,             & !Sobrinho - upscaling
                                       STAT              = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR120'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol_Upscaling - ModuleFillMatrix - ERR120'
             else
                 !In case of upscaling, sends Ids of previously built grid Ids
                 call ConstructField4D(Field4DID         = CurrentHDF%ObjField4D,            &
@@ -7841,6 +7968,7 @@ d2:      do while(.not. FoundSecondInstant)
                                       HorizontalMapID   = Me%PropertyID%ObjHorizontalMap,   &
                                       MapID             = Me%PropertyID%ObjMap,             &
                                       BathymetryID      = Me%PropertyID%ObjBathymetry,      &
+                                      GeometryID        = Me%PropertyID%ObjGeometry,        &
                                       ExtractType       = ExtractType,                      &
                                       FileName          = CurrentHDF%FileName,              &
                                       FieldName         = CurrentHDF%FieldName,             &
@@ -7856,15 +7984,11 @@ d2:      do while(.not. FoundSecondInstant)
                                       FileNameList      = CurrentHDF%FileNameList,          &
                                       Upscaling         = CurrentHDF%Upscaling,             & !Sobrinho - upscaling
                                       STAT              = STAT_CALL)
-                if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol - ModuleFillMatrix - ERR130'
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructField4DInterpol_Upscaling - ModuleFillMatrix - ERR130'
             endif
-            
-        endif
     
-    end subroutine ConstructField4DInterpol
-
-    
-   !----------------------------------------------------------------------------
+    end subroutine ConstructField4DInterpol_Upscaling
+    !--------------------------------------------------------------------------
 
     subroutine Generic4thDimension(ExtractType, CurrentHDF)
 
@@ -8232,15 +8356,12 @@ if4D:   if (CurrentHDF%Field4D) then
             CurrentTime = GetField4DInstant (CurrentHDF%ObjField4D, Instant, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR10'
             
-            if (CurrentHDF%SpatialInterpolON .or. CurrentHDF%Upscaling) then
-            
+            if (CurrentHDF%SpatialInterpolON .and. .not. CurrentHDF%Upscaling) then
                 call ModifyField4DInterpol(CurrentTime      = CurrentTime,              & 
                                            Matrix2D         = Field,                    &
                                            CurrentHDF       = CurrentHDF,               &
                                            Instant          = Instant)
-
             else
-            
                 call ModifyField4D(Field4DID        = CurrentHDF%ObjField4D,            &
                                    PropertyIDNumber = Me%PropertyID%IDNumber,           & 
                                    CurrentTime      = CurrentTime,                      &
@@ -8248,7 +8369,6 @@ if4D:   if (CurrentHDF%Field4D) then
                                    Instant          = Instant,                          &
                                    STAT             = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR10'
-
             endif                
 
         else if4D            
@@ -8278,7 +8398,7 @@ if4D:   if (CurrentHDF%Field4D) then
                               Array2D = Field, OutputNumber = Instant, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_)stop 'ReadHDF5Values2D - ModuleFillMatrix - ERR50'
             
-            if(CurrentHDF%HasMultiplyingFactor)then
+            if((CurrentHDF%HasMultiplyingFactor) .and. (CurrentHDF%MultiplyingFactor /= 1))then
                 do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
                 do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
                     Field(i,j) = Field(i,j) * CurrentHDF%MultiplyingFactor
@@ -8286,7 +8406,7 @@ if4D:   if (CurrentHDF%Field4D) then
                 enddo
             end if
 
-            if(CurrentHDF%HasAddingFactor)then
+            if((CurrentHDF%HasAddingFactor) .and. (CurrentHDF%AddingFactor /= 0))then
                 do j = Me%WorkSize2D%JLB, Me%WorkSize2D%JUB
                 do i = Me%WorkSize2D%ILB, Me%WorkSize2D%IUB
                     Field(i,j) = Field(i,j) + CurrentHDF%AddingFactor
@@ -8336,12 +8456,13 @@ if4D:   if (CurrentHDF%Field4D) then
             CurrentTime = GetField4DInstant (CurrentHDF%ObjField4D, Instant, STAT = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ReadHDF5Values3D - ModuleFillMatrix - ERR10'
             
-            if (CurrentHDF%SpatialInterpolON) then
+            if (CurrentHDF%SpatialInterpolON .and. .not. CurrentHDF%Upscaling) then
                 call ModifyField4DInterpol(CurrentTime      = CurrentTime,              & 
                                            Matrix3D         = Field,                    &
                                            CurrentHDF       = CurrentHDF,               &
                                            Instant          = Instant)
-            else            
+            else
+                !Sobrinho - enviei para aqui pq só quero interpolar no tempo.Field já está nas dim do pai
                 call ModifyField4D(Field4DID        = CurrentHDF%ObjField4D,            &
                                    PropertyIDNumber = Me%PropertyID%IDNumber,           & 
                                    CurrentTime      = CurrentTime,                      & 
@@ -8483,7 +8604,7 @@ if4D:   if (CurrentHDF%Field4D) then
                nullify(CurrentHDF%ReadField3D)  
             endif        
 
-            if(CurrentHDF%HasMultiplyingFactor)then
+            if((CurrentHDF%HasMultiplyingFactor) .and. (CurrentHDF%MultiplyingFactor /= 1)) then
             
                 do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
                 do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
@@ -8495,7 +8616,7 @@ if4D:   if (CurrentHDF%Field4D) then
             
             end if
 
-            if(CurrentHDF%HasAddingFactor)then
+            if((CurrentHDF%HasAddingFactor) .and. (CurrentHDF%AddingFactor /= 0))then
             
                 do k = Me%WorkSize3D%KLB, Me%WorkSize3D%KUB
                 do j = Me%WorkSize3D%JLB, Me%WorkSize3D%JUB
@@ -12967,7 +13088,12 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                             if (associated(CurrentHDF%FileNameList)) then
                                 deallocate(CurrentHDF%FileNameList)
                             endif
-                        
+                            
+                            if (CurrentHDF%Upscaling) then
+                                call KillTwoWay     (CurrentHDF%ObjTwoWay,          STAT = STAT_CALL)
+                                if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR25'
+                            endif
+
                             call KillField4D(CurrentHDF%ObjField4D, STAT = STAT_CALL)
                             if (STAT_CALL /= SUCCESS_) stop 'KillFillMatrix - ModuleFillMatrix - ERR30'
                       
@@ -13003,6 +13129,21 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
 
                 nUsers = DeassociateInstance (mHORIZONTALGRID_, Me%ObjHorizontalGrid )
                 if (nUsers == 0) stop 'KillFillMatrix - ModuleFillMatrix - ERR80'
+                
+                if (Me%ObjTwoWay /= 0) then
+                    nUsers = DeassociateInstance (mGEOMETRY_, Me%ObjTwoWay)
+                    if (nUsers == 0) stop 'KillFillMatrix - ModuleFillMatrix - ERR90'
+                endif
+                
+                if (Me%ObjHorizontalMap /= 0) then
+                    nUsers = DeassociateInstance (mGEOMETRY_, Me%ObjHorizontalMap)
+                    if (nUsers == 0) stop 'KillFillMatrix - ModuleFillMatrix - ERR100'
+                endif
+                
+                if (Me%ObjMap /= 0) then
+                    nUsers = DeassociateInstance (mGEOMETRY_, Me%ObjMap)
+                    if (nUsers == 0) stop 'KillFillMatrix - ModuleFillMatrix - ERR110'
+                endif
                 
                 !Deallocates Instance
                 call DeallocateInstance ()

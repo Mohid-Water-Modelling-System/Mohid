@@ -56,6 +56,8 @@ Module ModuleAssimilation
                                       ModifyFillMatrix, GetAnalyticCelerityON,              &
                                       GetFilenameHDF, GetAnalyticCelerity, UngetFillMatrix
     use ModuleFunctions,        only: ConstructPropertyID, Density, Sigma, CHUNK_J, CHUNK_K
+    
+    use ModuleTwoWay,           only: Fill_Upscaling_DecayTime
 
     implicit none
 
@@ -171,7 +173,8 @@ Module ModuleAssimilation
         integer                                 :: TypeZUV              = null_int
         real, dimension(:,:  ), pointer         :: WaveCelerity         => null()
         real                                    :: WaveDirection        = null_real
-        real                                    :: AverageValue         = null_real        
+        real                                    :: AverageValue         = null_real
+        integer                                 :: IgnoreCells          = null_int
     end type   T_Field
 
     private :: T_OutPut
@@ -195,7 +198,6 @@ Module ModuleAssimilation
         real                                    :: ColdOrder            = null_real
         logical                                 :: Upscaling            = .false.
         integer                                 :: UpscalingDomain      = null_int
-        integer                                 :: UpscalingNumIgnOBCells = null_int
         type (T_Time)                           :: LastActualization
         logical                                 :: TimeSerie            = .false.
         logical                                 :: OutputHDF            = .false.
@@ -1009,11 +1011,7 @@ cd2 :           if (BlockFound) then
 
         call ConstructAssimilationField     (NewProperty, ClientNumber)
         
-        if (NewProperty%Upscaling) then
-            !do nothing.
-        else
-            call ConstructPropertyCoefficients  (NewProperty, ClientNumber)
-        endif
+        call ConstructPropertyCoefficients  (NewProperty, ClientNumber)
 
         !----------------------------------------------------------------------
 
@@ -1525,7 +1523,7 @@ cd2 :           if (BlockFound) then
     
             if (BlockFound) then
                 !For child field
-                NewDomain = .false.
+                NewDomain = .true.
                 !for current (Father) domain field
                 NewProp   = .true.
     
@@ -1543,6 +1541,7 @@ cd2 :           if (BlockFound) then
                 NewProperty%Field%TypeZUV  = TranslateTypeZUV(Char_TypeZUV)
                 
                 if (NewProperty%Upscaling) then
+                    NewDomain = .false.
                 !Sobrinho Checks if current grid domain (for when many domains are to be assimilated) is already built.
                     if ( .not. AssociatedDomain(NewProperty)) NewDomain = .true.
                     !Sobrinho - checks if current property has already been allocated (multiple assim fields)
@@ -1753,15 +1752,6 @@ cd2 :           if (BlockFound) then
                             ClientModule   = 'ModuleAssimilation',                             &
                             STAT           = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'failed to read UPSCALING_DOMAIN_ID in field block of assimilation'
-            
-            !Number of cells to ignore from boundary (in son domain)
-            call GetData(NewProperty%UpscalingNumIgnOBCells,                                   &
-                            Me%ObjEnterData, iflag,                                            &
-                            Keyword        = 'UPSCALING_IGNORE_CELLS',                         &
-                            SearchType     = FromBlockInBlock,                                 &
-                            ClientModule   = 'ModuleAssimilation',                             &
-                            STAT           = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'failed to read UPSCALING_IGNORE_CELLS in field block of assimilation'
         endif
         
     end subroutine read_upscaling_keywords
@@ -1780,7 +1770,10 @@ cd2 :           if (BlockFound) then
         real,    dimension(:,:  ), pointer             :: Matrix2D
         integer, dimension(:,:  ), pointer             :: PointsToFill2D
         integer                                        :: STAT_CALL
+        logical                                        :: NewDomain_
         !Begin------------------------------------------------------------------
+        NewDomain_ = .false.
+        if (present(NewDomain)) NewDomain_ = NewDomain
         
         call SetMappingAndMatrix2D(NewProperty, PointsToFill2D, WaterPoints2D, WaterFaces2D_U, &
                                    WaterFaces2D_V, Matrix2D)
@@ -1798,7 +1791,7 @@ cd2 :           if (BlockFound) then
                                     Matrix2D             = Matrix2D,                 &
                                     TypeZUV              = NewProperty%Field%TypeZUV,&
                                     ClientID             = ClientNumber,             &
-                                    NewDomain            = NewDomain,                &
+                                    NewDomain            = NewDomain_,               &
                                     STAT                 = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_2D - ModuleAssimilation - ERR30'
 
@@ -1879,44 +1872,37 @@ cd2 :           if (BlockFound) then
         integer                                           :: CHUNK, i, j
         !Begin------------------------------------------------------------------
         CHUNK = CHUNK_J(Me%WorkSize%JLB,Me%WorkSize%JUB)
-        
-        if (Property%Upscaling)then
             
-            deallocate(Matrix2D) !Property%Field%R2D is already computed for U and V cells in field4D - upscaling
-            
-        else
-            
-            if (GetPropertyIDNumber(Property%ID%Name) == BarotropicVelocityU_) then
-                !$OMP PARALLEL PRIVATE(i,j,CellFaceIsOpen)
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                do j = Me%WorkSize%JLB,Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB,Me%WorkSize%IUB
-                    Property%Field%R2D(i,j) = 0.
+        if (GetPropertyIDNumber(Property%ID%Name) == BarotropicVelocityU_) then
+            !$OMP PARALLEL PRIVATE(i,j,CellFaceIsOpen)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+                Property%Field%R2D(i,j) = 0.
                     
-                    CellFaceIsOpen = PointsToFill2D(i,j-1) + PointsToFill2D(i,j)
-                    if (CellFaceIsOpen == 2) Property%Field%R2D(i,j) = (Matrix2D(i,j-1)+Matrix2D(i,j))/2.
-                enddo
-                enddo
-                !$OMP END DO
-                !$OMP END PARALLEL
-                deallocate(Matrix2D)
-            endif
+                CellFaceIsOpen = PointsToFill2D(i,j-1) + PointsToFill2D(i,j)
+                if (CellFaceIsOpen == 2) Property%Field%R2D(i,j) = (Matrix2D(i,j-1)+Matrix2D(i,j))/2.
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+            deallocate(Matrix2D)
+        endif
 
-            if (GetPropertyIDNumber(Property%ID%Name) == BarotropicVelocityV_) then
-                !$OMP PARALLEL PRIVATE(i,j,CellFaceIsOpen)
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                do j = Me%WorkSize%JLB,Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB,Me%WorkSize%IUB
-                    Property%Field%R2D(i,j) = 0.
+        if (GetPropertyIDNumber(Property%ID%Name) == BarotropicVelocityV_) then
+            !$OMP PARALLEL PRIVATE(i,j,CellFaceIsOpen)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+                Property%Field%R2D(i,j) = 0.
 
-                    CellFaceIsOpen = PointsToFill2D(i-1,j) + PointsToFill2D(i  ,j)
-                    if (CellFaceIsOpen == 2) Property%Field%R2D(i,j) = (Matrix2D(i-1,j)+Matrix2D(i,j))/2.
-                enddo
-                enddo
-                !$OMP END DO
-                !$OMP END PARALLEL
-                deallocate(Matrix2D)
-            endif
+                CellFaceIsOpen = PointsToFill2D(i-1,j) + PointsToFill2D(i  ,j)
+                if (CellFaceIsOpen == 2) Property%Field%R2D(i,j) = (Matrix2D(i-1,j)+Matrix2D(i,j))/2.
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+            deallocate(Matrix2D)
         endif
     
     end subroutine Check_ComputeFacesVelocity2D
@@ -1977,23 +1963,26 @@ cd2 :           if (BlockFound) then
         integer, dimension(:,:,:), pointer                   :: PointsToFill3D
         real,    dimension(:,:,:), pointer                   :: Matrix3D
         integer                                              :: STAT_CALL
+        logical                                              :: NewDomain_
         !Begin------------------------------------------------------------------
-        
+        NewDomain_ = .false.
+        if (present(NewDomain)) NewDomain_ = NewDomain
         call SetMappingAndMatrix3D(NewProperty, PointsToFill3D, WaterPoints3D, WaterFaces3D_U, &
                                     WaterFaces3D_V, Matrix3D)
 
         if (NewProperty%Upscaling) then !Sobrinho
-            call ConstructFillMatrix  (PropertyID            = NewProperty%ID,                    &
-                                        EnterDataID           = Me%ObjEnterData,                  &
-                                        TimeID                = Me%ObjTime,                       &
-                                        HorizontalGridID      = Me%ObjHorizontalGrid,             &
-                                        GeometryID            = Me%ObjGeometry,                   &
-                                        ExtractType           = FromBlockInBlock,                 &
-                                        PointsToFill3D        = PointsToFill3D,                   &
-                                        Matrix3D              = Matrix3D,                         &
-                                        TypeZUV               = NewProperty%Field%TypeZUV,        &
-                                        ClientID              = ClientNumber,                     &
-                                        NewDomain             = NewDomain,                        &
+            call ConstructFillMatrix  (PropertyID            = NewProperty%ID,                  &
+                                        EnterDataID           = Me%ObjEnterData,                &
+                                        TimeID                = Me%ObjTime,                     &
+                                        HorizontalGridID      = Me%ObjHorizontalGrid,           &
+                                        GeometryID            = Me%ObjGeometry,                 &
+                                        TwoWayID              = Me%ObjTwoWay,                   &
+                                        ExtractType           = FromBlockInBlock,               &
+                                        PointsToFill3D        = PointsToFill3D,                 &
+                                        Matrix3D              = Matrix3D,                       &
+                                        TypeZUV               = NewProperty%Field%TypeZUV,      &
+                                        ClientID              = ClientNumber,                   &
+                                        NewDomain             = NewDomain_,                     &
                                         STAT                  = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR10'
 
@@ -2011,7 +2000,7 @@ cd2 :           if (BlockFound) then
                                         STAT                 = STAT_CALL)
             if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR10'        
         endif
-
+        
         !Because it is searched(and filled) in the fill matrix module
         call GetDefaultValue(NewProperty%ID%ObjFillMatrix, NewProperty%Field%DefaultValue, STAT = STAT_CALL)
         if (STAT_CALL /= SUCCESS_) stop 'ConstructAssimilationField_3D - ModuleAssimilation - ERR20'
@@ -2090,48 +2079,44 @@ cd2 :           if (BlockFound) then
         !Begin------------------------------------------------------------------
         CHUNK = CHUNK_K(Me%WorkSize%KLB,Me%WorkSize%KUB)
         
-        if (Property%Upscaling)then
-            deallocate(Matrix3D) !Property%Field%R3D is already computed for the U and V cells in field4D - upscaling
-        else
-            if (GetPropertyIDNumber(Property%ID%Name) == VelocityU_) then
-                !$OMP PARALLEL PRIVATE(i,j,k,CellFaceIsOpen)
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                do k = Me%WorkSize%KLB,Me%WorkSize%KUB
-                do j = Me%WorkSize%JLB,Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+        if (GetPropertyIDNumber(Property%ID%Name) == VelocityU_) then
+            !$OMP PARALLEL PRIVATE(i,j,k,CellFaceIsOpen)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do k = Me%WorkSize%KLB,Me%WorkSize%KUB
+            do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB,Me%WorkSize%IUB
                     
-                    Property%Field%R3D(i,j,k) = 0.
+                Property%Field%R3D(i,j,k) = 0.
                     
-                    CellFaceIsOpen = PointsToFill3D(i,j-1,k) + PointsToFill3D(i,j  ,k)
+                CellFaceIsOpen = PointsToFill3D(i,j-1,k) + PointsToFill3D(i,j  ,k)
                     
-                    if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i,j-1,k) + Matrix3D(i,j,k)) / 2.
-                enddo
-                enddo
-                enddo
-                !$OMP END DO
-                !$OMP END PARALLEL
-                deallocate(Matrix3D)
-            endif
+                if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i,j-1,k) + Matrix3D(i,j,k)) / 2.
+            enddo
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+            deallocate(Matrix3D)
+        endif
 
-            if (GetPropertyIDNumber(Property%ID%Name) == VelocityV_) then
-                !$OMP PARALLEL PRIVATE(i,j,k,CellFaceIsOpen)
-                !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
-                do k = Me%WorkSize%KLB,Me%WorkSize%KUB
-                do j = Me%WorkSize%JLB,Me%WorkSize%JUB
-                do i = Me%WorkSize%ILB,Me%WorkSize%IUB
+        if (GetPropertyIDNumber(Property%ID%Name) == VelocityV_) then
+            !$OMP PARALLEL PRIVATE(i,j,k,CellFaceIsOpen)
+            !$OMP DO SCHEDULE(DYNAMIC,CHUNK)
+            do k = Me%WorkSize%KLB,Me%WorkSize%KUB
+            do j = Me%WorkSize%JLB,Me%WorkSize%JUB
+            do i = Me%WorkSize%ILB,Me%WorkSize%IUB
                     
-                    Property%Field%R3D(i,j,k) = 0.
+                Property%Field%R3D(i,j,k) = 0.
                     
-                    CellFaceIsOpen = PointsToFill3D(i-1,j,k) + PointsToFill3D(i  ,j,k)
+                CellFaceIsOpen = PointsToFill3D(i-1,j,k) + PointsToFill3D(i  ,j,k)
 
-                    if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i-1,j,k) + Matrix3D(i,j,k)) / 2.
-                enddo
-                enddo
-                enddo
-                !$OMP END DO
-                !$OMP END PARALLEL
-                deallocate(Matrix3D)
-            endif
+                if (CellFaceIsOpen == 2) Property%Field%R3D(i,j,k) = (Matrix3D(i-1,j,k) + Matrix3D(i,j,k)) / 2.
+            enddo
+            enddo
+            enddo
+            !$OMP END DO
+            !$OMP END PARALLEL
+            deallocate(Matrix3D)
         endif
     
     end subroutine Check_ComputeFacesVelocity3D
@@ -2173,7 +2158,28 @@ cd0:        if (BlockFound) then !Sobrinho Aqui
 
                 NewProperty%CoefField%TypeZUV = TranslateTypeZUV(Char_TypeZUV)
                 
-                if (NewProperty%Dim == Dim_2D) then
+                if (NewProperty%Upscaling) then
+                    !call fill_options_upscaling(NewProperty)
+                    call GetData(NewProperty%CoefField%DefaultValue, Me%ObjEnterData, iflag,    &
+                                 keyword        = 'DEFAULTVALUE',                               &  
+                                 SearchType     = FromBlockInBlock,                             &
+                                 ClientModule   = 'ModuleAssimilation',                         &
+                                 default        = FillValueReal,                                &
+                                 STAT           = STAT_CALL)            
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR04'
+                    
+                    call GetData(NewProperty%CoefField%IgnoreCells, Me%ObjEnterData, iflag,     &
+                                 keyword        = 'IGNORE_CELLS',                               &  
+                                 SearchType     = FromBlockInBlock,                             &
+                                 ClientModule   = 'ModuleAssimilation',                         &
+                                 default        = 0,                                            &
+                                 STAT           = STAT_CALL)            
+                    if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR05'
+                endif
+                
+                if (NewProperty%Dim == Dim_2D .or. NewProperty%Upscaling) then
+                    !If upscaling, creates decaytime in 2DD as there is no 3D option yet avaliable for filling
+                    !this matrix in the vertical coordinate
                     call ConstructPropertyCoefficients_2D(NewProperty, WaterPoints2D)
                 else if (NewProperty%Dim == Dim_3D) then
                     call ConstructPropertyCoefficients_3D(NewProperty, WaterPoints3D)
@@ -2212,19 +2218,11 @@ cd0:        if (BlockFound) then !Sobrinho Aqui
         integer, dimension(:,:  ), pointer             :: PointsToFill2D
         !Local-----------------------------------------------------------------
         integer                                        :: i, j, ILB, JLB, IUB, JUB
-        type(T_Size3D)                                 :: Size
-        type(T_Size3D)                                 :: WorkSize
         !----------------------------------------------------------------------
-        if (NewProperty%Upscaling) then
-            call GetGeometrySize(NewProperty%ID%ObjGeometry, Size = Size, WorkSize = WorkSize, STAT = STAT_CALL)
-            if(STAT_CALL .ne. SUCCESS_)stop 'Could not get size for upscaling 2D field - Assimilation'
-        else
-            Size = Me%Size ; WorkSize = Me%WorkSize
-        endif
         !Sobrinho - Passar a parte do upscaling para uma routina à parte em que é feito o fill matrix para a matriz filho e depois
         ! é feito o fill da matrix pai com chamada para o TwoWay, ou directamente no assimilation ou functions        
-        ILB = Size%ILB; JLB = Size%JLB
-        IUB = Size%IUB; JUB = Size%JUB
+        ILB = Me%Size%ILB; JLB = Me%Size%JLB
+        IUB = Me%Size%IUB; JUB = Me%Size%JUB
         
         allocate(NewProperty%CoefField%R2D (ILB:IUB, JLB:JUB))
         allocate(PointsToFill2D            (ILB:IUB, JLB:JUB))
@@ -2255,33 +2253,42 @@ cd0:        if (BlockFound) then !Sobrinho Aqui
         endif
 
         NewProperty%CoefField%R2D(:,:) = FillValueReal
+        
+        if (NewProperty%Upscaling) then !Sobrinho
+            call Fill_Upscaling_DecayTime(SonID = NewProperty%ID%ObjTwoWay,                          &
+                                          Matrix2D           = NewProperty%CoefField%R2D,            &
+                                          DecayValue         = NewProperty%CoefField%DefaultValue,   &
+                                          NumCellsToIgnore   = NewProperty%CoefField%IgnoreCells,    &
+                                          STAT               = STAT_CALL)
+        else
+            
+            call ConstructFillMatrix  (PropertyID           = NewProperty%CoefID,           &
+                                        EnterDataID          = Me%ObjEnterData,              &
+                                        TimeID               = Me%ObjTime,                   &
+                                        HorizontalGridID     = Me%ObjHorizontalGrid,         &
+                                        ExtractType          = FromBlockInBlock,             &
+                                        PointsToFill2D       = WaterPoints2D,                &
+                                        Matrix2D             = NewProperty%CoefField%R2D,    &
+                                        TypeZUV              = NewProperty%CoefField%TypeZUV,&
+                                        SpongeFILE_DT        = NewProperty%FilenameHDF,      &
+                                        STAT                 = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR05'
 
-        call ConstructFillMatrix  (PropertyID           = NewProperty%CoefID,           &
-                                    EnterDataID          = Me%ObjEnterData,              &
-                                    TimeID               = Me%ObjTime,                   &
-                                    HorizontalGridID     = Me%ObjHorizontalGrid,         &
-                                    ExtractType          = FromBlockInBlock,             &
-                                    PointsToFill2D       = WaterPoints2D,                &
-                                    Matrix2D             = NewProperty%CoefField%R2D,    &
-                                    TypeZUV              = NewProperty%CoefField%TypeZUV,&
-                                    SpongeFILE_DT        = NewProperty%FilenameHDF,      &
-                                    STAT                 = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR05'
-
-        call GetDefaultValue(NewProperty%CoefID%ObjFillMatrix, NewProperty%Field%DefaultValue, STAT = STAT_CALL)
-        if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR06'
+            call GetDefaultValue(NewProperty%CoefID%ObjFillMatrix, NewProperty%Field%DefaultValue, STAT = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR06'
                     
-        if (Me%Relaxation_HorAdv) then
-            call FindMinimumCoef(NewProperty%CoefField%Minimum,                    &
-                                    Field2D       = NewProperty%CoefField%R2D,     &
-                                    WaterPoints2D = PointsToFill2D)
+            if (Me%Relaxation_HorAdv) then
+                call FindMinimumCoef(NewProperty%CoefField%Minimum,                    &
+                                        Field2D       = NewProperty%CoefField%R2D,     &
+                                        WaterPoints2D = PointsToFill2D)
+            endif
+
+            if(.not. NewProperty%CoefID%SolutionFromFile)then
+                call KillFillMatrix(NewProperty%CoefID%ObjFillMatrix, STAT = STAT_CALL)
+                if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR07'
+            end if
         endif
-
-        if(.not. NewProperty%CoefID%SolutionFromFile)then
-            call KillFillMatrix(NewProperty%CoefID%ObjFillMatrix, STAT = STAT_CALL)
-            if (STAT_CALL /= SUCCESS_) stop 'ConstructPropertyCoefficients - ModuleAssimilation - ERR07'
-        end if
-                    
+          
         deallocate(PointsToFill2D)
         
     end subroutine ConstructPropertyCoefficients_2D
@@ -2658,7 +2665,7 @@ cd3:            if (PropertyX%Dim == Dim_2D) then
                                           VectorX_ID, VectorY_ID,                       & 
                                           N_Field,                                      &
                                           VectorX_2D, VectorY_2D,                       &
-                                          VectorX_3D, VectorY_3D, Upscaling             &
+                                          VectorX_3D, VectorY_3D, Upscaling,             &
                                           STAT)
 
         !Arguments--------------------------------------------------------------
@@ -2699,17 +2706,19 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
             
             !Sobrinho - Acrescentar possibilidade de existirem mais propertyX com o mesmo nome
             !Acrescentar nova searchproperty_upscaling
+
             nullify(PropertyX)
             call SearchProperty(PropertyX           = PropertyX,                        &
                                 PropertyXIDNumber   = VectorX_ID,                       &
                                 N_Field             = N_Field_,                         &
+                                UpscalingProp       = Upscaling_,                       &
                                 STAT                = STAT_CALL_X)                   
             nullify(PropertyY)
             call SearchProperty(PropertyX           = PropertyY,                        &
                                 PropertyXIDNumber   = VectorY_ID,                       &
                                 N_Field             = N_Field_,                         &
-                                STAT                = STAT_CALL_Y)                   
-
+                                UpscalingProp       = Upscaling_,                       &
+                                STAT                = STAT_CALL_Y)  
                            
 cd2:        if (STAT_CALL_X == SUCCESS_ .and. STAT_CALL_Y == SUCCESS_) then
 
@@ -2885,7 +2894,7 @@ i2:     if (PropertyX%Dim == Dim_3D) then
 
     subroutine GetAssimilationCoef(AssimilationID, ID, N_Field,                         &
                                    CoefField2D, CoefField3D, ColdRelaxPeriod,           &
-                                   ColdOrder, Minimum, STAT)
+                                   ColdOrder, Minimum, Upscaling, STAT)
 
         !Arguments--------------------------------------------------------------
         integer                                     :: AssimilationID
@@ -2895,16 +2904,15 @@ i2:     if (PropertyX%Dim == Dim_3D) then
         real, dimension(:,:,:), pointer, optional   :: CoefField3D
         real,    optional, intent(OUT)              :: Minimum, ColdRelaxPeriod, ColdOrder
         integer, optional, intent(OUT)              :: STAT
-
+        logical, optional, intent(IN)               :: Upscaling
         !External--------------------------------------------------------------
         integer                                     :: ready_        
         type (T_Property), pointer                  :: PropertyX    
         integer                                     :: STAT_CALL, STAT_CALL1
         integer                                     :: N_Field_
-
+        logical                                     :: Upscaling_
         !Local-----------------------------------------------------------------
         integer                                     :: STAT_
-
         !----------------------------------------------------------------------
 
         STAT_ = UNKNOWN_
@@ -2920,11 +2928,15 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                   
                 N_Field_ = N_Field
             else
                 N_Field_ = 1
-            endif            
+            endif
+            
+            Upscaling_ = .false.
+            if (present(Upscaling)) Upscaling_ = Upscaling
             
             call SearchProperty(PropertyX           = PropertyX,                        &
                                 PropertyXIDNumber   = ID,                               &
                                 N_Field             = N_Field_,                         &
+                                UpscalingProp       = Upscaling_,                       &
                                 STAT                = STAT_CALL)
                                             
 
@@ -2960,8 +2972,15 @@ cd3:            if (PropertyX%Dim == Dim_2D) then
                         CoefField3D => PropertyX%CoefField%R3D
 
                     endif
+                    !Sobrinho
+                    if (present(CoefField2D) .and. PropertyX%Upscaling) then
+                        call Read_Lock(mASSIMILATION_, Me%InstanceID)
 
-                    if (present(CoefField2D)) STAT_CALL1 =  NOT_ASSOCIATE_
+                        CoefField2D => PropertyX%CoefField%R2D
+                    elseif (present(CoefField2D)) then
+                        STAT_CALL1 =  NOT_ASSOCIATE_
+                    endif
+                    
 
                 endif cd3
 
@@ -3362,6 +3381,7 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.  &
                 NewProperty%ID%ObjHorizontalGrid = PropertyX%ID%ObjHorizontalGrid
                 NewProperty%ID%ObjHorizontalMap  = PropertyX%ID%ObjHorizontalMap
                 NewProperty%ID%ObjMap            = PropertyX%ID%ObjMap
+                NewProperty%ID%ObjBathymetry     = PropertyX%ID%ObjBathymetry
                 DomainIsAssociated = .true.
                 exit
             else
@@ -3530,17 +3550,19 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
     !--------------------------------------------------------------------------
 
 
-    subroutine SearchProperty(PropertyX, PropertyXIDNumber, N_Field, STAT)
+    subroutine SearchProperty(PropertyX, PropertyXIDNumber, N_Field, UpscalingProp, STAT)
 
         !Arguments-------------------------------------------------------------
         type(T_Property),           pointer             :: PropertyX
         integer         ,           intent (IN)         :: PropertyXIDNumber
         integer         , optional, intent (IN)         :: N_Field
+        logical         , optional, intent (IN)         :: UpscalingProp
         integer         , optional, intent (OUT)        :: STAT
 
         !Local-----------------------------------------------------------------
         integer                                         :: STAT_ 
         integer                                         :: N_Field_, Counter
+        logical                                         :: Upscaling
 
         !----------------------------------------------------------------------
 
@@ -3548,29 +3570,33 @@ cd1 :   if (ready_ .EQ. READ_LOCK_ERR_) then
 
         PropertyX => Me%FirstAssimilationProp
         
-        if (present(N_Field)) then
-            N_Field_ = N_Field
-        else
-            N_Field_ = 1
-        endif
+        N_Field_ = 1
+        if (present(N_Field)) N_Field_ = N_Field
+        Upscaling = .false.
+        if (present(UpscalingProp)) Upscaling = UpscalingProp
         
         Counter = 0 
-
-        do while (associated(PropertyX)) 
-            if (PropertyX%ID%IDNumber==PropertyXIDNumber) then
+        !Sobrinho
+        if (Upscaling) then
+            do while (associated(PropertyX)) 
+                if ((PropertyX%ID%IDNumber==PropertyXIDNumber) .and. PropertyX%Upscaling) then
             
-                Counter     = Counter + 1
-                
-                if (N_Field_ == Counter) then
-                    exit        
-                endif       
-                
-            endif
-
-            PropertyX => PropertyX%Next                 
-
-        end do    
-
+                    Counter     = Counter + 1
+                    if (N_Field_ == Counter) exit         
+                endif
+                PropertyX => PropertyX%Next                 
+            end do    
+        else
+            do while (associated(PropertyX)) 
+                if (PropertyX%ID%IDNumber==PropertyXIDNumber .and. .not. PropertyX%Upscaling) then
+            
+                    Counter     = Counter + 1
+                    if (N_Field_ == Counter) exit         
+                endif
+                PropertyX => PropertyX%Next                 
+            end do 
+        endif
+        
         if (associated(PropertyX)) then
             !Sobrinho  é aqui que vai buscar os novos valores???
             call AssimilationFromFile(PropertyX)
@@ -5322,6 +5348,9 @@ cd1 :   if (ready_ .NE. OFF_ERR_) then
                 if (nUsers == 0) stop 'KillAssimilation - ModuleAssimilation - ERR06'
 
                 nUsers = DeassociateInstance(mMAP_,             Me%ObjMap)
+                if (nUsers == 0) stop 'KillAssimilation - ModuleAssimilation - ERR07'
+                
+                nUsers = DeassociateInstance(mTwoWay_,             Me%ObjTwoWay)
                 if (nUsers == 0) stop 'KillAssimilation - ModuleAssimilation - ERR07'
 
                 !Deallocates Instance
