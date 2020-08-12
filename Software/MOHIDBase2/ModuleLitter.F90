@@ -6,9 +6,9 @@
 ! PROJECT       : Mohid Base 1
 ! MODULE        : Litter
 ! URL           : http://www.mohid.com
-! AFFILIATION   : HIDROMOD & ????
+! AFFILIATION   : HIDROMOD
 ! DATE          : April 2018
-! REVISION      : Paulo Leitao & ????
+! REVISION      : Paulo Leitao
 ! DESCRIPTION   : Module manages the beach and killing of lagrangian litter particles
 !
 !------------------------------------------------------------------------------

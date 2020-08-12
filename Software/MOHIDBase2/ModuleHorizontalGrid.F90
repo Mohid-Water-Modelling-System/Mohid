@@ -4848,7 +4848,7 @@ cd23:   if (Me%CoordType == CIRCULAR_) then
         real(8), intent(Out)            :: X, Y
 
         !Local-----------------------------------------------------------------
-        real(8)                         :: radians, EarthRadius, Rad_Lat, CosenLat
+        !real(8)                         :: radians, EarthRadius, Rad_Lat, CosenLat
 
         !Begin-----------------------------------------------------------------
                 

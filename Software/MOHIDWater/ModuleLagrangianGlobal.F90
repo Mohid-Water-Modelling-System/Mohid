@@ -497,8 +497,13 @@ Module ModuleLagrangianGlobal
     use ModuleField4D,          only : ConstructField4D, ModifyField4DXYZ, GetBathymXY, KillField4D
     
 #ifdef _LITTER_    
-    use ModuleLitter
+    use ModuleLitter,           only : ConstructLitter, ModifyLitter, KillLitter
 #endif
+
+#ifdef _OUTPUT_GRID_
+    use ModuleOutputGrid,       only : ConstructOutputGrid, ModifyOutputGrid, KillOutputGrid
+#endif
+
     !use ModuleVoronoi3D,        only : Voronoi_3D_volume
 
 !#ifdef _CGI_
@@ -1809,6 +1814,7 @@ Module ModuleLagrangianGlobal
         real                                    :: NearCoastDistance           = null_real
         
         logical                                 :: LitterON                    = .false. 
+        logical                                 :: OutputGridON                = .false.         
 
         type(T_Statistic)                       :: Statistic
         type(T_MeteoOcean)                      :: MeteoOcean
@@ -1871,6 +1877,7 @@ Module ModuleLagrangianGlobal
         integer                                 :: ObjEnterDataClone    = 0
         integer                                 :: ObjEnterDataOriginal = 0
         integer                                 :: ObjLitter            = 0
+        integer                                 :: ObjOutputGrid        = 0        
         
         logical                                 :: VoronoiVolume        = .false. 
 
@@ -11960,6 +11967,19 @@ em1:    do em =1, Me%EulerModelNumber
 #endif              
                     
 
+#ifdef _OUTPUT_GRID_
+        call ConstructOutputGrid(ObjOutputGridID    = Me%ObjOutputGrid,                 &
+                                 TimeID             = Me%ExternalVar%ObjTime,           &
+                                 ConstructData      = Me%Files%ConstructData,           &
+                                 block_begin        = '<BeginOutputGrid>',              &
+                                 block_end          = '<EndOutputGrid>',                &
+                                 FromWathBlock      = FromBlock,                        &
+                                 OutputGridON       = Me%OutputGridON,                  &
+                                 STAT               = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ConstructHDF5Output - ModuleLagrangianGlobal - ERR100'
+#endif      
+                    
+
     end subroutine ConstructHDF5Output
   
     !--------------------------------------------------------------------------
@@ -13472,7 +13492,11 @@ cd1 :   if ((ready_ .EQ. IDLE_ERR_     ) .OR.                                 &
                 
                 !Compute beaching processes specific of litter
                 if (Me%LitterON) then
-                    call ProcessLitter
+                    call ProcessLitter      ()
+                endif
+                
+                if (Me%OutputGridON) then
+                    call ProcessOutputGrid  ()
                 endif
                  
                 !Eliminates Particles
@@ -22813,7 +22837,11 @@ CurrOr: do while (associated(CurrentOrigin))
         logical,    dimension(:), pointer           :: Beach, KillPartic        
         type (T_Origin), pointer                    :: CurrentOrigin
         type (T_Partic), pointer                    :: CurrentPartic
-        integer                                     :: n, STAT_CALL, nTotal
+        integer                                     :: n, nTotal
+        
+#ifdef _LITTER_
+        integer                                     :: STAT_CALL
+#endif
 
         !Begin-----------------------------------------------------------------
 
@@ -22907,6 +22935,76 @@ dw3:    do while (associated(CurrentOrigin))
 
     !--------------------------------------------------------------------------
         
+    
+    !--------------------------------------------------------------------------
+    subroutine ProcessOutputGrid ()
+
+        !Arguments-------------------------------------------------------------
+   
+
+        !Local-----------------------------------------------------------------
+        real(8),    dimension(:), pointer           :: Longitude, Latitude
+        type (T_Origin), pointer                    :: CurrentOrigin
+        type (T_Partic), pointer                    :: CurrentPartic
+        integer                                     :: n, nTotal
+
+#ifdef _OUTPUT_GRID_        
+        integer                                     :: STAT_CALL        
+#endif  
+
+        !Begin-----------------------------------------------------------------
+        
+        nTotal = 0
+        
+        CurrentOrigin => Me%FirstOrigin
+dw1:    do while (associated(CurrentOrigin))
+            nTotal = nTotal + CurrentOrigin%nParticle
+            CurrentOrigin => CurrentOrigin%Next
+        enddo dw1
+    
+
+        allocate   (Longitude   (nTotal))
+        allocate   (Latitude    (nTotal))
+            
+        n = 1
+        
+        CurrentOrigin => Me%FirstOrigin
+        
+dw2:    do while (associated(CurrentOrigin))
+
+            CurrentPartic => CurrentOrigin%FirstPartic
+           
+            do while (associated(CurrentPartic))
+
+                Longitude   (n) = CurrentPartic%Position%CoordX
+                Latitude    (n) = CurrentPartic%Position%CoordY                
+                
+                CurrentPartic => CurrentPartic%Next
+                n = n + 1
+            enddo
+            CurrentOrigin => CurrentOrigin%Next
+        enddo dw2
+            
+#ifdef _OUTPUT_GRID_
+
+        call ModifyOutputGrid(ObjOutputGridID   = Me%ObjOutputGrid,                     &
+                                nParticles      = nTotal,                               &
+                                CurrentTime     = Me%Now,                               &
+                                Longitude       = Longitude,                            &
+                                Latitude        = Latitude,                             &
+                                STAT            = STAT_CALL)
+        if (STAT_CALL /= SUCCESS_) stop 'ProcessOutputGrid - ModuleLagrangianGlobal - ERR20'
+#endif  
+
+        deallocate   (Longitude   )
+        deallocate   (Latitude    )
+
+        nullify(CurrentPartic)
+        nullify(CurrentOrigin)
+
+    end subroutine ProcessOutputGrid
+
+    !--------------------------------------------------------------------------
     
     !--------------------------------------------------------------------------
     subroutine ComputeAccidentProbability ()
@@ -30939,6 +31037,12 @@ d2:         do em = 1, Me%EulerModelNumber
                                   STAT          = STAT_CALL)
                 if (STAT_CALL /= SUCCESS_) stop 'DeallocateLagrangianGlobal - ModuleLagrangianGlobal - ERR190'
             endif                
+#endif  
+
+#ifdef _OUTPUT_GRID_
+            call KillOutputGrid(ObjOutputGridID = Me%ObjOutputGrid,                     &
+                                STAT            = STAT_CALL)
+            if (STAT_CALL /= SUCCESS_) stop 'DeallocateLagrangianGlobal - ModuleLagrangianGlobal - ERR200'
 #endif  
 
             if (Me%State%MonitorLag) then
